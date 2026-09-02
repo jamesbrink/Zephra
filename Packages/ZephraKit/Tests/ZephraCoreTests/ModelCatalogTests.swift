@@ -10,7 +10,7 @@ struct ModelCatalogTests {
         #expect(ModelCatalog.fitting(physicalMemory: 8 * 1024 * 1024 * 1024).isEmpty)
     }
 
-    @Test("a 16 GB Mac is not offered the 8-bit Turbo model, which needs ~13 GB resident")
+    @Test("a 16 GB Mac is not offered the 8-bit Turbo model, which needs ~12.2 GB resident")
     func sixteenGigabytesDoesNotFitTurbo() {
         let fitting = ModelCatalog.fitting(physicalMemory: 16 * 1024 * 1024 * 1024)
         #expect(!fitting.contains(ModelCatalog.zImageTurbo8bit))

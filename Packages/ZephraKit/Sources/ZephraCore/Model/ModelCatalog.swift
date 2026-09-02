@@ -1,6 +1,7 @@
 /// The models Zephra ships knowledge of, hand-written because each one needs verified numbers.
 public enum ModelCatalog {
-    /// Z-Image Turbo at eight-bit precision: the fastest variant that fits a 16 GB Mac.
+    /// Z-Image Turbo at eight-bit precision: the only variant Zephra ships, and it needs more
+    /// than a 16 GB Mac can spare. `fitting` excludes it below roughly 21 GB of physical memory.
     public static let zImageTurbo8bit = ModelDescriptor(
         id: "z-image-turbo-8bit",
         displayName: "Z-Image Turbo",
@@ -13,9 +14,10 @@ public enum ModelCatalog {
         ),
         quantization: .int8,
         downloadBytes: 13_280_000_000,
-        // Measured on an M4 Max: ~13 GB live after a generation, ~27 GB peak while loading
-        // weights. The load spike is a known vendored-loader cost; see VENDORED.md.
-        residentBytes: 13_000_000_000,
+        // Measured on an M4 Max, deterministic across six repetitions: 12236 MB live after a
+        // 1024-pixel generation and 23501 MB peak during one. The peak is the VAE decode, not
+        // weight loading, which is lazy and never exceeds 7.2 GB; see VENDORED.md.
+        residentBytes: 12_240_000_000,
         maxPromptTokens: 512,
         capabilities: ModelCapabilities(
             sizeAlignment: 16,
