@@ -31,6 +31,9 @@ public struct ImageLibrary: Sendable {
 
     /// The most recently written images, newest first. An unreadable folder reads as empty,
     /// because a missing library is a normal state rather than a failure.
+    ///
+    /// Nothing calls this yet: it is how the filmstrip will be refilled from disk at launch,
+    /// rather than starting empty every session.
     public func recent(limit: Int) -> [URL] {
         guard limit > 0 else { return [] }
         let keys: [URLResourceKey] = [.creationDateKey]

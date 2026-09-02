@@ -48,6 +48,9 @@ public enum ModelCatalog {
     }
 
     /// The models that leave enough headroom on a Mac with this much RAM to stay responsive.
+    ///
+    /// Nothing calls this while there is one model: it is the filter behind the model picker,
+    /// and it is tested so the numbers in the catalog stay honest in the meantime.
     public static func fitting(physicalMemory: UInt64) -> [ModelDescriptor] {
         let budget = Double(physicalMemory) * 0.6
         return all.filter { Double($0.residentBytes) <= budget }

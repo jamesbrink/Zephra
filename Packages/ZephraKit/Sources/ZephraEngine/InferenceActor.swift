@@ -69,6 +69,9 @@ actor InferenceActor {
     }
 
     /// Releases the weights. The next `prepare` will load them again.
+    ///
+    /// Nothing calls this yet: it is the first half of switching models, which has to give the
+    /// 13 GB back before it asks for the next set.
     func unload() {
         backend?.unload()
         backend = nil
