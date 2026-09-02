@@ -20,7 +20,6 @@ struct RootView: View {
                 if store.settings.prompt.isEmpty, !saved.isEmpty {
                     store.settings.prompt = lastPrompt
                 }
-                guard !InterfacePreview.isActive else { return }
                 await store.bootstrap()
             }
             .onChange(of: store.settings.prompt) { _, prompt in

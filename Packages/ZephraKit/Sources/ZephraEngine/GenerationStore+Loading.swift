@@ -1,0 +1,55 @@
+import ZephraCore
+
+/// Getting the model onto the machine and into memory: the one long operation that has to
+/// finish before anything else can start. Split out of `GenerationStore.swift` so the observed
+/// surface of the store stays readable on its own.
+extension GenerationStore {
+    /// Finds or downloads the model, loads it, and warms up. Call once from the root view.
+    /// Calling it again once the engine is running is a no-op, so a re-rendered root is free.
+    public func bootstrap() async {
+        guard let task = startLoading() else { return }
+        await task.value
+    }
+
+    /// Starts the same work as `bootstrap` without waiting for it, for a button that only has
+    /// to kick it off: the remedy after a failure, and the resume after a cancelled download.
+    public func retry() {
+        startLoading()
+    }
+
+    /// Begins a load unless one is already under way, handing back the task that runs it. The
+    /// store keeps that task so `cancel()` has something to cancel while the model is loading.
+    /// A preview store has no backend to build, so it never starts anything.
+    @discardableResult
+    private func startLoading() -> Task<Void, Never>? {
+        guard let backendFactory else { return nil }
+        switch state {
+        case .idle, .failed: break
+        default: return nil
+        }
+        transition(to: .checkingModel)
+        let task = Task { await self.load(with: backendFactory) }
+        bootstrapTask = task
+        return task
+    }
+
+    /// The body of a load, from finding the weights to the throwaway first generation.
+    private func load(with backendFactory: @escaping BackendFactory) async {
+        let inference = inference ?? InferenceActor(factory: backendFactory)
+        self.inference = inference
+        let pump = EngineEventPump { [weak self] event in self?.applyLoadEvent(event) }
+        do {
+            try await pump.run { sink in try await inference.prepare(descriptor, events: sink) }
+            try Task.checkCancellation()
+            transition(to: .warmingUp)
+            try await inference.warmUp(descriptor)
+            transition(to: .ready)
+        } catch is CancellationError {
+            transition(to: .idle)
+        } catch let error as BackendError {
+            transition(to: .failed(.backend(error)))
+        } catch {
+            transition(to: .failed(.backend(.loadFailed(error.localizedDescription))))
+        }
+    }
+}
