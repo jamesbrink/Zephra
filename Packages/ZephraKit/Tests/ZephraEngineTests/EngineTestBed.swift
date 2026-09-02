@@ -19,6 +19,10 @@ final class EngineTestBed {
         try? FileManager.default.removeItem(at: directory)
     }
 
+    /// The output folder seen as a library, for filling it the way an earlier session would
+    /// have before a store is made over it.
+    var library: ImageLibrary { ImageLibrary(root: directory) }
+
     /// A registry in which the mock backend answers for every family this bed's tests use.
     func registry(_ families: [BackendID] = [.zImage]) -> BackendRegistry {
         let control = control
