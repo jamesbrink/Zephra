@@ -13,6 +13,7 @@ struct SeedControl: View {
                 .font(.callout)
                 .monospaced()
                 .foregroundStyle(.secondary)
+                .fixedSize()
                 .padding(.horizontal, 4)
                 .help("Seed \(String(store.settings.seed))")
             Button {
