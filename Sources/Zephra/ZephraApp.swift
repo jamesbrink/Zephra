@@ -37,6 +37,15 @@ struct ZephraApp: App {
             cacheLimitBytes: tuning.cacheLimitBytes,
             memoryLimitBytes: tuning.memoryLimitBytes
         )
-        return GenerationStore(backendFactory: ZImageBackendFactory.make)
+        var registry = BackendRegistry()
+        registry.register(.zImage, ZImageBackendFactory.make)
+        return GenerationStore(descriptor: ZephraApp.savedModel(), registry: registry)
+    }
+
+    /// The model chosen last time, or the catalog's default when nothing was chosen or the
+    /// saved identifier belongs to a build that no longer ships that model.
+    private static func savedModel() -> ModelDescriptor {
+        let saved = UserDefaults.standard.string(forKey: AppSettings.selectedModelID)
+        return saved.flatMap(ModelCatalog.descriptor(id:)) ?? ModelCatalog.default
     }
 }

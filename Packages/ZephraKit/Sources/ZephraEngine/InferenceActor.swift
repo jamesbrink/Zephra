@@ -5,8 +5,8 @@ import ZephraCore
 ///
 /// A generation is tens of seconds of synchronous Metal work. Running that on the cooperative
 /// thread pool would starve every other task in the process, so this actor takes a serial
-/// dispatch queue as its executor and keeps the whole backend on it. The backend itself is not
-/// Sendable, which is why it arrives as a factory and is built here rather than passed in.
+/// dispatch queue as its executor and keeps the whole backend on it. Backends are not Sendable,
+/// which is why a registry of factories arrives here and the backend itself is built inside.
 actor InferenceActor {
     /// The prompt used for the throwaway generation that pays the first-run compilation cost.
     private static let warmUpPrompt = "a plain grey square"
@@ -14,23 +14,24 @@ actor InferenceActor {
     private static let warmUpSize = ImageSize(width: 512, height: 512)
 
     private let queue = DispatchSerialQueue(label: "io.zephra.inference", qos: .userInitiated)
-    private let factory: BackendFactory
+    private let registry: BackendRegistry
     private var backend: (any ImageGenerationBackend)?
+    private var backendID: BackendID?
 
     /// Pins every method of this actor to the inference queue instead of the cooperative pool.
     nonisolated var unownedExecutor: UnownedSerialExecutor {
         queue.asUnownedSerialExecutor()
     }
 
-    /// Creates an actor that will build its backend from `factory` the first time it needs one.
-    init(factory: @escaping BackendFactory) {
-        self.factory = factory
+    /// Creates an actor that will build backends out of `registry` as descriptors arrive.
+    init(registry: BackendRegistry) {
+        self.registry = registry
     }
 
     /// Fetches the weights if they are missing, then reads them into memory, reporting both
     /// stages through `events`. Doing nothing is the right answer if the model is already loaded.
     func prepare(_ descriptor: ModelDescriptor, events: EngineEventSink) async throws {
-        let live = backend(for: descriptor)
+        let live = try backend(for: descriptor)
         guard live.loadedModelID != descriptor.id else { return }
         let localPath = try await live.ensureAvailable(descriptor) { event in
             events.send(.download(event))
@@ -40,10 +41,22 @@ actor InferenceActor {
         }
     }
 
+    /// Whether `descriptor`'s weights are already on this Mac. Never downloads, and never
+    /// disturbs what is loaded: a backend built only to answer this is thrown away afterwards.
+    func availability(of descriptor: ModelDescriptor) async -> ModelAvailability {
+        if let backend, backendID == descriptor.backend {
+            return await backend.availability(of: descriptor)
+        }
+        guard let probe = try? registry.make(descriptor) else {
+            return .missing(reason: "No engine in this build can run \(descriptor.backend.rawValue) models.")
+        }
+        return await probe.availability(of: descriptor)
+    }
+
     /// Runs one tiny generation and throws the result away, so the first image the user asks
     /// for is not the one that pays for kernel compilation.
     func warmUp(_ descriptor: ModelDescriptor) async throws {
-        let live = backend(for: descriptor)
+        let live = try backend(for: descriptor)
         let settings = descriptor.capabilities.clamp(
             GenerationSettings(
                 prompt: Self.warmUpPrompt,
@@ -68,19 +81,22 @@ actor InferenceActor {
         }
     }
 
-    /// Releases the weights. The next `prepare` will load them again.
-    ///
-    /// Nothing calls this yet: it is the first half of switching models, which has to give the
-    /// 13 GB back before it asks for the next set.
+    /// Releases the weights. The next `prepare` will load them again. The first half of
+    /// switching models: the store calls this before it bootstraps the next one.
     func unload() {
         backend?.unload()
         backend = nil
+        backendID = nil
     }
 
-    private func backend(for descriptor: ModelDescriptor) -> any ImageGenerationBackend {
-        if let backend { return backend }
-        let made = factory(descriptor)
+    /// The live backend, rebuilt whenever the descriptor names a different family. Two backends
+    /// are never held at once: the old one is unloaded before the new one exists.
+    private func backend(for descriptor: ModelDescriptor) throws -> any ImageGenerationBackend {
+        if let backend, backendID == descriptor.backend { return backend }
+        unload()
+        let made = try registry.make(descriptor)
         backend = made
+        backendID = descriptor.backend
         return made
     }
 }
