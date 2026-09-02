@@ -23,8 +23,8 @@ extension ZImageBackend {
                     \(directory.path(percentEncoded: false)): missing \(missing).
                     """
             )
-        case .huggingFace(let repoID, _, _):
-            guard ZImageHubCache.snapshot(of: repoID) != nil else {
+        case .huggingFace(let repoID, let revision, _):
+            guard ZImageHubCache.snapshot(of: repoID, revision: revision) != nil else {
                 return .needsDownload(bytes: descriptor.downloadBytes)
             }
             return .available
