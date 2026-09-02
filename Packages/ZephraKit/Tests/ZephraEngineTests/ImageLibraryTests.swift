@@ -28,6 +28,20 @@ struct ImageLibraryTests {
         #expect(second.lastPathComponent == "zephra-20260304-050607-s42-2.png")
     }
 
+    @Test("a hundredth image with the same name gets a unique name rather than clobbering")
+    func suffixesRunOut() throws {
+        let library = ImageLibrary(root: Self.scratchDirectory())
+        defer { try? FileManager.default.removeItem(at: library.root) }
+        let stamp = Date(timeIntervalSince1970: 1_772_000_000)
+
+        var names: Set<String> = []
+        for _ in 0..<101 {
+            let url = try library.write(Self.image(seed: 7, createdAt: stamp))
+            #expect(names.insert(url.lastPathComponent).inserted, "\(url.lastPathComponent) reused")
+        }
+        #expect(try Self.pngCount(in: library.root) == 101)
+    }
+
     @Test("recent lists the newest images first and honours the limit")
     func recentOrdering() throws {
         let library = ImageLibrary(root: Self.scratchDirectory())
@@ -52,6 +66,13 @@ struct ImageLibraryTests {
     private static func scratchDirectory() -> URL {
         URL(filePath: NSTemporaryDirectory())
             .appending(path: "ZephraLibraryTests-\(UUID().uuidString)", directoryHint: .isDirectory)
+    }
+
+    private static func pngCount(in root: URL) throws -> Int {
+        try FileManager.default
+            .contentsOfDirectory(atPath: root.path(percentEncoded: false))
+            .filter { $0.hasSuffix(".png") }
+            .count
     }
 
     private static func image(seed: UInt64, createdAt: Date) -> GeneratedImage {

@@ -51,6 +51,8 @@ public struct ImageLibrary: Sendable {
         "zephra-\(Self.stamp(image.createdAt))-s\(image.settings.seed).png"
     }
 
+    /// A name nothing is using yet: the plain one, then `-2` through `-99`, then a UUID. The
+    /// last step exists so a full run of suffixes can never make the write clobber an image.
     private func availableURL(named name: String) -> URL {
         let first = root.appending(path: name)
         guard Self.exists(first) else { return first }
@@ -59,7 +61,7 @@ public struct ImageLibrary: Sendable {
             let candidate = root.appending(path: "\(stem)-\(suffix).png")
             if !Self.exists(candidate) { return candidate }
         }
-        return first
+        return root.appending(path: "\(stem)-\(UUID().uuidString.lowercased()).png")
     }
 
     private static func exists(_ url: URL) -> Bool {
