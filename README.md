@@ -90,11 +90,57 @@ Zephra/
 │   │   ├── Sources/ZephraEngine/        # actor + store, depends on ZephraCore only
 │   │   └── Tests/ZephraCoreTests, ZephraEngineTests
 │   └── ZephraBackendZImage/       # ours — the only package that imports ZImage
+│       └── Sources/, Tests/ZephraBackendZImageTests
 ├── Sources/Zephra/                # app target: SwiftUI only, composition root is ZephraApp.swift
 │   └── ZephraApp.swift  Views/**  Support/**  Resources/{Info.plist, Assets.xcassets, Colors}
 ├── Sources/ZephraBench/main.swift # headless benchmark tool
-└── scripts/screenshot.sh, prefetch-model.sh
+└── scripts/screenshot.sh, prefetch-model.sh, make-icon.swift,
+            sign-release.sh, notarize-release.sh
 ```
+
+## Development
+
+- `make test` — `ZephraCore` and `ZephraEngine` under `swift test`. No MLX, a couple
+  of seconds.
+- `make test-backend` — the `ZephraBackendZImage` mapping tests. They link MLX, so
+  they go through `xcodebuild` rather than `swift test` and take longer; nothing in
+  them loads weights or touches the GPU.
+- `make icon` — re-render `AppIcon.appiconset` from `scripts/make-icon.swift`.
+- `make lint-layers` — check the module boundaries above.
+
+### Releasing
+
+`make release` regenerates the project, builds Release, signs the app and the
+resource bundles inside it with a Developer ID Application certificate (hardened
+runtime, secure timestamp), verifies with `codesign --verify --deep --strict` and
+`spctl -a -t exec -vv`, and packages `build/Zephra.zip` with `ditto`. It needs no
+network. Ordinary `make build` is unaffected and still signs ad-hoc, so a machine
+with no certificate can build and run the app.
+
+`SIGN_IDENTITY` picks the certificate; left empty, the first "Developer ID
+Application" identity in the keychain is used.
+
+Notarization is a separate step, because it is the only one that talks to Apple.
+Store the credentials once — the password is an app-specific password from
+[appleid.apple.com](https://appleid.apple.com), not the Apple account password:
+
+```sh
+xcrun notarytool store-credentials zephra-notary \
+    --apple-id you@example.com \
+    --team-id ABCDE12345 \
+    --password abcd-efgh-ijkl-mnop
+```
+
+Then:
+
+```sh
+make release
+make notarize
+```
+
+`make notarize` submits the zip, waits for the verdict, staples the ticket to the
+app, rebuilds the zip from the stapled bundle so it passes Gatekeeper offline, and
+re-checks with `spctl`. `NOTARY_PROFILE=...` selects a differently named profile.
 
 ## Roadmap
 

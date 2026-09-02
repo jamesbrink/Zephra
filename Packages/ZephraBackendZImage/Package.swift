@@ -22,6 +22,17 @@ let package = Package(
                 .product(name: "ZImage", package: "ZImageKit"),
                 .product(name: "MLX", package: "mlx-swift"),
             ]
-        )
+        ),
+        // Covers the pure mapping layer only: nothing here loads weights or touches
+        // the GPU. It still needs xcodebuild to build, because MLX links Metal.
+        // Run it with `make test-backend`.
+        .testTarget(
+            name: "ZephraBackendZImageTests",
+            dependencies: [
+                "ZephraBackendZImage",
+                .product(name: "ZephraCore", package: "ZephraKit"),
+                .product(name: "ZImage", package: "ZImageKit"),
+            ]
+        ),
     ]
 )
