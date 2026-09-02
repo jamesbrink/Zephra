@@ -1,5 +1,6 @@
 import Foundation
 import ZephraCore
+import ZephraSnapshot
 import ZImage
 
 /// Runs Z-Image family models through the vendored MLX pipeline.
@@ -37,7 +38,7 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
     ) async throws -> URL {
         switch descriptor.source {
         case .localDirectory(let directory):
-            return try ZImageLocalSnapshot.verified(directory, descriptor: descriptor)
+            return try LocalSnapshot.zImage.verified(directory, descriptor: descriptor)
         case .huggingFace(let repoID, let revision, let filePatterns):
             return try await download(repoID, revision: revision, filePatterns: filePatterns,
                                       descriptor: descriptor, onProgress: onProgress)
@@ -72,7 +73,7 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
         } catch let error as ModelResolutionError {
             throw ZImageErrorMapping.downloadError(error, descriptor: descriptor)
         } catch {
-            throw BackendError.downloadFailed(ZImageErrorMapping.message(error))
+            throw BackendError.downloadFailed(error.readableMessage)
         }
     }
 
@@ -96,7 +97,7 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
         } catch let error as CancellationError {
             throw error
         } catch {
-            throw BackendError.loadFailed(ZImageErrorMapping.message(error))
+            throw BackendError.loadFailed(error.readableMessage)
         }
         loadedModelID = descriptor.id
         loadedDescriptor = descriptor
@@ -128,7 +129,7 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
         } catch let error as CancellationError {
             throw error
         } catch {
-            throw BackendError.generationFailed(ZImageErrorMapping.message(error))
+            throw BackendError.generationFailed(error.readableMessage)
         }
     }
 

@@ -1,6 +1,7 @@
 import Foundation
 import MLX
 import Testing
+import ZephraTestSupport
 
 @testable import ZephraBackendZImage
 

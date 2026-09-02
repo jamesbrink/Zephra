@@ -2,16 +2,18 @@ import Foundation
 
 /// Finds what the Hugging Face hub cache already holds, without opening a connection.
 ///
-/// The vendored `ModelResolution` does the same lookup on its way to a download, but only as a
-/// private step it cannot be asked about. This uses the same cache directory, honouring
-/// `HF_HUB_CACHE` then `HF_HOME`, and the same test for a usable snapshot. It is stricter in one
-/// place on purpose: the vendored version takes whichever snapshot the file system lists first
-/// and never looks at the revision, so a stale snapshot left behind by an earlier revision can
-/// answer for the one that would actually be loaded. Keep the two in step when re-syncing the
-/// vendored copy.
-nonisolated enum ZImageHubCache {
+/// This is what lets a model picker say "13.3 GB download" without starting one, so it reads the
+/// disk and nothing else. It is model-agnostic: every answer comes from the repository id and
+/// the revision it is given.
+///
+/// A pipeline's own resolver usually performs the same lookup on its way to a download, but as a
+/// private step that cannot be asked about, and often without regard for the revision — so a
+/// stale snapshot left by an earlier revision answers for the one that would actually load.
+/// This deliberately does not do that. When re-syncing a vendored pipeline, check whether its
+/// resolver has drifted from the rules below.
+public nonisolated enum HubCache {
     /// The hub cache root: `HF_HUB_CACHE`, else `HF_HOME/hub`, else `~/.cache/huggingface/hub`.
-    static func directory(
+    public static func directory(
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> URL {
         if let hubCache = environment["HF_HUB_CACHE"], !hubCache.isEmpty {
@@ -35,7 +37,7 @@ nonisolated enum ZImageHubCache {
     ///
     /// A snapshot counts only if it has a config and at least one safetensors file, which is what
     /// tells a finished download apart from an abandoned one.
-    static func snapshot(
+    public static func snapshot(
         of repoID: String,
         revision: String = "main",
         in cache: URL = directory()

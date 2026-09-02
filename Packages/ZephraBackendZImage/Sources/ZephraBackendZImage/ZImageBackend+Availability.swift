@@ -1,5 +1,6 @@
 import Foundation
 import ZephraCore
+import ZephraSnapshot
 
 /// Answering "is this model on the machine?" from the disk alone. Split out of
 /// `ZImageBackend.swift` so the loading and generating half of the backend reads on its own.
@@ -14,7 +15,7 @@ extension ZImageBackend {
     ) async -> ModelAvailability {
         switch descriptor.source {
         case .localDirectory(let directory):
-            guard let missing = ZImageLocalSnapshot.missingEntry(in: directory) else {
+            guard let missing = LocalSnapshot.zImage.missingEntry(in: directory) else {
                 return .available
             }
             return .missing(
@@ -24,7 +25,7 @@ extension ZImageBackend {
                     """
             )
         case .huggingFace(let repoID, let revision, _):
-            guard ZImageHubCache.snapshot(of: repoID, revision: revision) != nil else {
+            guard HubCache.snapshot(of: repoID, revision: revision) != nil else {
                 return .needsDownload(bytes: descriptor.downloadBytes)
             }
             return .available
