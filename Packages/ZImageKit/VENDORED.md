@@ -60,15 +60,22 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
   one lazy graph the decoder held every intermediate feature map alive, and at 1024 pixels it took
   peak memory from 16.4 GB to 26.5 GB, more than the weights themselves. Staging it caps the peak
   at 23.5 GB. Decode time is unchanged.
+- `Weights/WeightsApplyError.swift` (new), `Weights/WeightsMapping.swift`,
+  `Pipeline/ZImageControlPipeline.swift`: a failed weight apply used to be logged and swallowed, so
+  a model with randomly initialised layers reported a successful load. That is how the
+  `all_final_layer` bug above stayed hidden. `applyToModule` now throws `WeightsApplyError`, and so
+  do `applyTransformer`, `applyTextEncoder`, `applyVAE` and the empty-weights paths that previously
+  warned and returned. The error propagates out of `loadModel`. The control pipeline carried its
+  own copy of the same swallowing apply; it throws too, and it gained the same `all_final_layer`
+  key filter, without which making it throw would turn a load that used to half-succeed into a hard
+  failure for ControlNet users. Zephra does not exercise the control path, so that half is
+  compile-verified only.
 - `Pipeline/ZImageStepProfile.swift` (new), `Pipeline/ZImagePipeline.swift`: opt-in phase timing and
   MLX memory reporting for the denoise loop, the text encoder and the VAE, enabled with
   `ZEPHRA_PROFILE_STEP=1`. Compiles to a branch on a `static let` when off.
 
 ## Known upstream behaviour (not patched)
 
-- `Weights/WeightsMapping.swift` still only logs when `Module.update` throws, so a future mapping
-  mistake would again load a model with random weights and report success. The keys that caused it
-  are now withheld, but the swallowed error remains. Worth making fatal.
 - A denoise step is dominated by the 8-bit quantized matmuls, and those already run near the rate
   the same shapes reach in isolation. Measured with `ZephraBench --micro`, 8-bit group-size-32
   matmul is as fast as the dense bfloat16 equivalent at these shapes, so dequantizing the DiT to
