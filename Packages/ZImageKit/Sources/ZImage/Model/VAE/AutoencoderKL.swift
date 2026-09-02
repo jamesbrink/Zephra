@@ -350,8 +350,13 @@ private final class VAEDecoder: Module {
   func callAsFunction(_ latents: MLXArray) -> MLXArray {
     var hidden = convIn(latents)
     hidden = midBlock(hidden)
+    // ZEPHRA-PATCH: evaluate after each up block. Left as one lazy graph the decoder holds
+    // every intermediate feature map alive until the end, and at 1024 pixels that took the
+    // process from 16 GB to 27 GB, more than the weights themselves. Evaluating per block lets
+    // each resolution's buffers be reclaimed before the next, larger one is allocated.
     for block in upBlocks {
       hidden = block(hidden)
+      MLX.eval(hidden)
     }
     hidden = silu(convNormOut(hidden))
     hidden = convOut(hidden)

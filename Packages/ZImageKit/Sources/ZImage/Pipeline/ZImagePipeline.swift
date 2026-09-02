@@ -84,6 +84,13 @@ public final class ZImagePipeline {
   private var modelSnapshot: URL?
   private var useDynamicLoRA: Bool = false
 
+  // ZEPHRA-PATCH: returning MLX's scratch to the system after every generation trades the next
+  // generation's warm buffers for a smaller footprint. It is worth it here because the VAE
+  // decode's peak is what pushes this process into memory pressure, but it is a knob.
+  /// Whether to hand MLX's cached scratch memory back after each generation.
+  public var clearsCacheAfterGeneration =
+    ProcessInfo.processInfo.environment["ZEPHRA_KEEP_CACHE"] != "1"
+
   public init(logger: Logger = Logger(label: "z-image.pipeline"), hubApi: HubApi = .shared) {
     self.logger = logger
     self.hubApi = hubApi
@@ -265,28 +272,38 @@ public final class ZImagePipeline {
     } else {
       logger.info("Reusing cached tokenizer")
     }
+    ZImageStepProfile.noteMemory("mem: before text enc")
     logger.info("Loading text encoder...")
     let te = try loadTextEncoder(snapshot: snapshot, config: configs.textEncoder)
     let textEncoderWeights = try weightsMapper.loadTextEncoder()
-    ZImageWeightsMapping.applyTextEncoder(weights: textEncoderWeights, to: te, manifest: manifest, logger: logger)
+    try ZImageWeightsMapping.applyTextEncoder(weights: textEncoderWeights, to: te, manifest: manifest, logger: logger)
     textEncoder = te
     progressHandler?(GenerationProgress(stage: .loadingTransformer, stepIndex: 0, totalSteps: 1))
+    ZImageStepProfile.noteMemory("mem: before dit")
     logger.info("Loading transformer...")
     let trans = try loadTransformer(snapshot: snapshot, config: configs.transformer)
+    ZImageStepProfile.noteMemory("mem: dit constructed")
     let transformerWeights = try weightsMapper.loadTransformer()
-    ZImageWeightsMapping.applyTransformer(weights: transformerWeights, to: trans, manifest: manifest, logger: logger)
+    ZImageStepProfile.noteMemory("mem: dit file read")
+    try ZImageWeightsMapping.applyTransformer(weights: transformerWeights, to: trans, manifest: manifest, logger: logger)
+    // ZEPHRA-PATCH: the 8-bit repository stores scales, norms and the unquantized projections
+    // as F32, which dragged every layer into float32 arithmetic. Move them to the DiT's own
+    // precision once, at load, rather than casting on every step.
+    ZImageStepProfile.noteMemory("mem: dit applied")
+    trans.castFloatParameters(to: ZImageTransformerPrecision.activation)
     transformer = trans
     if vae == nil {
       progressHandler?(GenerationProgress(stage: .loadingVAE, stepIndex: 0, totalSteps: 1))
       logger.info("Loading VAE...")
       let v = try loadVAE(snapshot: snapshot, config: configs.vae)
       let vaeWeights = try weightsMapper.loadVAE()
-      ZImageWeightsMapping.applyVAE(weights: vaeWeights, to: v, manifest: manifest, logger: logger)
+      try ZImageWeightsMapping.applyVAE(weights: vaeWeights, to: v, manifest: manifest, logger: logger)
       vae = v
     } else {
       logger.info("Reusing cached VAE")
     }
 
+    ZImageStepProfile.noteMemory("mem: load done")
     modelConfigs = configs
     quantManifest = manifest
     modelSnapshot = snapshot
@@ -403,7 +420,7 @@ public final class ZImagePipeline {
         logger.info("Enhanced prompt: \(enhanced)")
         finalPrompt = enhanced
       }
-      GPU.clearCache()
+      if clearsCacheAfterGeneration { GPU.clearCache() }
     }
     logger.info("Encoding prompts...")
 
@@ -411,7 +428,14 @@ public final class ZImagePipeline {
     let negativeEmbeds: MLXArray?
     let doCFG = request.guidanceScale > 1.0
 
-    let (pe, _) = try encodePrompt(finalPrompt, tokenizer: tokenizer, textEncoder: textEncoder, maxLength: request.maxSequenceLength)
+    // ZEPHRA-PATCH: time the text encoder under ZEPHRA_PROFILE_STEP.
+    let (pe, _) = try ZImageStepProfile.measure("text encode") {
+      let encoded = try encodePrompt(finalPrompt, tokenizer: tokenizer, textEncoder: textEncoder, maxLength: request.maxSequenceLength)
+      // ZEPHRA-PATCH: text encoding is lazy, so without this its cost would be billed to the
+      // first denoise step instead of to itself.
+      if ZImageStepProfile.isEnabled { MLX.eval(encoded.0) }
+      return encoded
+    }
     promptEmbeds = pe
 
     if doCFG {
@@ -463,7 +487,11 @@ public final class ZImagePipeline {
         embeds = MLX.concatenated([promptEmbeds, ne], axis: 0)
       }
 
-      let noisePred = transformer.forward(latents: modelLatents, timestep: timestepArray, promptEmbeds: embeds)
+      // ZEPHRA-PATCH: split the step into graph construction and kernel execution when
+      // ZEPHRA_PROFILE_STEP=1; `measure` calls straight through otherwise.
+      let noisePred = ZImageStepProfile.measure("step build") {
+        transformer.forward(latents: modelLatents, timestepIn: timestepArray, promptEmbedsIn: embeds)
+      }
       var guidedNoise: MLXArray
       if doCFG, negativeEmbeds != nil {
         let batch = latents.dim(0)
@@ -477,15 +505,23 @@ public final class ZImagePipeline {
 
       guidedNoise = -guidedNoise
       latents = scheduler.step(modelOutput: guidedNoise, timestepIndex: stepIndex, sample: latents)
-      MLX.eval(latents)
+      ZImageStepProfile.measure("step eval") { MLX.eval(latents) }
     }
 
+    ZImageStepProfile.noteMemory("mem: denoise done")
     logger.info("Denoising complete, decoding with VAE...")
     progressHandler?(GenerationProgress(stage: .decoding, stepIndex: request.steps, totalSteps: request.steps))
 
-    let decoded = decodeLatents(latents, vae: vae, height: request.height, width: request.width)
+    // ZEPHRA-PATCH: the decode is forced inside the timed block under ZEPHRA_PROFILE_STEP so
+    // its cost lands on the VAE line rather than on whatever later touches the array.
+    let decoded = ZImageStepProfile.measure("vae decode") { () -> MLXArray in
+      let image = decodeLatents(latents, vae: vae, height: request.height, width: request.width)
+      if ZImageStepProfile.isEnabled { MLX.eval(image) }
+      return image
+    }
+    ZImageStepProfile.noteMemory("mem: decode done")
     MLX.eval(MLXArray([]))
-    GPU.clearCache()
+    if clearsCacheAfterGeneration { GPU.clearCache() }
 
     return decoded
   }

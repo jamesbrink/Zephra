@@ -75,10 +75,9 @@ public struct ZImageWeightsMapping {
     to model: ZImageTransformer2DModel,
     manifest: ZImageQuantizationManifest? = nil,
     logger: Logger
-  ) {
+  ) throws {
     if weights.isEmpty {
-      logger.warning("Transformer weights empty; nothing to apply.")
-      return
+      throw WeightsApplyError.noWeights(component: "transformer")
     }
 
     if let manifest = manifest {
@@ -91,8 +90,16 @@ public struct ZImageWeightsMapping {
       )
     }
 
-    let mapped = transformerMapping(weights)
-    applyToModule(model, weights: mapped, prefix: "transformer", logger: logger)
+    // ZEPHRA-PATCH: `all_final_layer.<key>.adaLN_modulation` is a module whose only child is
+    // keyed "1", and `ModuleParameters.unflattened` reads a numeric path segment as an array
+    // index. Feeding those keys to `Module.update` therefore offers an array where a module is
+    // expected and the whole call throws, leaving the 30 transformer blocks on their random
+    // initialisation whenever `items()` happens to visit the final layer first. Swift seeds
+    // dictionary ordering per process, so the failure was intermittent: some runs produced a
+    // real image and some produced smooth colour blobs. The final layer is loaded by
+    // `loadFinalLayerWeights` just below, so withhold its keys here.
+    let mapped = transformerMapping(weights).filter { !$0.key.contains(".all_final_layer.") }
+    try applyToModule(model, weights: mapped, prefix: "transformer", logger: logger)
 
     let groupSize = manifest?.groupSize ?? 32
     let bits = manifest?.bits ?? 8
@@ -108,10 +115,9 @@ public struct ZImageWeightsMapping {
     to model: QwenTextEncoder,
     manifest: ZImageQuantizationManifest? = nil,
     logger: Logger
-  ) {
+  ) throws {
     if weights.isEmpty {
-      logger.warning("Text encoder weights empty; nothing to apply.")
-      return
+      throw WeightsApplyError.noWeights(component: "text_encoder")
     }
 
     if let manifest = manifest {
@@ -125,7 +131,7 @@ public struct ZImageWeightsMapping {
     }
 
     let mapped = textEncoderMapping(weights)
-    applyToModule(model, weights: mapped, prefix: "text_encoder", logger: logger)
+    try applyToModule(model, weights: mapped, prefix: "text_encoder", logger: logger)
   }
 
   public static func applyVAE(
@@ -133,17 +139,24 @@ public struct ZImageWeightsMapping {
     to model: AutoencoderKL,
     manifest: ZImageQuantizationManifest? = nil,
     logger: Logger
-  ) {
+  ) throws {
     if weights.isEmpty {
-      logger.warning("VAE weights empty; nothing to apply.")
-      return
+      throw WeightsApplyError.noWeights(component: "vae")
     }
 
     let mapped = vaeMapping(weights)
-    applyToModule(model, weights: mapped, prefix: "vae", logger: logger)
+    try applyToModule(model, weights: mapped, prefix: "vae", logger: logger)
   }
 
-  private static func applyToModule(_ module: Module, weights: [String: MLXArray], prefix: String, logger: Logger) {
+  // ZEPHRA-PATCH: a failed apply used to be logged and swallowed, which let a model with
+  // randomly initialised layers report a successful load. It now throws so the caller cannot
+  // miss it.
+  private static func applyToModule(
+    _ module: Module,
+    weights: [String: MLXArray],
+    prefix: String,
+    logger: Logger
+  ) throws {
     let params = module.parameters().flattened()
     var updates: [(String, MLXArray)] = []
 
@@ -168,8 +181,7 @@ public struct ZImageWeightsMapping {
     }
 
     if updates.isEmpty {
-      logger.warning("\(prefix) received no matching weights; skipping apply.")
-      return
+      throw WeightsApplyError.noMatchingWeights(component: prefix)
     }
 
     do {
@@ -177,6 +189,7 @@ public struct ZImageWeightsMapping {
       try module.update(parameters: nd, verify: [.shapeMismatch])
     } catch {
       logger.error("Failed to apply weights to \(prefix): \(error)")
+      throw WeightsApplyError.applyFailed(component: prefix, reason: String(describing: error))
     }
   }
 }

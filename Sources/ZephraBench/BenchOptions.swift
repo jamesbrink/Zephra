@@ -14,6 +14,8 @@ struct BenchOptions: Sendable {
     var output = URL(fileURLWithPath: "out/bench.png")
     /// Whether to print machine-readable JSON instead of a table.
     var json = false
+    /// Whether to skip the pipeline entirely and time individual MLX kernels instead.
+    var micro = false
 
     /// Reads options from the command line, exiting with usage text on anything unrecognised.
     /// A benchmark is run by hand, so a typo should stop it rather than quietly measure the
@@ -27,6 +29,8 @@ struct BenchOptions: Sendable {
             switch flag {
             case "--json":
                 options.json = true
+            case "--micro":
+                options.micro = true
             case "--help", "-h":
                 print(usage)
                 exit(0)
@@ -67,6 +71,9 @@ struct BenchOptions: Sendable {
 
     private static let usage = """
         usage: ZephraBench [--size N] [--steps N] [--runs N] [--prompt TEXT] \
-        [--out PATH] [--json]
+        [--out PATH] [--json] [--micro]
+
+        --micro times the DiT's individual MLX kernels at --size worth of tokens and
+        exits, without loading any weights.
         """
 }

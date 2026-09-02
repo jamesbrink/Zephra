@@ -35,13 +35,51 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
   typed as `MLXArray?` (mlx-swift 0.31 rejects the existential in the generic `key:` parameter). 3 sites.
 - Same files: CFG blend `guidanceScale * (positive - negative)` wraps the scalar in `MLXArray(...)`
   because Swift 6.3 resolved the `*` to an unrelated overload. 3 sites. No behaviour change.
+- `Weights/WeightsMapping.swift`: `applyTransformer` withholds the `all_final_layer` subtree from
+  the generic `Module.update`. That subtree's `adaLN_modulation` is a module keyed `"1"`, and
+  `ModuleParameters.unflattened` reads a numeric path segment as an array index, so the update
+  offered an array where a module was expected and threw. Because `Module.update` walks `items()`,
+  a Swift dictionary whose order is seeded per process, the throw sometimes landed before the 30
+  transformer blocks were reached and left them on their random initialisation. Correctness fix,
+  not a performance one: affected runs produced smooth colour blobs instead of an image.
+  `loadFinalLayerWeights` already loads that subtree, and the quantization manifest does not
+  quantize it, so nothing is lost.
+- `Model/Transformer/ZImageTransformerPrecision.swift` (new) and `Model/Transformer/ZImageTransformer2D.swift`:
+  the 8-bit repository stores every unpacked transformer tensor as F32, including the quantization
+  scales, and MLX widens a mixed multiply, so the whole DiT ran in float32. Parameters are cast to
+  bfloat16 once at load and `forward` casts its latents and prompt embeddings on entry. Measured:
+  resident 13029 MB to 12236 MB, peak 24298 MB to 23501 MB. Step time unchanged within the noise
+  of a shared machine; the isolated kernels are about 8 percent faster in bfloat16. Output at a
+  fixed seed is identical in composition with a mean absolute pixel difference of 2.2 of 255,
+  which is bfloat16 rounding. `ZEPHRA_DIT_DTYPE=f32` restores the old behaviour.
+- `Tokenizer/Tokenizer.swift`: `encodeChat` pads to the longest prompt rounded up to a multiple of
+  32 instead of to the 512-token limit. The Qwen encoder is causal, so a trailing pad token cannot
+  reach a real token and the kept embeddings are unchanged. Measured 352 ms to 43 ms per
+  generation at 1024 pixels. `ZEPHRA_PAD_PROMPT=full` restores the old behaviour.
+- `Model/VAE/AutoencoderKL.swift`: `VAEDecoder.callAsFunction` evaluates after each up block. As
+  one lazy graph the decoder held every intermediate feature map alive, and at 1024 pixels it took
+  peak memory from 16.4 GB to 26.5 GB, more than the weights themselves. Staging it caps the peak
+  at 23.5 GB. Decode time is unchanged.
+- `Pipeline/ZImageStepProfile.swift` (new), `Pipeline/ZImagePipeline.swift`: opt-in phase timing and
+  MLX memory reporting for the denoise loop, the text encoder and the VAE, enabled with
+  `ZEPHRA_PROFILE_STEP=1`. Compiles to a branch on a `static let` when off.
 
 ## Known upstream behaviour (not patched)
 
-- Loading `mzbac/Z-Image-Turbo-8bit` logs a failure to apply the
-  `all_final_layer` / `adaLN_modulation` submodule weights and then reports success.
-  Output images are correct, so the branch appears unused for this model. Treat as noise
-  until proven otherwise.
-- Peak memory during weight loading is ~27 GB on an M4 Max versus ~13 GB resident
-  afterwards: shards are read fully before being applied. Candidate for a ZEPHRA-PATCH
-  that streams shard by shard.
+- `Weights/WeightsMapping.swift` still only logs when `Module.update` throws, so a future mapping
+  mistake would again load a model with random weights and report success. The keys that caused it
+  are now withheld, but the swallowed error remains. Worth making fatal.
+- A denoise step is dominated by the 8-bit quantized matmuls, and those already run near the rate
+  the same shapes reach in isolation. Measured with `ZephraBench --micro`, 8-bit group-size-32
+  matmul is as fast as the dense bfloat16 equivalent at these shapes, so dequantizing the DiT to
+  bfloat16 for speed would cost about 6 GB and buy nothing.
+- Graph construction for a whole step takes 1.3 ms against 6.3 s of evaluation, so `MLX.compile`
+  has no CPU-side overhead to remove.
+
+## Corrections to earlier notes in this file
+
+- The `all_final_layer` / `adaLN_modulation` apply failure was previously recorded here as
+  harmless because output images looked correct. It was not harmless. See the patch log above.
+- Peak memory was previously attributed to weight loading reading shards fully before applying
+  them. Instrumenting MLX's allocator shows loading is entirely lazy and reaches 7.2 GB. The peak
+  is the VAE decode at 1024 pixels, which alone took the process from 16.4 GB to 26.5 GB.

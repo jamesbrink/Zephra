@@ -196,9 +196,17 @@ public final class ZImageTransformer2DModel: Module {
 
   public func forward(
     latents: MLXArray,
-    timestep: MLXArray,
-    promptEmbeds: MLXArray
+    timestepIn: MLXArray,
+    promptEmbedsIn: MLXArray
   ) -> MLXArray {
+    // ZEPHRA-PATCH: enter the DiT in its own precision. The scheduler keeps the latents in
+    // float32 and the text encoder emits float32, and MLX promotes a mixed multiply to the
+    // wider type, so without these casts every layer would run in float32 no matter what
+    // dtype the weights hold.
+    let dtype = ZImageTransformerPrecision.activation
+    let latents = latents.asType(dtype)
+    let timestep = timestepIn
+    let promptEmbeds = promptEmbedsIn.asType(dtype)
     let hasFrameDim = latents.ndim == 5
     let batch = latents.dim(0)
     let channels = latents.dim(1)

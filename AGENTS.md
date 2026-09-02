@@ -115,6 +115,15 @@ the re-sync procedure, and the running patch log. Any change inside
 - `make logs` streams `os.Logger` output for subsystem `io.zephra`.
 - `make bench ARGS="--size 1024 --steps 9 --runs 3 --json"` measures load, s/step, and peak memory
   headlessly; benchmark on an idle machine, Release only.
+- `make bench ARGS="--micro --size 1024"` times the DiT's individual MLX kernels at that size's
+  token count without loading any weights, so a slow generation can be attributed to a primitive
+  rather than guessed at.
+- `ZEPHRA_PROFILE_STEP=1` prints per-phase timings (text encode, per-step graph build, per-step
+  eval, VAE decode) and MLX's active and peak allocation to stderr.
+- Precision and padding switches, for bisecting a suspected regression without a rebuild:
+  `ZEPHRA_DIT_DTYPE=f32` runs the transformer in float32, `ZEPHRA_PAD_PROMPT=full` pads prompts to
+  the 512-token limit, `ZEPHRA_KEEP_CACHE=1` stops handing MLX's scratch back after a generation,
+  and `ZEPHRA_CACHE_LIMIT_MB=N` overrides the benchmark's MLX cache ceiling.
 - Xcode 26 needs the Metal toolchain once: `xcodebuild -downloadComponent MetalToolchain`.
 
 ## Environment notes

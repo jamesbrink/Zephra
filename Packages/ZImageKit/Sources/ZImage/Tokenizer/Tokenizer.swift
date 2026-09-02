@@ -253,20 +253,34 @@ public final class QwenTokenizer {
     prompts: [String],
     maxLength: Int? = nil
   ) throws -> QwenTokenBatch {
-    let targetLength = min(maxLength ?? self.maxLength, self.maxLength)
-    var inputSequences: [[Int]] = []
-    var attentionSequences: [[Int]] = []
-    inputSequences.reserveCapacity(prompts.count)
-    attentionSequences.reserveCapacity(prompts.count)
-
+    let limit = min(maxLength ?? self.maxLength, self.maxLength)
+    var tokenized: [[Int]] = []
+    tokenized.reserveCapacity(prompts.count)
     for prompt in prompts {
       let messages: [[String: Any]] = [
         ["role": "user", "content": prompt]
       ]
       let tokens = try tokenizer.applyChatTemplate(messages: messages)
-      let trimmed = Self.trim(tokens, maxLength: targetLength, prefixCount: 0, suffixCount: 0)
+      tokenized.append(Self.trim(tokens, maxLength: limit, prefixCount: 0, suffixCount: 0))
+    }
+
+    // ZEPHRA-PATCH: pad to the longest prompt rounded up to a multiple of 32 rather than to
+    // the 512-token limit. The encoder is causal, so a trailing pad token cannot reach a real
+    // token and the kept embeddings are bit-identical; a typical prompt is under 32 tokens, so
+    // this was running a 36-layer 4B encoder over sixteen times more sequence than needed.
+    // Rounding to 32 keeps the number of distinct shapes MLX has to compile kernels for small.
+    let longest = tokenized.map(\.count).max() ?? 0
+    let padded = Self.roundUp(longest, to: Self.sequenceMultiple)
+    let targetLength = Self.padsToLimit ? limit : min(limit, max(Self.sequenceMultiple, padded))
+
+    var inputSequences: [[Int]] = []
+    var attentionSequences: [[Int]] = []
+    inputSequences.reserveCapacity(prompts.count)
+    attentionSequences.reserveCapacity(prompts.count)
+
+    for tokens in tokenized {
       let (ids, mask) = Self.prepareSequence(
-        tokens: trimmed,
+        tokens: tokens,
         padTokenId: padTokenId,
         maxLength: targetLength
       )
@@ -374,6 +388,19 @@ public final class QwenTokenizer {
     let availableForContent = max(0, maxLength - prefix.count - suffix.count)
     let trimmedContent = Array(content.prefix(availableForContent))
     return prefix + trimmedContent + suffix
+  }
+
+  /// Restores the old pad-to-the-limit behaviour when `ZEPHRA_PAD_PROMPT=full` is set, so the
+  /// saving can be measured without a rebuild.
+  private static let padsToLimit =
+    ProcessInfo.processInfo.environment["ZEPHRA_PAD_PROMPT"] == "full"
+
+  /// Sequence lengths are rounded up to this, matching the transformer's own granularity.
+  private static let sequenceMultiple = 32
+
+  private static func roundUp(_ value: Int, to multiple: Int) -> Int {
+    guard value > 0 else { return 0 }
+    return ((value + multiple - 1) / multiple) * multiple
   }
 
   private static func prepareSequence(

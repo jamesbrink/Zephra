@@ -87,6 +87,10 @@ enum BenchRunner {
     /// Caps MLX's retained scratch memory, leaving room for the weights and for the rest of
     /// the machine. Eight gigabytes is plenty for a 2048-pixel run.
     private static func cacheLimit() -> Int {
+        if let override = ProcessInfo.processInfo.environment["ZEPHRA_CACHE_LIMIT_MB"],
+           let megabytes = Int(override) {
+            return megabytes * 1_000_000
+        }
         let physical = Int(ProcessInfo.processInfo.physicalMemory)
         return min(8_000_000_000, physical / 6)
     }

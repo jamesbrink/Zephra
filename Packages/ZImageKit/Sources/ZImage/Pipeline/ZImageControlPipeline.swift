@@ -628,7 +628,7 @@ public class ZImageControlPipeline {
       logger.info("Loading VAE...")
       let vae = try loadVAE(snapshot: snapshot, config: modelConfigs.vae)
       let vaeWeights = try weightsMapper.loadVAE()
-      ZImageWeightsMapping.applyVAE(weights: vaeWeights, to: vae, manifest: quantManifest, logger: logger)
+      try ZImageWeightsMapping.applyVAE(weights: vaeWeights, to: vae, manifest: quantManifest, logger: logger)
       self.vae = vae
       logger.info("Loading control transformer...")
       let transformer = try loadControlTransformer(snapshot: snapshot, config: modelConfigs.transformer)
@@ -732,7 +732,7 @@ public class ZImageControlPipeline {
       let textEncoder = try loadTextEncoder(snapshot: snapshot, config: modelConfigs.textEncoder)
       let weightsMapper = ZImageWeightsMapper(snapshot: snapshot, logger: logger)
       let textEncoderWeights = try weightsMapper.loadTextEncoder()
-      ZImageWeightsMapping.applyTextEncoder(weights: textEncoderWeights, to: textEncoder, manifest: self.quantManifest, logger: logger)
+      try ZImageWeightsMapping.applyTextEncoder(weights: textEncoderWeights, to: textEncoder, manifest: self.quantManifest, logger: logger)
       var finalPrompt = request.prompt
       var enhancedPromptForCache: String? = nil
       if request.enhancePrompt {
@@ -965,7 +965,7 @@ public class ZImageControlPipeline {
       logger.info("Loading VAE...")
       let vae = try loadVAE(snapshot: snapshot, config: modelConfigs.vae)
       let vaeWeights = try weightsMapper.loadVAE()
-      ZImageWeightsMapping.applyVAE(weights: vaeWeights, to: vae, manifest: quantManifest, logger: logger)
+      try ZImageWeightsMapping.applyVAE(weights: vaeWeights, to: vae, manifest: quantManifest, logger: logger)
       self.vae = vae
       logger.info("Loading control transformer...")
       let transformer = try loadControlTransformer(snapshot: snapshot, config: modelConfigs.transformer)
@@ -1069,7 +1069,7 @@ public class ZImageControlPipeline {
       let textEncoder = try loadTextEncoder(snapshot: snapshot, config: modelConfigs.textEncoder)
       let weightsMapper = ZImageWeightsMapper(snapshot: snapshot, logger: logger)
       let textEncoderWeights = try weightsMapper.loadTextEncoder()
-      ZImageWeightsMapping.applyTextEncoder(weights: textEncoderWeights, to: textEncoder, manifest: self.quantManifest, logger: logger)
+      try ZImageWeightsMapping.applyTextEncoder(weights: textEncoderWeights, to: textEncoder, manifest: self.quantManifest, logger: logger)
       var finalPrompt = request.prompt
       var enhancedPromptForCache: String? = nil
       if request.enhancePrompt {
@@ -1371,8 +1371,8 @@ public enum ZImageControlWeightsMapping {
     }
     return mapped
   }
-  private static func applyToModule(_ module: Module, weights: [String: MLXArray], prefix: String, logger: Logger) {
-    applyToModule(module, weights: weights, prefix: prefix, logger: logger, tensorNameTransform: nil)
+  private static func applyToModule(_ module: Module, weights: [String: MLXArray], prefix: String, logger: Logger) throws {
+    try applyToModule(module, weights: weights, prefix: prefix, logger: logger, tensorNameTransform: nil)
   }
   private static func applyToModule(
     _ module: Module,
@@ -1380,7 +1380,7 @@ public enum ZImageControlWeightsMapping {
     prefix: String,
     logger: Logger,
     tensorNameTransform: ((String) -> String)?
-  ) {
+  ) throws {
     let params = module.parameters().flattened()
     var updates: [(String, MLXArray)] = []
     for (key, _) in params {
@@ -1427,14 +1427,14 @@ public enum ZImageControlWeightsMapping {
       }
     }
     if updates.isEmpty {
-      logger.warning("\(prefix) received no matching weights; skipping apply.")
-      return
+      throw WeightsApplyError.noMatchingWeights(component: prefix)
     }
     do {
       let nd = ModuleParameters.unflattened(updates)
       try module.update(parameters: nd, verify: [.shapeMismatch])
     } catch {
       logger.error("Failed to apply weights to \(prefix): \(error)")
+      throw WeightsApplyError.applyFailed(component: prefix, reason: String(describing: error))
     }
   }
   public static func applyControlTransformer(
