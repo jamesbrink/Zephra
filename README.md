@@ -34,6 +34,15 @@ If you skip `make prefetch`, the first run downloads the model (about 13 GB)
 before it can generate anything — the window stays responsive with a progress
 readout while that happens.
 
+## Using it
+
+- Type a prompt and press Generate (or ⌘↩). The window subtitle shows what the engine is doing.
+- Press Generate again while an image is running to queue the next prompt; prompts run one
+  after another and the subtitle counts what is waiting. Stop ends the current image and drops
+  the queue.
+- Size, steps, and seed sit under the prompt. The lock keeps the seed across runs; unlocked,
+  every run gets a fresh one. Images save to `~/Pictures/Zephra` with the seed in the file name.
+
 ## How it works
 
 Zephra keeps the UI layer completely ignorant of the model that's running it.
