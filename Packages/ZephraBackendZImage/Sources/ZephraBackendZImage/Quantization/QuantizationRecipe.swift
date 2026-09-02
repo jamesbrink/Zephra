@@ -32,8 +32,13 @@ public struct QuantizationRecipe: Hashable, Sendable {
         }
     }
 
-    /// Whether every component is packed the same way, which is what lets the manifest's
-    /// top-level `bits` and `group_size` stand alone as a correct description of the build.
+    /// Whether every component is packed the same way, which is what decides how much the
+    /// manifest's top-level `bits` and `group_size` can be trusted to say.
+    ///
+    /// Uniform, they describe the whole build. Mixed, they describe no component in particular:
+    /// the loader reads a layer's own `bits` and `group_size` whenever it finds the layer in
+    /// `layers` by name, and reaches the top level only when it does not, so the header is a
+    /// fallback rather than a summary.
     public var isUniform: Bool {
         transformer == textEncoder
     }

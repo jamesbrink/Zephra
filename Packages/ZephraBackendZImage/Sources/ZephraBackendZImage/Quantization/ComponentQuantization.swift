@@ -64,8 +64,7 @@ struct ComponentQuantization {
                 inDim: weight.inDim,
                 outDim: weight.outDim,
                 file: shardOfTensor[weight.weightKey] ?? "",
-                bits: precision.bits,
-                groupSize: precision.groupSize,
+                precision: precision,
                 mode: "affine"
             )
         }

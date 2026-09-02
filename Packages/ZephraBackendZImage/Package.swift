@@ -33,6 +33,8 @@ let package = Package(
                 "ZephraBackendZImage",
                 .product(name: "ZephraCore", package: "ZephraKit"),
                 .product(name: "ZImage", package: "ZImageKit"),
+                // Only to build the handful of small arrays the quantizer tests feed in.
+                .product(name: "MLX", package: "mlx-swift"),
             ]
         ),
     ]

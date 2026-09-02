@@ -56,11 +56,20 @@ public enum ZImageWeightQuantizer {
         note("copying configs, tokenizer, scheduler, and the unquantized VAE")
         try SnapshotAncillaryFiles.copy(from: resolvedSource, to: destination)
 
+        // Uniform, one precision describes the build and the header says so. Mixed, the header
+        // reaches only the layers a name lookup misses, so it states whichever precision covers
+        // the most of them; every layer carries its own besides.
+        let fallback =
+            recipe.isUniform
+            ? recipe.transformer
+            : QuantizationManifest.commonestPrecision(across: layers) ?? recipe.transformer
+        if !recipe.isUniform {
+            note("mixed recipe: the manifest header falls back to \(fallback.summary)")
+        }
         try QuantizationManifest(
             modelId: sourceName,
             revision: nil,
-            groupSize: recipe.transformer.groupSize,
-            bits: recipe.transformer.bits,
+            fallback: fallback,
             mode: "affine",
             layers: layers
         ).write(into: destination)
