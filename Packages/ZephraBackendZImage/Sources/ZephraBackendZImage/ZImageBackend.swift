@@ -1,0 +1,119 @@
+import Foundation
+import ZephraCore
+import ZImage
+
+/// Runs Z-Image family models through the vendored MLX pipeline.
+///
+/// The instance is deliberately not Sendable: it owns a `ZImagePipeline`, which holds MLX
+/// arrays that must stay on one thread. The engine layer confines it to a serial executor.
+///
+/// The class is explicitly `nonisolated` so that it compiles the same way whichever target
+/// links it. The app builds with default MainActor isolation, and under that setting an
+/// inferred-isolated backend could not hand its non-Sendable pipeline to the pipeline's own
+/// nonisolated async methods.
+public nonisolated final class ZImageBackend: ImageGenerationBackend {
+    /// The model family this backend serves.
+    public static let backendID = BackendID.zImage
+
+    /// The descriptor identifier currently in memory, or nil when nothing is loaded.
+    public private(set) var loadedModelID: String?
+
+    private var pipeline: ZImagePipeline?
+    private var loadedDescriptor: ModelDescriptor?
+    private var loadedSnapshot: URL?
+
+    /// Creates an idle backend. No weights are touched until `ensureAvailable` is called.
+    public init() {}
+
+    /// Resolves the descriptor's weights, downloading them if the cache does not already
+    /// hold them, and returns the local snapshot directory.
+    ///
+    /// This is the only step that can report download progress: the pipeline's own loader
+    /// resolves the snapshot silently, so Zephra resolves it up front and then hands the
+    /// resulting path to `load` as a plain local directory.
+    nonisolated(nonsending) public func ensureAvailable(
+        _ descriptor: ModelDescriptor,
+        onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
+    ) async throws -> URL {
+        do {
+            return try await ModelResolution.resolve(
+                modelSpec: descriptor.repoID,
+                defaultRevision: descriptor.revision,
+                filePatterns: descriptor.filePatterns,
+                progressHandler: { progress in
+                    onProgress(
+                        DownloadProgressEvent(
+                            completedFiles: Int(progress.completedUnitCount),
+                            totalFiles: Int(progress.totalUnitCount),
+                            fraction: progress.fractionCompleted,
+                            bytesPerSecond: nil
+                        )
+                    )
+                }
+            )
+        } catch let error as CancellationError {
+            throw error
+        } catch let error as ModelResolutionError {
+            throw ZImageErrorMapping.downloadError(error, descriptor: descriptor)
+        } catch {
+            throw BackendError.downloadFailed(ZImageErrorMapping.message(error))
+        }
+    }
+
+    /// Reads the weights at `localPath` into memory.
+    nonisolated(nonsending) public func load(
+        _ descriptor: ModelDescriptor,
+        at localPath: URL,
+        onProgress: @escaping (GenerationProgressEvent) -> Void
+    ) async throws {
+        let pipeline = pipeline ?? ZImagePipeline()
+        self.pipeline = pipeline
+        let call = ZImagePipelineCall(pipeline: pipeline, onProgress: onProgress)
+        do {
+            try await call.load(modelPath: localPath.path)
+        } catch let error as CancellationError {
+            throw error
+        } catch {
+            throw BackendError.loadFailed(ZImageErrorMapping.message(error))
+        }
+        loadedModelID = descriptor.id
+        loadedDescriptor = descriptor
+        loadedSnapshot = localPath
+    }
+
+    /// Runs one generation and returns the encoded PNG bytes.
+    ///
+    /// Cancellation is checked by the pipeline between denoising steps, so a cancelled task
+    /// surfaces as `CancellationError`, which is passed through untouched rather than being
+    /// reported as a failure.
+    nonisolated(nonsending) public func generate(
+        _ settings: GenerationSettings,
+        onProgress: @escaping (GenerationProgressEvent) -> Void
+    ) async throws -> Data {
+        guard let pipeline, let descriptor = loadedDescriptor, let snapshot = loadedSnapshot
+        else {
+            throw BackendError.loadFailed("No model is loaded.")
+        }
+        let request = ZImageRequestMapper.request(
+            for: settings,
+            descriptor: descriptor,
+            snapshot: snapshot
+        )
+        let call = ZImagePipelineCall(pipeline: pipeline, onProgress: onProgress)
+        do {
+            return try await call.generate(request)
+        } catch let error as CancellationError {
+            throw error
+        } catch {
+            throw BackendError.generationFailed(ZImageErrorMapping.message(error))
+        }
+    }
+
+    /// Drops the weights and clears the GPU cache, leaving the backend reusable.
+    public func unload() {
+        pipeline?.unloadModel()
+        loadedModelID = nil
+        loadedDescriptor = nil
+        loadedSnapshot = nil
+    }
+}

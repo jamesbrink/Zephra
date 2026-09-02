@@ -1,0 +1,44 @@
+import Foundation
+import ZephraCore
+import ZImage
+
+/// Builds a vendored-pipeline request from the app's settings, applying the model's own limits.
+nonisolated enum ZImageRequestMapper {
+    /// The token budget the Z-Image text encoder is configured for.
+    private static let maxSequenceLength = 512
+
+    /// Translates settings into a request the pipeline will accept.
+    ///
+    /// Settings are put through `capabilities.clamp` first, which aligns the size to the
+    /// model's 16-pixel grid, bounds the step count and guidance, and drops a negative prompt
+    /// the model would ignore. `model` is always the resolved snapshot directory: the
+    /// pipeline's own default points at the 33 GB bf16 repository, not the variant Zephra runs.
+    static func request(
+        for settings: GenerationSettings,
+        descriptor: ModelDescriptor,
+        snapshot: URL
+    ) -> ZImageGenerationRequest {
+        let capabilities = descriptor.capabilities
+        let clamped = capabilities.clamp(settings)
+        return ZImageGenerationRequest(
+            prompt: clamped.prompt,
+            negativePrompt: clamped.negativePrompt,
+            width: clamped.size.width,
+            height: clamped.size.height,
+            steps: clamped.steps,
+            guidanceScale: Float(clamped.guidance),
+            seed: capabilities.supportsSeed ? clamped.seed : nil,
+            outputPath: outputPath(for: descriptor),
+            model: snapshot.path,
+            maxSequenceLength: maxSequenceLength
+        )
+    }
+
+    /// A throwaway destination. `generateToMemory` never writes it, but the request requires
+    /// one and the pipeline logs it, so it points somewhere plausible rather than at the
+    /// working directory.
+    private static func outputPath(for descriptor: ModelDescriptor) -> URL {
+        FileManager.default.temporaryDirectory
+            .appending(path: "zephra-\(descriptor.id)-unused.png")
+    }
+}

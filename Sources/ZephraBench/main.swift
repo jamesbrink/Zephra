@@ -1,13 +1,17 @@
-// Spike: proves the vendored ZImage library and mlx-swift Metal kernels link and run.
 import Foundation
-import MLX
-import ZImage
 
-let info = GPU.deviceInfo()
-print("metal device: \(info["device_name"] ?? "unknown")")
-print("max recommended working set: \(GPU.maxRecommendedWorkingSetBytes() / 1_000_000) MB")
-let pipeline = ZImagePipeline()
-print("pipeline loaded: \(pipeline.isLoaded)")
-let x = MLXArray([1.0, 2.0, 3.0]) * 2
-eval(x)
-print("mlx compute ok: \(x)")
+// Headless timing harness for the Z-Image backend. It talks to the same protocol the app
+// does, so a number measured here is a number the app can hit.
+let options = BenchOptions.parse(CommandLine.arguments)
+
+do {
+    let report = try await BenchRunner.run(options)
+    print(options.json ? report.jsonText() : report.tableText())
+} catch is CancellationError {
+    FileHandle.standardError.write(Data("ZephraBench: cancelled\n".utf8))
+    exit(130)
+} catch {
+    let reason = (error as? any LocalizedError)?.errorDescription ?? String(describing: error)
+    FileHandle.standardError.write(Data("ZephraBench: \(reason)\n".utf8))
+    exit(1)
+}
