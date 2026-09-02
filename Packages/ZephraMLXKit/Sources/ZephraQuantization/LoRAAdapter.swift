@@ -13,7 +13,7 @@ import MLX
 /// here is naming. Exports disagree about what the two factors are called and about which
 /// prefix, if any, sits in front of the module path, so this accepts every spelling in
 /// circulation and reduces them to the base weight key the checkpoint itself uses.
-public struct LoRAAdapter {
+public final class LoRAAdapter {
     /// The two factors and the scale that multiplies their product.
     private struct Update {
         var down: MLXArray?
@@ -24,8 +24,20 @@ public struct LoRAAdapter {
     /// Updates by the key of the weight each one modifies, `.weight` suffix and all.
     private let updates: [String: Update]
 
-    /// The weight keys this adapter has something to say about.
-    public var targetKeys: Set<String> { Set(updates.keys) }
+    /// The weights this adapter has been asked to merge so far.
+    ///
+    /// Kept here rather than tallied by the caller because it is the adapter's own question:
+    /// an adapter written against different module names matches nothing, merges nothing, and
+    /// hands back the base model, which looks exactly like a build that worked. A run reads
+    /// `unmatchedKeys` afterwards and refuses rather than shipping half a distillation. A
+    /// conversion is one pass on one thread, so this needs no protection.
+    public private(set) var mergedKeys: Set<String> = []
+
+    /// The weights this adapter names that it was never asked about.
+    public var unmatchedKeys: [String] { Set(updates.keys).subtracting(mergedKeys).sorted() }
+
+    /// Whether this adapter has something to say about `key`.
+    public func modifies(_ key: String) -> Bool { updates[key] != nil }
 
     /// How many weights this adapter modifies.
     public var count: Int { updates.count }
@@ -63,6 +75,7 @@ public struct LoRAAdapter {
         guard let update = updates[key], let down = update.down, let up = update.up else {
             return weight
         }
+        mergedKeys.insert(key)
         let rank = down.shape[0]
         let scale = (update.alpha ?? Float(rank)) / Float(rank)
         let delta = MLX.matmul(up.asType(.float32), down.asType(.float32)) * scale

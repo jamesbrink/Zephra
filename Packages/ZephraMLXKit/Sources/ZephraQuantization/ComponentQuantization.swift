@@ -42,9 +42,10 @@ public struct ComponentQuantization {
 
     /// Converts the component and returns a manifest entry per packed layer.
     public func run() throws -> [QuantizationManifest.Layer] {
-        let files = FileManager.default
         let sourceDirectory = source.appending(path: component.directoryName)
-        guard files.fileExists(atPath: sourceDirectory.path(percentEncoded: false)) else {
+        guard FileManager.default.fileExists(
+            atPath: sourceDirectory.path(percentEncoded: false))
+        else {
             throw QuantizationError.missingComponent(
                 name: component.directoryName, directory: sourceDirectory)
         }
@@ -54,38 +55,25 @@ public struct ComponentQuantization {
                 name: component.directoryName, directory: sourceDirectory)
         }
 
-        let outputDirectory = destination.appending(path: component.directoryName)
-        try files.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
-        // A rerun writes a different number of shards, so clear the old ones out. Left behind,
-        // they would still match the glob the loader reads the component with.
-        for stale in try Self.shards(in: outputDirectory) {
-            try files.removeItem(at: stale)
-        }
         let writer = QuantizedShardWriter(
-            directory: outputDirectory, budgetBytes: shardBudgetBytes)
+            directory: try emptiedOutputDirectory(), budgetBytes: shardBudgetBytes)
 
         let adapter =
             component.adapters.isEmpty ? nil : try LoRAAdapter(contentsOf: component.adapters)
         if let adapter {
             note("\(component.directoryName): merging \(adapter.count) adapted weights")
         }
-        var merged: Set<String> = []
 
         var packed: [(QuantizableWeight, QuantizationPrecision)] = []
         for (index, shard) in shards.enumerated() {
             note(
                 "\(component.directoryName): reading \(shard.lastPathComponent) "
                     + "(\(index + 1) of \(shards.count))")
-            packed += try convert(shard: shard, into: writer, adapter: adapter, merged: &merged)
+            packed += try convert(shard: shard, into: writer, adapter: adapter)
         }
-        // An adapter written against different module names would match nothing and quietly
-        // produce the base model, which looks like a build that worked. Say so instead.
-        if let adapter {
-            let missed = adapter.targetKeys.subtracting(merged).sorted()
-            guard missed.isEmpty else {
-                throw QuantizationError.unmatchedAdapterLayers(
-                    component: component.directoryName, keys: missed)
-            }
+        if let adapter, !adapter.unmatchedKeys.isEmpty {
+            throw QuantizationError.unmatchedAdapterLayers(
+                component: component.directoryName, keys: adapter.unmatchedKeys)
         }
         let shardOfTensor = try writer.finish(relativeTo: component.directoryName)
         note("\(component.directoryName): packed \(packed.count) layers")
@@ -103,12 +91,22 @@ public struct ComponentQuantization {
         }
     }
 
+    /// The component's output directory, with any shards a previous run left in it removed.
+    ///
+    /// A rerun writes a different number of shards, and one left behind still matches the glob
+    /// the loader reads the component with, so it would be loaded alongside the new ones.
+    private func emptiedOutputDirectory() throws -> URL {
+        let directory = destination.appending(path: component.directoryName)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        for stale in try Self.shards(in: directory) {
+            try FileManager.default.removeItem(at: stale)
+        }
+        return directory
+    }
+
     /// Reads one source shard and writes its tensors, packed or verbatim, to `writer`.
     private func convert(
-        shard: URL,
-        into writer: QuantizedShardWriter,
-        adapter: LoRAAdapter?,
-        merged: inout Set<String>
+        shard: URL, into writer: QuantizedShardWriter, adapter: LoRAAdapter?
     ) throws -> [(QuantizableWeight, QuantizationPrecision)] {
         // Mapped, not read: the arrays below are views into the file until they are evaluated.
         let tensors = try MLX.loadArrays(url: shard)
@@ -124,9 +122,8 @@ public struct ComponentQuantization {
             if component.omits(entry.name) { continue }
             // Merge before anything else looks at the values: an adapted weight is simply the
             // weight this build has, whether it then gets packed or copied across whole.
-            if let adapter, adapter.targetKeys.contains(entry.name) {
+            if let adapter {
                 tensor = try adapter.applied(to: tensor, named: entry.name)
-                merged.insert(entry.name)
             }
             // Policy first: the group size it names is what divisibility is tested against.
             guard let precision = component.precision(for: entry.name),

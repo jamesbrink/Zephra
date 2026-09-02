@@ -9,7 +9,7 @@ enum BenchRunner {
     /// The backend comes from `registry`, keyed by the descriptor, so the tool measures whichever
     /// family the chosen model belongs to and never names one itself.
     static func run(_ options: BenchOptions, registry: BackendRegistry) async throws -> BenchReport {
-        ZImageRuntime.configure(cacheLimitBytes: cacheLimit(), memoryLimitBytes: nil)
+        BenchBackends.runtime().setCacheLimit(bytes: cacheLimit())
         // Either a catalogued model, or a snapshot named on the command line for a family whose
         // catalog entry does not exist yet. The flag was checked when it was parsed, so an
         // unknown identifier cannot reach here.
@@ -50,18 +50,18 @@ enum BenchRunner {
             stepIntervals += stepClock.intervals
         }
         try write(image, to: options.output)
-        let memory = ZImageRuntime.memorySnapshot()
+        let memory = BenchBackends.runtime().memorySnapshot()
 
         return BenchReport(
-            device: ZImageRuntime.deviceSummary(),
+            device: BenchBackends.deviceSummary(),
             model: descriptor.id,
             size: settings.size.width,
             steps: settings.steps,
             loadSeconds: loadDuration.seconds,
             runSeconds: runSeconds,
             meanSecondsPerStep: mean(stepIntervals),
-            activeMemoryMB: Double(memory.active) / 1_000_000,
-            peakMemoryMB: Double(memory.peak) / 1_000_000,
+            activeMemoryMB: Double(memory.activeBytes) / 1_000_000,
+            peakMemoryMB: Double(memory.peakBytes) / 1_000_000,
             outputPath: options.output.path
         )
     }

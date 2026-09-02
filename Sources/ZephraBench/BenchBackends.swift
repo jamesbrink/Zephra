@@ -15,4 +15,14 @@ enum BenchBackends {
         registry.register(.qwenImage, QwenImageBackendFactory.make)
         return registry
     }
+
+    /// The GPU runtime the benchmark tunes and reads.
+    ///
+    /// One copy of MLX serves every backend, so the allocator's limits and its memory readings
+    /// are the same answer whichever family is asked. Which one is asked still belongs here,
+    /// because the rest of the tool is not allowed to know that any of them exist.
+    static func runtime() -> any InferenceRuntime { ZImageInferenceRuntime() }
+
+    /// One line naming the Metal device and the memory it will work within, for the header.
+    static func deviceSummary() -> String { ZImageRuntime.deviceSummary() }
 }

@@ -43,7 +43,12 @@ struct LoRAAdapterTests {
             passed.dtype == DType.bfloat16,
             "an untouched weight keeps its dtype; only a merged one is promoted to float32"
         )
-        #expect(adapter.targetKeys == ["blocks.0.to_q.weight"])
+        #expect(adapter.modifies("blocks.0.to_q.weight"))
+        #expect(!adapter.modifies("blocks.0.to_k.weight"))
+        #expect(
+            adapter.unmatchedKeys == ["blocks.0.to_q.weight"],
+            "asking about a weight the adapter says nothing about is not merging its own"
+        )
     }
 
     @Test("every spelling of the two factors reduces to the same weight key")
