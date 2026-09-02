@@ -28,6 +28,19 @@ final class EngineTestBed {
         )
     }
 
+    /// A store whose writes can never succeed: the output folder would have to be created
+    /// inside a plain file, which the file system refuses, so every save fails.
+    func storeThatCannotSave() throws -> GenerationStore {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let blocker = directory.appending(path: "not-a-folder")
+        try Data().write(to: blocker)
+        let control = control
+        return GenerationStore(
+            backendFactory: { _ in MockBackend(control: control) },
+            outputDirectory: blocker.appending(path: "images", directoryHint: .isDirectory)
+        )
+    }
+
     /// The file names written so far, newest-first order not guaranteed.
     func writtenFiles() throws -> [String] {
         guard FileManager.default.fileExists(atPath: directory.path(percentEncoded: false)) else {

@@ -19,6 +19,9 @@ public final class GenerationStore {
     public internal(set) var descriptor: ModelDescriptor
     /// Wall-clock time of the last completed generation.
     public internal(set) var lastDuration: Duration?
+    /// The most recent image that could not be written, or nil when the last one saved. Shown
+    /// as a notice; it never stops the engine or the queue.
+    public internal(set) var lastSaveFailure: SaveFailure?
     /// Generations waiting their turn, oldest first. Runs down by itself after each image.
     public internal(set) var queue: [QueuedGeneration] = []
     /// Whether a load ends with a throwaway generation that pays the kernel-compilation cost
