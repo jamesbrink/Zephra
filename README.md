@@ -55,9 +55,16 @@ vendored Z-Image pipeline.
 
 | Machine | Resolution | Steps | Time |
 |---|---|---|---|
-| Apple M4 Max 48 GB (first pass, busy machine) | 1024×1024 | 9 | ~60 s (6.7 s/step) |
-| Apple M4 Max 48 GB (headless bench) | 512×512 | 4 | 14 s (2.8 s/step) |
+| Apple M4 Max 48 GB, GPU shared with other apps (~50 % busy at idle) | 1024×1024 | 9 | ~57 s (6.3 s/step) |
+| Apple M4 Max 48 GB, same conditions | 512×512 | 4 | ~7 s (1.6 s/step) |
 | Apple M2 Ultra (upstream report) | 1024×1024 | 9 | ~44 s |
+
+Where a 1024² step goes: the denoiser is compute-bound. MLX quantized matmuls reach about
+12.5 TFLOPS on an M4 Max (`make bench ARGS=--micro`), and the 32 transformer layers sum to
+roughly 5 s of matmul and attention per step at 4,160 tokens, so the measured 6.3 s is within
+25 % of the kernel ceiling. The GPU is at 100 % for the whole step; paging and CPU-side graph
+building were measured and ruled out. Anything else using the GPU slows Zephra proportionally.
+Text encoding is ~40 ms and the VAE decode ~4 s at 1024².
 
 ## Project layout
 
