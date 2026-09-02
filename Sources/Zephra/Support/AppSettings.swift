@@ -11,6 +11,8 @@ enum AppSettings {
     static let randomizeSeedEachRun = "randomizeSeedEachRun"
     /// Whether the model runs a throwaway generation after loading.
     static let warmUpOnLaunch = "warmUpOnLaunch"
+    /// The `ModelDescriptor.id` chosen in the model menu, restored on the next launch.
+    static let selectedModelID = "selectedModelID"
 
     /// Starting values, matching the defaults written at each `@AppStorage` site.
     static let initialFilmstripVisible = true

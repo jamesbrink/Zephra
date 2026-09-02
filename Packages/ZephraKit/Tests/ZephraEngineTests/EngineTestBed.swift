@@ -19,11 +19,21 @@ final class EngineTestBed {
         try? FileManager.default.removeItem(at: directory)
     }
 
-    /// A store wired to the mock backend and to this bed's output folder.
-    func store() -> GenerationStore {
+    /// A registry in which the mock backend answers for every family this bed's tests use.
+    func registry(_ families: [BackendID] = [.zImage]) -> BackendRegistry {
         let control = control
-        return GenerationStore(
-            backendFactory: { _ in MockBackend(control: control) },
+        var registry = BackendRegistry()
+        for family in families {
+            registry.register(family) { _ in MockBackend(control: control) }
+        }
+        return registry
+    }
+
+    /// A store wired to the mock backend and to this bed's output folder.
+    func store(descriptor: ModelDescriptor = ModelCatalog.default) -> GenerationStore {
+        GenerationStore(
+            descriptor: descriptor,
+            registry: registry(),
             outputDirectory: directory
         )
     }
@@ -34,9 +44,8 @@ final class EngineTestBed {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let blocker = directory.appending(path: "not-a-folder")
         try Data().write(to: blocker)
-        let control = control
         return GenerationStore(
-            backendFactory: { _ in MockBackend(control: control) },
+            registry: registry(),
             outputDirectory: blocker.appending(path: "images", directoryHint: .isDirectory)
         )
     }

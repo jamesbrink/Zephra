@@ -15,6 +15,7 @@ struct PromptCapsule: View {
             )
             VStack(alignment: .leading, spacing: 12) {
                 PromptEditor()
+                NegativePromptField()
                 Divider()
                 HStack(alignment: .bottom, spacing: 12) {
                     ControlsRow()
@@ -45,4 +46,12 @@ struct PromptCapsule: View {
         .frame(width: 900)
         .background(Color.canvasBackground)
         .environment(GenerationStore.preview(state: .ready))
+}
+
+#Preview("Capsule for a guided model") {
+    PromptCapsule()
+        .padding(30)
+        .frame(width: 900)
+        .background(Color.canvasBackground)
+        .environment(GenerationStore.preview(state: .ready, descriptor: PreviewModel.guided))
 }

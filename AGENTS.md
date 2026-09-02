@@ -25,8 +25,8 @@ Sources/ZephraBench (tool)   ─→ ZephraCore, ZephraBackendZImage
 - `ZephraCore` (in `Packages/ZephraKit`): Sendable value types + protocols.
   Zero dependencies — no ZImage, no MLX, no SwiftUI.
 - `ZephraEngine` (in `Packages/ZephraKit`): concurrency + state. Depends on
-  `ZephraCore` only. The backend arrives as an injected `@Sendable` factory;
-  this layer never names a concrete backend.
+  `ZephraCore` only. Backends arrive as an injected `BackendRegistry` of
+  `@Sendable` factories; this layer never names a concrete backend.
 - `ZephraBackendZImage` (its own local package, `Packages/ZephraBackendZImage`):
   translates `ZephraCore` types to and from `ZImage` types. No state, no UI.
   Depends on `ZephraKit`'s `ZephraCore` product and `ZImageKit`'s `ZImage`
@@ -36,7 +36,7 @@ Sources/ZephraBench (tool)   ─→ ZephraCore, ZephraBackendZImage
   comment and a matching entry in `VENDORED.md`.
 - Nothing in the app target may `import ZImage` or `import MLX`. Only
   `Sources/Zephra/ZephraApp.swift` (the composition root) may
-  `import ZephraBackendZImage`, to build the backend factory. Everywhere else
+  `import ZephraBackendZImage`, to register the backend. Everywhere else
   in the app target goes through `ZephraEngine` and `ZephraCore`.
 
 Code rules:
@@ -53,6 +53,42 @@ Code rules:
 
 Run `make lint-layers` before every commit. It greps for forbidden imports
 across the layers above and fails the build if any are found.
+
+## Adding a model or a backend
+
+This is the seam priority 2 exists for. Both cases are additive: no view, and
+nothing in `ZephraEngine`, changes.
+
+**A model an existing backend can already run** — one entry in
+`Packages/ZephraKit/Sources/ZephraCore/Model/ModelCatalog.swift`, listed in
+`all`. `ModelDescriptor` carries where the weights come from (`ModelSource`:
+a Hugging Face repo or a local directory), the download and resident sizes,
+and a `ModelCapabilities` the interface draws itself from — size presets and
+bounds, step and guidance bounds, whether a negative prompt or a seed does
+anything. Every number in an entry is hand-written because every number is
+measured; leave a comment saying where a figure came from. `ModelMenu` lists
+`ModelCatalog.all` and `GenerationStore.switchModel(to:)` does the rest.
+
+**A new backend family** — four things:
+
+1. A `BackendID` case in `.../ZephraCore/Model/BackendID.swift`.
+2. A package under `Packages/`, alongside `ZephraBackendZImage`, whose one
+   public type conforms to `ImageGenerationBackend` and whose one public
+   entry point is a `BackendFactory` (see `ZImageBackendFactory`). It may
+   import whatever it needs; nothing above it may.
+3. Catalog entries naming that `BackendID`.
+4. One line in `Sources/Zephra/ZephraApp.swift`:
+   `registry.register(.yourFamily, YourBackendFactory.make)`. That file is the
+   only place in the app target allowed to name a concrete backend.
+
+`InferenceActor` keeps one backend at a time and rebuilds it whenever a
+descriptor names a different family, so the old weights are always released
+before the new ones are asked for. A descriptor whose family was never
+registered surfaces as `EngineError.noBackend`, not as a crash.
+
+`ImageGenerationBackend.availability(of:)` must answer from the disk alone —
+never download, never disturb what is loaded. It is what lets the picker say
+"13.3 GB download" without starting one.
 
 ## Build & run
 

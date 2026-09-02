@@ -77,11 +77,16 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
     }
 
     /// Reads the weights at `localPath` into memory.
+    ///
+    /// Whatever was loaded before is released first. Two Z-Image models are 13 GB each, so
+    /// holding the old one while the new one arrives would put the machine into swap; the same
+    /// backend serves every variant, and it serves one at a time.
     nonisolated(nonsending) public func load(
         _ descriptor: ModelDescriptor,
         at localPath: URL,
         onProgress: @escaping (GenerationProgressEvent) -> Void
     ) async throws {
+        if loadedModelID != nil { unload() }
         let pipeline = pipeline ?? ZImagePipeline()
         self.pipeline = pipeline
         do {

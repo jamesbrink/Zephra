@@ -30,9 +30,10 @@ struct RootView: View {
     }
 
     private var subtitle: String {
+        let state = store.state.subtitle(for: store.descriptor)
         let count = store.queue.count
-        guard count > 0 else { return store.state.subtitle }
-        return "\(store.state.subtitle) · \(count) queued"
+        guard count > 0 else { return state }
+        return "\(state) · \(count) queued"
     }
 
     private var controls: some View {
@@ -82,6 +83,7 @@ struct RootView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
+            ModelMenu()
             SizeMenu()
             Button {
                 filmstripVisible.toggle()

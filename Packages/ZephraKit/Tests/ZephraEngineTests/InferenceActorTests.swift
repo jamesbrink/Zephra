@@ -8,7 +8,8 @@ struct InferenceActorTests {
     @Test("generating before anything is loaded fails as a load failure")
     func generateBeforeLoad() async throws {
         let control = MockBackendControl()
-        let inference = InferenceActor(factory: { _ in MockBackend(control: control) })
+        let registry = BackendRegistry().registering(.zImage) { _ in MockBackend(control: control) }
+        let inference = InferenceActor(registry: registry)
         let (_, continuation) = AsyncStream.makeStream(of: EngineEvent.self)
         defer { continuation.finish() }
 
@@ -24,7 +25,8 @@ struct InferenceActorTests {
     @Test("preparing twice loads once, because the weights are already in memory")
     func prepareIsIdempotent() async throws {
         let control = MockBackendControl()
-        let inference = InferenceActor(factory: { _ in MockBackend(control: control) })
+        let registry = BackendRegistry().registering(.zImage) { _ in MockBackend(control: control) }
+        let inference = InferenceActor(registry: registry)
         let (stream, continuation) = AsyncStream.makeStream(of: EngineEvent.self)
         let sink = EngineEventSink(continuation)
 

@@ -10,15 +10,20 @@ nonisolated enum ZImageLocalSnapshot {
     /// Returns `directory` if it looks like a snapshot, or throws `BackendError.downloadFailed`
     /// naming the first missing entry.
     static func verified(_ directory: URL, descriptor: ModelDescriptor) throws -> URL {
-        let files = FileManager.default
-        for entry in requiredEntries {
-            let path = directory.appending(path: entry).path(percentEncoded: false)
-            guard files.fileExists(atPath: path) else {
-                throw BackendError.downloadFailed(
-                    "\(descriptor.fullName) is not at \(directory.path(percentEncoded: false)): missing \(entry)."
-                )
-            }
+        if let missing = missingEntry(in: directory) {
+            throw BackendError.downloadFailed(
+                "\(descriptor.fullName) is not at \(directory.path(percentEncoded: false)): missing \(missing)."
+            )
         }
         return directory
+    }
+
+    /// The first thing a loadable snapshot needs that this directory does not have, or nil when
+    /// it has them all. The non-throwing half of `verified`, for asking without committing.
+    static func missingEntry(in directory: URL) -> String? {
+        let files = FileManager.default
+        return requiredEntries.first {
+            !files.fileExists(atPath: directory.appending(path: $0).path(percentEncoded: false))
+        }
     }
 }

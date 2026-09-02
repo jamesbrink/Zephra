@@ -15,8 +15,11 @@ public final class GenerationStore {
     public internal(set) var history: [GeneratedImage] = []
     /// What the next generation will use. Edited directly by the UI.
     public var settings: GenerationSettings
-    /// The model this store drives.
+    /// The model this store drives. Change it with `switchModel(to:)`.
     public internal(set) var descriptor: ModelDescriptor
+    /// What is on disk for each known model, by descriptor id. Filled in at bootstrap and after
+    /// every load; a model missing from the map has not been looked at yet.
+    public internal(set) var availability: [ModelDescriptor.ID: ModelAvailability] = [:]
     /// Wall-clock time of the last completed generation.
     public internal(set) var lastDuration: Duration?
     /// The most recent image that could not be written, or nil when the last one saved. Shown
@@ -34,33 +37,35 @@ public final class GenerationStore {
 
     // Machinery, not surface. These are internal rather than private only so the generation
     // half of this type, in GenerationStore+Generation.swift, can reach them.
-    /// How the store builds its backend, or nil for a preview store, which has none and so
+    /// Which backend runs which model family, or nil for a preview store, which has none and so
     /// never loads, generates, or reaches a model at all.
-    let backendFactory: BackendFactory?
+    let registry: BackendRegistry?
     let library: ImageLibrary
     let logger = Logger(subsystem: "io.zephra", category: "engine")
 
     @ObservationIgnored var inference: InferenceActor?
     @ObservationIgnored var bootstrapTask: Task<Void, Never>?
+    @ObservationIgnored var switchTask: Task<Void, Never>?
     @ObservationIgnored var generationTask: Task<Void, Never>?
     @ObservationIgnored var saveTask: Task<Void, Never>?
 
-    /// Creates a store for one model. `outputDirectory` nil means ~/Pictures/Zephra.
+    /// Creates a store for one model, running on the backends `registry` knows how to build.
+    /// `outputDirectory` nil means ~/Pictures/Zephra.
     public convenience init(
         descriptor: ModelDescriptor = ModelCatalog.default,
-        backendFactory: @escaping BackendFactory,
+        registry: BackendRegistry,
         outputDirectory: URL? = nil
     ) {
-        self.init(descriptor: descriptor, factory: backendFactory, outputDirectory: outputDirectory)
+        self.init(descriptor: descriptor, registry: registry, output: outputDirectory)
     }
 
-    /// The one designated initializer. A nil `factory` makes a preview store: see
+    /// The one designated initializer. A nil `registry` makes a preview store: see
     /// `GenerationStore+Preview.swift`.
-    init(descriptor: ModelDescriptor, factory: BackendFactory?, outputDirectory: URL?) {
+    init(descriptor: ModelDescriptor, registry: BackendRegistry?, output: URL?) {
         self.descriptor = descriptor
         self.settings = GenerationSettings.defaults(for: descriptor)
-        self.backendFactory = factory
-        self.library = outputDirectory.map { ImageLibrary(root: $0) } ?? .pictures()
+        self.registry = registry
+        self.library = output.map { ImageLibrary(root: $0) } ?? .pictures()
     }
 
     /// The folder finished images are written to. The one answer to that question: nothing
@@ -134,6 +139,7 @@ public final class GenerationStore {
     /// Waits for everything this store has in flight. A seam for tests, which need generation
     /// and the file write that follows it to be finished before they assert.
     func settle() async {
+        await switchTask?.value
         await bootstrapTask?.value
         await generationTask?.value
         await saveTask?.value

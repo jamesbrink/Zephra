@@ -4,9 +4,23 @@ import ZephraCore
 /// finish before anything else can start. Split out of `GenerationStore.swift` so the observed
 /// surface of the store stays readable on its own.
 extension GenerationStore {
+    /// The actor every backend call goes through, built on first use from the registry. Nil for
+    /// a preview store, which has no registry and so can never reach a backend at all.
+    func inferenceActor() -> InferenceActor? {
+        guard let registry else { return nil }
+        if let inference { return inference }
+        let made = InferenceActor(registry: registry)
+        inference = made
+        return made
+    }
+
     /// Finds or downloads the model, loads it, and warms up. Call once from the root view.
     /// Calling it again once the engine is running is a no-op, so a re-rendered root is free.
+    ///
+    /// What is on disk is checked first, so the picker can label every model before the long
+    /// load takes over the inference queue.
     public func bootstrap() async {
+        await refreshAvailability()
         guard let task = startLoading() else { return }
         await task.value
     }
@@ -22,21 +36,19 @@ extension GenerationStore {
     /// A preview store has no backend to build, so it never starts anything.
     @discardableResult
     private func startLoading() -> Task<Void, Never>? {
-        guard let backendFactory else { return nil }
+        guard let inference = inferenceActor() else { return nil }
         switch state {
         case .idle, .failed: break
         default: return nil
         }
         transition(to: .checkingModel)
-        let task = Task { await self.load(with: backendFactory) }
+        let task = Task { await self.load(on: inference) }
         bootstrapTask = task
         return task
     }
 
     /// The body of a load, from finding the weights to the throwaway first generation.
-    private func load(with backendFactory: @escaping BackendFactory) async {
-        let inference = inference ?? InferenceActor(factory: backendFactory)
-        self.inference = inference
+    private func load(on inference: InferenceActor) async {
         let pump = EngineEventPump { [weak self] event in self?.applyLoadEvent(event) }
         do {
             try await pump.run { sink in try await inference.prepare(descriptor, events: sink) }
@@ -48,10 +60,13 @@ extension GenerationStore {
             transition(to: .ready)
         } catch is CancellationError {
             transition(to: .idle)
+        } catch BackendRegistryError.noBackend(let id) {
+            transition(to: .failed(.noBackend(id)))
         } catch let error as BackendError {
             transition(to: .failed(.backend(error)))
         } catch {
             transition(to: .failed(.backend(.loadFailed(error.localizedDescription))))
         }
+        await refreshAvailability()
     }
 }
