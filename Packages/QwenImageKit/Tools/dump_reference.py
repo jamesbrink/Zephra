@@ -86,6 +86,41 @@ def dump_latent_packing(out: pathlib.Path) -> None:
     print("latent packing: 2 tensors")
 
 
+def dump_text_encoder(out: pathlib.Path) -> None:
+    """A doll's-house Qwen2.5 language stack: its weights, an input, and the hidden states.
+
+    Small enough to commit, and it exercises every part that can be got backwards -- the bias on
+    the query, key, and value projections, grouped-query attention, the SwiGLU gate order, and
+    which hidden state Qwen-Image conditions on.
+    """
+    from transformers import Qwen2Config, Qwen2Model
+
+    torch.manual_seed(7)
+    config = Qwen2Config(
+        hidden_size=64,
+        num_hidden_layers=2,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        intermediate_size=128,
+        vocab_size=100,
+        rms_norm_eps=1e-6,
+        rope_theta=1000000.0,
+        tie_word_embeddings=False,
+        attn_implementation="eager",
+    )
+    model = Qwen2Model(config).eval()
+    tokens = torch.tensor([[3, 17, 42, 8, 99, 1, 55]])
+    with torch.no_grad():
+        hidden = model(input_ids=tokens).last_hidden_state
+
+    # Prefixed the way the published checkpoint names them, so the Swift side loads by name.
+    tensors = {f"model.{key}": value.contiguous() for key, value in model.state_dict().items()}
+    tensors["input_ids"] = tokens.to(torch.int32).contiguous()
+    tensors["last_hidden_state"] = hidden.float().contiguous()
+    save_file(tensors, str(out / "text_encoder.safetensors"))
+    print(f"text encoder: {len(tensors)} tensors")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", required=True, type=pathlib.Path)
@@ -98,6 +133,7 @@ def main() -> None:
         "rope": dump_rope,
         "scheduler": dump_scheduler,
         "latent_packing": dump_latent_packing,
+        "text_encoder": dump_text_encoder,
     }
     for name, dumper in dumpers.items():
         if arguments.only and name not in arguments.only:
