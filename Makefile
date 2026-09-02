@@ -45,8 +45,10 @@ screenshot:
 
 # Layering rules from CLAUDE.md, enforced mechanically.
 lint-layers:
-	@! grep -rln '^import ZImage' Sources/Zephra --include='*.swift' | grep -v 'ZephraApp.swift' \
-	  || (echo "LAYER VIOLATION: app target imports ZImage outside ZephraApp.swift"; exit 1)
+	@! grep -rln '^import ZImage\|^import MLX' Sources/Zephra Sources/ZephraBench --include='*.swift' \
+	  || (echo "LAYER VIOLATION: app or bench target imports ZImage or MLX directly"; exit 1)
+	@! grep -rln '^import ZephraBackendZImage' Sources/Zephra --include='*.swift' | grep -v 'ZephraApp.swift' \
+	  || (echo "LAYER VIOLATION: ZephraBackendZImage imported outside ZephraApp.swift"; exit 1)
 	@! grep -rln '^import ZImage\|^import MLX' Packages/ZephraKit/Sources/ZephraCore Packages/ZephraKit/Sources/ZephraEngine 2>/dev/null \
 	  || (echo "LAYER VIOLATION: ZephraCore/ZephraEngine import ZImage or MLX"; exit 1)
 	@! grep -rln '^import SwiftUI\|^import AppKit' Packages/ZephraKit/Sources 2>/dev/null \

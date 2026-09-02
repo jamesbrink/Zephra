@@ -15,6 +15,7 @@ configs:
 settings:
   base:
     ARCHS: arm64
+    ONLY_ACTIVE_ARCH: "YES"
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
     ENABLE_USER_SCRIPT_SANDBOXING: "NO"
@@ -24,7 +25,6 @@ settings:
     CODE_SIGN_IDENTITY: "-"
   configs:
     Debug:
-      ONLY_ACTIVE_ARCH: "YES"
       SWIFT_OPTIMIZATION_LEVEL: "-Onone"
       MTL_ENABLE_DEBUG_INFO: INCLUDE_SOURCE
     Release:
