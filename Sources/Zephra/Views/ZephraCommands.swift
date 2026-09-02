@@ -24,9 +24,9 @@ struct ZephraCommands: Commands {
                 .keyboardShortcut("r", modifiers: [.command, .shift])
                 .disabled(store.current == nil)
         }
-        CommandGroup(replacing: .pasteboard) {
-            Button("Copy") { if let image = store.current { ImageExport.copyToPasteboard(image) } }
-                .keyboardShortcut("c", modifiers: .command)
+        CommandGroup(after: .pasteboard) {
+            Button("Copy Image") { if let image = store.current { ImageExport.copyToPasteboard(image) } }
+                .keyboardShortcut("c", modifiers: [.command, .shift])
                 .disabled(store.current == nil)
         }
     }

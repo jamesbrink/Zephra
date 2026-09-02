@@ -23,7 +23,11 @@ struct RootView: View {
                 guard !InterfacePreview.isActive else { return }
                 await store.bootstrap()
             }
-            .onChange(of: store.settings.prompt) { _, prompt in lastPrompt = prompt }
+            .onChange(of: store.settings.prompt) { _, prompt in
+                // An empty field is a draft in progress, not a decision to forget the last prompt.
+                guard !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+                lastPrompt = prompt
+            }
     }
 
     private var subtitle: String {
