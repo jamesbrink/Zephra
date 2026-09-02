@@ -4,17 +4,20 @@ import ZephraCore
 extension GenerationStore {
     /// Chooses a different model for the generations that follow.
     ///
-    /// Does nothing if it is already the chosen model. The prompt and the seed survive;
-    /// everything else in `settings` is clamped to what the new model accepts. With the engine
-    /// idle the weights are swapped straight away. With a generation running or queued nothing
-    /// is interrupted: the running image finishes on its model, queued entries keep theirs, and
-    /// the new choice takes effect for whatever is generated next. Nothing is persisted here:
-    /// which model was chosen is the app's business.
+    /// Does nothing if it is already the chosen model. The prompt, the size and the seed
+    /// survive; everything else in `settings` is clamped to what the new model accepts, and a
+    /// move to another family takes that family's own schedule. With the engine idle the weights
+    /// are swapped straight away. With a generation running or queued nothing is interrupted:
+    /// the running image finishes on its model, queued entries keep theirs, and the new choice
+    /// takes effect for whatever is generated next. Nothing is persisted here: which model was
+    /// chosen is the app's business.
     public func switchModel(to descriptor: ModelDescriptor) {
         guard descriptor.id != self.descriptor.id else { return }
         logger.info("model chosen: \(descriptor.id, privacy: .public)")
+        let family = self.descriptor.backend
         self.descriptor = descriptor
-        settings = descriptor.capabilities.clamp(settings)
+        settings = descriptor.capabilities.clamp(
+            descriptor.backend == family ? settings : settings.onSchedule(of: descriptor))
         guard !isDraining, queue.isEmpty else { return }
         reload(descriptor, thenDrain: false)
     }
