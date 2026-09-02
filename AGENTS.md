@@ -27,6 +27,7 @@ Shared, by what a file actually touches:
   ZephraKit/ZephraSnapshot     Foundation only  — hub cache, local snapshot checks
   ZephraKit/ZephraTestSupport  Foundation only  — Scratch, the filesystem test fixture
   ZephraMLXKit/ZephraQuantization  MLX          — the streaming weight packer
+  ZephraMLXKit/ZephraMLX           MLX          — the tiled decode; <Family>Kit may take it
 ```
 
 - `ZephraCore` (in `Packages/ZephraKit`): Sendable value types + protocols.
@@ -37,17 +38,29 @@ Shared, by what a file actually touches:
 - `ZephraQuantization` (in `Packages/ZephraMLXKit`): the streaming weight
   packer, shared by every family. It knows nothing about any model — a family
   hands it a `QuantizationPlan` saying which directories hold weights, which
-  tensors to leave alone, and how finely to squeeze the rest.
+  tensors to leave alone, how finely to squeeze the rest, and which low-rank
+  adapters to merge on the way past.
+- `ZephraMLX` (in `Packages/ZephraMLXKit`): MLX work that is the same job for
+  every family. `TiledDecode` is what is there: an autoencoder's decode
+  allocates in proportion to the image, so decoding overlapping latent tiles
+  bounds the peak by the tile. A model package may depend on this; nothing in
+  it may depend on a model package. The vendored `ZImageKit` keeps its own
+  copy as a `ZEPHRA-PATCH`, because pointing vendored code at ours would
+  complicate every re-sync.
 - `ZephraEngine` (in `Packages/ZephraKit`): concurrency + state. Depends on
   `ZephraCore` only. Backends arrive as an injected `BackendRegistry` of
   `@Sendable` factories; this layer never names a concrete backend.
-- `ZephraBackendZImage` (its own local package, `Packages/ZephraBackendZImage`):
-  translates `ZephraCore` types to and from `ZImage` types. No state, no UI.
-  Depends on `ZephraKit`'s `ZephraCore` product and `ZImageKit`'s `ZImage`
-  product. This split keeps `Packages/ZephraKit` free of MLX dependencies, so
-  `make test` (`swift test` there) stays fast and doesn't touch Metal.
+- `ZephraBackendZImage` and `ZephraBackendQwenImage` (their own local
+  packages): translate `ZephraCore` types to and from one family's types. No
+  state, no UI. Each depends on `ZephraKit`'s `ZephraCore` product and on its
+  own family's kit. This split keeps `Packages/ZephraKit` free of MLX
+  dependencies, so `make test` (`swift test` there) stays fast and doesn't
+  touch Metal.
 - `Packages/ZImageKit`: vendored. Edit only with a `// ZEPHRA-PATCH: <reason>`
   comment and a matching entry in `VENDORED.md`.
+- `Packages/QwenImageKit`: ours, clean-room. Written from Qwen-Image-2512's own
+  config files and from `diffusers`, never from the GPL-3.0
+  `mzbac/qwen.image.swift`. `PROVENANCE.md` records why and how; keep it true.
 - Nothing in the app target may import a model package or `MLX`. Only
   `Sources/Zephra/ZephraApp.swift` (the composition root) may import a
   `ZephraBackend*` package, to register the backend. Everywhere else in the
@@ -148,8 +161,9 @@ Makefile targets:
 - `make test` — `swift test` in `Packages/ZephraKit` (Core, Snapshot, and
   Engine, fast, no MLX). Anything testable without Metal belongs here.
 - `make test-mlx` — `xcodebuild test` over every package that links MLX
-  (`MLX_PACKAGES` in the Makefile). Slower, needs `xcodebuild`. `make
-  test-backend` is kept as an alias. Keep `make test` MLX-free.
+  (`MLX_PACKAGES` in the Makefile, written `directory:scheme`). Slower, needs
+  `xcodebuild`. `make test-backend` is kept as an alias. Keep `make test`
+  MLX-free.
 - `make icon` — re-render `AppIcon.appiconset` from `scripts/make-icon.swift`.
 - `make release` — build Release, sign with a Developer ID Application identity
   (hardened runtime, secure timestamp), verify, and zip to `build/Zephra.zip`.
@@ -158,12 +172,21 @@ Makefile targets:
   `xcrun notarytool store-credentials zephra-notary` run once; `NOTARY_PROFILE`
   names the profile.
 - `make prefetch` — download the default model weights via `hf download`.
+- `make prefetch-qwen` — download Qwen-Image-2512 and its four-step Lightning
+  adapter into `QWEN_MODELS` (external storage by default; 57.7 GB does not
+  belong on a boot volume). Name the adapter file explicitly: the repository
+  also ships whole merged checkpoints of twenty gigabytes each, and pulling it
+  whole costs 101 GB.
 - `make quantize` — download the bf16 release and build the 4-bit variant into
   `~/Library/Application Support/Zephra/Models/z-image-turbo-4bit`. `BITS`,
   `GROUP_SIZE`, and `QUANT_OUT` override the defaults (4 bits, group 64).
   `ZephraQuantize` takes a required `--family`; there is deliberately no
   default, because the wrong one silently produces the wrong artifact an hour
   later.
+- `make quantize-qwen` — build the 4-bit Qwen-Image variant from `QWEN_SOURCE`
+  with `QWEN_LORA` merged into its transformer, into
+  `~/Library/Application Support/Zephra/Models/qwen-image-2512-4bit`. About a
+  minute with the source local.
 - `make lint-layers` — enforce the layering rules above.
 - `make logs` — stream app logs (`log stream`, subsystem `io.zephra`).
 - `make screenshot` — capture the app window (see debugging hooks).
@@ -184,11 +207,17 @@ the snapshot, not whichever is listed first"); match that when adding one.
   `cd Packages/ZephraKit && swift test --filter ModelSwap`. The filter is a
   regex over the *type* names, not the `@Suite` display names, so `ModelSwap`
   takes both swap suites and `--filter 'model swap'` matches nothing.
-- The backend's suites need `xcodebuild`, and its filter is likewise the type
-  name: `cd Packages/ZephraBackendZImage && xcodebuild test -scheme
+- The MLX packages' suites need `xcodebuild`, and their filter is likewise the
+  type name: `cd Packages/ZephraBackendZImage && xcodebuild test -scheme
   ZephraBackendZImage -destination 'platform=macOS'
   -skipPackagePluginValidation
-  -only-testing:ZephraBackendZImageTests/QuantizableWeightTests`.
+  -only-testing:ZephraBackendZImageTests/QuantizableWeightTests`. A package's
+  scheme is its own name, except `ZephraMLXKit`, which ships two library
+  products and so is tested through `ZephraMLXKit-Package`.
+- `QwenImageKit`'s suites check the port against tensors dumped from
+  `diffusers` by `Packages/QwenImageKit/Tools/dump_reference.py`. Adding a
+  component means adding its fixture in the same commit; that is what the
+  clean-room claim in `PROVENANCE.md` rests on.
 
 No test loads weights or touches the GPU. The engine tests drive `MockBackend`
 through `MockBackendControl`, a lock-protected dial a `@Sendable` factory can
@@ -222,13 +251,40 @@ directly and the end-to-end step times agree with. Group size 64 rather than 32,
 measured: 32 costs 825 MB more resident and 1.1 GB more on disk for no visible
 quality gain.
 
-Second family, in progress: **Qwen-Image-2512** (`Qwen/Qwen-Image-2512`, Apache 2.0)
-— a 60-layer dual-stream MMDiT of about 20B parameters, conditioned on
-Qwen2.5-VL-7B and decoded by a 3-D causal VAE. 57.7 GB in bf16, which is too
-large for the boot volume here, so the full-precision source lives at
-`/Volumes/ExternalStorage/Models/Qwen-Image-2512` and only its configuration
-files stay in the Hugging Face cache. Point `--source` there when quantizing,
-and `QWEN_IMAGE_SNAPSHOT` there for any test that wants real weights.
+Third model: `qwen-image-2512-4bit` — **Qwen-Image-2512**
+(`Qwen/Qwen-Image-2512`, Apache 2.0), a 60-layer dual-stream MMDiT of about 20B
+parameters, conditioned on Qwen2.5-VL-7B and decoded by a 3-D causal VAE. Built
+on the user's own Mac by `make quantize-qwen`, because the release is 57.7 GB of
+bf16 and the four-step distillation ships separately as an adapter, so the local
+build is where the two are put together. 21.6 GB on disk.
+
+The full-precision source is too large for the boot volume here, so it lives at
+`/Volumes/ExternalStorage/Models/Qwen-Image-2512` with the adapter beside it in
+`Qwen-Image-2512-Lightning/`; only the configuration files stay in the Hugging
+Face cache. Point `QWEN_SOURCE` and `QWEN_LORA` there, and `QWEN_IMAGE_SNAPSHOT`
+there for any test that wants real weights.
+
+Measured on an M4 Max, four steps, seed 42: 21532 MB resident at every size,
+because the weights are the whole of it. 512 pixels takes 6.9 s (1.57 s/step)
+and peaks at 26053 MB; 1024 takes 33.6 s (8.15 s/step) and peaks at 30364 MB;
+1328, the model's native resolution, takes 66.7 s (16.25 s/step) and peaks at
+32520 MB. Tiled at a 64-cell latent tile the peak barely moves with the image —
+26068 MB at 1024, 26088 MB at 1328 — because the tile, not the image, sets the
+decode's transient and what is left is the transformer. So 1024 is the default
+size: half the seconds of native for an image that still renders legible text,
+and the entry's `peakBytes` is measured there.
+
+**The Lightning adapter is not optional.** The base model wants fifty steps and
+real classifier-free guidance, which is two forward passes through twenty
+billion parameters per step. `lightx2v/Qwen-Image-2512-Lightning` (Apache 2.0)
+distils that to four steps and no guidance, and `make quantize-qwen` merges it
+into the transformer as it packs, so the runtime never sees an adapter. Run the
+same seed and prompt against a build without it and the difference is not
+subtle: soft, hazy, mesh-textured surfaces against sharp ones. That is also why
+the catalog entry reads `guidanceBounds: 0...0` and
+`supportsNegativePrompt: false` — the merged weights were distilled without
+either. An entry built from the undistilled release would be the opposite, which
+is what `ModelCapabilities` being per-descriptor is for.
 
 Text-to-image never runs Qwen2.5-VL's vision tower: the pipeline supplies token
 ids and an attention mask and no pixels. So the ViT is not ported and its
@@ -236,9 +292,26 @@ weights are not loaded, along with `lm_head` — together 391 of the checkpoint'
 729 text-encoder tensors. `WeightKeyCoverageTests` asserts that rather than
 leaving it to be assumed.
 
-The Z-Image quantization plan lives in `ZephraBackendZImage/Quantization`; the
-packer it drives is shared, in `ZephraQuantization`. Three things about it are
-load-bearing and easy to break:
+Each family's quantization plan lives in its own backend package's
+`Quantization` directory; the packer they drive is shared, in
+`ZephraQuantization`. Precision there is a function of the tensor name: an
+ordered list of rules per component, first match wins, and a rule resolving to
+no precision leaves the tensor alone. `QuantizableWeight` answers only whether
+MLX *can* pack a tensor; `QuantizedComponent.precision(for:)` answers whether we
+*want* it packed, and it is asked first, because the group size it names is what
+divisibility is tested against.
+
+Qwen-Image holds its modulation layers at eight bits while the rest goes to
+four. They are 6.8 of the transformer's 20.4 billion parameters and they decide
+how strongly every other layer responds; published four-bit builds that pack
+them with everything else lose coherent structure. It costs about 2.4 GB.
+
+An adapter naming weights the component has not got stops the build. That is the
+one check worth keeping: an adapter written against a different port of the same
+model matches nothing, merges nothing, and hands back the base model — a failure
+that looks exactly like a build that worked.
+
+Three more things about the Z-Image plan are load-bearing and easy to break:
 
 - The set of packed tensors must match the reference eight-bit export exactly. The
   loader decides what is quantized by looking for a `.scales` key, so packing a
