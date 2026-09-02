@@ -3,9 +3,10 @@ import Foundation
 /// The `quantization.json` a quantized snapshot carries, in the shape the vendored
 /// `ZImageQuantizationManifest` decodes.
 ///
-/// Its presence is what makes the loader read packed shards at all. The top-level `bits` and
-/// `group_size` are the fallback the loader applies to any layer it cannot find by name; the
-/// per-layer values override them, which is how a mixed-precision build stays loadable.
+/// Its presence is what makes the loader read packed shards at all. Every layer carries its own
+/// `bits` and `group_size`, and the loader uses them for any layer it finds in `layers` by name.
+/// The top-level pair is only the fallback for a layer it cannot find, which is how a
+/// mixed-precision build stays loadable.
 struct QuantizationManifest: Encodable {
     /// One packed linear layer.
     struct Layer: Encodable {
@@ -19,10 +20,9 @@ struct QuantizationManifest: Encodable {
         let outDim: Int
         /// The shard the packed weight ended up in, relative to the snapshot root.
         let file: String
-        /// Bits per weight for this layer.
-        let bits: Int
-        /// Weights per scale for this layer.
-        let groupSize: Int
+        /// How this layer was packed. Written out per layer, always, so a mixed build describes
+        /// itself layer by layer rather than leaning on the header.
+        let precision: QuantizationPrecision
         /// The packing scheme, always `affine` here.
         let mode: String
 
@@ -42,8 +42,8 @@ struct QuantizationManifest: Encodable {
             try container.encode(outDim, forKey: .outDim)
             try container.encode(file, forKey: .file)
             try container.encode(file, forKey: .quantFile)
-            try container.encode(bits, forKey: .bits)
-            try container.encode(groupSize, forKey: .groupSize)
+            try container.encode(precision.bits, forKey: .bits)
+            try container.encode(precision.groupSize, forKey: .groupSize)
             try container.encode(mode, forKey: .mode)
         }
     }
@@ -52,10 +52,8 @@ struct QuantizationManifest: Encodable {
     let modelId: String?
     /// The revision of that repository.
     let revision: String?
-    /// The group size to assume for a layer the loader cannot find by name.
-    let groupSize: Int
-    /// The bit width to assume for a layer the loader cannot find by name.
-    let bits: Int
+    /// What the loader assumes for a layer it cannot find in `layers` by name.
+    let fallback: QuantizationPrecision
     /// The packing scheme, always `affine` here.
     let mode: String
     /// Every packed layer, across all components.
@@ -65,6 +63,31 @@ struct QuantizationManifest: Encodable {
         case revision, bits, mode, layers
         case modelId = "model_id"
         case groupSize = "group_size"
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(modelId, forKey: .modelId)
+        try container.encodeIfPresent(revision, forKey: .revision)
+        try container.encode(fallback.groupSize, forKey: .groupSize)
+        try container.encode(fallback.bits, forKey: .bits)
+        try container.encode(mode, forKey: .mode)
+        try container.encode(layers, forKey: .layers)
+    }
+
+    /// The precision most of `layers` were packed at, or nil when nothing was packed.
+    ///
+    /// This is the honest header for a mixed build: the top level reaches only the layers a
+    /// name lookup misses, so the value that covers the most layers is the one a miss most
+    /// likely needed. Ties go to the precision that appears first, which is the transformer's.
+    static func commonestPrecision(across layers: [Layer]) -> QuantizationPrecision? {
+        var order: [QuantizationPrecision] = []
+        var tally: [QuantizationPrecision: Int] = [:]
+        for layer in layers {
+            if tally[layer.precision] == nil { order.append(layer.precision) }
+            tally[layer.precision, default: 0] += 1
+        }
+        return order.max { tally[$0, default: 0] < tally[$1, default: 0] }
     }
 
     /// Writes the manifest to `quantization.json` inside a snapshot directory.
