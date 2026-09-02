@@ -4,6 +4,16 @@ import ZephraCore
 /// finish before anything else can start. Split out of `GenerationStore.swift` so the observed
 /// surface of the store stays readable on its own.
 extension GenerationStore {
+    /// The actor every backend call goes through, built on first use from the registry. Nil for
+    /// a preview store, which has no registry and so can never reach a backend at all.
+    func inferenceActor() -> InferenceActor? {
+        guard let registry else { return nil }
+        if let inference { return inference }
+        let made = InferenceActor(registry: registry)
+        inference = made
+        return made
+    }
+
     /// Finds or downloads the model, loads it, and warms up. Call once from the root view.
     /// Calling it again once the engine is running is a no-op, so a re-rendered root is free.
     ///

@@ -68,15 +68,6 @@ public final class GenerationStore {
         self.library = output.map { ImageLibrary(root: $0) } ?? .pictures()
     }
 
-    /// The actor every backend call goes through, built on first use. Nil for a preview store.
-    func inferenceActor() -> InferenceActor? {
-        guard let registry else { return nil }
-        if let inference { return inference }
-        let made = InferenceActor(registry: registry)
-        inference = made
-        return made
-    }
-
     /// The folder finished images are written to. The one answer to that question: nothing
     /// else works the path out for itself.
     public var outputDirectory: URL { library.root }
