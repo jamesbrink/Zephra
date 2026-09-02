@@ -211,6 +211,40 @@ def dump_transformer(out: pathlib.Path) -> None:
     print(f"transformer model: {len(tensors)} tensors")
 
 
+def dump_vae(out: pathlib.Path) -> None:
+    """A doll's-house autoencoder decoding a single frame, with weights, latent, and pixels.
+
+    Single-frame decoding is the whole claim being checked here: the reference runs 3-D causal
+    convolutions over a one-frame tensor, and this port replaces each with the 2-D convolution it
+    reduces to. If that reduction is wrong, this fixture says so.
+    """
+    from diffusers import AutoencoderKLQwenImage
+
+    torch.manual_seed(17)
+    vae = AutoencoderKLQwenImage(
+        base_dim=8,
+        z_dim=4,
+        dim_mult=[1, 2],
+        num_res_blocks=1,
+        attn_scales=[],
+        temperal_downsample=[True],
+        latents_mean=[0.1, -0.2, 0.3, -0.4],
+        latents_std=[1.5, 0.8, 1.2, 0.9],
+    ).eval()
+
+    latent = torch.randn(1, 4, 1, 6, 6)
+    mean = torch.tensor(vae.config.latents_mean).view(1, 4, 1, 1, 1)
+    std = torch.tensor(vae.config.latents_std).view(1, 4, 1, 1, 1)
+    with torch.no_grad():
+        pixels = vae.decode(latent * std + mean, return_dict=False)[0]
+
+    tensors = {f"vae.{k}": v.contiguous() for k, v in vae.state_dict().items()}
+    tensors["vae.in.latent"] = latent.contiguous()
+    tensors["vae.out.pixels"] = pixels.contiguous()
+    save_file(tensors, str(out / "vae.safetensors"))
+    print(f"vae: {len(tensors)} tensors")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", required=True, type=pathlib.Path)
@@ -225,6 +259,7 @@ def main() -> None:
         "latent_packing": dump_latent_packing,
         "text_encoder": dump_text_encoder,
         "transformer": dump_transformer,
+        "vae": dump_vae,
     }
     for name, dumper in dumpers.items():
         if arguments.only and name not in arguments.only:
