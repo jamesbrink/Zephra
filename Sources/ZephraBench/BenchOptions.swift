@@ -1,4 +1,5 @@
 import Foundation
+import ZephraCore
 
 /// What one benchmark invocation was asked to measure.
 struct BenchOptions: Sendable {
@@ -16,6 +17,8 @@ struct BenchOptions: Sendable {
     var json = false
     /// Whether to skip the pipeline entirely and time individual MLX kernels instead.
     var micro = false
+    /// The catalog identifier of the model to load, defaulting to the app's own default.
+    var model = ModelCatalog.default.id
 
     /// Reads options from the command line, exiting with usage text on anything unrecognised.
     /// A benchmark is run by hand, so a typo should stop it rather than quietly measure the
@@ -34,7 +37,7 @@ struct BenchOptions: Sendable {
             case "--help", "-h":
                 print(usage)
                 exit(0)
-            case "--size", "--steps", "--runs", "--prompt", "--out":
+            case "--size", "--steps", "--runs", "--prompt", "--out", "--model":
                 guard index < arguments.count else { fail("\(flag) needs a value") }
                 let value = arguments[index]
                 index += 1
@@ -53,8 +56,18 @@ struct BenchOptions: Sendable {
         case "--runs": options.runs = positive(value, flag)
         case "--prompt": options.prompt = value
         case "--out": options.output = URL(fileURLWithPath: value)
+        case "--model": options.model = resolvedModel(value)
         default: fail("unknown option \(flag)")
         }
+    }
+
+    /// Checks a model identifier against the catalog, so a typo names the models that do exist
+    /// rather than failing later with a missing-snapshot error.
+    private static func resolvedModel(_ value: String) -> String {
+        guard ModelCatalog.descriptor(id: value) != nil else {
+            fail("unknown model \(value); try one of \(ModelCatalog.all.map(\.id).joined(separator: ", "))")
+        }
+        return value
     }
 
     private static func positive(_ value: String, _ flag: String) -> Int {
@@ -70,9 +83,10 @@ struct BenchOptions: Sendable {
     }
 
     private static let usage = """
-        usage: ZephraBench [--size N] [--steps N] [--runs N] [--prompt TEXT] \
+        usage: ZephraBench [--model ID] [--size N] [--steps N] [--runs N] [--prompt TEXT] \
         [--out PATH] [--json] [--micro]
 
+        --model names a catalog entry, so variants can be compared at a fixed seed.
         --micro times the DiT's individual MLX kernels at --size worth of tokens and
         exits, without loading any weights.
         """

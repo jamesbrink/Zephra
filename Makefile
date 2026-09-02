@@ -6,7 +6,15 @@ BUILD    := $(CURDIR)/build
 DERIVED  := $(CURDIR)/.build/DerivedData
 APP      := $(BUILD)/$(CONFIG)/Zephra.app
 BENCH    := $(BUILD)/Release/ZephraBench
+QUANTIZE := $(BUILD)/Release/ZephraQuantize
 MODEL    := mzbac/Z-Image-Turbo-8bit
+
+# `make quantize` builds the 4-bit variant from the full-precision release. BITS and GROUP_SIZE
+# pick the trade-off; QUANT_OUT must match ModelCatalog.zImageTurbo4bit's local directory.
+BASE_MODEL := Tongyi-MAI/Z-Image-Turbo
+BITS       ?= 4
+GROUP_SIZE ?= 64
+QUANT_OUT  ?= $(HOME)/Library/Application Support/Zephra/Models/z-image-turbo-4bit
 DEST     := platform=macOS,arch=arm64
 XCB      := xcodebuild -project $(PROJECT) -destination '$(DEST)' SYMROOT=$(BUILD) -derivedDataPath $(DERIVED)
 BACKEND  := $(CURDIR)/Packages/ZephraBackendZImage
@@ -19,7 +27,7 @@ NOTARY_PROFILE ?= zephra-notary
 RELEASE_APP    := $(BUILD)/Release/Zephra.app
 RELEASE_ZIP    := $(BUILD)/Zephra.zip
 
-.PHONY: gen build run bench prefetch open clean lint-layers logs screenshot test test-backend icon release notarize
+.PHONY: gen build run bench quantize prefetch open clean lint-layers logs screenshot test test-backend icon release notarize
 
 gen:
 	xcodegen generate --spec project.yml
@@ -33,6 +41,14 @@ run: build
 bench: gen
 	$(XCB) -scheme ZephraBench -configuration Release build >/dev/null
 	$(BENCH) $(ARGS)
+
+# Build the 4-bit variant locally: no repository publishes Z-Image-Turbo in the manifest format
+# the vendored loader reads. The download is the slow part; the quantization itself is minutes.
+quantize: gen
+	$(XCB) -scheme ZephraQuantize -configuration Release build >/dev/null
+	"$(QUANTIZE)" --source "$$(hf download $(BASE_MODEL) --exclude 'assets/*')" \
+	  --source-name $(BASE_MODEL) --bits $(BITS) --group-size $(GROUP_SIZE) \
+	  --out "$(QUANT_OUT)" $(ARGS)
 
 test:
 	cd Packages/ZephraKit && swift test
@@ -79,8 +95,8 @@ screenshot:
 
 # Layering rules from CLAUDE.md, enforced mechanically.
 lint-layers:
-	@! grep -rln '^import ZImage\|^import MLX' Sources/Zephra Sources/ZephraBench --include='*.swift' \
-	  || (echo "LAYER VIOLATION: app or bench target imports ZImage or MLX directly"; exit 1)
+	@! grep -rln '^import ZImage\|^import MLX' Sources/Zephra Sources/ZephraBench Sources/ZephraQuantize --include='*.swift' \
+	  || (echo "LAYER VIOLATION: app or tool target imports ZImage or MLX directly"; exit 1)
 	@! grep -rln '^import ZephraBackendZImage' Sources/Zephra --include='*.swift' | grep -v 'ZephraApp.swift' \
 	  || (echo "LAYER VIOLATION: ZephraBackendZImage imported outside ZephraApp.swift"; exit 1)
 	@! grep -rln '^import ZImage\|^import MLX' Packages/ZephraKit/Sources/ZephraCore Packages/ZephraKit/Sources/ZephraEngine 2>/dev/null \

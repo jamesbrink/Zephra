@@ -88,6 +88,21 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: io.zephra.ZephraBench
         SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
 
+  ZephraQuantize:
+    type: tool
+    platform: macOS
+    sources:
+      - path: Sources/ZephraQuantize
+    dependencies:
+      - package: ZephraKit
+        product: ZephraCore
+      - package: ZephraBackendZImage
+        product: ZephraBackendZImage
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.zephra.ZephraQuantize
+        SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
+
 schemes:
   Zephra:
     build:
@@ -102,5 +117,11 @@ schemes:
     build:
       targets:
         ZephraBench: all
+    run:
+      config: Release
+  ZephraQuantize:
+    build:
+      targets:
+        ZephraQuantize: all
     run:
       config: Release

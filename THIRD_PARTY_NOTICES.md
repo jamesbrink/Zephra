@@ -94,6 +94,11 @@ cached locally under `~/.cache/huggingface/hub`.
 - **mzbac/Z-Image-Turbo-8bit** — https://huggingface.co/mzbac/Z-Image-Turbo-8bit
   — License: Apache License 2.0
 
+The 4-bit variant is not downloaded and not redistributed either. `make quantize`
+derives it on the user's own Mac from **Tongyi-MAI/Z-Image-Turbo** above and writes
+it to `~/Library/Application Support/Zephra/Models`. It is a modified form of those
+weights, so the Apache License 2.0 that covers them covers it too.
+
 ---
 
 ## NOTICE files

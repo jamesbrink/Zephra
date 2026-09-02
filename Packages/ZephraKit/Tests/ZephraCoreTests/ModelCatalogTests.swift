@@ -10,16 +10,39 @@ struct ModelCatalogTests {
         #expect(ModelCatalog.fitting(physicalMemory: 8 * 1024 * 1024 * 1024).isEmpty)
     }
 
-    @Test("a 16 GB Mac is not offered the 8-bit Turbo model, which needs ~12.2 GB resident")
-    func sixteenGigabytesDoesNotFitTurbo() {
+    @Test("a 16 GB Mac is offered the 4-bit Turbo model but not the 8-bit one")
+    func sixteenGigabytesFitsOnlyFourBit() {
         let fitting = ModelCatalog.fitting(physicalMemory: 16 * 1024 * 1024 * 1024)
         #expect(!fitting.contains(ModelCatalog.zImageTurbo8bit))
+        #expect(fitting.contains(ModelCatalog.zImageTurbo4bit))
     }
 
-    @Test("a 32 GB Mac is offered the 8-bit Turbo model")
-    func thirtyTwoGigabytesFitsTurbo() {
+    @Test("a 32 GB Mac is offered both Turbo variants")
+    func thirtyTwoGigabytesFitsBoth() {
         let fitting = ModelCatalog.fitting(physicalMemory: 32 * 1024 * 1024 * 1024)
         #expect(fitting.contains(ModelCatalog.zImageTurbo8bit))
+        #expect(fitting.contains(ModelCatalog.zImageTurbo4bit))
+    }
+
+    @Test("the 8-bit model stays the default, and the 4-bit variant is listed after it")
+    func fourBitIsListedSecond() {
+        #expect(ModelCatalog.default == ModelCatalog.zImageTurbo8bit)
+        #expect(ModelCatalog.all == [ModelCatalog.zImageTurbo8bit, ModelCatalog.zImageTurbo4bit])
+    }
+
+    @Test("the 4-bit variant is built locally, so it downloads nothing")
+    func fourBitIsLocal() {
+        let descriptor = ModelCatalog.zImageTurbo4bit
+        #expect(!descriptor.source.requiresDownload)
+        #expect(descriptor.downloadBytes == 0)
+        #expect(descriptor.quantization == .int4)
+        #expect(descriptor.fullName == "Z-Image Turbo · 4-bit")
+        #expect(descriptor.maxPromptTokens == ModelCatalog.zImageTurbo8bit.maxPromptTokens)
+        #expect(descriptor.capabilities == ModelCatalog.zImageTurbo8bit.capabilities)
+        #expect(
+            descriptor.source
+                == .localDirectory(
+                    ModelCatalog.localModelsDirectory.appending(path: "z-image-turbo-4bit")))
     }
 
     @Test("every model can be looked up by its own identifier")
