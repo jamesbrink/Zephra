@@ -46,4 +46,13 @@ final class EngineTestBed {
             try await Task.sleep(for: .milliseconds(2))
         }
     }
+
+    /// Blocks until `store` reaches `state`, so a cancel lands on work in progress rather than
+    /// before it has begun. Gives up after a second, leaving the test to fail on its own terms.
+    func waitFor(_ store: GenerationStore, toReach state: EngineState) async throws {
+        for _ in 0..<500 {
+            if store.state == state { return }
+            try await Task.sleep(for: .milliseconds(2))
+        }
+    }
 }

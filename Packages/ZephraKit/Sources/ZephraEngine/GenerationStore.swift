@@ -87,14 +87,23 @@ public final class GenerationStore {
         }
     }
 
-    /// Stops the in-flight generation after its current step and drops everything queued
-    /// behind it. The backend only looks for a cancel between denoising steps, so `.cancelling`
-    /// can sit there for one step's worth.
+    /// Stops whatever the engine is busy with.
+    ///
+    /// During a generation that means finishing the current step and dropping the queue: the
+    /// backend only looks for a cancel between denoising steps, so `.cancelling` can sit there
+    /// for one step's worth. During a download, a load, or a warm-up it means abandoning that
+    /// and returning to `.idle`, from where the canvas offers to start again.
     public func cancel() {
-        guard case .generating = state else { return }
-        queue.removeAll()
-        transition(to: .cancelling)
-        generationTask?.cancel()
+        switch state {
+        case .generating:
+            queue.removeAll()
+            transition(to: .cancelling)
+            generationTask?.cancel()
+        case .checkingModel, .downloading, .loading, .warmingUp:
+            bootstrapTask?.cancel()
+        case .idle, .ready, .cancelling, .failed:
+            break
+        }
     }
 
     /// Takes one waiting generation out of the queue.

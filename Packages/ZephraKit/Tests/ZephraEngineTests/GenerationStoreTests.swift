@@ -78,6 +78,25 @@ struct GenerationStoreTests {
         #expect(try bed.writtenFiles().isEmpty)
     }
 
+    @Test("cancelling a load returns to idle, and a later bootstrap still succeeds")
+    func cancelDuringLoad() async throws {
+        let bed = EngineTestBed()
+        bed.control.update { $0.loadDelay = .milliseconds(500) }
+        let store = bed.store()
+        let bootstrap = Task { await store.bootstrap() }
+        try await bed.waitFor(store, toReach: .loading(.preparing))
+
+        store.cancel()
+        await bootstrap.value
+        #expect(store.state == .idle)
+        #expect(bed.control.settings.generations == 0, "warm-up should never have started")
+
+        bed.control.update { $0.loadDelay = .zero }
+        await store.bootstrap()
+        #expect(store.state == .ready)
+        #expect(bed.control.settings.loads == 2)
+    }
+
     @Test("a failed load surfaces as failed, and retry recovers once the fault is cleared")
     func failedLoadThenRetry() async throws {
         let bed = EngineTestBed()
