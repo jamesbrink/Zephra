@@ -1,8 +1,8 @@
 import Foundation
 import ZephraBackendZImage
 
-// Headless timing harness for the Z-Image backend. It talks to the same protocol the app
-// does, so a number measured here is a number the app can hit.
+// Headless timing harness. It talks to the same protocol the app does, through the same kind
+// of backend registry, so a number measured here is a number the app can hit.
 let options = BenchOptions.parse(CommandLine.arguments)
 
 if options.micro {
@@ -15,7 +15,7 @@ if options.micro {
 }
 
 do {
-    let report = try await BenchRunner.run(options)
+    let report = try await BenchRunner.run(options, registry: BenchBackends.registry())
     print(options.json ? report.jsonText() : report.tableText())
 } catch is CancellationError {
     FileHandle.standardError.write(Data("ZephraBench: cancelled\n".utf8))

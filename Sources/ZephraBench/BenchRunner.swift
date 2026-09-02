@@ -2,14 +2,17 @@ import Foundation
 import ZephraBackendZImage
 import ZephraCore
 
-/// Drives the Z-Image backend through a load, a warm-up, and a set of timed runs.
+/// Drives a backend through a load, a warm-up, and a set of timed runs.
 enum BenchRunner {
     /// Runs the whole benchmark and returns what it measured.
-    static func run(_ options: BenchOptions) async throws -> BenchReport {
+    ///
+    /// The backend comes from `registry`, keyed by the descriptor, so the tool measures whichever
+    /// family the chosen model belongs to and never names one itself.
+    static func run(_ options: BenchOptions, registry: BackendRegistry) async throws -> BenchReport {
         ZImageRuntime.configure(cacheLimitBytes: cacheLimit(), memoryLimitBytes: nil)
         // Checked when the flag was parsed, so an unknown identifier cannot reach here.
         let descriptor = ModelCatalog.descriptor(id: options.model) ?? ModelCatalog.default
-        let backend = ZImageBackend()
+        let backend = try registry.make(descriptor)
         let verbose = !options.json
 
         let snapshot = try await backend.ensureAvailable(descriptor) { event in
