@@ -55,10 +55,19 @@ readout while that happens.
   every run gets a fresh one. Images save to `~/Pictures/Zephra` with the seed in the file name;
   if a write fails, a notice sits over the prompt until an image saves, and the picture stays on
   the canvas either way.
+- The filmstrip under the prompt keeps its images across launches: Zephra reads the newest
+  two dozen back out of `~/Pictures/Zephra` at startup, in the background, so it is filled in
+  before the model has finished loading. The record of what made an image — prompt, size,
+  steps, seed, model, and how long it took — lives inside the PNG itself, so moving, renaming,
+  or copying a file to another Mac keeps it, and clicking a restored image loads its settings
+  ready to vary. A PNG that Zephra did not make carries no record and is ignored. Right-click a
+  thumbnail for Save as, Copy, Reveal in Finder, and Delete; Delete (⌘⌫ for the image on the
+  canvas) moves the file to the Trash, so it is recoverable from the Finder.
 - Settings holds where images are written and the seed preference under General, and the
   after-load warm-up under Performance.
-- Shortcuts: Generate ⌘↩, Stop ⌘., Save As ⌘S, Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C. Cut,
-  Copy, Paste and Select All in the prompt field are the standard Edit menu items.
+- Shortcuts: Generate ⌘↩, Stop ⌘., Save As ⌘S, Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C,
+  Delete Image ⌘⌫. Cut, Copy, Paste and Select All in the prompt field are the standard Edit
+  menu items.
 
 ## How it works
 
@@ -76,6 +85,11 @@ Sources/ZephraBench (tool)   ─→ ZephraCore, ZephraBackendZImage
 `ZephraCore` and `ZephraEngine` have zero MLX dependencies, so they build and
 test in seconds. `ZephraBackendZImage` is the only package that speaks to the
 vendored Z-Image pipeline.
+
+History needs no database: every image is saved with its `GenerationRecord` as
+JSON in a `zephra:generation` PNG text chunk, spliced in ahead of the pixel data
+so the bytes a seed produces never change, and the library folder is read back
+at launch.
 
 Adding a model that an existing backend can run is one entry in `ModelCatalog`:
 the picker lists the catalog, and the interface draws itself from the entry's
