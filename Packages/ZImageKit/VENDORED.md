@@ -93,8 +93,9 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
   the same shapes reach in isolation. Measured with `ZephraBench --micro`, 8-bit group-size-32
   matmul is as fast as the dense bfloat16 equivalent at these shapes, so dequantizing the DiT to
   bfloat16 for speed would cost about 6 GB and buy nothing.
-- Graph construction for a whole step takes 1.3 ms against 6.3 s of evaluation, so `MLX.compile`
-  has no CPU-side overhead to remove.
+- Graph construction for a whole step takes single-digit milliseconds (1.3 ms measured on a quiet
+  machine, 2 to 9 ms under load) against seconds of evaluation, so `MLX.compile` has no CPU-side
+  overhead to remove.
 
 ## Experiments not kept
 

@@ -27,7 +27,7 @@ texts appear once per license type at the end of this file.
 - **Copyright:** Copyright (c) 2023 ml-explore
 - **License:** MIT
 - **Used as:** the Metal/MLX runtime the vendored Z-Image pipeline is built
-  on, pulled in as a dependency of `ZImageKit`. It compiles the following
+  on, a dependency of `ZImageKit` and of `ZephraBackendZImage`. It compiles the following
   libraries into the same binary:
   - **mlx** — https://github.com/ml-explore/mlx — Copyright © 2023 Apple
     Inc. — MIT

@@ -73,7 +73,8 @@ readout while that happens.
 - Settings holds where images are written and the seed preference under General. Performance
   has the after-load warm-up, the ceiling on the GPU scratch the runtime keeps between
   generations — with the figure recommended for your Mac, and a reset back to it — and a live
-  readout of active, cached and peak GPU memory. A changed ceiling applies immediately.
+  readout of active, cached and peak GPU memory. A changed ceiling applies immediately. About
+  shows the version and the third-party license notices.
 - Shortcuts: Generate ⌘↩, Stop ⌘., Save As ⌘S, Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C,
   Delete Image ⌘⌫. Cut, Copy, Paste and Select All in the prompt field are the standard Edit
   menu items.
@@ -133,7 +134,7 @@ so they are minimums:
 | peak at 1024² | 23501 MB | 17839 MB |
 | peak at 768² | 19712 MB | 14599 MB |
 | peak at 512² | 17657 MB | 10693 MB |
-| s/step at 1024² | 13.8 s | 14.0 s |
+| s/step at 1024², machine under heavy load | 13.8 s | 14.0 s |
 | on disk | 13.3 GB | 6.7 GB |
 
 **Four bits buys memory, not speed.** MLX's quantized matmul takes the same 2.7 ms at
@@ -224,6 +225,11 @@ Zephra/
 - `make quantize` — build the 4-bit variant. `BITS` and `GROUP_SIZE` override the
   4-bit, group-64 default; `QUANT_OUT` overrides where it lands.
 - `make lint-layers` — check the module boundaries above.
+- `make bench ARGS="..."` — headless timing (`--size`, `--steps`, `--runs`, `--model`, `--json`,
+  `--out`, `--micro`); `make logs` streams the app's log; `make screenshot` captures the window;
+  `make open` opens the generated project in Xcode; `make clean` removes build output.
+- `ZEPHRA_PREVIEW_STATE=ready|image|generating|downloading|failed` launches a Debug build
+  frozen in that state with no model, for screenshots.
 
 ### Releasing
 
