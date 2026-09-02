@@ -55,6 +55,8 @@ targets:
         product: ZephraCore
       - package: ZephraKit
         product: ZephraEngine
+      - package: ZephraBackendZImage
+        product: ZephraBackendZImage
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.zephra.Zephra

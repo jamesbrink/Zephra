@@ -1,4 +1,5 @@
 import SwiftUI
+import ZephraBackendZImage
 import ZephraCore
 import ZephraEngine
 
@@ -30,10 +31,11 @@ struct ZephraApp: App {
     /// screenshotted without a model. See `InterfacePreview`.
     private static func makeStore() -> GenerationStore {
         if let frozen = InterfacePreview.store() { return frozen }
-        // TODO(WP7): build the real factory here with ZephraBackendZImage. This is the only
-        // file in the app target permitted to import that module.
-        return GenerationStore(backendFactory: { _ in
-            fatalError("backend wired in WP7")
-        })
+        let tuning = InferenceTuning.forThisMachine()
+        ZImageRuntime.configure(
+            cacheLimitBytes: tuning.cacheLimitBytes,
+            memoryLimitBytes: tuning.memoryLimitBytes
+        )
+        return GenerationStore(backendFactory: ZImageBackendFactory.make)
     }
 }
