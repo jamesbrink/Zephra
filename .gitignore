@@ -1,0 +1,14 @@
+# Generated Xcode project (regenerate with `make gen`)
+Zephra.xcodeproj/
+*.xcworkspace/
+# Build products
+.build/
+.swiftpm/
+DerivedData/
+build/
+out/
+# Xcode user state
+xcuserdata/
+*.xcuserstate
+# macOS
+.DS_Store

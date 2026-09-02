@@ -1,0 +1,85 @@
+name: Zephra
+options:
+  bundleIdPrefix: io.zephra
+  deploymentTarget:
+    macOS: "15.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+  minimumXcodeGenVersion: "2.45.0"
+  xcodeVersion: "26.0"
+
+configs:
+  Debug: debug
+  Release: release
+
+settings:
+  base:
+    ARCHS: arm64
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    ENABLE_USER_SCRIPT_SANDBOXING: "NO"
+    DEAD_CODE_STRIPPING: "YES"
+    ENABLE_HARDENED_RUNTIME: "YES"
+    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_IDENTITY: "-"
+  configs:
+    Debug:
+      ONLY_ACTIVE_ARCH: "YES"
+      SWIFT_OPTIMIZATION_LEVEL: "-Onone"
+      MTL_ENABLE_DEBUG_INFO: INCLUDE_SOURCE
+    Release:
+      SWIFT_COMPILATION_MODE: wholemodule
+      SWIFT_OPTIMIZATION_LEVEL: "-O"
+      MTL_ENABLE_DEBUG_INFO: "NO"
+      MTL_FAST_MATH: "YES"
+      ENABLE_TESTABILITY: "NO"
+
+packages:
+  ZImageKit:
+    path: Packages/ZImageKit
+
+targets:
+  Zephra:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/Zephra
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.zephra.Zephra
+        PRODUCT_NAME: Zephra
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        INFOPLIST_FILE: Sources/Zephra/Resources/Info.plist
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        SWIFT_APPROACHABLE_CONCURRENCY: "YES"
+
+  ZephraBench:
+    type: tool
+    platform: macOS
+    sources:
+      - path: Sources/ZephraBench
+    dependencies:
+      - package: ZImageKit
+        product: ZImage
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.zephra.ZephraBench
+        SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
+
+schemes:
+  Zephra:
+    build:
+      targets:
+        Zephra: all
+    run:
+      config: Release
+      environmentVariables:
+        MTL_DEBUG_LAYER: "0"
+        MTL_SHADER_VALIDATION: "0"
+  ZephraBench:
+    build:
+      targets:
+        ZephraBench: all
+    run:
+      config: Release
