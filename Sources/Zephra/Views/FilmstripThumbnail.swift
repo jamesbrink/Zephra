@@ -24,6 +24,10 @@ struct FilmstripThumbnail: View {
             Button("Save as…") { ImageExport.saveAs(image) }
             Button("Copy") { ImageExport.copyToPasteboard(image) }
             Button("Reveal in Finder") { ImageExport.revealInFinder(image) }
+            Divider()
+            // Nothing is asked first: the file goes to the Trash, so this is undoable in the
+            // Finder, and a dialog on every discarded image would be in the way.
+            Button("Delete", role: .destructive) { store.delete(image.id) }
         }
         .accessibilityLabel(image.settings.prompt)
     }

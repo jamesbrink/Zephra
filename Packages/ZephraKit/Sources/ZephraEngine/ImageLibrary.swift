@@ -21,19 +21,22 @@ public struct ImageLibrary: Sendable {
 
     /// Writes the PNG bytes and returns where they landed, creating the folder if it is missing
     /// and stepping around a name that is somehow already taken.
+    ///
+    /// What goes on disk is the image with its `GenerationRecord` inside it, so the file is the
+    /// only thing the history needs at the next launch.
     @discardableResult
     public func write(_ image: GeneratedImage) throws -> URL {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let url = availableURL(named: fileName(for: image))
-        try image.pngData.write(to: url, options: .atomic)
+        try Self.annotated(image).write(to: url, options: .atomic)
         return url
     }
 
-    /// The most recently written images, newest first. An unreadable folder reads as empty,
+    /// The most recently written image files, newest first. An unreadable folder reads as empty,
     /// because a missing library is a normal state rather than a failure.
     ///
-    /// Nothing calls this yet: it is how the filmstrip will be refilled from disk at launch,
-    /// rather than starting empty every session.
+    /// This is the file-system half of `restore(limit:)`, which is what the filmstrip is
+    /// refilled from at launch.
     public func recent(limit: Int) -> [URL] {
         guard limit > 0 else { return [] }
         let keys: [URLResourceKey] = [.creationDateKey]
@@ -48,6 +51,12 @@ public struct ImageLibrary: Sendable {
             .sorted { $0.created > $1.created }
             .prefix(limit)
             .map(\.url)
+    }
+
+    /// The bytes to write: the image with its record embedded, or the plain pixels when that
+    /// could not be done. A picture on disk without its provenance beats no picture at all.
+    private static func annotated(_ image: GeneratedImage) -> Data {
+        (try? GenerationRecord.embedded(in: image)) ?? image.pngData
     }
 
     private func fileName(for image: GeneratedImage) -> String {

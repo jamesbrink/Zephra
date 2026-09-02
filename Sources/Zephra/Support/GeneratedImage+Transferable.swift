@@ -18,7 +18,7 @@ extension GeneratedImage: @retroactive Transferable {
         }
         .suggestedFileName { ImageExport.suggestedFileName(for: $0) }
 
-        DataRepresentation(exportedContentType: .png) { $0.pngData }
+        DataRepresentation(exportedContentType: .png) { ImageExport.exportData(for: $0) }
             .suggestedFileName { ImageExport.suggestedFileName(for: $0) }
     }
 }

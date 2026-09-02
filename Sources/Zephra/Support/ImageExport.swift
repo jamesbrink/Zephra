@@ -2,6 +2,7 @@ import AppKit
 import Foundation
 import UniformTypeIdentifiers
 import ZephraCore
+import ZephraEngine
 
 /// Getting a finished image out of Zephra: onto disk, into the Finder, onto the clipboard.
 enum ImageExport {
@@ -17,6 +18,15 @@ enum ImageExport {
         return "\(stem)-\(image.settings.seed).png"
     }
 
+    /// The bytes to hand out: the image with its generation record inside it, so a copy that
+    /// leaves Zephra still says what made it. Falls back to the plain pixels if the record
+    /// cannot be embedded, and returns them unchanged when one is already there.
+    ///
+    /// Not isolated to the main actor: drag-and-drop exports run off it.
+    nonisolated static func exportData(for image: GeneratedImage) -> Data {
+        (try? GenerationRecord.embedded(in: image)) ?? image.pngData
+    }
+
     /// Asks where to put the image and writes the PNG bytes there.
     @discardableResult
     static func saveAs(_ image: GeneratedImage) -> URL? {
@@ -27,7 +37,7 @@ enum ImageExport {
         panel.directoryURL = image.fileURL?.deletingLastPathComponent()
         guard panel.runModal() == .OK, let url = panel.url else { return nil }
         do {
-            try image.pngData.write(to: url, options: .atomic)
+            try Self.exportData(for: image).write(to: url, options: .atomic)
             return url
         } catch {
             present(error, whileTryingTo: "save this image")
@@ -49,7 +59,7 @@ enum ImageExport {
     static func copyToPasteboard(_ image: GeneratedImage) {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.setData(image.pngData, forType: .png)
+        pasteboard.setData(exportData(for: image), forType: .png)
     }
 
     /// A copy in the temporary directory, used for dragging out and for revealing unsaved images.
@@ -58,7 +68,7 @@ enum ImageExport {
     nonisolated static func writeTemporaryCopy(of image: GeneratedImage) -> URL? {
         let url = URL.temporaryDirectory.appending(path: suggestedFileName(for: image))
         do {
-            try image.pngData.write(to: url, options: .atomic)
+            try Self.exportData(for: image).write(to: url, options: .atomic)
         } catch {
             return nil
         }

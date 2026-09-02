@@ -48,6 +48,7 @@ public final class GenerationStore {
     @ObservationIgnored var switchTask: Task<Void, Never>?
     @ObservationIgnored var generationTask: Task<Void, Never>?
     @ObservationIgnored var saveTask: Task<Void, Never>?
+    @ObservationIgnored var libraryTask: Task<Void, Never>?
 
     /// Creates a store for one model, running on the backends `registry` knows how to build.
     /// `outputDirectory` nil means ~/Pictures/Zephra.
@@ -66,6 +67,7 @@ public final class GenerationStore {
         self.settings = GenerationSettings.defaults(for: descriptor)
         self.registry = registry
         self.library = output.map { ImageLibrary(root: $0) } ?? .pictures()
+        startRestore()
     }
 
     /// The folder finished images are written to. The one answer to that question: nothing
@@ -143,5 +145,6 @@ public final class GenerationStore {
         await bootstrapTask?.value
         await generationTask?.value
         await saveTask?.value
+        await libraryTask?.value
     }
 }
