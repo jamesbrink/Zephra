@@ -1,7 +1,7 @@
 # Zephra
 
-A native macOS app that generates images locally with Z-Image-Turbo on Apple
-Silicon, via MLX/Metal.
+A native macOS app that generates images locally on Apple Silicon, via
+MLX/Metal. It runs Z-Image-Turbo and Qwen-Image-2512.
 
 ## Why
 
@@ -19,20 +19,25 @@ Silicon, via MLX/Metal.
 - [`xcodegen`](https://github.com/yonaskolb/XcodeGen)
 - [`hf`](https://github.com/huggingface/huggingface_hub) CLI (optional, for
   `make prefetch`)
-- About 14 GB free disk for the 8-bit weights, or 7 GB for the 4-bit ones. Building
-  the 4-bit variant needs 33 GB more, for the full-precision release it is derived
-  from; that download can be deleted afterwards.
-- 32 GB RAM for the 8-bit model, which holds 12.2 GB resident and peaks at 23.5 GB
-  while decoding a 1024² image. The 4-bit variant brings that to 6.6 GB resident and
-  a 17.8 GB peak at 1024², or 10.7 GB at 512². Peak, not resident, is what decides
-  whether a Mac pages, and the tiled VAE decode below takes about 6 GB off it, so a
-  24 GB Mac runs both models at 1024² and a 16 GB Mac runs the 4-bit one there.
+- About 14 GB free disk for the 8-bit Z-Image weights, or 7 GB for the 4-bit ones.
+  Building the 4-bit variant needs 33 GB more, for the full-precision release it is
+  derived from; that download can be deleted afterwards. Qwen-Image is 22 GB built,
+  from a 58 GB source.
+- 32 GB RAM for the 8-bit Z-Image model, which holds 12.2 GB resident and peaks at
+  23.5 GB while decoding a 1024² image. The 4-bit variant brings that to 6.6 GB
+  resident and a 17.8 GB peak at 1024², or 10.7 GB at 512². Peak, not resident, is
+  what decides whether a Mac pages, and the tiled VAE decode below takes about 6 GB
+  off it, so a 24 GB Mac runs both Z-Image variants at 1024² and a 16 GB Mac runs
+  the 4-bit one there. Qwen-Image is the large one: 21.5 GB resident and a 30.4 GB
+  peak at 1024², so a 36 GB Mac decodes it exactly and a 32 GB one needs the tiled decode.
 
 ## Quick start
 
 ```sh
-make prefetch   # optional: download model weights ahead of time
-make quantize   # optional: build the smaller 4-bit variant (see below)
+make prefetch        # optional: download Z-Image weights ahead of time
+make quantize        # optional: build the smaller 4-bit Z-Image variant (see below)
+make prefetch-qwen   # optional: download Qwen-Image-2512 and its 4-step adapter
+make quantize-qwen   # optional: build the 4-bit Qwen-Image variant
 make build
 make run
 ```
@@ -60,8 +65,12 @@ readout while that happens.
   the new choice applies to whatever you queue next, with the engine swapping weights between
   queue entries as it goes. Your choice is remembered.
 - Size, steps, and seed sit under the prompt. A model that reads a negative prompt gets a
-  second field for it, and one that responds to guidance gets a guidance slider; Z-Image Turbo
-  does neither, so it shows neither. The lock keeps the seed across runs; unlocked,
+  second field for it, and one that responds to guidance gets a guidance slider; neither
+  model shipped today does either, so neither shows. Steps and size stay as you set them when
+  you switch between variants of one model, and steps go back to the new model's own default
+  when you switch to a different model — nine steps of Z-Image's schedule and nine of
+  Qwen-Image's four-step distillation are not the same request. The lock keeps the seed across
+  runs; unlocked,
   every run gets a fresh one. Images save to `~/Pictures/Zephra` with the seed in the file name;
   if a write fails, a notice sits over the prompt until an image saves, and the picture stays on
   the canvas either way.
@@ -86,20 +95,23 @@ readout while that happens.
 ## How it works
 
 Zephra keeps the UI layer completely ignorant of the model that's running it.
-A backend protocol and a model descriptor catalog sit between the SwiftUI
-views and the Z-Image implementation, so a second model can be added later as
-another backend without touching the UI or the core engine.
+A backend protocol and a model descriptor catalog sit between the SwiftUI views
+and each model's implementation. Adding Qwen-Image exercised that: it reached
+the interface as one catalog entry and one registration line, with no view and
+nothing in the engine changed.
 
 ```
 Sources/Zephra (SwiftUI app) ─→ ZephraEngine ─→ ZephraCore
-                             ─→ ZephraBackendZImage ─→ ZephraCore, ZImage   [imported in ZephraApp.swift ONLY]
-Sources/ZephraBench (tool)   ─→ ZephraCore, ZephraBackendZImage
-Sources/ZephraQuantize (tool)─→ ZephraCore, ZephraBackendZImage
+                             ─→ ZephraBackend<Family> ─→ ZephraCore, <Family>Kit
+                                                        [imported in ZephraApp.swift ONLY]
+Sources/ZephraBench (tool)   ─→ ZephraCore, every ZephraBackend<Family>
+Sources/ZephraQuantize (tool)─→ ZephraCore, ZephraQuantization, every ZephraBackend<Family>
 ```
 
 `ZephraCore` and `ZephraEngine` have zero MLX dependencies, so they build and
-test in seconds. `ZephraBackendZImage` is the only package that speaks to the
-vendored Z-Image pipeline.
+test in seconds. A backend package is the only thing that speaks to its
+family's pipeline, and no backend package may import another — a build for one
+family must not drag in every other family's weights-loading code.
 
 History needs no database: every image is saved with its `GenerationRecord` as
 JSON in a `zephra:generation` PNG text chunk, spliced in ahead of the pixel data
@@ -112,6 +124,11 @@ the picker lists the catalog, and the interface draws itself from the entry's
 a package implementing `ImageGenerationBackend`, and one `registry.register(...)`
 line in `ZephraApp.swift` — no view and nothing in `ZephraEngine` changes.
 
+Every number in a catalog entry is measured by hand, on a named machine, with a
+comment saying where it came from. That is deliberate: those numbers decide what
+the picker offers a given Mac and when the decode is tiled, so a guessed one is
+a wrong promise rather than an approximation.
+
 ## Performance
 
 | Machine | Resolution | Steps | Time |
@@ -120,7 +137,44 @@ line in `ZephraApp.swift` — no view and nothing in `ZephraEngine` changes.
 | Apple M4 Max 48 GB, same conditions | 512×512 | 4 | ~7 s (1.6 s/step) |
 | Apple M2 Ultra (upstream report) | 1024×1024 | 9 | ~44 s |
 
-### The 4-bit variant
+Qwen-Image-2512, 4-bit and distilled to four steps, on the same M4 Max:
+
+| Resolution | Steps | Time | Resident | Peak | Peak tiled |
+|---|---|---|---|---|---|
+| 512×512 | 4 | 6.9 s (1.6 s/step) | 21.5 GB | 26.1 GB | — |
+| 1024×1024 | 4 | 33.6 s (8.2 s/step) | 21.5 GB | 30.4 GB | 26.1 GB |
+| 1328×1328 (native) | 4 | 66.7 s (16.3 s/step) | 21.5 GB | 32.5 GB | 26.1 GB |
+
+Twenty billion parameters against Z-Image Turbo's six, so a step costs about
+eight times as much — but four steps against nine, and the text rendering is in
+a different class. Resident does not move with resolution because the weights are
+all of it. The tiled peak barely moves either: the tile, not the image, sets the
+decode's transient, and what is left is the transformer.
+
+### Qwen-Image-2512
+
+`make quantize-qwen` builds the four-bit copy, because nothing publishes one in a
+form Zephra can load. It reads the 57.7 GB bfloat16 release, merges the Apache-2.0
+[four-step Lightning adapter](https://huggingface.co/lightx2v/Qwen-Image-2512-Lightning)
+into the transformer as it packs, holds the modulation layers at eight bits while
+everything else goes to four, and takes about a minute. The result is 21.6 GB.
+
+The adapter is not optional. The base model wants fifty steps and real
+classifier-free guidance — two passes through twenty billion parameters per step —
+which is not a thing to do on a Mac. Merging the distillation at build time rather
+than loading it at run time means the runtime never sees an adapter: what lands in
+the models directory is simply the four-step model.
+
+Holding modulation at eight bits is the one judgement call in the recipe. Those
+layers are 6.8 of the transformer's 20.4 billion parameters and they decide how
+strongly every other layer responds; four-bit builds that pack them with everything
+else are reported to lose coherent structure. It costs about 2.4 GB.
+
+The port in `Packages/QwenImageKit` is Zephra's own, written from the model's config
+files and checked against `diffusers` — see `PROVENANCE.md` for why it could not be
+derived from the existing Swift port.
+
+### The 4-bit Z-Image variant
 
 `make quantize` builds a four-bit copy of the weights on the machine itself, because no
 repository publishes Z-Image-Turbo in four bits in the format the loader reads. It downloads
@@ -195,31 +249,37 @@ to be close, and over Z-Image-Turbo's 9 steps they are 12 % to 41 % apart. A thr
 to be safe skips nothing; one that skips a single step of nine already redraws the robot's head
 and hands (mean absolute difference 11.7 of 255), and one that skips three gives a different
 picture entirely (26.9 of 255). The patch was removed rather than left switched off. **Tiled VAE
-decode does work**, and is shipped: decoding in overlapping 512-pixel tiles takes peak memory at
-1024² from 23.5 GB to 17.7 GB for a mean absolute difference of 1.0 of 255 and no visible seam.
-Settings > Performance controls it, and Automatic — the default — turns it on only for a model
-whose untiled peak is over four fifths of this Mac's memory. So a 32 GB Mac decodes exactly, a
-24 GB Mac tiles for the 8-bit model and not for the 4-bit one, and a 16 GB Mac tiles for both
-and thereby reaches 1024² on the 4-bit model. Always and Never override the judgement, and
+decode does work**, and is shipped for every model: decoding in overlapping 512-pixel tiles
+takes peak memory at 1024² from 23.5 GB to 17.7 GB on the 8-bit Z-Image model, for a mean
+absolute difference of 1.0 of 255 and no visible seam, and from 30.4 GB to 26.1 GB on
+Qwen-Image for 0.19 of 255. Settings > Performance controls it, and Automatic — the default —
+turns it on only for a model whose untiled peak is over four fifths of this Mac's memory. So a
+32 GB Mac decodes both Z-Image variants exactly and tiles for Qwen-Image, a 24 GB Mac tiles for
+the 8-bit Z-Image model and not for the 4-bit one, and a 16 GB Mac tiles for both and thereby
+reaches 1024² on the 4-bit one. Always and Never override the judgement, and
 `ZEPHRA_VAE_TILE=64` still sets the tile for `ZephraBench`, which has no settings to read.
 
 ## Project layout
 
 ```
 Zephra/
-├── .gitignore  AGENTS.md (CLAUDE.md symlinks to it)  LICENSE  THIRD_PARTY_NOTICES.md  Makefile  README.md  project.yml
+├── .gitignore  AGENTS.md (CLAUDE.md symlinks to it)  LICENSE  THIRD_PARTY_NOTICES.md
+├── PROVENANCE.md  Makefile  README.md  project.yml
 ├── Packages/
 │   ├── ZImageKit/                 # vendored (MIT). LICENSE, VENDORED.md, Package.swift, Sources/ZImage/**
+│   ├── QwenImageKit/              # ours, clean-room — the Qwen-Image pipeline. See PROVENANCE.md
 │   ├── ZephraKit/                 # ours — no MLX dependency
 │   │   ├── Sources/ZephraCore/          # value types + protocols
 │   │   ├── Sources/ZephraEngine/        # actor + store, depends on ZephraCore only
-│   │   └── Tests/ZephraCoreTests, ZephraEngineTests
-│   └── ZephraBackendZImage/       # ours — the only package that imports ZImage
-│       └── Sources/, Tests/ZephraBackendZImageTests
+│   │   ├── Sources/ZephraSnapshot/      # hub cache and local snapshot checks, Foundation only
+│   │   └── Tests/ZephraCoreTests, ZephraEngineTests, ZephraSnapshotTests
+│   ├── ZephraMLXKit/              # ours — MLX work no family owns: the packer, the tiled decode
+│   ├── ZephraBackendZImage/       # ours — the only package that imports ZImage
+│   └── ZephraBackendQwenImage/    # ours — the only package that imports QwenImage
 ├── Sources/Zephra/                # app target: SwiftUI only, composition root is ZephraApp.swift
 │   └── ZephraApp.swift  Views/**  Support/**  Resources/{Info.plist, Assets.xcassets, Colors}
 ├── Sources/ZephraBench/main.swift # headless benchmark tool
-├── Sources/ZephraQuantize/         # builds the 4-bit variant from the bf16 release
+├── Sources/ZephraQuantize/         # builds a 4-bit variant from a bf16 release
 └── scripts/screenshot.sh, make-icon.swift,
             sign-release.sh, notarize-release.sh
 ```
@@ -228,12 +288,14 @@ Zephra/
 
 - `make test` — `ZephraCore` and `ZephraEngine` under `swift test`. No MLX, a couple
   of seconds.
-- `make test-backend` — the `ZephraBackendZImage` mapping tests. They link MLX, so
-  they go through `xcodebuild` rather than `swift test` and take longer; nothing in
-  them loads weights or touches the GPU.
+- `make test-mlx` — every package that links MLX: the packer, both backends' mapping
+  tests, and `QwenImageKit`'s parity suites against tensors dumped from `diffusers`.
+  They go through `xcodebuild` rather than `swift test` and take longer; nothing in
+  them loads weights or touches the GPU. `make test-backend` is an alias.
 - `make icon` — re-render `AppIcon.appiconset` from `scripts/make-icon.swift`.
-- `make quantize` — build the 4-bit variant. `BITS` and `GROUP_SIZE` override the
-  4-bit, group-64 default; `QUANT_OUT` overrides where it lands.
+- `make quantize` / `make quantize-qwen` — build a 4-bit variant. `BITS` and
+  `GROUP_SIZE` override the 4-bit, group-64 default; `QUANT_OUT` and `QWEN_OUT`
+  override where it lands, and `QWEN_SOURCE` / `QWEN_LORA` say what it is built from.
 - `make lint-layers` — check the module boundaries above.
 - `make bench ARGS="..."` — headless timing (`--size`, `--steps`, `--runs`, `--model`, `--json`,
   `--out`, `--micro`); `make logs` streams the app's log; `make screenshot` captures the window;
@@ -278,7 +340,7 @@ re-checks with `spctl`. `NOTARY_PROFILE=...` selects a differently named profile
 ## Roadmap
 
 - More models, added as new backends behind the existing protocol
-- LoRA support
+- Runtime LoRA (adapters are merged at build time today)
 - Image-to-image
 
 ## License

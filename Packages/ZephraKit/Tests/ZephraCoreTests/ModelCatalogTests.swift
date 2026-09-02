@@ -44,8 +44,11 @@ struct ModelCatalogTests {
         #expect(!ModelCatalog.fitsComfortably(ModelCatalog.qwenImage2512_4bit, physicalMemory: memory))
     }
 
-    @Test("Qwen-Image wants a 48 GB Mac to run untiled and a 40 GB one to run at all")
-    func qwenImageNeedsTheLargestMacs() {
+    @Test("Qwen-Image decodes exactly on a 36 GB Mac and not at all on a 24 GB one")
+    func qwenImageNeedsALargeMac() {
+        // 30.9 GB of budget against a 30.4 GB peak: 36 GB is the smallest Mac sold that runs
+        // this model with the exact decode, and it is a close thing.
+        #expect(ModelCatalog.fit(ModelCatalog.qwenImage2512_4bit, physicalMemory: Self.gigabytes(36)) == .fits)
         #expect(ModelCatalog.fit(ModelCatalog.qwenImage2512_4bit, physicalMemory: Self.gigabytes(48)) == .fits)
         let fit = ModelCatalog.fit(ModelCatalog.qwenImage2512_4bit, physicalMemory: Self.gigabytes(24))
         guard case .tight(let needed) = fit else {
