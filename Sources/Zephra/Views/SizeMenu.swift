@@ -4,10 +4,6 @@ import ZephraEngine
 
 /// Picks the output dimensions from the sizes this model actually accepts.
 struct SizeMenu: View {
-    /// Whether to draw the chevron. The toolbar wants it; the capsule's chip row reads
-    /// better without it, and the reclaimed space keeps the separator dots even.
-    var showsIndicator = true
-
     @Environment(GenerationStore.self) private var store
 
     var body: some View {
@@ -30,7 +26,6 @@ struct SizeMenu: View {
         }
         .menuStyle(.button)
         .buttonStyle(.accessoryBar)
-        .menuIndicator(showsIndicator ? .visible : .hidden)
         .fixedSize()
         .help("Output size")
         .accessibilityLabel("Output size")

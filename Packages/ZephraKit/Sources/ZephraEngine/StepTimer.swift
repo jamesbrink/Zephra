@@ -3,6 +3,9 @@ import ZephraCore
 /// Measures the pace of a diffusion loop so the interface can show a countdown even when the
 /// backend does not time itself. It keeps a short rolling mean rather than an average over the
 /// whole run, because the first step of a generation is always slower than the rest.
+///
+/// It measures a pace and nothing more: the countdown itself is derived from the pace by
+/// `GenerationProgressEvent.estimatedSecondsRemaining`, which is where the interface reads it.
 struct StepTimer {
     /// How many recent step intervals the rolling mean covers.
     static let window = 3
@@ -17,12 +20,6 @@ struct StepTimer {
     var secondsPerStep: Double? {
         guard !intervals.isEmpty else { return nil }
         return intervals.reduce(0, +) / Double(intervals.count)
-    }
-
-    /// How long the rest of the diffusion loop should take at the current pace.
-    func estimatedSecondsRemaining(step: Int, of total: Int) -> Double? {
-        guard let secondsPerStep else { return nil }
-        return Double(max(0, total - step)) * secondsPerStep
     }
 
     /// Records that a step boundary just went past.
