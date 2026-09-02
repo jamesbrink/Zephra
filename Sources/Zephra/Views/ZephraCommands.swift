@@ -1,0 +1,33 @@
+import SwiftUI
+import ZephraEngine
+
+/// The menu bar. Every one of these has a visible twin in the window; the menu exists so the
+/// shortcuts are discoverable and so the Mac behaves like a Mac.
+struct ZephraCommands: Commands {
+    /// The window's store, handed over by the composition root.
+    let store: GenerationStore
+
+    var body: some Commands {
+        CommandGroup(replacing: .newItem) {
+            Button("Generate") { store.generate() }
+                .keyboardShortcut(.return, modifiers: .command)
+                .disabled(!store.canGenerate)
+            Button("Cancel") { store.cancel() }
+                .keyboardShortcut(".", modifiers: .command)
+                .disabled(!store.state.isBusy)
+        }
+        CommandGroup(replacing: .saveItem) {
+            Button("Save as…") { if let image = store.current { ImageExport.saveAs(image) } }
+                .keyboardShortcut("s", modifiers: .command)
+                .disabled(store.current == nil)
+            Button("Reveal in Finder") { if let image = store.current { ImageExport.revealInFinder(image) } }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+                .disabled(store.current == nil)
+        }
+        CommandGroup(replacing: .pasteboard) {
+            Button("Copy") { if let image = store.current { ImageExport.copyToPasteboard(image) } }
+                .keyboardShortcut("c", modifiers: .command)
+                .disabled(store.current == nil)
+        }
+    }
+}

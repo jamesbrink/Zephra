@@ -1,12 +1,39 @@
 import SwiftUI
+import ZephraCore
+import ZephraEngine
 
+/// The composition root. The only place that builds a store, and the only place allowed to
+/// know which backend it is built on.
 @main
 struct ZephraApp: App {
-  var body: some Scene {
-    WindowGroup("Zephra") {
-      RootView()
+    @State private var store = ZephraApp.makeStore()
+    @State private var cache = ImageCache()
+
+    var body: some Scene {
+        WindowGroup("Zephra") {
+            RootView()
+                .environment(store)
+                .environment(cache)
+        }
+        .defaultSize(width: 1200, height: 840)
+        .windowToolbarStyle(.unified)
+        .commands { ZephraCommands(store: store) }
+
+        Settings {
+            SettingsView()
+        }
     }
-    .defaultSize(width: 1200, height: 840)
-    .windowToolbarStyle(.unified)
-  }
+
+    /// Builds the one store the window observes.
+    ///
+    /// `ZEPHRA_PREVIEW_STATE` short-circuits to a frozen store so the interface can be run and
+    /// screenshotted without a model. See `InterfacePreview`.
+    private static func makeStore() -> GenerationStore {
+        if let frozen = InterfacePreview.store() { return frozen }
+        // TODO(WP7): build the real factory here with ZephraBackendZImage. This is the only
+        // file in the app target permitted to import that module.
+        return GenerationStore(backendFactory: { _ in
+            fatalError("backend wired in WP7")
+        })
+    }
 }
