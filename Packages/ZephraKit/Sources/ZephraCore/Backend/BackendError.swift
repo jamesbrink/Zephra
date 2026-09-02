@@ -1,7 +1,7 @@
 import Foundation
 
 /// What can go wrong in a backend, phrased so the message can be shown to the user as-is.
-public enum BackendError: Error, Sendable, Equatable, LocalizedError {
+public enum BackendError: Error, Sendable, Hashable, LocalizedError {
     /// The requested model has no implementation or no weights on disk.
     case modelNotAvailable(String)
     /// The download did not finish.
