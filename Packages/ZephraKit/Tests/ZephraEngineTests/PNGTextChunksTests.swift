@@ -89,6 +89,37 @@ struct PNGTextChunksTests {
         #expect(throws: PNGTextChunks.Failure.truncated) { try PNGTextChunks.read(from: truncated) }
     }
 
+    @Test("an iTXt flagged as compressed reads as nothing, rather than as garbage")
+    func compressedITXtIsSkipped() throws {
+        // Keyword, terminator, compression flag 1, method 0, empty language tag and translated
+        // keyword, then bytes that are deflate output rather than text.
+        var body = Data("Description".utf8)
+        body.append(contentsOf: [0, 1, 0, 0, 0])
+        body.append(contentsOf: [0x78, 0x9C, 0x4B, 0x4C, 0x4A, 0x06, 0x00, 0x02, 0x4D, 0x01, 0x27])
+        let annotated = try Self.splicing(chunk(type: "iTXt", body: body), into: MockBackend.pngData)
+
+        let text = try PNGTextChunks.read(from: annotated)
+        #expect(
+            text["Description"] == nil,
+            "Zephra never writes compressed text, so it is skipped rather than mis-decoded"
+        )
+        // The chunk really is there and really is an iTXt; it is the flag that stops the read.
+        #expect(try PNGTextChunks.spans(in: Array(annotated)).map(\.type).contains("iTXt"))
+    }
+
+    @Test("a PNG with no image data is refused rather than written to")
+    func rejectsPNGWithoutIDAT() throws {
+        var headerOnly = Data(PNGTextChunks.signature)
+        headerOnly.append(chunk(type: "IHDR", body: Data(repeating: 0, count: 13)))
+        headerOnly.append(chunk(type: "IEND", body: Data()))
+
+        // It parses: the chunks are well formed, there is simply nothing to splice ahead of.
+        #expect(try PNGTextChunks.read(from: headerOnly).isEmpty)
+        #expect(throws: PNGTextChunks.Failure.noImageData) {
+            try PNGTextChunks.inserting([(keyword: "Software", text: "Zephra")], into: headerOnly)
+        }
+    }
+
     @Test("a keyword PNG would not accept is refused")
     func rejectsBadKeyword() {
         for keyword in ["", " leading", "trailing ", String(repeating: "x", count: 80)] {
@@ -96,5 +127,30 @@ struct PNGTextChunksTests {
                 try PNGTextChunks.inserting([(keyword: keyword, text: "x")], into: MockBackend.pngData)
             }
         }
+    }
+
+    /// One complete chunk: length, type, body, CRC. The encoder's own version is private and
+    /// only builds the two chunks Zephra writes; these tests need the ones it has to read past.
+    private func chunk(type: String, body: Data) -> Data {
+        var typed = Data(type.utf8)
+        typed.append(body)
+        return Data(
+            Self.be32Bytes(UInt32(body.count)) + typed + Self.be32Bytes(PNGTextChunks.crc32(typed)))
+    }
+
+    /// A copy of `png` with `chunk` spliced in just ahead of the first `IDAT`, which is where
+    /// text chunks belong.
+    private static func splicing(_ chunk: Data, into png: Data) throws -> Data {
+        let bytes = Array(png)
+        guard let image = try PNGTextChunks.spans(in: bytes).first(where: { $0.type == "IDAT" })
+        else { throw PNGTextChunks.Failure.noImageData }
+        var result = Data(bytes[..<image.start])
+        result.append(chunk)
+        result.append(contentsOf: bytes[image.start...])
+        return result
+    }
+
+    private static func be32Bytes(_ value: UInt32) -> [UInt8] {
+        (0..<4).map { UInt8(truncatingIfNeeded: value >> (24 - 8 * $0)) }
     }
 }
