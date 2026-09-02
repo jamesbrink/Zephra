@@ -823,7 +823,8 @@ public class ZImageControlPipeline {
     let latentH = max(1, request.height / vaeDivisor)
     let latentW = max(1, request.width / vaeDivisor)
     let shape: [Int] = [1, ZImageModelMetadata.Transformer.inChannels, latentH, latentW]
-    let randomKey: RandomStateOrKey? = request.seed.map { MLXRandom.key($0) }
+    // ZEPHRA-PATCH: mlx-swift 0.31 cannot pass `any RandomStateOrKey` generically; use the concrete key type.
+    let randomKey: MLXArray? = request.seed.map { MLXRandom.key($0) }
     let initialNoise = MLXRandom.normal(shape, loc: 0, scale: 1, key: randomKey)
     var latents = initialNoise
     let mu = calculateShift(
@@ -904,7 +905,8 @@ public class ZImageControlPipeline {
         let batch = latents.dim(0)
         let positive = noisePred[0 ..< batch, 0..., 0..., 0...]
         let negative = noisePred[batch ..< batch * 2, 0..., 0..., 0...]
-        guidedNoise = positive + request.guidanceScale * (positive - negative)
+        // ZEPHRA-PATCH: Swift 6.3 misresolves `Float * MLXArray` here; make the scalar an MLXArray.
+        guidedNoise = positive + MLXArray(request.guidanceScale) * (positive - negative)
       } else {
         guidedNoise = noisePred
       }
@@ -1142,7 +1144,8 @@ public class ZImageControlPipeline {
     let latentH = max(1, request.height / vaeDivisor)
     let latentW = max(1, request.width / vaeDivisor)
     let shape: [Int] = [1, ZImageModelMetadata.Transformer.inChannels, latentH, latentW]
-    let randomKey: RandomStateOrKey? = request.seed.map { MLXRandom.key($0) }
+    // ZEPHRA-PATCH: mlx-swift 0.31 cannot pass `any RandomStateOrKey` generically; use the concrete key type.
+    let randomKey: MLXArray? = request.seed.map { MLXRandom.key($0) }
     let initialNoise = MLXRandom.normal(shape, loc: 0, scale: 1, key: randomKey)
     var latents = initialNoise
     let mu = calculateShift(
@@ -1223,7 +1226,8 @@ public class ZImageControlPipeline {
         let batch = latents.dim(0)
         let positive = noisePred[0 ..< batch, 0..., 0..., 0...]
         let negative = noisePred[batch ..< batch * 2, 0..., 0..., 0...]
-        guidedNoise = positive + request.guidanceScale * (positive - negative)
+        // ZEPHRA-PATCH: Swift 6.3 misresolves `Float * MLXArray` here; make the scalar an MLXArray.
+        guidedNoise = positive + MLXArray(request.guidanceScale) * (positive - negative)
       } else {
         guidedNoise = noisePred
       }

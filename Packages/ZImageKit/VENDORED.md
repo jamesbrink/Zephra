@@ -29,4 +29,7 @@ git -C /tmp/zimage-src diff 970f83e4..<new-sha> -- Sources/ZImage > /tmp/zimage.
 
 Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
 
-- (none yet)
+- `Pipeline/ZImagePipeline.swift`, `Pipeline/ZImageControlPipeline.swift`: `RandomStateOrKey?` seed key
+  typed as `MLXArray?` (mlx-swift 0.31 rejects the existential in the generic `key:` parameter). 3 sites.
+- Same files: CFG blend `guidanceScale * (positive - negative)` wraps the scalar in `MLXArray(...)`
+  because Swift 6.3 resolved the `*` to an unrelated overload. 3 sites. No behaviour change.
