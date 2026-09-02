@@ -76,6 +76,19 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
 - `Pipeline/ZImagePipeline.swift`: `clearsCacheAfterGeneration` makes the trailing `GPU.clearCache()`
   a knob instead of an unconditional call. Default on, because the VAE decode peak is what pushes
   the process into memory pressure; `ZEPHRA_KEEP_CACHE=1` keeps the warm buffers for the next run.
+- `Model/Transformer/ZImageStepCache.swift` (new), `Model/Transformer/ZImageTransformer2D.swift`,
+  `Pipeline/ZImagePipeline.swift`: an opt-in TeaCache-style residual cache for the denoise loop.
+  The relative L1 change of the main block stack's input between consecutive steps is accumulated,
+  and while that total is under `ZEPHRA_STEP_CACHE`'s threshold the 32 layers are skipped and the
+  previous step's residual is reused; any step that runs resets the total. Off by default, and
+  under measurement — see the note below for whether it earns its place.
+- `Model/VAE/VAETiledDecode.swift` (new), `Model/VAE/AutoencoderKL.swift`: an opt-in tiled decode.
+  The decode's transient scales with the resolution it runs at, not with the weights, so
+  `ZEPHRA_VAE_TILE=<latent tile edge>` decodes overlapping latent tiles, evaluates each as it is
+  produced, and cross-fades the quarter-tile overlap with a linear ramp. Shaped after diffusers'
+  `enable_vae_tiling`. Off by default, and quality-gated before it is ever recommended: tiling is
+  the only mechanism that bounds the decode peak independently of image size, which is what a
+  16 GB Mac would need to reach 1024 pixels.
 
 ## Known upstream behaviour (not patched)
 

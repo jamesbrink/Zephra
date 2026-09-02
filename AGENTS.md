@@ -141,6 +141,11 @@ the re-sync procedure, and the running patch log. Any change inside
   `ZEPHRA_DIT_DTYPE=f32` runs the transformer in float32, `ZEPHRA_PAD_PROMPT=full` pads prompts to
   the 512-token limit, `ZEPHRA_KEEP_CACHE=1` stops handing MLX's scratch back after a generation,
   and `ZEPHRA_CACHE_LIMIT_MB=N` overrides the benchmark's MLX cache ceiling.
+- Experimental switches, both off by default and both under measurement:
+  `ZEPHRA_STEP_CACHE=<threshold>` skips the DiT's 32 main layers on a step whose input barely
+  moved and reuses the previous step's residual, and `ZEPHRA_VAE_TILE=<latent tile edge>` decodes
+  the VAE in overlapping tiles so the decode's peak is set by the tile rather than by the image
+  (64 gives 512-pixel tiles). The step cache prints what it decided on stderr.
 - Xcode 26 needs the Metal toolchain once: `xcodebuild -downloadComponent MetalToolchain`.
 
 ## Environment notes
