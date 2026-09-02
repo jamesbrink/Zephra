@@ -11,7 +11,7 @@ DEST     := platform=macOS,arch=arm64
 XCB      := xcodebuild -project $(PROJECT) -destination '$(DEST)' SYMROOT=$(BUILD) -derivedDataPath $(DERIVED)
 BACKEND  := $(CURDIR)/Packages/ZephraBackendZImage
 
-.PHONY: gen build run bench prefetch open clean lint-layers logs screenshot test test-backend
+.PHONY: gen build run bench prefetch open clean lint-layers logs screenshot test test-backend icon
 
 gen:
 	xcodegen generate --spec project.yml
@@ -35,6 +35,9 @@ test-backend:
 	cd $(BACKEND) && xcodebuild test -scheme ZephraBackendZImage \
 	  -destination 'platform=macOS' -skipPackagePluginValidation \
 	  -derivedDataPath $(DERIVED)
+
+icon:
+	swift scripts/make-icon.swift
 
 prefetch:
 	hf download $(MODEL) --exclude "assets/*"

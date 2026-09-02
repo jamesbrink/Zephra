@@ -94,7 +94,7 @@ Zephra/
 ├── Sources/Zephra/                # app target: SwiftUI only, composition root is ZephraApp.swift
 │   └── ZephraApp.swift  Views/**  Support/**  Resources/{Info.plist, Assets.xcassets, Colors}
 ├── Sources/ZephraBench/main.swift # headless benchmark tool
-└── scripts/screenshot.sh, prefetch-model.sh
+└── scripts/screenshot.sh, prefetch-model.sh, make-icon.swift
 ```
 
 ## Development
@@ -104,6 +104,7 @@ Zephra/
 - `make test-backend` — the `ZephraBackendZImage` mapping tests. They link MLX, so
   they go through `xcodebuild` rather than `swift test` and take longer; nothing in
   them loads weights or touches the GPU.
+- `make icon` — re-render `AppIcon.appiconset` from `scripts/make-icon.swift`.
 - `make lint-layers` — check the module boundaries above.
 
 ## Roadmap
