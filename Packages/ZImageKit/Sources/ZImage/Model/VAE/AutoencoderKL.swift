@@ -299,8 +299,13 @@ private final class VAEDecoder: Module {
   @ModuleInfo(key: "conv_norm_out") var convNormOut: GroupNorm
   @ModuleInfo(key: "conv_out") var convOut: Conv2d
 
+  // ZEPHRA-PATCH: how many pixels one latent cell becomes along each edge, which the tiled
+  // decode needs to size its pixel-space tiles. One upsampler per block after the first.
+  let pixelScale: Int
+
   init(config: VAEConfig) {
     let channels = config.blockOutChannels
+    self.pixelScale = 1 << max(0, channels.count - 1)
     self._convIn.wrappedValue = Conv2d(
       inputChannels: config.latentChannels,
       outputChannels: channels.last ?? 512,
@@ -348,6 +353,15 @@ private final class VAEDecoder: Module {
   }
 
   func callAsFunction(_ latents: MLXArray) -> MLXArray {
+    // ZEPHRA-PATCH: with ZEPHRA_VAE_TILE set, decode overlapping tiles and blend the seams, so
+    // the transient is set by the tile size rather than by the image size. Default off.
+    if let tile = VAETiledDecode.latentTile, latents.dim(1) > tile || latents.dim(2) > tile {
+      return VAETiledDecode.decode(latents, tile: tile, scale: pixelScale) { untiled($0) }
+    }
+    return untiled(latents)
+  }
+
+  private func untiled(_ latents: MLXArray) -> MLXArray {
     var hidden = convIn(latents)
     hidden = midBlock(hidden)
     // ZEPHRA-PATCH: evaluate after each up block. Left as one lazy graph the decoder holds

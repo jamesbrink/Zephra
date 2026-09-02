@@ -13,6 +13,9 @@ enum AppSettings {
     static let warmUpOnLaunch = "warmUpOnLaunch"
     /// The `ModelDescriptor.id` chosen in the model menu, restored on the next launch.
     static let selectedModelID = "selectedModelID"
+    /// Ceiling on the GPU scratch the runtime retains between generations, in megabytes.
+    /// Unset means the recommendation `InferenceTuning` works out for this machine.
+    static let cacheLimitMB = "cacheLimitMB"
 
     /// Starting values, matching the defaults written at each `@AppStorage` site.
     static let initialFilmstripVisible = true

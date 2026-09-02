@@ -1,17 +1,25 @@
 import SwiftUI
 
-/// What the engine does once the weights are in memory. Read on the way into `bootstrap()`,
-/// so a change here takes effect the next time the model is loaded.
+/// What the engine does with the GPU: whether it warms up, how much scratch it may hold, and
+/// what it is holding right now.
 struct PerformanceSettings: View {
     @AppStorage(AppSettings.warmUpOnLaunch) private var warmUpOnLaunch = AppSettings.initialWarmUpOnLaunch
 
     var body: some View {
         Form {
-            Toggle("Warm up the model after loading", isOn: $warmUpOnLaunch)
-            Text("A throwaway generation compiles the Metal kernels, so the first real image "
-                + "is not the one that pays for it.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Section {
+                Toggle("Warm up the model after loading", isOn: $warmUpOnLaunch)
+                Text("A throwaway generation compiles the Metal kernels, so the first real image "
+                    + "is not the one that pays for it. Takes effect the next time a model loads.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section("GPU memory") {
+                CacheLimitControl()
+            }
+            Section("In use now") {
+                MemoryReadout()
+            }
         }
         .formStyle(.grouped)
     }
@@ -19,5 +27,5 @@ struct PerformanceSettings: View {
 
 #Preview("Performance") {
     PerformanceSettings()
-        .frame(width: 480, height: 300)
+        .frame(width: 480, height: 400)
 }
