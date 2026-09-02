@@ -10,7 +10,9 @@ struct CanvasStateView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            if isEmptyAndReady {
+            if isGenerating {
+                EmptyView()
+            } else if isEmptyAndReady {
                 Text("Describe an image to begin.")
                     .font(.system(size: 22))
                     .fontDesign(.serif)
@@ -49,6 +51,13 @@ struct CanvasStateView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.large)
                 .padding(.top, 4)
+        }
+    }
+
+    private var isGenerating: Bool {
+        switch store.state {
+        case .generating, .cancelling: true
+        default: false
         }
     }
 

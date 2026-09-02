@@ -9,9 +9,9 @@ struct ZephraCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
-            Button("Generate") { store.generate() }
+            Button("Generate") { store.generateFromInterface() }
                 .keyboardShortcut(.return, modifiers: .command)
-                .disabled(!store.canGenerate)
+                .disabled(!store.canQueue)
             Button("Cancel") { store.cancel() }
                 .keyboardShortcut(".", modifiers: .command)
                 .disabled(!store.state.isBusy)

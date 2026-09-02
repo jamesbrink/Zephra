@@ -15,9 +15,12 @@ struct PromptCapsule: View {
             )
             VStack(alignment: .leading, spacing: 12) {
                 PromptEditor()
-                HStack(alignment: .center, spacing: 12) {
-                    SettingsChips()
+                Divider()
+                HStack(alignment: .bottom, spacing: 12) {
+                    ControlsRow()
                     Spacer(minLength: 12)
+                    QueueChip()
+                    StopButton()
                     GenerateButton()
                 }
             }

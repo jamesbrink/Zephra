@@ -19,6 +19,8 @@ public final class GenerationStore {
     public internal(set) var descriptor: ModelDescriptor
     /// Wall-clock time of the last completed generation.
     public internal(set) var lastDuration: Duration?
+    /// Generations waiting their turn, oldest first. Runs down by itself after each image.
+    public internal(set) var queue: [QueuedGeneration] = []
 
     /// How many images stay in memory before the oldest is dropped.
     static let historyLimit = 24
@@ -46,8 +48,19 @@ public final class GenerationStore {
         self.library = outputDirectory.map { ImageLibrary(root: $0) } ?? .pictures()
     }
 
-    /// True when a generation can start: the engine is ready and there is a prompt.
+    /// True when a generation can start right now: the engine is ready and there is a prompt.
     public var canGenerate: Bool { state.acceptsGeneration && settings.isReadyToGenerate }
+
+    /// True when `generate()` will do something: start now, or queue behind the running one.
+    public var canQueue: Bool { settings.isReadyToGenerate && (state.acceptsGeneration || isRunning) }
+
+    /// Whether a generation is in flight, including one that is being stopped.
+    var isRunning: Bool {
+        switch state {
+        case .generating, .cancelling: true
+        default: false
+        }
+    }
 
     /// Finds or downloads the model, loads it, and warms up. Call once from the root view.
     /// Calling it again once the engine is running is a no-op, so a re-rendered root is free.
@@ -74,21 +87,36 @@ public final class GenerationStore {
         }
     }
 
-    /// Starts a generation with the current settings. Safe to call only when `canGenerate`.
+    /// Starts a generation with the current settings, or queues it if one is already running.
+    /// Does nothing unless `canQueue`.
     public func generate() {
-        guard canGenerate, let inference else { return }
+        guard canQueue else { return }
         let request = descriptor.capabilities.clamp(settings)
-        transition(to: .generating(GenerationProgressEvent(phase: .preparing, fraction: 0)))
-        generationTask = Task { await self.run(request, on: inference) }
+        if isRunning {
+            queue.append(QueuedGeneration(settings: request))
+            logger.info("queued generation, \(self.queue.count) waiting")
+        } else {
+            start(request)
+        }
     }
 
-    /// Stops the in-flight generation after its current step. The backend only looks for a
-    /// cancel between denoising steps, so `.cancelling` can sit there for one step's worth.
+    /// Stops the in-flight generation after its current step and drops everything queued
+    /// behind it. The backend only looks for a cancel between denoising steps, so `.cancelling`
+    /// can sit there for one step's worth.
     public func cancel() {
         guard case .generating = state else { return }
+        queue.removeAll()
         transition(to: .cancelling)
         generationTask?.cancel()
     }
+
+    /// Takes one waiting generation out of the queue.
+    public func removeFromQueue(_ id: QueuedGeneration.ID) {
+        queue.removeAll { $0.id == id }
+    }
+
+    /// Empties the queue without touching the running generation.
+    public func clearQueue() { queue.removeAll() }
 
     /// Leaves `.failed` and runs `bootstrap` again.
     public func retry() {

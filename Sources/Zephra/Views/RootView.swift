@@ -3,7 +3,7 @@ import ZephraCore
 import ZephraEngine
 
 /// The window: canvas everywhere, one floating capsule over the bottom of it, the session's
-/// images under that, and the model's status in the toolbar.
+/// images under that, and the engine's status as the window's subtitle.
 struct RootView: View {
     @Environment(GenerationStore.self) private var store
     @AppStorage(AppSettings.lastPrompt) private var lastPrompt = ""
@@ -14,6 +14,7 @@ struct RootView: View {
             .overlay(alignment: .bottom) { controls }
             .toolbar { toolbarContent }
             .navigationTitle("Zephra")
+            .navigationSubtitle(subtitle)
             .task {
                 let saved = lastPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
                 if store.settings.prompt.isEmpty, !saved.isEmpty {
@@ -23,6 +24,12 @@ struct RootView: View {
                 await store.bootstrap()
             }
             .onChange(of: store.settings.prompt) { _, prompt in lastPrompt = prompt }
+    }
+
+    private var subtitle: String {
+        let count = store.queue.count
+        guard count > 0 else { return store.state.subtitle }
+        return "\(store.state.subtitle) · \(count) queued"
     }
 
     private var controls: some View {
@@ -53,7 +60,6 @@ struct RootView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .navigation) { ModelStatusChip() }
         ToolbarItemGroup(placement: .primaryAction) {
             SizeMenu()
             Button {

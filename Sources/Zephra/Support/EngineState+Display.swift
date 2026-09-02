@@ -2,12 +2,26 @@ import Foundation
 import ZephraCore
 import ZephraEngine
 
-/// The words the canvas and the toolbar chip use for each engine state.
+/// The words the canvas and the window subtitle use for each engine state.
 ///
 /// Copy rules: sentence case, active verbs, the same verb through the flow, and every
 /// failure names a cause and a remedy. Nothing here apologises.
 extension EngineState {
-    /// The short label beside the status dot in the toolbar.
+    /// The window subtitle: the state in a word, plus the measurement that matters while it runs.
+    var subtitle: String {
+        switch self {
+        case .ready: "Ready"
+        case .failed: "Failed"
+        default:
+            if let detail {
+                "\(statusLabel) · \(detail.prefix(1).lowercased() + detail.dropFirst())"
+            } else {
+                statusLabel
+            }
+        }
+    }
+
+    /// The state in a word or two.
     var statusLabel: String {
         switch self {
         case .idle: "Starting up"
