@@ -18,7 +18,7 @@ QUANT_OUT  ?= $(HOME)/Library/Application Support/Zephra/Models/z-image-turbo-4b
 DEST     := platform=macOS,arch=arm64
 XCB      := xcodebuild -project $(PROJECT) -destination '$(DEST)' SYMROOT=$(BUILD) -derivedDataPath $(DERIVED)
 # Every package that links MLX, and so needs xcodebuild rather than `swift test`.
-MLX_PACKAGES := ZephraMLXKit QwenImageKit ZephraBackendZImage
+MLX_PACKAGES := ZephraMLXKit QwenImageKit ZephraBackendZImage ZephraBackendQwenImage
 
 # Distribution signing. The build itself is ad-hoc signed (project.yml), so these
 # matter only to `make release` and `make notarize`. Leave SIGN_IDENTITY empty to

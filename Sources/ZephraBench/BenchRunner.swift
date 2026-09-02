@@ -10,8 +10,16 @@ enum BenchRunner {
     /// family the chosen model belongs to and never names one itself.
     static func run(_ options: BenchOptions, registry: BackendRegistry) async throws -> BenchReport {
         ZImageRuntime.configure(cacheLimitBytes: cacheLimit(), memoryLimitBytes: nil)
-        // Checked when the flag was parsed, so an unknown identifier cannot reach here.
-        let descriptor = ModelCatalog.descriptor(id: options.model) ?? ModelCatalog.default
+        // Either a catalogued model, or a snapshot named on the command line for a family whose
+        // catalog entry does not exist yet. The flag was checked when it was parsed, so an
+        // unknown identifier cannot reach here.
+        let descriptor =
+            if let snapshot = options.snapshot, let backend = options.backend {
+                BenchDescriptor.forSnapshot(
+                    snapshot, backend: backend, size: options.size, steps: options.steps)
+            } else {
+                ModelCatalog.descriptor(id: options.model) ?? ModelCatalog.default
+            }
         let backend = try registry.make(descriptor)
         let verbose = !options.json
 

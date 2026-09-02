@@ -97,6 +97,9 @@ public struct ComponentQuantization {
                 throw QuantizationError.unreadableShard(
                     shard, reason: "header names \(entry.name) but the file does not hold it")
             }
+            // Some tensors are not in the build at all: an unloaded vision tower is gigabytes
+            // that would otherwise be copied for nothing.
+            if component.omits(entry.name) { continue }
             // Policy first: the group size it names is what divisibility is tested against.
             guard let precision = component.precision(for: entry.name),
                 let weight = QuantizableWeight(

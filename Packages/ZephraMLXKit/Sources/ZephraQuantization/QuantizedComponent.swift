@@ -12,17 +12,30 @@ public struct QuantizedComponent: Hashable, Sendable {
     public let rules: [WeightPrecisionRule]
     /// What happens to a tensor no rule claims, or nil to leave the rest of the component alone.
     public let fallback: QuantizationPrecision?
+    /// Tensors left out of the build entirely.
+    ///
+    /// Distinct from a rule that resolves to no precision: that one copies the tensor across
+    /// unpacked, which is right for a norm the model reads at full width and wrong for a
+    /// component nothing ever loads. A checkpoint often carries both.
+    public let omitted: [NamePattern]
 
     /// Creates a component whose tensors are packed at `fallback` except where `rules` say
     /// otherwise.
     public init(
         directoryName: String,
         rules: [WeightPrecisionRule] = [],
-        fallback: QuantizationPrecision?
+        fallback: QuantizationPrecision?,
+        omitted: [NamePattern] = []
     ) {
         self.directoryName = directoryName
         self.rules = rules
         self.fallback = fallback
+        self.omitted = omitted
+    }
+
+    /// Whether this tensor is left out of the build entirely.
+    public func omits(_ tensorName: String) -> Bool {
+        omitted.contains { $0.matches(tensorName) }
     }
 
     /// How finely to pack `tensorName`, or nil to copy it across untouched.

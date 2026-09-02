@@ -1,3 +1,4 @@
+import ZephraBackendQwenImage
 import ZephraBackendZImage
 import ZephraCore
 
@@ -11,6 +12,7 @@ enum BenchBackends {
     static func registry() -> BackendRegistry {
         var registry = BackendRegistry()
         registry.register(.zImage, ZImageBackendFactory.make)
+        registry.register(.qwenImage, QwenImageBackendFactory.make)
         return registry
     }
 }

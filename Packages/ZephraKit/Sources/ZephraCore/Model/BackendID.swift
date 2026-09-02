@@ -20,4 +20,7 @@ public struct BackendID: Hashable, Sendable, RawRepresentable, ExpressibleByStri
 
     /// The Z-Image family of text-to-image models.
     public static let zImage = BackendID("z-image")
+
+    /// The Qwen-Image family of text-to-image models.
+    public static let qwenImage = BackendID("qwen-image")
 }

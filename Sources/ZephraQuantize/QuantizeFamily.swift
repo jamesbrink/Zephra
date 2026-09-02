@@ -1,4 +1,5 @@
 import Foundation
+import ZephraBackendQwenImage
 import ZephraBackendZImage
 import ZephraCore
 import ZephraQuantization
@@ -10,6 +11,7 @@ import ZephraQuantization
 /// codebase keeps, and because two arms are easier to read than a registration dance.
 enum QuantizeFamily: String, CaseIterable, Sendable {
     case zImage = "z-image"
+    case qwenImage = "qwen-image"
 
     /// Every value `--family` accepts, for the usage text.
     static var names: String { allCases.map(\.rawValue).joined(separator: "|") }
@@ -19,6 +21,7 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
     var defaultOutputName: String {
         switch self {
         case .zImage: "z-image-turbo-4bit"
+        case .qwenImage: "qwen-image-2512-4bit"
         }
     }
 
@@ -26,17 +29,29 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
     var defaultSourceName: String {
         switch self {
         case .zImage: "Tongyi-MAI/Z-Image-Turbo"
+        case .qwenImage: "Qwen/Qwen-Image-2512"
         }
     }
 
     /// This family's packing plan at the requested precisions.
+    ///
+    /// Qwen-Image holds its modulation layers at eight bits whatever the rest is set to: they
+    /// are a third of its parameters and they decide how strongly every other layer responds.
     func plan(
         transformer: QuantizationPrecision,
         textEncoder: QuantizationPrecision
-    ) -> QuantizationPlan {
+    ) throws -> QuantizationPlan {
         switch self {
         case .zImage:
             ZImageQuantizationPlan.plan(transformer: transformer, textEncoder: textEncoder)
+        case .qwenImage:
+            QwenImageQuantizationPlan.plan(
+                transformer: transformer,
+                textEncoder: textEncoder,
+                modulation: transformer.bits < 8
+                    ? try QuantizationPrecision(bits: 8, groupSize: transformer.groupSize)
+                    : transformer
+            )
         }
     }
 }

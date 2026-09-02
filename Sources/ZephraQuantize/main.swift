@@ -9,7 +9,7 @@ let options = QuantizeOptions.parse(CommandLine.arguments)
 
 do {
     let family = options.family!
-    let plan = family.plan(
+    let plan = try family.plan(
         transformer: try QuantizationPrecision(
             bits: options.bits, groupSize: options.groupSize),
         textEncoder: try QuantizationPrecision(
