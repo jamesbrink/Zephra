@@ -21,9 +21,9 @@ public enum ModelCatalog {
         ),
         quantization: .int8,
         downloadBytes: 13_280_000_000,
-        // Measured on an M4 Max: ~13 GB live after a generation, ~27 GB peak while loading
-        // weights. The load spike is a known vendored-loader cost; see VENDORED.md.
-        residentBytes: 13_000_000_000,
+        // Measured on an M4 Max at 1024 pixels: 12236 MB live after a generation, 23501 MB
+        // peak. The gap is the VAE decode, not weight loading, which reaches only 7.2 GB.
+        residentBytes: 12_240_000_000,
         maxPromptTokens: 512,
         capabilities: zImageTurboCapabilities
     )
@@ -41,9 +41,11 @@ public enum ModelCatalog {
         source: .localDirectory(localModelsDirectory.appending(path: "z-image-turbo-4bit")),
         quantization: .int4,
         downloadBytes: 0,
-        // Measured on an M4 Max at 1024 pixels: 7.4 GB live after a generation, 17.7 GB peak
-        // during the VAE decode. The live figure is what decides whether a Mac can run it.
-        residentBytes: 7_400_000_000,
+        // Measured on an M4 Max, deterministic across repetitions: 6575 MB live after a
+        // generation, and a peak that follows the image size — 10693 MB at 512 pixels,
+        // 14599 MB at 768, 17839 MB at 1024. Peak is resident plus the VAE decode's scratch,
+        // which is unquantized and so costs the same here as it does at eight bits.
+        residentBytes: 6_580_000_000,
         maxPromptTokens: 512,
         capabilities: zImageTurboCapabilities
     )
