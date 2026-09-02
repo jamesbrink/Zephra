@@ -78,12 +78,39 @@ vendored Z-Image pipeline.
 | Apple M4 Max 48 GB, same conditions | 512×512 | 4 | ~7 s (1.6 s/step) |
 | Apple M2 Ultra (upstream report) | 1024×1024 | 9 | ~44 s |
 
-Where a 1024² step goes: the denoiser is compute-bound. MLX quantized matmuls reach about
-12.5 TFLOPS on an M4 Max (`make bench ARGS=--micro`), and the 32 transformer layers sum to
-roughly 5 s of matmul and attention per step at 4,160 tokens, so the measured 6.3 s is within
-25 % of the kernel ceiling. The GPU is at 100 % for the whole step; paging and CPU-side graph
-building were measured and ruled out. Anything else using the GPU slows Zephra proportionally.
-Text encoding is ~40 ms and the VAE decode ~4 s at 1024².
+Where a 1024² step goes: the denoiser is compute-bound. A step is 4,160 tokens (4,096 image
+patches plus a 64-token caption) through 32 transformer layers and two refiner layers. Counting
+four attention projections of [4160,3840]×[3840,3840] and three feed-forward projections per
+layer — w1 and w3 are [3840,10240], w2 is [10240,3840] — plus attention itself, that is
+**59 TFLOP per step**, of which 50 TFLOP is quantized matmul. Timing those same shapes on their
+own (`make bench ARGS="--micro --size 1024"`) and summing 32 × (4 projections + 3 feed-forward +
+1 attention + 2 rope) gives **4.4 s**, or 4.7 s with the refiners: an effective **12.6 TFLOPS**
+of 8-bit matmul. Against the 6.3 s step in the table the kernels are about three quarters of it,
+and the rest is most likely weight residency — the microbench reuses one weight matrix where a
+real step streams 7 GB of distinct ones. CPU-side graph building is not a factor: under
+`ZEPHRA_PROFILE_STEP=1` a whole step is built in 2–9 ms against seconds of evaluation.
+
+An earlier note here put the kernel sum at 1.2 s against the same 6.3 s step and could not
+explain the 5× gap. The microbench was applying the VAE's divisor twice and so ran at 1,088
+tokens rather than 4,160; at the true length the projections cost about 3.8× and attention about
+14× more, which is where the gap went.
+
+Both figures above want redoing. Every number in this section was taken on a machine running
+other builds (load average 10 to 70), where a re-measured 1024² step came out at 10 s rather than
+6.3 s and individual microbench rows varied by 2× between two runs an hour apart. The table is
+the last set taken under lighter load; treat it as provisional. Text encoding is ~40 ms and the
+VAE decode ~4 s at 1024².
+
+Two experiments, both measured at a fixed seed. **Step caching does not work here**: reusing the
+transformer's residual on steps whose input barely moved, TeaCache-style, needs consecutive steps
+to be close, and over Z-Image-Turbo's 9 steps they are 12 % to 41 % apart. A threshold low enough
+to be safe skips nothing; one that skips a single step of nine already redraws the robot's head
+and hands (mean absolute difference 11.7 of 255), and one that skips three gives a different
+picture entirely (26.9 of 255). The patch was removed rather than left switched off. **Tiled VAE
+decode does work**, and is kept behind `ZEPHRA_VAE_TILE=64`: decoding in overlapping 512-pixel
+tiles takes peak memory at 1024² from 23.5 GB to 17.7 GB for a mean absolute difference of 1.0 of
+255 and no visible seam. It is off by default because the untiled decode is exact and a 32 GB Mac
+does not need it; it is what would let a 16 GB Mac reach 1024² on a 4-bit model.
 
 ## Project layout
 
