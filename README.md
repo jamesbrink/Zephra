@@ -42,7 +42,16 @@ readout while that happens.
   after another and the subtitle counts what is waiting. Stop ends the current image and drops
   the queue; during the first-run download or the load it abandons that instead, and the canvas
   offers to pick it up again — a stopped download resumes from what it already fetched.
-- Size, steps, and seed sit under the prompt. The lock keeps the seed across runs; unlocked,
+- The model menu in the toolbar names the model that is running and lists the rest, each with
+  what choosing it would cost: "Downloaded", "13.3 GB download", "Not built yet" for a local
+  variant that has not been quantized, or "Needs N GB" for one this Mac has too little memory
+  for. Picking a model that has not been downloaded starts the download; the last two are
+  disabled, with the reason in the tooltip. Switching releases the old weights before it asks
+  for the new ones, and the menu is unavailable while a generation is running or waiting, so
+  nothing in the queue is thrown away without you saying so. Your choice is remembered.
+- Size, steps, and seed sit under the prompt. A model that reads a negative prompt gets a
+  second field for it, and one that responds to guidance gets a guidance slider; Z-Image Turbo
+  does neither, so it shows neither. The lock keeps the seed across runs; unlocked,
   every run gets a fresh one. Images save to `~/Pictures/Zephra` with the seed in the file name;
   if a write fails, a notice sits over the prompt until an image saves, and the picture stays on
   the canvas either way.
@@ -67,6 +76,12 @@ Sources/ZephraBench (tool)   ─→ ZephraCore, ZephraBackendZImage
 `ZephraCore` and `ZephraEngine` have zero MLX dependencies, so they build and
 test in seconds. `ZephraBackendZImage` is the only package that speaks to the
 vendored Z-Image pipeline.
+
+Adding a model that an existing backend can run is one entry in `ModelCatalog`:
+the picker lists the catalog, and the interface draws itself from the entry's
+`ModelCapabilities`. Adding a new backend is that entry plus a `BackendID` case,
+a package implementing `ImageGenerationBackend`, and one `registry.register(...)`
+line in `ZephraApp.swift` — no view and nothing in `ZephraEngine` changes.
 
 ## Performance
 
