@@ -633,7 +633,7 @@ public class ZImageControlPipeline {
       logger.info("Loading control transformer...")
       let transformer = try loadControlTransformer(snapshot: snapshot, config: modelConfigs.transformer)
       let transformerWeights = try weightsMapper.loadTransformer()
-      ZImageControlWeightsMapping.applyControlTransformer(
+      try ZImageControlWeightsMapping.applyControlTransformer(
         weights: transformerWeights,
         to: transformer,
         manifest: quantManifest,
@@ -652,7 +652,7 @@ public class ZImageControlPipeline {
       logger.info("Loading control transformer...")
       let transformer = try loadControlTransformer(snapshot: snapshot, config: modelConfigs.transformer)
       let transformerWeights = try weightsMapper.loadTransformer()
-      ZImageControlWeightsMapping.applyControlTransformer(
+      try ZImageControlWeightsMapping.applyControlTransformer(
         weights: transformerWeights,
         to: transformer,
         manifest: quantManifest,
@@ -671,7 +671,7 @@ public class ZImageControlPipeline {
           preferredFile: request.controlnetWeightsFile,
           progressCallback: request.progressCallback
         )
-        ZImageControlWeightsMapping.applyControlnetWeights(
+        try ZImageControlWeightsMapping.applyControlnetWeights(
           weights: result.weights,
           to: self.transformer!,
           manifest: result.manifest,
@@ -845,7 +845,7 @@ public class ZImageControlPipeline {
       let weightsMapper = ZImageWeightsMapper(snapshot: snapshot, logger: logger)
       let transformerModel = try loadControlTransformer(snapshot: snapshot, config: modelConfigs.transformer)
       let transformerWeights = try weightsMapper.loadTransformer()
-      ZImageControlWeightsMapping.applyControlTransformer(
+      try ZImageControlWeightsMapping.applyControlTransformer(
         weights: transformerWeights,
         to: transformerModel,
         manifest: quantManifest,
@@ -860,7 +860,7 @@ public class ZImageControlPipeline {
           preferredFile: request.controlnetWeightsFile,
           progressCallback: request.progressCallback
         )
-        ZImageControlWeightsMapping.applyControlnetWeights(
+        try ZImageControlWeightsMapping.applyControlnetWeights(
           weights: result.weights,
           to: self.transformer!,
           manifest: result.manifest,
@@ -970,7 +970,7 @@ public class ZImageControlPipeline {
       logger.info("Loading control transformer...")
       let transformer = try loadControlTransformer(snapshot: snapshot, config: modelConfigs.transformer)
       let transformerWeights = try weightsMapper.loadTransformer()
-      ZImageControlWeightsMapping.applyControlTransformer(
+      try ZImageControlWeightsMapping.applyControlTransformer(
         weights: transformerWeights,
         to: transformer,
         manifest: quantManifest,
@@ -989,7 +989,7 @@ public class ZImageControlPipeline {
       logger.info("Loading control transformer...")
       let transformer = try loadControlTransformer(snapshot: snapshot, config: modelConfigs.transformer)
       let transformerWeights = try weightsMapper.loadTransformer()
-      ZImageControlWeightsMapping.applyControlTransformer(
+      try ZImageControlWeightsMapping.applyControlTransformer(
         weights: transformerWeights,
         to: transformer,
         manifest: quantManifest,
@@ -1008,7 +1008,7 @@ public class ZImageControlPipeline {
           preferredFile: request.controlnetWeightsFile,
           progressCallback: request.progressCallback
         )
-        ZImageControlWeightsMapping.applyControlnetWeights(
+        try ZImageControlWeightsMapping.applyControlnetWeights(
           weights: result.weights,
           to: self.transformer!,
           manifest: result.manifest,
@@ -1166,7 +1166,7 @@ public class ZImageControlPipeline {
       let weightsMapper = ZImageWeightsMapper(snapshot: snapshot, logger: logger)
       let transformerModel = try loadControlTransformer(snapshot: snapshot, config: modelConfigs.transformer)
       let transformerWeights = try weightsMapper.loadTransformer()
-      ZImageControlWeightsMapping.applyControlTransformer(
+      try ZImageControlWeightsMapping.applyControlTransformer(
         weights: transformerWeights,
         to: transformerModel,
         manifest: quantManifest,
@@ -1181,7 +1181,7 @@ public class ZImageControlPipeline {
           preferredFile: request.controlnetWeightsFile,
           progressCallback: request.progressCallback
         )
-        ZImageControlWeightsMapping.applyControlnetWeights(
+        try ZImageControlWeightsMapping.applyControlnetWeights(
           weights: result.weights,
           to: self.transformer!,
           manifest: result.manifest,
@@ -1442,7 +1442,7 @@ public enum ZImageControlWeightsMapping {
     to transformer: ZImageControlTransformer2DModel,
     manifest: ZImageQuantizationManifest?,
     logger: Logger
-  ) {
+  ) throws {
     if let manifest = manifest {
       let availableKeys = Set(weights.keys)
       ZImageQuantizer.applyQuantization(
@@ -1454,8 +1454,13 @@ public enum ZImageControlWeightsMapping {
     }
     let groupSize = manifest?.groupSize ?? 32
     let bits = manifest?.bits ?? 8
-    let mapped = transformerMapping(weights)
-    applyToModule(transformer, weights: mapped, prefix: "transformer", logger: logger)
+    // ZEPHRA-PATCH: same withholding as `ZImageWeightsMapping.applyTransformer`. This model has
+    // the same `all_final_layer.<key>.adaLN_modulation` submodule keyed "1", which
+    // `ModuleParameters.unflattened` reads as an array index, and `loadFinalLayerWeights` below
+    // loads that subtree by hand. Now that a failed apply throws, leaving these keys in would
+    // turn a load that used to half-succeed into a hard failure.
+    let mapped = transformerMapping(weights).filter { !$0.key.contains(".all_final_layer.") }
+    try applyToModule(transformer, weights: mapped, prefix: "transformer", logger: logger)
     transformer.loadCapEmbedderWeights(from: weights)
     transformer.loadXEmbedderWeights(from: weights, groupSize: groupSize, bits: bits)
     transformer.loadFinalLayerWeights(from: weights, groupSize: groupSize, bits: bits)
@@ -1467,7 +1472,7 @@ public enum ZImageControlWeightsMapping {
     to transformer: ZImageControlTransformer2DModel,
     manifest: ZImageQuantizationManifest?,
     logger: Logger
-  ) {
+  ) throws {
     let isQuantized = manifest != nil
     if let manifest = manifest {
       let availableKeys = Set(weights.keys)
@@ -1482,7 +1487,7 @@ public enum ZImageControlWeightsMapping {
     for (idx, block) in transformer.controlNoiseRefiner.enumerated() {
       if isQuantized {
         let prefix = "controlNoiseRefiner.\(idx)"
-        applyToModule(
+        try applyToModule(
           block, weights: weights,
           prefix: prefix,
           logger: logger,
@@ -1496,7 +1501,7 @@ public enum ZImageControlWeightsMapping {
     for (idx, block) in transformer.controlLayers.enumerated() {
       if isQuantized {
         let prefix = "controlLayers.\(idx)"
-        applyToModule(
+        try applyToModule(
           block, weights: weights,
           prefix: prefix,
           logger: logger,
