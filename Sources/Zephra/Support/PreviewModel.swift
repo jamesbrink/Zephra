@@ -15,6 +15,8 @@ enum PreviewModel {
         quantization: .bf16,
         downloadBytes: 0,
         residentBytes: 1_000_000_000,
+        peakBytes: 3_000_000_000,
+        tiledPeakBytes: 2_000_000_000,
         maxPromptTokens: 256,
         capabilities: ModelCapabilities(
             sizeAlignment: 64,

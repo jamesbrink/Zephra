@@ -101,6 +101,8 @@ struct ZImageAvailabilityTests {
             quantization: base.quantization,
             downloadBytes: 0,
             residentBytes: base.residentBytes,
+            peakBytes: base.peakBytes,
+            tiledPeakBytes: base.tiledPeakBytes,
             maxPromptTokens: base.maxPromptTokens,
             capabilities: base.capabilities
         )

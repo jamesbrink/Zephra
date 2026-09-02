@@ -124,6 +124,8 @@ struct ZImageRequestMapperTests {
             quantization: descriptor.quantization,
             downloadBytes: descriptor.downloadBytes,
             residentBytes: descriptor.residentBytes,
+            peakBytes: descriptor.peakBytes,
+            tiledPeakBytes: descriptor.tiledPeakBytes,
             maxPromptTokens: descriptor.maxPromptTokens,
             capabilities: capabilities
         )
