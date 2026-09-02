@@ -68,9 +68,10 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
     ) async throws {
         let pipeline = pipeline ?? ZImagePipeline()
         self.pipeline = pipeline
-        let call = ZImagePipelineCall(pipeline: pipeline, onProgress: onProgress)
         do {
-            try await call.load(modelPath: localPath.path)
+            try await pipeline.loadModel(modelSpec: localPath.path) { progress in
+                onProgress(ZImageProgressMapper.event(from: progress))
+            }
         } catch let error as CancellationError {
             throw error
         } catch {
@@ -99,9 +100,10 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
             descriptor: descriptor,
             snapshot: snapshot
         )
-        let call = ZImagePipelineCall(pipeline: pipeline, onProgress: onProgress)
         do {
-            return try await call.generate(request)
+            return try await pipeline.generateToMemory(request) { progress in
+                onProgress(ZImageProgressMapper.event(from: progress))
+            }
         } catch let error as CancellationError {
             throw error
         } catch {

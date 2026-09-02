@@ -14,7 +14,9 @@
 
 - tools-version 5.9 → 6.0; platforms macOS 14 → 15; iOS dropped.
 - mlx-swift `.upToNextMinor(from: "0.29.1")` → `exact: "0.31.3"`.
-- Added `swiftSettings: [.swiftLanguageMode(.v5)]` on the `ZImage` target.
+- Added `swiftSettings: [.swiftLanguageMode(.v5), .enableUpcomingFeature("NonisolatedNonsendingByDefault")]`
+  on the `ZImage` target. The upcoming feature makes the pipeline's async methods run on the
+  caller's executor, so Zephra's inference actor keeps MLX work on its own serial queue.
 - Dropped CLI and test targets (Zephra has its own `ZephraBench` tool).
 
 ## Re-sync procedure
@@ -33,3 +35,13 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
   typed as `MLXArray?` (mlx-swift 0.31 rejects the existential in the generic `key:` parameter). 3 sites.
 - Same files: CFG blend `guidanceScale * (positive - negative)` wraps the scalar in `MLXArray(...)`
   because Swift 6.3 resolved the `*` to an unrelated overload. 3 sites. No behaviour change.
+
+## Known upstream behaviour (not patched)
+
+- Loading `mzbac/Z-Image-Turbo-8bit` logs a failure to apply the
+  `all_final_layer` / `adaLN_modulation` submodule weights and then reports success.
+  Output images are correct, so the branch appears unused for this model. Treat as noise
+  until proven otherwise.
+- Peak memory during weight loading is ~27 GB on an M4 Max versus ~13 GB resident
+  afterwards: shards are read fully before being applied. Candidate for a ZEPHRA-PATCH
+  that streams shard by shard.

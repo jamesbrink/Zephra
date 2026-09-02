@@ -27,7 +27,12 @@ let package = Package(
       ],
       path: "Sources/ZImage",
       // Upstream is written for Swift 5; keep it compiling untouched.
-      swiftSettings: [.swiftLanguageMode(.v5)]
+      swiftSettings: [
+        .swiftLanguageMode(.v5),
+        // Async methods run on the caller's executor, so the engine's serial inference
+        // executor keeps the MLX work instead of the cooperative pool.
+        .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+      ]
     ),
   ]
 )

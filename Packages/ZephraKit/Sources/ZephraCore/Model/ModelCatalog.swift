@@ -11,7 +11,9 @@ public enum ModelCatalog {
         filePatterns: ["*.safetensors", "*.json", "tokenizer/*"],
         quantization: .int8,
         downloadBytes: 13_280_000_000,
-        residentBytes: 7_500_000_000,
+        // Measured on an M4 Max: ~13 GB live after a generation, ~27 GB peak while loading
+        // weights. The load spike is a known vendored-loader cost; see VENDORED.md.
+        residentBytes: 13_000_000_000,
         capabilities: ModelCapabilities(
             sizeAlignment: 16,
             sizePresets: [
