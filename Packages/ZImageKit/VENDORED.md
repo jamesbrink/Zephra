@@ -73,6 +73,9 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
 - `Pipeline/ZImageStepProfile.swift` (new), `Pipeline/ZImagePipeline.swift`: opt-in phase timing and
   MLX memory reporting for the denoise loop, the text encoder and the VAE, enabled with
   `ZEPHRA_PROFILE_STEP=1`. Compiles to a branch on a `static let` when off.
+- `Pipeline/ZImagePipeline.swift`: `clearsCacheAfterGeneration` makes the trailing `GPU.clearCache()`
+  a knob instead of an unconditional call. Default on, because the VAE decode peak is what pushes
+  the process into memory pressure; `ZEPHRA_KEEP_CACHE=1` keeps the warm buffers for the next run.
 
 ## Known upstream behaviour (not patched)
 

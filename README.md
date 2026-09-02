@@ -20,7 +20,8 @@ Silicon, via MLX/Metal.
 - [`hf`](https://github.com/huggingface/huggingface_hub) CLI (optional, for
   `make prefetch`)
 - About 14 GB free disk for model weights
-- 16 GB RAM recommended
+- 32 GB RAM. The 8-bit model holds about 13 GB resident and peaks near 24 GB while
+  decoding; the app hides models that need more than 60 % of physical memory.
 
 ## Quick start
 
@@ -42,6 +43,8 @@ readout while that happens.
   the queue.
 - Size, steps, and seed sit under the prompt. The lock keeps the seed across runs; unlocked,
   every run gets a fresh one. Images save to `~/Pictures/Zephra` with the seed in the file name.
+- Shortcuts: Generate ⌘↩, Stop ⌘., Save As ⌘S, Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C. Cut,
+  Copy, Paste and Select All in the prompt field are the standard Edit menu items.
 
 ## How it works
 
@@ -79,7 +82,7 @@ Text encoding is ~40 ms and the VAE decode ~4 s at 1024².
 
 ```
 Zephra/
-├── .gitignore  CLAUDE.md  LICENSE  THIRD_PARTY_NOTICES.md  Makefile  README.md  project.yml
+├── .gitignore  AGENTS.md (CLAUDE.md symlinks to it)  LICENSE  THIRD_PARTY_NOTICES.md  Makefile  README.md  project.yml
 ├── Packages/
 │   ├── ZImageKit/                 # vendored (MIT). LICENSE, VENDORED.md, Package.swift, Sources/ZImage/**
 │   ├── ZephraKit/                 # ours — no MLX dependency

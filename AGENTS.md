@@ -71,12 +71,14 @@ Makefile targets:
 - `make build` — generate, then `xcodebuild` the `Zephra` scheme
   (`CONFIG=Release` by default).
 - `make run` — build, then open `build/Release/Zephra.app`.
+- `make open` — generate, then open the project in Xcode.
 - `make bench` — build and run `ZephraBench` (`ARGS=...` to pass flags).
 - `make test` — `swift test` in `Packages/ZephraKit` (Core + Engine only,
   fast, no MLX).
 - `make prefetch` — download the default model weights via `hf download`.
 - `make lint-layers` — enforce the layering rules above.
 - `make logs` — stream app logs (`log stream`, subsystem `io.zephra`).
+- `make screenshot` — capture the app window (see debugging hooks).
 - `make clean` — remove build output and the generated project.
 
 The first Release build compiles MLX's Metal kernels from scratch and takes
@@ -86,7 +88,8 @@ Release, never Debug — Debug has Metal validation and full debug info on.
 ## Model weights
 
 Default model: `mzbac/Z-Image-Turbo-8bit` — 13.3 GB download (excluding
-`assets/`), about 7.5 GB resident in memory. Weights are cached in
+`assets/`), about 13 GB resident once loaded and peaking near 24 GB during VAE decode,
+so 32 GB of RAM is the practical floor. Weights are cached in
 `~/.cache/huggingface/hub`, honoring `HF_HOME` / `HF_HUB_CACHE` if set.
 `make prefetch` seeds the cache ahead of first run.
 
