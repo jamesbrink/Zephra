@@ -1,5 +1,6 @@
 import Foundation
 import MLX
+import ZImage
 
 /// Tuning knobs for the MLX runtime that backs Z-Image, kept here so nothing above this layer
 /// has to import MLX to set them.
@@ -20,6 +21,15 @@ public nonisolated enum ZImageRuntime {
         if let memoryLimitBytes {
             Memory.memoryLimit = memoryLimitBytes
         }
+    }
+
+    /// The latent-space tile edge the VAE decode runs at, or nil for the exact untiled decode.
+    ///
+    /// Starts at whatever `ZEPHRA_VAE_TILE` said at launch, which is how the benchmark still
+    /// sets it. Assigning takes effect on the next decode; nothing reloads.
+    public static var vaeTileSize: Int? {
+        get { VAETiledDecode.latentTile }
+        set { VAETiledDecode.latentTile = newValue }
     }
 
     /// One line naming the Metal device and the memory it will work within, for logs and for

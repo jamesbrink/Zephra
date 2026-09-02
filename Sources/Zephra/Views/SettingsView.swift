@@ -11,7 +11,7 @@ struct SettingsView: View {
             AboutSettings().tabItem { Label("About", systemImage: "info.circle") }
         }
         // Tall enough for Performance, the longest of the three; the other two centre in it.
-        .frame(width: 480, height: 440)
+        .frame(width: 480, height: 620)
     }
 }
 

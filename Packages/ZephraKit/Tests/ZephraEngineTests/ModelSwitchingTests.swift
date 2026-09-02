@@ -18,6 +18,8 @@ struct ModelSwitchingTests {
         quantization: .int4,
         downloadBytes: 4_000_000_000,
         residentBytes: 4_000_000_000,
+        peakBytes: 8_000_000_000,
+        tiledPeakBytes: 6_000_000_000,
         maxPromptTokens: 128,
         capabilities: ModelCapabilities(
             sizeAlignment: 64,

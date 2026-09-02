@@ -353,8 +353,9 @@ private final class VAEDecoder: Module {
   }
 
   func callAsFunction(_ latents: MLXArray) -> MLXArray {
-    // ZEPHRA-PATCH: with ZEPHRA_VAE_TILE set, decode overlapping tiles and blend the seams, so
-    // the transient is set by the tile size rather than by the image size. Default off.
+    // ZEPHRA-PATCH: with a tile set — by `ZEPHRA_VAE_TILE` or by the host at runtime — decode
+    // overlapping tiles and blend the seams, so the transient is set by the tile size rather
+    // than by the image size. Default off.
     if let tile = VAETiledDecode.latentTile, latents.dim(1) > tile || latents.dim(2) > tile {
       return VAETiledDecode.decode(latents, tile: tile, scale: pixelScale) { untiled($0) }
     }

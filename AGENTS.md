@@ -220,7 +220,11 @@ the re-sync procedure, and the running patch log. Any change inside
 - `ZEPHRA_VAE_TILE=<latent tile edge>` decodes the VAE in overlapping tiles and blends the seams,
   so the decode's peak is set by the tile rather than by the image. 64 gives 512-pixel tiles and
   takes the 1024-pixel peak from 23.5 GB to 17.7 GB for a mean absolute pixel difference of 1 of
-  255. Off by default: the untiled decode is exact, and only a 16 GB Mac needs this.
+  255. It is the starting value of `VAETiledDecode.latentTile` and so is what `ZephraBench` and
+  the command line use. The app overrides it as soon as its window appears: Settings >
+  Performance holds a three-way preference (`AppSettings.vaeTiling`) and `VAETilingPolicy`
+  applies it for the model about to run, tiling under Automatic when that model's `peakBytes`
+  is over four fifths of physical memory.
 - Xcode 26 needs the Metal toolchain once: `xcodebuild -downloadComponent MetalToolchain`.
 
 ## Environment notes

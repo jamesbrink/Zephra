@@ -9,6 +9,14 @@ public struct ZImageInferenceRuntime: InferenceRuntime {
         ZImageRuntime.configure(cacheLimitBytes: bytes, memoryLimitBytes: nil)
     }
 
+    public func setVAETileSize(_ tile: Int?) {
+        ZImageRuntime.vaeTileSize = tile
+    }
+
+    public func vaeTileSize() -> Int? {
+        ZImageRuntime.vaeTileSize
+    }
+
     public func memorySnapshot() -> MemorySnapshot {
         let snapshot = ZImageRuntime.memorySnapshot()
         return MemorySnapshot(

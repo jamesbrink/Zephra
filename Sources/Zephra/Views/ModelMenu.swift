@@ -3,12 +3,13 @@ import ZephraCore
 import ZephraEngine
 
 /// Picks which model the engine runs, and says what choosing one would cost: already on disk,
-/// a download away, never built, or more memory than this Mac has.
+/// a download away, never built, tiled to fit, or more memory than this Mac has.
 ///
-/// Choosing a model that has not been downloaded is allowed; the switch fetches it. Choosing
-/// one that cannot be had at all, or will not fit, is not, and the row says why. Choosing while
-/// an image is running is fine too: the running image finishes on its model, and the new one
-/// takes over for whatever is queued next.
+/// Memory is a note, not a gate. A model whose peak is over this Mac's budget still runs at a
+/// smaller size than its default, so the row says what it would take and lets it be chosen.
+/// Only a model that cannot be had at all — never built, no backend for it — is disabled.
+/// Choosing while an image is running is fine too: the running image finishes on its model, and
+/// the new one takes over for whatever is queued next.
 struct ModelMenu: View {
     @Environment(GenerationStore.self) private var store
     @AppStorage(AppSettings.selectedModelID) private var selectedModelID = ""
@@ -49,34 +50,61 @@ struct ModelMenu: View {
     /// The secondary half of a row: what it would take to run this model, or nil when there is
     /// nothing worth saying.
     private func note(for model: ModelDescriptor) -> String? {
-        if let shortfall = memoryNote(model) { return shortfall }
+        if let memory = memoryNote(model) { return memory }
         return store.availability[model.id]?.label
     }
 
-    /// Why the row is disabled, phrased for a tooltip, or nil when it can be chosen.
+    /// The tooltip: how this model would run here, or why it cannot be had.
     private func obstacle(_ model: ModelDescriptor) -> String? {
-        if let shortfall = memoryNote(model) {
-            return "\(model.fullName) \(shortfall.lowercased()) of memory to run."
+        switch fit(model) {
+        case .fits:
+            return store.availability[model.id]?.reason
+        case .fitsTiled:
+            return "\(model.fullName) decodes in tiles on this Mac, which keeps it out of swap "
+                + "at \(sizeText(model)) for about 1 part in 255 of difference in the image."
+        case .tight(let needed):
+            let gigabytes = Int((Double(needed) / 1_000_000_000).rounded(.up))
+            return "\(model.fullName) needs about \(gigabytes) GB of memory at \(sizeText(model)),"
+                + " even with the decode tiled, so this Mac will page there. A smaller size runs."
         }
-        return store.availability[model.id]?.reason
     }
 
+    /// Memory never disables a row: a model that pages at its default size still runs at a
+    /// smaller one. Only a model that cannot be obtained at all is out of reach.
     private func canChoose(_ model: ModelDescriptor) -> Bool {
-        memoryNote(model) == nil && store.availability[model.id]?.isObtainable != false
+        store.availability[model.id]?.isObtainable != false
     }
 
-    /// "Needs 13 GB" for a model this Mac cannot hold, or nil when it fits.
+    /// How this model lands on this Mac's memory, in a few words, or nil when it just fits.
+    ///
+    /// A tiled row is labelled even when the Automatic policy is what turns tiling on, because
+    /// a menu that quietly changed how the image is decoded would be the worse of the two.
     private func memoryNote(_ model: ModelDescriptor) -> String? {
-        guard !Self.fitsThisMac.contains(model.id) else { return nil }
-        let gigabytes = Int((Double(model.residentBytes) / 1_000_000_000).rounded(.up))
-        return "Needs \(gigabytes) GB"
+        switch fit(model) {
+        case .fits: nil
+        case .fitsTiled: "Tiles the decode"
+        case .tight(let needed): "Needs \(Int((Double(needed) / 1_000_000_000).rounded(.up))) GB"
+        }
     }
 
-    /// The models this Mac has the memory for. Physical memory does not change while the app
-    /// runs, so the catalog is filtered once rather than on every row.
-    private static let fitsThisMac: Set<String> = Set(
-        ModelCatalog.fitting(physicalMemory: ProcessInfo.processInfo.physicalMemory).map(\.id)
-    )
+    private func sizeText(_ model: ModelDescriptor) -> String {
+        "\(model.capabilities.defaultSize.width) pixels"
+    }
+
+    private func fit(_ model: ModelDescriptor) -> MemoryFit {
+        Self.fitsThisMac[model.id] ?? .fits
+    }
+
+    /// How each model lands on this Mac. Physical memory does not change while the app runs,
+    /// so the catalog is measured against it once rather than on every row.
+    private static let fitsThisMac: [ModelDescriptor.ID: MemoryFit] = {
+        let memory = ProcessInfo.processInfo.physicalMemory
+        return Dictionary(
+            uniqueKeysWithValues: ModelCatalog.all.map {
+                ($0.id, ModelCatalog.fit($0, physicalMemory: memory))
+            }
+        )
+    }()
 }
 
 #Preview("Model") {

@@ -1,11 +1,13 @@
 import SwiftUI
 import ZephraCore
 
-/// Live GPU memory: what is held by live arrays, what the allocator is keeping for reuse, and
-/// the high-water mark since launch. Polled once a second, and only while this tab is on screen.
+/// Live GPU memory: what is held by live arrays, what the allocator is keeping for reuse, the
+/// high-water mark since launch, and which way the VAE decode is set to run — the one setting
+/// that moves that high-water mark. Polled once a second, and only while this tab is on screen.
 struct MemoryReadout: View {
     @Environment(\.inferenceRuntime) private var runtime
     @State private var snapshot: MemorySnapshot?
+    @State private var tiledDecode = false
 
     var body: some View {
         Group {
@@ -13,6 +15,9 @@ struct MemoryReadout: View {
                 row("Active", snapshot.activeBytes)
                 row("Cached", snapshot.cacheBytes)
                 row("Peak since launch", snapshot.peakBytes)
+                LabeledContent("VAE decode") {
+                    Text(tiledDecode ? "Tiled" : "Whole image")
+                }
             } else {
                 Text("No inference runtime in this build.")
                     .font(.caption)
@@ -35,6 +40,7 @@ struct MemoryReadout: View {
         guard let runtime else { return }
         while !Task.isCancelled {
             snapshot = runtime.memorySnapshot()
+            tiledDecode = runtime.vaeTileSize() != nil
             try? await Task.sleep(for: .seconds(1))
         }
     }

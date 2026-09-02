@@ -8,8 +8,8 @@ public enum ModelCatalog {
     public static let localModelsDirectory = URL.applicationSupportDirectory
         .appending(path: "Zephra/Models", directoryHint: .isDirectory)
 
-    /// Z-Image Turbo at eight-bit precision: the downloadable variant. It needs more than a
-    /// 16 GB Mac can spare; `fitting` excludes it below roughly 21 GB of physical memory.
+    /// Z-Image Turbo at eight-bit precision: the downloadable variant. Its untiled peak needs
+    /// a 32 GB Mac; between 24 and 32 GB `fitting` offers it only because the decode can tile.
     public static let zImageTurbo8bit = ModelDescriptor(
         id: "z-image-turbo-8bit",
         displayName: "Z-Image Turbo",
@@ -26,6 +26,10 @@ public enum ModelCatalog {
         // 1024-pixel generation and 23501 MB peak during one. The peak is the VAE decode, not
         // weight loading, which is lazy and never exceeds 7.2 GB; see VENDORED.md.
         residentBytes: 12_240_000_000,
+        peakBytes: 23_500_000_000,
+        // Measured, same machine and seed, with the tiled decode at a 64-cell latent tile:
+        // 17673 MB, so the decode transient falls from 11265 MB to 5437 MB.
+        tiledPeakBytes: 17_680_000_000,
         maxPromptTokens: 512,
         capabilities: zImageTurboCapabilities
     )
@@ -48,6 +52,11 @@ public enum ModelCatalog {
         // 14599 MB at 768, 17839 MB at 1024. Peak is resident plus the VAE decode's scratch,
         // which is unquantized and so costs the same here as it does at eight bits.
         residentBytes: 6_580_000_000,
+        peakBytes: 17_840_000_000,
+        // Derived, not measured: 6575 MB resident plus the 5437 MB tiled decode transient
+        // measured on the 8-bit variant, which decodes the same unquantized VAE at the same
+        // tile and so costs the same here.
+        tiledPeakBytes: 12_010_000_000,
         maxPromptTokens: 512,
         capabilities: zImageTurboCapabilities
     )
@@ -55,21 +64,44 @@ public enum ModelCatalog {
     /// Every known model, in the order a picker should list them.
     public static let all: [ModelDescriptor] = [zImageTurbo8bit, zImageTurbo4bit]
 
-    /// The model selected on first launch.
+    /// The model selected on first launch when nothing is known about the machine.
     public static let `default`: ModelDescriptor = zImageTurbo8bit
+
+    /// The model to start a Mac with this much RAM on: the first listed variant that runs at
+    /// its default size there, or `default` when none does.
+    ///
+    /// Without this a 16 GB Mac would open on a model its own menu marks "Needs 23 GB", load
+    /// 12 GB of weights it cannot decode with, and only find the variant it can run by hand.
+    public static func `default`(fitting physicalMemory: UInt64) -> ModelDescriptor {
+        fitting(physicalMemory: physicalMemory).first ?? zImageTurbo8bit
+    }
 
     /// Looks up a model by the identifier stored in settings or in a past generation.
     public static func descriptor(id: String) -> ModelDescriptor? {
         all.first { $0.id == id }
     }
 
-    /// The models that leave enough headroom on a Mac with this much RAM to stay responsive.
+    /// The models that run at their default size on a Mac with this much RAM without paging,
+    /// counting the tiled VAE decode as available — it is what the app turns on when it matters.
     ///
-    /// Nothing calls this while there is one model: it is the filter behind the model picker,
-    /// and it is tested so the numbers in the catalog stay honest in the meantime.
+    /// This is the filter behind the model picker's wording, not a gate on what can be chosen:
+    /// a model left out of this list is still runnable at a smaller size.
     public static func fitting(physicalMemory: UInt64) -> [ModelDescriptor] {
-        let budget = Double(physicalMemory) * 0.6
-        return all.filter { Double($0.residentBytes) <= budget }
+        all.filter { fit($0, physicalMemory: physicalMemory).runsAtDefaultSize }
+    }
+
+    /// Where one model lands against a Mac's working-set budget: exactly, only tiled, or not
+    /// at its default size at all.
+    public static func fit(_ descriptor: ModelDescriptor, physicalMemory: UInt64) -> MemoryFit {
+        MemoryFit(descriptor: descriptor, physicalMemory: physicalMemory)
+    }
+
+    /// Whether this Mac can run the model at its default size with the exact, untiled decode.
+    public static func fitsComfortably(
+        _ descriptor: ModelDescriptor,
+        physicalMemory: UInt64
+    ) -> Bool {
+        fit(descriptor, physicalMemory: physicalMemory) == .fits
     }
 
     /// What every Z-Image Turbo variant accepts. Quantizing the weights changes how much memory

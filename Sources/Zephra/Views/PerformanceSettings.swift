@@ -1,4 +1,5 @@
 import SwiftUI
+import ZephraEngine
 
 /// What the engine does with the GPU: whether it warms up, how much scratch it may hold, and
 /// what it is holding right now.
@@ -17,6 +18,9 @@ struct PerformanceSettings: View {
             Section("GPU memory") {
                 CacheLimitControl()
             }
+            Section("Image decoding") {
+                VAETilingControl()
+            }
             Section("In use now") {
                 MemoryReadout()
             }
@@ -27,5 +31,6 @@ struct PerformanceSettings: View {
 
 #Preview("Performance") {
     PerformanceSettings()
-        .frame(width: 480, height: 400)
+        .frame(width: 480, height: 560)
+        .environment(GenerationStore.preview(state: .ready))
 }

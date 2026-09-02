@@ -77,15 +77,23 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
   a knob instead of an unconditional call. Default on, because the VAE decode peak is what pushes
   the process into memory pressure; `ZEPHRA_KEEP_CACHE=1` keeps the warm buffers for the next run.
 - `Model/VAE/VAETiledDecode.swift` (new), `Model/VAE/AutoencoderKL.swift`: an opt-in tiled decode.
-  The decode's transient scales with the resolution it runs at, not with the weights, so
-  `ZEPHRA_VAE_TILE=<latent tile edge>` decodes overlapping latent tiles, evaluates each as it is
-  produced, and cross-fades the quarter-tile overlap with a linear ramp. Shaped after diffusers'
-  `enable_vae_tiling`. Measured at 1024 pixels with `ZEPHRA_VAE_TILE=64`: peak 23501 MB to
+  The decode's transient scales with the resolution it runs at, not with the weights, so a set
+  latent tile edge makes the decoder take overlapping latent tiles, evaluate each as it is
+  produced, and cross-fade the quarter-tile overlap with a linear ramp. Shaped after diffusers'
+  `enable_vae_tiling`. Measured at 1024 pixels with a 64-cell tile: peak 23501 MB to
   17673 MB, so the decode transient falls from 11265 MB to 5437 MB against unchanged resident
   memory. Output at a fixed seed is the same image with a mean absolute pixel difference of 0.97
   of 255 and no visible seam at a tile boundary. Off by default because the untiled decode is
-  exact and 32 GB Macs do not need this; it is what would let a 16 GB Mac reach 1024 pixels on
+  exact and 32 GB Macs do not need this; it is what lets a 16 GB Mac reach 1024 pixels on
   the 4-bit variant, where the untiled peak is 17839 MB.
+
+  `VAETiledDecode.latentTile` is a public settable property rather than a constant, so a host can
+  change the tile between generations without a relaunch. It starts at `ZEPHRA_VAE_TILE`, which
+  is how `ZephraBench` and the command line still reach it; the Zephra app overwrites it from
+  Settings > Performance for the model it is about to run, so inside the app the environment
+  variable only decides what happens before the first window appears. Written from the main
+  thread and read on the inference thread, which is why it is `nonisolated(unsafe)`: the worst a
+  race can do is decode one image with the previous setting.
 
 ## Known upstream behaviour (not patched)
 
