@@ -1,4 +1,5 @@
 import Foundation
+import ZephraCore
 import ZephraEngine
 
 /// Where the engine meets the app's preferences. `ZephraEngine` knows nothing about
@@ -14,6 +15,13 @@ extension GenerationStore {
     func retryFromInterface() {
         warmsUpAfterLoad = AppSettings.flag(AppSettings.warmUpOnLaunch)
         retry()
+    }
+
+    /// Loads a different model, honouring the same launch preferences the first load used.
+    /// The one way the interface changes model.
+    func switchModelFromInterface(to descriptor: ModelDescriptor) {
+        warmsUpAfterLoad = AppSettings.flag(AppSettings.warmUpOnLaunch)
+        switchModel(to: descriptor)
     }
 
     /// Picks a fresh seed if the preference asks for one, then generates. The one way the

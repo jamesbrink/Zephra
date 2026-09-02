@@ -21,6 +21,14 @@ extension EngineState {
         }
     }
 
+    /// The window subtitle, naming the model while it is being fetched. Which model is on its
+    /// way is worth knowing there and nowhere else: every other state is about the one loaded.
+    func subtitle(for descriptor: ModelDescriptor) -> String {
+        guard case .downloading = self else { return subtitle }
+        guard let detail else { return "Downloading \(descriptor.fullName)" }
+        return "Downloading \(descriptor.fullName) · \(detail.prefix(1).lowercased() + detail.dropFirst())"
+    }
+
     /// The state in a word or two.
     var statusLabel: String {
         switch self {
