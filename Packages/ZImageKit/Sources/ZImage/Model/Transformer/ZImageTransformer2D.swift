@@ -19,9 +19,6 @@ public final class ZImageTransformer2DModel: Module {
 
   private var cache: TransformerCache?
   private var cacheKey: TransformerCacheKey?
-  // ZEPHRA-PATCH: opt-in residual reuse across denoising steps. Nil unless ZEPHRA_STEP_CACHE
-  // names a threshold, so the ordinary path is one nil check per step.
-  private let stepCache: ZImageStepCache? = ZImageStepCache.isEnabled ? ZImageStepCache() : nil
 
   public init(configuration: ZImageTransformerConfig) {
     self.configuration = configuration
@@ -157,12 +154,6 @@ public final class ZImageTransformer2DModel: Module {
   public func clearCache() {
     cache = nil
     cacheKey = nil
-  }
-
-  // ZEPHRA-PATCH: the step cache holds one generation's trajectory, so the pipeline drops it
-  // before every denoise loop.
-  func resetStepCache() {
-    stepCache?.reset()
   }
 
   private func getOrBuildCache(
@@ -305,16 +296,8 @@ public final class ZImageTransformer2DModel: Module {
 
     var unified = MLX.concatenated([noiseStream, capStream], axis: 1)
 
-    // ZEPHRA-PATCH: with ZEPHRA_STEP_CACHE set, a step whose input barely moved reuses the
-    // previous step's residual instead of running the 32 main layers.
-    if let stepCache, let reused = stepCache.reuse(for: unified) {
-      unified = reused
-    } else {
-      let entry = unified
-      for block in layers {
-        unified = block(unified, attnMask: nil, freqsCis: cached.unifiedFreqsCis, adalnInput: tEmb)
-      }
-      stepCache?.store(input: entry, output: unified)
+    for block in layers {
+      unified = block(unified, attnMask: nil, freqsCis: cached.unifiedFreqsCis, adalnInput: tEmb)
     }
 
     let imageOut = unified[0..., 0..<cached.imageTokens, 0...]

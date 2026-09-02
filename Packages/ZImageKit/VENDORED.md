@@ -76,19 +76,16 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
 - `Pipeline/ZImagePipeline.swift`: `clearsCacheAfterGeneration` makes the trailing `GPU.clearCache()`
   a knob instead of an unconditional call. Default on, because the VAE decode peak is what pushes
   the process into memory pressure; `ZEPHRA_KEEP_CACHE=1` keeps the warm buffers for the next run.
-- `Model/Transformer/ZImageStepCache.swift` (new), `Model/Transformer/ZImageTransformer2D.swift`,
-  `Pipeline/ZImagePipeline.swift`: an opt-in TeaCache-style residual cache for the denoise loop.
-  The relative L1 change of the main block stack's input between consecutive steps is accumulated,
-  and while that total is under `ZEPHRA_STEP_CACHE`'s threshold the 32 layers are skipped and the
-  previous step's residual is reused; any step that runs resets the total. Off by default, and
-  under measurement — see the note below for whether it earns its place.
 - `Model/VAE/VAETiledDecode.swift` (new), `Model/VAE/AutoencoderKL.swift`: an opt-in tiled decode.
   The decode's transient scales with the resolution it runs at, not with the weights, so
   `ZEPHRA_VAE_TILE=<latent tile edge>` decodes overlapping latent tiles, evaluates each as it is
   produced, and cross-fades the quarter-tile overlap with a linear ramp. Shaped after diffusers'
-  `enable_vae_tiling`. Off by default, and quality-gated before it is ever recommended: tiling is
-  the only mechanism that bounds the decode peak independently of image size, which is what a
-  16 GB Mac would need to reach 1024 pixels.
+  `enable_vae_tiling`. Measured at 1024 pixels with `ZEPHRA_VAE_TILE=64`: peak 23501 MB to
+  17673 MB, so the decode transient falls from 11265 MB to 5437 MB against unchanged resident
+  memory. Output at a fixed seed is the same image with a mean absolute pixel difference of 0.97
+  of 255 and no visible seam at a tile boundary. Off by default because the untiled decode is
+  exact and 32 GB Macs do not need this; it is what would let a 16 GB Mac reach 1024 pixels on
+  the 4-bit variant, where the untiled peak is 17839 MB.
 
 ## Known upstream behaviour (not patched)
 
@@ -98,6 +95,21 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
   bfloat16 for speed would cost about 6 GB and buy nothing.
 - Graph construction for a whole step takes 1.3 ms against 6.3 s of evaluation, so `MLX.compile`
   has no CPU-side overhead to remove.
+
+## Experiments not kept
+
+- **TeaCache-style step caching.** Implemented and measured, then removed: no threshold both
+  saves a step and leaves the image alone. The idea is to accumulate the relative L1 change of
+  the main block stack's input between consecutive steps and, while the total stays under a
+  threshold, skip the 32 layers and reuse the previous step's residual. Over Z-Image-Turbo's 9
+  steps at 1024 pixels, seed 42, those per-step changes are 0.154, 0.127, 0.118, 0.135, 0.167,
+  0.216, 0.291 and 0.410 — never small. Thresholds of 0.05 and 0.10 therefore skipped nothing
+  at all (and, as a control, reproduced the unpatched image bit for bit). A threshold of 0.13
+  skipped one step of nine and gave a mean absolute pixel difference of 11.7 of 255, with the
+  robot's head, hands and headline text all redrawn. A threshold of 0.20 skipped three and gave
+  26.9 of 255 — a different picture, with an invented coffee cup. TeaCache is tuned for 25 to
+  50 steps, where consecutive steps are close enough for the accumulation to mean something;
+  a 9-step distilled schedule moves too far per step for any of it to apply.
 
 ## Corrections to earlier notes in this file
 

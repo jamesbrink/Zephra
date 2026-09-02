@@ -473,9 +473,6 @@ public final class ZImagePipeline {
     let timestepsArray = scheduler.timesteps.asArray(Float.self)
 
     logger.info("Running \(request.steps) denoising steps...")
-    // ZEPHRA-PATCH: the step cache holds the previous generation's trajectory; drop it so this
-    // one starts from nothing. A no-op unless ZEPHRA_STEP_CACHE is set.
-    transformer.resetStepCache()
     for stepIndex in 0..<request.steps {
       try Task.checkCancellation()
       progressHandler?(GenerationProgress(stage: .denoising, stepIndex: stepIndex, totalSteps: request.steps))
