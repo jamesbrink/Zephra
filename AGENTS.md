@@ -55,6 +55,26 @@ Code rules:
 Run `make lint-layers` before every commit. It greps for forbidden imports
 across the layers above and fails the build if any are found.
 
+## How a generation runs
+
+Three types in `ZephraEngine`, one concern each. The split is what lets the
+engine be tested in seconds without Metal.
+
+- `GenerationStore` (`@MainActor @Observable`) is the only object the UI
+  observes, and it is split across `GenerationStore+*.swift` by concern —
+  loading, generation, the queue, model switching, history, availability,
+  preview. Add a new concern as another extension file, not as more lines in
+  `GenerationStore.swift`.
+- `InferenceActor` is the only place backend code runs. It overrides
+  `unownedExecutor` with a serial `DispatchQueue`: a generation is tens of
+  seconds of synchronous Metal work, and on the cooperative pool that would
+  starve every other task in the process. Backends are not `Sendable`, which is
+  why a registry of `@Sendable` factories goes in and the backend is built here.
+- `EngineEventPump` carries progress from that queue back to the main actor. Its
+  `AsyncStream` buffers the newest four events and drops the rest — progress is
+  a snapshot, not a log — and `run` drains before returning, so the state a
+  caller sets after an operation is never clobbered by an event still in flight.
+
 ## Adding a model or a backend
 
 This is the seam priority 2 exists for. Both cases are additive: no view, and
@@ -134,6 +154,29 @@ Makefile targets:
 The first Release build compiles MLX's Metal kernels from scratch and takes
 several minutes. Always benchmark and make performance claims against
 Release, never Debug — Debug has Metal validation and full debug info on.
+
+## Tests
+
+Swift Testing (`import Testing`, `@Suite`/`@Test`), never XCTest. Suites and
+tests are named as sentences about behaviour ("the revision's refs file picks
+the snapshot, not whichever is listed first"); match that when adding one.
+
+- `make test` — `ZephraCoreTests` + `ZephraEngineTests`, seconds, no Metal.
+- One suite or test:
+  `cd Packages/ZephraKit && swift test --filter ModelSwap`. The filter is a
+  regex over the *type* names, not the `@Suite` display names, so `ModelSwap`
+  takes both swap suites and `--filter 'model swap'` matches nothing.
+- The backend's suites need `xcodebuild`, and its filter is likewise the type
+  name: `cd Packages/ZephraBackendZImage && xcodebuild test -scheme
+  ZephraBackendZImage -destination 'platform=macOS'
+  -skipPackagePluginValidation
+  -only-testing:ZephraBackendZImageTests/QuantizableWeightTests`.
+
+No test loads weights or touches the GPU. The engine tests drive `MockBackend`
+through `MockBackendControl`, a lock-protected dial a `@Sendable` factory can
+close over — it fails a load, delays one so cancellation lands mid-flight, and
+tallies loads and unloads — while `EngineTestBed` gives each test a throwaway
+output folder. `ZephraCoreTests` uses the smaller `StubBackend`.
 
 ## Model weights
 
