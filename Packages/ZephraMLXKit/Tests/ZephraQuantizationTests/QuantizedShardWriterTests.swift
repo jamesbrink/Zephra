@@ -3,7 +3,7 @@ import MLX
 import Testing
 import ZephraTestSupport
 
-@testable import ZephraBackendZImage
+@testable import ZephraQuantization
 
 /// The spill-and-rename contract: a shard per budget's worth of tensors, safetensors names that
 /// carry the total, and a map from tensor name to the shard it landed in.

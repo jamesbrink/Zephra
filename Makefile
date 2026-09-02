@@ -17,7 +17,8 @@ GROUP_SIZE ?= 64
 QUANT_OUT  ?= $(HOME)/Library/Application Support/Zephra/Models/z-image-turbo-4bit
 DEST     := platform=macOS,arch=arm64
 XCB      := xcodebuild -project $(PROJECT) -destination '$(DEST)' SYMROOT=$(BUILD) -derivedDataPath $(DERIVED)
-BACKEND  := $(CURDIR)/Packages/ZephraBackendZImage
+# Every package that links MLX, and so needs xcodebuild rather than `swift test`.
+MLX_PACKAGES := ZephraMLXKit ZephraBackendZImage
 
 # Distribution signing. The build itself is ad-hoc signed (project.yml), so these
 # matter only to `make release` and `make notarize`. Leave SIGN_IDENTITY empty to
@@ -27,7 +28,7 @@ NOTARY_PROFILE ?= zephra-notary
 RELEASE_APP    := $(BUILD)/Release/Zephra.app
 RELEASE_ZIP    := $(BUILD)/Zephra.zip
 
-.PHONY: gen build run bench quantize prefetch open clean lint-layers logs screenshot test test-backend icon release notarize
+.PHONY: gen build run bench quantize prefetch open clean lint-layers logs screenshot test test-mlx test-backend icon release notarize
 
 gen:
 	xcodegen generate --spec project.yml
@@ -46,19 +47,26 @@ bench: gen
 # the vendored loader reads. The download is the slow part; the quantization itself is minutes.
 quantize: gen
 	$(XCB) -scheme ZephraQuantize -configuration Release build >/dev/null
-	"$(QUANTIZE)" --source "$$(hf download $(BASE_MODEL) --exclude 'assets/*')" \
+	"$(QUANTIZE)" --family z-image \
+	  --source "$$(hf download $(BASE_MODEL) --exclude 'assets/*')" \
 	  --source-name $(BASE_MODEL) --bits $(BITS) --group-size $(GROUP_SIZE) \
 	  --out "$(QUANT_OUT)" $(ARGS)
 
 test:
 	cd Packages/ZephraKit && swift test
 
-# The backend links MLX, so its tests need xcodebuild rather than `swift test`.
-# Kept out of `make test` on purpose: that one stays MLX-free and fast.
-test-backend:
-	cd $(BACKEND) && xcodebuild test -scheme ZephraBackendZImage \
-	  -destination 'platform=macOS' -skipPackagePluginValidation \
-	  -derivedDataPath $(DERIVED)
+# These link MLX, so their tests need xcodebuild rather than `swift test`. Kept out of
+# `make test` on purpose: that one stays MLX-free and fast.
+test-mlx:
+	@for package in $(MLX_PACKAGES); do \
+	  echo "== $$package"; \
+	  ( cd $(CURDIR)/Packages/$$package && xcodebuild test -scheme $$package \
+	    -destination 'platform=macOS' -skipPackagePluginValidation \
+	    -derivedDataPath $(DERIVED) ) || exit 1; \
+	done
+
+# The name this had when there was one such package.
+test-backend: test-mlx
 
 icon:
 	swift scripts/make-icon.swift

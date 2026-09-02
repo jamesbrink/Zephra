@@ -9,6 +9,7 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../ZephraKit"),
+        .package(path: "../ZephraMLXKit"),
         .package(path: "../ZImageKit"),
         // For the runtime's cache and memory limits, the quantizer, and the microbench.
         // ZImageKit pins the same exact version, so this adds no new package to the graph.
@@ -20,6 +21,7 @@ let package = Package(
             dependencies: [
                 .product(name: "ZephraCore", package: "ZephraKit"),
                 .product(name: "ZephraSnapshot", package: "ZephraKit"),
+                .product(name: "ZephraQuantization", package: "ZephraMLXKit"),
                 .product(name: "ZImage", package: "ZImageKit"),
                 .product(name: "MLX", package: "mlx-swift"),
                 .product(name: "MLXFast", package: "mlx-swift"),
@@ -35,6 +37,7 @@ let package = Package(
                 .product(name: "ZephraCore", package: "ZephraKit"),
                 .product(name: "ZephraSnapshot", package: "ZephraKit"),
                 .product(name: "ZephraTestSupport", package: "ZephraKit"),
+                .product(name: "ZephraQuantization", package: "ZephraMLXKit"),
                 .product(name: "ZImage", package: "ZImageKit"),
                 // Only to build the handful of small arrays the quantizer tests feed in.
                 .product(name: "MLX", package: "mlx-swift"),

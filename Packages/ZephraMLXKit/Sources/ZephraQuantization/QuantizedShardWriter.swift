@@ -8,7 +8,7 @@ import MLX
 /// resident at once; writing a few gigabytes at a time keeps the process near the budget.
 /// Shards are written under temporary names because safetensors convention puts the total shard
 /// count in every file name, and that total is only known once the component is finished.
-final class QuantizedShardWriter {
+public final class QuantizedShardWriter {
     private let directory: URL
     private let budgetBytes: Int
     private var pending: [String: MLXArray] = [:]
@@ -18,13 +18,13 @@ final class QuantizedShardWriter {
 
     /// Prepares to write shards into `directory`, flushing whenever pending tensors exceed
     /// `budgetBytes`.
-    init(directory: URL, budgetBytes: Int) {
+    public init(directory: URL, budgetBytes: Int) {
         self.directory = directory
         self.budgetBytes = budgetBytes
     }
 
     /// Queues one evaluated tensor, flushing first if it would push the shard over budget.
-    func add(_ name: String, _ array: MLXArray) throws {
+    public func add(_ name: String, _ array: MLXArray) throws {
         let size = array.shape.reduce(1, *) * array.dtype.size
         if pendingBytes > 0, pendingBytes + size > budgetBytes {
             try flush()
@@ -36,7 +36,7 @@ final class QuantizedShardWriter {
 
     /// Writes anything still queued, renames every shard to its final `-of-` name, and returns
     /// the shard path each tensor landed in, relative to the component directory.
-    func finish(relativeTo prefix: String) throws -> [String: String] {
+    public func finish(relativeTo prefix: String) throws -> [String: String] {
         try flush()
         let total = shardIndex
         var finalNames: [Int: String] = [:]

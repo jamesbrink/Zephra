@@ -1,23 +1,22 @@
 import Foundation
 
-/// Copies everything a snapshot needs besides the weights themselves: `model_index.json`, the
-/// per-component configs, the tokenizer, the scheduler, and the VAE, which stays unquantized.
+/// Copies everything a snapshot needs besides the weights that were packed: the top-level
+/// config, the per-component configs, and every directory the plan leaves at full precision.
 ///
 /// Copies go through `FileManager`, which moves the bytes without reading a file into memory,
-/// so the VAE's two hundred megabytes never land in the process.
-enum SnapshotAncillaryFiles {
-    /// Directories copied whole, weights and all.
-    private static let verbatimDirectories = ["tokenizer", "scheduler", "vae"]
-
-    /// Mirrors the non-weight parts of `source` into `destination`.
-    static func copy(from source: URL, to destination: URL) throws {
+/// so an unquantized VAE's couple of hundred megabytes never land in the process.
+public enum SnapshotAncillaryFiles {
+    /// Mirrors the non-weight parts of `source` into `destination`, following `plan`.
+    public static func copy(from source: URL, to destination: URL, plan: QuantizationPlan) throws {
+        let packed = Dictionary(
+            uniqueKeysWithValues: plan.components.map { ($0.directoryName, $0) })
         for entry in try contents(of: source) {
             let name = entry.lastPathComponent
             if entry.hasDirectoryPath {
-                if verbatimDirectories.contains(name) {
+                if plan.verbatimDirectories.contains(name) {
                     try copyItem(at: entry, to: destination.appending(path: name))
-                } else if let component = QuantizedComponent(rawValue: name) {
-                    try copyConfigs(of: component, from: entry, to: destination)
+                } else if packed[name] != nil {
+                    try copyConfigs(named: name, from: entry, to: destination)
                 }
             } else if name != "quantization.json", entry.pathExtension != "safetensors" {
                 try copyItem(at: entry, to: destination.appending(path: name))
@@ -25,23 +24,21 @@ enum SnapshotAncillaryFiles {
         }
     }
 
-    /// Copies a quantized component's sidecar files, which is everything but its shards and the
-    /// safetensors index that describes the layout they no longer have.
-    private static func copyConfigs(
-        of component: QuantizedComponent,
-        from directory: URL,
-        to destination: URL
-    ) throws {
-        let outputDirectory = destination.appending(path: component.directoryName)
+    /// Copies a packed component's sidecar files, which is everything but its shards and the
+    /// safetensors index describing a layout they no longer have.
+    private static func copyConfigs(named name: String, from directory: URL, to destination: URL)
+        throws
+    {
+        let outputDirectory = destination.appending(path: name)
         try FileManager.default.createDirectory(
             at: outputDirectory, withIntermediateDirectories: true)
         for entry in try contents(of: directory) {
-            let name = entry.lastPathComponent
+            let entryName = entry.lastPathComponent
             guard !entry.hasDirectoryPath,
                 entry.pathExtension != "safetensors",
-                !name.hasSuffix(".safetensors.index.json")
+                !entryName.hasSuffix(".safetensors.index.json")
             else { continue }
-            try copyItem(at: entry, to: outputDirectory.appending(path: name))
+            try copyItem(at: entry, to: outputDirectory.appending(path: entryName))
         }
     }
 

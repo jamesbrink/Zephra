@@ -2,7 +2,7 @@ import Foundation
 import Testing
 import ZephraTestSupport
 
-@testable import ZephraBackendZImage
+@testable import ZephraQuantization
 
 /// What a quantized snapshot inherits from the full-precision one it was built from: the
 /// configs, the tokenizer, the scheduler, and the VAE, but none of the weights the quantizer
@@ -13,7 +13,8 @@ struct SnapshotAncillaryFilesTests {
     @Test("configs, tokenizer, scheduler, and the VAE come across")
     func copiesEverythingButTheWeights() throws {
         let scratch = try Self.hubSnapshot()
-        try SnapshotAncillaryFiles.copy(from: scratch.url("source"), to: scratch.url("out"))
+        try SnapshotAncillaryFiles.copy(
+            from: scratch.url("source"), to: scratch.url("out"), plan: Self.plan())
 
         for path in [
             "out/model_index.json",
@@ -31,7 +32,8 @@ struct SnapshotAncillaryFilesTests {
     @Test("symlinks into the blob store are resolved, so the copy stands on its own")
     func resolvesSymlinksToRealFiles() throws {
         let scratch = try Self.hubSnapshot()
-        try SnapshotAncillaryFiles.copy(from: scratch.url("source"), to: scratch.url("out"))
+        try SnapshotAncillaryFiles.copy(
+            from: scratch.url("source"), to: scratch.url("out"), plan: Self.plan())
 
         // Deleting the blobs the source pointed at must not empty the copy out.
         try FileManager.default.removeItem(at: scratch.url("blobs"))
@@ -50,7 +52,8 @@ struct SnapshotAncillaryFilesTests {
     @Test("the weights the quantizer rewrites are left to the shard writer")
     func leavesTheQuantizedWeightsAlone() throws {
         let scratch = try Self.hubSnapshot()
-        try SnapshotAncillaryFiles.copy(from: scratch.url("source"), to: scratch.url("out"))
+        try SnapshotAncillaryFiles.copy(
+            from: scratch.url("source"), to: scratch.url("out"), plan: Self.plan())
 
         #expect(scratch.hasFile("out/transformer/model-00001-of-00002.safetensors") == false)
         #expect(scratch.hasFile("out/text_encoder/model.safetensors") == false)
@@ -63,6 +66,19 @@ struct SnapshotAncillaryFilesTests {
             "the manifest is written after the copy, from the layers actually packed"
         )
         #expect(scratch.hasFile("out/stray.safetensors") == false)
+    }
+
+    /// A plan shaped like any two-component diffusion snapshot: the transformer and the text
+    /// encoder hold weights worth packing, and everything else comes across whole.
+    private static func plan() throws -> QuantizationPlan {
+        let precision = try QuantizationPrecision(bits: 4, groupSize: 64)
+        return QuantizationPlan(
+            components: [
+                QuantizedComponent(directoryName: "transformer", fallback: precision),
+                QuantizedComponent(directoryName: "text_encoder", fallback: precision),
+            ],
+            verbatimDirectories: ["tokenizer", "scheduler", "vae"]
+        )
     }
 
     /// A source tree laid out the way the hub cache lays one out: real bytes under `blobs`, and

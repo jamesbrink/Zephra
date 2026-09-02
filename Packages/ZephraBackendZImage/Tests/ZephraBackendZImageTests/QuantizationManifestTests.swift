@@ -1,6 +1,7 @@
 import Foundation
 import MLX
 import Testing
+import ZephraQuantization
 import ZephraTestSupport
 import ZImage
 
@@ -10,15 +11,15 @@ import ZImage
 /// with. The snapshots here are a few tensors of 64 by 128, so nothing loads real weights.
 @Suite("Quantization manifest")
 struct QuantizationManifestTests {
-    @Test("a uniform recipe states one precision in the header and on every layer")
-    func uniformRecipeDescribesTheWholeBuild() throws {
+    @Test("a uniform plan states one precision in the header and on every layer")
+    func uniformPlanDescribesTheWholeBuild() throws {
         let scratch = Scratch("QuantizationManifest")
         try Self.makeSource(in: scratch, transformerLayers: 2, textEncoderLayers: 1)
         let precision = try QuantizationPrecision(bits: 8, groupSize: 64)
 
         let manifest = try Self.quantize(
             in: scratch,
-            recipe: QuantizationRecipe(transformer: precision, textEncoder: precision)
+            plan: ZImageQuantizationPlan.plan(transformer: precision, textEncoder: precision)
         )
         #expect(manifest.bits == 8)
         #expect(manifest.groupSize == 64)
@@ -27,8 +28,8 @@ struct QuantizationManifestTests {
         #expect(manifest.layers.allSatisfy { $0.bits == 8 && $0.groupSize == 64 })
     }
 
-    @Test("a mixed recipe puts each precision on its own layers and falls back to the commonest")
-    func mixedRecipeDescribesItselfLayerByLayer() throws {
+    @Test("a mixed plan puts each precision on its own layers and falls back to the commonest")
+    func mixedPlanDescribesItselfLayerByLayer() throws {
         let scratch = Scratch("QuantizationManifest")
         // One four-bit transformer layer against two eight-bit text encoder layers, so the
         // fallback the header states cannot have been copied from the transformer.
@@ -36,7 +37,7 @@ struct QuantizationManifestTests {
 
         let manifest = try Self.quantize(
             in: scratch,
-            recipe: QuantizationRecipe(
+            plan: ZImageQuantizationPlan.plan(
                 transformer: try QuantizationPrecision(bits: 4, groupSize: 64),
                 textEncoder: try QuantizationPrecision(bits: 8, groupSize: 32)
             )
@@ -77,12 +78,12 @@ struct QuantizationManifestTests {
 
     /// Runs the quantizer over the scratch snapshot and reads the manifest back.
     private static func quantize(
-        in scratch: Scratch, recipe: QuantizationRecipe
+        in scratch: Scratch, plan: QuantizationPlan
     ) throws -> ZImageQuantizationManifest {
-        try ZImageWeightQuantizer.quantize(
+        try SnapshotQuantizer.quantize(
             source: scratch.url("source"),
             destination: scratch.url("out"),
-            recipe: recipe,
+            plan: plan,
             sourceName: "acme/weights",
             shardBudgetBytes: 1 << 20
         )

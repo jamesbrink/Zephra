@@ -7,24 +7,43 @@ import Foundation
 /// `bits` and `group_size`, and the loader uses them for any layer it finds in `layers` by name.
 /// The top-level pair is only the fallback for a layer it cannot find, which is how a
 /// mixed-precision build stays loadable.
-struct QuantizationManifest: Encodable {
+public struct QuantizationManifest: Encodable {
     /// One packed linear layer.
-    struct Layer: Encodable {
+    public struct Layer: Encodable {
         /// The module path the loader will look this layer up by.
-        let name: String
+        public let name: String
         /// The original, unpacked shape, as `[outDim, inDim]`.
-        let shape: [Int]
+        public let shape: [Int]
         /// The layer's input width.
-        let inDim: Int
+        public let inDim: Int
         /// The layer's output width.
-        let outDim: Int
+        public let outDim: Int
         /// The shard the packed weight ended up in, relative to the snapshot root.
-        let file: String
+        public let file: String
         /// How this layer was packed. Written out per layer, always, so a mixed build describes
         /// itself layer by layer rather than leaning on the header.
-        let precision: QuantizationPrecision
+        public let precision: QuantizationPrecision
         /// The packing scheme, always `affine` here.
-        let mode: String
+        public let mode: String
+
+        /// Creates one manifest entry.
+        public init(
+            name: String,
+            shape: [Int],
+            inDim: Int,
+            outDim: Int,
+            file: String,
+            precision: QuantizationPrecision,
+            mode: String
+        ) {
+            self.name = name
+            self.shape = shape
+            self.inDim = inDim
+            self.outDim = outDim
+            self.file = file
+            self.precision = precision
+            self.mode = mode
+        }
 
         enum CodingKeys: String, CodingKey {
             case name, shape, bits, mode, file
@@ -34,7 +53,7 @@ struct QuantizationManifest: Encodable {
             case quantFile = "quant_file"
         }
 
-        func encode(to encoder: any Encoder) throws {
+        public func encode(to encoder: any Encoder) throws {
             var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode(name, forKey: .name)
             try container.encode(shape, forKey: .shape)
@@ -49,15 +68,30 @@ struct QuantizationManifest: Encodable {
     }
 
     /// The repository the full-precision weights came from.
-    let modelId: String?
+    public let modelId: String?
     /// The revision of that repository.
-    let revision: String?
+    public let revision: String?
     /// What the loader assumes for a layer it cannot find in `layers` by name.
-    let fallback: QuantizationPrecision
+    public let fallback: QuantizationPrecision
     /// The packing scheme, always `affine` here.
-    let mode: String
+    public let mode: String
     /// Every packed layer, across all components.
-    let layers: [Layer]
+    public let layers: [Layer]
+
+    /// Creates a manifest.
+    public init(
+        modelId: String?,
+        revision: String?,
+        fallback: QuantizationPrecision,
+        mode: String,
+        layers: [Layer]
+    ) {
+        self.modelId = modelId
+        self.revision = revision
+        self.fallback = fallback
+        self.mode = mode
+        self.layers = layers
+    }
 
     enum CodingKeys: String, CodingKey {
         case revision, bits, mode, layers
@@ -65,7 +99,7 @@ struct QuantizationManifest: Encodable {
         case groupSize = "group_size"
     }
 
-    func encode(to encoder: any Encoder) throws {
+    public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(modelId, forKey: .modelId)
         try container.encodeIfPresent(revision, forKey: .revision)
@@ -80,7 +114,7 @@ struct QuantizationManifest: Encodable {
     /// This is the honest header for a mixed build: the top level reaches only the layers a
     /// name lookup misses, so the value that covers the most layers is the one a miss most
     /// likely needed. Ties go to the precision that appears first, which is the transformer's.
-    static func commonestPrecision(across layers: [Layer]) -> QuantizationPrecision? {
+    public static func commonestPrecision(across layers: [Layer]) -> QuantizationPrecision? {
         var order: [QuantizationPrecision] = []
         var tally: [QuantizationPrecision: Int] = [:]
         for layer in layers {
@@ -91,7 +125,7 @@ struct QuantizationManifest: Encodable {
     }
 
     /// Writes the manifest to `quantization.json` inside a snapshot directory.
-    func write(into snapshot: URL) throws {
+    public func write(into snapshot: URL) throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try encoder.encode(self).write(to: snapshot.appending(path: "quantization.json"))
