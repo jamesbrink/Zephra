@@ -7,7 +7,8 @@ enum BenchRunner {
     /// Runs the whole benchmark and returns what it measured.
     static func run(_ options: BenchOptions) async throws -> BenchReport {
         ZImageRuntime.configure(cacheLimitBytes: cacheLimit(), memoryLimitBytes: nil)
-        let descriptor = ModelCatalog.default
+        // Checked when the flag was parsed, so an unknown identifier cannot reach here.
+        let descriptor = ModelCatalog.descriptor(id: options.model) ?? ModelCatalog.default
         let backend = ZImageBackend()
         let verbose = !options.json
 
