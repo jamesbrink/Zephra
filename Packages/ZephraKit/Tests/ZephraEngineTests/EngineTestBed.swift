@@ -23,8 +23,21 @@ final class EngineTestBed {
     /// have before a store is made over it.
     var library: ImageLibrary { ImageLibrary(root: directory) }
 
+    /// Every family the catalog names, which is what a store the app builds would be given.
+    ///
+    /// Derived rather than listed: a test about queueing or history should not start failing
+    /// the day a model from a new family is added, and one that cares about a missing engine
+    /// says so by passing its own list.
+    static let catalogFamilies: [BackendID] = {
+        var seen: [BackendID] = []
+        for descriptor in ModelCatalog.all where !seen.contains(descriptor.backend) {
+            seen.append(descriptor.backend)
+        }
+        return seen
+    }()
+
     /// A registry in which the mock backend answers for every family this bed's tests use.
-    func registry(_ families: [BackendID] = [.zImage]) -> BackendRegistry {
+    func registry(_ families: [BackendID] = catalogFamilies) -> BackendRegistry {
         let control = control
         var registry = BackendRegistry()
         for family in families {

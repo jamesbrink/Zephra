@@ -67,6 +67,8 @@ targets:
         product: ZephraEngine
       - package: ZephraBackendZImage
         product: ZephraBackendZImage
+      - package: ZephraBackendQwenImage
+        product: ZephraBackendQwenImage
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.zephra.Zephra

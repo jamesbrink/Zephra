@@ -21,6 +21,27 @@ struct ModelAvailabilityTests {
         }
     }
 
+    @Test("a model whose family no engine answers for reads as missing, not as a crash")
+    func aFamilyWithNoBackendIsMissing() async throws {
+        let bed = EngineTestBed()
+        // Only Z-Image is registered, so every other family in the catalog is unanswerable.
+        let store = GenerationStore(
+            descriptor: ModelCatalog.default,
+            registry: bed.registry([.zImage]),
+            outputDirectory: bed.directory
+        )
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+
+        for model in ModelCatalog.all where model.backend != .zImage {
+            guard case .missing(let reason) = store.availability[model.id] else {
+                Issue.record("\(model.id) has no engine here, so it cannot read as available")
+                continue
+            }
+            #expect(reason.contains(model.backend.rawValue))
+        }
+    }
+
     @Test("a refresh picks up an answer that changed, without loading anything")
     func refreshPicksUpChanges() async throws {
         let bed = EngineTestBed()

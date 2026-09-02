@@ -28,16 +28,32 @@ struct ModelCatalogTests {
         #expect(!ModelCatalog.fitsComfortably(ModelCatalog.zImageTurbo4bit, physicalMemory: memory))
     }
 
-    @Test("a 32 GB Mac is offered both Turbo variants, and neither needs tiling")
-    func thirtyTwoGigabytesFitsBoth() {
+    @Test("a 32 GB Mac runs everything, but only Qwen-Image needs the tiled decode to do it")
+    func thirtyTwoGigabytesFitsEverythingSomehow() {
         let memory = Self.gigabytes(32)
-        let fitting = ModelCatalog.fitting(physicalMemory: memory)
-        #expect(fitting.contains(ModelCatalog.zImageTurbo8bit))
-        #expect(fitting.contains(ModelCatalog.zImageTurbo4bit))
-        for model in ModelCatalog.all {
+        #expect(ModelCatalog.fitting(physicalMemory: memory) == ModelCatalog.all)
+        for model in [ModelCatalog.zImageTurbo8bit, ModelCatalog.zImageTurbo4bit] {
             #expect(ModelCatalog.fit(model, physicalMemory: memory) == .fits)
-            #expect(ModelCatalog.fitsComfortably(model, physicalMemory: memory))
         }
+        // 30.4 GB untiled is over the 27.5 GB budget; 26.1 GB tiled is under it. A 20-billion
+        // parameter model was always going to be the one that needs the lever, which is why
+        // this assertion is per model and not a loop over the catalog.
+        #expect(
+            ModelCatalog.fit(ModelCatalog.qwenImage2512_4bit, physicalMemory: memory)
+                == .fitsTiled)
+        #expect(!ModelCatalog.fitsComfortably(ModelCatalog.qwenImage2512_4bit, physicalMemory: memory))
+    }
+
+    @Test("Qwen-Image wants a 48 GB Mac to run untiled and a 40 GB one to run at all")
+    func qwenImageNeedsTheLargestMacs() {
+        #expect(ModelCatalog.fit(ModelCatalog.qwenImage2512_4bit, physicalMemory: Self.gigabytes(48)) == .fits)
+        let fit = ModelCatalog.fit(ModelCatalog.qwenImage2512_4bit, physicalMemory: Self.gigabytes(24))
+        guard case .tight(let needed) = fit else {
+            Issue.record("expected Qwen-Image not to fit on a 24 GB Mac")
+            return
+        }
+        // The tiled peak over the working-set fraction: 26.07 GB of peak wants 32.6 GB of Mac.
+        #expect(needed == 32_587_500_000)
     }
 
     @Test("a 24 GB Mac runs the 4-bit model exactly and the 8-bit one only tiled")
@@ -72,10 +88,36 @@ struct ModelCatalogTests {
         }
     }
 
-    @Test("the 8-bit model stays the default, and the 4-bit variant is listed after it")
-    func fourBitIsListedSecond() {
+    @Test("the 8-bit Turbo model stays the default, and the list runs smallest machine first")
+    func catalogOrder() {
         #expect(ModelCatalog.default == ModelCatalog.zImageTurbo8bit)
-        #expect(ModelCatalog.all == [ModelCatalog.zImageTurbo8bit, ModelCatalog.zImageTurbo4bit])
+        #expect(
+            ModelCatalog.all == [
+                ModelCatalog.zImageTurbo8bit,
+                ModelCatalog.zImageTurbo4bit,
+                ModelCatalog.qwenImage2512_4bit,
+            ],
+            "the order is what a picker shows and what default(fitting:) walks, so a model that needs a larger Mac than the ones before it goes last"
+        )
+    }
+
+    @Test("the Qwen-Image entry is a local build of a distilled model")
+    func qwenImageIsALocalDistilledBuild() {
+        let descriptor = ModelCatalog.qwenImage2512_4bit
+        #expect(descriptor.backend == .qwenImage)
+        #expect(!descriptor.source.requiresDownload)
+        #expect(descriptor.downloadBytes == 0)
+        #expect(descriptor.fullName == "Qwen-Image 2512 · 4-bit")
+        #expect(
+            descriptor.source
+                == .localDirectory(
+                    ModelCatalog.localModelsDirectory.appending(path: "qwen-image-2512-4bit")))
+        // The four-step Lightning adapter is merged into these weights, and it was distilled
+        // without classifier-free guidance. Offering a guidance slider or a negative prompt
+        // would show a control the merged weights cannot answer to.
+        #expect(descriptor.capabilities.defaultSteps == 4)
+        #expect(descriptor.capabilities.guidanceBounds == 0...0)
+        #expect(!descriptor.capabilities.supportsNegativePrompt)
     }
 
     @Test("the 4-bit variant is built locally, so it downloads nothing")
