@@ -47,7 +47,7 @@ struct CanvasStateView: View {
                 .foregroundStyle(.secondary)
         }
         if case .failed = store.state {
-            Button("Try again") { store.retry() }
+            Button("Try again") { store.retryFromInterface() }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
                 .padding(.top, 4)

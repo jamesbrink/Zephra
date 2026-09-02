@@ -20,7 +20,7 @@ struct RootView: View {
                 if store.settings.prompt.isEmpty, !saved.isEmpty {
                     store.settings.prompt = lastPrompt
                 }
-                await store.bootstrap()
+                await store.bootstrapFromInterface()
             }
             .onChange(of: store.settings.prompt) { _, prompt in
                 // An empty field is a draft in progress, not a decision to forget the last prompt.

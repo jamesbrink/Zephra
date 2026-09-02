@@ -21,6 +21,10 @@ public final class GenerationStore {
     public internal(set) var lastDuration: Duration?
     /// Generations waiting their turn, oldest first. Runs down by itself after each image.
     public internal(set) var queue: [QueuedGeneration] = []
+    /// Whether a load ends with a throwaway generation that pays the kernel-compilation cost
+    /// up front. The engine has no idea where the answer comes from; the app sets it from the
+    /// user's preference before it calls `bootstrap()`.
+    public var warmsUpAfterLoad = true
 
     /// How many images stay in memory before the oldest is dropped.
     static let historyLimit = 24

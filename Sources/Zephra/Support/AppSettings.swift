@@ -19,8 +19,19 @@ enum AppSettings {
     /// Warming up costs a second at launch and saves several on the first real image.
     static let initialWarmUpOnLaunch = true
 
-    /// Where finished images are written when the user has not chosen somewhere else.
-    static var defaultOutputDirectory: URL {
-        URL.picturesDirectory.appending(path: "Zephra", directoryHint: .isDirectory)
+    /// A stored flag as it stands right now, for the code that has to read one outside a view
+    /// and so cannot use `@AppStorage`. An unset key falls back to the same starting value the
+    /// views use, so a preference means one thing everywhere.
+    static func flag(_ key: String) -> Bool {
+        UserDefaults.standard.object(forKey: key) as? Bool ?? initialValue(of: key)
+    }
+
+    private static func initialValue(of key: String) -> Bool {
+        switch key {
+        case filmstripVisible: initialFilmstripVisible
+        case randomizeSeedEachRun: initialRandomizeSeedEachRun
+        case warmUpOnLaunch: initialWarmUpOnLaunch
+        default: false
+        }
     }
 }

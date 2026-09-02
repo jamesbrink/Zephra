@@ -41,8 +41,10 @@ extension GenerationStore {
         do {
             try await pump.run { sink in try await inference.prepare(descriptor, events: sink) }
             try Task.checkCancellation()
-            transition(to: .warmingUp)
-            try await inference.warmUp(descriptor)
+            if warmsUpAfterLoad {
+                transition(to: .warmingUp)
+                try await inference.warmUp(descriptor)
+            }
             transition(to: .ready)
         } catch is CancellationError {
             transition(to: .idle)

@@ -34,6 +34,18 @@ struct GenerationStoreTests {
         #expect(written.first?.hasPrefix("zephra-") == true)
     }
 
+    @Test("warm-up is skipped when the preference is off")
+    func warmUpCanBeTurnedOff() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+
+        #expect(store.state == .ready)
+        #expect(bed.control.settings.loads == 1)
+        #expect(bed.control.settings.generations == 0, "warm-up should have been skipped")
+    }
+
     @Test("bootstrapping again once ready does nothing")
     func bootstrapIsIdempotent() async throws {
         let bed = EngineTestBed()
