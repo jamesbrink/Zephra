@@ -55,7 +55,8 @@ vendored Z-Image pipeline.
 
 | Machine | Resolution | Steps | Time |
 |---|---|---|---|
-| Apple M4 Max 48 GB | 1024×1024 | 9 | TBD |
+| Apple M4 Max 48 GB (first pass, busy machine) | 1024×1024 | 9 | ~60 s (6.7 s/step) |
+| Apple M4 Max 48 GB (headless bench) | 512×512 | 4 | 14 s (2.8 s/step) |
 | Apple M2 Ultra (upstream report) | 1024×1024 | 9 | ~44 s |
 
 ## Project layout
