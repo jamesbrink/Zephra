@@ -1,0 +1,85 @@
+import Testing
+import ZephraCore
+
+@testable import ZephraEngine
+
+@Suite("StepTimer")
+struct StepTimerTests {
+    private let start = ContinuousClock.now
+
+    @Test("no pace is reported until a whole step has been timed")
+    func needsTwoTicks() {
+        var timer = StepTimer()
+        #expect(timer.secondsPerStep == nil)
+        timer.tick(at: start)
+        #expect(timer.secondsPerStep == nil)
+        timer.tick(at: start.advanced(by: .milliseconds(100)))
+        #expect(isClose(timer.secondsPerStep, 0.1))
+    }
+
+    @Test("the mean covers only the last three intervals")
+    func rollingMean() {
+        var timer = StepTimer()
+        for offset in [0, 100, 300, 600, 1500] {
+            timer.tick(at: start.advanced(by: .milliseconds(offset)))
+        }
+        // Intervals are 0.1, 0.2, 0.3 and 0.9 seconds; the first has aged out of the window.
+        #expect(isClose(timer.secondsPerStep, (0.2 + 0.3 + 0.9) / 3))
+    }
+
+    @Test("the countdown is the remaining steps at the current pace")
+    func estimatedRemaining() {
+        var timer = StepTimer()
+        timer.tick(at: start)
+        timer.tick(at: start.advanced(by: .milliseconds(500)))
+        #expect(isClose(timer.estimatedSecondsRemaining(step: 3, of: 9), 3.0))
+        #expect(timer.estimatedSecondsRemaining(step: 9, of: 9) == 0)
+    }
+
+    @Test("a countdown needs a measured pace first")
+    func estimateNeedsAPace() {
+        let timer = StepTimer()
+        #expect(timer.estimatedSecondsRemaining(step: 1, of: 9) == nil)
+    }
+
+    @Test("annotating fills in a pace the backend did not measure")
+    func annotationFillsGaps() {
+        var timer = StepTimer()
+        let first = timer.annotated(event(step: 1), at: start)
+        #expect(first.secondsPerStep == nil)
+        let second = timer.annotated(event(step: 2), at: start.advanced(by: .milliseconds(250)))
+        #expect(isClose(second.secondsPerStep, 0.25))
+        #expect(second.phase == .denoising(step: 2, of: 4))
+        #expect(isClose(second.estimatedSecondsRemaining, 0.5))
+    }
+
+    @Test("annotating leaves a pace the backend measured itself")
+    func annotationDefersToTheBackend() {
+        var timer = StepTimer()
+        _ = timer.annotated(event(step: 1), at: start)
+        let measured = GenerationProgressEvent(
+            phase: .denoising(step: 2, of: 4),
+            fraction: 0.5,
+            secondsPerStep: 42
+        )
+        let annotated = timer.annotated(measured, at: start.advanced(by: .milliseconds(250)))
+        #expect(annotated.secondsPerStep == 42)
+    }
+
+    @Test("phases other than denoising are passed through untouched")
+    func nonDenoisingPhasesAreUntouched() {
+        var timer = StepTimer()
+        let decoding = GenerationProgressEvent(phase: .decoding, fraction: 1)
+        #expect(timer.annotated(decoding, at: start) == decoding)
+        #expect(timer.secondsPerStep == nil)
+    }
+
+    private func event(step: Int) -> GenerationProgressEvent {
+        GenerationProgressEvent(phase: .denoising(step: step, of: 4), fraction: Double(step) / 4)
+    }
+
+    private func isClose(_ value: Double?, _ expected: Double) -> Bool {
+        guard let value else { return false }
+        return abs(value - expected) < 1e-9
+    }
+}

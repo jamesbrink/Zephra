@@ -12,5 +12,6 @@ let package = Package(
         .target(name: "ZephraCore"),
         .target(name: "ZephraEngine", dependencies: ["ZephraCore"]),
         .testTarget(name: "ZephraCoreTests", dependencies: ["ZephraCore"]),
+        .testTarget(name: "ZephraEngineTests", dependencies: ["ZephraEngine", "ZephraCore"]),
     ]
 )
