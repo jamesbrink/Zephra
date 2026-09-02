@@ -62,9 +62,10 @@ extension GenerationStore {
             queue.removeAll()
             isSwitchingForQueue = false
             bootstrapTask?.cancel()
-        case .idle where isSwitchingForQueue:
+        case .idle where isSwappingModel:
             queue.removeAll()
             isSwitchingForQueue = false
+            isSwappingModel = false
             switchTask?.cancel()
         case .idle, .ready, .cancelling, .failed:
             break

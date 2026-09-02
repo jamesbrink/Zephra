@@ -35,6 +35,10 @@ public final class GenerationStore {
     /// True while the engine is between queued generations, swapping to the model the next one
     /// needs. The queue accepts more work throughout.
     public internal(set) var isSwitchingForQueue = false
+    /// True from the moment a model swap is asked for until the new model has loaded or the
+    /// swap was stopped. While it is true the state passes through `.idle` without meaning
+    /// "nothing to do", so nothing else may start a load.
+    public internal(set) var isSwappingModel = false
     /// Whether a load ends with a throwaway generation that pays the kernel-compilation cost
     /// up front. The engine has no idea where the answer comes from; the app sets it from the
     /// user's preference before it calls `bootstrap()`.

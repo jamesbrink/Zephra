@@ -21,31 +21,34 @@ extension GenerationStore {
     /// load takes over the inference queue.
     public func bootstrap() async {
         await refreshAvailability()
-        await load(descriptor)
+        await load(descriptor, asSwap: false)
     }
 
-    /// Loads `model` and waits for it, unless a load is already under way.
-    func load(_ model: ModelDescriptor) async {
-        guard let task = startLoading(model) else { return }
+    /// Loads `model` and waits for it, unless a load is already under way. `asSwap` marks the
+    /// load a model swap makes for itself; nothing else may load while a swap is in flight.
+    func load(_ model: ModelDescriptor, asSwap: Bool) async {
+        guard let task = startLoading(model, asSwap: asSwap) else { return }
         await task.value
     }
 
     /// Starts the same work as `bootstrap` without waiting for it, for a button that only has
     /// to kick it off: the remedy after a failure, and the resume after a cancelled download.
     public func retry() {
-        startLoading(descriptor)
+        startLoading(descriptor, asSwap: false)
     }
 
     /// Begins a load unless one is already under way, handing back the task that runs it. The
     /// store keeps that task so `cancel()` has something to cancel while the model is loading.
     /// A preview store has no backend to build, so it never starts anything.
     @discardableResult
-    private func startLoading(_ model: ModelDescriptor) -> Task<Void, Never>? {
+    private func startLoading(_ model: ModelDescriptor, asSwap: Bool) -> Task<Void, Never>? {
         guard let inference = inferenceActor() else { return nil }
         switch state {
         case .idle, .failed: break
         default: return nil
         }
+        // A swap passes through .idle while the old weights go back; only the swap may load.
+        if isSwappingModel, !asSwap { return nil }
         transition(to: .checkingModel)
         let task = Task { await self.load(model, on: inference) }
         bootstrapTask = task

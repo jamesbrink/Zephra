@@ -22,14 +22,17 @@ extension GenerationStore {
         return store
     }
 
-    /// Made up, like everything else here: the chosen model reads as downloaded and the rest of
-    /// the catalog as a download away, so a picker has something to label its rows with.
+    /// Made up, like everything else here: the chosen model reads as downloaded, a hub model as
+    /// a download away, and a local variant as not built, so a picker has rows to label.
     private static func previewAvailability(
         current: ModelDescriptor
     ) -> [ModelDescriptor.ID: ModelAvailability] {
         var map: [ModelDescriptor.ID: ModelAvailability] = [current.id: .available]
         for model in ModelCatalog.all where model.id != current.id {
-            map[model.id] = .needsDownload(bytes: model.downloadBytes)
+            switch model.source {
+            case .huggingFace: map[model.id] = .needsDownload(bytes: model.downloadBytes)
+            case .localDirectory: map[model.id] = .missing(reason: "Not built yet; run make quantize.")
+            }
         }
         return map
     }

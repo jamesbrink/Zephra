@@ -30,7 +30,9 @@ struct RootView: View {
     }
 
     private var subtitle: String {
-        let state = store.state.subtitle(for: store.descriptor)
+        let state = store.isSwappingModel && store.state == .idle
+            ? "Switching to \(store.descriptor.fullName)…"
+            : store.state.subtitle(for: store.descriptor)
         let count = store.queue.count
         guard count > 0 else { return state }
         return "\(state) · \(count) queued"

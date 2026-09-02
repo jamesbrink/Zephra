@@ -25,6 +25,7 @@ extension GenerationStore {
     /// waited for first, so two quick picks in the menu never race each other's unload.
     func reload(_ model: ModelDescriptor, thenDrain: Bool) {
         isSwitchingForQueue = thenDrain
+        isSwappingModel = true
         let pendingLoad = bootstrapTask
         let pendingSwitch = switchTask
         pendingLoad?.cancel()
@@ -40,7 +41,11 @@ extension GenerationStore {
             self.loadedDescriptor = nil
             self.transition(to: .idle)
             guard !Task.isCancelled else { return }
-            await self.load(model)
+            await self.load(model, asSwap: true)
+            // A superseded or stopped swap leaves the flag to whoever superseded or stopped it.
+            if !Task.isCancelled {
+                self.isSwappingModel = false
+            }
             guard thenDrain, !Task.isCancelled else { return }
             if self.state == .ready {
                 self.drain()

@@ -205,4 +205,68 @@ struct ModelSwitchingTests {
         #expect(store.state == .ready)
         #expect(store.loadedDescriptor?.id == Self.smaller.id)
     }
+
+    @Test("retry during a swap starts no second load and keeps the queue")
+    func retryDuringSwapIsRefused() async throws {
+        let bed = EngineTestBed()
+        bed.control.update { $0.stepDelay = .milliseconds(20); $0.loadDelay = .milliseconds(150) }
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        store.settings.prompt = "a"
+        store.generate()
+        try await bed.waitForFirstStep()
+        store.switchModel(to: Self.smaller)
+        store.settings.prompt = "b"
+        store.generate()
+        while !store.isSwappingModel { await Task.yield() }
+
+        store.retry()
+        while store.isDraining || !store.queue.isEmpty { await store.settle() }
+        await store.settle()
+
+        #expect(bed.control.settings.loads == 2, "retry must not add a load")
+        #expect(store.history.map(\.settings.prompt) == ["b", "a"])
+        #expect(!store.isSwappingModel)
+    }
+
+    @Test("switching during the initial download loads the new model exactly once")
+    func switchDuringInitialDownload() async throws {
+        let bed = EngineTestBed()
+        bed.control.update { $0.loadDelay = .milliseconds(150) }
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        store.retry()
+        while store.state == .idle { await Task.yield() }
+
+        store.switchModel(to: Self.smaller)
+        while store.state != .ready || store.loadedDescriptor?.id != Self.smaller.id { await store.settle() }
+
+        #expect(store.loadedDescriptor?.id == Self.smaller.id)
+        #expect(bed.control.settings.loads <= 2)
+        #expect(!store.isSwappingModel)
+    }
+
+    @Test("a swap whose load fails drops the queue and shows the failure")
+    func failedSwapDropsTheQueue() async throws {
+        let bed = EngineTestBed()
+        bed.control.update { $0.stepDelay = .milliseconds(20) }
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        store.settings.prompt = "a"
+        store.generate()
+        try await bed.waitForFirstStep()
+        bed.control.update { $0.loadError = .loadFailed("no weights") }
+        store.switchModel(to: Self.smaller)
+        store.settings.prompt = "b"
+        store.generate()
+        while store.isDraining { await store.settle() }
+        await store.settle()
+
+        #expect(store.queue.isEmpty)
+        #expect(store.state == .failed(.backend(.loadFailed("no weights"))))
+        #expect(store.loadedDescriptor == nil)
+        #expect(!store.isSwappingModel)
+    }
 }

@@ -10,7 +10,7 @@ struct CanvasStateView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            if isGenerating {
+            if isGenerating || store.isSwappingModel {
                 EmptyView()
             } else if isEmptyAndReady {
                 Text("Describe an image to begin.")
@@ -65,7 +65,7 @@ struct CanvasStateView: View {
     private var startLabel: String? {
         switch store.state {
         case .failed: "Try again"
-        case .idle: "Load model"
+        case .idle: store.isSwappingModel ? nil : "Load model"
         default: nil
         }
     }
