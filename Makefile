@@ -9,8 +9,9 @@ BENCH    := $(BUILD)/Release/ZephraBench
 MODEL    := mzbac/Z-Image-Turbo-8bit
 DEST     := platform=macOS,arch=arm64
 XCB      := xcodebuild -project $(PROJECT) -destination '$(DEST)' SYMROOT=$(BUILD) -derivedDataPath $(DERIVED)
+BACKEND  := $(CURDIR)/Packages/ZephraBackendZImage
 
-.PHONY: gen build run bench prefetch open clean lint-layers logs screenshot test
+.PHONY: gen build run bench prefetch open clean lint-layers logs screenshot test test-backend
 
 gen:
 	xcodegen generate --spec project.yml
@@ -27,6 +28,13 @@ bench: gen
 
 test:
 	cd Packages/ZephraKit && swift test
+
+# The backend links MLX, so its tests need xcodebuild rather than `swift test`.
+# Kept out of `make test` on purpose: that one stays MLX-free and fast.
+test-backend:
+	cd $(BACKEND) && xcodebuild test -scheme ZephraBackendZImage \
+	  -destination 'platform=macOS' -skipPackagePluginValidation \
+	  -derivedDataPath $(DERIVED)
 
 prefetch:
 	hf download $(MODEL) --exclude "assets/*"

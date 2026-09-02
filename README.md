@@ -90,11 +90,21 @@ Zephra/
 │   │   ├── Sources/ZephraEngine/        # actor + store, depends on ZephraCore only
 │   │   └── Tests/ZephraCoreTests, ZephraEngineTests
 │   └── ZephraBackendZImage/       # ours — the only package that imports ZImage
+│       └── Sources/, Tests/ZephraBackendZImageTests
 ├── Sources/Zephra/                # app target: SwiftUI only, composition root is ZephraApp.swift
 │   └── ZephraApp.swift  Views/**  Support/**  Resources/{Info.plist, Assets.xcassets, Colors}
 ├── Sources/ZephraBench/main.swift # headless benchmark tool
 └── scripts/screenshot.sh, prefetch-model.sh
 ```
+
+## Development
+
+- `make test` — `ZephraCore` and `ZephraEngine` under `swift test`. No MLX, a couple
+  of seconds.
+- `make test-backend` — the `ZephraBackendZImage` mapping tests. They link MLX, so
+  they go through `xcodebuild` rather than `swift test` and take longer; nothing in
+  them loads weights or touches the GPU.
+- `make lint-layers` — check the module boundaries above.
 
 ## Roadmap
 

@@ -75,6 +75,9 @@ Makefile targets:
 - `make bench` — build and run `ZephraBench` (`ARGS=...` to pass flags).
 - `make test` — `swift test` in `Packages/ZephraKit` (Core + Engine only,
   fast, no MLX).
+- `make test-backend` — `xcodebuild test` on the `ZephraBackendZImage` package.
+  Covers the mapping layer only; it links MLX, so it needs `xcodebuild` and is
+  slower than `make test`. Keep `make test` MLX-free.
 - `make prefetch` — download the default model weights via `hf download`.
 - `make lint-layers` — enforce the layering rules above.
 - `make logs` — stream app logs (`log stream`, subsystem `io.zephra`).
