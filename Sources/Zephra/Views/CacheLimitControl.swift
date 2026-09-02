@@ -49,7 +49,8 @@ struct CacheLimitControl: View {
     }
 
     private func byteText(_ megabytes: Int) -> String {
-        (megabytes * InferenceTuning.bytesPerMB).formatted(.byteCount(style: .memory))
+        (megabytes * InferenceTuning.bytesPerMB)
+            .formatted(.byteCount(style: .memory, spellsOutZero: false))
     }
 }
 

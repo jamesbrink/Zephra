@@ -10,7 +10,8 @@ struct SettingsView: View {
             PerformanceSettings().tabItem { Label("Performance", systemImage: "speedometer") }
             AboutSettings().tabItem { Label("About", systemImage: "info.circle") }
         }
-        .frame(width: 480, height: 360)
+        // Tall enough for Performance, the longest of the three; the other two centre in it.
+        .frame(width: 480, height: 440)
     }
 }
 

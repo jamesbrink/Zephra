@@ -24,7 +24,7 @@ struct MemoryReadout: View {
 
     private func row(_ label: String, _ bytes: Int) -> some View {
         LabeledContent(label) {
-            Text(bytes.formatted(.byteCount(style: .memory)))
+            Text(bytes.formatted(.byteCount(style: .memory, spellsOutZero: false)))
                 .monospacedDigit()
         }
     }
