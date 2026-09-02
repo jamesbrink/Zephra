@@ -1,4 +1,5 @@
 import Foundation
+import ZephraCore
 
 /// The keys and starting values behind every `@AppStorage` in the app, in one place so a
 /// preference is never spelled two different ways.
@@ -16,6 +17,8 @@ enum AppSettings {
     /// Ceiling on the GPU scratch the runtime retains between generations, in megabytes.
     /// Unset means the recommendation `InferenceTuning` works out for this machine.
     static let cacheLimitMB = "cacheLimitMB"
+    /// When the VAE decode runs in tiles, as a `VAETilingMode` raw value.
+    static let vaeTiling = "vaeTiling"
 
     /// Starting values, matching the defaults written at each `@AppStorage` site.
     static let initialFilmstripVisible = true
@@ -23,6 +26,18 @@ enum AppSettings {
     static let initialRandomizeSeedEachRun = true
     /// Warming up costs a second at launch and saves several on the first real image.
     static let initialWarmUpOnLaunch = true
+    /// Exactness wherever the Mac has the memory for it, tiling only where it does not.
+    static let initialVAETiling = VAETilingMode.automatic
+
+    /// How the stored preference and this machine's memory decide the VAE tile, for the
+    /// composition root, which has to answer the question outside a picker.
+    static func tilingPolicy() -> VAETilingPolicy {
+        let stored = UserDefaults.standard.string(forKey: vaeTiling)
+        return VAETilingPolicy(
+            mode: stored.flatMap(VAETilingMode.init(rawValue:)) ?? initialVAETiling,
+            physicalMemory: ProcessInfo.processInfo.physicalMemory
+        )
+    }
 
     /// A stored flag as it stands right now, for the code that has to read one outside a view
     /// and so cannot use `@AppStorage`. An unset key falls back to the same starting value the

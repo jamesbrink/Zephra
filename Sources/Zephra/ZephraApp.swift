@@ -18,6 +18,12 @@ struct ZephraApp: App {
             RootView()
                 .environment(store)
                 .environment(cache)
+                // The tiled decode is chosen for the model that is about to run, so the answer
+                // is worked out again whenever the model changes. Settings re-applies it when
+                // the preference itself changes; see `VAETilingControl`.
+                .onChange(of: store.descriptor, initial: true) { _, model in
+                    runtime.setVAETileSize(AppSettings.tilingPolicy().tileSize(for: model))
+                }
         }
         .defaultSize(width: 1200, height: 840)
         .windowToolbarStyle(.unified)

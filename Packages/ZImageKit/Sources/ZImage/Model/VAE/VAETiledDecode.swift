@@ -4,16 +4,25 @@ import MLX
 // ZEPHRA-PATCH: (new file) opt-in tiled VAE decode. The decode's transient is set by the
 // resolution it runs at, not by the weights, so decoding overlapping latent tiles and blending
 // the seams bounds peak memory by the tile size instead of by the image size. Off by default;
-// ZEPHRA_VAE_TILE names the latent-space tile edge (64 decodes in 512-pixel tiles).
+// ZEPHRA_VAE_TILE names the latent-space tile edge (64 decodes in 512-pixel tiles) and is the
+// starting value of `latentTile`, which a host can also set at runtime.
 /// Decodes a latent in overlapping tiles and blends where they meet.
 ///
 /// The shape of the algorithm is diffusers' `enable_vae_tiling`: tiles are taken on a stride
 /// smaller than the tile, each is decoded on its own, and the overlap is cross-faded with a
 /// linear ramp so no seam appears. Each tile is evaluated as it is produced, so only one tile's
 /// worth of intermediate feature maps is ever live.
-enum VAETiledDecode {
-  /// Latent-space tile edge from `ZEPHRA_VAE_TILE`, or nil when tiling is off.
-  static let latentTile: Int? = {
+public enum VAETiledDecode {
+  /// Latent-space tile edge in force, or nil when the decode runs untiled and exact.
+  ///
+  /// Starts from `ZEPHRA_VAE_TILE` so the benchmark and the command line keep working, and is
+  /// settable so a host can decide per model without a relaunch. Written from the UI and read
+  /// on the inference thread; a torn read cannot happen for a word-sized optional, and the worst
+  /// a race can do is decode one image with the previous setting.
+  public nonisolated(unsafe) static var latentTile: Int? = environmentTile
+
+  /// `ZEPHRA_VAE_TILE` read as a tile edge, or nil when it is unset or too small to be useful.
+  static let environmentTile: Int? = {
     guard let raw = ProcessInfo.processInfo.environment["ZEPHRA_VAE_TILE"],
       let value = Int(raw), value >= 16
     else { return nil }
