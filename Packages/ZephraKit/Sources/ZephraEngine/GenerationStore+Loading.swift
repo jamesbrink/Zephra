@@ -21,42 +21,48 @@ extension GenerationStore {
     /// load takes over the inference queue.
     public func bootstrap() async {
         await refreshAvailability()
-        guard let task = startLoading() else { return }
+        await load(descriptor)
+    }
+
+    /// Loads `model` and waits for it, unless a load is already under way.
+    func load(_ model: ModelDescriptor) async {
+        guard let task = startLoading(model) else { return }
         await task.value
     }
 
     /// Starts the same work as `bootstrap` without waiting for it, for a button that only has
     /// to kick it off: the remedy after a failure, and the resume after a cancelled download.
     public func retry() {
-        startLoading()
+        startLoading(descriptor)
     }
 
     /// Begins a load unless one is already under way, handing back the task that runs it. The
     /// store keeps that task so `cancel()` has something to cancel while the model is loading.
     /// A preview store has no backend to build, so it never starts anything.
     @discardableResult
-    private func startLoading() -> Task<Void, Never>? {
+    private func startLoading(_ model: ModelDescriptor) -> Task<Void, Never>? {
         guard let inference = inferenceActor() else { return nil }
         switch state {
         case .idle, .failed: break
         default: return nil
         }
         transition(to: .checkingModel)
-        let task = Task { await self.load(on: inference) }
+        let task = Task { await self.load(model, on: inference) }
         bootstrapTask = task
         return task
     }
 
     /// The body of a load, from finding the weights to the throwaway first generation.
-    private func load(on inference: InferenceActor) async {
+    private func load(_ model: ModelDescriptor, on inference: InferenceActor) async {
         let pump = EngineEventPump { [weak self] event in self?.applyLoadEvent(event) }
         do {
-            try await pump.run { sink in try await inference.prepare(descriptor, events: sink) }
+            try await pump.run { sink in try await inference.prepare(model, events: sink) }
             try Task.checkCancellation()
             if warmsUpAfterLoad {
                 transition(to: .warmingUp)
-                try await inference.warmUp(descriptor)
+                try await inference.warmUp(model)
             }
+            loadedDescriptor = model
             transition(to: .ready)
         } catch is CancellationError {
             transition(to: .idle)

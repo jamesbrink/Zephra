@@ -52,8 +52,10 @@ readout while that happens.
   variant that has not been quantized, or "Needs N GB" for one this Mac has too little memory
   for. Picking a model that has not been downloaded starts the download; the last two are
   disabled, with the reason in the tooltip. Switching releases the old weights before it asks
-  for the new ones, and the menu is unavailable while a generation is running or waiting, so
-  nothing in the queue is thrown away without you saying so. Your choice is remembered.
+  for the new ones. Choosing a model while an image is running interrupts nothing: the running
+  image finishes on its model, anything already queued keeps the model it was queued for, and
+  the new choice applies to whatever you queue next, with the engine swapping weights between
+  queue entries as it goes. Your choice is remembered.
 - Size, steps, and seed sit under the prompt. A model that reads a negative prompt gets a
   second field for it, and one that responds to guidance gets a guidance slider; Z-Image Turbo
   does neither, so it shows neither. The lock keeps the seed across runs; unlocked,

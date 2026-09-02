@@ -11,13 +11,11 @@ extension GenerationStore {
         generationTask = Task { await self.run(request, on: inference) }
     }
 
-    /// Returns to `.ready`, then starts the next queued generation if there is one. Every way a
-    /// run can end goes through here so the queue never stalls.
+    /// Returns to `.ready`, then works on down the queue. Every way a run can end goes through
+    /// here so the queue never stalls.
     private func finish() {
         transition(to: .ready)
-        guard !queue.isEmpty else { return }
-        let next = queue.removeFirst()
-        start(next.settings)
+        drain()
     }
 
     /// Drives one generation from start to finish. The activity assertion keeps the Mac awake:
@@ -55,7 +53,7 @@ extension GenerationStore {
         let image = GeneratedImage(
             pngData: data,
             settings: request,
-            modelID: descriptor.id,
+            modelID: loadedDescriptor?.id ?? descriptor.id,
             duration: duration
         )
         current = image

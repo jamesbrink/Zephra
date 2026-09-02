@@ -86,37 +86,77 @@ struct ModelSwitchingTests {
         #expect(bed.control.settings.unloads == 0)
     }
 
-    @Test("switching is refused while a generation is running, and nothing queued is lost")
-    func switchIsRefusedWhileBusy() async throws {
+    @Test("switching mid-run finishes the running image on its model and swaps for the queue")
+    func switchWhileRunningQueuesTheSwap() async throws {
         let bed = EngineTestBed()
         bed.control.update { $0.stepDelay = .milliseconds(20) }
         let store = bed.store()
         store.warmsUpAfterLoad = false
         await store.bootstrap()
-        store.settings.prompt = "a lighthouse"
-        store.generate()
+        store.settings.prompt = "first"
         store.generate()
         try await bed.waitForFirstStep()
 
-        #expect(store.canSwitchModel == false)
         store.switchModel(to: Self.smaller)
-        #expect(store.descriptor.id == ModelCatalog.default.id, "the model must not have changed")
-        #expect(store.queue.count == 1, "the queued prompt must survive a refused switch")
+        #expect(store.descriptor.id == Self.smaller.id, "the choice lands at once")
+        #expect(store.loadedDescriptor?.id == ModelCatalog.default.id, "the run keeps its model")
+        #expect(store.state.isBusy)
+        store.settings.prompt = "second"
+        store.generate()
+        #expect(store.queue.first?.model.id == Self.smaller.id)
 
-        store.cancel()
+        while store.isDraining || !store.queue.isEmpty { await store.settle() }
         await store.settle()
+
+        #expect(store.history.map(\.settings.prompt) == ["second", "first"])
+        #expect(store.history.map(\.modelID) == [Self.smaller.id, ModelCatalog.default.id])
+        #expect(bed.control.settings.unloads == 1)
+        #expect(bed.control.settings.loads == 2)
+        #expect(store.loadedDescriptor?.id == Self.smaller.id)
+        #expect(store.state == .ready)
     }
 
-    @Test("switching is refused while a prompt is waiting, even between generations")
-    func switchIsRefusedWithAQueue() async throws {
+    @Test("a switch with an empty queue after a run lands as soon as the run ends")
+    func switchLandsAfterTheRun() async throws {
         let bed = EngineTestBed()
+        bed.control.update { $0.stepDelay = .milliseconds(20) }
         let store = bed.store()
         store.warmsUpAfterLoad = false
         await store.bootstrap()
-        store.queue.append(QueuedGeneration(settings: store.settings))
+        store.settings.prompt = "only"
+        store.generate()
+        try await bed.waitForFirstStep()
 
-        #expect(store.canSwitchModel == false)
         store.switchModel(to: Self.smaller)
-        #expect(store.descriptor.id == ModelCatalog.default.id)
+        while store.isDraining || store.loadedDescriptor?.id != Self.smaller.id { await store.settle() }
+
+        #expect(store.history.map(\.modelID) == [ModelCatalog.default.id])
+        #expect(store.loadedDescriptor?.id == Self.smaller.id)
+        #expect(store.state == .ready)
+    }
+
+    @Test("queued work for two models runs in order, swapping once between them")
+    func mixedQueueSwapsBetweenItems() async throws {
+        let bed = EngineTestBed()
+        bed.control.update { $0.stepDelay = .milliseconds(20) }
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        store.settings.prompt = "a"
+        store.generate()
+        store.settings.prompt = "b"
+        store.generate()
+        store.switchModel(to: Self.smaller)
+        store.settings.prompt = "c"
+        store.generate()
+        #expect(store.queue.map(\.model.id) == [ModelCatalog.default.id, Self.smaller.id])
+
+        while store.isDraining || !store.queue.isEmpty { await store.settle() }
+        await store.settle()
+
+        #expect(store.history.map(\.settings.prompt) == ["c", "b", "a"])
+        #expect(store.history.map(\.modelID) == [Self.smaller.id, ModelCatalog.default.id, ModelCatalog.default.id])
+        #expect(bed.control.settings.loads == 2)
+        #expect(bed.control.settings.unloads == 1)
     }
 }

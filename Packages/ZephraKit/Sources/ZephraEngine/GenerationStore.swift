@@ -15,7 +15,8 @@ public final class GenerationStore {
     public internal(set) var history: [GeneratedImage] = []
     /// What the next generation will use. Edited directly by the UI.
     public var settings: GenerationSettings
-    /// The model this store drives. Change it with `switchModel(to:)`.
+    /// The model the next generation will use. Change it with `switchModel(to:)`; queued
+    /// generations keep the model they were queued for.
     public internal(set) var descriptor: ModelDescriptor
     /// What is on disk for each known model, by descriptor id. Filled in at bootstrap and after
     /// every load; a model missing from the map has not been looked at yet.
@@ -27,6 +28,12 @@ public final class GenerationStore {
     public internal(set) var lastSaveFailure: SaveFailure?
     /// Generations waiting their turn, oldest first. Runs down by itself after each image.
     public internal(set) var queue: [QueuedGeneration] = []
+    /// The model whose weights are resident right now, or nil while none are. It trails
+    /// `descriptor` whenever a switch is waiting for the queue to drain.
+    public internal(set) var loadedDescriptor: ModelDescriptor?
+    /// True while the engine is between queued generations, swapping to the model the next one
+    /// needs. The queue accepts more work throughout.
+    public internal(set) var isSwitchingForQueue = false
     /// Whether a load ends with a throwaway generation that pays the kernel-compilation cost
     /// up front. The engine has no idea where the answer comes from; the app sets it from the
     /// user's preference before it calls `bootstrap()`.
@@ -78,55 +85,7 @@ public final class GenerationStore {
     public var canGenerate: Bool { state.acceptsGeneration && settings.isReadyToGenerate }
 
     /// True when `generate()` will do something: start now, or queue behind the running one.
-    public var canQueue: Bool { settings.isReadyToGenerate && (state.acceptsGeneration || isRunning) }
-
-    /// Whether a generation is in flight, including one that is being stopped.
-    var isRunning: Bool {
-        switch state {
-        case .generating, .cancelling: true
-        default: false
-        }
-    }
-
-    /// Starts a generation with the current settings, or queues it if one is already running.
-    /// Does nothing unless `canQueue`.
-    public func generate() {
-        guard canQueue else { return }
-        let request = descriptor.capabilities.clamp(settings)
-        if isRunning {
-            queue.append(QueuedGeneration(settings: request))
-            logger.info("queued generation, \(self.queue.count) waiting")
-        } else {
-            start(request)
-        }
-    }
-
-    /// Stops whatever the engine is busy with.
-    ///
-    /// During a generation that means finishing the current step and dropping the queue: the
-    /// backend only looks for a cancel between denoising steps, so `.cancelling` can sit there
-    /// for one step's worth. During a download, a load, or a warm-up it means abandoning that
-    /// and returning to `.idle`, from where the canvas offers to start again.
-    public func cancel() {
-        switch state {
-        case .generating:
-            queue.removeAll()
-            transition(to: .cancelling)
-            generationTask?.cancel()
-        case .checkingModel, .downloading, .loading, .warmingUp:
-            bootstrapTask?.cancel()
-        case .idle, .ready, .cancelling, .failed:
-            break
-        }
-    }
-
-    /// Takes one waiting generation out of the queue.
-    public func removeFromQueue(_ id: QueuedGeneration.ID) {
-        queue.removeAll { $0.id == id }
-    }
-
-    /// Empties the queue without touching the running generation.
-    public func clearQueue() { queue.removeAll() }
+    public var canQueue: Bool { settings.isReadyToGenerate && (state.acceptsGeneration || isDraining) }
 
     /// Shows an earlier image on the canvas and adopts its settings, so the obvious next move
     /// is to tweak one thing and generate a variation.

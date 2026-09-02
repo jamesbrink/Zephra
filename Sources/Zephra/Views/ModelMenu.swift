@@ -6,7 +6,9 @@ import ZephraEngine
 /// a download away, never built, or more memory than this Mac has.
 ///
 /// Choosing a model that has not been downloaded is allowed; the switch fetches it. Choosing
-/// one that cannot be had at all, or will not fit, is not, and the row says why.
+/// one that cannot be had at all, or will not fit, is not, and the row says why. Choosing while
+/// an image is running is fine too: the running image finishes on its model, and the new one
+/// takes over for whatever is queued next.
 struct ModelMenu: View {
     @Environment(GenerationStore.self) private var store
     @AppStorage(AppSettings.selectedModelID) private var selectedModelID = ""
@@ -30,8 +32,7 @@ struct ModelMenu: View {
         .menuStyle(.button)
         .buttonStyle(.accessoryBar)
         .fixedSize()
-        .disabled(!store.canSwitchModel)
-        .help(store.canSwitchModel ? "Model" : "Finish or stop the queue to change model")
+        .help("Model for the next generation")
         .accessibilityLabel("Model")
     }
 

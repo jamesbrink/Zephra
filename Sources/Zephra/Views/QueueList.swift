@@ -14,6 +14,11 @@ struct QueueList: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
                     Spacer(minLength: 8)
+                    if let variant = item.model.variantName {
+                        Text(variant)
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
                     Text(item.settings.size.label)
                         .font(.caption)
                         .monospacedDigit()
