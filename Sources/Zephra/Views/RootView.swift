@@ -84,14 +84,13 @@ struct RootView: View {
     private var toolbarContent: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
             ModelMenu()
-            SizeMenu()
             Button {
                 filmstripVisible.toggle()
             } label: {
-                Label("Session images", systemImage: "film")
+                Label("Images", systemImage: "film")
                     .symbolVariant(filmstripVisible ? .fill : .none)
             }
-            .help("Show this session's images")
+            .help("Show the filmstrip")
         }
     }
 }

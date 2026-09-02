@@ -52,7 +52,7 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
         seed = image.settings.seed
         modelID = image.modelID
         createdAt = image.createdAt
-        durationSeconds = Self.seconds(image.duration)
+        durationSeconds = image.duration.seconds
     }
 
     /// The image this record describes, given the bytes it was read from and where they live.
@@ -76,10 +76,5 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
             duration: .seconds(durationSeconds),
             fileURL: fileURL
         )
-    }
-
-    private static func seconds(_ duration: Duration) -> Double {
-        let parts = duration.components
-        return Double(parts.seconds) + Double(parts.attoseconds) / 1e18
     }
 }

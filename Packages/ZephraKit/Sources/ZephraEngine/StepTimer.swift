@@ -26,7 +26,7 @@ struct StepTimer {
     mutating func tick(at instant: ContinuousClock.Instant = ContinuousClock.now) {
         defer { previousTick = instant }
         guard let previousTick else { return }
-        intervals.append(Self.seconds(instant - previousTick))
+        intervals.append((instant - previousTick).seconds)
         if intervals.count > Self.window {
             intervals.removeFirst(intervals.count - Self.window)
         }
@@ -46,10 +46,5 @@ struct StepTimer {
             fraction: event.fraction,
             secondsPerStep: secondsPerStep
         )
-    }
-
-    private static func seconds(_ duration: Duration) -> Double {
-        let (whole, attoseconds) = duration.components
-        return Double(whole) + Double(attoseconds) / 1e18
     }
 }

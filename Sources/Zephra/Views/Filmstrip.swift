@@ -1,7 +1,8 @@
 import SwiftUI
 import ZephraEngine
 
-/// This session's images along the bottom edge, newest first. Invisible until there is one.
+/// The images along the bottom edge, newest first, including those restored from earlier
+/// sessions. Invisible until there is one.
 struct Filmstrip: View {
     @Environment(GenerationStore.self) private var store
 
@@ -13,7 +14,7 @@ struct Filmstrip: View {
         }
         .frame(height: 80)
         .opacity(store.history.isEmpty ? 0 : 1)
-        .accessibilityLabel("This session's images")
+        .accessibilityLabel("Images")
     }
 
     private var strip: some View {

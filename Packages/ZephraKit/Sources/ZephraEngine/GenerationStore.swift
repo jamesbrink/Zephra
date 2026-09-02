@@ -11,7 +11,8 @@ public final class GenerationStore {
     public internal(set) var state: EngineState = .idle
     /// The image shown on the canvas.
     public internal(set) var current: GeneratedImage?
-    /// This session's images, newest first, capped at 24.
+    /// The filmstrip: this session's images and the newest restored from disk, newest first,
+    /// capped at 24.
     public internal(set) var history: [GeneratedImage] = []
     /// What the next generation will use. Edited directly by the UI.
     public var settings: GenerationSettings

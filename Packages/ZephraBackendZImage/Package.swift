@@ -10,8 +10,8 @@ let package = Package(
     dependencies: [
         .package(path: "../ZephraKit"),
         .package(path: "../ZImageKit"),
-        // Needed only by ZImageRuntime, for the GPU cache and memory limits. ZImageKit pins
-        // the same exact version, so this adds no new package to the resolved graph.
+        // For the runtime's cache and memory limits, the quantizer, and the microbench.
+        // ZImageKit pins the same exact version, so this adds no new package to the graph.
         .package(url: "https://github.com/ml-explore/mlx-swift", exact: "0.31.3"),
     ],
     targets: [
@@ -21,6 +21,7 @@ let package = Package(
                 .product(name: "ZephraCore", package: "ZephraKit"),
                 .product(name: "ZImage", package: "ZImageKit"),
                 .product(name: "MLX", package: "mlx-swift"),
+                .product(name: "MLXFast", package: "mlx-swift"),
             ]
         ),
         // Covers the pure mapping layer only: nothing here loads weights or touches

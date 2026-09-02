@@ -159,4 +159,50 @@ struct ModelSwitchingTests {
         #expect(bed.control.settings.loads == 2)
         #expect(bed.control.settings.unloads == 1)
     }
+
+    @Test("two quick picks settle on the second model with the first never loaded")
+    func twoQuickPicksSettleOnTheSecond() async throws {
+        let bed = EngineTestBed()
+        bed.control.update { $0.loadDelay = .milliseconds(30) }
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+
+        store.switchModel(to: Self.smaller)
+        store.switchModel(to: ModelCatalog.default)
+        while store.state != .ready || store.loadedDescriptor?.id != ModelCatalog.default.id {
+            await store.settle()
+        }
+
+        #expect(store.loadedDescriptor?.id == ModelCatalog.default.id)
+        #expect(store.descriptor.id == ModelCatalog.default.id)
+        #expect(bed.control.settings.loads == 2, "the abandoned pick must not load")
+    }
+
+    @Test("stop during a queued swap drops the queue and leaves the engine idle, resumable")
+    func cancelDuringQueuedSwap() async throws {
+        let bed = EngineTestBed()
+        bed.control.update { $0.stepDelay = .milliseconds(20); $0.loadDelay = .milliseconds(200) }
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        store.settings.prompt = "a"
+        store.generate()
+        try await bed.waitForFirstStep()
+        store.switchModel(to: Self.smaller)
+        store.settings.prompt = "b"
+        store.generate()
+        while !store.isSwitchingForQueue { await Task.yield() }
+
+        store.cancel()
+        await store.settle()
+
+        #expect(store.queue.isEmpty)
+        #expect(!store.isSwitchingForQueue)
+        #expect(store.state == .idle || store.state == .ready)
+        store.retry()
+        await store.settle()
+        #expect(store.state == .ready)
+        #expect(store.loadedDescriptor?.id == Self.smaller.id)
+    }
 }

@@ -34,16 +34,8 @@ public enum ModelAvailability: Hashable, Sendable {
     public var label: String {
         switch self {
         case .available: "Downloaded"
-        case .needsDownload(let bytes): "\(Self.gigabytes(bytes)) download"
+        case .needsDownload(let bytes): "\(ByteCount.gigabytes(bytes)) download"
         case .missing: "Not built yet"
         }
-    }
-
-    /// Bytes as gigabytes to one decimal place, with a whole number left whole: "13.3 GB", "7 GB".
-    private static func gigabytes(_ bytes: Int64) -> String {
-        let tenths = Int((Double(bytes) / 100_000_000).rounded())
-        let whole = tenths / 10
-        let remainder = tenths % 10
-        return remainder == 0 ? "\(whole) GB" : "\(whole).\(remainder) GB"
     }
 }

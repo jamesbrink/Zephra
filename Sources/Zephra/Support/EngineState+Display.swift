@@ -52,7 +52,7 @@ extension EngineState {
         case .checkingModel, .loading:
             "Preparing model…"
         case .downloading:
-            "\(descriptor.displayName) needs a one-time \(Self.gigabytes(descriptor.downloadBytes)) download."
+            "\(descriptor.displayName) needs a one-time \(ByteCount.gigabytes(descriptor.downloadBytes)) download."
         case .warmingUp:
             "Warming up…"
         case .cancelling:
@@ -116,9 +116,5 @@ extension EngineState {
             parts.append("~\(Int(left.rounded())) s left")
         }
         return parts.joined(separator: " · ")
-    }
-
-    private static func gigabytes(_ bytes: Int64) -> String {
-        "\(Int((Double(bytes) / 1_000_000_000).rounded())) GB"
     }
 }

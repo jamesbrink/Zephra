@@ -49,8 +49,9 @@ extension GenerationStore {
     ///
     /// During a generation that means finishing the current step and dropping the queue: the
     /// backend only looks for a cancel between denoising steps, so `.cancelling` can sit there
-    /// for one step's worth. During a download, a load, or a warm-up it means abandoning that
-    /// and returning to `.idle`, from where the canvas offers to start again.
+    /// for one step's worth. During a download, a load, a warm-up, or the unload half of a
+    /// model swap it means abandoning that and returning to `.idle`, from where the canvas
+    /// offers to start again.
     public func cancel() {
         switch state {
         case .generating:
@@ -61,6 +62,10 @@ extension GenerationStore {
             queue.removeAll()
             isSwitchingForQueue = false
             bootstrapTask?.cancel()
+        case .idle where isSwitchingForQueue:
+            queue.removeAll()
+            isSwitchingForQueue = false
+            switchTask?.cancel()
         case .idle, .ready, .cancelling, .failed:
             break
         }

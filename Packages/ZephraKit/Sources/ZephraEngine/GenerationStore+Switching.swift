@@ -21,21 +21,27 @@ extension GenerationStore {
 
     /// Releases whatever is loaded and loads `model` instead, then, if asked, carries on down
     /// the queue. The old weights go back before the new ones are asked for, so two sets are
-    /// never resident at once. A load already under way is abandoned first.
+    /// never resident at once. A load or an earlier swap already under way is cancelled and
+    /// waited for first, so two quick picks in the menu never race each other's unload.
     func reload(_ model: ModelDescriptor, thenDrain: Bool) {
         isSwitchingForQueue = thenDrain
-        let pending = bootstrapTask
-        pending?.cancel()
+        let pendingLoad = bootstrapTask
+        let pendingSwitch = switchTask
+        pendingLoad?.cancel()
+        pendingSwitch?.cancel()
         transition(to: .idle)
         switchTask = Task {
-            // The cancelled load may still be finishing a step, and may still land on .ready
+            // The cancelled work may still be finishing a step, and may still land on .ready
             // for the model being left behind, so the state is settled again after it is done.
-            await pending?.value
+            await pendingSwitch?.value
+            await pendingLoad?.value
+            guard !Task.isCancelled else { return }
             await self.inference?.unload()
             self.loadedDescriptor = nil
             self.transition(to: .idle)
+            guard !Task.isCancelled else { return }
             await self.load(model)
-            guard thenDrain else { return }
+            guard thenDrain, !Task.isCancelled else { return }
             if self.state == .ready {
                 self.drain()
             } else {

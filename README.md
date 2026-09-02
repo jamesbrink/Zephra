@@ -209,7 +209,7 @@ Zephra/
 │   └── ZephraApp.swift  Views/**  Support/**  Resources/{Info.plist, Assets.xcassets, Colors}
 ├── Sources/ZephraBench/main.swift # headless benchmark tool
 ├── Sources/ZephraQuantize/         # builds the 4-bit variant from the bf16 release
-└── scripts/screenshot.sh, prefetch-model.sh, make-icon.swift,
+└── scripts/screenshot.sh, make-icon.swift,
             sign-release.sh, notarize-release.sh
 ```
 
