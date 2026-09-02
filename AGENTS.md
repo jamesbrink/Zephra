@@ -20,6 +20,7 @@ In order:
 Sources/Zephra (SwiftUI app) ─→ ZephraEngine ─→ ZephraCore
                              ─→ ZephraBackendZImage ─→ ZephraCore, ZImage   [imported in ZephraApp.swift ONLY]
 Sources/ZephraBench (tool)   ─→ ZephraCore, ZephraBackendZImage
+Sources/ZephraQuantize (tool)─→ ZephraCore, ZephraBackendZImage
 ```
 
 - `ZephraCore` (in `Packages/ZephraKit`): Sendable value types + protocols.
@@ -86,6 +87,9 @@ Makefile targets:
   `xcrun notarytool store-credentials zephra-notary` run once; `NOTARY_PROFILE`
   names the profile.
 - `make prefetch` — download the default model weights via `hf download`.
+- `make quantize` — download the bf16 release and build the 4-bit variant into
+  `~/Library/Application Support/Zephra/Models/z-image-turbo-4bit`. `BITS`,
+  `GROUP_SIZE`, and `QUANT_OUT` override the defaults (4 bits, group 64).
 - `make lint-layers` — enforce the layering rules above.
 - `make logs` — stream app logs (`log stream`, subsystem `io.zephra`).
 - `make screenshot` — capture the app window (see debugging hooks).
@@ -98,13 +102,49 @@ Release, never Debug — Debug has Metal validation and full debug info on.
 ## Model weights
 
 Default model: `mzbac/Z-Image-Turbo-8bit` — 13.3 GB download (excluding
-`assets/`), about 13 GB resident once loaded and peaking near 24 GB during VAE decode,
-so 32 GB of RAM is the practical floor. Weights are cached in
+`assets/`), 12236 MB resident once loaded and peaking at 23501 MB during the VAE
+decode at 1024 pixels, so 32 GB of RAM is the practical floor. Weights are cached in
 `~/.cache/huggingface/hub`, honoring `HF_HOME` / `HF_HUB_CACHE` if set.
 `make prefetch` seeds the cache ahead of first run.
 
 Always pass the model explicitly when calling into the vendored pipeline —
 its own default is the 33 GB bf16 repo, not the 8-bit one Zephra uses.
+
+Second model: `z-image-turbo-4bit`, built on the user's own Mac by `make quantize`,
+because no repository publishes four-bit Z-Image-Turbo in the manifest format the
+vendored loader reads. It is a `.localDirectory` source under
+`~/Library/Application Support/Zephra/Models`, so it downloads nothing and the
+backend reports a clear error when it is missing rather than trying to fetch it.
+6.7 GB on disk and 6575 MB resident, against 13.3 GB and 12236 MB for the 8-bit
+model. Peak follows the image size — 10693 MB at 512 pixels, 14599 MB at 768,
+17839 MB at 1024 — because peak is resident plus the unquantized VAE decode's
+scratch. So a 16 GB Mac is offered this variant and can run it at 512 and 768, but
+1024 will page. Four bits is not faster: MLX's quantized matmul costs the same at
+these shapes whichever bit width it packs, which `make bench ARGS=--micro` shows
+directly and the end-to-end step times agree with. Group size 64 rather than 32,
+measured: 32 costs 825 MB more resident and 1.1 GB more on disk for no visible
+quality gain.
+
+The quantizer lives in `ZephraBackendZImage/Quantization`. Three things about it
+are load-bearing and easy to break:
+
+- The set of packed tensors must match the reference eight-bit export exactly. The
+  loader decides what is quantized by looking for a `.scales` key, so packing a
+  tensor the reference left alone stops the module tree matching the weights.
+  `QuantizableWeight` is that rule, and `QuantizableWeightTests` pins it.
+- Manifest layer names are the bare module paths the loader looks them up by
+  (`layers.0.attention.to_q`, `model.layers.0.mlp.down_proj`), not prefixed with the
+  component the way `mzbac/Z-Image-Turbo-8bit` writes them. The reference names never
+  match, so its per-layer `bits` and `group_size` are dead and everything falls back
+  to the top level. Bare names make mixed precision — a four-bit transformer with an
+  eight-bit text encoder — actually work.
+- Scales and biases are written float32, as the reference does, because the source is
+  cast to float32 before packing. The transformer's `castFloatParameters` patch turns
+  them into bfloat16 at load.
+
+Weights stream one tensor at a time out of the memory-mapped source shard and spill
+once four gigabytes have accumulated, so a 24 GB float32 transformer converts at
+about 8 GB resident. The whole build takes about a minute once the source is local.
 
 ## Vendored code
 

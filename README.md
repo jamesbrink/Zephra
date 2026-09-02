@@ -19,14 +19,19 @@ Silicon, via MLX/Metal.
 - [`xcodegen`](https://github.com/yonaskolb/XcodeGen)
 - [`hf`](https://github.com/huggingface/huggingface_hub) CLI (optional, for
   `make prefetch`)
-- About 14 GB free disk for model weights
-- 32 GB RAM. The 8-bit model holds about 13 GB resident and peaks near 24 GB while
-  decoding; the app hides models that need more than 60 % of physical memory.
+- About 14 GB free disk for the 8-bit weights, or 7 GB for the 4-bit ones. Building
+  the 4-bit variant needs 33 GB more, for the full-precision release it is derived
+  from; that download can be deleted afterwards.
+- 32 GB RAM for the 8-bit model, which holds 12.2 GB resident and peaks at 23.5 GB
+  while decoding a 1024² image. The 4-bit variant brings that to 6.6 GB resident and
+  a 17.8 GB peak at 1024², or 10.7 GB at 512², so a 16 GB Mac can run it at the
+  smaller sizes. The app hides models that need more than 60 % of physical memory.
 
 ## Quick start
 
 ```sh
 make prefetch   # optional: download model weights ahead of time
+make quantize   # optional: build the smaller 4-bit variant (see below)
 make build
 make run
 ```
@@ -57,6 +62,7 @@ another backend without touching the UI or the core engine.
 Sources/Zephra (SwiftUI app) ─→ ZephraEngine ─→ ZephraCore
                              ─→ ZephraBackendZImage ─→ ZephraCore, ZImage   [imported in ZephraApp.swift ONLY]
 Sources/ZephraBench (tool)   ─→ ZephraCore, ZephraBackendZImage
+Sources/ZephraQuantize (tool)─→ ZephraCore, ZephraBackendZImage
 ```
 
 `ZephraCore` and `ZephraEngine` have zero MLX dependencies, so they build and
@@ -70,6 +76,48 @@ vendored Z-Image pipeline.
 | Apple M4 Max 48 GB, GPU shared with other apps (~50 % busy at idle) | 1024×1024 | 9 | ~57 s (6.3 s/step) |
 | Apple M4 Max 48 GB, same conditions | 512×512 | 4 | ~7 s (1.6 s/step) |
 | Apple M2 Ultra (upstream report) | 1024×1024 | 9 | ~44 s |
+
+### The 4-bit variant
+
+`make quantize` builds a four-bit copy of the weights on the machine itself, because no
+repository publishes Z-Image-Turbo in four bits in the format the loader reads. It downloads
+the 33 GB bfloat16 release once, packs the transformer's 270 and the text encoder's 252 linear
+weights at four bits with a group size of 64, leaves the VAE alone, and takes about a minute
+after the download. The result is 6.7 GB on disk against 13.3 GB for the 8-bit model.
+
+Measured on an M4 Max at seed 42, 9 steps, arms interleaved within each repetition because the
+machine was busy. Memory was identical to the megabyte across repetitions; the times were not,
+so they are minimums:
+
+| | 8-bit | 4-bit |
+|---|---|---|
+| resident after a generation | 12236 MB | 6575 MB |
+| peak at 1024² | 23501 MB | 17839 MB |
+| peak at 768² | 19712 MB | 14599 MB |
+| peak at 512² | 17657 MB | 10693 MB |
+| s/step at 1024² | 13.8 s | 14.0 s |
+| on disk | 13.3 GB | 6.7 GB |
+
+**Four bits buys memory, not speed.** MLX's quantized matmul takes the same 2.7 ms at
+[T,3840]×[3840,3840] whether the weights are 8-bit or 4-bit (`make bench ARGS=--micro`): at
+these shapes the kernel is compute-bound, not weight-bandwidth-bound, so halving the bits buys
+nothing in time. The end-to-end step times above agree. Peak drops by exactly as much as
+resident does, because the difference between them is the VAE decode's scratch, which is
+unquantized in both.
+
+**What a 16 GB Mac gets.** The 4-bit variant is the only one such a machine is offered, since
+the 8-bit model's 12.2 GB resident exceeds the 60 %-of-RAM bar. 512² peaks at 10.7 GB and 768²
+at 14.6 GB, both of which fit; 1024² peaks at 17.8 GB and will page.
+
+**Quality.** At a fixed seed the 4-bit image is not a slightly degraded 8-bit image — it is a
+different image, because the perturbed weights send the 9-step trajectory somewhere else. Mean
+absolute difference is 26.4 of 255 at 1024², yet both are sharp and both follow the prompt.
+Group size 32 was built and compared: it costs 825 MB more resident and 1.1 GB more on disk,
+is no closer to the 8-bit output (29.9 of 255, further away than group 64), and is not visibly
+better, so 64 is the default. Output is reproducible — two runs of the same variant at seed 42
+are identical to the byte.
+
+### Where the time goes
 
 Where a 1024² step goes: the denoiser is compute-bound. MLX quantized matmuls reach about
 12.5 TFLOPS on an M4 Max (`make bench ARGS=--micro`), and the 32 transformer layers sum to
@@ -94,6 +142,7 @@ Zephra/
 ├── Sources/Zephra/                # app target: SwiftUI only, composition root is ZephraApp.swift
 │   └── ZephraApp.swift  Views/**  Support/**  Resources/{Info.plist, Assets.xcassets, Colors}
 ├── Sources/ZephraBench/main.swift # headless benchmark tool
+├── Sources/ZephraQuantize/         # builds the 4-bit variant from the bf16 release
 └── scripts/screenshot.sh, prefetch-model.sh, make-icon.swift,
             sign-release.sh, notarize-release.sh
 ```
@@ -106,6 +155,8 @@ Zephra/
   they go through `xcodebuild` rather than `swift test` and take longer; nothing in
   them loads weights or touches the GPU.
 - `make icon` — re-render `AppIcon.appiconset` from `scripts/make-icon.swift`.
+- `make quantize` — build the 4-bit variant. `BITS` and `GROUP_SIZE` override the
+  4-bit, group-64 default; `QUANT_OUT` overrides where it lands.
 - `make lint-layers` — check the module boundaries above.
 
 ### Releasing
@@ -144,7 +195,6 @@ re-checks with `spctl`. `NOTARY_PROFILE=...` selects a differently named profile
 
 ## Roadmap
 
-- 4-bit quantized weights
 - More models, added as new backends behind the existing protocol
 - LoRA support
 - Image-to-image
