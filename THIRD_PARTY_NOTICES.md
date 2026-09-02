@@ -1,19 +1,22 @@
 # Third-Party Notices
 
 Zephra is proprietary software (see `LICENSE`) that incorporates the
-following third-party components. Each is used under its own license, listed
-below, with the full license text reproduced once per license type at the
-end of this file.
+following third-party components. Each is used under its own license. The
+copyright notices required by those licenses are listed per component, the
+NOTICE file that Apache-2.0 requires reproducing follows, and the full license
+texts appear once per license type at the end of this file.
 
 ## Components
 
 ### zimage.swift
 
 - **Source:** https://github.com/mzbac/zimage.swift
+- **Copyright:** Copyright (c) 2025 mzbac
 - **License:** MIT
 - **Used as:** vendored into `Packages/ZImageKit` at commit `970f83e4`,
-  providing the Z-Image diffusion pipeline. See
-  `Packages/ZImageKit/VENDORED.md` for the vendoring and patch log.
+  providing the Z-Image diffusion pipeline, with modifications marked
+  `ZEPHRA-PATCH`. See `Packages/ZImageKit/VENDORED.md` for the vendoring and
+  patch log.
 - **Note:** the upstream repository has no `LICENSE` file. Its `README.md`
   states the project is released under the MIT License; that statement is
   relied on here as the basis for the MIT text below.
@@ -21,15 +24,26 @@ end of this file.
 ### mlx-swift
 
 - **Source:** https://github.com/ml-explore/mlx-swift
-- **Author:** Apple Inc.
+- **Copyright:** Copyright (c) 2023 ml-explore
 - **License:** MIT
 - **Used as:** the Metal/MLX runtime the vendored Z-Image pipeline is built
-  on, pulled in as a dependency of `ZImageKit`.
+  on, pulled in as a dependency of `ZImageKit`. It compiles the following
+  libraries into the same binary:
+  - **mlx** — https://github.com/ml-explore/mlx — Copyright © 2023 Apple
+    Inc. — MIT
+  - **mlx-c** — https://github.com/ml-explore/mlx-c — Copyright (c) 2023
+    ml-explore — MIT
+  - **metal-cpp** — https://developer.apple.com/metal/cpp/ — Copyright
+    Apple Inc. — Apache License 2.0
+  - **{fmt}** — https://github.com/fmtlib/fmt — Copyright (c) 2012 - present,
+    Victor Zverovich and {fmt} contributors — MIT
+  - **JSON for Modern C++** — https://github.com/nlohmann/json — Copyright
+    (c) 2013-2022 Niels Lohmann — MIT
 
 ### swift-transformers
 
 - **Source:** https://github.com/huggingface/swift-transformers
-- **Author:** Hugging Face
+- **Copyright:** Copyright 2022 Hugging Face SAS
 - **License:** Apache License 2.0
 - **Used as:** tokenizer and Hugging Face Hub model resolution, pulled in as
   a dependency of `ZImageKit`.
@@ -37,36 +51,36 @@ end of this file.
 ### swift-log
 
 - **Source:** https://github.com/apple/swift-log
-- **Author:** Apple Inc.
-- **License:** Apache License 2.0
+- **Copyright:** Copyright 2018, 2019 The SwiftLog Project
+- **License:** Apache License 2.0 (NOTICE reproduced below)
 - **Used as:** structured logging, pulled in as a dependency of `ZImageKit`.
 
 ### Jinja
 
-- **Source:** https://github.com/huggingface/swift-jinja (John Mai / Hugging
-  Face)
-- **License:** Apache License 2.0
+- **Source:** https://github.com/huggingface/swift-jinja
+- **Copyright:** Copyright (c) 2024 John Mai
+- **License:** MIT
 - **Used as:** template rendering for tokenizer chat templates, pulled in
   transitively via `swift-transformers`.
 
 ### swift-collections
 
 - **Source:** https://github.com/apple/swift-collections
-- **Author:** Apple Inc.
+- **Copyright:** Apple Inc. and the Swift project authors
 - **License:** Apache License 2.0
 - **Used as:** additional data structures, pulled in transitively.
 
 ### swift-numerics
 
 - **Source:** https://github.com/apple/swift-numerics
-- **Author:** Apple Inc.
+- **Copyright:** Apple Inc. and the Swift project authors
 - **License:** Apache License 2.0
 - **Used as:** numeric protocols and algorithms, pulled in transitively.
 
 ### swift-argument-parser
 
 - **Source:** https://github.com/apple/swift-argument-parser
-- **Author:** Apple Inc.
+- **Copyright:** Apple Inc. and the Swift project authors
 - **License:** Apache License 2.0
 - **Used as:** command-line argument parsing, pulled in transitively.
 
@@ -82,16 +96,61 @@ cached locally under `~/.cache/huggingface/hub`.
 
 ---
 
+## NOTICE files
+
+### swift-log
+
+```
+                            The SwiftLog Project
+                            ========================
+
+Please visit the SwiftLog web site for more information:
+
+  * https://github.com/apple/swift-log
+
+Copyright 2018, 2019 The SwiftLog Project
+
+The SwiftLog Project licenses this file to you under the Apache License,
+version 2.0 (the "License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at:
+
+  https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+License for the specific language governing permissions and limitations
+under the License.
+
+-------------------------------------------------------------------------------
+
+This product contains a derivation of the lock implementation and various
+scripts from SwiftNIO.
+
+  * LICENSE (Apache License 2.0):
+    * https://www.apache.org/licenses/LICENSE-2.0
+  * HOMEPAGE:
+    * https://github.com/apple/swift-nio
+```
+
+---
+
 ## License texts
 
 ### MIT License
 
-Applies to: zimage.swift, mlx-swift.
+Applies to: zimage.swift, mlx-swift, mlx, mlx-c, {fmt}, JSON for Modern C++,
+and Jinja, each with the copyright notice listed for it above.
 
 ```
 MIT License
 
-Copyright (c) <year> <copyright holders>
+Copyright (c) 2025 mzbac
+Copyright (c) 2023 ml-explore
+Copyright (c) 2023 Apple Inc.
+Copyright (c) 2012 - present, Victor Zverovich and {fmt} contributors
+Copyright (c) 2013-2022 Niels Lohmann
+Copyright (c) 2024 John Mai
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -114,8 +173,8 @@ SOFTWARE.
 
 ### Apache License, Version 2.0
 
-Applies to: swift-transformers, swift-log, Jinja, swift-collections,
-swift-numerics, swift-argument-parser, and the Z-Image model weights.
+Applies to: swift-transformers, swift-log, swift-collections, swift-numerics,
+swift-argument-parser, metal-cpp, and the Z-Image model weights.
 
 ```
                                  Apache License

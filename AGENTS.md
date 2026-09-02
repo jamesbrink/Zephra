@@ -107,6 +107,10 @@ the re-sync procedure, and the running patch log. Any change inside
   stays in Swift 5 language mode so its 49 files compile untouched.
 - No emojis in code or docs.
 - Keep files small; split before a file grows past its target size.
+- Zephra may ship commercially. Every new dependency, vendored file, or model
+  gets an entry in `THIRD_PARTY_NOTICES.md` (copyright line, license, and any
+  NOTICE file) in the same commit. That file is bundled and shown in
+  Settings > About; it is the disclosure, so keep it exact.
 
 ## Debugging hooks
 
