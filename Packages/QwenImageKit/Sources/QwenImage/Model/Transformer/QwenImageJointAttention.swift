@@ -15,10 +15,10 @@ final class QwenImageJointAttention: Module {
     @ModuleInfo(key: "to_q") var imageQuery: Linear
     @ModuleInfo(key: "to_k") var imageKey: Linear
     @ModuleInfo(key: "to_v") var imageValue: Linear
-    /// An array with a dropout's empty slot after it, because the reference builds the image
-    /// stream's output as `Sequential(Linear, Dropout)` and the checkpoint calls the linear
-    /// `to_out.0`. The text stream's output is a bare linear and is named `to_add_out`.
-    @ModuleInfo(key: "to_out") var imageOutput: [Module]
+    /// The reference builds the image stream's output as `Sequential(Linear, Dropout)`, so the
+    /// checkpoint calls the linear `to_out.0`; that position is renamed on the way in. The text
+    /// stream's output is a bare linear and is already named `to_add_out`.
+    @ModuleInfo(key: "to_out") var imageOutput: Linear
 
     @ModuleInfo(key: "add_q_proj") var textQuery: Linear
     @ModuleInfo(key: "add_k_proj") var textKey: Linear
@@ -42,7 +42,7 @@ final class QwenImageJointAttention: Module {
         for projection in [_imageQuery, _imageKey, _imageValue, _textQuery, _textKey, _textValue] {
             projection.wrappedValue = Linear(dim, heads * headDim, bias: true)
         }
-        _imageOutput.wrappedValue = [Linear(heads * headDim, dim, bias: true), Identity()]
+        _imageOutput.wrappedValue = Linear(heads * headDim, dim, bias: true)
         _textOutput.wrappedValue = Linear(heads * headDim, dim, bias: true)
         for norm in [_imageQueryNorm, _imageKeyNorm, _textQueryNorm, _textKeyNorm] {
             norm.wrappedValue = RMSNorm(dimensions: headDim, eps: eps)
@@ -78,11 +78,8 @@ final class QwenImageJointAttention: Module {
         .transposed(0, 2, 1, 3)
         .reshaped([image.shape[0], -1, heads * headDim])
 
-        guard let imageProjection = imageOutput.first as? Linear else {
-            preconditionFailure("the image stream's output slot 0 must be its projection")
-        }
         return (
-            image: imageProjection(attended[0..., textLength...]),
+            image: imageOutput(attended[0..., textLength...]),
             text: textOutput(attended[0..., ..<textLength])
         )
     }

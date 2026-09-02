@@ -24,7 +24,10 @@ struct TransformerParityTests {
             guard !name.hasPrefix("in."), !name.hasPrefix("out.") else { continue }
             stripped[name] = value
         }
-        return stripped
+        // The reference numbers three layers by their position in a Sequential; the module tree
+        // names them. Going through the same rename the loader uses keeps this a test of the
+        // arithmetic rather than of the naming.
+        return QwenImageTransformerWeights.sanitized(stripped)
     }
 
     private static func frequencies(_ fixture: [String: MLXArray], _ name: String) throws

@@ -11,22 +11,22 @@ import MLXNN
 /// The two layer norms have no learnable parameters, which is why the checkpoint carries no
 /// weights for them.
 final class QwenImageTransformerBlock: Module {
-    @ModuleInfo(key: "img_mod") var imageModulation: [Module]
-    @ModuleInfo(key: "txt_mod") var textModulation: [Module]
+    @ModuleInfo(key: "img_mod") var imageModulation: QwenImageStreamModulation
+    @ModuleInfo(key: "txt_mod") var textModulation: QwenImageStreamModulation
     @ModuleInfo(key: "attn") var attention: QwenImageJointAttention
     @ModuleInfo(key: "img_mlp") var imageFeedForward: QwenImageFeedForward
     @ModuleInfo(key: "txt_mlp") var textFeedForward: QwenImageFeedForward
 
-    private let norm: LayerNorm
+    private let eps: Float
 
     init(dim: Int, heads: Int, headDim: Int, eps: Float = 1e-6) {
-        _imageModulation.wrappedValue = QwenImageStreamModulation.slots(dim: dim)
-        _textModulation.wrappedValue = QwenImageStreamModulation.slots(dim: dim)
+        _imageModulation.wrappedValue = QwenImageStreamModulation(dim: dim)
+        _textModulation.wrappedValue = QwenImageStreamModulation(dim: dim)
         _attention.wrappedValue = QwenImageJointAttention(
             dim: dim, heads: heads, headDim: headDim, eps: eps)
         _imageFeedForward.wrappedValue = QwenImageFeedForward(dim: dim)
         _textFeedForward.wrappedValue = QwenImageFeedForward(dim: dim)
-        norm = LayerNorm(dimensions: dim, eps: eps, affine: false)
+        self.eps = eps
     }
 
     func callAsFunction(
@@ -36,12 +36,12 @@ final class QwenImageTransformerBlock: Module {
         imageFrequencies: RotaryFrequencies,
         textFrequencies: RotaryFrequencies
     ) -> (image: MLXArray, text: MLXArray) {
-        let imageParameters = QwenImageStreamModulation.parameters(imageModulation, conditioning)
-        let textParameters = QwenImageStreamModulation.parameters(textModulation, conditioning)
+        let imageParameters = imageModulation(conditioning)
+        let textParameters = textModulation(conditioning)
 
         let attended = attention(
-            image: imageParameters.attention.modulate(norm(image)),
-            text: textParameters.attention.modulate(norm(text)),
+            image: imageParameters.attention.modulate(QwenImageLayerNorm.applied(to: image, eps: eps)),
+            text: textParameters.attention.modulate(QwenImageLayerNorm.applied(to: text, eps: eps)),
             imageFrequencies: imageFrequencies,
             textFrequencies: textFrequencies
         )
@@ -51,11 +51,11 @@ final class QwenImageTransformerBlock: Module {
         imageStream =
             imageStream
             + imageParameters.feedForward.gate
-            * imageFeedForward(imageParameters.feedForward.modulate(norm(imageStream)))
+            * imageFeedForward(imageParameters.feedForward.modulate(QwenImageLayerNorm.applied(to: imageStream, eps: eps)))
         textStream =
             textStream
             + textParameters.feedForward.gate
-            * textFeedForward(textParameters.feedForward.modulate(norm(textStream)))
+            * textFeedForward(textParameters.feedForward.modulate(QwenImageLayerNorm.applied(to: textStream, eps: eps)))
 
         return (image: imageStream, text: textStream)
     }

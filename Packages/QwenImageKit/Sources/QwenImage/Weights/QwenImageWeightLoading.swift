@@ -38,30 +38,35 @@ public enum QwenImageWeightLoading {
     ///   - manifest: How finely each layer was packed, when the snapshot is a packed one.
     public static func load(
         into model: Module,
-        weights: [String: MLXArray],
+        weights rawWeights: [String: MLXArray],
         manifest: QwenImageQuantizationManifest?
     ) throws {
+        let weights = QwenImageTransformerWeights.sanitized(rawWeights)
         if let manifest {
             let packed = Set(
                 weights.keys.filter { $0.hasSuffix(".scales") }
                     .map { String($0.dropLast(".scales".count)) })
-            // MLX asks `filter` and then `apply` for one layer at a time, in order, so the
-            // path the filter just accepted is the one apply is about to be handed. That is
-            // the only way to give each layer its own width, which is the point of a mixed
-            // build: apply on its own is told the module but not its name.
-            var accepted = ""
+
+            // Every leaf is claimed, not just the packed ones, and the unpacked ones are handed
+            // straight back unchanged. MLX rebuilds the tree from exactly the paths it is given,
+            // so claiming only some elements of an array leaves a sparse one -- which becomes a
+            // dictionary, and no longer matches the array it is meant to replace. Both the
+            // feed-forward's `net` and the modulation's slots are arrays with gaps in them,
+            // because the reference has an activation and a dropout where nothing is packed.
+            var quantizing = false
             quantize(
                 model: model,
                 filter: { path, _ in
-                    guard packed.contains(path) else { return false }
-                    accepted = path
-                    return true
+                    quantizing = packed.contains(path)
+                    guard quantizing else { return (64, 4, .affine) }
+                    let precision = manifest.precision(
+                        of: QwenImageTransformerWeights.checkpointName(of: path))
+                    return (precision.groupSize, precision.bits, .affine)
                 },
-                apply: { layer, _, _, mode in
-                    let precision = manifest.precision(of: accepted)
+                apply: { layer, groupSize, bits, mode in
+                    guard quantizing else { return layer }
                     return quantizeSingle(
-                        layer: layer, groupSize: precision.groupSize, bits: precision.bits,
-                        mode: mode)
+                        layer: layer, groupSize: groupSize, bits: bits, mode: mode)
                 }
             )
         }

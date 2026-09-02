@@ -13,11 +13,11 @@ import MLXNN
 final class QwenImageAdaLayerNormContinuous: Module {
     @ModuleInfo(key: "linear") var projection: Linear
 
-    private let norm: LayerNorm
+    private let eps: Float
 
     init(dim: Int, eps: Float = 1e-6) {
         _projection.wrappedValue = Linear(dim, dim * 2, bias: true)
-        norm = LayerNorm(dimensions: dim, eps: eps, affine: false)
+        self.eps = eps
     }
 
     func callAsFunction(_ x: MLXArray, conditioning: MLXArray) -> MLXArray {
@@ -25,6 +25,6 @@ final class QwenImageAdaLayerNormContinuous: Module {
         let width = parameters.shape[parameters.ndim - 1] / 2
         let scale = parameters[.ellipsis, ..<width].expandedDimensions(axis: 1)
         let shift = parameters[.ellipsis, width...].expandedDimensions(axis: 1)
-        return norm(x) * (1 + scale) + shift
+        return QwenImageLayerNorm.applied(to: x, eps: eps) * (1 + scale) + shift
     }
 }
