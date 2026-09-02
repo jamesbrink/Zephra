@@ -8,7 +8,7 @@ import ZephraCore
 /// The folder is never created here: `ImageLibrary` makes it on the first write, which is what
 /// lets a test tell "no image was saved" apart from "an empty folder was left behind".
 @MainActor
-final class Scratch {
+final class EngineTestBed {
     /// The backend's behaviour, shared with every mock the factory produces.
     let control = MockBackendControl()
     /// Where generated images are written.
@@ -19,7 +19,7 @@ final class Scratch {
         try? FileManager.default.removeItem(at: directory)
     }
 
-    /// A store wired to the mock backend and to this scratch folder.
+    /// A store wired to the mock backend and to this bed's output folder.
     func store() -> GenerationStore {
         let control = control
         return GenerationStore(
