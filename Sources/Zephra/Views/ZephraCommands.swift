@@ -23,6 +23,10 @@ struct ZephraCommands: Commands {
             Button("Reveal in Finder") { if let image = store.current { ImageExport.revealInFinder(image) } }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
                 .disabled(store.current == nil)
+            // To the Trash, so it is undoable in the Finder and needs no confirmation here.
+            Button("Delete Image", role: .destructive) { if let image = store.current { store.delete(image.id) } }
+                .keyboardShortcut(.delete, modifiers: .command)
+                .disabled(store.current == nil)
         }
         CommandGroup(after: .pasteboard) {
             Button("Copy Image") { if let image = store.current { ImageExport.copyToPasteboard(image) } }
