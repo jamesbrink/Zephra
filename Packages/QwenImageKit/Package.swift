@@ -10,6 +10,8 @@ let package = Package(
     dependencies: [
         // Pinned to the version every other package pins, so the graph stays one copy of MLX.
         .package(url: "https://github.com/ml-explore/mlx-swift", exact: "0.31.3"),
+        // MLX work that is not this model's: the tiled decode every family's autoencoder wants.
+        .package(path: "../ZephraMLXKit"),
         .package(url: "https://github.com/huggingface/swift-transformers", from: "0.1.24"),
     ],
     targets: [
@@ -21,6 +23,7 @@ let package = Package(
                 .product(name: "MLXFast", package: "mlx-swift"),
                 .product(name: "MLXRandom", package: "mlx-swift"),
                 .product(name: "Transformers", package: "swift-transformers"),
+                .product(name: "ZephraMLX", package: "ZephraMLXKit"),
             ]
         ),
         .testTarget(

@@ -30,8 +30,14 @@ QWEN_LORA   ?= $(QWEN_MODELS)/Qwen-Image-2512-Lightning/$(QWEN_LORA_FILE)
 QWEN_OUT    ?= $(HOME)/Library/Application Support/Zephra/Models/qwen-image-2512-4bit
 DEST     := platform=macOS,arch=arm64
 XCB      := xcodebuild -project $(PROJECT) -destination '$(DEST)' SYMROOT=$(BUILD) -derivedDataPath $(DERIVED)
-# Every package that links MLX, and so needs xcodebuild rather than `swift test`.
-MLX_PACKAGES := ZephraMLXKit QwenImageKit ZephraBackendZImage ZephraBackendQwenImage
+# Every package that links MLX, and so needs xcodebuild rather than `swift test`, written as
+# directory:scheme. SwiftPM names a package's scheme after the package, except where it ships
+# more than one library product, when the aggregate that covers every test target is
+# <name>-Package. Only ZephraMLXKit does, because a model package takes ZephraMLX without
+# dragging in the quantizer.
+MLX_PACKAGES := ZephraMLXKit:ZephraMLXKit-Package QwenImageKit:QwenImageKit \
+                ZephraBackendZImage:ZephraBackendZImage \
+                ZephraBackendQwenImage:ZephraBackendQwenImage
 
 # Distribution signing. The build itself is ad-hoc signed (project.yml), so these
 # matter only to `make release` and `make notarize`. Leave SIGN_IDENTITY empty to
@@ -82,9 +88,10 @@ test:
 # These link MLX, so their tests need xcodebuild rather than `swift test`. Kept out of
 # `make test` on purpose: that one stays MLX-free and fast.
 test-mlx:
-	@for package in $(MLX_PACKAGES); do \
+	@for entry in $(MLX_PACKAGES); do \
+	  package=$${entry%%:*}; scheme=$${entry##*:}; \
 	  echo "== $$package"; \
-	  ( cd $(CURDIR)/Packages/$$package && xcodebuild test -scheme $$package \
+	  ( cd $(CURDIR)/Packages/$$package && xcodebuild test -scheme $$scheme \
 	    -destination 'platform=macOS' -skipPackagePluginValidation \
 	    -derivedDataPath $(DERIVED) ) || exit 1; \
 	done

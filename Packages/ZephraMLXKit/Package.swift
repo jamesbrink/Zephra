@@ -5,7 +5,8 @@ let package = Package(
     name: "ZephraMLXKit",
     platforms: [.macOS(.v15)],
     products: [
-        .library(name: "ZephraQuantization", targets: ["ZephraQuantization"])
+        .library(name: "ZephraQuantization", targets: ["ZephraQuantization"]),
+        .library(name: "ZephraMLX", targets: ["ZephraMLX"]),
     ],
     dependencies: [
         .package(path: "../ZephraKit"),
@@ -20,6 +21,19 @@ let package = Package(
         .target(
             name: "ZephraQuantization",
             dependencies: [.product(name: "MLX", package: "mlx-swift")]
+        ),
+        // MLX work that is the same job for every family and knows nothing about any of them.
+        // A model package may depend on this; nothing here may depend on a model package.
+        .target(
+            name: "ZephraMLX",
+            dependencies: [.product(name: "MLX", package: "mlx-swift")]
+        ),
+        .testTarget(
+            name: "ZephraMLXTests",
+            dependencies: [
+                "ZephraMLX",
+                .product(name: "MLX", package: "mlx-swift"),
+            ]
         ),
         .testTarget(
             name: "ZephraQuantizationTests",
