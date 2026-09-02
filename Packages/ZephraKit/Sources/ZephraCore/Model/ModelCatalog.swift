@@ -64,8 +64,17 @@ public enum ModelCatalog {
     /// Every known model, in the order a picker should list them.
     public static let all: [ModelDescriptor] = [zImageTurbo8bit, zImageTurbo4bit]
 
-    /// The model selected on first launch.
+    /// The model selected on first launch when nothing is known about the machine.
     public static let `default`: ModelDescriptor = zImageTurbo8bit
+
+    /// The model to start a Mac with this much RAM on: the first listed variant that runs at
+    /// its default size there, or `default` when none does.
+    ///
+    /// Without this a 16 GB Mac would open on a model its own menu marks "Needs 23 GB", load
+    /// 12 GB of weights it cannot decode with, and only find the variant it can run by hand.
+    public static func `default`(fitting physicalMemory: UInt64) -> ModelDescriptor {
+        fitting(physicalMemory: physicalMemory).first ?? zImageTurbo8bit
+    }
 
     /// Looks up a model by the identifier stored in settings or in a past generation.
     public static func descriptor(id: String) -> ModelDescriptor? {

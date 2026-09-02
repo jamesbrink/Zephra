@@ -51,10 +51,14 @@ struct ZephraApp: App {
         return GenerationStore(descriptor: ZephraApp.savedModel(), registry: registry)
     }
 
-    /// The model chosen last time, or the catalog's default when nothing was chosen or the
-    /// saved identifier belongs to a build that no longer ships that model.
+    /// The model chosen last time, or the largest one this Mac can actually run when nothing
+    /// was chosen or the saved identifier belongs to a build that no longer ships that model.
+    ///
+    /// A saved choice is honoured whatever its size: a model that pages at its default size
+    /// still runs at a smaller one, and that is the user's call to make.
     private static func savedModel() -> ModelDescriptor {
         let saved = UserDefaults.standard.string(forKey: AppSettings.selectedModelID)
-        return saved.flatMap(ModelCatalog.descriptor(id:)) ?? ModelCatalog.default
+        return saved.flatMap(ModelCatalog.descriptor(id:))
+            ?? ModelCatalog.default(fitting: ProcessInfo.processInfo.physicalMemory)
     }
 }

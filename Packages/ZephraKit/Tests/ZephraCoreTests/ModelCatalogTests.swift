@@ -106,6 +106,18 @@ struct ModelCatalogTests {
         #expect(ModelCatalog.all.contains(ModelCatalog.default))
     }
 
+    @Test("a first launch starts on the largest model the Mac can actually run")
+    func defaultFollowsTheMachine() {
+        #expect(ModelCatalog.default(fitting: Self.gigabytes(48)) == ModelCatalog.zImageTurbo8bit)
+        #expect(ModelCatalog.default(fitting: Self.gigabytes(24)) == ModelCatalog.zImageTurbo8bit)
+        #expect(ModelCatalog.default(fitting: Self.gigabytes(16)) == ModelCatalog.zImageTurbo4bit)
+        // Nothing fits an 8 GB Mac, so it opens on the plain default rather than on nothing.
+        #expect(ModelCatalog.default(fitting: Self.gigabytes(8)) == ModelCatalog.default)
+        for gigabytes in [UInt64(8), 16, 24, 32, 48] {
+            #expect(ModelCatalog.all.contains(ModelCatalog.default(fitting: Self.gigabytes(gigabytes))))
+        }
+    }
+
     @Test("every preset is aligned and inside the size bounds")
     func presetsAreValid() {
         for descriptor in ModelCatalog.all {
