@@ -64,8 +64,12 @@ struct QuantizableWeightTests {
 
     @Test("a weight the group size does not divide stays full precision")
     func indivisibleInputDimension() {
-        #expect(QuantizableWeight(name: "a.weight", shape: [64, 100], groupSize: 64) == nil)
-        #expect(QuantizableWeight(name: "a.weight", shape: [64, 100], groupSize: 32) != nil)
+        // 96 columns: three groups of 32, but not a whole number of 64s. Every input width in
+        // Z-Image happens to divide by 128, so the packed set is the same at any group size,
+        // but the rule still has to hold or a future model would silently lose layers.
+        #expect(QuantizableWeight(name: "a.weight", shape: [64, 96], groupSize: 64) == nil)
+        #expect(QuantizableWeight(name: "a.weight", shape: [64, 96], groupSize: 32) != nil)
+        #expect(QuantizableWeight(name: "a.weight", shape: [64, 100], groupSize: 32) == nil)
     }
 }
 
