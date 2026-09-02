@@ -4,6 +4,22 @@ import ZephraCore
 /// Running a generation, recording the result, and getting it onto disk. Split out of
 /// `GenerationStore.swift` to keep the observed surface of the store readable on its own.
 extension GenerationStore {
+    /// Kicks off `request` on the inference actor. Only `generate()` and the queue call this.
+    func start(_ request: GenerationSettings) {
+        guard let inference else { return }
+        transition(to: .generating(GenerationProgressEvent(phase: .preparing, fraction: 0)))
+        generationTask = Task { await self.run(request, on: inference) }
+    }
+
+    /// Returns to `.ready`, then starts the next queued generation if there is one. Every way a
+    /// run can end goes through here so the queue never stalls.
+    private func finish() {
+        transition(to: .ready)
+        guard !queue.isEmpty else { return }
+        let next = queue.removeFirst()
+        start(next.settings)
+    }
+
     /// Drives one generation from start to finish. The activity assertion keeps the Mac awake:
     /// a generation is a long stretch of silent Metal work with no user input behind it.
     func run(_ request: GenerationSettings, on inference: InferenceActor) async {
@@ -21,12 +37,14 @@ extension GenerationStore {
             }
             complete(data, request: request, duration: clock.now - started)
         } catch is CancellationError {
-            transition(to: .ready)
+            finish()
         } catch BackendError.cancelled {
-            transition(to: .ready)
+            finish()
         } catch let error as BackendError {
+            queue.removeAll()
             transition(to: .failed(.backend(error)))
         } catch {
+            queue.removeAll()
             transition(to: .failed(.backend(.generationFailed(error.localizedDescription))))
         }
     }
@@ -46,8 +64,8 @@ extension GenerationStore {
             history.removeLast(history.count - Self.historyLimit)
         }
         lastDuration = duration
-        transition(to: .ready)
         save(image)
+        finish()
     }
 
     private func save(_ image: GeneratedImage) {
