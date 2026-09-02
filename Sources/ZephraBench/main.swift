@@ -6,9 +6,10 @@ import ZephraBackendZImage
 let options = BenchOptions.parse(CommandLine.arguments)
 
 if options.micro {
-    // Token count for a square image: (size / 16 / 2)^2 latent patches, rounded up to the
-    // transformer's sequence multiple, plus a caption stream of the same granularity.
-    let patches = (options.size / 16 / 2) * (options.size / 16 / 2)
+    // Token count for a square image: the VAE compresses 8x and the transformer patches 2x2,
+    // so a 1024 px side is 64 patches (4,096 tokens), plus a caption stream padded to 64.
+    let side = options.size / 8 / 2
+    let patches = side * side
     ZImageMicrobench.run(tokens: patches + 64)
     exit(0)
 }
