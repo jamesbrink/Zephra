@@ -24,8 +24,9 @@ Silicon, via MLX/Metal.
   from; that download can be deleted afterwards.
 - 32 GB RAM for the 8-bit model, which holds 12.2 GB resident and peaks at 23.5 GB
   while decoding a 1024² image. The 4-bit variant brings that to 6.6 GB resident and
-  a 17.8 GB peak at 1024², or 10.7 GB at 512², so a 16 GB Mac can run it at the
-  smaller sizes. The app hides models that need more than 60 % of physical memory.
+  a 17.8 GB peak at 1024², or 10.7 GB at 512². Peak, not resident, is what decides
+  whether a Mac pages, and the tiled VAE decode below takes about 6 GB off it, so a
+  24 GB Mac runs both models at 1024² and a 16 GB Mac runs the 4-bit one there.
 
 ## Quick start
 
@@ -49,9 +50,11 @@ readout while that happens.
   offers to pick it up again — a stopped download resumes from what it already fetched.
 - The model menu in the toolbar names the model that is running and lists the rest, each with
   what choosing it would cost: "Downloaded", "13.3 GB download", "Not built yet" for a local
-  variant that has not been quantized, or "Needs N GB" for one this Mac has too little memory
-  for. Picking a model that has not been downloaded starts the download; the last two are
-  disabled, with the reason in the tooltip. Switching releases the old weights before it asks
+  variant that has not been quantized, "Tiles the decode" for one this Mac reaches only with
+  the tiled VAE decode, or "Needs N GB" for one whose peak is over this Mac's budget even
+  tiled. Picking a model that has not been downloaded starts the download. Memory never
+  disables a row — a model that would page at 1024² still runs at 768², and the tooltip says
+  so; only "Not built yet" is out of reach. Switching releases the old weights before it asks
   for the new ones. Choosing a model while an image is running interrupts nothing: the running
   image finishes on its model, anything already queued keeps the model it was queued for, and
   the new choice applies to whatever you queue next, with the engine swapping weights between
@@ -72,8 +75,9 @@ readout while that happens.
   canvas) moves the file to the Trash, so it is recoverable from the Finder.
 - Settings holds where images are written and the seed preference under General. Performance
   has the after-load warm-up, the ceiling on the GPU scratch the runtime keeps between
-  generations — with the figure recommended for your Mac, and a reset back to it — and a live
-  readout of active, cached and peak GPU memory. A changed ceiling applies immediately.
+  generations — with the figure recommended for your Mac, and a reset back to it — whether the
+  VAE decode is tiled (Automatic, Always, Never), and a live readout of active, cached and peak
+  GPU memory plus which way the decode is currently set. Both changes apply immediately.
 - Shortcuts: Generate ⌘↩, Stop ⌘., Save As ⌘S, Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C,
   Delete Image ⌘⌫. Cut, Copy, Paste and Select All in the prompt field are the standard Edit
   menu items.
@@ -143,10 +147,13 @@ nothing in time. The end-to-end step times above agree. Peak drops by exactly as
 resident does, because the difference between them is the VAE decode's scratch, which is
 unquantized in both.
 
-**What a 16 GB Mac gets.** The 4-bit variant is the only one such a machine is offered, since
-the 8-bit model's 12.2 GB resident exceeds the 60 %-of-RAM bar. 512² peaks at 10.7 GB and 768²
-at 14.6 GB, both of which fit; 1024² peaks at 17.8 GB untiled and will page, and near 12 GB with
-the tiled VAE decode described below.
+**What a 16 GB Mac gets.** The 4-bit variant, and it reaches 1024² there. The bar is peak
+against four fifths of physical memory — peak is what a Mac has to find, and it is resident
+plus the VAE decode's transient — so 512² at 10.7 GB and 768² at 14.6 GB fit outright, and
+1024², 17.8 GB untiled, fits at about 12 GB once the decode is tiled. The 8-bit model's
+17.7 GB tiled peak is still over the bar on such a machine, so its row says "Needs 23 GB"; it
+stays selectable, because a smaller size still runs. A 24 GB Mac is offered both, the 8-bit one
+with its decode tiled; a 32 GB Mac runs both untiled and exact.
 
 **Quality.** At a fixed seed the 4-bit image is not a slightly degraded 8-bit image — it is a
 different image, because the perturbed weights send the 9-step trajectory somewhere else. Mean
@@ -187,10 +194,13 @@ to be close, and over Z-Image-Turbo's 9 steps they are 12 % to 41 % apart. A thr
 to be safe skips nothing; one that skips a single step of nine already redraws the robot's head
 and hands (mean absolute difference 11.7 of 255), and one that skips three gives a different
 picture entirely (26.9 of 255). The patch was removed rather than left switched off. **Tiled VAE
-decode does work**, and is kept behind `ZEPHRA_VAE_TILE=64`: decoding in overlapping 512-pixel
-tiles takes peak memory at 1024² from 23.5 GB to 17.7 GB for a mean absolute difference of 1.0 of
-255 and no visible seam. It is off by default because the untiled decode is exact and a 32 GB Mac
-does not need it; it is what would let a 16 GB Mac reach 1024² on a 4-bit model.
+decode does work**, and is shipped: decoding in overlapping 512-pixel tiles takes peak memory at
+1024² from 23.5 GB to 17.7 GB for a mean absolute difference of 1.0 of 255 and no visible seam.
+Settings > Performance controls it, and Automatic — the default — turns it on only for a model
+whose untiled peak is over four fifths of this Mac's memory. So a 32 GB Mac decodes exactly, a
+24 GB Mac tiles for the 8-bit model and not for the 4-bit one, and a 16 GB Mac tiles for both
+and thereby reaches 1024² on the 4-bit model. Always and Never override the judgement, and
+`ZEPHRA_VAE_TILE=64` still sets the tile for `ZephraBench`, which has no settings to read.
 
 ## Project layout
 
