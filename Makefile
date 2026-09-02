@@ -93,14 +93,17 @@ logs:
 screenshot:
 	./scripts/screenshot.sh
 
-# Layering rules from CLAUDE.md, enforced mechanically.
+# Layering rules from CLAUDE.md, enforced mechanically. The patterns are deliberately
+# family-agnostic: a second backend package must not need a Makefile edit to be policed.
 lint-layers:
-	@! grep -rln '^import ZImage\|^import MLX' Sources/Zephra Sources/ZephraBench Sources/ZephraQuantize --include='*.swift' \
-	  || (echo "LAYER VIOLATION: app or tool target imports ZImage or MLX directly"; exit 1)
-	@! grep -rln '^import ZephraBackendZImage' Sources/Zephra --include='*.swift' | grep -v 'ZephraApp.swift' \
-	  || (echo "LAYER VIOLATION: ZephraBackendZImage imported outside ZephraApp.swift"; exit 1)
-	@! grep -rln '^import ZImage\|^import MLX' Packages/ZephraKit/Sources/ZephraCore Packages/ZephraKit/Sources/ZephraEngine 2>/dev/null \
-	  || (echo "LAYER VIOLATION: ZephraCore/ZephraEngine import ZImage or MLX"; exit 1)
-	@! grep -rln '^import SwiftUI\|^import AppKit' Packages/ZephraKit/Sources 2>/dev/null \
+	@! grep -rlnE '^import (ZImage|QwenImage|MLX)' Sources/Zephra Sources/ZephraBench Sources/ZephraQuantize --include='*.swift' \
+	  || (echo "LAYER VIOLATION: app or tool target imports a model package or MLX directly"; exit 1)
+	@! grep -rlnE '^import ZephraBackend' Sources/Zephra --include='*.swift' | grep -v 'ZephraApp.swift' \
+	  || (echo "LAYER VIOLATION: a backend package is imported outside ZephraApp.swift"; exit 1)
+	@! grep -rlnE '^import (ZImage|QwenImage|MLX)' Packages/ZephraKit/Sources 2>/dev/null \
+	  || (echo "LAYER VIOLATION: ZephraKit imports a model package or MLX"; exit 1)
+	@! grep -rlnE '^import ZephraBackend' Packages/ZephraBackend*/Sources 2>/dev/null \
+	  || (echo "LAYER VIOLATION: one backend package imports another"; exit 1)
+	@! grep -rlnE '^import (SwiftUI|AppKit)' Packages/ZephraKit/Sources 2>/dev/null \
 	  || (echo "LAYER VIOLATION: UI framework imported inside ZephraKit"; exit 1)
 	@echo "layers ok"
