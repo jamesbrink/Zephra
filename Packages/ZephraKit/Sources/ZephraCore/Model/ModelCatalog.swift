@@ -1,5 +1,13 @@
+import Foundation
+
 /// The models Zephra ships knowledge of, hand-written because each one needs verified numbers.
 public enum ModelCatalog {
+    /// Where variants built on this Mac are kept. Nothing downloads into it; `make quantize`
+    /// writes here, and a descriptor pointing at a directory that is not there yet fails with a
+    /// message naming the missing folder rather than trying to fetch it.
+    public static let localModelsDirectory = URL.applicationSupportDirectory
+        .appending(path: "Zephra/Models", directoryHint: .isDirectory)
+
     /// Z-Image Turbo at eight-bit precision: the fastest variant that fits a 16 GB Mac.
     public static let zImageTurbo8bit = ModelDescriptor(
         id: "z-image-turbo-8bit",
@@ -17,30 +25,31 @@ public enum ModelCatalog {
         // weights. The load spike is a known vendored-loader cost; see VENDORED.md.
         residentBytes: 13_000_000_000,
         maxPromptTokens: 512,
-        capabilities: ModelCapabilities(
-            sizeAlignment: 16,
-            sizePresets: [
-                ImageSize(width: 1024, height: 1024),
-                ImageSize(width: 1152, height: 896),
-                ImageSize(width: 896, height: 1152),
-                ImageSize(width: 1216, height: 832),
-                ImageSize(width: 832, height: 1216),
-                ImageSize(width: 1344, height: 768),
-                ImageSize(width: 768, height: 1344),
-            ],
-            sizeBounds: 512...2048,
-            defaultSize: ImageSize(width: 1024, height: 1024),
-            stepBounds: 1...20,
-            defaultSteps: 9,
-            guidanceBounds: 0...0,
-            defaultGuidance: 0,
-            supportsNegativePrompt: false,
-            supportsSeed: true
-        )
+        capabilities: zImageTurboCapabilities
+    )
+
+    /// Z-Image Turbo at four-bit precision, built on this Mac by `make quantize`.
+    ///
+    /// No published repository carries four-bit Z-Image weights in the manifest format the
+    /// vendored loader reads, so this variant has no download: the descriptor points at the
+    /// directory the quantizer writes, and the backend reports a clear error until it is there.
+    public static let zImageTurbo4bit = ModelDescriptor(
+        id: "z-image-turbo-4bit",
+        displayName: "Z-Image Turbo",
+        variantName: "4-bit",
+        backend: .zImage,
+        source: .localDirectory(localModelsDirectory.appending(path: "z-image-turbo-4bit")),
+        quantization: .int4,
+        downloadBytes: 0,
+        // Measured on an M4 Max at 1024 pixels: 7.4 GB live after a generation, 17.7 GB peak
+        // during the VAE decode. The live figure is what decides whether a Mac can run it.
+        residentBytes: 7_400_000_000,
+        maxPromptTokens: 512,
+        capabilities: zImageTurboCapabilities
     )
 
     /// Every known model, in the order a picker should list them.
-    public static let all: [ModelDescriptor] = [zImageTurbo8bit]
+    public static let all: [ModelDescriptor] = [zImageTurbo8bit, zImageTurbo4bit]
 
     /// The model selected on first launch.
     public static let `default`: ModelDescriptor = zImageTurbo8bit
@@ -55,4 +64,27 @@ public enum ModelCatalog {
         let budget = Double(physicalMemory) * 0.6
         return all.filter { Double($0.residentBytes) <= budget }
     }
+
+    /// What every Z-Image Turbo variant accepts. Quantizing the weights changes how much memory
+    /// they need and how fine the output is, not which sizes or step counts the model runs.
+    private static let zImageTurboCapabilities = ModelCapabilities(
+        sizeAlignment: 16,
+        sizePresets: [
+            ImageSize(width: 1024, height: 1024),
+            ImageSize(width: 1152, height: 896),
+            ImageSize(width: 896, height: 1152),
+            ImageSize(width: 1216, height: 832),
+            ImageSize(width: 832, height: 1216),
+            ImageSize(width: 1344, height: 768),
+            ImageSize(width: 768, height: 1344),
+        ],
+        sizeBounds: 512...2048,
+        defaultSize: ImageSize(width: 1024, height: 1024),
+        stepBounds: 1...20,
+        defaultSteps: 9,
+        guidanceBounds: 0...0,
+        defaultGuidance: 0,
+        supportsNegativePrompt: false,
+        supportsSeed: true
+    )
 }
