@@ -14,6 +14,13 @@ public enum QuantizationError: Error, LocalizedError, Equatable {
     case unreadableShard(URL, reason: String)
     /// The plan packed nothing at all, so there is no manifest to write and no build to load.
     case nothingPacked
+    /// An adapter file holds one half of a low-rank update and not the other.
+    case incompleteAdapterLayer(String)
+    /// An adapter's update is not the shape of the weight it claims to modify.
+    case adapterShapeMismatch(String, adapter: [Int], weight: [Int])
+    /// An adapter names weights the component being packed does not have, so the distillation
+    /// it encodes would be silently half-applied.
+    case unmatchedAdapterLayers(component: String, keys: [String])
 
     public var errorDescription: String? {
         switch self {
@@ -29,6 +36,16 @@ public enum QuantizationError: Error, LocalizedError, Equatable {
             "Could not read \(url.lastPathComponent): \(reason)."
         case .nothingPacked:
             "The quantization plan packed no layers, so the result would not load."
+        case .incompleteAdapterLayer(let key):
+            "The adapter has only one of the two factors for \(key), so it cannot be merged."
+        case .adapterShapeMismatch(let key, let adapter, let weight):
+            "The adapter's update for \(key) is \(adapter) but the weight is \(weight)."
+        case .unmatchedAdapterLayers(let component, let keys):
+            """
+            The adapter names \(keys.count) weights \(component) has not got, such as \
+            \(keys.prefix(3).joined(separator: ", ")). Merging it would apply part of the \
+            distillation and not the rest.
+            """
         }
     }
 }

@@ -37,20 +37,26 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
     ///
     /// Qwen-Image holds its modulation layers at eight bits whatever the rest is set to: they
     /// are a third of its parameters and they decide how strongly every other layer responds.
+    ///
+    /// `adapters` are merged into whichever component the family adapts, which for both families
+    /// here is the diffusion transformer.
     func plan(
         transformer: QuantizationPrecision,
-        textEncoder: QuantizationPrecision
+        textEncoder: QuantizationPrecision,
+        adapters: [URL]
     ) throws -> QuantizationPlan {
         switch self {
         case .zImage:
-            ZImageQuantizationPlan.plan(transformer: transformer, textEncoder: textEncoder)
+            ZImageQuantizationPlan.plan(
+                transformer: transformer, textEncoder: textEncoder, adapters: adapters)
         case .qwenImage:
             QwenImageQuantizationPlan.plan(
                 transformer: transformer,
                 textEncoder: textEncoder,
                 modulation: transformer.bits < 8
                     ? try QuantizationPrecision(bits: 8, groupSize: transformer.groupSize)
-                    : transformer
+                    : transformer,
+                adapters: adapters
             )
         }
     }

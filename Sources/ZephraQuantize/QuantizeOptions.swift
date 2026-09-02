@@ -21,6 +21,9 @@ struct QuantizeOptions: Sendable {
     /// The repository the weights came from, recorded in the manifest. Defaults to the
     /// family's usual source.
     var sourceName: String?
+    /// Low-rank adapter files merged into the transformer before it is packed. Repeat `--lora`
+    /// to stack more than one; the usual case is a single distillation adapter.
+    var adapters: [URL] = []
 
     /// Reads options from the command line, exiting with usage text on anything unrecognised.
     static func parse(_ arguments: [String]) -> QuantizeOptions {
@@ -53,6 +56,7 @@ struct QuantizeOptions: Sendable {
         case "--source": options.source = URL(fileURLWithPath: value)
         case "--out": options.output = URL(fileURLWithPath: value)
         case "--source-name": options.sourceName = value
+        case "--lora": options.adapters.append(URL(fileURLWithPath: value))
         case "--bits": options.bits = positive(value, flag)
         case "--group-size": options.groupSize = positive(value, flag)
         case "--text-encoder-bits": options.textEncoderBits = positive(value, flag)
@@ -75,12 +79,16 @@ struct QuantizeOptions: Sendable {
 
     private static let usage = """
         usage: ZephraQuantize --family NAME --source DIR [--out DIR] [--bits N] \
-        [--group-size N] [--text-encoder-bits N] [--text-encoder-group-size N] [--source-name ID]
+        [--group-size N] [--text-encoder-bits N] [--text-encoder-group-size N] \
+        [--lora FILE ...] [--source-name ID]
 
         --family is one of \(QuantizeFamily.names) and decides which plan is used: which
         directories are packed, which tensors are left alone, and where the result is written.
         --source is a full-precision snapshot directory, such as the one `hf download` prints.
         The text encoder options default to the transformer's, which is what a plain uniform
         build wants.
+        --lora merges a low-rank adapter into the transformer on the way past, so a distilled
+        variant ships as an ordinary snapshot with no adapter code at run time. Every weight the
+        adapter names must exist in the transformer, or the build stops.
         """
 }

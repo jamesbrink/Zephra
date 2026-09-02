@@ -15,6 +15,19 @@ BASE_MODEL := Tongyi-MAI/Z-Image-Turbo
 BITS       ?= 4
 GROUP_SIZE ?= 64
 QUANT_OUT  ?= $(HOME)/Library/Application Support/Zephra/Models/z-image-turbo-4bit
+
+# Qwen-Image-2512 is 57.7 GB in bf16, too large for the boot volume here, so its full-precision
+# source and its distillation adapter live on external storage. Point QWEN_SOURCE and QWEN_LORA
+# wherever they are on this machine; `make prefetch-qwen` puts them there.
+QWEN_MODEL  := Qwen/Qwen-Image-2512
+QWEN_LORA_REPO := lightx2v/Qwen-Image-2512-Lightning
+# The four-step adapter in float32. The repository also ships whole merged checkpoints of twenty
+# gigabytes each, which is why this names one file rather than downloading the repository.
+QWEN_LORA_FILE := Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors
+QWEN_MODELS ?= /Volumes/ExternalStorage/Models
+QWEN_SOURCE ?= $(QWEN_MODELS)/Qwen-Image-2512
+QWEN_LORA   ?= $(QWEN_MODELS)/Qwen-Image-2512-Lightning/$(QWEN_LORA_FILE)
+QWEN_OUT    ?= $(HOME)/Library/Application Support/Zephra/Models/qwen-image-2512-4bit
 DEST     := platform=macOS,arch=arm64
 XCB      := xcodebuild -project $(PROJECT) -destination '$(DEST)' SYMROOT=$(BUILD) -derivedDataPath $(DERIVED)
 # Every package that links MLX, and so needs xcodebuild rather than `swift test`.
@@ -28,7 +41,7 @@ NOTARY_PROFILE ?= zephra-notary
 RELEASE_APP    := $(BUILD)/Release/Zephra.app
 RELEASE_ZIP    := $(BUILD)/Zephra.zip
 
-.PHONY: gen build run bench quantize prefetch open clean lint-layers logs screenshot test test-mlx test-backend icon release notarize
+.PHONY: gen build run bench quantize quantize-qwen prefetch prefetch-qwen open clean lint-layers logs screenshot test test-mlx test-backend icon release notarize
 
 gen:
 	xcodegen generate --spec project.yml
@@ -51,6 +64,17 @@ quantize: gen
 	  --source "$$(hf download $(BASE_MODEL) --exclude 'assets/*')" \
 	  --source-name $(BASE_MODEL) --bits $(BITS) --group-size $(GROUP_SIZE) \
 	  --out "$(QUANT_OUT)" $(ARGS)
+
+# The Qwen build merges the four-step Lightning adapter into the transformer as it packs, so what
+# lands in QWEN_OUT is the distilled model and the runtime never sees an adapter. The base model
+# wants fifty steps and real guidance, which is two passes through twenty billion parameters per
+# step; without the merge this build is unusable rather than merely slower.
+quantize-qwen: gen
+	$(XCB) -scheme ZephraQuantize -configuration Release build >/dev/null
+	"$(QUANTIZE)" --family qwen-image \
+	  --source "$(QWEN_SOURCE)" --lora "$(QWEN_LORA)" \
+	  --source-name $(QWEN_MODEL) --bits $(BITS) --group-size $(GROUP_SIZE) \
+	  --out "$(QWEN_OUT)" $(ARGS)
 
 test:
 	cd Packages/ZephraKit && swift test
@@ -88,6 +112,13 @@ notarize:
 
 prefetch:
 	hf download $(MODEL) --exclude "assets/*"
+
+# Qwen-Image-2512 and its four-step adapter, onto QWEN_MODELS rather than into the hub cache:
+# 57.7 GB does not belong on a boot volume, and the loader reads a plain directory anyway.
+prefetch-qwen:
+	hf download $(QWEN_MODEL) --local-dir "$(QWEN_SOURCE)"
+	hf download $(QWEN_LORA_REPO) $(QWEN_LORA_FILE) \
+	  --local-dir "$(QWEN_MODELS)/Qwen-Image-2512-Lightning"
 
 open: gen
 	open $(PROJECT)

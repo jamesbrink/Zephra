@@ -12,6 +12,11 @@ import ZephraQuantization
 ///
 /// The VAE is not packed at all. It is a quarter of a gigabyte, it runs once per image rather
 /// than once per step, and quantization artefacts in it land directly on the pixels.
+///
+/// The distillation is an adapter, merged into the transformer here. The base model wants fifty
+/// steps and real classifier-free guidance, which is two forward passes through twenty billion
+/// parameters per step; the four-step Lightning adapter is what makes the model usable on a Mac
+/// at all, and merging it at build time is what keeps the runtime free of adapter code.
 public enum QwenImageQuantizationPlan {
     /// Directories carried across whole.
     static let verbatimDirectories = ["tokenizer", "scheduler", "vae"]
@@ -24,7 +29,8 @@ public enum QwenImageQuantizationPlan {
     public static func plan(
         transformer: QuantizationPrecision,
         textEncoder: QuantizationPrecision,
-        modulation: QuantizationPrecision
+        modulation: QuantizationPrecision,
+        adapters: [URL] = []
     ) -> QuantizationPlan {
         let exclusions = WeightPrecisionRule.normsAndEmbeddings
         return QuantizationPlan(
@@ -35,7 +41,8 @@ public enum QwenImageQuantizationPlan {
                         + precisionSensitive.map {
                             WeightPrecisionRule($0, precision: modulation)
                         },
-                    fallback: transformer
+                    fallback: transformer,
+                    adapters: adapters
                 ),
                 QuantizedComponent(
                     directoryName: "text_encoder",
@@ -54,10 +61,17 @@ public enum QwenImageQuantizationPlan {
 
     /// A plan at one precision throughout, except the modulation layers, which stay at eight
     /// bits whenever the rest is finer than that.
-    public static func plan(bits: Int, groupSize: Int) throws -> QuantizationPlan {
+    public static func plan(
+        bits: Int, groupSize: Int, adapters: [URL] = []
+    ) throws -> QuantizationPlan {
         let precision = try QuantizationPrecision(bits: bits, groupSize: groupSize)
         let modulation =
             bits < 8 ? try QuantizationPrecision(bits: 8, groupSize: groupSize) : precision
-        return plan(transformer: precision, textEncoder: precision, modulation: modulation)
+        return plan(
+            transformer: precision,
+            textEncoder: precision,
+            modulation: modulation,
+            adapters: adapters
+        )
     }
 }

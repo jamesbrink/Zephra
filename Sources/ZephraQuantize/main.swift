@@ -15,7 +15,8 @@ do {
         textEncoder: try QuantizationPrecision(
             bits: options.textEncoderBits ?? options.bits,
             groupSize: options.textEncoderGroupSize ?? options.groupSize
-        )
+        ),
+        adapters: options.adapters
     )
     let destination =
         options.output

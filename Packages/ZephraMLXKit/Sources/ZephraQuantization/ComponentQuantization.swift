@@ -10,6 +10,9 @@ import MLX
 ///
 /// Anything the component's rules leave alone — norms, embeddings, biases, whatever a family
 /// declares — is copied across untouched, in its original dtype.
+///
+/// When the component names adapter files, each weight is merged with its low-rank update on the
+/// way past, so a distilled variant costs one extra matmul per adapted tensor and no extra pass.
 public struct ComponentQuantization {
     /// Which component this run converts, and how finely each of its tensors should be packed.
     public let component: QuantizedComponent
@@ -61,12 +64,28 @@ public struct ComponentQuantization {
         let writer = QuantizedShardWriter(
             directory: outputDirectory, budgetBytes: shardBudgetBytes)
 
+        let adapter =
+            component.adapters.isEmpty ? nil : try LoRAAdapter(contentsOf: component.adapters)
+        if let adapter {
+            note("\(component.directoryName): merging \(adapter.count) adapted weights")
+        }
+        var merged: Set<String> = []
+
         var packed: [(QuantizableWeight, QuantizationPrecision)] = []
         for (index, shard) in shards.enumerated() {
             note(
                 "\(component.directoryName): reading \(shard.lastPathComponent) "
                     + "(\(index + 1) of \(shards.count))")
-            packed += try convert(shard: shard, into: writer)
+            packed += try convert(shard: shard, into: writer, adapter: adapter, merged: &merged)
+        }
+        // An adapter written against different module names would match nothing and quietly
+        // produce the base model, which looks like a build that worked. Say so instead.
+        if let adapter {
+            let missed = adapter.targetKeys.subtracting(merged).sorted()
+            guard missed.isEmpty else {
+                throw QuantizationError.unmatchedAdapterLayers(
+                    component: component.directoryName, keys: missed)
+            }
         }
         let shardOfTensor = try writer.finish(relativeTo: component.directoryName)
         note("\(component.directoryName): packed \(packed.count) layers")
@@ -85,21 +104,30 @@ public struct ComponentQuantization {
     }
 
     /// Reads one source shard and writes its tensors, packed or verbatim, to `writer`.
-    private func convert(shard: URL, into writer: QuantizedShardWriter) throws
-        -> [(QuantizableWeight, QuantizationPrecision)]
-    {
+    private func convert(
+        shard: URL,
+        into writer: QuantizedShardWriter,
+        adapter: LoRAAdapter?,
+        merged: inout Set<String>
+    ) throws -> [(QuantizableWeight, QuantizationPrecision)] {
         // Mapped, not read: the arrays below are views into the file until they are evaluated.
         let tensors = try MLX.loadArrays(url: shard)
         var packed: [(QuantizableWeight, QuantizationPrecision)] = []
         // In file order, so the mapped shard is read once from front to back.
         for entry in try SafeTensorsHeader(contentsOf: shard).entries {
-            guard let tensor = tensors[entry.name] else {
+            guard var tensor = tensors[entry.name] else {
                 throw QuantizationError.unreadableShard(
                     shard, reason: "header names \(entry.name) but the file does not hold it")
             }
             // Some tensors are not in the build at all: an unloaded vision tower is gigabytes
             // that would otherwise be copied for nothing.
             if component.omits(entry.name) { continue }
+            // Merge before anything else looks at the values: an adapted weight is simply the
+            // weight this build has, whether it then gets packed or copied across whole.
+            if let adapter, adapter.targetKeys.contains(entry.name) {
+                tensor = try adapter.applied(to: tensor, named: entry.name)
+                merged.insert(entry.name)
+            }
             // Policy first: the group size it names is what divisibility is tested against.
             guard let precision = component.precision(for: entry.name),
                 let weight = QuantizableWeight(
