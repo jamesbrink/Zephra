@@ -14,6 +14,13 @@ public protocol ImageGenerationBackend: AnyObject {
     /// The descriptor identifier currently held in memory, or nil when nothing is loaded.
     var loadedModelID: String? { get }
 
+    /// Whether the weights for `descriptor` are already on this Mac. Reads the disk and nothing
+    /// else: it must never download, and it must leave whatever is loaded exactly as it was, so
+    /// a picker can label every model in the catalog without committing to any of them.
+    nonisolated(nonsending) func availability(
+        of descriptor: ModelDescriptor
+    ) async -> ModelAvailability
+
     /// Ensures weights are on disk, downloading if needed. Returns the local snapshot directory.
     nonisolated(nonsending) func ensureAvailable(
         _ descriptor: ModelDescriptor,

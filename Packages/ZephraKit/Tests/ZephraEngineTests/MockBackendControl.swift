@@ -20,8 +20,14 @@ final class MockBackendControl: Sendable {
         var loadDelay: Duration = .zero
         /// Overrides the step count in the request, for a mock that ignores what it is asked.
         var stepOverride: Int?
+        /// What `availability(of:)` answers per descriptor id. Anything absent is `.available`.
+        var availability: [String: ModelAvailability] = [:]
         /// How many times `load` was called.
         var loads = 0
+        /// How many times `unload` was called.
+        var unloads = 0
+        /// How many times `availability(of:)` was asked.
+        var availabilityChecks = 0
         /// How many times `generate` was called, warm-up included.
         var generations = 0
         /// How many denoising steps have been reported since the last reset.

@@ -22,6 +22,11 @@ final class MockBackend: ImageGenerationBackend {
         self.control = control
     }
 
+    func availability(of descriptor: ModelDescriptor) async -> ModelAvailability {
+        control.update { $0.availabilityChecks += 1 }
+        return control.settings.availability[descriptor.id] ?? .available
+    }
+
     func ensureAvailable(
         _ descriptor: ModelDescriptor,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
@@ -75,6 +80,7 @@ final class MockBackend: ImageGenerationBackend {
     }
 
     func unload() {
+        control.update { $0.unloads += 1 }
         loadedModelID = nil
     }
 }
