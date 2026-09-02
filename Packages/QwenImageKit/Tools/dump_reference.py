@@ -121,6 +121,96 @@ def dump_text_encoder(out: pathlib.Path) -> None:
     print(f"text encoder: {len(tensors)} tensors")
 
 
+def dump_transformer(out: pathlib.Path) -> None:
+    """A doll's-house MMDiT block and a two-block model, with weights, inputs, and outputs.
+
+    Every way this can be silently wrong is structural: the modulation chunk order, which stream
+    is concatenated first, the tanh flavour of GELU, and whether the final norm chunks scale
+    before shift. All of them show up at any width.
+    """
+    from diffusers.models.transformers.transformer_qwenimage import (
+        QwenEmbedRope,
+        QwenImageTransformer2DModel,
+        QwenImageTransformerBlock,
+    )
+
+    torch.manual_seed(11)
+    dim, heads, head_dim = 32, 2, 16
+    axes = [4, 6, 6]
+    frames, height, width, text_length = 1, 3, 4, 5
+    image_tokens = frames * height * width
+
+    rope = QwenEmbedRope(theta=10000, axes_dim=axes, scale_rope=True)
+    image_freqs, text_freqs = rope([(frames, height, width)], max_txt_seq_len=text_length)
+
+    block = QwenImageTransformerBlock(
+        dim=dim, num_attention_heads=heads, attention_head_dim=head_dim
+    ).eval()
+    image = torch.randn(1, image_tokens, dim)
+    text = torch.randn(1, text_length, dim)
+    conditioning = torch.randn(1, dim)
+    with torch.no_grad():
+        text_out, image_out = block(
+            hidden_states=image,
+            encoder_hidden_states=text,
+            encoder_hidden_states_mask=None,
+            temb=conditioning,
+            image_rotary_emb=(image_freqs, text_freqs),
+        )
+
+    tensors = {f"block.{k}": v.contiguous() for k, v in block.state_dict().items()}
+    tensors.update({
+        "block.in.image": image.contiguous(),
+        "block.in.text": text.contiguous(),
+        "block.in.conditioning": conditioning.contiguous(),
+        "block.in.image_freqs.cos": image_freqs.real.float().contiguous(),
+        "block.in.image_freqs.sin": image_freqs.imag.float().contiguous(),
+        "block.in.text_freqs.cos": text_freqs.real.float().contiguous(),
+        "block.in.text_freqs.sin": text_freqs.imag.float().contiguous(),
+        "block.out.image": image_out.contiguous(),
+        "block.out.text": text_out.contiguous(),
+    })
+    save_file(tensors, str(out / "transformer_block.safetensors"))
+    print(f"transformer block: {len(tensors)} tensors")
+
+    # The whole stack, two blocks deep, to catch the top and tail wiring and the 60-way loop.
+    torch.manual_seed(13)
+    joint_dim = 24
+    model = QwenImageTransformer2DModel(
+        patch_size=2,
+        in_channels=8,
+        out_channels=2,
+        num_layers=2,
+        attention_head_dim=head_dim,
+        num_attention_heads=heads,
+        joint_attention_dim=joint_dim,
+        axes_dims_rope=axes,
+    ).eval()
+    latents = torch.randn(1, image_tokens, 8)
+    encoder = torch.randn(1, text_length, joint_dim)
+    timestep = torch.tensor([0.7])
+    with torch.no_grad():
+        prediction = model(
+            hidden_states=latents,
+            encoder_hidden_states=encoder,
+            # All-true is equivalent to no mask, and it is how the model learns the text length.
+            encoder_hidden_states_mask=torch.ones(1, text_length, dtype=torch.bool),
+            timestep=timestep,
+            img_shapes=[(frames, height, width)],
+            return_dict=False,
+        )[0]
+
+    tensors = {f"model.{k}": v.contiguous() for k, v in model.state_dict().items()}
+    tensors.update({
+        "model.in.latents": latents.contiguous(),
+        "model.in.text": encoder.contiguous(),
+        "model.in.timestep": timestep.contiguous(),
+        "model.out.prediction": prediction.contiguous(),
+    })
+    save_file(tensors, str(out / "transformer_model.safetensors"))
+    print(f"transformer model: {len(tensors)} tensors")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", required=True, type=pathlib.Path)
@@ -134,6 +224,7 @@ def main() -> None:
         "scheduler": dump_scheduler,
         "latent_packing": dump_latent_packing,
         "text_encoder": dump_text_encoder,
+        "transformer": dump_transformer,
     }
     for name, dumper in dumpers.items():
         if arguments.only and name not in arguments.only:
