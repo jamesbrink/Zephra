@@ -21,7 +21,12 @@ struct ZephraApp: App {
                 // The tiled decode is chosen for the model that is about to run, so the answer
                 // is worked out again whenever the model changes. Settings re-applies it when
                 // the preference itself changes; see `VAETilingControl`.
+                //
+                // The tile size is a Z-Image pipeline variable, so it is only written for a
+                // model that pipeline will run. Writing it for another family's model would
+                // set a number nothing reads while the interface claimed the decode was tiled.
                 .onChange(of: store.descriptor, initial: true) { _, model in
+                    guard model.backend == .zImage else { return }
                     runtime.setVAETileSize(AppSettings.tilingPolicy().tileSize(for: model))
                 }
         }
