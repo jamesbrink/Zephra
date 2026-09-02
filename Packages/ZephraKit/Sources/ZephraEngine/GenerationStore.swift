@@ -63,6 +63,10 @@ public final class GenerationStore {
         self.library = outputDirectory.map { ImageLibrary(root: $0) } ?? .pictures()
     }
 
+    /// The folder finished images are written to. The one answer to that question: nothing
+    /// else works the path out for itself.
+    public var outputDirectory: URL { library.root }
+
     /// True when a generation can start right now: the engine is ready and there is a prompt.
     public var canGenerate: Bool { state.acceptsGeneration && settings.isReadyToGenerate }
 

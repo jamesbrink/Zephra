@@ -22,6 +22,7 @@ struct ZephraApp: App {
 
         Settings {
             SettingsView()
+                .environment(store)
         }
     }
 
