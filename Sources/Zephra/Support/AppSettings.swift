@@ -11,6 +11,9 @@ enum AppSettings {
     static let randomizeSeedEachRun = "randomizeSeedEachRun"
     /// Whether the model runs a throwaway generation after loading.
     static let warmUpOnLaunch = "warmUpOnLaunch"
+    /// Ceiling on the GPU scratch the runtime retains between generations, in megabytes.
+    /// Unset means the recommendation `InferenceTuning` works out for this machine.
+    static let cacheLimitMB = "cacheLimitMB"
 
     /// Starting values, matching the defaults written at each `@AppStorage` site.
     static let initialFilmstripVisible = true

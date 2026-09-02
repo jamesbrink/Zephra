@@ -9,6 +9,9 @@ import ZephraEngine
 struct ZephraApp: App {
     @State private var store = ZephraApp.makeStore()
     @State private var cache = ImageCache()
+    /// The GPU runtime the Performance tab reads and tunes. Built here because this is the only
+    /// file allowed to name a backend.
+    private let runtime = ZImageInferenceRuntime()
 
     var body: some Scene {
         WindowGroup("Zephra") {
@@ -23,6 +26,7 @@ struct ZephraApp: App {
         Settings {
             SettingsView()
                 .environment(store)
+                .environment(\.inferenceRuntime, runtime)
         }
     }
 
@@ -32,10 +36,9 @@ struct ZephraApp: App {
     /// screenshotted without a model. See `InterfacePreview`.
     private static func makeStore() -> GenerationStore {
         if let frozen = InterfacePreview.store() { return frozen }
-        let tuning = InferenceTuning.forThisMachine()
         ZImageRuntime.configure(
-            cacheLimitBytes: tuning.cacheLimitBytes,
-            memoryLimitBytes: tuning.memoryLimitBytes
+            cacheLimitBytes: InferenceTuning.storedCacheLimitBytes(),
+            memoryLimitBytes: InferenceTuning.forThisMachine().memoryLimitBytes
         )
         return GenerationStore(backendFactory: ZImageBackendFactory.make)
     }
