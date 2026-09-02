@@ -62,6 +62,38 @@ struct GenerationQueueTests {
         #expect(store.history.isEmpty)
     }
 
+    @Test("picking an earlier image to vary leaves the queue alone")
+    func selectKeepsTheQueue() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        await store.bootstrap()
+        bed.control.update { $0.stepsEmitted = 0; $0.stepDelay = .milliseconds(30) }
+
+        store.settings.prompt = "running"
+        store.settings.steps = 6
+        store.generate()
+        try await bed.waitForFirstStep()
+        store.settings.prompt = "waiting"
+        store.generate()
+        #expect(store.queue.count == 1)
+
+        var earlier = GenerationSettings.defaults(for: ModelCatalog.default)
+        earlier.prompt = "a harbour in the rain"
+        store.select(
+            GeneratedImage(
+                pngData: MockBackend.pngData,
+                settings: earlier,
+                modelID: ModelCatalog.default.id,
+                duration: .seconds(2)
+            )
+        )
+
+        #expect(store.queue.map(\.settings.prompt) == ["waiting"], "select must not touch the queue")
+        while store.isRunning || !store.queue.isEmpty { await store.settle() }
+        await store.settle()
+        #expect(store.history.map(\.settings.prompt) == ["waiting", "running"])
+    }
+
     @Test("generate does nothing without a prompt or while the model is still loading")
     func queueGuards() async throws {
         let bed = EngineTestBed()
