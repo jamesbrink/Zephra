@@ -46,8 +46,10 @@ readout while that happens.
   every run gets a fresh one. Images save to `~/Pictures/Zephra` with the seed in the file name;
   if a write fails, a notice sits over the prompt until an image saves, and the picture stays on
   the canvas either way.
-- Settings holds where images are written and the seed preference under General, and the
-  after-load warm-up under Performance.
+- Settings holds where images are written and the seed preference under General. Performance
+  has the after-load warm-up, the ceiling on the GPU scratch the runtime keeps between
+  generations — with the figure recommended for your Mac, and a reset back to it — and a live
+  readout of active, cached and peak GPU memory. A changed ceiling applies immediately.
 - Shortcuts: Generate ⌘↩, Stop ⌘., Save As ⌘S, Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C. Cut,
   Copy, Paste and Select All in the prompt field are the standard Edit menu items.
 
