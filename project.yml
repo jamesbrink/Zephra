@@ -22,6 +22,10 @@ settings:
     DEAD_CODE_STRIPPING: "YES"
     ENABLE_HARDENED_RUNTIME: "YES"
     CODE_SIGN_STYLE: Automatic
+    # Both configurations sign ad-hoc, so `make build` works on a machine with no
+    # certificate at all. Distribution signing is the Makefile's job: `make release`
+    # re-signs the Release bundle with the Developer ID identity, a secure
+    # timestamp, and the hardened runtime.
     CODE_SIGN_IDENTITY: "-"
   configs:
     Debug:
