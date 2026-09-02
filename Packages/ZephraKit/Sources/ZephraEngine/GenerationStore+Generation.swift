@@ -75,13 +75,14 @@ extension GenerationStore {
                 let url = try library.write(image)
                 await MainActor.run { self.attach(url, to: image.id) }
             } catch {
-                let reason = error.localizedDescription
-                await MainActor.run { self.saveFailed(reason) }
+                let failure = SaveFailure(imageID: image.id, reason: error.localizedDescription)
+                await MainActor.run { self.saveFailed(failure) }
             }
         }
     }
 
     private func attach(_ url: URL, to id: GeneratedImage.ID) {
+        lastSaveFailure = nil
         if current?.id == id {
             current = current?.withFileURL(url)
         }
@@ -92,9 +93,14 @@ extension GenerationStore {
 
     /// A failed write is worth showing, but the pixels are still in memory and still on the
     /// canvas, so `current` and `history` are left exactly as they were.
-    private func saveFailed(_ reason: String) {
-        guard state == .ready else { return }
-        transition(to: .failed(.saveFailed(reason)))
+    ///
+    /// It does not become an engine state either. A save lands after `finish()` has already
+    /// started the next queued generation, so failing the engine here would stop a queue over
+    /// a full disk, and the remedy on the failure screen reloads the model, which would be no
+    /// remedy at all. The interface shows this as a notice until an image saves cleanly.
+    private func saveFailed(_ failure: SaveFailure) {
+        logger.error("save failed: \(failure.reason, privacy: .public)")
+        lastSaveFailure = failure
     }
 
     func applyLoadEvent(_ event: EngineEvent) {

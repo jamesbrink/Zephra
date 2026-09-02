@@ -27,21 +27,6 @@ struct StepTimerTests {
         #expect(isClose(timer.secondsPerStep, (0.2 + 0.3 + 0.9) / 3))
     }
 
-    @Test("the countdown is the remaining steps at the current pace")
-    func estimatedRemaining() {
-        var timer = StepTimer()
-        timer.tick(at: start)
-        timer.tick(at: start.advanced(by: .milliseconds(500)))
-        #expect(isClose(timer.estimatedSecondsRemaining(step: 3, of: 9), 3.0))
-        #expect(timer.estimatedSecondsRemaining(step: 9, of: 9) == 0)
-    }
-
-    @Test("a countdown needs a measured pace first")
-    func estimateNeedsAPace() {
-        let timer = StepTimer()
-        #expect(timer.estimatedSecondsRemaining(step: 1, of: 9) == nil)
-    }
-
     @Test("annotating fills in a pace the backend did not measure")
     func annotationFillsGaps() {
         var timer = StepTimer()

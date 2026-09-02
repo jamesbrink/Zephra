@@ -46,11 +46,27 @@ struct CanvasStateView: View {
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
         }
-        if case .failed = store.state {
-            Button("Try again") { store.retry() }
+        if let label = startLabel {
+            Button(label) { store.retryFromInterface() }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
                 .padding(.top, 4)
+        }
+        if store.state.isBusy {
+            Button("Stop") { store.cancel() }
+                .buttonStyle(.link)
+                .padding(.top, 2)
+                .help("Stop loading the model")
+        }
+    }
+
+    /// The word on the button that starts a load: the remedy after a failure, the resume after
+    /// a download the user stopped. Absent whenever there is nothing to start.
+    private var startLabel: String? {
+        switch store.state {
+        case .failed: "Try again"
+        case .idle: "Load model"
+        default: nil
         }
     }
 

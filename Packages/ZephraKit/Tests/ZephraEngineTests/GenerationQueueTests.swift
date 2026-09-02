@@ -9,15 +9,15 @@ import ZephraCore
 struct GenerationQueueTests {
     @Test("prompts fired while a generation runs queue up and run one after another")
     func queueRunsDown() async throws {
-        let scratch = Scratch()
-        let store = scratch.store()
+        let bed = EngineTestBed()
+        let store = bed.store()
         await store.bootstrap()
-        scratch.control.update { $0.stepsEmitted = 0; $0.stepDelay = .milliseconds(15) }
+        bed.control.update { $0.stepsEmitted = 0; $0.stepDelay = .milliseconds(15) }
 
         store.settings.prompt = "first"
         store.settings.steps = 4
         store.generate()
-        try await scratch.waitForFirstStep()
+        try await bed.waitForFirstStep()
         #expect(!store.canGenerate)
         #expect(store.canQueue)
 
@@ -38,15 +38,15 @@ struct GenerationQueueTests {
 
     @Test("a queued prompt can be taken back out, and stop drops the whole queue")
     func removeAndCancel() async throws {
-        let scratch = Scratch()
-        let store = scratch.store()
+        let bed = EngineTestBed()
+        let store = bed.store()
         await store.bootstrap()
-        scratch.control.update { $0.stepsEmitted = 0; $0.stepDelay = .milliseconds(30) }
+        bed.control.update { $0.stepsEmitted = 0; $0.stepDelay = .milliseconds(30) }
 
         store.settings.prompt = "running"
         store.settings.steps = 8
         store.generate()
-        try await scratch.waitForFirstStep()
+        try await bed.waitForFirstStep()
         store.settings.prompt = "keep"
         store.generate()
         store.settings.prompt = "drop"
@@ -62,10 +62,42 @@ struct GenerationQueueTests {
         #expect(store.history.isEmpty)
     }
 
+    @Test("picking an earlier image to vary leaves the queue alone")
+    func selectKeepsTheQueue() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        await store.bootstrap()
+        bed.control.update { $0.stepsEmitted = 0; $0.stepDelay = .milliseconds(30) }
+
+        store.settings.prompt = "running"
+        store.settings.steps = 6
+        store.generate()
+        try await bed.waitForFirstStep()
+        store.settings.prompt = "waiting"
+        store.generate()
+        #expect(store.queue.count == 1)
+
+        var earlier = GenerationSettings.defaults(for: ModelCatalog.default)
+        earlier.prompt = "a harbour in the rain"
+        store.select(
+            GeneratedImage(
+                pngData: MockBackend.pngData,
+                settings: earlier,
+                modelID: ModelCatalog.default.id,
+                duration: .seconds(2)
+            )
+        )
+
+        #expect(store.queue.map(\.settings.prompt) == ["waiting"], "select must not touch the queue")
+        while store.isRunning || !store.queue.isEmpty { await store.settle() }
+        await store.settle()
+        #expect(store.history.map(\.settings.prompt) == ["waiting", "running"])
+    }
+
     @Test("generate does nothing without a prompt or while the model is still loading")
     func queueGuards() async throws {
-        let scratch = Scratch()
-        let store = scratch.store()
+        let bed = EngineTestBed()
+        let store = bed.store()
         store.settings.prompt = "too early"
         #expect(!store.canQueue)
         store.generate()

@@ -40,9 +40,14 @@ readout while that happens.
 - Type a prompt and press Generate (or ⌘↩). The window subtitle shows what the engine is doing.
 - Press Generate again while an image is running to queue the next prompt; prompts run one
   after another and the subtitle counts what is waiting. Stop ends the current image and drops
-  the queue.
+  the queue; during the first-run download or the load it abandons that instead, and the canvas
+  offers to pick it up again — a stopped download resumes from what it already fetched.
 - Size, steps, and seed sit under the prompt. The lock keeps the seed across runs; unlocked,
-  every run gets a fresh one. Images save to `~/Pictures/Zephra` with the seed in the file name.
+  every run gets a fresh one. Images save to `~/Pictures/Zephra` with the seed in the file name;
+  if a write fails, a notice sits over the prompt until an image saves, and the picture stays on
+  the canvas either way.
+- Settings holds where images are written and the seed preference under General, and the
+  after-load warm-up under Performance.
 - Shortcuts: Generate ⌘↩, Stop ⌘., Save As ⌘S, Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C. Cut,
   Copy, Paste and Select All in the prompt field are the standard Edit menu items.
 

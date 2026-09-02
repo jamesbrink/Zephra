@@ -8,10 +8,8 @@ import ZephraEngine
 /// Set `ZEPHRA_PREVIEW_STATE` to `ready`, `image`, `generating`, `downloading`, or `failed`
 /// before launching. Debug builds only; in Release this is inert.
 enum InterfacePreview {
-    /// Whether the app was launched in interface-only mode, which skips `bootstrap()`.
-    static var isActive: Bool { requestedState != nil }
-
-    /// A store frozen in the requested state, or nil for a normal launch.
+    /// A store frozen in the requested state, or nil for a normal launch. The frozen store has
+    /// no backend, so `bootstrap()` on it does nothing and no model is ever looked for.
     static func store() -> GenerationStore? {
         guard let state = requestedState else { return nil }
         let image: GeneratedImage? = switch state {

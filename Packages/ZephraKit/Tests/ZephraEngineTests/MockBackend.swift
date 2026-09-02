@@ -37,8 +37,13 @@ final class MockBackend: ImageGenerationBackend {
         onProgress: @escaping (GenerationProgressEvent) -> Void
     ) async throws {
         control.update { $0.loads += 1 }
-        if let error = control.settings.loadError { throw error }
+        let dials = control.settings
+        if let error = dials.loadError { throw error }
         onProgress(GenerationProgressEvent(phase: .preparing, fraction: 0))
+        if dials.loadDelay > .zero {
+            try await Task.sleep(for: dials.loadDelay)
+        }
+        try Task.checkCancellation()
         loadedModelID = descriptor.id
     }
 

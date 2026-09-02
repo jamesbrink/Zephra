@@ -19,15 +19,24 @@ public final class GenerationStore {
     public internal(set) var descriptor: ModelDescriptor
     /// Wall-clock time of the last completed generation.
     public internal(set) var lastDuration: Duration?
+    /// The most recent image that could not be written, or nil when the last one saved. Shown
+    /// as a notice; it never stops the engine or the queue.
+    public internal(set) var lastSaveFailure: SaveFailure?
     /// Generations waiting their turn, oldest first. Runs down by itself after each image.
     public internal(set) var queue: [QueuedGeneration] = []
+    /// Whether a load ends with a throwaway generation that pays the kernel-compilation cost
+    /// up front. The engine has no idea where the answer comes from; the app sets it from the
+    /// user's preference before it calls `bootstrap()`.
+    public var warmsUpAfterLoad = true
 
     /// How many images stay in memory before the oldest is dropped.
     static let historyLimit = 24
 
     // Machinery, not surface. These are internal rather than private only so the generation
     // half of this type, in GenerationStore+Generation.swift, can reach them.
-    let backendFactory: BackendFactory
+    /// How the store builds its backend, or nil for a preview store, which has none and so
+    /// never loads, generates, or reaches a model at all.
+    let backendFactory: BackendFactory?
     let library: ImageLibrary
     let logger = Logger(subsystem: "io.zephra", category: "engine")
 
@@ -37,16 +46,26 @@ public final class GenerationStore {
     @ObservationIgnored var saveTask: Task<Void, Never>?
 
     /// Creates a store for one model. `outputDirectory` nil means ~/Pictures/Zephra.
-    public init(
+    public convenience init(
         descriptor: ModelDescriptor = ModelCatalog.default,
         backendFactory: @escaping BackendFactory,
         outputDirectory: URL? = nil
     ) {
+        self.init(descriptor: descriptor, factory: backendFactory, outputDirectory: outputDirectory)
+    }
+
+    /// The one designated initializer. A nil `factory` makes a preview store: see
+    /// `GenerationStore+Preview.swift`.
+    init(descriptor: ModelDescriptor, factory: BackendFactory?, outputDirectory: URL?) {
         self.descriptor = descriptor
         self.settings = GenerationSettings.defaults(for: descriptor)
-        self.backendFactory = backendFactory
+        self.backendFactory = factory
         self.library = outputDirectory.map { ImageLibrary(root: $0) } ?? .pictures()
     }
+
+    /// The folder finished images are written to. The one answer to that question: nothing
+    /// else works the path out for itself.
+    public var outputDirectory: URL { library.root }
 
     /// True when a generation can start right now: the engine is ready and there is a prompt.
     public var canGenerate: Bool { state.acceptsGeneration && settings.isReadyToGenerate }
@@ -59,31 +78,6 @@ public final class GenerationStore {
         switch state {
         case .generating, .cancelling: true
         default: false
-        }
-    }
-
-    /// Finds or downloads the model, loads it, and warms up. Call once from the root view.
-    /// Calling it again once the engine is running is a no-op, so a re-rendered root is free.
-    public func bootstrap() async {
-        switch state {
-        case .idle, .failed: break
-        default: return
-        }
-        transition(to: .checkingModel)
-        let inference = inference ?? InferenceActor(factory: backendFactory)
-        self.inference = inference
-        let pump = EngineEventPump { [weak self] event in self?.applyLoadEvent(event) }
-        do {
-            try await pump.run { sink in try await inference.prepare(descriptor, events: sink) }
-            transition(to: .warmingUp)
-            try await inference.warmUp(descriptor)
-            transition(to: .ready)
-        } catch is CancellationError {
-            transition(to: .idle)
-        } catch let error as BackendError {
-            transition(to: .failed(.backend(error)))
-        } catch {
-            transition(to: .failed(.backend(.loadFailed(error.localizedDescription))))
         }
     }
 
@@ -100,14 +94,23 @@ public final class GenerationStore {
         }
     }
 
-    /// Stops the in-flight generation after its current step and drops everything queued
-    /// behind it. The backend only looks for a cancel between denoising steps, so `.cancelling`
-    /// can sit there for one step's worth.
+    /// Stops whatever the engine is busy with.
+    ///
+    /// During a generation that means finishing the current step and dropping the queue: the
+    /// backend only looks for a cancel between denoising steps, so `.cancelling` can sit there
+    /// for one step's worth. During a download, a load, or a warm-up it means abandoning that
+    /// and returning to `.idle`, from where the canvas offers to start again.
     public func cancel() {
-        guard case .generating = state else { return }
-        queue.removeAll()
-        transition(to: .cancelling)
-        generationTask?.cancel()
+        switch state {
+        case .generating:
+            queue.removeAll()
+            transition(to: .cancelling)
+            generationTask?.cancel()
+        case .checkingModel, .downloading, .loading, .warmingUp:
+            bootstrapTask?.cancel()
+        case .idle, .ready, .cancelling, .failed:
+            break
+        }
     }
 
     /// Takes one waiting generation out of the queue.
@@ -118,13 +121,6 @@ public final class GenerationStore {
     /// Empties the queue without touching the running generation.
     public func clearQueue() { queue.removeAll() }
 
-    /// Leaves `.failed` and runs `bootstrap` again.
-    public func retry() {
-        guard case .failed = state else { return }
-        transition(to: .idle)
-        bootstrapTask = Task { await self.bootstrap() }
-    }
-
     /// Shows an earlier image on the canvas and adopts its settings, so the obvious next move
     /// is to tweak one thing and generate a variation.
     public func select(_ image: GeneratedImage) {
@@ -134,16 +130,6 @@ public final class GenerationStore {
 
     /// Picks a fresh seed for the next generation.
     public func randomizeSeed() { settings = settings.withRandomSeed() }
-
-    /// A store frozen in one state, for SwiftUI previews. Never touches a backend.
-    public static func preview(state: EngineState, image: GeneratedImage? = nil) -> GenerationStore {
-        let store = GenerationStore(backendFactory: { _ in fatalError("preview store has no backend") })
-        store.state = state
-        store.current = image
-        store.history = image.map { [$0] } ?? []
-        store.settings.prompt = "A lighthouse at dusk, fog rolling in over black rocks"
-        return store
-    }
 
     /// Waits for everything this store has in flight. A seam for tests, which need generation
     /// and the file write that follows it to be finished before they assert.

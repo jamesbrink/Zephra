@@ -24,7 +24,7 @@ extension EngineState {
     /// The state in a word or two.
     var statusLabel: String {
         switch self {
-        case .idle: "Starting up"
+        case .idle: "Not loaded"
         case .checkingModel: "Checking model"
         case .downloading: "Downloading"
         case .loading: "Preparing"
@@ -39,7 +39,9 @@ extension EngineState {
     /// The headline the canvas shows, or nil when the canvas needs no headline.
     func title(for descriptor: ModelDescriptor) -> String? {
         switch self {
-        case .idle, .checkingModel, .loading:
+        case .idle:
+            "\(descriptor.displayName) isn't loaded yet."
+        case .checkingModel, .loading:
             "Preparing model…"
         case .downloading:
             "\(descriptor.displayName) needs a one-time \(Self.gigabytes(descriptor.downloadBytes)) download."
