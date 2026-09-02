@@ -18,13 +18,26 @@ In order:
 
 ```
 Sources/Zephra (SwiftUI app) ─→ ZephraEngine ─→ ZephraCore
-                             ─→ ZephraBackendZImage ─→ ZephraCore, ZImage   [imported in ZephraApp.swift ONLY]
-Sources/ZephraBench (tool)   ─→ ZephraCore, ZephraBackendZImage
-Sources/ZephraQuantize (tool)─→ ZephraCore, ZephraBackendZImage
+                             ─→ ZephraBackend<Family> ─→ ZephraCore, <Family>Kit
+                                                          [imported in ZephraApp.swift ONLY]
+Sources/ZephraBench (tool)   ─→ ZephraCore, every ZephraBackend<Family>
+Sources/ZephraQuantize (tool)─→ ZephraCore, ZephraQuantization, every ZephraBackend<Family>
+
+Shared, by what a file actually touches:
+  ZephraKit/ZephraSnapshot     Foundation only  — hub cache, local snapshot checks
+  ZephraKit/ZephraTestSupport  Foundation only  — Scratch, the filesystem test fixture
+  ZephraMLXKit/ZephraQuantization  MLX          — the streaming weight packer
 ```
 
 - `ZephraCore` (in `Packages/ZephraKit`): Sendable value types + protocols.
-  Zero dependencies — no ZImage, no MLX, no SwiftUI.
+  Zero dependencies — no model package, no MLX, no SwiftUI.
+- `ZephraSnapshot` (in `Packages/ZephraKit`): finding a cached Hugging Face
+  snapshot and checking a local model directory. Foundation only, which is
+  the point: `make test` covers it, so these suites need no Metal.
+- `ZephraQuantization` (in `Packages/ZephraMLXKit`): the streaming weight
+  packer, shared by every family. It knows nothing about any model — a family
+  hands it a `QuantizationPlan` saying which directories hold weights, which
+  tensors to leave alone, and how finely to squeeze the rest.
 - `ZephraEngine` (in `Packages/ZephraKit`): concurrency + state. Depends on
   `ZephraCore` only. Backends arrive as an injected `BackendRegistry` of
   `@Sendable` factories; this layer never names a concrete backend.
@@ -35,10 +48,12 @@ Sources/ZephraQuantize (tool)─→ ZephraCore, ZephraBackendZImage
   `make test` (`swift test` there) stays fast and doesn't touch Metal.
 - `Packages/ZImageKit`: vendored. Edit only with a `// ZEPHRA-PATCH: <reason>`
   comment and a matching entry in `VENDORED.md`.
-- Nothing in the app target may `import ZImage` or `import MLX`. Only
-  `Sources/Zephra/ZephraApp.swift` (the composition root) may
-  `import ZephraBackendZImage`, to register the backend. Everywhere else
-  in the app target goes through `ZephraEngine` and `ZephraCore`.
+- Nothing in the app target may import a model package or `MLX`. Only
+  `Sources/Zephra/ZephraApp.swift` (the composition root) may import a
+  `ZephraBackend*` package, to register the backend. Everywhere else in the
+  app target goes through `ZephraEngine` and `ZephraCore`.
+- No backend package may import another backend package, or a build for one
+  family drags in every other family's pipeline.
 
 Code rules:
 
@@ -130,11 +145,11 @@ Makefile targets:
 - `make run` — build, then open `build/Release/Zephra.app`.
 - `make open` — generate, then open the project in Xcode.
 - `make bench` — build and run `ZephraBench` (`ARGS=...` to pass flags).
-- `make test` — `swift test` in `Packages/ZephraKit` (Core + Engine only,
-  fast, no MLX).
-- `make test-backend` — `xcodebuild test` on the `ZephraBackendZImage` package.
-  Covers the mapping layer only; it links MLX, so it needs `xcodebuild` and is
-  slower than `make test`. Keep `make test` MLX-free.
+- `make test` — `swift test` in `Packages/ZephraKit` (Core, Snapshot, and
+  Engine, fast, no MLX). Anything testable without Metal belongs here.
+- `make test-mlx` — `xcodebuild test` over every package that links MLX
+  (`MLX_PACKAGES` in the Makefile). Slower, needs `xcodebuild`. `make
+  test-backend` is kept as an alias. Keep `make test` MLX-free.
 - `make icon` — re-render `AppIcon.appiconset` from `scripts/make-icon.swift`.
 - `make release` — build Release, sign with a Developer ID Application identity
   (hardened runtime, secure timestamp), verify, and zip to `build/Zephra.zip`.
@@ -146,6 +161,9 @@ Makefile targets:
 - `make quantize` — download the bf16 release and build the 4-bit variant into
   `~/Library/Application Support/Zephra/Models/z-image-turbo-4bit`. `BITS`,
   `GROUP_SIZE`, and `QUANT_OUT` override the defaults (4 bits, group 64).
+  `ZephraQuantize` takes a required `--family`; there is deliberately no
+  default, because the wrong one silently produces the wrong artifact an hour
+  later.
 - `make lint-layers` — enforce the layering rules above.
 - `make logs` — stream app logs (`log stream`, subsystem `io.zephra`).
 - `make screenshot` — capture the app window (see debugging hooks).
@@ -204,8 +222,23 @@ directly and the end-to-end step times agree with. Group size 64 rather than 32,
 measured: 32 costs 825 MB more resident and 1.1 GB more on disk for no visible
 quality gain.
 
-The quantizer lives in `ZephraBackendZImage/Quantization`. Three things about it
-are load-bearing and easy to break:
+Second family, in progress: **Qwen-Image-2512** (`Qwen/Qwen-Image-2512`, Apache 2.0)
+— a 60-layer dual-stream MMDiT of about 20B parameters, conditioned on
+Qwen2.5-VL-7B and decoded by a 3-D causal VAE. 57.7 GB in bf16, which is too
+large for the boot volume here, so the full-precision source lives at
+`/Volumes/ExternalStorage/Models/Qwen-Image-2512` and only its configuration
+files stay in the Hugging Face cache. Point `--source` there when quantizing,
+and `QWEN_IMAGE_SNAPSHOT` there for any test that wants real weights.
+
+Text-to-image never runs Qwen2.5-VL's vision tower: the pipeline supplies token
+ids and an attention mask and no pixels. So the ViT is not ported and its
+weights are not loaded, along with `lm_head` — together 391 of the checkpoint's
+729 text-encoder tensors. `WeightKeyCoverageTests` asserts that rather than
+leaving it to be assumed.
+
+The Z-Image quantization plan lives in `ZephraBackendZImage/Quantization`; the
+packer it drives is shared, in `ZephraQuantization`. Three things about it are
+load-bearing and easy to break:
 
 - The set of packed tensors must match the reference eight-bit export exactly. The
   loader decides what is quantized by looking for a `.scales` key, so packing a
