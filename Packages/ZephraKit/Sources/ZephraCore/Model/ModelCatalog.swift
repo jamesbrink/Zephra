@@ -6,14 +6,17 @@ public enum ModelCatalog {
         displayName: "Z-Image Turbo",
         variantName: "8-bit",
         backend: .zImage,
-        repoID: "mzbac/Z-Image-Turbo-8bit",
-        revision: "main",
-        filePatterns: ["*.safetensors", "*.json", "tokenizer/*"],
+        source: .huggingFace(
+            repoID: "mzbac/Z-Image-Turbo-8bit",
+            revision: "main",
+            filePatterns: ["*.safetensors", "*.json", "tokenizer/*"]
+        ),
         quantization: .int8,
         downloadBytes: 13_280_000_000,
         // Measured on an M4 Max: ~13 GB live after a generation, ~27 GB peak while loading
         // weights. The load spike is a known vendored-loader cost; see VENDORED.md.
         residentBytes: 13_000_000_000,
+        maxPromptTokens: 512,
         capabilities: ModelCapabilities(
             sizeAlignment: 16,
             sizePresets: [

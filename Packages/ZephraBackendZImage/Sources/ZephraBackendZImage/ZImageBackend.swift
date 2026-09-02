@@ -35,11 +35,27 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
         _ descriptor: ModelDescriptor,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws -> URL {
+        switch descriptor.source {
+        case .localDirectory(let directory):
+            return try ZImageLocalSnapshot.verified(directory, descriptor: descriptor)
+        case .huggingFace(let repoID, let revision, let filePatterns):
+            return try await download(repoID, revision: revision, filePatterns: filePatterns,
+                                      descriptor: descriptor, onProgress: onProgress)
+        }
+    }
+
+    private nonisolated(nonsending) func download(
+        _ repoID: String,
+        revision: String,
+        filePatterns: [String],
+        descriptor: ModelDescriptor,
+        onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
+    ) async throws -> URL {
         do {
             return try await ModelResolution.resolve(
-                modelSpec: descriptor.repoID,
-                defaultRevision: descriptor.revision,
-                filePatterns: descriptor.filePatterns,
+                modelSpec: repoID,
+                defaultRevision: revision,
+                filePatterns: filePatterns,
                 progressHandler: { progress in
                     onProgress(
                         DownloadProgressEvent(

@@ -4,9 +4,6 @@ import ZImage
 
 /// Builds a vendored-pipeline request from the app's settings, applying the model's own limits.
 nonisolated enum ZImageRequestMapper {
-    /// The token budget the Z-Image text encoder is configured for.
-    private static let maxSequenceLength = 512
-
     /// Translates settings into a request the pipeline will accept.
     ///
     /// Settings are put through `capabilities.clamp` first, which aligns the size to the
@@ -30,7 +27,7 @@ nonisolated enum ZImageRequestMapper {
             seed: capabilities.supportsSeed ? clamped.seed : nil,
             outputPath: outputPath(for: descriptor),
             model: snapshot.path,
-            maxSequenceLength: maxSequenceLength
+            maxSequenceLength: descriptor.maxPromptTokens
         )
     }
 

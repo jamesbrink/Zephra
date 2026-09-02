@@ -120,12 +120,11 @@ struct ZImageRequestMapperTests {
             displayName: "Seedless",
             variantName: nil,
             backend: .zImage,
-            repoID: descriptor.repoID,
-            revision: descriptor.revision,
-            filePatterns: descriptor.filePatterns,
+            source: descriptor.source,
             quantization: descriptor.quantization,
             downloadBytes: descriptor.downloadBytes,
             residentBytes: descriptor.residentBytes,
+            maxPromptTokens: descriptor.maxPromptTokens,
             capabilities: capabilities
         )
     }

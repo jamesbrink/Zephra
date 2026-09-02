@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import ZephraCore
@@ -51,5 +52,14 @@ struct ModelCatalogTests {
         #expect(ModelCatalog.zImageTurbo8bit.fullName == "Z-Image Turbo · 8-bit")
         #expect(ModelCatalog.zImageTurbo8bit.backend == .zImage)
         #expect(ModelCatalog.zImageTurbo8bit.quantization.displayName == "8-bit")
+    }
+}
+
+@Suite("ModelSource")
+struct ModelSourceTests {
+    @Test("the shipped model downloads from Hugging Face, a local directory never does")
+    func requiresDownload() {
+        #expect(ModelCatalog.zImageTurbo8bit.source.requiresDownload)
+        #expect(!ModelSource.localDirectory(URL(filePath: "/tmp/x")).requiresDownload)
     }
 }
