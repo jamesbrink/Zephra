@@ -63,17 +63,23 @@ public struct ImageLibrary: Sendable {
         "zephra-\(Self.stamp(image.createdAt))-s\(image.settings.seed).png"
     }
 
-    /// A name nothing is using yet: the plain one, then `-2` through `-99`, then a UUID. The
-    /// last step exists so a full run of suffixes can never make the write clobber an image.
-    private func availableURL(named name: String) -> URL {
-        let first = root.appending(path: name)
+    /// A name nothing in the library root is using yet.
+    func availableURL(named name: String) -> URL {
+        availableURL(named: name, in: root)
+    }
+
+    /// A name nothing in `directory` is using yet: the plain one, then `-2` through `-99`, then
+    /// a UUID. The last step exists so a full run of suffixes can never make a write clobber an
+    /// image. Moving an image to Recently Deleted and back needs the same rule as writing one.
+    func availableURL(named name: String, in directory: URL) -> URL {
+        let first = directory.appending(path: name)
         guard Self.exists(first) else { return first }
         let stem = first.deletingPathExtension().lastPathComponent
         for suffix in 2...99 {
-            let candidate = root.appending(path: "\(stem)-\(suffix).png")
+            let candidate = directory.appending(path: "\(stem)-\(suffix).png")
             if !Self.exists(candidate) { return candidate }
         }
-        return root.appending(path: "\(stem)-\(UUID().uuidString.lowercased()).png")
+        return directory.appending(path: "\(stem)-\(UUID().uuidString.lowercased()).png")
     }
 
     private static func exists(_ url: URL) -> Bool {
