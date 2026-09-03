@@ -96,8 +96,9 @@ engine be tested in seconds without Metal.
 
 - `GenerationStore` (`@MainActor @Observable`) is the only object the UI
   observes, and it is split across `GenerationStore+*.swift` by concern —
-  loading, generation, the queue, model switching, history, availability,
-  preview. Add a new concern as another extension file, not as more lines in
+  loading, generation, the queue, batches (several seeds of one prompt from
+  one press of Generate), model switching, history, availability, preview.
+  Add a new concern as another extension file, not as more lines in
   `GenerationStore.swift`.
 - `InferenceActor` is the only place backend code runs. It overrides
   `unownedExecutor` with a serial `DispatchQueue`: a generation is tens of

@@ -66,9 +66,20 @@ readout while that happens.
 
 ## Using it
 
+- The window is a sidebar and one of two panes. The sidebar is the same in both: one search
+  field at the top (⌘F), chips for everything, favourites, and each model, the queue, and the
+  collections to look in. Canvas (⌘1) is the picture with the prompt floating over it; Library
+  (⌘2) is everything made so far, and is a placeholder until the next release. Typing in the
+  search while the canvas is up takes you to the Library showing the hits, and clearing the
+  field puts you back where you were.
 - Type a prompt and press Generate (or ⌘↩). The window subtitle shows what the engine is doing.
+- The control beside Generate says how many seeds one press queues — 1, 2, 4, or 8 of the same
+  prompt, the first of them on the seed in the field, so a run of four is a superset of the one
+  image the same press would have made.
 - Press Generate again while an image is running to queue the next prompt; prompts run one
-  after another and the subtitle counts what is waiting. Stop ends the current image and drops
+  after another and the subtitle counts what is still waiting. The sidebar shows the same
+  queue: the seed being rendered as an amber card with its steps filling in, then a row per
+  seed waiting, each with a cross to take it back out. Stop ends the current image and drops
   the queue; during the first-run download or the load it abandons that instead, and the canvas
   offers to pick it up again — a stopped download resumes from what it already fetched.
 - The model menu in the toolbar names the model that is running and lists the rest, each with
@@ -93,10 +104,11 @@ readout while that happens.
   if a write fails, a notice sits over the prompt until an image saves, and the picture stays on
   the canvas either way.
 - The strip under the prompt is the run in progress: the seeds one press of Generate queued,
-  with a dashed square for each one still to come. Everything made before it is in the sidebar
-  and the Library, not competing with the picture. The record of what made an image — prompt, size,
+  with a dashed square for each one still to come (⌥⌘R hides it). It holds what this session
+  has made; everything ever made is in `~/Pictures/Zephra`, which the Library reads. The record
+  of what made an image — prompt, size,
   steps, seed, model, and how long it took — lives inside the PNG itself, so moving, renaming,
-  or copying a file to another Mac keeps it, and clicking a restored image loads its settings
+  or copying a file to another Mac keeps it, and clicking one loads its settings
   ready to vary. A PNG that Zephra did not make carries no record and is ignored. Right-click a
   thumbnail for Save as, Copy, Reveal in Finder, and Delete; Delete (⌘⌫ for the image on the
   canvas) moves the file to the Trash, so it is recoverable from the Finder.
@@ -106,9 +118,9 @@ readout while that happens.
   VAE decode is tiled (Automatic, Always, Never), and a live readout of active, cached and peak
   GPU memory plus which way the decode is currently set. Both changes apply immediately. About
   shows the version and the third-party license notices.
-- Shortcuts: Generate ⌘↩, Stop ⌘., Save As ⌘S, Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C,
-  Delete Image ⌘⌫. Cut, Copy, Paste and Select All in the prompt field are the standard Edit
-  menu items.
+- Shortcuts: Generate ⌘↩, Stop ⌘., Canvas ⌘1, Library ⌘2, Find ⌘F, Show Inspector ⌥⌘I,
+  Show This Run ⌥⌘R, Save As ⌘S, Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C, Delete Image ⌘⌫.
+  Cut, Copy, Paste and Select All in the prompt field are the standard Edit menu items.
 
 ## How it works
 
