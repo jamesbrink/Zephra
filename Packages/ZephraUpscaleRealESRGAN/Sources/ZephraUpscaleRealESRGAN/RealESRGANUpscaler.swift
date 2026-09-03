@@ -14,10 +14,12 @@ import ZephraCore
 /// the input — stays cheap to make later because the tiler, the shuffle, and the box mean are
 /// all dtype-agnostic.
 ///
-/// **Measured on an M4 Max**, a 1024 by 1024 PNG in Release, weights already loaded: a 4x pass
-/// takes MEASURED_TIME_4X and peaks at MEASURED_PEAK_4X; the 2x pass is the same run plus the
-/// box mean, MEASURED_TIME_2X and MEASURED_PEAK_2X. So 2x is not the cheaper choice, and an
-/// interface that implies it is would be lying.
+/// **Measured on an M4 Max**, a 1024 by 1024 PNG in Release with the weights already loaded and
+/// the picture cut into nine tiles: 4x takes 3.75 s and peaks at 2466 MB of MLX allocation; 2x
+/// takes 2.80 s and peaks at the same 2466 MB. The peak is identical because it is set by the
+/// 4x join, which both do, and the seconds differ only in the PNG encode -- 4096 by 4096 pixels
+/// against 2048 by 2048. So 2x is not a cheaper enlargement, it is a 4x enlargement with a
+/// smaller file at the end of it, and an interface that implies otherwise would be lying.
 public final class RealESRGANUpscaler: ImageUpscaler {
     /// The network, once something has asked for it. Nil until then and after `unload()`.
     private var network: SRVGGNet?
