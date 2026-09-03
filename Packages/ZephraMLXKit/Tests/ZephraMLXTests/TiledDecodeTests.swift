@@ -17,10 +17,10 @@ struct TiledDecodeTests {
         MLX.eval(exact, tiled)
 
         #expect(tiled.shape == exact.shape)
-        let difference = MLX.abs(tiled - exact).mean().item(Float.self)
+        let difference = MLX.abs(tiled - exact).max().item(Float.self)
         #expect(
-            difference < 0.02,
-            "the seams are cross-faded, so a linear decoder should come back all but identical"
+            difference < 1e-6,
+            "a nearest-neighbour decoder gives every tile the same pixels in the overlap, so the cross-fade has nothing to blend and the result is exact"
         )
     }
 
@@ -42,12 +42,16 @@ struct TiledDecodeTests {
         #expect(tiled.shape == [1, 160, 160, 3])
     }
 
-    @Test("the environment tile is read once and ignores a value too small to be worth it")
-    func environmentTileNeedsAUsefulValue() {
-        // The property is a `let` read at first use, so this checks the rule it applies rather
-        // than the value, which belongs to whichever process is running.
-        #expect(TiledDecode.overlapFactor == 0.25)
-        #expect(TiledDecode.environmentTile.map { $0 >= 16 } ?? true)
+    @Test("a tile edge that is not a multiple of four still comes back the size of the image")
+    func handlesATileWithARaggedQuarter() {
+        // 18 cells stride by 13; keeping 14 cells' worth of pixels per tile instead would
+        // return 8 more pixels per seam than the image has.
+        let latents = Self.latent(height: 40, width: 40)
+        let exact = Self.upsample(latents)
+        let tiled = TiledDecode.run(latents, tile: 18, scale: 8, decode: Self.upsample)
+        MLX.eval(exact, tiled)
+        #expect(tiled.shape == exact.shape)
+        #expect(MLX.abs(tiled - exact).max().item(Float.self) < 1e-6)
     }
 
     /// A smoothly varying latent, so a seam shows up as a difference rather than as noise.

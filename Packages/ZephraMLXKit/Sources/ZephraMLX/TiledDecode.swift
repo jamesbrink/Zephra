@@ -46,9 +46,12 @@ public nonisolated enum TiledDecode {
     ) -> MLXArray {
         let height = latents.dim(1)
         let width = latents.dim(2)
+        // Stride is rounded once, in latent cells, and the pixel counts follow from it: a tile
+        // whose quarter is not whole would otherwise keep more pixels than it strides past, and
+        // the output would come back wider than the image with a doubled band at every seam.
         let stride = max(1, Int(Double(tile) * (1 - overlapFactor)))
-        let blend = Int(Double(tile * scale) * overlapFactor)
-        let keep = tile * scale - blend
+        let blend = (tile - stride) * scale
+        let keep = stride * scale
 
         var rows: [[MLXArray]] = []
         for top in Swift.stride(from: 0, to: height, by: stride) {

@@ -96,6 +96,11 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
   thread and read on the inference thread, which is why it is `nonisolated(unsafe)`: the worst a
   race can do is decode one image with the previous setting.
 
+  The pixels kept from each tile are the stride's worth, and the blend is the rest of the tile:
+  both are derived from the rounded latent stride rather than rounded separately, because a
+  tile edge whose quarter is not whole (18, say) would otherwise keep more than it strode past
+  and return an image wider than the latent with a doubled band at every seam.
+
   `ZephraMLX.TiledDecode` in `Packages/ZephraMLXKit` is the same algorithm, shared by the other
   families. This copy is kept on purpose: pointing vendored code at a Zephra package would
   complicate every re-sync, so the two are expected to drift only when one of them is fixed.
