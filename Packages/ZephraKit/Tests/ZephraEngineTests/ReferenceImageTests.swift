@@ -63,7 +63,7 @@ struct ReferenceImageTests {
         store.settings.prompt = "first"
         store.settings.steps = 4
         store.generate()
-        try await bed.waitForFirstStep()
+        try await bed.waitForStep()
         store.useAsReference(Self.picture)
         store.settings.prompt = "second, edited"
         store.generate()
