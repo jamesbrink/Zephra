@@ -17,15 +17,20 @@ actor InferenceActor {
     private let registry: BackendRegistry
     private var backend: (any ImageGenerationBackend)?
     private var backendID: BackendID?
+    private let upscalerFactory: UpscalerFactory?
+    private var upscaler: (any ImageUpscaler)?
 
     /// Pins every method of this actor to the inference queue instead of the cooperative pool.
     nonisolated var unownedExecutor: UnownedSerialExecutor {
         queue.asUnownedSerialExecutor()
     }
 
-    /// Creates an actor that will build backends out of `registry` as descriptors arrive.
-    init(registry: BackendRegistry) {
+    /// Creates an actor that will build backends out of `registry` as descriptors arrive, and
+    /// the one upscaler `upscaler` makes the first time a picture is made larger. A nil factory
+    /// is a build with no upscaler in it, which every upscale then fails as weights missing.
+    init(registry: BackendRegistry, upscaler: UpscalerFactory? = nil) {
         self.registry = registry
+        self.upscalerFactory = upscaler
     }
 
     /// Fetches the weights if they are missing, packs them if the family loads something other
@@ -84,12 +89,38 @@ actor InferenceActor {
         }
     }
 
+    /// Makes `png` `request.factor` times larger on each edge, on this same serial queue, so an
+    /// upscale and a generation can never both be running Metal work.
+    ///
+    /// The upscaler is built on first use and kept afterwards. It is five megabytes and it is
+    /// not the model: dropping it would make every model switch re-read its weights.
+    func upscale(_ png: Data, _ request: UpscaleRequest, events: EngineEventSink) async throws
+        -> Data
+    {
+        guard let live = try liveUpscaler() else {
+            throw UpscaleError.weightsMissing("this build carries no upscaler")
+        }
+        return try await live.upscale(png, request) { event in
+            events.send(.upscale(event))
+        }
+    }
+
     /// Releases the weights. The next `prepare` will load them again. The first half of
-    /// switching models: the store calls this before it bootstraps the next one.
+    /// switching models: the store calls this before it bootstraps the next one. The upscaler
+    /// is left alone: it is not the model, and it is not what the memory was needed for.
     func unload() {
         backend?.unload()
         backend = nil
         backendID = nil
+    }
+
+    /// The one upscaler, built on first use, or nil in a build that was given no factory.
+    private func liveUpscaler() throws -> (any ImageUpscaler)? {
+        if let upscaler { return upscaler }
+        guard let upscalerFactory else { return nil }
+        let made = upscalerFactory()
+        upscaler = made
+        return made
     }
 
     /// The live backend, rebuilt whenever the descriptor names a different family. Two backends
