@@ -29,7 +29,10 @@ struct PromptCapsule: View {
             .padding(.bottom, 12)
         }
         .chromePanel(.floating)
-        .frame(maxWidth: 680)
+        // Wide enough for the settings, the batch count, and a Generate button that spells out
+        // its shortcut, without the row overflowing the panel it is drawn in. The overlay above
+        // allows 736.
+        .frame(maxWidth: 736)
     }
 }
 

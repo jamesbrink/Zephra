@@ -19,7 +19,9 @@ struct StepsControl: View {
                 step: 1
             )
             .controlSize(.small)
-            .frame(width: 150)
+            // Flexible rather than fixed, so a narrow window takes its space out of the slider
+            // instead of out of the Generate button's label.
+            .frame(minWidth: 80, maxWidth: 130)
             Text("\(store.settings.steps)")
                 .font(.callout)
                 .monospacedDigit()

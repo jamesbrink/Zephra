@@ -1,9 +1,12 @@
 import SwiftUI
 import ZephraEngine
 
-/// The picture a generation edits, on models that read one: a small thumbnail beside the
-/// prompt, a place to drop a file, and a way to clear it. Shown only for models that take a
+/// The picture a generation edits, on models that read one: a thumbnail at the trailing edge of
+/// the prompt, a place to drop a file, and a way to clear it. Shown only for models that take a
 /// reference, so nothing offers a well that would do nothing.
+///
+/// Sized to the prompt band rather than to its own icon, so its right edge lines up with the
+/// Generate button below it and the two read as one column.
 struct ReferenceImageWell: View {
     @Environment(GenerationStore.self) private var store
     @Environment(ImageCache.self) private var cache
@@ -37,8 +40,8 @@ struct ReferenceImageWell: View {
             Image(nsImage: bitmap)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
-                .frame(width: 44, height: 44)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .frame(width: 64, height: 64)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .overlay(alignment: .topTrailing) {
                     Button {
                         store.useAsReference(nil)
@@ -57,10 +60,10 @@ struct ReferenceImageWell: View {
                 if let png = ReferenceImagePicker.choose() { store.useAsReference(png) }
             } label: {
                 Image(systemName: "photo.badge.plus")
-                    .font(.title3)
+                    .font(.title)
                     .foregroundStyle(.secondary)
-                    .frame(width: 44, height: 44)
-                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .frame(width: 64, height: 64)
+                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
             .buttonStyle(.plain)
             .help("Choose a picture to edit, or drop one here")
