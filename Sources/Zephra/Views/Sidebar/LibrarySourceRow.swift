@@ -31,5 +31,5 @@ struct LibrarySourceRow: View {
     }
     .listStyle(.sidebar)
     .frame(width: 280, height: 140)
-    .environment(LibraryIndex.preview(count: 38))
+    .environment(PreviewImages.library(count: 38))
 }

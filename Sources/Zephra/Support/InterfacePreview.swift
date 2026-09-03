@@ -51,7 +51,9 @@ enum InterfacePreview {
     /// never generated anything.
     static func index() -> LibraryIndex? {
         guard requestedState != nil else { return nil }
-        return LibraryIndex.preview(count: 38)
+        // Real files in the temporary directory, so the grid shows pictures. The index itself
+        // still touches no disk: it is handed the paths and never looks for a folder.
+        return LibraryIndex.preview(count: 38, pictures: PreviewImages.libraryFiles(count: 41))
     }
 
     /// A run of `count` seeds of one prompt, the first of which is the one being rendered.

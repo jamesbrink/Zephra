@@ -37,7 +37,7 @@ struct AlbumSourceRow: View {
 }
 
 #Preview("Album rows") {
-    let index = LibraryIndex.preview(count: 38)
+    let index = PreviewImages.library(count: 38)
     return List {
         ForEach(index.albums) { album in
             AlbumSourceRow(album: album) { _ in }

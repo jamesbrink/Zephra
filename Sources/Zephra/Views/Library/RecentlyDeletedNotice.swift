@@ -41,7 +41,7 @@ struct RecentlyDeletedNotice: View {
 }
 
 #Preview("Recently deleted") {
-    let index = LibraryIndex.preview(count: 8)
+    let index = PreviewImages.library(count: 8)
     index.query = LibraryQuery(scope: .recentlyDeleted)
     return RecentlyDeletedNotice(selection: LibrarySelection())
         .frame(width: 820)

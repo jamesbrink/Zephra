@@ -54,5 +54,5 @@ struct LibraryEmptyState: View {
 #Preview("Empty library") {
     LibraryEmptyState()
         .frame(width: 600, height: 400)
-        .environment(LibraryIndex.preview(count: 0))
+        .environment(PreviewImages.library(count: 0))
 }

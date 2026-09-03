@@ -153,7 +153,7 @@ struct LibraryGrid: View {
     LibraryGrid(selection: LibrarySelection())
         .frame(width: 900, height: 700)
         .environment(\.libraryThumbnails, LibraryThumbnails(cache: ThumbnailCache(), edge: 168))
-        .environment(LibraryIndex.preview(count: 38))
+        .environment(PreviewImages.library(count: 38))
         .environment(WorkspaceSelection(pane: .library))
         .environment(GenerationStore.preview(state: .ready))
 }

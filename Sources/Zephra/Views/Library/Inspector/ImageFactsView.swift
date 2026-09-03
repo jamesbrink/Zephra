@@ -53,7 +53,7 @@ struct ImageFactsView: View {
 }
 
 #Preview("Facts") {
-    ImageFactsView(item: LibraryIndex.preview(count: 1).items[0])
+    ImageFactsView(item: PreviewImages.library(count: 1).items[0])
         .padding(18)
         .frame(width: 320)
 }

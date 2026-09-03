@@ -45,5 +45,5 @@ struct LibraryInspector: View {
 #Preview("Nothing chosen") {
     LibraryInspector()
         .frame(width: 320, height: 620)
-        .environment(LibraryIndex.preview(count: 38))
+        .environment(PreviewImages.library(count: 38))
 }

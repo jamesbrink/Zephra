@@ -26,7 +26,7 @@ struct SidebarView: View {
     SidebarView()
         .frame(width: 280, height: 700)
         .environment(WorkspaceSelection(pane: .canvas))
-        .environment(LibraryIndex.preview(count: 38))
+        .environment(PreviewImages.library(count: 38))
         .environment(ThumbnailCache())
         .environment(GenerationStore.preview(state: .ready))
 }
@@ -36,7 +36,7 @@ struct SidebarView: View {
     SidebarView()
         .frame(width: 280, height: 700)
         .environment(WorkspaceSelection(pane: .library))
-        .environment(LibraryIndex.preview(count: 38))
+        .environment(PreviewImages.library(count: 38))
         .environment(ThumbnailCache())
         .environment(GenerationStore.preview(
             state: .generating(GenerationProgressEvent(phase: .denoising(step: 3, of: 4), fraction: 0.75)),

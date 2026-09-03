@@ -62,7 +62,7 @@ struct SingleImageInspector: View {
 }
 
 #Preview("One image") {
-    let index = LibraryIndex.preview(count: 12)
+    let index = PreviewImages.library(count: 12)
     return SingleImageInspector(item: index.items[0])
         .frame(width: 320, height: 700)
         .environment(ThumbnailCache())

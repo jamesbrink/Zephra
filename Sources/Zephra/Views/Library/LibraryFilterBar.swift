@@ -39,5 +39,5 @@ struct LibraryFilterBar: View {
             pane: .library,
             query: LibraryQuery(scope: .favourites)
         ))
-        .environment(LibraryIndex.preview(count: 38))
+        .environment(PreviewImages.library(count: 38))
 }

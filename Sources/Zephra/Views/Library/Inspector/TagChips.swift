@@ -25,7 +25,7 @@ struct TagChips: View {
 }
 
 #Preview("Tags") {
-    let index = LibraryIndex.preview(count: 12)
+    let index = PreviewImages.library(count: 12)
     let item = index.items[1]
     return TagChips(ids: [item.id], tags: item.tags)
         .padding(18)

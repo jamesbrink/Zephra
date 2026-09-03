@@ -31,5 +31,5 @@ struct LibrarySelectionCount: View {
 #Preview("Counts") {
     LibrarySelectionCount(selection: LibrarySelection())
         .padding(20)
-        .environment(LibraryIndex.preview(count: 38))
+        .environment(PreviewImages.library(count: 38))
 }

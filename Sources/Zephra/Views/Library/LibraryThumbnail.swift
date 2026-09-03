@@ -44,7 +44,7 @@ struct LibraryThumbnail: View {
 }
 
 #Preview("Placeholder") {
-    LibraryThumbnail(item: LibraryIndex.preview(count: 1).items[0])
+    LibraryThumbnail(item: PreviewImages.library(count: 1).items[0])
         .frame(width: 168, height: 168)
         .clipShape(RoundedRectangle(cornerRadius: ZephraChrome.thumbnailRadius, style: .continuous))
         .padding(24)

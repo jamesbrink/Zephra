@@ -52,5 +52,5 @@ struct ModelSourceRow: View {
     .listStyle(.sidebar)
     .frame(width: 280, height: 160)
     .environment(WorkspaceSelection(pane: .library))
-    .environment(LibraryIndex.preview(count: 38))
+    .environment(PreviewImages.library(count: 38))
 }

@@ -51,7 +51,7 @@ struct SidebarSources: View {
     SidebarSources()
         .frame(width: 280, height: 560)
         .environment(WorkspaceSelection(pane: .library))
-        .environment(LibraryIndex.preview(count: 38))
+        .environment(PreviewImages.library(count: 38))
         .environment(ThumbnailCache())
         .environment(GenerationStore.preview(state: .ready))
 }
@@ -60,7 +60,7 @@ struct SidebarSources: View {
     SidebarSources()
         .frame(width: 280, height: 560)
         .environment(WorkspaceSelection(pane: .canvas))
-        .environment(LibraryIndex.preview(count: 38))
+        .environment(PreviewImages.library(count: 38))
         .environment(ThumbnailCache())
         .environment(GenerationStore.preview(state: .ready))
 }

@@ -39,5 +39,5 @@ struct RecentlyDeletedRow: View {
     RecentlyDeletedRow()
         .frame(width: 280)
         .environment(WorkspaceSelection(pane: .library))
-        .environment(LibraryIndex.preview(count: 38))
+        .environment(PreviewImages.library(count: 38))
 }

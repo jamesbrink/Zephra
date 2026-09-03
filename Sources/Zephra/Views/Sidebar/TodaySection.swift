@@ -51,7 +51,7 @@ struct TodaySection: View {
     }
     .listStyle(.sidebar)
     .frame(width: 280, height: 220)
-    .environment(LibraryIndex.preview(count: 38))
+    .environment(PreviewImages.library(count: 38))
     .environment(WorkspaceSelection(pane: .canvas))
     .environment(ThumbnailCache())
     .environment(GenerationStore.preview(state: .ready))

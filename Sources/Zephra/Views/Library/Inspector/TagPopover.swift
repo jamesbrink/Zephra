@@ -57,7 +57,7 @@ struct TagPopover: View {
 }
 
 #Preview("Tag popover") {
-    let index = LibraryIndex.preview(count: 12)
+    let index = PreviewImages.library(count: 12)
     return TagPopover(ids: [index.items[1].id])
         .environment(index)
 }

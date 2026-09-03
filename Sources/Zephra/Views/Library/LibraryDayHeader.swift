@@ -52,7 +52,7 @@ struct LibraryDayHeader: View {
 }
 
 #Preview("Day headers") {
-    let index = LibraryIndex.preview(count: 12)
+    let index = PreviewImages.library(count: 12)
     return VStack(alignment: .leading, spacing: 20) {
         ForEach(index.sections) { section in
             LibraryDayHeader(section: section)

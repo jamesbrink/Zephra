@@ -64,6 +64,6 @@ struct FilmstripThumbnail: View {
     FilmstripThumbnail(image: PreviewImages.sample())
         .padding()
         .environment(ImageCache())
-        .environment(LibraryIndex.preview(count: 4))
+        .environment(PreviewImages.library(count: 4))
         .environment(GenerationStore.preview(state: .ready))
 }

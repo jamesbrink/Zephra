@@ -32,7 +32,7 @@ struct LibraryDetail: View {
     LibraryDetail()
         .frame(width: 1000, height: 700)
         .environment(WorkspaceSelection(pane: .library))
-        .environment(LibraryIndex.preview(count: 38))
+        .environment(PreviewImages.library(count: 38))
         .environment(ThumbnailCache())
         .environment(GenerationStore.preview(state: .ready))
 }

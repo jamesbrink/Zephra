@@ -50,7 +50,7 @@ struct LibraryCell: View {
 }
 
 #Preview("Cell") {
-    let items = LibraryIndex.preview(count: 4).items
+    let items = PreviewImages.library(count: 4).items
     return HStack(spacing: 12) {
         ForEach(items) { item in
             LibraryCell(item: item) { _ in }

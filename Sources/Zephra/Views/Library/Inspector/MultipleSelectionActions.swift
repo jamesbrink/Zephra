@@ -49,7 +49,7 @@ struct MultipleSelectionActions: View {
 }
 
 #Preview("Bulk actions") {
-    MultipleSelectionActions(items: Array(LibraryIndex.preview(count: 6).items.prefix(4)))
+    MultipleSelectionActions(items: Array(PreviewImages.library(count: 6).items.prefix(4)))
         .padding(18)
         .frame(width: 320)
         .environment(GenerationStore.preview(state: .ready))

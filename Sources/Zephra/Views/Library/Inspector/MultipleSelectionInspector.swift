@@ -60,7 +60,7 @@ struct MultipleSelectionInspector: View {
 }
 
 #Preview("Several images") {
-    let index = LibraryIndex.preview(count: 12)
+    let index = PreviewImages.library(count: 12)
     return MultipleSelectionInspector(items: Array(index.items.prefix(4)))
         .frame(width: 320, height: 700)
         .environment(ThumbnailCache())

@@ -29,5 +29,5 @@ struct LibraryFilterTokens: View {
             pane: .library,
             query: LibraryQuery(scope: .favourites, text: "limestone", tag: "night")
         ))
-        .environment(LibraryIndex.preview(count: 38))
+        .environment(PreviewImages.library(count: 38))
 }

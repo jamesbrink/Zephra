@@ -49,7 +49,7 @@ struct TodayGrid: View {
 
 #Preview("Today's four") {
     List {
-        TodayGrid(items: Array(LibraryIndex.preview(count: 8).items.prefix(4)))
+        TodayGrid(items: Array(PreviewImages.library(count: 8).items.prefix(4)))
             .listRowBackground(Color.clear)
     }
     .listStyle(.sidebar)

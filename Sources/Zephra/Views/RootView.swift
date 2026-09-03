@@ -40,7 +40,7 @@ struct RootView: View {
         .frame(width: 1180, height: 800)
         .environment(ImageCache())
         .environment(WorkspaceSelection(pane: .canvas))
-        .environment(LibraryIndex.preview(count: 38))
+        .environment(PreviewImages.library(count: 38))
         .environment(ThumbnailCache())
         .environment(GenerationStore.preview(state: .ready, image: PreviewImages.sample()))
 }
@@ -51,7 +51,7 @@ struct RootView: View {
         .frame(width: 1180, height: 800)
         .environment(ImageCache())
         .environment(WorkspaceSelection(pane: .canvas))
-        .environment(LibraryIndex.preview(count: 38))
+        .environment(PreviewImages.library(count: 38))
         .environment(ThumbnailCache())
         .environment(GenerationStore.preview(
             state: .generating(GenerationProgressEvent(
@@ -70,7 +70,7 @@ struct RootView: View {
         .frame(width: 1180, height: 800)
         .environment(ImageCache())
         .environment(WorkspaceSelection(pane: .canvas))
-        .environment(LibraryIndex.preview(count: 38))
+        .environment(PreviewImages.library(count: 38))
         .environment(ThumbnailCache())
         .environment(GenerationStore.preview(state: .downloading(
             DownloadProgressEvent(completedFiles: 3, totalFiles: 11, fraction: 0.34, bytesPerSecond: 46_000_000)
@@ -82,7 +82,7 @@ struct RootView: View {
         .frame(width: 1180, height: 800)
         .environment(ImageCache())
         .environment(WorkspaceSelection(pane: .library))
-        .environment(LibraryIndex.preview(count: 38))
+        .environment(PreviewImages.library(count: 38))
         .environment(ThumbnailCache())
         .environment(GenerationStore.preview(state: .ready))
 }

@@ -29,7 +29,7 @@ struct AlbumChips: View {
 }
 
 #Preview("Albums") {
-    let index = LibraryIndex.preview(count: 12)
+    let index = PreviewImages.library(count: 12)
     let item = index.items[0]
     return AlbumChips(ids: [item.id], albums: index.albums.filter { album in
         item.annotation.albums.contains { $0.id == album.id }

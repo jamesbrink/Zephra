@@ -74,6 +74,6 @@ struct AlbumSources: View {
     }
     .listStyle(.sidebar)
     .frame(width: 280, height: 200)
-    .environment(LibraryIndex.preview(count: 38))
+    .environment(PreviewImages.library(count: 38))
     .environment(WorkspaceSelection(pane: .library))
 }

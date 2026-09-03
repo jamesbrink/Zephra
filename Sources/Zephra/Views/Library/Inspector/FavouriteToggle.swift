@@ -31,7 +31,7 @@ struct FavouriteToggle: View {
 }
 
 #Preview("Star") {
-    let index = LibraryIndex.preview(count: 8)
+    let index = PreviewImages.library(count: 8)
     return HStack(spacing: 20) {
         FavouriteToggle(ids: [index.items[0].id])
         FavouriteToggle(ids: [index.items[1].id])

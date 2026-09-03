@@ -49,7 +49,7 @@ struct SharedFactsView: View {
 }
 
 #Preview("Shared facts") {
-    SharedFactsView(items: Array(LibraryIndex.preview(count: 6).items.prefix(4)))
+    SharedFactsView(items: Array(PreviewImages.library(count: 6).items.prefix(4)))
         .padding(18)
         .frame(width: 320)
 }

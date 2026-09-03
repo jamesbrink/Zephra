@@ -43,6 +43,6 @@ struct LibraryPane: View {
         .frame(width: 900, height: 700)
         .environment(\.libraryThumbnails, LibraryThumbnails(cache: ThumbnailCache(), edge: 168))
         .environment(WorkspaceSelection(pane: .library))
-        .environment(LibraryIndex.preview(count: 38))
+        .environment(PreviewImages.library(count: 38))
         .environment(GenerationStore.preview(state: .ready))
 }

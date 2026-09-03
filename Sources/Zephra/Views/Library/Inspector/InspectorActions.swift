@@ -39,7 +39,7 @@ struct InspectorActions: View {
 }
 
 #Preview("Actions") {
-    InspectorActions(item: LibraryIndex.preview(count: 1).items[0])
+    InspectorActions(item: PreviewImages.library(count: 1).items[0])
         .padding(18)
         .frame(width: 320)
         .environment(GenerationStore.preview(state: .ready))
