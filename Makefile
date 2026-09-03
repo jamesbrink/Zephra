@@ -63,7 +63,7 @@ bench: gen
 	$(BENCH) $(ARGS)
 
 # Build the 4-bit variant locally: no repository publishes Z-Image-Turbo in the manifest format
-# the vendored loader reads. The download is the slow part; the quantization itself is minutes.
+# the vendored loader reads. The download is the slow part; the quantization itself is a minute.
 quantize: gen
 	$(XCB) -scheme ZephraQuantize -configuration Release build >/dev/null
 	"$(QUANTIZE)" --family z-image \

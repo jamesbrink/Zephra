@@ -8,8 +8,8 @@ import Testing
 /// This is a cheap way to be certain the module tree about to be built matches the weights: the
 /// expected names below are derived from the configuration, and the shard index says what is
 /// actually there. A key on one side and not the other is a rename, a miscounted block, or a
-/// component this port has forgotten. Once the modules exist this suite should compare against
-/// `module.parameters()` instead, so the tree stays the single source of truth.
+/// component this port has forgotten. It is kept alongside the parity suites, which build the
+/// modules, because it runs against the index alone and so needs no weights at all.
 @Suite("Weight key coverage")
 struct WeightKeyCoverageTests {
     @Test("the MMDiT's 1933 tensors are exactly the ones this architecture implies")

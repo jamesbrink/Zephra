@@ -51,7 +51,8 @@ covered by Zephra's own `LICENSE`:
   The HuggingFace Team — Apache License 2.0 — the reference implementation the
   port's behaviour is defined against. `QwenImageKit`'s test fixtures are
   tensors dumped from it (see `Packages/QwenImageKit/Tools/dump_reference.py`).
-- **mlx-gen** — MIT — one finding, not code: that packing a Qwen-Image
+- **mlx-gen** — https://github.com/lpalbou/mlx-gen — Copyright (c) lpalbou —
+  MIT License — one finding, not code: that packing a Qwen-Image
   transformer's modulation layers at four bits costs coherent structure. It is
   why `QwenImageQuantizationPlan` holds them at eight.
 
@@ -110,8 +111,10 @@ covers it.
 
 ## Model weights
 
-Not redistributed with the app; downloaded at runtime from Hugging Face and
-cached locally under `~/.cache/huggingface/hub`.
+Not redistributed with the app. The default model is downloaded on first run
+from Hugging Face into `~/.cache/huggingface/hub`; the others are fetched by
+`make quantize` and `make prefetch-qwen` and built into a local variant on the
+user's own machine.
 
 - **Tongyi-MAI/Z-Image-Turbo** — https://huggingface.co/Tongyi-MAI/Z-Image-Turbo
   — License: Apache License 2.0

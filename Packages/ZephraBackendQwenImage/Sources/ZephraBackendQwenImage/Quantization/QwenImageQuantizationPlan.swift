@@ -8,7 +8,8 @@ import ZephraQuantization
 /// transformer's 20.4 billion parameters. A third of the model is modulation, and it is the part
 /// that decides how strongly every other part responds. Published four-bit builds that pack it
 /// with everything else are reported to lose coherent structure, so it is held at eight bits
-/// here: about 2.4 GB more resident, against a model that follows its own conditioning.
+/// here: about 3.4 GB more resident — four more bits for each of those weights — against a
+/// model that follows its own conditioning.
 ///
 /// The VAE is not packed at all. It is a quarter of a gigabyte, it runs once per image rather
 /// than once per step, and quantization artefacts in it land directly on the pixels.

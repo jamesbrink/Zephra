@@ -97,8 +97,8 @@ readout while that happens.
 Zephra keeps the UI layer completely ignorant of the model that's running it.
 A backend protocol and a model descriptor catalog sit between the SwiftUI views
 and each model's implementation. Adding Qwen-Image exercised that: it reached
-the interface as one catalog entry and one registration line, with no view and
-nothing in the engine changed.
+the interface as one catalog entry and one registration line, and no view or engine
+file had to learn the model's name.
 
 ```
 Sources/Zephra (SwiftUI app) ─→ ZephraEngine ─→ ZephraCore
@@ -145,9 +145,9 @@ Qwen-Image-2512, 4-bit and distilled to four steps, on the same M4 Max:
 | 1024×1024 | 4 | 33.6 s (8.2 s/step) | 21.5 GB | 30.4 GB | 26.1 GB |
 | 1328×1328 (native) | 4 | 66.7 s (16.3 s/step) | 21.5 GB | 32.5 GB | 26.1 GB |
 
-Twenty billion parameters against Z-Image Turbo's six, so a step costs about
-eight times as much — but four steps against nine, and the text rendering is in
-a different class. Resident does not move with resolution because the weights are
+Twenty billion parameters against Z-Image Turbo's six, yet a step costs only
+about a third more — 8.2 s against 6.3 s at 1024 — and four steps against nine
+make the image quicker overall, with text rendering in a different class. Resident does not move with resolution because the weights are
 all of it. The tiled peak barely moves either: the tile, not the image, sets the
 decode's transient, and what is left is the transformer.
 
@@ -168,7 +168,9 @@ the models directory is simply the four-step model.
 Holding modulation at eight bits is the one judgement call in the recipe. Those
 layers are 6.8 of the transformer's 20.4 billion parameters and they decide how
 strongly every other layer responds; four-bit builds that pack them with everything
-else are reported to lose coherent structure. It costs about 2.4 GB.
+else are reported to lose coherent structure. It costs about 3.4 GB: four more bits
+for each of those 6.8 billion weights, which is the difference between the 12.8 GB
+transformer a pure four-bit build would write and the 16.2 GB this one does.
 
 The port in `Packages/QwenImageKit` is Zephra's own, written from the model's config
 files and checked against `diffusers` — see `PROVENANCE.md` for why it could not be
@@ -278,20 +280,21 @@ Zephra/
 │   └── ZephraBackendQwenImage/    # ours — the only package that imports QwenImage
 ├── Sources/Zephra/                # app target: SwiftUI only, composition root is ZephraApp.swift
 │   └── ZephraApp.swift  Views/**  Support/**  Resources/{Info.plist, Assets.xcassets, Colors}
-├── Sources/ZephraBench/main.swift # headless benchmark tool
-├── Sources/ZephraQuantize/         # builds a 4-bit variant from a bf16 release
-└── scripts/screenshot.sh, make-icon.swift,
+├── Sources/ZephraBench/           # headless benchmark tool
+├── Sources/ZephraQuantize/        # builds a 4-bit variant from a bf16 release
+└── scripts/screenshot.sh, make-icon.swift, compare-safetensors.py,
             sign-release.sh, notarize-release.sh
 ```
 
 ## Development
 
-- `make test` — `ZephraCore` and `ZephraEngine` under `swift test`. No MLX, a couple
-  of seconds.
+- `make test` — `ZephraCore`, `ZephraSnapshot` and `ZephraEngine` under `swift test`.
+  No MLX, a couple of seconds.
 - `make test-mlx` — every package that links MLX: the packer, both backends' mapping
   tests, and `QwenImageKit`'s parity suites against tensors dumped from `diffusers`.
   They go through `xcodebuild` rather than `swift test` and take longer; nothing in
-  them loads weights or touches the GPU. `make test-backend` is an alias.
+  them loads model weights, though the tensors they run do go through Metal.
+  `make test-backend` is an alias.
 - `make icon` — re-render `AppIcon.appiconset` from `scripts/make-icon.swift`.
 - `make quantize` / `make quantize-qwen` — build a 4-bit variant. `BITS` and
   `GROUP_SIZE` override the 4-bit, group-64 default; `QUANT_OUT` and `QWEN_OUT`

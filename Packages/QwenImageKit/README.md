@@ -5,17 +5,15 @@ An MLX Swift implementation of [Qwen-Image](https://huggingface.co/Qwen/Qwen-Ima
 
 ## Provenance
 
-This package is **first-party, clean-room**. It was implemented from the published
-architecture — the model's own `config.json` files, the Apache-2.0 `diffusers`
-reference implementation, and the MIT-licensed `mflux` and `mlx-gen` Python
-projects. No Swift source was copied from `mzbac/qwen.image.swift`, which is
-GPL-3.0 and would make Zephra GPL-3.0; nobody working on this package should
-open it, including to "check" something.
-
-Some generic infrastructure — safetensors reading, hub resolution, tokenizer
-loading, the tiled-decode algorithm — is copied from `Packages/ZImageKit`, which
-is MIT (`mzbac/zimage.swift` at `970f83e4`). Every such file says so at the top
-and has an entry in the repository's `THIRD_PARTY_NOTICES.md`.
+This package is **first-party, clean-room**, written from the model's own
+`config.json` files and the Apache-2.0 `diffusers` reference implementation, and
+checked against tensors dumped from `diffusers` by `Tools/dump_reference.py`. No
+Swift source was copied from `mzbac/qwen.image.swift`, which is GPL-3.0 and would
+make Zephra GPL-3.0; nobody working on this package should open it, including to
+"check" something. The repository's `PROVENANCE.md` is the full record of what was
+and was not consulted, and `THIRD_PARTY_NOTICES.md` the disclosure; the one idea
+taken from the vendored `Packages/ZImageKit` (assembling a byte-level BPE tokenizer
+from `vocab.json` and `merges.txt`) is noted at the top of the file that uses it.
 
 ## What it implements
 

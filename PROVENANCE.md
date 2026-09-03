@@ -27,7 +27,7 @@ option `AGENTS.md` deliberately keeps open, so the repository was never opened.
 |---|---|---|
 | `Qwen/Qwen-Image-2512` config files | Apache 2.0 | Every architectural constant: layer counts, head dimensions, rope axis widths, VAE channel multipliers, scheduler shift parameters. Read directly out of the model's `config.json` files rather than from prose about them. |
 | `huggingface/diffusers` | Apache 2.0 | The reference behaviour. `QwenImageTransformer2DModel`, `AutoencoderKLQwenImage`, `FlowMatchEulerDiscreteScheduler` and the pipeline's prompt handling define what this port must reproduce. |
-| `mlx-gen` | MIT | One published finding, not code: that four-bit modulation layers cost coherent structure in this architecture. It is why `QwenImageQuantizationPlan` holds them at eight bits. |
+| `mlx-gen` (https://github.com/lpalbou/mlx-gen) | MIT | One published finding, not code: that four-bit modulation layers cost coherent structure in this architecture. It is why `QwenImageQuantizationPlan` holds them at eight bits. |
 | `Packages/ZImageKit` (vendored) | MIT | One approach, not a file: assembling a byte-level BPE tokenizer from `vocab.json` and `merges.txt` when a snapshot ships no `tokenizer.json`. Noted in `THIRD_PARTY_NOTICES.md` and in the source. |
 
 ## How the boundary was kept honest
@@ -64,4 +64,4 @@ the source and are the natural consequence of writing from `diffusers`:
 The claim to defend is narrow: no file in `Packages/QwenImageKit` was copied
 from or derived from a GPL-licensed source. The git history of this branch
 shows the port being built component by component, each one landing with its
-`diffusers` fixture in the same commit.
+`diffusers` fixture in the same commit or the one after it.
