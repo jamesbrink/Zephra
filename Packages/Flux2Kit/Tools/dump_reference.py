@@ -13,9 +13,17 @@ Run with `uv run Tools/dump_reference.py --out Tests/Flux2Tests/Fixtures`.
 
 import argparse
 import pathlib
+import sys
 
 import torch
 from safetensors.torch import save_file
+
+# Each component's dumper lives beside this script in a module of its own, so a component can
+# be regenerated alone with --only and its dumper read next to its Swift test.
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import dump_text_encoder  # noqa: E402
+import dump_transformer  # noqa: E402
+import dump_vae  # noqa: E402
 
 
 def _ids(t, h, w, l):
@@ -107,6 +115,9 @@ def main() -> None:
         "rope": dump_rope,
         "patchify": dump_patchify,
         "scheduler": dump_scheduler,
+        "text_encoder": dump_text_encoder.dump,
+        "transformer": dump_transformer.dump,
+        "vae": dump_vae.dump,
     }
     for name, dumper in dumpers.items():
         if arguments.only and name not in arguments.only:
