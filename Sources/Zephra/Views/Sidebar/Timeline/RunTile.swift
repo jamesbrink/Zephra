@@ -23,6 +23,9 @@ struct RunTile: View {
         case .item(let item):
             Button { open(item) } label: {
                 LibraryThumbnail(item: item)
+                    .overlay(alignment: .topLeading) {
+                        if let upscale = item.upscale { UpscaleBadge(factor: upscale.factor) }
+                    }
             }
             .buttonStyle(.plain)
             .help(item.prompt.isEmpty ? item.fileName : item.prompt)

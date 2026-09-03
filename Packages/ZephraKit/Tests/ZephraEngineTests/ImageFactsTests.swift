@@ -65,6 +65,24 @@ struct ImageFactsTests {
         #expect(ImageFacts(Self.item(record)).upscaled == nil)
     }
 
+    @Test("an upscale of a generated picture keeps the steps but not a per-step time")
+    func upscaledTookHasNoPerStepFigure() {
+        var parent = GenerationRecord.upscaled(
+            from: nil, parentFileName: "a.png", factor: 2,
+            size: ImageSize(width: 8, height: 8), duration: .seconds(1))
+        parent.steps = 9
+        parent.upscaleFactor = nil
+        parent.upscaledFrom = nil
+        let record = GenerationRecord.upscaled(
+            from: parent, parentFileName: "a.png", factor: 4,
+            size: ImageSize(width: 32, height: 32), duration: .seconds(4.6))
+        let facts = ImageFacts(Self.item(record))
+
+        #expect(facts.steps == "9")
+        // 4.6 s over the parent's nine steps would be a figure that was never true.
+        #expect(facts.took == "4.6 s")
+    }
+
     @Test("an image still in memory claims no upscale, because it has no record to read one from")
     func aFreshPictureClaimsNothing() {
         let image = GeneratedImage(

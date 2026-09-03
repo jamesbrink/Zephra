@@ -30,7 +30,10 @@ public struct ImageFacts: Hashable, Sendable {
         size = Self.label(item.size)
         steps = Self.stepsLabel(item.steps)
         seed = Self.seedLabel(item.seed)
-        took = Self.tookLabel(seconds: item.durationSeconds ?? 0, steps: item.steps ?? 0)
+        // An upscale's seconds are the network's, not the steps', so the per-step figure that
+        // would follow from the parent's step count is left off.
+        took = Self.tookLabel(
+            seconds: item.durationSeconds ?? 0, steps: item.upscale == nil ? item.steps ?? 0 : 0)
         file = item.fileName
         upscaled = item.upscale.map { "\u{00D7}\($0.factor) from \($0.parent)" }
     }
