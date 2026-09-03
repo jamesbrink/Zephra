@@ -13,11 +13,7 @@ struct WorkspaceDetail: View {
         case .canvas:
             CanvasPane()
         case .library:
-            ContentUnavailableView(
-                "Library",
-                systemImage: "square.grid.2x2",
-                description: Text("Coming in the next phase.")
-            )
+            LibraryDetail()
         }
     }
 }
@@ -27,6 +23,8 @@ struct WorkspaceDetail: View {
         .frame(width: 900, height: 700)
         .environment(ImageCache())
         .environment(WorkspaceSelection(pane: .canvas))
+        .environment(PreviewImages.library(count: 38))
+        .environment(ThumbnailCache())
         .environment(GenerationStore.preview(state: .ready, image: PreviewImages.sample()))
 }
 
@@ -35,5 +33,7 @@ struct WorkspaceDetail: View {
         .frame(width: 900, height: 700)
         .environment(ImageCache())
         .environment(WorkspaceSelection(pane: .library))
+        .environment(PreviewImages.library(count: 38))
+        .environment(ThumbnailCache())
         .environment(GenerationStore.preview(state: .ready))
 }

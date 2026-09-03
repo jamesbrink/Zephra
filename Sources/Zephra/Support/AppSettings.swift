@@ -46,6 +46,10 @@ enum AppSettings {
     static let initialInspectorVisible = true
     /// Big enough to judge an image by, small enough for a wall of them.
     static let initialLibraryThumbnailEdge = 168.0
+    /// How far the size slider goes: a contact sheet at one end, a few big pictures at the
+    /// other. The ends match the smallest and largest `ThumbnailSize` closely enough that
+    /// nothing is ever scaled up much or baked far larger than it is drawn.
+    static let libraryThumbnailEdgeBounds = 96.0...320.0
     /// One image per press, until the user asks for more.
     static let initialBatchCount = 1
 

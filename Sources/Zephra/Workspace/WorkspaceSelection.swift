@@ -114,4 +114,11 @@ final class WorkspaceSelection {
         query.modelID = modelID
         pane = .library
     }
+
+    /// Narrows the library to one tag and shows it, for the same reason and on the same terms
+    /// as `show(modelID:)`.
+    func show(tag: String) {
+        query.tag = tag
+        pane = .library
+    }
 }

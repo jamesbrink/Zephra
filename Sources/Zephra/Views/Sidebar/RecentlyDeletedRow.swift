@@ -6,15 +6,21 @@ import ZephraEngine
 /// the mind, not because it is unimportant.
 struct RecentlyDeletedRow: View {
     @Environment(WorkspaceSelection.self) private var workspace
+    @Environment(LibraryIndex.self) private var index
 
     var body: some View {
         Button {
             workspace.show(scope: .recentlyDeleted)
         } label: {
-            Label(
-                LibraryScope.recentlyDeleted.title,
-                systemImage: LibraryScope.recentlyDeleted.systemImage
-            )
+            HStack(spacing: 8) {
+                Label(
+                    LibraryScope.recentlyDeleted.title,
+                    systemImage: LibraryScope.recentlyDeleted.systemImage
+                )
+                .lineLimit(1)
+                Spacer(minLength: 8)
+                CountBadge(index.counts.recentlyDeleted)
+            }
             .font(.callout)
             .foregroundStyle(isSelected ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -33,4 +39,5 @@ struct RecentlyDeletedRow: View {
     RecentlyDeletedRow()
         .frame(width: 280)
         .environment(WorkspaceSelection(pane: .library))
+        .environment(PreviewImages.library(count: 38))
 }
