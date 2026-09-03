@@ -14,18 +14,9 @@ extension GenerationStore {
     /// Whether the engine is working down the queue: rendering, or swapping models to render.
     var isDraining: Bool { isRunning || isSwitchingForQueue }
 
-    /// Queues a generation with the current settings on the current model, and starts it at once
-    /// if nothing else is running. Does nothing unless `canQueue`.
-    public func generate() {
-        guard canQueue else { return }
-        let request = descriptor.capabilities.clamp(settings)
-        queue.append(QueuedGeneration(model: descriptor, settings: request))
-        if isDraining {
-            logger.info("queued generation, \(self.queue.count) waiting")
-        } else {
-            drain()
-        }
-    }
+    /// Queues one generation with the current settings on the current model, and starts it at
+    /// once if nothing else is running. Does nothing unless `canQueue`.
+    public func generate() { generate(count: 1) }
 
     /// Takes the next queued generation and runs it, swapping models first if it needs a model
     /// other than the one loaded. With the queue empty, brings the loaded model in line with the
@@ -39,6 +30,7 @@ extension GenerationStore {
         if next.model.id == loadedDescriptor?.id {
             isSwitchingForQueue = false
             queue.removeFirst()
+            running = next
             start(next.settings)
         } else {
             reload(next.model, thenDrain: true)
@@ -56,6 +48,10 @@ extension GenerationStore {
         switch state {
         case .generating:
             queue.removeAll()
+            // The rest of the run is abandoned the moment stopping is asked for, so the queue
+            // in the sidebar empties at once rather than a step later, when the backend
+            // notices. The image itself finishes its current step and is then thrown away.
+            running = nil
             transition(to: .cancelling)
             generationTask?.cancel()
         case .checkingModel, .downloading, .loading, .warmingUp:
