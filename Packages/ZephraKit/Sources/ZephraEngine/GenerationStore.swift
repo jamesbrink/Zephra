@@ -11,8 +11,8 @@ public final class GenerationStore {
     public internal(set) var state: EngineState = .idle
     /// The image shown on the canvas.
     public internal(set) var current: GeneratedImage?
-    /// The filmstrip: this session's images and the newest restored from disk, newest first,
-    /// capped at 24.
+    /// This session's images, newest first, capped at 24. What was made before this launch is
+    /// the library's business, not the store's: `LibraryIndex` reads the folder.
     public internal(set) var history: [GeneratedImage] = []
     /// What the next generation will use. Edited directly by the UI.
     public var settings: GenerationSettings
@@ -39,6 +39,13 @@ public final class GenerationStore {
     /// swap was stopped. While it is true the state passes through `.idle` without meaning
     /// "nothing to do", so nothing else may start a load.
     public internal(set) var isSwappingModel = false
+    /// Called with the file an image was just written to, once it is on disk. The app hands the
+    /// library index a way to add that one file rather than rescanning the folder for it; the
+    /// engine has no idea an index exists.
+    public var onImageSaved: (@MainActor (URL) -> Void)?
+    /// The most recent thing the library could not do for this store — an image that could not
+    /// be opened, so far — or nil when the last one worked.
+    public internal(set) var lastLibraryFailure: LibraryFailure?
     /// Whether a load ends with a throwaway generation that pays the kernel-compilation cost
     /// up front. The engine has no idea where the answer comes from; the app sets it from the
     /// user's preference before it calls `bootstrap()`.
@@ -61,6 +68,7 @@ public final class GenerationStore {
     @ObservationIgnored var generationTask: Task<Void, Never>?
     @ObservationIgnored var saveTask: Task<Void, Never>?
     @ObservationIgnored var libraryTask: Task<Void, Never>?
+    @ObservationIgnored var openTask: Task<Void, Never>?
 
     /// Creates a store for one model, running on the backends `registry` knows how to build.
     /// `outputDirectory` nil means ~/Pictures/Zephra.
@@ -79,7 +87,6 @@ public final class GenerationStore {
         self.settings = GenerationSettings.defaults(for: descriptor)
         self.registry = registry
         self.library = output.map { ImageLibrary(root: $0) } ?? .pictures()
-        startRestore()
     }
 
     /// The folder finished images are written to. The one answer to that question: nothing
@@ -110,5 +117,6 @@ public final class GenerationStore {
         await generationTask?.value
         await saveTask?.value
         await libraryTask?.value
+        await openTask?.value
     }
 }

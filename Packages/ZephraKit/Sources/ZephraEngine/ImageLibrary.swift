@@ -32,27 +32,6 @@ public struct ImageLibrary: Sendable {
         return url
     }
 
-    /// The most recently written image files, newest first. An unreadable folder reads as empty,
-    /// because a missing library is a normal state rather than a failure.
-    ///
-    /// This is the file-system half of `restore(limit:)`, which is what the filmstrip is
-    /// refilled from at launch.
-    public func recent(limit: Int) -> [URL] {
-        guard limit > 0 else { return [] }
-        let keys: [URLResourceKey] = [.creationDateKey]
-        let contents = (try? FileManager.default.contentsOfDirectory(
-            at: root,
-            includingPropertiesForKeys: keys,
-            options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants]
-        )) ?? []
-        return contents
-            .filter { $0.pathExtension.lowercased() == "png" }
-            .map { (url: $0, created: Self.creationDate(of: $0)) }
-            .sorted { $0.created > $1.created }
-            .prefix(limit)
-            .map(\.url)
-    }
-
     /// The bytes to write: the image with its record embedded, or the plain pixels when that
     /// could not be done. A picture on disk without its provenance beats no picture at all.
     private static func annotated(_ image: GeneratedImage) -> Data {
@@ -84,10 +63,6 @@ public struct ImageLibrary: Sendable {
 
     private static func exists(_ url: URL) -> Bool {
         FileManager.default.fileExists(atPath: url.path(percentEncoded: false))
-    }
-
-    private static func creationDate(of url: URL) -> Date {
-        (try? url.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
     }
 
     private static func stamp(_ date: Date) -> String {
