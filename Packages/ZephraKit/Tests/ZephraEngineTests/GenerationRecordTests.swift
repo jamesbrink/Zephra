@@ -120,6 +120,50 @@ struct GenerationRecordTests {
         #expect(GenerationRecord.read(from: data)?.batchID == nil)
     }
 
+    @Test("an upscale's record says what it came from, and a record without one reads as nil")
+    func upscaleFieldsRoundTrip() throws {
+        let parent = GenerationRecord(Self.image(prompt: "a lighthouse"))
+        let record = GenerationRecord.upscaled(
+            from: parent, parentFileName: "zephra-20260903-101500-s99.png", factor: 4,
+            size: ImageSize(width: 4096, height: 4096), duration: .seconds(1.5))
+
+        let data = try GenerationRecord.embedded(
+            record, in: MockBackend.pngData, prompt: record.prompt, referenceText: nil)
+        let restored = try #require(GenerationRecord.read(from: data))
+
+        #expect(restored.upscaledFrom == "zephra-20260903-101500-s99.png")
+        #expect(restored.upscaleFactor == 4)
+        #expect(restored.width == 4096 && restored.height == 4096)
+        #expect(restored.prompt == "a lighthouse", "how the pixels were made is still true")
+        #expect(restored.seed == 99)
+        #expect(restored.batchID == nil, "an upscale is one picture, not one of several seeds")
+
+        // A file written before the two fields existed carries neither, and still decodes.
+        let plain = try GenerationRecord.embedded(in: Self.image(prompt: "a lighthouse"))
+        let older = try #require(GenerationRecord.read(from: plain))
+        #expect(older.upscaledFrom == nil)
+        #expect(older.upscaleFactor == nil)
+        #expect(try PNGTextChunks.read(from: plain)[GenerationRecord.keyword]?
+            .contains("upscale") == false, "and nothing is written for them")
+    }
+
+    @Test("an upscale of a picture Zephra did not make still gets a record, with no numbers in it")
+    func upscaleOfAnImportedPicture() {
+        let record = GenerationRecord.upscaled(
+            from: nil, parentFileName: "holiday.png", factor: 2,
+            size: ImageSize(width: 1600, height: 1200), duration: .seconds(0.8))
+
+        #expect(record.prompt.isEmpty)
+        #expect(record.steps == 0)
+        #expect(record.guidance == 0)
+        #expect(record.seed == 0)
+        #expect(record.modelID == "real-esrgan-x2")
+        #expect(record.referenceBytes == nil)
+        #expect(record.upscaledFrom == "holiday.png")
+        #expect(record.upscaleFactor == 2)
+        #expect(record.width == 1600 && record.height == 1200)
+    }
+
     @Test("embedding a record twice changes nothing the second time")
     func idempotent() throws {
         let image = Self.image(prompt: "a lighthouse")
