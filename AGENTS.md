@@ -221,6 +221,42 @@ The first Release build compiles MLX's Metal kernels from scratch and takes
 several minutes. Always benchmark and make performance claims against
 Release, never Debug — Debug has Metal validation and full debug info on.
 
+## Starting from a picture
+
+A generation can begin from a reference image instead of from pure noise. This
+is SDEdit, and it is a setting rather than a second argument:
+`GenerationSettings.reference` is a `ReferenceImage` (a file URL and a
+strength), so `ImageGenerationBackend.generate(_:onProgress:)` keeps the
+signature it has and nothing above the backends learns a new call.
+
+- `ModelCapabilities.supportsReferenceImage`, `referenceStrengthBounds` and
+  `defaultReferenceStrength` say whether and how a model offers it, and
+  `clamp` treats a reference the way it treats a negative prompt — dropped
+  outright when the model cannot use one, pulled inside the bounds when it can.
+  Both shipped families support it; the flag is about having an image encoder
+  Zephra can reach and a schedule that interpolates linearly, not about edit
+  conditioning, which is a different model rather than a setting.
+- Strength reads as "how much of the picture to throw away". 1 is the ordinary
+  text-to-image path — the loop starts at the first sigma, which is pure noise,
+  and the reference contributes nothing — and 0 would return it unchanged, so
+  neither end is offered. Both families take the same number because both
+  schedules interpolate `x_t = (1 - sigma) * x0 + sigma * noise`: the loop
+  starts at the first step whose sigma is at or below the strength, from the
+  encoded picture mixed with that step's share of the run's own seeded noise.
+  Measured on the shipped nine-step Z-Image ladder, 0.6 enters at step 7 of 9.
+- Progress still counts against the full step count, so a queue card drawing
+  one segment per step shows the skipped ones as finished rather than showing a
+  shorter run.
+- `ZImage.ReferenceLatents` and `QwenImage.QwenImageReferenceLatents` are the
+  entry-point arithmetic, one per family, pure and pinned by their own suites.
+  Two copies on purpose: one lives inside vendored code that is re-synced
+  against upstream, and the two schedules are typed differently.
+- `GenerationRecord` carries the provenance at version 1 — the source's file
+  name, the SHA-256 of its bytes at the time, and the strength. Reading one
+  back finds the file relative to the image (`Sources/` inside the image's own
+  folder, then beside it) and answers with no reference rather than a dead path
+  when it has gone, while the record still says what it was.
+
 ## Tests
 
 Swift Testing (`import Testing`, `@Suite`/`@Test`), never XCTest. Suites and
@@ -321,6 +357,14 @@ weights are not loaded, along with `lm_head` — together 391 of the checkpoint'
 729 text-encoder tensors. `WeightKeyCoverageTests` asserts that rather than
 leaving it to be assumed.
 
+The autoencoder's *own* encoder is a different matter, and is now ported and
+loaded, because starting from a picture needs it. It is 107.2 MB of the 4-bit
+build's 253.8 MB VAE — half a percent of the model's 21.5 GB — so it is built
+unconditionally rather than lazily: a nil module rebuilt on demand would have
+to keep the shard mapped for the pipeline's whole life to have anything to fill
+itself from. The catalog's measured figures have not been adjusted for it by
+arithmetic; they are due a rerun.
+
 Each family's quantization plan lives in its own backend package's
 `Quantization` directory; the packer they drive is shared, in
 `ZephraQuantization`. Precision there is a function of the tensor name: an
@@ -388,6 +432,9 @@ the re-sync procedure, and the running patch log. Any change inside
 - `make logs` streams `os.Logger` output for subsystem `io.zephra`.
 - `make bench ARGS="--size 1024 --steps 9 --runs 3 --json"` measures load, s/step, and peak memory
   headlessly; benchmark on an idle machine, Release only.
+- `make bench ARGS="--reference design/mock/img/a2.png --strength 0.6"` starts every timed run
+  from that picture; the report says which step the loop began at and how many actually ran, so
+  a run that took a third of the seconds is not mistaken for a model that got three times faster.
 - `make bench ARGS="--micro --size 1024"` times the DiT's individual MLX kernels at that size's
   token count without loading any weights, so a slow generation can be attributed to a primitive
   rather than guessed at.
