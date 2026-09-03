@@ -41,6 +41,14 @@ enum InterfacePreview {
         return WorkspaceSelection(pane: name == "library" ? .library : .canvas)
     }
 
+    /// A library with no folder behind it, or nil for a normal launch. Nothing in it is read
+    /// from or written to a disk, so a frozen window shows a full grid on a machine that has
+    /// never generated anything.
+    static func index() -> LibraryIndex? {
+        guard requestedState != nil else { return nil }
+        return LibraryIndex.preview(count: 38)
+    }
+
     /// A run of `count` seeds of one prompt, the first of which is the one being rendered.
     /// Shared with the `#Preview`s of the queue, so the frozen window and the previews of its
     /// parts are showing the same thing.

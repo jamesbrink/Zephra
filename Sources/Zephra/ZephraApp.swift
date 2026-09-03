@@ -11,6 +11,8 @@ struct ZephraApp: App {
     @State private var store = ZephraApp.makeStore()
     @State private var cache = ImageCache()
     @State private var workspace = InterfacePreview.workspace() ?? WorkspaceSelection()
+    @State private var index = InterfacePreview.index() ?? LibraryIndex(library: .pictures())
+    @State private var thumbnails = ThumbnailCache()
     /// The GPU runtime the Performance tab reads and tunes, over every backend at once. Built
     /// here because this is the only file allowed to name a backend.
     private static let runtime = CombinedInferenceRuntime([
@@ -25,12 +27,15 @@ struct ZephraApp: App {
                 .environment(store)
                 .environment(cache)
                 .environment(workspace)
+                .environment(index)
+                .environment(thumbnails)
                 // The tiled decode is chosen for the model that is about to run, so the answer
                 // is worked out again whenever the model changes. Settings re-applies it when
                 // the preference itself changes; see `VAETilingControl`.
                 .onChange(of: store.descriptor, initial: true) { _, model in
                     runtime.setVAETileSize(AppSettings.tilingPolicy().tileSize(for: model))
                 }
+                .task { openLibrary() }
         }
         .defaultSize(width: 1200, height: 840)
         .windowToolbarStyle(.unified)
@@ -44,6 +49,20 @@ struct ZephraApp: App {
                 .environment(store)
                 .environment(\.inferenceRuntime, runtime)
         }
+    }
+
+    /// Starts the library reading the folder, and tells it about the images this session makes
+    /// and unmakes. Idempotent, which is what lets a second window call it too.
+    ///
+    /// A saved image is handed to the index by path, one header read and a sorted insert; a
+    /// deleted one is a rescan, because the store deletes to the system Trash and a path that
+    /// has gone is not something the index can be told about in place. Either way the folder
+    /// watch would notice in its own time — this is only so the grid moves at once.
+    private func openLibrary() {
+        index.start()
+        thumbnails.sweep()
+        store.onImageSaved = { url in index.insert(fileAt: url) }
+        store.onImageDeleted = { _ in Task { await index.rescanNow() } }
     }
 
     /// Builds the one store the window observes.
