@@ -7,6 +7,7 @@ import ZephraEngine
 /// Every state lands in the same centred frame, so nothing jumps as the app moves through them.
 struct CanvasStateView: View {
     @Environment(GenerationStore.self) private var store
+    @Environment(WorkspaceSelection.self) private var workspace
 
     var body: some View {
         VStack(spacing: 12) {
@@ -23,7 +24,8 @@ struct CanvasStateView: View {
         }
         .multilineTextAlignment(.center)
         .frame(maxWidth: 420)
-        .padding(.bottom, 120)
+        // Room for the floating capsule, or just the lip once the prompt has tucked away.
+        .padding(.bottom, workspace.promptTucked ? 24 : 120)
     }
 
     @ViewBuilder
@@ -86,5 +88,6 @@ struct CanvasStateView: View {
     CanvasStateView()
         .frame(width: 700, height: 460)
         .background(Color.canvasBackground)
+        .environment(WorkspaceSelection(pane: .canvas))
         .environment(GenerationStore.preview(state: .ready))
 }

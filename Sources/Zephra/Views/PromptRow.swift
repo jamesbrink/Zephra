@@ -11,6 +11,7 @@ import ZephraEngine
 /// click target is a layer behind the row rather than the field's own frame.
 struct PromptRow: View {
     @Environment(GenerationStore.self) private var store
+    @Environment(WorkspaceSelection.self) private var workspace
     @FocusState private var promptFocused: Bool
 
     var body: some View {
@@ -31,6 +32,10 @@ struct PromptRow: View {
                 .contentShape(Rectangle())
                 .onTapGesture { promptFocused = true }
         }
+        // `PromptTuckHost` bumps this once the prompt has just been brought back — by Escape,
+        // a menu command, or the first character of what was typed while it was tucked away —
+        // so the caret lands here rather than nowhere.
+        .onChange(of: workspace.promptFocusToken) { promptFocused = true }
     }
 }
 
@@ -39,6 +44,7 @@ struct PromptRow: View {
         .padding()
         .frame(width: 520)
         .environment(ImageCache())
+        .environment(WorkspaceSelection(pane: .canvas))
         .environment(GenerationStore.preview(state: .ready))
 }
 
@@ -47,6 +53,7 @@ struct PromptRow: View {
         .padding()
         .frame(width: 520)
         .environment(ImageCache())
+        .environment(WorkspaceSelection(pane: .canvas))
         .environment(GenerationStore.preview(state: .ready, descriptor: PreviewModel.editing))
 }
 
@@ -55,5 +62,6 @@ struct PromptRow: View {
         .padding()
         .frame(width: 520)
         .environment(ImageCache())
+        .environment(WorkspaceSelection(pane: .canvas))
         .environment(GenerationStore.preview(state: .ready, descriptor: PreviewModel.guided))
 }

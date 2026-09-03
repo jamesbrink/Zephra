@@ -6,14 +6,17 @@ import ZephraEngine
 ///
 /// It owns the prompt's persistence, because this is where a prompt is typed: the last one is
 /// restored on the way in and remembered as it changes. Loading the model is `RootView`'s,
-/// which exists whichever pane is showing.
+/// which exists whichever pane is showing. `PromptTuckHost` is what lets a click on the picture
+/// tuck those controls away to a lip at the bottom edge; `.clipped()` keeps the overlay's slide
+/// from painting past the pane while it moves.
 struct CanvasPane: View {
     @Environment(GenerationStore.self) private var store
     @AppStorage(AppSettings.lastPrompt) private var lastPrompt = ""
 
     var body: some View {
         CanvasView()
-            .overlay(alignment: .bottom) { CanvasOverlay() }
+            .overlay(alignment: .bottom) { PromptTuckHost() }
+            .clipped()
             .task {
                 let saved = lastPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
                 if store.settings.prompt.isEmpty, !saved.isEmpty {

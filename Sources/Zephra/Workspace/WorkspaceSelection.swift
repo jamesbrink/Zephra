@@ -19,6 +19,9 @@ final class WorkspaceSelection {
         didSet {
             guard pane != oldValue else { return }
             if !isSearchNavigating { paneBeforeSearch = nil }
+            // A tuck only means anything while looking at the canvas; moving anywhere at all
+            // is reason enough to bring the prompt back for whoever returns to it.
+            promptTucked = false
             AppSettings.write(pane.rawValue, to: AppSettings.workspacePane)
         }
     }
@@ -43,9 +46,17 @@ final class WorkspaceSelection {
         }
     }
 
+    /// Whether the canvas has tucked its floating prompt away, leaving only the lip at the
+    /// bottom edge. Never persisted: a launch always finds the prompt where it was left showing.
+    var promptTucked = false
+
     /// Bumped whenever something asks for the search field. The field watches it and takes
     /// focus; a token rather than a flag, so asking twice in a row works the second time.
     private(set) var searchFocusToken = 0
+
+    /// Bumped whenever something asks for the prompt field, the twin of `searchFocusToken`:
+    /// typing while the prompt is tucked brings it back and needs the caret to land in it.
+    private(set) var promptFocusToken = 0
 
     /// Where the search started from, so clearing it goes back there rather than leaving you
     /// in the Library you never asked for.
@@ -80,6 +91,11 @@ final class WorkspaceSelection {
     /// Asks the sidebar's search field for the keyboard.
     func focusSearch() {
         searchFocusToken += 1
+    }
+
+    /// Asks the canvas's prompt field for the keyboard.
+    func focusPrompt() {
+        promptFocusToken += 1
     }
 
     /// Types into the search, switching panes as the field fills and empties.
