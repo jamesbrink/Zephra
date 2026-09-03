@@ -383,7 +383,7 @@ the re-sync procedure, and the running patch log. Any change inside
 
 ## Debugging hooks
 
-- `ZEPHRA_PREVIEW_STATE=ready|image|generating|downloading|failed` launches a Debug build
+- `ZEPHRA_PREVIEW_STATE=ready|image|generating|queued|batch|library|downloading|failed` launches a Debug build
   frozen in that state with no model, for screenshots (`make screenshot`).
 - `make logs` streams `os.Logger` output for subsystem `io.zephra`.
 - `make bench ARGS="--size 1024 --steps 9 --runs 3 --json"` measures load, s/step, and peak memory

@@ -92,9 +92,9 @@ readout while that happens.
   every run gets a fresh one. Images save to `~/Pictures/Zephra` with the seed in the file name;
   if a write fails, a notice sits over the prompt until an image saves, and the picture stays on
   the canvas either way.
-- The filmstrip under the prompt keeps its images across launches: Zephra reads the newest
-  two dozen back out of `~/Pictures/Zephra` at startup, in the background, so it is filled in
-  before the model has finished loading. The record of what made an image — prompt, size,
+- The strip under the prompt is the run in progress: the seeds one press of Generate queued,
+  with a dashed square for each one still to come. Everything made before it is in the sidebar
+  and the Library, not competing with the picture. The record of what made an image — prompt, size,
   steps, seed, model, and how long it took — lives inside the PNG itself, so moving, renaming,
   or copying a file to another Mac keeps it, and clicking a restored image loads its settings
   ready to vary. A PNG that Zephra did not make carries no record and is ignored. Right-click a
@@ -323,7 +323,7 @@ Zephra/
 - `make bench ARGS="..."` — headless timing (`--size`, `--steps`, `--runs`, `--model`, `--json`,
   `--out`, `--micro`); `make logs` streams the app's log; `make screenshot` captures the window;
   `make open` opens the generated project in Xcode; `make clean` removes build output.
-- `ZEPHRA_PREVIEW_STATE=ready|image|generating|downloading|failed` launches a Debug build
+- `ZEPHRA_PREVIEW_STATE=ready|image|generating|queued|batch|library|downloading|failed` launches a Debug build
   frozen in that state with no model, for screenshots.
 
 ### Releasing
