@@ -1,20 +1,20 @@
 import SwiftUI
 import ZephraEngine
 
-/// Everything that floats over the picture, stacked up from the bottom edge: a save notice
-/// when there is one, the caption of the image being looked at, the prompt capsule, and the
-/// images this run has made.
+/// Everything that floats over the picture, stacked up from the bottom edge: a save notice when
+/// there is one, the caption of the image being looked at, and the prompt capsule.
+///
+/// Nothing under the capsule any more. The strip of this run's seeds used to sit there and push
+/// the capsule up the moment a run started, so the picture jumped every time you pressed
+/// Generate. The same squares are in the sidebar's session timeline now, beside the card that
+/// says how far along the run is.
 struct CanvasOverlay: View {
-    @AppStorage(AppSettings.runStripVisible)
-    private var runStripVisible = AppSettings.initialRunStripVisible
-
     var body: some View {
         VStack(spacing: 14) {
             SaveNotice()
             OpenFailureNotice()
             PromptCaption()
             PromptCapsule()
-            if runStripVisible { RunStrip() }
         }
         .padding(.horizontal, 28)
         .padding(.bottom, 18)

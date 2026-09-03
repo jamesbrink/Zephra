@@ -2,8 +2,14 @@ import SwiftUI
 import ZephraCore
 import ZephraEngine
 
-/// One earlier image, small. No number on it: the order it was made in carries no meaning,
-/// and the picture is the only label worth having.
+/// One image this session made, before the library index has caught up with the file.
+///
+/// It fills whatever cell it is put in, the way `LibraryThumbnail` does, because the two take
+/// turns in the same square of a run: this one the instant the image exists, the indexed one a
+/// folder scan later. A tile that changed size as it settled would make the grid twitch.
+///
+/// No number on it: the order it was made in carries no meaning, and the picture is the only
+/// label worth having. The ring and the corner are the grid's, not this view's.
 struct FilmstripThumbnail: View {
     /// The image this thumbnail stands for.
     let image: GeneratedImage
@@ -38,30 +44,21 @@ struct FilmstripThumbnail: View {
     }
 
     private var thumbnail: some View {
-        Group {
-            if let bitmap = cache.thumbnail(for: image) {
-                Image(nsImage: bitmap).resizable().aspectRatio(contentMode: .fill)
-            } else {
-                Color.black.opacity(0.3)
+        Rectangle()
+            .fill(.quaternary)
+            .aspectRatio(1, contentMode: .fit)
+            .overlay {
+                if let bitmap = cache.thumbnail(for: image) {
+                    Image(nsImage: bitmap).resizable().aspectRatio(contentMode: .fill)
+                }
             }
-        }
-        .frame(width: 72, height: 72)
-        .clipShape(RoundedRectangle(cornerRadius: ZephraChrome.thumbnailRadius, style: .continuous))
-        .overlay {
-            let isSelected = store.current?.id == image.id
-            RoundedRectangle(cornerRadius: ZephraChrome.thumbnailRadius, style: .continuous)
-                // The unselected border is the system separator, not a white wash: white on a
-                // light background is invisible, which is what it used to be in light mode.
-                .strokeBorder(
-                    isSelected ? Color.primary.opacity(0.9) : ZephraChrome.hairline,
-                    lineWidth: isSelected ? 2 : 1
-                )
-        }
+            .clipped()
     }
 }
 
 #Preview("Thumbnail") {
     FilmstripThumbnail(image: PreviewImages.sample())
+        .frame(width: 96, height: 96)
         .padding()
         .environment(ImageCache())
         .environment(PreviewImages.library(count: 4))

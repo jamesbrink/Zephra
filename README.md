@@ -70,14 +70,15 @@ readout while that happens.
 
 ## Using it
 
-- The window is a sidebar and one of two panes. The sidebar is the same in both: one search
-  field at the top (⌘F), chips for everything and favourites, the queue, and the collections to
-  look in — every image, favourites, the last seven days, one row per model with a count, the
-  tags in use, albums, and Recently deleted pinned at the foot. Canvas (⌘1) is the picture with
-  the prompt floating over it; Library (⌘2) is everything made so far, in day-grouped grids
-  with a filter bar over them and an inspector beside them (⌥⌘I). Typing in the search while
-  the canvas is up takes you to the Library showing the hits, and clearing the field puts you
-  back where you were.
+- The window is a sidebar and one of two panes, and the sidebar changes with the pane. On
+  Canvas (⌘1) it is the session: the search field (⌘F) over today's runs — what is waiting,
+  what is being rendered, and the images as they come out. On Library (⌘2) it is the search
+  field, chips for everything and favourites, and the collections to look in — every image,
+  favourites, the last seven days, one row per model with a count, the tags in use, albums,
+  and Recently deleted pinned at the foot. Canvas is the picture with the prompt floating over
+  it; Library is everything made so far, in day-grouped grids with a filter bar over them and
+  an inspector beside them (⌥⌘I). Typing in the search while the canvas is up takes you to the
+  Library showing the hits, and clearing the field puts you back where you were.
 - The Library's filter bar says what is being shown and how much of it is selected, carries a
   removable token per filter, and has a slider for the thumbnail size (⌘+ and ⌘− step it).
   Click to select, shift-click for a range, ⌘-click to add one, ⌘A for all of them, arrow keys
@@ -90,9 +91,11 @@ readout while that happens.
   prompt, the first of them on the seed in the field, so a run of four is a superset of the one
   image the same press would have made.
 - Press Generate again while an image is running to queue the next prompt; prompts run one
-  after another and the subtitle counts what is still waiting. The sidebar shows the same
-  queue: the seed being rendered as an amber card with its steps filling in, then a row per
-  seed waiting, each with a cross to take it back out. Stop ends the current image and drops
+  after another and the subtitle counts what is still waiting. The sidebar's timeline shows
+  the same work as one list: the run being rendered as an amber card with its steps filling in,
+  the runs still waiting above it, each with a cross that takes the whole run back out, and
+  under every run a square per seed — dashed until the image lands, then the picture, which a
+  press puts back on the canvas. Stop ends the current image and drops
   the queue; during the first-run download or the load it abandons that instead, and the canvas
   offers to pick it up again — a stopped download resumes from what it already fetched.
 - The model menu in the toolbar names the model that is running and lists the rest, each with
@@ -144,7 +147,7 @@ readout while that happens.
   VAE decode is tiled (Automatic, Always, Never), and a live readout of active, cached and peak
   GPU memory plus which way the decode is currently set. Both changes apply immediately. About
   shows the version and the third-party license notices.
-- Shortcuts: Generate ⌘↩, Stop ⌘., Canvas ⌘1, Library ⌘2, Find ⌘F, Show This Run ⌥⌘T, Show
+- Shortcuts: Generate ⌘↩, Stop ⌘., Canvas ⌘1, Library ⌘2, Find ⌘F, Show
   Inspector ⌥⌘I, Select All Images ⌘A, Favourite ⌘⇧D, thumbnail size ⌘+ and ⌘−, Save As ⌘S,
   Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C, Use as Reference ⌥⌘R, Clear Reference ⇧⌥⌘R, Delete
   Image ⌘⌫. Return in the prompt field breaks the line, which is why Generate is ⌘↩; Cut,
@@ -387,7 +390,7 @@ Zephra/
 │   ├── Style/                     # the chrome every view draws itself from
 │   ├── Workspace/                 # which pane, which query, whether the inspector is up
 │   ├── Support/                   # caches, exports, previews, settings
-│   └── Views/                     # Canvas/ Library/ Queue/ Sidebar/ Toolbar/ and the rest
+│   └── Views/                     # Canvas/ Library/ Sidebar/ Sidebar/Timeline/ Toolbar/
 ├── Sources/ZephraBench/           # headless benchmark tool
 ├── Sources/ZephraQuantize/        # builds a 4-bit variant from a bf16 release
 ├── design/mock/                   # the UI the app was built against

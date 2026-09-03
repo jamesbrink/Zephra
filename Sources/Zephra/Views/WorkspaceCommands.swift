@@ -1,16 +1,13 @@
 import SwiftUI
 
-/// The menu bar's half of the window's navigation: the two panes, the search field, the
-/// inspector, and the strip of this run's images.
+/// The menu bar's half of the window's navigation: the two panes, the search field, and the
+/// inspector.
 ///
 /// Every one of these has a visible twin in the window. The menu exists so the shortcuts are
 /// discoverable and so the Mac behaves like a Mac.
 struct WorkspaceCommands: Commands {
     /// The window's selection, handed over by the composition root.
     let workspace: WorkspaceSelection
-
-    @AppStorage(AppSettings.runStripVisible)
-    private var runStripVisible = AppSettings.initialRunStripVisible
 
     var body: some Commands {
         CommandGroup(after: .toolbar) {
@@ -19,10 +16,6 @@ struct WorkspaceCommands: Commands {
             Button("Library") { workspace.pane = .library }
                 .keyboardShortcut("2", modifiers: .command)
             Divider()
-            // ⌥⌘T, not ⌥⌘R: the reference well took R when the editing models arrived, and R
-            // means far more to "reference" than it does to a strip of thumbnails.
-            Toggle("Show This Run", isOn: $runStripVisible)
-                .keyboardShortcut("t", modifiers: [.option, .command])
             Button("Show Inspector") { workspace.inspectorVisible.toggle() }
                 .keyboardShortcut("i", modifiers: [.option, .command])
                 .disabled(workspace.pane != .library)
