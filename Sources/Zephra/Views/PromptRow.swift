@@ -12,7 +12,7 @@ import ZephraEngine
 struct PromptRow: View {
     @Environment(GenerationStore.self) private var store
     @Environment(WorkspaceSelection.self) private var workspace
-    @FocusState private var promptFocused: Bool
+    @State private var promptFocused = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
