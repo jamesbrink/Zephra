@@ -25,6 +25,12 @@ struct PromptEditor: View {
     private static let restingHeight: CGFloat = 76
     private static let ceiling: CGFloat = 148
 
+    /// A `TextEditor` lays its text out inside a text container that pads itself by this much on
+    /// each side, and there is no way to ask it not to. Taken back off again as negative padding,
+    /// so the text, the caret, the placeholder, and the settings labels below all start at the
+    /// same edge — and so the twin measures the width the text is actually laid out at.
+    private static let textInset: CGFloat = 5
+
     init(focus: FocusState<Bool>.Binding) {
         self.focus = focus
     }
@@ -37,6 +43,7 @@ struct PromptEditor: View {
             .scrollContentBackground(.hidden)
             .focused(focus)
             .onAppear { focus.wrappedValue = store.settings.prompt.isEmpty }
+            .padding(.horizontal, -Self.textInset)
             .frame(height: min(max(textHeight, Self.restingHeight), Self.ceiling))
             .background(alignment: .topLeading) { twin }
             .overlay(alignment: .topLeading) { placeholder }
