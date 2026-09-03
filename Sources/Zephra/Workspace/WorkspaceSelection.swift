@@ -11,9 +11,14 @@ import ZephraEngine
 @Observable
 final class WorkspaceSelection {
     /// Which pane the window is showing.
+    ///
+    /// Any move made from outside `setSearchText` forgets where a search started from. Someone
+    /// who typed on the canvas, was brought to the Library, then went on choosing there has
+    /// settled: clearing the field afterwards must not yank them back.
     var pane: WorkspacePane {
         didSet {
             guard pane != oldValue else { return }
+            if !isSearchNavigating { paneBeforeSearch = nil }
             AppSettings.write(pane.rawValue, to: AppSettings.workspacePane)
         }
     }
@@ -45,6 +50,10 @@ final class WorkspaceSelection {
     /// Where the search started from, so clearing it goes back there rather than leaving you
     /// in the Library you never asked for.
     @ObservationIgnored private var paneBeforeSearch: WorkspacePane?
+
+    /// True only while `setSearchText` is the one moving the pane, so `pane`'s own observer can
+    /// tell a move the search made from a move the person made.
+    @ObservationIgnored private var isSearchNavigating = false
 
     /// The window as it was left last time, or the canvas over everything on a first launch.
     init() {
@@ -78,12 +87,31 @@ final class WorkspaceSelection {
         let had = !query.trimmedText.isEmpty
         query.text = text
         let has = !query.trimmedText.isEmpty
-        if has, !had {
+        guard has != had else { return }
+        let remembered = paneBeforeSearch
+        isSearchNavigating = true
+        defer { isSearchNavigating = false }
+        if has {
             paneBeforeSearch = pane
             pane = .library
-        } else if !has, had {
-            if let previous = paneBeforeSearch { pane = previous }
+        } else {
+            if let remembered { pane = remembered }
             paneBeforeSearch = nil
         }
+    }
+
+    /// Shows one collection of the library. Everything in the sidebar below the search is about
+    /// what to look at, so choosing one takes you to the pane that can show it — otherwise the
+    /// lower two thirds of the sidebar does nothing at all while the canvas is up.
+    func show(scope: LibraryScope) {
+        query.scope = scope
+        pane = .library
+    }
+
+    /// Narrows the library to one model and shows it. Widening again is a plain write to
+    /// `query.modelID`: taking a filter off is not a reason to change pane.
+    func show(modelID: String) {
+        query.modelID = modelID
+        pane = .library
     }
 }

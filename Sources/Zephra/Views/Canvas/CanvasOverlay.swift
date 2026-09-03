@@ -5,15 +5,15 @@ import ZephraEngine
 /// when there is one, the caption of the image being looked at, the prompt capsule, and the
 /// images this run has made.
 struct CanvasOverlay: View {
-    @AppStorage(AppSettings.filmstripVisible)
-    private var filmstripVisible = AppSettings.initialFilmstripVisible
+    @AppStorage(AppSettings.runStripVisible)
+    private var runStripVisible = AppSettings.initialRunStripVisible
 
     var body: some View {
         VStack(spacing: 14) {
             SaveNotice()
             PromptCaption()
             PromptCapsule()
-            if filmstripVisible { RunStrip() }
+            if runStripVisible { RunStrip() }
         }
         .padding(.horizontal, 28)
         .padding(.bottom, 18)

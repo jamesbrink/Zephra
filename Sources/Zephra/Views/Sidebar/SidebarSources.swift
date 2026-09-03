@@ -16,10 +16,14 @@ struct SidebarSources: View {
         List(selection: selection) {
             Section("Library") {
                 ForEach(Self.standing, id: \.self) { scope in
-                    Label(scope.title, systemImage: scope.systemImage)
-                        .badge(Text(0, format: .number))
-                        .frame(height: ZephraChrome.sidebarRowHeight)
-                        .tag(scope)
+                    HStack(spacing: 8) {
+                        Label(scope.title, systemImage: scope.systemImage)
+                            .lineLimit(1)
+                        Spacer(minLength: 8)
+                        CountBadge(0)
+                    }
+                    .frame(height: ZephraChrome.sidebarRowHeight)
+                    .tag(scope)
                 }
             }
             Section("Models") {
@@ -33,11 +37,12 @@ struct SidebarSources: View {
     }
 
     /// The list's selection is the scope, which is not optional, so an empty selection is read
-    /// as "no change" rather than as a scope of nothing.
+    /// as "no change" rather than as a scope of nothing. Choosing one shows the library: on the
+    /// canvas these rows would otherwise change a query nothing on screen is drawn from.
     private var selection: Binding<LibraryScope?> {
         Binding(
             get: { workspace.query.scope },
-            set: { if let scope = $0 { workspace.query.scope = scope } }
+            set: { if let scope = $0 { workspace.show(scope: scope) } }
         )
     }
 }

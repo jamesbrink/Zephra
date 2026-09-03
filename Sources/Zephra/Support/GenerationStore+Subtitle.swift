@@ -5,15 +5,14 @@ import ZephraEngine
 extension GenerationStore {
     /// The window's subtitle.
     ///
-    /// The count is everything still to come, the image being rendered included, because that
-    /// is the question the number answers: how much is left. The queue itself no longer holds
-    /// the running generation, so it has to be added back.
+    /// The count is what is waiting, not counting the one being rendered: the phase in front of
+    /// it already says that one is under way, and counting it twice would read "1 queued"
+    /// through every single generation.
     var windowSubtitle: String {
         let phase = isSwappingModel && state == .idle
             ? "Switching to \(descriptor.fullName)…"
             : state.subtitle(for: descriptor)
-        let outstanding = queue.count + (running == nil ? 0 : 1)
-        guard outstanding > 0 else { return phase }
-        return "\(phase) · \(outstanding) queued"
+        guard !queue.isEmpty else { return phase }
+        return "\(phase) · \(queue.count) queued"
     }
 }

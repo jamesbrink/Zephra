@@ -41,7 +41,7 @@ struct GenerationBatchTests {
         store.settings.prompt = "a red bicycle against a limestone wall"
         store.settings.steps = 8
         store.generate(count: 3)
-        try await bed.waitForFirstStep()
+        try await bed.waitForStep()
 
         let running = try #require(store.running)
         #expect(store.queue.count == 2)
@@ -64,7 +64,7 @@ struct GenerationBatchTests {
         store.settings.prompt = "a red bicycle against a limestone wall"
         store.settings.steps = 6
         store.generate(count: 4)
-        try await bed.waitForFirstStep()
+        try await bed.waitForStep()
         store.clearQueue()
 
         #expect(store.queue.isEmpty)
@@ -87,7 +87,7 @@ struct GenerationBatchTests {
         store.settings.prompt = "a red bicycle against a limestone wall"
         store.settings.steps = 8
         store.generate(count: 4)
-        try await bed.waitForFirstStep()
+        try await bed.waitForStep()
         store.cancel()
 
         #expect(store.queue.isEmpty)
@@ -109,13 +109,16 @@ struct GenerationBatchTests {
         store.settings.prompt = "a red bicycle against a limestone wall"
         store.settings.steps = 8
         store.generate(count: 99)
-        try await bed.waitForFirstStep()
+        try await bed.waitForStep()
         #expect(store.queue.count == GenerationStore.batchLimit - 1)
         store.cancel()
         await store.settle()
 
+        // The step tally is cumulative and the run above already moved it, so this wait needs
+        // the count it starts from or it returns before the second run has begun.
+        let alreadyRun = bed.stepsEmitted
         store.generate(count: 0)
-        try await bed.waitForFirstStep()
+        try await bed.waitForStep(beyond: alreadyRun)
         #expect(store.running != nil)
         #expect(store.queue.isEmpty)
         store.cancel()

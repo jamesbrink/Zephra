@@ -15,7 +15,11 @@ struct ModelSourceRow: View {
 
     var body: some View {
         Button {
-            workspace.query.modelID = isSelected ? nil : model.id
+            if isSelected {
+                workspace.query.modelID = nil
+            } else {
+                workspace.show(modelID: model.id)
+            }
         } label: {
             HStack(spacing: 8) {
                 ModelDot(model.id)

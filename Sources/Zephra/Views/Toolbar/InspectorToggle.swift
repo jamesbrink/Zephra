@@ -13,7 +13,8 @@ struct InspectorToggle: View {
                 Label("Inspector", systemImage: "sidebar.trailing")
                     .symbolVariant(workspace.inspectorVisible ? .fill : .none)
             }
-            .keyboardShortcut("i", modifiers: [.option, .command])
+            // ⌥⌘I belongs to WorkspaceCommands. A shortcut declared in two places is one
+            // stray SwiftUI change away from toggling twice.
             .help("Show the inspector")
         }
     }

@@ -26,8 +26,9 @@ struct RunStripHeader: View {
             .buttonStyle(.link)
         }
         .font(.caption)
+        // No shadow. The strip shows before the run has produced anything, so this line often
+        // sits on bare paper rather than on a picture, where a shadow is only a smudge.
         .foregroundStyle(.secondary)
-        .shadow(color: .black.opacity(0.55), radius: 4)
     }
 }
 

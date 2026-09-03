@@ -1,4 +1,5 @@
 import SwiftUI
+import ZephraCore
 
 /// Zephra's two colours, both defined as asset-catalog colour sets so light and dark come
 /// for free. Everything else on screen is a system material or a system label colour, which
@@ -10,10 +11,11 @@ extension Color {
     /// Safelight amber, the one accent. Only ever shown while the model is working.
     nonisolated static let safelight = Color("Safelight", bundle: .main)
 
-    /// The four muted colours a model's dot can take, in catalog order.
+    /// The four muted colours a model's dot can take.
     ///
-    /// They identify a model; they never mean anything. That is why they are a small closed
-    /// set rather than a colour per model: four are told apart at a glance, twelve are not.
+    /// They identify a model; they never mean anything, and none of them is safelight amber,
+    /// which would say the model is working when it is only listed. Four rather than one per
+    /// model because four are told apart at a glance and twelve are not.
     private nonisolated static let modelDots = [
         Color("ModelDot1", bundle: .main),
         Color("ModelDot2", bundle: .main),
@@ -23,22 +25,13 @@ extension Color {
 
     /// The colour standing for one model, by descriptor identifier.
     ///
-    /// Chosen by hashing the identifier rather than by its position in `ModelCatalog.all`, so a
-    /// model keeps its colour when another is added above it. The hash is written out rather
-    /// than taken from `hashValue`, which is salted per process and would hand the same model a
-    /// different colour on every launch.
+    /// Taken from the model's place in `ModelCatalog.all`, so adjacent entries are always
+    /// different colours — which a hash cannot promise, and did not: the two Z-Image builds
+    /// landed in the same bucket. A new model appended to the catalog takes the next colour,
+    /// and the four repeat from the fifth on. A model the catalog does not name falls to the
+    /// first colour rather than to a crash.
     nonisolated static func modelDot(_ id: String) -> Color {
-        modelDots[Int(fnv1a(id) % UInt64(modelDots.count))]
-    }
-
-    /// FNV-1a over the identifier's UTF-8, 64-bit. Small, stable, and good enough to spread
-    /// three or four names across four buckets.
-    private nonisolated static func fnv1a(_ text: String) -> UInt64 {
-        var hash: UInt64 = 0xcbf2_9ce4_8422_2325
-        for byte in text.utf8 {
-            hash ^= UInt64(byte)
-            hash &*= 0x0000_0100_0000_01b3
-        }
-        return hash
+        let place = ModelCatalog.all.firstIndex { $0.id == id } ?? 0
+        return modelDots[place % modelDots.count]
     }
 }

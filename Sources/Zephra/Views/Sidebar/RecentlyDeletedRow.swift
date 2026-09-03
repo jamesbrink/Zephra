@@ -9,7 +9,7 @@ struct RecentlyDeletedRow: View {
 
     var body: some View {
         Button {
-            workspace.query.scope = .recentlyDeleted
+            workspace.show(scope: .recentlyDeleted)
         } label: {
             Label(
                 LibraryScope.recentlyDeleted.title,

@@ -9,8 +9,8 @@ struct WorkspaceCommands: Commands {
     /// The window's selection, handed over by the composition root.
     let workspace: WorkspaceSelection
 
-    @AppStorage(AppSettings.filmstripVisible)
-    private var filmstripVisible = AppSettings.initialFilmstripVisible
+    @AppStorage(AppSettings.runStripVisible)
+    private var runStripVisible = AppSettings.initialRunStripVisible
 
     var body: some Commands {
         CommandGroup(after: .toolbar) {
@@ -19,7 +19,8 @@ struct WorkspaceCommands: Commands {
             Button("Library") { workspace.pane = .library }
                 .keyboardShortcut("2", modifiers: .command)
             Divider()
-            Toggle("Show This Run", isOn: $filmstripVisible)
+            Toggle("Show This Run", isOn: $runStripVisible)
+                .keyboardShortcut("r", modifiers: [.option, .command])
             Button("Show Inspector") { workspace.inspectorVisible.toggle() }
                 .keyboardShortcut("i", modifiers: [.option, .command])
                 .disabled(workspace.pane != .library)

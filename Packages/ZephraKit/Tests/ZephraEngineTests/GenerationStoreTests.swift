@@ -44,7 +44,7 @@ struct GenerationStoreTests {
         store.settings.prompt = "a lighthouse"
         store.settings.steps = 8
         store.generate()
-        try await bed.waitForFirstStep()
+        try await bed.waitForStep()
         store.cancel()
         #expect(store.state == .cancelling)
         await store.settle()

@@ -8,6 +8,10 @@ import ZephraEngine
 /// The title and the subtitle go on the split view rather than on the detail, so they stay put
 /// when the pane changes and the unified toolbar draws them once, beside the sidebar's edge
 /// rather than over it.
+///
+/// Loading the model is asked for here, not in either pane, because a pane is torn down when
+/// the other one shows. A window left on the Library would otherwise come back after a
+/// relaunch with nothing ever asking for the weights.
 struct RootView: View {
     @Environment(GenerationStore.self) private var store
 
@@ -21,6 +25,7 @@ struct RootView: View {
         .navigationTitle("Zephra")
         .navigationSubtitle(store.windowSubtitle)
         .toolbar { WorkspaceToolbar() }
+        .task { await store.bootstrapFromInterface() }
     }
 }
 
