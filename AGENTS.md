@@ -118,6 +118,64 @@ engine be tested in seconds without Metal.
   a snapshot, not a log — and `run` drains before returning, so the state a
   caller sets after an operation is never clobbered by an event still in flight.
 
+## The library
+
+`~/Pictures/Zephra` is the library. There is no database: the folder is the
+truth, and everything the app knows about an image is inside that image's own
+PNG. Move a file, rename it, or copy it to another Mac and its prompt, its
+favourite, and its tags go with it. `ZephraEngine/Library/` is that folder read
+as an index, and it is Foundation only, so `make test` covers all of it.
+
+- Two text chunks, two owners. `zephra:generation` is provenance —
+  `GenerationRecord`, written once when the image is saved, never edited. A PNG
+  without it was not made here and is skipped, so a folder can hold more
+  pictures than the library lists. `zephra:library` is `LibraryAnnotation`: favourite,
+  tags, albums — the things a person changes afterwards. Anything mutable goes
+  in the second chunk; nothing rewrites the first.
+- `PNGTextChunks+Header` reads a chunk without reading the file: 64 KiB, stop at
+  the first IDAT, grow only if the chunks have not been seen yet. A grid of two
+  thousand images is two thousand header reads, not two thousand full decodes.
+  `PNGTextChunks+Replacing` writes one back by splicing before IDAT and
+  dropping the same keyword, so repeated writes do not grow the file.
+- `LibraryScan` fingerprints the directory from one `contentsOfDirectory` and
+  re-reads only the paths whose (mtime, size) moved. `LibraryFolderWatch` is a
+  `DispatchSource` on the directory, debounced, and re-opens the fd when the
+  folder is renamed away and back.
+- `LibraryIndex` (`@MainActor @Observable`) is what the UI observes, split by
+  concern the way `GenerationStore` is. Mutations take a set of ids, apply
+  optimistically, queue onto one serial chain, and revert by re-reading the one
+  file that failed. `LibraryQuery` holds the scope, the text, and the sort, and
+  `sections` are recomputed when it changes — the view never filters.
+- Deleting moves the file to `Recently Deleted/` with a `deletedAt` in that
+  folder's own manifest, and a scan purges anything older than thirty days.
+  Nothing is unlinked on the user's behalf before then.
+- `LibrarySelection` holds what is chosen; `LibraryCursor` is the pure
+  arithmetic of moving through a grid, so keyboard navigation is tested without
+  a window. `ImageFacts` formats the six rows the inspector shows.
+
+## The app target's shape
+
+Four directories, by what a file is rather than what screen it is on:
+
+- `Style/` — the chrome: `ZephraChrome`'s radii and hairlines, `ChromePanel`,
+  `Chip`, `SectionHeader`, `CountBadge`, `KeyValueRow`, `WrappingHStack`,
+  `ModelDot`. A view that reaches for a literal radius or a raw colour belongs
+  here instead. Safelight amber means "only while the model works" and appears
+  nowhere else.
+- `Workspace/` — which pane is up, which query the library is showing, whether
+  the inspector is open, and the labels those enums draw themselves with.
+  `WorkspaceSelection` is one `@Observable`, injected by the composition root
+  and persisted through `AppSettings`.
+- `Support/` — caches, exports, pickers, previews. The thumbnail pipeline lives
+  here: `ThumbnailKey` names a baked file by path, mtime, size and edge,
+  `ThumbnailFolder` is an actor that bakes off the main thread, and
+  `ThumbnailCache` coalesces the in-flight requests. Nothing decodes an image
+  on the main actor.
+- `Views/` — one subfolder per surface (`Canvas/`, `Library/`,
+  `Library/Inspector/`, `Queue/`, `Sidebar/`, `Toolbar/`). The three-stored-
+  property rule is what keeps them small; a view that needs a fourth wants a
+  subview.
+
 ## Adding a model or a backend
 
 This is the seam priority 2 exists for. Both cases are additive: no view and

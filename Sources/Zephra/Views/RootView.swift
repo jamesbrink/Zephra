@@ -20,6 +20,12 @@ import ZephraEngine
 /// was a column within a column, and the unified toolbar split at its edge: the pane picker
 /// ended up on the content side of the divider and the other four items on the inspector side,
 /// one group torn in half. Here the trailing items stay together above the inspector.
+///
+/// Which is also why what opening an image means is decided here and not in the Library pane.
+/// The inspector is a sibling of the pane, not a view inside it, so an action handed down from
+/// the pane never reaches the inspector's own "Open in canvas" — it silently took the
+/// environment's default and did nothing. Handed down from here, every place that asks (the
+/// grid's double-click, the cell's menu, Return, and the inspector) gets the same one.
 struct RootView: View {
     @Environment(GenerationStore.self) private var store
     @Environment(WorkspaceSelection.self) private var workspace
@@ -39,8 +45,17 @@ struct RootView: View {
         .navigationTitle("Zephra")
         .navigationSubtitle(store.windowSubtitle)
         .toolbar { WorkspaceToolbar() }
+        .environment(\.openLibraryItem, open)
         .onChange(of: workspace.query, initial: true) { index.query = $1 }
         .task { await store.bootstrapFromInterface() }
+    }
+
+    /// Reads the image onto the canvas and goes there. The settings are deliberately not
+    /// adopted — see `GenerationStore.open(_:)` — so looking at something never replaces the
+    /// prompt being written.
+    private func open(_ item: LibraryItem) {
+        Task { await store.open(item) }
+        workspace.pane = .canvas
     }
 
     /// Shown only beside the Library, since there is nothing for it to say about the canvas.

@@ -71,11 +71,20 @@ readout while that happens.
 ## Using it
 
 - The window is a sidebar and one of two panes. The sidebar is the same in both: one search
-  field at the top (⌘F), chips for everything, favourites, and each model, the queue, and the
-  collections to look in. Canvas (⌘1) is the picture with the prompt floating over it; Library
-  (⌘2) is everything made so far, and is a placeholder until the next release. Typing in the
-  search while the canvas is up takes you to the Library showing the hits, and clearing the
-  field puts you back where you were.
+  field at the top (⌘F), chips for everything and favourites, the queue, and the collections to
+  look in — every image, favourites, the last seven days, one row per model with a count, the
+  tags in use, albums, and Recently deleted pinned at the foot. Canvas (⌘1) is the picture with
+  the prompt floating over it; Library (⌘2) is everything made so far, in day-grouped grids
+  with a filter bar over them and an inspector beside them (⌥⌘I). Typing in the search while
+  the canvas is up takes you to the Library showing the hits, and clearing the field puts you
+  back where you were.
+- The Library's filter bar says what is being shown and how much of it is selected, carries a
+  removable token per filter, and has a slider for the thumbnail size (⌘+ and ⌘− step it).
+  Click to select, shift-click for a range, ⌘-click to add one, ⌘A for all of them, arrow keys
+  to walk the grid, space for Quick Look. The inspector shows the image, its prompt, and the
+  Model, Size, Steps, Seed, Took and File rows read out of the PNG, with its tags and albums,
+  and offers Open in canvas, Queue a variation, and Reveal in Finder. Select several and it
+  says what they have in common and acts on all of them.
 - Type a prompt and press Generate (or ⌘↩). The window subtitle shows what the engine is doing.
 - The control beside Generate says how many seeds one press queues — 1, 2, 4, or 8 of the same
   prompt, the first of them on the seed in the field, so a run of four is a superset of the one
@@ -119,7 +128,7 @@ readout while that happens.
   if a write fails, a notice sits over the prompt until an image saves, and the picture stays on
   the canvas either way.
 - The strip under the prompt is the run in progress: the seeds one press of Generate queued,
-  with a dashed square for each one still to come (⌥⌘R hides it). Everything ever made is in
+  with a dashed square for each one still to come (⌥⌘T hides it). Everything ever made is in
   `~/Pictures/Zephra`, and the Library reads that folder rather than the app keeping a list of
   its own. The record of what made an image — prompt, size, steps, seed, model, and how long it
   took — lives inside the PNG itself, so moving, renaming, or copying a file to another Mac
@@ -135,10 +144,11 @@ readout while that happens.
   VAE decode is tiled (Automatic, Always, Never), and a live readout of active, cached and peak
   GPU memory plus which way the decode is currently set. Both changes apply immediately. About
   shows the version and the third-party license notices.
-- Shortcuts: Generate ⌘↩, Stop ⌘., Canvas ⌘1, Library ⌘2, Find ⌘F, Show Inspector ⌥⌘I,
-  Save As ⌘S, Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C, Use as Reference ⌥⌘R, Clear Reference
-  ⇧⌥⌘R, Delete Image ⌘⌫. Cut, Copy, Paste and Select All in the prompt field are the standard
-  Edit menu items.
+- Shortcuts: Generate ⌘↩, Stop ⌘., Canvas ⌘1, Library ⌘2, Find ⌘F, Show This Run ⌥⌘T, Show
+  Inspector ⌥⌘I, Select All Images ⌘A, Favourite ⌘⇧D, thumbnail size ⌘+ and ⌘−, Save As ⌘S,
+  Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C, Use as Reference ⌥⌘R, Clear Reference ⇧⌥⌘R, Delete
+  Image ⌘⌫. Return in the prompt field breaks the line, which is why Generate is ⌘↩; Cut,
+  Copy, Paste and Select All there are the standard Edit menu items.
 
 ## How it works
 
@@ -365,6 +375,7 @@ Zephra/
 │   ├── ZephraKit/                 # ours — no MLX dependency
 │   │   ├── Sources/ZephraCore/          # value types + protocols
 │   │   ├── Sources/ZephraEngine/        # actor + store, depends on ZephraCore only
+│   │   │   └── Library/                 # the image folder as an index: scan, query, annotate
 │   │   ├── Sources/ZephraSnapshot/      # hub cache and local snapshot checks, Foundation only
 │   │   └── Tests/ZephraCoreTests, ZephraEngineTests, ZephraSnapshotTests
 │   ├── ZephraMLXKit/              # ours — MLX work no family owns: the packer, the tiled decode
@@ -372,11 +383,16 @@ Zephra/
 │   ├── ZephraBackendQwenImage/    # ours — the only package that imports QwenImage
 │   └── ZephraBackendFlux2/        # ours — the only package that imports Flux2; builds on first load
 ├── Sources/Zephra/                # app target: SwiftUI only, composition root is ZephraApp.swift
-│   └── ZephraApp.swift  Views/**  Support/**  Resources/{Info.plist, Assets.xcassets, Colors}
+│   ├── ZephraApp.swift  Resources/{Info.plist, Assets.xcassets}
+│   ├── Style/                     # the chrome every view draws itself from
+│   ├── Workspace/                 # which pane, which query, whether the inspector is up
+│   ├── Support/                   # caches, exports, previews, settings
+│   └── Views/                     # Canvas/ Library/ Queue/ Sidebar/ Toolbar/ and the rest
 ├── Sources/ZephraBench/           # headless benchmark tool
 ├── Sources/ZephraQuantize/        # builds a 4-bit variant from a bf16 release
-└── scripts/screenshot.sh, make-icon.swift, compare-safetensors.py,
-            sign-release.sh, notarize-release.sh
+├── design/mock/                   # the UI the app was built against
+└── scripts/doctor.sh, screenshot.sh, window-id.swift, make-icon.swift,
+            compare-safetensors.py, sign-release.sh, notarize-release.sh
 ```
 
 ## Development

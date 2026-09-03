@@ -7,14 +7,10 @@ import ZephraEngine
 /// a window's library pane, survives a rescan under it, and is published to the menu bar so
 /// Save as, Copy, Reveal and Delete mean the library while this is on screen.
 ///
-/// It also decides what opening an image means, and hands that down as one closure. Three
-/// places ask for it and none of them should have to hold both the store and the window's
-/// selection to say so.
+/// What opening an image means is not decided here: the inspector is a sibling of this pane
+/// rather than a view inside it, so the action is handed down from `RootView`, above both.
 struct LibraryPane: View {
     @State private var selection = LibrarySelection()
-
-    @Environment(GenerationStore.self) private var store
-    @Environment(WorkspaceSelection.self) private var workspace
 
     var body: some View {
         LibraryGrid(selection: selection)
@@ -25,16 +21,7 @@ struct LibraryPane: View {
                 }
             }
             .overlay(alignment: .top) { LibraryFailureNotice() }
-            .environment(\.openLibraryItem, open)
             .focusedSceneValue(\.librarySelection, selection)
-    }
-
-    /// Reads the image onto the canvas and goes there. The settings are deliberately not
-    /// adopted — see `GenerationStore.open(_:)` — so looking at something never replaces the
-    /// prompt being written.
-    private func open(_ item: LibraryItem) {
-        Task { await store.open(item) }
-        workspace.pane = .canvas
     }
 }
 
