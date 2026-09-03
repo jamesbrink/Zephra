@@ -15,6 +15,11 @@ import ZephraEngine
 /// The window's query is also copied into the library here, for the same reason: the sidebar
 /// writes it whichever pane is showing, and the index has to be projecting the right thing by
 /// the time the Library pane is built rather than a frame afterwards.
+///
+/// The inspector hangs off the split view rather than off the Library pane. Inside the pane it
+/// was a column within a column, and the unified toolbar split at its edge: the pane picker
+/// ended up on the content side of the divider and the other four items on the inspector side,
+/// one group torn in half. Here the trailing items stay together above the inspector.
 struct RootView: View {
     @Environment(GenerationStore.self) private var store
     @Environment(WorkspaceSelection.self) private var workspace
@@ -27,11 +32,25 @@ struct RootView: View {
         } detail: {
             WorkspaceDetail()
         }
+        .inspector(isPresented: inspectorVisible) {
+            LibraryInspector()
+                .inspectorColumnWidth(min: 280, ideal: 320, max: 420)
+        }
         .navigationTitle("Zephra")
         .navigationSubtitle(store.windowSubtitle)
         .toolbar { WorkspaceToolbar() }
         .onChange(of: workspace.query, initial: true) { index.query = $1 }
         .task { await store.bootstrapFromInterface() }
+    }
+
+    /// Shown only beside the Library, since there is nothing for it to say about the canvas.
+    /// Written as a binding rather than an `if` so hiding it animates the column away instead
+    /// of taking the whole modifier out from under the view.
+    private var inspectorVisible: Binding<Bool> {
+        Binding(
+            get: { workspace.pane == .library && workspace.inspectorVisible },
+            set: { workspace.inspectorVisible = $0 }
+        )
     }
 }
 
