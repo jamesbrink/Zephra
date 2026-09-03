@@ -77,11 +77,12 @@ readout while that happens.
   favourites, the last seven days, one row per model with a count, the tags in use, albums,
   and Recently deleted and New Album pinned at the foot. Canvas is the picture with the prompt
   floating over it and, in the sidebar, today's run as a wall of small squares that fill in as
-  the seeds land; Library is everything made so far, in day-grouped grids with a filter bar
-  over them. The inspector (⌥⌘I) sits beside either pane, under the toolbar: on the canvas it
-  describes the picture showing, in the Library whatever is selected. Typing in the search
-  while the canvas is up
-  takes you to the Library showing the hits, and clearing the field puts you back where you were.
+  the seeds land; an empty canvas offers the last three prompts as chips. Library is
+  everything made so far, in day-grouped grids with a filter bar over them. The inspector
+  (⌥⌘I) sits beside either pane, under the toolbar: in the Library it describes whatever is
+  selected, on the canvas the picture showing, and it stays away until there is one. Typing in
+  the search while the canvas is up takes you to the Library showing the hits, and clearing the
+  field puts you back where you were.
 - New Album (⌘N, or the bar at the foot of the sidebar) makes one called "Untitled Album" and
   puts the cursor in its name, in the row itself: Return keeps what you typed, Escape keeps
   "Untitled Album", and clicking away keeps what you typed, as the Finder does. Rename in a
@@ -92,10 +93,12 @@ readout while that happens.
   removable token per filter, and has a slider for the thumbnail size (⌘+ and ⌘− step it).
   Click to select, shift-click for a range, ⌘-click to add one, ⌘A for all of them, arrow keys
   to walk the grid, space for Quick Look. The inspector shows the image, its prompt, and the
-  Model, Size, Steps, Seed, Took and File rows read out of the PNG, with its tags and albums,
-  and offers Open in canvas, Queue a variation, and Reveal in Finder. Select several and it
-  says what they have in common and acts on all of them.
-- Type a prompt and press Generate (or ⌘↩). The window subtitle shows what the engine is doing.
+  Model, Size, Steps, Seed and Took rows read out of the PNG (the filename is the tooltip on
+  Reveal in Finder), with its tags and albums, and offers Open in canvas, Queue a variation,
+  and Reveal in Finder. Select several and it says what they have in common and acts on all
+  of them.
+- Type a prompt and press Generate (or ⌘↩); Return breaks the line, and a selection is painted
+  only as far as the text. The window subtitle shows what the engine is doing.
 - The control beside Generate says how many seeds one press queues — 1, 2, 4, or 8 of the same
   prompt, the first of them on the seed in the field, so a run of four is a superset of the one
   image the same press would have made.
@@ -139,8 +142,9 @@ readout while that happens.
   every run gets a fresh one. Images save to `~/Pictures/Zephra` with the seed in the file name;
   if a write fails, a notice sits over the prompt until an image saves, and the picture stays on
   the canvas either way.
-- The strip under the prompt is the run in progress: the seeds one press of Generate queued,
-  with a dashed square for each one still to come (⌥⌘T hides it). Everything ever made is in
+- The sidebar's wall is today's work: a batch of seeds sits in a block of its own, single
+  pictures pack together, a dashed square stands for each seed still to come, and "Today in
+  Library" at the foot counts them. Everything ever made is in
   `~/Pictures/Zephra`, and the Library reads that folder rather than the app keeping a list of
   its own. The record of what made an image — prompt, size, steps, seed, model, and how long it
   took — lives inside the PNG itself, so moving, renaming, or copying a file to another Mac

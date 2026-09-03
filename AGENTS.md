@@ -165,7 +165,9 @@ Four directories, by what a file is rather than what screen it is on:
   `Chip`, `SectionHeader`, `CountBadge`, `KeyValueRow`, `WrappingHStack`,
   `ModelDot`. A view that reaches for a literal radius or a raw colour belongs
   here instead. Safelight amber means "only while the model works" and appears
-  nowhere else.
+  nowhere else. The radii step down by what a thing is: 16 for the capsule,
+  8 for a card or a thumbnail, 5 for a square on the sidebar's wall, so a card
+  reads as a thing to act on and a square as a thing to look at.
 - `Workspace/` — which pane is up, which query the library is showing, whether
   the inspector is open, and the labels those enums draw themselves with.
   `WorkspaceSelection` is one `@Observable`, injected by the composition root
@@ -178,17 +180,34 @@ Four directories, by what a file is rather than what screen it is on:
 - `Views/` — one subfolder per surface (`Canvas/`, `Library/`,
   `Library/Inspector/`, `Sidebar/`, `Sidebar/Timeline/`, `Toolbar/`). The
   three-stored-property rule is what keeps them small; a view that needs a
-  fourth wants a subview. `Sidebar/Timeline/` is the canvas sidebar: a card
-  per run still waiting, the running run's card in amber, and under those one
-  wall of today's pictures in small squares, the running run's dashed places
-  first. `SessionTimeline` in `ZephraEngine` works out the runs; nothing here
-  filters, groups, or sorts. The inspector is `WorkspaceInspector`, a fixed
-  column `WorkspaceDetail` puts beside whichever pane is up, under the toolbar
-  rather than splitting it: `Library/Inspector/` for the grid's selection and
-  `Canvas/CanvasInspector` for the picture on the canvas, which is the
-  library's own inspector once the file is indexed and `FreshImageInspector`
-  until then. `CanvasView` ignores only the vertical safe areas: under the
-  sidebar's it would centre the picture on a width that includes the column.
+  fourth wants a subview. `Sidebar/CanvasSidebar` is the canvas sidebar,
+  which builds today's runs once and hands them to `Sidebar/Timeline/` — a
+  card per run still waiting, the running run's card in amber, and under those
+  the wall of today's pictures in small squares — and to the "Today in
+  Library" bar pinned at its foot. `SessionTimeline` in `ZephraEngine` works
+  out the runs and cuts the wall into blocks (the running run and any run of
+  several squares on their own, consecutive singles packed together); nothing
+  here filters, groups, or sorts. The inspector is `WorkspaceInspector`, a
+  fixed column `WorkspaceDetail` puts beside whichever pane is up, under the
+  toolbar rather than splitting it, and only when it has something to
+  describe: always in the library, on the canvas only while a picture is
+  showing (`GenerationStore.hasPicture`, which the toolbar toggle and the menu
+  read too). `Library/Inspector/` describes the grid's selection and
+  `Canvas/CanvasInspector` the picture on the canvas, which is the library's
+  own inspector once the file is indexed and `FreshImageInspector` until then.
+  An empty canvas shows `CanvasEmptyState`, with the last three prompts from
+  the index (`RecentPrompts`, nothing persisted) as chips. `CanvasView`
+  ignores only the vertical safe areas: under the sidebar's it would centre
+  the picture on a width that includes the column.
+
+The prompt is `PromptTextView`, an `NSTextView` of our own on TextKit 1 rather
+than `TextEditor`, for one reason: a text view paints a selected line break out
+to the trailing edge of its container, which in the capsule is the whole prompt
+area, and `PromptLayoutManager` clips every selection rectangle to the line's
+used width instead. `CapsuleTextView` underneath it stays as tall as its clip,
+so a click in the empty part of the band still places the caret, and reports
+focus from the responder chain rather than from the delegate's editing
+callbacks, which are not sent for a click in and straight back out.
 
 Albums are made and filed from the library sidebar, and both of those are worth
 knowing about before touching `Sidebar/`:
