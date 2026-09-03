@@ -1,4 +1,5 @@
 import SwiftUI
+import ZephraBackendFlux2
 import ZephraBackendQwenImage
 import ZephraBackendZImage
 import ZephraCore
@@ -18,6 +19,7 @@ struct ZephraApp: App {
     private static let runtime = CombinedInferenceRuntime([
         ZImageInferenceRuntime(),
         QwenImageInferenceRuntime(),
+        Flux2InferenceRuntime(),
     ])
     private var runtime: CombinedInferenceRuntime { Self.runtime }
 
@@ -76,6 +78,7 @@ struct ZephraApp: App {
         var registry = BackendRegistry()
         registry.register(.zImage, ZImageBackendFactory.make)
         registry.register(.qwenImage, QwenImageBackendFactory.make)
+        registry.register(.flux2, Flux2BackendFactory.make)
         return GenerationStore(descriptor: ZephraApp.savedModel(), registry: registry)
     }
 

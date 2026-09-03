@@ -8,7 +8,8 @@ enum PreviewImages {
     /// A finished image record wrapping a drawn gradient, for previews of the done state.
     static func sample(
         size: ImageSize = ImageSize(width: 1024, height: 1024),
-        prompt: String = "A lighthouse at dusk, fog rolling in over black rocks"
+        prompt: String = "A lighthouse at dusk, fog rolling in over black rocks",
+        reference: Data? = nil
     ) -> GeneratedImage {
         GeneratedImage(
             pngData: gradientPNG(size: size),
@@ -17,7 +18,8 @@ enum PreviewImages {
                 size: size,
                 steps: 9,
                 guidance: 0,
-                seed: 8_123_447_209_115_662
+                seed: 8_123_447_209_115_662,
+                referenceImage: reference
             ),
             modelID: ModelCatalog.default.id,
             duration: .seconds(19) + .milliseconds(400)
@@ -50,6 +52,11 @@ enum PreviewImages {
                 batchID: batch
             )
         }
+    }
+
+    /// A small picture to sit in the reference well: the same gradient at a modest size.
+    static func referencePNG() -> Data {
+        gradientPNG(size: ImageSize(width: 512, height: 384))
     }
 
     /// PNG bytes for a dusk-coloured gradient with a low horizon, drawn with Core Graphics.

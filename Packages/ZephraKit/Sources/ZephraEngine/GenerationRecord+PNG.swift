@@ -7,7 +7,9 @@ extension GenerationRecord {
     ///
     /// Three chunks go in: the JSON under Zephra's own keyword, a standard `Software` line, and
     /// a `Description` holding the prompt, so the Finder's inspector, Preview, and exiftool all
-    /// show something worth reading without knowing anything about Zephra.
+    /// show something worth reading without knowing anything about Zephra. An edited image
+    /// carries a fourth, the reference it was edited from, so that selecting it later puts the
+    /// picture back and an exported edit can reproduce itself.
     ///
     /// Idempotent: bytes that already carry a record come back untouched, so exporting an image
     /// that was itself restored from disk never doubles the chunk up.
@@ -21,6 +23,9 @@ extension GenerationRecord {
         let prompt = image.settings.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         if !prompt.isEmpty {
             entries.append((keyword: "Description", text: prompt))
+        }
+        if let reference = image.settings.referenceImage {
+            entries.append((keyword: referenceKeyword, text: reference.base64EncodedString()))
         }
         return try PNGTextChunks.inserting(entries, into: image.pngData)
     }
@@ -41,6 +46,19 @@ extension GenerationRecord {
               record.version <= currentVersion
         else { return nil }
         return record
+    }
+
+    /// The reference image filed beside the record in `data`, or nil when the file carries
+    /// none, the chunk does not decode, or its length disagrees with the record: a chunk some
+    /// other tool rewrote is dropped rather than trusted.
+    public static func reference(in data: Data) -> Data? {
+        guard let record = read(from: data), let expected = record.referenceBytes,
+              let text = try? PNGTextChunks.read(from: data),
+              let encoded = text[referenceKeyword],
+              let reference = Data(base64Encoded: encoded),
+              reference.count == expected
+        else { return nil }
+        return reference
     }
 
     /// The JSON one record is stored as: sorted keys and ISO 8601 dates, so a file written

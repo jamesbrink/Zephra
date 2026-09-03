@@ -65,13 +65,45 @@ tokenizer from `vocab.json` and `merges.txt` the same way, because Qwen-Image
 ships no `tokenizer.json` either. The zimage.swift copyright notice above
 covers it.
 
+### FLUX.2 port (`Packages/Flux2Kit`)
+
+`Packages/Flux2Kit` is Zephra's own code, an MLX Swift implementation of
+FLUX.2 klein 4B written in the same style as `QwenImageKit` and covered by
+Zephra's own `LICENSE`. Unlike `QwenImageKit` it is not clean-room: it was
+translated with attribution from two MIT-licensed Swift ports and the
+Apache-2.0 reference, none of which restricts proprietary use. Its behaviour
+is pinned against `diffusers`, not against either port, which is what makes
+the places it deliberately departs from them checkable (see `PROVENANCE.md`).
+
+- **flux2-klein-swift** — https://github.com/xocialize/flux2-klein-swift —
+  Copyright (c) 2026 Xocialize — MIT License — the shape of the transformer:
+  the modulation shared across blocks, the single-stream block's fused
+  projection, and the four-axis rotary layout. Its scheduler, its query-key
+  norm epsilon, and its handling of reference pictures were not followed.
+- **flux-2-swift-mlx** — https://github.com/VincentGourbin/flux-2-swift-mlx —
+  Copyright (c) 2025 Vincent Gourbin — MIT License — the schedule with the
+  reference pipeline's empirical shift, the autoencoder's two towers, and how
+  a reference picture is fitted and placed after the image being made.
+- **mflux** — https://github.com/mflux-community/mflux — Copyright (c) 2026
+  Filip Strand — MIT License — a third reading of the same architecture in
+  Python; no code was taken.
+- **diffusers** — https://github.com/huggingface/diffusers — Copyright 2024
+  The HuggingFace Team — Apache License 2.0 — the reference implementation
+  the port's behaviour is defined against. `Flux2Kit`'s test fixtures are
+  tensors dumped from it (see `Packages/Flux2Kit/Tools/dump_reference.py`).
+
+`xocialize/flux2-vae-mlx-swift`, which the first port takes its decoder from,
+carries no license file and was never opened. The autoencoder here was
+written from the second port and from `diffusers`.
+
 ### swift-transformers
 
 - **Source:** https://github.com/huggingface/swift-transformers
 - **Copyright:** Copyright 2022 Hugging Face SAS
 - **License:** Apache License 2.0
 - **Used as:** tokenizer and Hugging Face Hub model resolution, a dependency
-  of `ZImageKit` and of `QwenImageKit`.
+  of `ZImageKit`, of `QwenImageKit`, and of `Flux2Kit`, which also downloads
+  through it.
 
 ### swift-log
 
@@ -124,14 +156,24 @@ user's own machine.
   — License: Apache License 2.0
 - **lightx2v/Qwen-Image-2512-Lightning** — https://huggingface.co/lightx2v/Qwen-Image-2512-Lightning
   — License: Apache License 2.0 — the four-step distillation adapter.
+- **black-forest-labs/FLUX.2-klein-4B** — https://huggingface.co/black-forest-labs/FLUX.2-klein-4B
+  — License: Apache License 2.0 — the transformer, the autoencoder, and the
+  text encoder. The text encoder is Qwen3-4B (Alibaba Cloud, Apache License
+  2.0), shipped inside this repository byte for byte. The autoencoder's
+  configuration names `black-forest-labs/FLUX.2-dev` as its origin, and that
+  repository is under a non-commercial license; Zephra reads the autoencoder
+  only from the klein-4B repository, which Black Forest Labs publishes whole
+  under Apache 2.0, and never resolves FLUX.2-dev.
 
-Neither 4-bit variant is downloaded and neither is redistributed. `make quantize`
-derives the Z-Image one on the user's own Mac from **Tongyi-MAI/Z-Image-Turbo**
-above; `make quantize-qwen` derives the Qwen-Image one from **Qwen/Qwen-Image-2512**
-with the **Lightning** adapter merged into its transformer. Both are written to
-`~/Library/Application Support/Zephra/Models`. Each is a modified form of
-Apache-2.0 weights — for the Qwen build, of two sets of them — so the Apache
-License 2.0 that covers those covers the result too.
+None of the locally built variants is downloaded and none is redistributed.
+`make quantize` derives the Z-Image one on the user's own Mac from
+**Tongyi-MAI/Z-Image-Turbo** above; `make quantize-qwen` derives the Qwen-Image
+one from **Qwen/Qwen-Image-2512** with the **Lightning** adapter merged into its
+transformer; the app itself derives the FLUX.2 klein variants from
+**black-forest-labs/FLUX.2-klein-4B** the first time one is loaded. All are
+written to `~/Library/Application Support/Zephra/Models`. Each is a modified
+form of Apache-2.0 weights — for the Qwen build, of two sets of them — so the
+Apache License 2.0 that covers those covers the result too.
 
 ---
 
@@ -179,7 +221,8 @@ scripts from SwiftNIO.
 ### MIT License
 
 Applies to: zimage.swift, mlx-swift, mlx, mlx-c, {fmt}, JSON for Modern C++,
-and Jinja, each with the copyright notice listed for it above.
+Jinja, flux2-klein-swift, and flux-2-swift-mlx, each with the copyright notice
+listed for it above.
 
 ```
 MIT License
@@ -190,6 +233,8 @@ Copyright (c) 2023 Apple Inc.
 Copyright (c) 2012 - present, Victor Zverovich and {fmt} contributors
 Copyright (c) 2013-2022 Niels Lohmann
 Copyright (c) 2024 John Mai
+Copyright (c) 2026 Xocialize
+Copyright (c) 2025 Vincent Gourbin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

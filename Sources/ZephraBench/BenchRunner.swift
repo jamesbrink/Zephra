@@ -12,18 +12,25 @@ enum BenchRunner {
         // Either a catalogued model, or a snapshot named on the command line for a family whose
         // catalog entry does not exist yet. The flag was checked when it was parsed, so an
         // unknown identifier cannot reach here.
+        // Read before anything is fetched or loaded, so an unreadable picture fails in a
+        // second rather than after a sixteen-gigabyte download.
+        let reference = try options.reference.map { try Data(contentsOf: $0) }
         let descriptor =
             if let snapshot = options.snapshot, let backend = options.backend {
                 BenchDescriptor.forSnapshot(
-                    snapshot, backend: backend, size: options.size, steps: options.steps)
+                    snapshot, backend: backend, size: options.size, steps: options.steps,
+                    supportsReferenceImage: reference != nil)
             } else {
                 ModelCatalog.descriptor(id: options.model) ?? ModelCatalog.default
             }
         let backend = try registry.make(descriptor)
         let verbose = !options.json
 
-        let snapshot = try await backend.ensureAvailable(descriptor) { event in
+        let downloaded = try await backend.ensureAvailable(descriptor) { event in
             note("downloading \(event.completedFiles)/\(event.totalFiles) files", verbose)
+        }
+        let snapshot = try await backend.build(descriptor, at: downloaded) { event in
+            note("building: \(event.component) \(Int((event.fraction * 100).rounded()))%", verbose)
         }
         note("loading \(descriptor.fullName)", verbose)
         let clock = ContinuousClock()
@@ -32,9 +39,11 @@ enum BenchRunner {
         }
 
         note("warm-up", verbose)
-        _ = try await backend.generate(warmUpSettings(descriptor, prompt: options.prompt)) { _ in }
+        _ = try await backend.generate(
+            warmUpSettings(descriptor, prompt: options.prompt, reference: reference)
+        ) { _ in }
 
-        let settings = timedSettings(descriptor, options: options)
+        let settings = timedSettings(descriptor, options: options, reference: reference)
         var runSeconds: [Double] = []
         var stepIntervals: [Double] = []
         var image = Data()
@@ -61,22 +70,29 @@ enum BenchRunner {
             meanSecondsPerStep: mean(stepIntervals),
             activeMemoryMB: Double(memory.activeBytes) / 1_000_000,
             peakMemoryMB: Double(memory.peakBytes) / 1_000_000,
-            outputPath: options.output.path
+            outputPath: options.output.path,
+            referencePath: options.reference?.path
         )
     }
 
     /// A cheap, tiny generation that pays the one-off costs, so the timed runs measure steady
     /// state rather than Metal kernel compilation and first-touch page faults.
+    ///
+    /// The reference goes into the warm-up too: an edit runs a longer sequence through
+    /// different kernel shapes, and warming up without it would leave the first timed run to
+    /// pay for their compilation, which is the thing the warm-up exists to prevent.
     private static func warmUpSettings(
         _ descriptor: ModelDescriptor,
-        prompt: String
+        prompt: String,
+        reference: Data?
     ) -> GenerationSettings {
         var settings = GenerationSettings.defaults(for: descriptor)
         settings.prompt = prompt
         settings.size = ImageSize(width: 512, height: 512)
         settings.steps = 1
         settings.seed = 1
-        return settings
+        settings.referenceImage = reference
+        return descriptor.capabilities.clamp(settings)
     }
 
     /// The settings every timed run shares. The seed is fixed so repeated invocations produce
@@ -85,13 +101,15 @@ enum BenchRunner {
     /// count that actually ran instead of the ones that were asked for.
     private static func timedSettings(
         _ descriptor: ModelDescriptor,
-        options: BenchOptions
+        options: BenchOptions,
+        reference: Data?
     ) -> GenerationSettings {
         var settings = GenerationSettings.defaults(for: descriptor)
         settings.prompt = options.prompt
         settings.size = ImageSize(width: options.size, height: options.size)
         settings.steps = options.steps
         settings.seed = 42
+        settings.referenceImage = reference
         return descriptor.capabilities.clamp(settings)
     }
 

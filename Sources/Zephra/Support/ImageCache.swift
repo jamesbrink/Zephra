@@ -1,4 +1,5 @@
 import AppKit
+import CryptoKit
 import Foundation
 import ZephraCore
 
@@ -14,11 +15,25 @@ final class ImageCache {
 
     private let fullSize = NSCache<NSUUID, NSImage>()
     private let thumbnails = NSCache<NSUUID, NSImage>()
+    private let references = NSCache<NSString, NSImage>()
 
     /// Creates an empty cache. One instance lives for the life of the window.
     init() {
         fullSize.countLimit = 8
         thumbnails.countLimit = 64
+        references.countLimit = 4
+    }
+
+    /// A small bitmap for the reference well, keyed by a digest of the bytes: a reference has
+    /// no session identity of its own, and the same picture dropped twice is the same key.
+    /// A digest and not `hashValue`, which reads only a prefix of a `Data` and would show the
+    /// wrong picture for two files that agree on their first bytes.
+    func thumbnail(forReference data: Data) -> NSImage? {
+        let key = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() as NSString
+        if let hit = references.object(forKey: key) { return hit }
+        guard let made = Self.makeThumbnail(from: data) else { return nil }
+        references.setObject(made, forKey: key)
+        return made
     }
 
     /// The full-resolution bitmap for an image, decoding it the first time it is asked for.
