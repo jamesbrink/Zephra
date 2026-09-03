@@ -89,10 +89,8 @@ public final class QwenImagePipeline {
         }
 
         onProgress(QwenImageGenerationProgress(stage: .encodingPrompt))
-        let tokens = MLXArray(
-            model.tokenizer.encode(prompt: request.prompt, limit: request.maxPromptTokens)
-                .map(Int32.init)
-        ).reshaped([1, -1])
+        let ids = model.tokenizer.encode(prompt: request.prompt, limit: request.maxPromptTokens)
+        let tokens = MLXArray(ids.map(Int32.init)).reshaped([1, -1])
         let conditioning = model.textEncoder(
             tokens, dropping: QwenImagePromptTemplate.dropIndex)
         MLX.eval(conditioning)
@@ -124,19 +122,17 @@ public final class QwenImagePipeline {
                 key: MLXRandom.key(request.seed)
             ))
 
-        let timesteps = scheduler.timesteps(
-            scaledBy: model.configuration.scheduler.numTrainTimesteps)
-        for (index, timestep) in timesteps.enumerated() {
+        // The model is conditioned on the noise level itself, on its zero-to-one scale; the
+        // reference multiplies by a thousand and divides it back out before the embedding.
+        let sigmas = scheduler.sigmas.dropLast()
+        for (index, sigma) in sigmas.enumerated() {
             try Task.checkCancellation()
             onProgress(
-                QwenImageGenerationProgress(
-                    stage: .denoising(step: index, of: timesteps.count)))
-            // The model reads the noise level on a zero-to-one scale and stretches it back up
-            // itself.
+                QwenImageGenerationProgress(stage: .denoising(step: index, of: sigmas.count)))
             let prediction = model.transformer(
                 latents: latents,
                 text: conditioning,
-                timestep: MLXArray([Float(timestep / 1000)]),
+                timestep: MLXArray([Float(sigma)]),
                 frequencies: frequencies
             )
             latents = scheduler.step(modelOutput: prediction, index: index, sample: latents)

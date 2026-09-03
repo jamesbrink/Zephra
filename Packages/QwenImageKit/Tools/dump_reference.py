@@ -40,6 +40,7 @@ def dump_rope(out: pathlib.Path) -> None:
 
 def dump_scheduler(out: pathlib.Path) -> None:
     """The sigma ladder, for the published config, at a few step counts and image sizes."""
+    import numpy as np
     from diffusers import FlowMatchEulerDiscreteScheduler
 
     config = {
@@ -65,7 +66,10 @@ def dump_scheduler(out: pathlib.Path) -> None:
             config["max_image_seq_len"] - config["base_image_seq_len"]
         )
         mu = tokens * slope + config["base_shift"] - slope * config["base_image_seq_len"]
-        scheduler.set_timesteps(num_inference_steps=steps, mu=mu)
+        # The pipeline does not take the scheduler's default ladder: QwenImagePipeline passes
+        # linspace(1, 1/steps, steps) as the sigmas, and the shift and terminal stretch act on
+        # that. Dumping the default would pin a schedule no image is ever made with.
+        scheduler.set_timesteps(sigmas=np.linspace(1.0, 1 / steps, steps), mu=mu)
         tensors[f"steps{steps}.tokens{tokens}.sigmas"] = scheduler.sigmas.float().contiguous()
     save_file(tensors, str(out / "scheduler.safetensors"))
     print(f"scheduler: {len(tensors)} tensors")

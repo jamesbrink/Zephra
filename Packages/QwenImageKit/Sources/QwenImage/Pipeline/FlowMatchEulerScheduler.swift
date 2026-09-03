@@ -23,12 +23,13 @@ public struct FlowMatchEulerScheduler: Sendable {
         steps: Int,
         imageSequenceLength: Int
     ) {
-        let trainSteps = Double(configuration.numTrainTimesteps)
-        // Evenly spaced in timestep space, from the noisiest to one step short of clean.
+        // Evenly spaced in sigma from one down to 1/steps: the ladder the reference pipeline
+        // hands its scheduler, and the one the four-step adapter was distilled against. The
+        // scheduler's own default is spaced in timesteps and ends near zero instead, and no
+        // Qwen-Image image was ever made with it.
         var values = (0..<steps).map { step -> Double in
             guard steps > 1 else { return 1 }
-            let t = trainSteps - (trainSteps - 1) * Double(step) / Double(steps - 1)
-            return t / trainSteps
+            return 1 - Double(step) * (1 - 1 / Double(steps)) / Double(steps - 1)
         }
 
         if configuration.useDynamicShifting {
@@ -45,11 +46,6 @@ public struct FlowMatchEulerScheduler: Sendable {
         }
 
         sigmas = values + [0]
-    }
-
-    /// The timestep the model is conditioned on at each step, on the training scale.
-    public func timesteps(scaledBy trainSteps: Int) -> [Double] {
-        sigmas.dropLast().map { $0 * Double(trainSteps) }
     }
 
     /// One Euler step: move along the probability flow by the gap to the next noise level.
