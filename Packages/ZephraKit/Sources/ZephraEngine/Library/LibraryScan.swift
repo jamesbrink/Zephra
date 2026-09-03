@@ -54,6 +54,9 @@ public struct LibraryScan: Sendable {
     /// folder, or one written by a build newer than this — is left out rather than shown with
     /// invented settings.
     public func rescan(known: [LibraryItem.ID: LibraryItem] = [:]) -> [LibraryItem] {
+        // A crash between an annotation's temporary file and the swap that replaces the original
+        // leaves a hidden file nothing will ever come back for. A scan is where it is noticed.
+        library.sweepAnnotationTemporaries()
         var items: [LibraryItem] = []
         for root in library.scanRoots {
             for listing in listings(in: root.url) {

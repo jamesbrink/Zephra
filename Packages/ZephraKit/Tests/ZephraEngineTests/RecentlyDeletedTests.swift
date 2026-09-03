@@ -72,6 +72,23 @@ struct RecentlyDeletedTests {
         #expect(manifest.entries.map(\.fileName) == [fresh.lastPathComponent])
     }
 
+    @Test("a picture Zephra did not make is never purged, however long it sits there")
+    func foreignFilesAreLeftAlone() throws {
+        let bed = EngineTestBed()
+        let library = bed.library
+        let folder = library.directory(for: .recentlyDeleted)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let foreign = folder.appending(path: "someone-elses.png")
+        try MockBackend.pngData.write(to: foreign)
+
+        for _ in 0..<2 {
+            #expect(try library.purgeRecentlyDeleted(deletedBefore: .distantFuture).isEmpty)
+        }
+
+        #expect(FileManager.default.fileExists(atPath: foreign.path(percentEncoded: false)))
+        #expect(library.recentlyDeletedManifest().entries.isEmpty, "and it is not written down")
+    }
+
     @Test("a file nobody wrote down gets its full thirty days from when it was noticed")
     func unrecordedFilesGetTheFullGrace() throws {
         let bed = EngineTestBed()

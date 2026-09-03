@@ -56,7 +56,7 @@ public struct ImageFacts: Hashable, Sendable {
         return "\(whole) \(separator) \(number(seconds / Double(steps))) s/step"
     }
 
-    /// An em-width middle dot, the separator the rest of the interface uses between facts.
+    /// A middle dot, the separator the rest of the interface uses between facts.
     public static let separator = "\u{00B7}"
     /// What is shown where there is no answer.
     public static let unknown = "\u{2014}"

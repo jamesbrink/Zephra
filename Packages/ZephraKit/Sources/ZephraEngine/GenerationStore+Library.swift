@@ -36,8 +36,16 @@ extension GenerationStore {
     /// to two families.
     ///
     /// `settings` and `descriptor` follow, so the controls show what is about to run.
+    ///
+    /// Does nothing while the engine cannot take work, for the same reason `generate()` does
+    /// nothing unless `canQueue`: draining during a download, a load or a warm-up would swap
+    /// models under the load that is already running and cancel it. The prompt tested is the
+    /// record's rather than the one in the field, because that is the one about to run.
     public func queueVariation(of item: LibraryItem) {
-        guard let record = item.provenance.record else { return }
+        guard let record = item.provenance.record,
+              record.settings.isReadyToGenerate,
+              state.acceptsGeneration || isDraining
+        else { return }
         let known = ModelCatalog.descriptor(id: record.modelID)
         let model = known ?? descriptor
         var request = record.settings.withRandomSeed()

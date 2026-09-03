@@ -78,8 +78,9 @@ public final class LibraryIndex {
     }
 
     /// How many images another query would show, for a sidebar row that is not the current one.
+    /// Counting, not listing: the order of the matches is nobody's business here.
     public func count(for query: LibraryQuery) -> Int {
-        query.matching(items).count
+        items.lazy.filter { query.matches($0) }.count
     }
 
     /// Recomputes everything derived from `items`, `albums` and `query`. The one place that

@@ -84,6 +84,31 @@ struct LibraryScanTests {
         #expect(item.size == ModelCatalog.default.capabilities.defaultSize)
     }
 
+    @Test("a scan sweeps up a temporary a crash left behind, once nobody could still be writing it")
+    func staleTemporariesAreSweptUp() throws {
+        let bed = EngineTestBed()
+        let library = bed.library
+        try library.write(LibraryAnnotationTests.image(seed: 6))
+        let files = FileManager.default
+        let stale = bed.directory.appending(
+            path: "\(ImageLibrary.annotationTemporaryPrefix)\(UUID().uuidString).png")
+        let fresh = bed.directory.appending(
+            path: "\(ImageLibrary.annotationTemporaryPrefix)\(UUID().uuidString).png")
+        try Data("half a picture".utf8).write(to: stale)
+        try Data("half a picture".utf8).write(to: fresh)
+        try files.setAttributes(
+            [.modificationDate: Date().addingTimeInterval(-3600)],
+            ofItemAtPath: stale.path(percentEncoded: false))
+
+        let items = LibraryScan(library: library).rescan()
+
+        #expect(items.count == 1, "a temporary was never part of the library anyway")
+        #expect(!files.fileExists(atPath: stale.path(percentEncoded: false)))
+        #expect(
+            files.fileExists(atPath: fresh.path(percentEncoded: false)),
+            "a write that may still be happening is left alone")
+    }
+
     /// Writes an image into one of the library's other folders, as the trash and the importer
     /// will once they exist.
     @discardableResult

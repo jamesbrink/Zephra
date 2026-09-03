@@ -103,6 +103,31 @@ struct LibraryVariationTests {
         #expect(store.history.map(\.modelID) == [ModelCatalog.default.id])
     }
 
+    @Test("a variation asked for during a load waits rather than cancelling it")
+    func variationsDoNotInterruptALoad() async throws {
+        let bed = EngineTestBed()
+        bed.control.update {
+            $0.loadDelay = .milliseconds(200)
+            $0.stepDelay = .zero
+        }
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        let bootstrap = Task { await store.bootstrap() }
+        try await bed.waitFor(store, toReach: .loading(.preparing))
+
+        store.queueVariation(of: LibraryFilteringTests.item(prompt: "not yet"))
+        #expect(store.queue.isEmpty, "the engine cannot take work yet")
+
+        await bootstrap.value
+        #expect(store.state == .ready, "and the load it was in the middle of finished")
+        #expect(bed.control.settings.loads == 1)
+
+        store.queueVariation(of: LibraryFilteringTests.item(prompt: "now"))
+        while store.isDraining || !store.queue.isEmpty { await store.settle() }
+        await store.settle()
+        #expect(store.history.map(\.settings.prompt) == ["now"])
+    }
+
     @Test("an imported picture has nothing to vary")
     func importedPicturesAreNotVaried() async throws {
         let bed = EngineTestBed()

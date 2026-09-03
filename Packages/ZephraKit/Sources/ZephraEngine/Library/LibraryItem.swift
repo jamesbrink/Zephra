@@ -24,7 +24,7 @@ public struct LibraryItem: Identifiable, Hashable, Sendable {
     /// `searchKey` in step with the tags.
     public private(set) var annotation: LibraryAnnotation
     /// Bytes on disk, for the inspector's File row.
-    public let fileSize: Int64
+    public private(set) var fileSize: Int64
     /// The file's modification date, which is what a rescan compares to decide what to re-read.
     public private(set) var contentModifiedAt: Date
     /// Everything searchable about the item, folded once so matching is a substring test.
@@ -66,11 +66,16 @@ public struct LibraryItem: Identifiable, Hashable, Sendable {
     }
 
     /// The same item after a write this app made: the annotation that reached the file, and the
-    /// modification date it now has, so the next scan sees a file it already knows rather than
-    /// re-reading one Zephra changed itself.
-    public func written(_ annotation: LibraryAnnotation, modifiedAt: Date) -> LibraryItem {
+    /// date and size it now has, so the next scan sees a file it already knows rather than
+    /// re-reading one Zephra changed itself. Both facts, because the scan compares both.
+    public func written(
+        _ annotation: LibraryAnnotation,
+        modifiedAt: Date,
+        size: Int64
+    ) -> LibraryItem {
         var copy = withAnnotation(annotation)
         copy.contentModifiedAt = modifiedAt
+        copy.fileSize = size
         return copy
     }
 

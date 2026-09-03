@@ -2,6 +2,10 @@ import Foundation
 
 /// Reading and writing what the user said about an image, without touching what produced it.
 extension ImageLibrary {
+    /// The prefix of the temporary file an annotation is written through. Hidden, so a scan
+    /// steps over it, and recognisable, so a scan can sweep one up after a crash.
+    public static let annotationTemporaryPrefix = ".zephra-annotate-"
+
     /// The annotation on the file at `url`, or `.none` for a file that carries none, is not a
     /// PNG, or cannot be read at all.
     ///
@@ -14,23 +18,26 @@ extension ImageLibrary {
         return LibraryAnnotation.decode(from: text)
     }
 
-    /// Writes `annotation` into the file at `url` and returns its new modification date.
+    /// Writes `annotation` into the file at `url` and returns what the file now looks like to a
+    /// scan: its modification date and its size.
     ///
     /// The bytes are rewritten through a temporary file in the same directory and swapped in
     /// with `replaceItemAt`, which keeps the creation date, the permissions, and the Finder's
     /// own metadata. That matters more than it sounds: the library sorts by when an image was
     /// made, and a plain overwrite would move every image you favourited to the top.
     ///
-    /// The date comes back so the caller can record it as the file's own: a scan compares
-    /// modification dates to decide what to re-read, and an annotation it wrote itself should
-    /// not look like a change somebody made in the Finder.
+    /// Both facts come back because both are what a rescan compares. Recording them means the
+    /// next scan recognises a file this app wrote rather than reading its header again.
     @discardableResult
-    public func annotate(_ url: URL, with annotation: LibraryAnnotation) throws -> Date {
+    public func annotate(
+        _ url: URL,
+        with annotation: LibraryAnnotation
+    ) throws -> (modifiedAt: Date, size: Int64) {
         let data = try Data(contentsOf: url)
         let rewritten = try PNGTextChunks.replacing([try annotation.entry()], in: data)
         let files = FileManager.default
         let temporary = url.deletingLastPathComponent()
-            .appending(path: ".zephra-annotate-\(UUID().uuidString).png")
+            .appending(path: "\(Self.annotationTemporaryPrefix)\(UUID().uuidString).png")
         try rewritten.write(to: temporary, options: .atomic)
         let result: URL
         do {
@@ -39,10 +46,38 @@ extension ImageLibrary {
             try? files.removeItem(at: temporary)
             throw error
         }
-        // Asked of the file system rather than of the URL: the URL `replaceItemAt` hands back
-        // carries resource values cached during the swap, which are a fraction of a millisecond
-        // behind the ones a scan will read.
-        let attributes = try? files.attributesOfItem(atPath: result.path(percentEncoded: false))
-        return attributes?[.modificationDate] as? Date ?? Date()
+        // Read through a URL built from the path rather than the one `replaceItemAt` hands back:
+        // that one carries resource values cached during the swap, a fraction of a millisecond
+        // behind what a scan will read, and the two have to compare equal.
+        let fresh = URL(filePath: result.path(percentEncoded: false))
+        let values = try? fresh.resourceValues(
+            forKeys: [.contentModificationDateKey, .fileSizeKey])
+        return (
+            modifiedAt: values?.contentModificationDate ?? Date(),
+            size: Int64(values?.fileSize ?? rewritten.count)
+        )
+    }
+
+    /// Removes annotation temporaries left behind by a crash between the write and the swap.
+    ///
+    /// Only ones older than a minute, so a write that is happening right now is never pulled out
+    /// from under itself: this is for the file nobody is coming back for, not for tidiness.
+    public func sweepAnnotationTemporaries(olderThan age: TimeInterval = 60, now: Date = Date()) {
+        let files = FileManager.default
+        for root in scanRoots {
+            let directory = root.url
+            let contents = (try? files.contentsOfDirectory(
+                at: directory,
+                includingPropertiesForKeys: [.contentModificationDateKey],
+                options: [.skipsSubdirectoryDescendants]
+            )) ?? []
+            for url in contents
+            where url.lastPathComponent.hasPrefix(Self.annotationTemporaryPrefix) {
+                let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey])
+                    .contentModificationDate) ?? .distantPast
+                guard now.timeIntervalSince(modified) > age else { continue }
+                try? files.removeItem(at: url)
+            }
+        }
     }
 }

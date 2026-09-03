@@ -43,6 +43,9 @@ public final class GenerationStore {
     /// library index a way to add that one file rather than rescanning the folder for it; the
     /// engine has no idea an index exists.
     public var onImageSaved: (@MainActor (URL) -> Void)?
+    /// Called with the file an image was moved out of when it was deleted from the filmstrip, so
+    /// the app can tell the library index about it without waiting for a folder watch.
+    public var onImageDeleted: (@MainActor (URL) -> Void)?
     /// The most recent thing the library could not do for this store — an image that could not
     /// be opened, so far — or nil when the last one worked.
     public internal(set) var lastLibraryFailure: LibraryFailure?

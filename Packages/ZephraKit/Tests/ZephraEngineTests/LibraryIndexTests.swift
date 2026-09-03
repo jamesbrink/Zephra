@@ -169,25 +169,73 @@ struct LibraryIndexTests {
         #expect(index.items.map(\.prompt).contains("from the Finder"))
     }
 
-    @Test("a purge takes what is past its thirty days and leaves the rest")
+    @Test("starting the index purges what is past its thirty days, and leaves the rest")
     func purgingWhatIsExpired() async throws {
         let bed = EngineTestBed()
-        let deletedAt = Date(timeIntervalSince1970: 1_772_000_000)
+        let now = Date()
         try bed.library.moveToRecentlyDeleted(
-            try bed.library.write(LibraryAnnotationTests.image(seed: 20)), at: deletedAt)
+            try bed.library.write(LibraryAnnotationTests.image(seed: 20)),
+            at: now.addingTimeInterval(-RecentlyDeletedManifest.grace - 60))
         try bed.library.moveToRecentlyDeleted(
-            try bed.library.write(LibraryAnnotationTests.image(seed: 21)),
-            at: deletedAt.addingTimeInterval(RecentlyDeletedManifest.grace))
+            try bed.library.write(LibraryAnnotationTests.image(seed: 21)), at: now)
+
         let index = bed.index()
         index.start()
         await index.settle()
-        #expect(index.counts.recentlyDeleted == 2)
 
-        index.purgeExpired(now: deletedAt.addingTimeInterval(RecentlyDeletedManifest.grace + 1))
+        #expect(index.items.map(\.seed) == [21], "the older one's thirty days were up")
+        #expect(index.counts.recentlyDeleted == 1)
+
+        index.purgeExpired(now: now.addingTimeInterval(RecentlyDeletedManifest.grace + 60))
+        await index.settle()
+        #expect(index.items.isEmpty)
+        #expect(index.counts.recentlyDeleted == 0)
+    }
+
+    @Test("the folder can be renamed away and back, and writes are still noticed")
+    func theWatchSurvivesARename() async throws {
+        let bed = EngineTestBed()
+        try bed.library.write(LibraryAnnotationTests.image(seed: 30))
+        let index = bed.index(settleFor: .milliseconds(20))
+        index.start()
+        await index.settle()
+        #expect(index.items.count == 1)
+
+        let away = bed.directory.deletingLastPathComponent()
+            .appending(path: bed.directory.lastPathComponent + "-away", directoryHint: .isDirectory)
+        try FileManager.default.moveItem(at: bed.directory, to: away)
+        try await Task.sleep(for: .milliseconds(30))
+        try FileManager.default.moveItem(at: away, to: bed.directory)
+
+        try bed.library.write(LibraryAnnotationTests.image(seed: 31, prompt: "after the rename"))
+
+        for _ in 0..<500 where index.items.count < 2 {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(index.items.map(\.prompt).contains("after the rename"))
+    }
+
+    @Test("an annotation this app wrote is not read back on the next scan")
+    func annotatedFilesAreNotReread() async throws {
+        let bed = EngineTestBed()
+        let url = try bed.library.write(LibraryAnnotationTests.image(seed: 32))
+        let index = bed.index()
+        index.start()
+        await index.settle()
+        let id = try #require(index.items.first?.id)
+
+        index.toggleFavourite([id])
         await index.settle()
 
-        #expect(index.counts.recentlyDeleted == 1)
-        #expect(index.items.map(\.seed) == [21])
+        let item = try #require(index.items.first)
+        let onDisk = try url.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey])
+        #expect(item.contentModifiedAt == onDisk.contentModificationDate)
+        #expect(item.fileSize == onDisk.fileSize.map(Int64.init))
+        // A marker that is only in memory: if the scan reuses what it knows, it survives.
+        let marked = item.withAnnotation(
+            LibraryAnnotation(isFavourite: true, tags: ["not on disk"]))
+        let rescanned = LibraryScan(library: bed.library).rescan(known: [marked.id: marked])
+        #expect(rescanned.first?.tags == ["not on disk"], "no header was read")
     }
 
     @Test("the preview index invents a library and never looks for one")

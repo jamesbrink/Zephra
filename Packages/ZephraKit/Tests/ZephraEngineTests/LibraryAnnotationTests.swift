@@ -41,11 +41,13 @@ struct LibraryAnnotationTests {
         let before = try #require(
             try url.resourceValues(forKeys: [.creationDateKey]).creationDate)
 
-        let modified = try bed.library.annotate(url, with: LibraryAnnotation(isFavourite: true))
+        let written = try bed.library.annotate(url, with: LibraryAnnotation(isFavourite: true))
 
-        let after = try url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
+        let after = try url.resourceValues(
+            forKeys: [.creationDateKey, .contentModificationDateKey, .fileSizeKey])
         #expect(after.creationDate == before)
-        #expect(after.contentModificationDate == modified, "the date reported is the file's own")
+        #expect(after.contentModificationDate == written.modifiedAt, "the file's own date")
+        #expect(after.fileSize.map(Int64.init) == written.size, "and its own size")
         #expect(try bed.writtenFiles() == [url.lastPathComponent], "no temporary left behind")
     }
 

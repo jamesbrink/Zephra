@@ -23,8 +23,8 @@ extension ImageLibrary {
 
     /// The albums the library has: the manifest, plus any album an image names that the
     /// manifest has lost, in the order a sidebar should list them.
-    public func albums(reconciledWith items: [LibraryItem], now: Date = Date()) -> [Album] {
-        albumManifest().reconciled(with: items, now: now)
+    public func albums(reconciledWith items: [LibraryItem]) -> [Album] {
+        albumManifest().reconciled(with: items)
     }
 
     /// Writes the album list, creating the library folder if this is the first thing in it.

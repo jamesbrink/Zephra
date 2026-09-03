@@ -29,7 +29,7 @@ public struct AlbumManifest: Hashable, Sendable, Codable {
     /// The manifest wins on the name: it is where a rename lands, and an image still carrying
     /// the old one is simply behind. An album id an image names that the manifest has never
     /// heard of is recreated from the image, which is how a lost manifest comes back.
-    public func reconciled(with items: [LibraryItem], now: Date = Date()) -> [Album] {
+    public func reconciled(with items: [LibraryItem]) -> [Album] {
         var found = albums
         var known = Set(albums.map(\.id))
         for item in items {

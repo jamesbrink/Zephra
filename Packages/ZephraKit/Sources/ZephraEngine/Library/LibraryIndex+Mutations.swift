@@ -64,10 +64,12 @@ extension LibraryIndex {
         let results = await Task.detached(priority: .utility) { () -> [AnnotationWrite] in
             batch.map { id, annotation in
                 do {
-                    let modifiedAt = try library.annotate(URL(filePath: id), with: annotation)
-                    return AnnotationWrite(id: id, modifiedAt: modifiedAt, reason: nil)
+                    let written = try library.annotate(URL(filePath: id), with: annotation)
+                    return AnnotationWrite(
+                        id: id, modifiedAt: written.modifiedAt, size: written.size, reason: nil)
                 } catch {
-                    return AnnotationWrite(id: id, modifiedAt: nil, reason: error.localizedDescription)
+                    return AnnotationWrite(
+                        id: id, modifiedAt: nil, size: nil, reason: error.localizedDescription)
                 }
             }
         }.value
@@ -79,6 +81,7 @@ extension LibraryIndex {
     struct AnnotationWrite: Sendable {
         let id: LibraryItem.ID
         let modifiedAt: Date?
+        let size: Int64?
         let reason: String?
     }
 
@@ -89,8 +92,8 @@ extension LibraryIndex {
     /// what is on disk is the only answer that cannot be wrong.
     private func apply(_ write: AnnotationWrite, wrote annotation: LibraryAnnotation?) {
         guard let index = items.firstIndex(where: { $0.id == write.id }) else { return }
-        if let modifiedAt = write.modifiedAt, let annotation {
-            items[index] = items[index].written(annotation, modifiedAt: modifiedAt)
+        if let modifiedAt = write.modifiedAt, let size = write.size, let annotation {
+            items[index] = items[index].written(annotation, modifiedAt: modifiedAt, size: size)
             return
         }
         let url = items[index].url

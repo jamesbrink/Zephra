@@ -54,9 +54,11 @@ extension ImageLibrary {
     /// Discards everything deleted before `cutoff`, and returns what went.
     ///
     /// A file nobody wrote down — put there by hand, or left by a build that crashed between
-    /// the move and the manifest — is recorded as deleted now and kept. It gets the full thirty
-    /// days from the moment it was noticed rather than being purged on the spot, because the
-    /// alternative is deleting somebody's picture over a missing line in a JSON file.
+    /// the move and the manifest — is recorded as deleted now and kept, but only if Zephra made
+    /// it. It gets the full thirty days from the moment it was noticed rather than being purged
+    /// on the spot, because the alternative is deleting somebody's picture over a missing line
+    /// in a JSON file, and a picture Zephra did not make is never deleted at all: this folder is
+    /// inside the user's Pictures, and anything else in it is theirs.
     @discardableResult
     public func purgeRecentlyDeleted(deletedBefore cutoff: Date, now: Date = Date()) throws -> [URL] {
         let folder = directory(for: .recentlyDeleted)
@@ -65,11 +67,13 @@ extension ImageLibrary {
             includingPropertiesForKeys: nil,
             options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants]
         )) ?? []
-        var manifest = recentlyDeletedManifest()
+        let before = recentlyDeletedManifest()
+        var manifest = before
         var purged: [URL] = []
         for url in files where url.pathExtension.lowercased() == "png" {
             let name = url.lastPathComponent
             guard let deletedAt = manifest.deletedAt(name) else {
+                guard isOurs(url) else { continue }
                 manifest.record(name, at: now)
                 continue
             }
@@ -78,8 +82,16 @@ extension ImageLibrary {
             manifest.forget(name)
             purged.append(url)
         }
-        try write(manifest)
+        // Only when it changed: this runs on every scan, and a write here would move the folder,
+        // which would wake the folder watch, which would scan again.
+        if manifest != before { try write(manifest) }
         return purged
+    }
+
+    /// Whether a file carries a Zephra record, which is what makes it ours to delete.
+    private func isOurs(_ url: URL) -> Bool {
+        guard let text = try? PNGTextChunks.read(fromHeaderOf: url) else { return false }
+        return GenerationRecord.decode(from: text) != nil || SourceRecord.decode(from: text) != nil
     }
 
     private func write(_ manifest: RecentlyDeletedManifest) throws {

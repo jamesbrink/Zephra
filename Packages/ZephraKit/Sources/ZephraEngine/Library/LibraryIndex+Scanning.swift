@@ -15,6 +15,7 @@ extension LibraryIndex {
         hasStarted = true
         watchFolders()
         enqueue { await self.rescanNow() }
+        purgeExpired()
     }
 
     /// Reads the folders now, reusing every item whose file has not moved.
@@ -75,6 +76,7 @@ extension LibraryIndex {
             // Behind the writes, not beside them: a scan that read a file Zephra was halfway
             // through annotating would show the old answer and then have to be told again.
             self.enqueue { await self.rescanIfChanged() }
+            self.purgeExpired()
         }
     }
 
@@ -90,7 +92,8 @@ extension LibraryIndex {
     /// Watches every folder that exists. Called again after each scan, so the Recently Deleted
     /// folder starts being watched the first time something is deleted into it.
     func watchFolders() {
-        for root in library.scanRoots where watches[root.collection] == nil {
+        for root in library.scanRoots
+        where watches[root.collection] == nil || watches[root.collection]?.isCancelled == true {
             var isDirectory: ObjCBool = false
             let path = root.url.path(percentEncoded: false)
             guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory),

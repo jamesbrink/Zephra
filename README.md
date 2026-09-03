@@ -100,7 +100,8 @@ readout while that happens.
   tags and album membership go into the same file, under a second keyword, so they travel with
   the picture too. A PNG that Zephra did not make carries no record and is ignored. Right-click a
   thumbnail for Save as, Copy, Reveal in Finder, and Delete; Delete (⌘⌫ for the image on the
-  canvas) moves the file to the Trash, so it is recoverable from the Finder.
+  canvas) moves the file to `~/Pictures/Zephra/Recently Deleted`, where it waits thirty days
+  before it is thrown away for good, so it can be put back.
 - Settings holds where images are written and the seed preference under General. Performance
   has the after-load warm-up, the ceiling on the GPU scratch the runtime keeps between
   generations — with the figure recommended for your Mac, and a reset back to it — whether the

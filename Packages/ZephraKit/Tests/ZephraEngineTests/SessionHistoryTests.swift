@@ -45,12 +45,14 @@ struct SessionHistoryTests {
         #expect(store.history.count == 1, "and it is still this session's image too")
     }
 
-    @Test("deleting the image on the canvas moves to the next newest and trashes the file")
+    @Test("deleting the image on the canvas moves to the next newest and to Recently Deleted")
     func deleteCurrent() async throws {
         let bed = EngineTestBed()
         let store = try await Self.storeWithTwoImages(bed)
         let newest = try #require(store.current)
         let file = try #require(newest.fileURL)
+        var deleted: [URL] = []
+        store.onImageDeleted = { deleted.append($0) }
 
         store.delete(newest.id)
         await store.settle()
@@ -59,6 +61,16 @@ struct SessionHistoryTests {
         #expect(store.current?.settings.prompt == "older")
         #expect(!FileManager.default.fileExists(atPath: file.path(percentEncoded: false)))
         #expect(try bed.writtenFiles().filter { $0.hasSuffix(".png") }.count == 1)
+        #expect(deleted == [file], "the app is told which file went")
+
+        // Not the Finder's Trash: the same folder the library pane deletes into, with its
+        // thirty days written down beside it.
+        let scanned = LibraryScan(library: bed.library).rescan()
+        #expect(scanned.filter { $0.collection == .generated }.map(\.prompt) == ["older"])
+        let waiting = try #require(scanned.first { $0.collection == .recentlyDeleted })
+        let name = waiting.fileName
+        #expect(name == file.lastPathComponent)
+        #expect(bed.library.recentlyDeletedManifest().deletedAt(name) != nil)
     }
 
     @Test("deleting something else leaves the canvas alone, and the last delete empties it")

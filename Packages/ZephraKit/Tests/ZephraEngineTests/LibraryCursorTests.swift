@@ -38,22 +38,35 @@ struct LibraryCursorTests {
         #expect(Self.move(.down, from: "b0") == nil)
     }
 
-    @Test("holding shift sweeps rather than jumping")
+    @Test("holding shift keeps the anchor put, so the run grows and shrinks the same way")
     func extending() throws {
-        let first = try #require(
-            LibraryCursor.move(
-                .right, in: Self.sections, columns: 4, selection: [Self.id("a0")],
-                anchor: Self.id("a0"), extending: true))
+        let first = try #require(Self.extend(.right, selection: Self.ids("a0"), anchor: "a0"))
         #expect(first.ids == Self.ids("a0", "a1"))
-        #expect(first.anchor == Self.id("a1"))
-        #expect(first.reveal == Self.id("a1"))
+        #expect(first.anchor == Self.id("a0"), "the anchor is where it was")
+        #expect(first.reveal == Self.id("a1"), "and the cursor is where it went")
 
         let second = try #require(
-            LibraryCursor.move(
-                .down, in: Self.sections, columns: 4, selection: first.ids, anchor: first.anchor,
-                extending: true))
-        #expect(second.ids == Self.ids("a0", "a1", "a2", "a3", "a4", "a5"))
-        #expect(second.anchor == Self.id("a5"))
+            Self.extend(.right, selection: first.ids, anchor: "a0"))
+        #expect(second.ids == Self.ids("a0", "a1", "a2"))
+        let third = try #require(Self.extend(.right, selection: second.ids, anchor: "a0"))
+        #expect(third.ids == Self.ids("a0", "a1", "a2", "a3"))
+
+        // Coming back takes the run back with it, rather than leaving what was swept behind.
+        let back = try #require(Self.extend(.left, selection: third.ids, anchor: "a0"))
+        #expect(back.ids == Self.ids("a0", "a1", "a2"))
+        #expect(back.anchor == Self.id("a0"))
+        #expect(back.reveal == Self.id("a2"))
+    }
+
+    @Test("shift also extends backwards, from an anchor at the far end")
+    func extendingBackwards() throws {
+        let up = try #require(Self.extend(.up, selection: Self.ids("b1"), anchor: "b1"))
+        #expect(up.ids == Self.ids("a5", "a6", "b0", "b1"))
+        #expect(up.anchor == Self.id("b1"))
+        #expect(up.reveal == Self.id("a5"))
+
+        let down = try #require(Self.extend(.down, selection: up.ids, anchor: "b1"))
+        #expect(down.ids == Self.ids("b1"), "back down to the anchor")
     }
 
     @Test("a plain click replaces, command adds and removes, shift takes the run between")
@@ -125,6 +138,16 @@ struct LibraryCursorTests {
 
     private static func name(of id: LibraryItem.ID) -> String {
         String(URL(filePath: id).deletingPathExtension().lastPathComponent.dropLast(2))
+    }
+
+    private static func extend(
+        _ direction: LibraryCursor.Direction,
+        selection: Set<LibraryItem.ID>,
+        anchor: String
+    ) -> LibraryCursor.Outcome? {
+        LibraryCursor.move(
+            direction, in: sections, columns: 4, selection: selection, anchor: id(anchor),
+            extending: true)
     }
 
     private static func move(_ direction: LibraryCursor.Direction, from name: String?)
