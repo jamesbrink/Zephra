@@ -18,12 +18,17 @@ struct SessionTimelineList: View {
     @Environment(WorkspaceSelection.self) private var workspace
 
     var body: some View {
+        // The day is worked out once and compared as a range, not asked of the calendar per
+        // image: a library of ten thousand pictures is filtered on every redraw, and a redraw
+        // happens on every denoising step.
+        let day = Calendar.current.startOfDay(for: Date())
+        let next = Calendar.current.date(byAdding: .day, value: 1, to: day) ?? day
         let runs = SessionTimeline.build(
             items: index.items,
             history: store.history,
             queue: store.queue,
             running: store.running,
-            isToday: Calendar.current.isDateInToday
+            isToday: { $0 >= day && $0 < next }
         )
         let made = runs.reduce(0) { $0 + $1.finishedCount }
         List {
