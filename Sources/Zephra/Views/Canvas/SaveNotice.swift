@@ -10,14 +10,7 @@ struct SaveNotice: View {
 
     var body: some View {
         if let failure = store.lastSaveFailure {
-            Label(failure.message, systemImage: "exclamationmark.triangle.fill")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
-                .background(.thinMaterial, in: Capsule())
-                .accessibilityLabel(failure.message)
+            NoticeCapsule(failure.message)
         }
     }
 }

@@ -18,7 +18,13 @@ struct LibraryPane: View {
 
     var body: some View {
         LibraryGrid(selection: selection)
-            .safeAreaInset(edge: .top, spacing: 0) { LibraryFilterBar(selection: selection) }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                VStack(spacing: 0) {
+                    LibraryFilterBar(selection: selection)
+                    RecentlyDeletedNotice(selection: selection)
+                }
+            }
+            .overlay(alignment: .top) { LibraryFailureNotice() }
             .environment(\.openLibraryItem, open)
             .focusedSceneValue(\.librarySelection, selection)
     }

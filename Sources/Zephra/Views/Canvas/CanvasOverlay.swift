@@ -11,6 +11,7 @@ struct CanvasOverlay: View {
     var body: some View {
         VStack(spacing: 14) {
             SaveNotice()
+            OpenFailureNotice()
             PromptCaption()
             PromptCapsule()
             if runStripVisible { RunStrip() }
