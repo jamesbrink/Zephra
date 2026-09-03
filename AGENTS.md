@@ -183,7 +183,12 @@ Four directories, by what a file is rather than what screen it is on:
   here: `ThumbnailKey` names a baked file by path, mtime, size and edge,
   `ThumbnailFolder` is an actor that bakes off the main thread, and
   `ThumbnailCache` coalesces the in-flight requests. Nothing decodes an image
-  on the main actor.
+  on the main actor. `AppSettings` is the one list of preference keys and
+  starting values; a preference is bound with `@AppStorage` at its picker and
+  read outside a view through `AppSettings`'s helpers. The appearance
+  preference is applied by `AppearanceApplier`, set on `NSApp` from the
+  composition root rather than as a colour scheme on a scene, so the Settings
+  window, the menus, and the alerts change with the main window.
 - `Views/` — one subfolder per surface (`Canvas/`, `Library/`,
   `Library/Inspector/`, `Sidebar/`, `Sidebar/Timeline/`, `Toolbar/`); the
   prompt capsule, its controls, the commands, and Settings sit at the top of

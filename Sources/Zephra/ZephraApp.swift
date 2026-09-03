@@ -32,6 +32,10 @@ struct ZephraApp: App {
                 .environment(workspace)
                 .environment(index)
                 .environment(thumbnails)
+                // The appearance preference is applied to the application from the main
+                // window, so it lands before the first frame and follows the picker in
+                // Settings; see `AppearanceApplier`.
+                .applyingAppearancePreference()
                 // The tiled decode is chosen for the model that is about to run, so the answer
                 // is worked out again whenever the model changes. Settings re-applies it when
                 // the preference itself changes; see `VAETilingControl`.

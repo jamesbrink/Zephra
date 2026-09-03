@@ -29,6 +29,9 @@ enum AppSettings {
     static let libraryThumbnailEdge = "libraryThumbnailEdge"
     /// How many seeds one press of Generate queues.
     static let batchCount = "batchCount"
+    /// Whether the app follows the Mac's appearance or fixes its own, as an `AppearanceMode`
+    /// raw value.
+    static let appearance = "appearance"
 
     // Starting values, matching the defaults written at each `@AppStorage` site.
 
@@ -48,6 +51,8 @@ enum AppSettings {
     static let libraryThumbnailEdgeBounds = 96.0...320.0
     /// One image per press, until the user asks for more.
     static let initialBatchCount = 1
+    /// The Mac's own appearance, until the user picks one.
+    static let initialAppearance = AppearanceMode.system
 
     /// How the stored preference and this machine's memory decide the VAE tile, for the
     /// composition root, which has to answer the question outside a picker.
