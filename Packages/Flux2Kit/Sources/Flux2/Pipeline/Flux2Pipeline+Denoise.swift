@@ -35,10 +35,13 @@ extension Flux2Pipeline {
         let scheduler = FlowMatchEulerScheduler(
             configuration: configuration.scheduler, steps: request.steps,
             imageSequenceLength: targetTokens)
+        let dtype = Flux2TransformerPrecision.activation
         var latents = Flux2LatentPacking.tokens(
             MLXRandom.normal(
                 [1, configuration.vae.packedChannels, packedHeight, packedWidth],
-                key: MLXRandom.key(request.seed)))
+                key: MLXRandom.key(request.seed))
+        ).asType(dtype)
+        let text = text.asType(dtype)
 
         let textLength = text.dim(1)
         let targetIDs = Flux2PositionIDs.image(height: packedHeight, width: packedWidth)

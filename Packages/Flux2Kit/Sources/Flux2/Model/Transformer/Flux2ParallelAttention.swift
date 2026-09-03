@@ -48,13 +48,12 @@ final class Flux2ParallelAttention: Module {
     /// (ml-explore/mlx#3797, fixed by #3810). The kernel is dispatched only for half precision
     /// and only when the contraction is long — K at least 10240 — and this projection's K is
     /// `3072 + 9216 = 12288`, so it sits squarely inside the window at the token counts a
-    /// 512-to-896-pixel generation produces. What keeps this model out of it is that the
-    /// conditioning is computed in float32 and MLX promotes: a float32 modulation times a
-    /// bfloat16 stream makes the whole single-stream activation float32, and the broken kernel
-    /// is never reached. That promotion is therefore load-bearing rather than incidental, and
-    /// `Flux2Transformer` says so where it happens. `TransformerParityTests` runs a bfloat16
-    /// probe at this exact shape so a future bump reports the state of the bug instead of
-    /// producing quiet garbage.
+    /// 512-to-896-pixel generation produces. The stream runs in bfloat16 by default, because a
+    /// float32 stream puts the attention over a 4096-token image off the fused kernel and costs
+    /// a 2 GB score matrix per block; on hardware the bug reaches, `ZEPHRA_DIT_DTYPE=f32` runs
+    /// the stream in float32 and never dispatches the broken kernel. See
+    /// `Flux2TransformerPrecision`. `TransformerParityTests` runs a bfloat16 probe at this exact
+    /// shape so a bump reports the state of the bug instead of producing quiet garbage.
     func callAsFunction(_ x: MLXArray, frequencies: RotaryFrequencies) -> MLXArray {
         let (batch, tokens) = (x.shape[0], x.shape[1])
         let inner = heads * headDim

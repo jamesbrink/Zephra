@@ -61,6 +61,10 @@ public final class Flux2Pipeline {
             weights: try Flux2WeightLoading.weights(
                 in: snapshot.appending(path: Flux2Configuration.Component.vae.directoryName)))
 
+        // The stream's dtype is decided here, once: a float32 scale anywhere would widen it.
+        Flux2WeightLoading.castFloatParameters(of: textEncoder, to: Flux2TransformerPrecision.activation)
+        Flux2WeightLoading.castFloatParameters(of: transformer, to: Flux2TransformerPrecision.activation)
+
         loaded = Loaded(
             snapshot: snapshot, configuration: configuration, tokenizer: tokenizer,
             textEncoder: textEncoder, transformer: transformer, autoencoder: autoencoder)

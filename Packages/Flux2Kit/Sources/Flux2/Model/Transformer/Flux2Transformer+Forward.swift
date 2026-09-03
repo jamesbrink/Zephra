@@ -22,14 +22,12 @@ extension Flux2Transformer {
         frequencies: RotaryFrequencies,
         textLength: Int
     ) -> MLXArray {
-        // The conditioning stays float32, and that is load-bearing rather than tidy. Every
-        // modulation below is derived from it, and MLX promotes: a float32 scale times a
-        // bfloat16 stream gives float32, so the activations through the blocks are float32 too.
-        // That is what keeps this model clear of the broken half-precision split-K kernel in
-        // mlx-swift 0.31.x; see `Flux2ParallelAttention.callAsFunction`. Casting this down to
-        // match the weights would be a plausible-looking optimisation that produces NaNs on
-        // M5-class hardware at some image sizes and not others.
-        let conditioning = timeEmbedding(timestep.asType(.float32))
+        // The sinusoid is built in float32 whatever arrives, and the result is cast to the
+        // stream's dtype here, as the reference casts it. It has to be: MLX promotes, so a
+        // float32 conditioning would turn every modulated activation float32 and put the
+        // attention over a 4096-token image off the fused kernel. The stream's dtype is the
+        // caller's choice; see `Flux2TransformerPrecision`.
+        let conditioning = timeEmbedding(timestep.asType(.float32)).asType(latents.dtype)
 
         // Computed once, here, and read by all twenty-five blocks. See `Flux2SharedModulation`.
         let imageParameters = imageModulation(conditioning)
