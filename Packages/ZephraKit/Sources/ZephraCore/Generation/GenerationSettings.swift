@@ -43,6 +43,20 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
         )
     }
 
+    /// A copy on `descriptor`'s own denoising schedule, keeping everything a prompt is about.
+    ///
+    /// Steps and guidance do not mean the same thing to two families. Nine steps of Z-Image
+    /// Turbo's schedule and nine of a four-step distillation are different requests, and a
+    /// number that happens to be inside both models' bounds survives clamping while meaning
+    /// something else on the other side of it. A size or a seed does carry over: 1024 pixels is
+    /// 1024 pixels whoever draws them.
+    public func onSchedule(of descriptor: ModelDescriptor) -> GenerationSettings {
+        var copy = self
+        copy.steps = descriptor.capabilities.defaultSteps
+        copy.guidance = descriptor.capabilities.defaultGuidance
+        return copy
+    }
+
     /// A copy that will produce a different image from the same prompt.
     public func withRandomSeed() -> GenerationSettings {
         var copy = self

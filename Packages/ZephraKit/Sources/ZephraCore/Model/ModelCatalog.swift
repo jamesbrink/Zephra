@@ -62,7 +62,9 @@ public enum ModelCatalog {
     )
 
     /// Every known model, in the order a picker should list them.
-    public static let all: [ModelDescriptor] = [zImageTurbo8bit, zImageTurbo4bit]
+    public static let all: [ModelDescriptor] = [
+        zImageTurbo8bit, zImageTurbo4bit, qwenImage2512_4bit,
+    ]
 
     /// The model selected on first launch when nothing is known about the machine.
     public static let `default`: ModelDescriptor = zImageTurbo8bit

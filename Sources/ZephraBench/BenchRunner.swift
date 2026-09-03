@@ -1,15 +1,25 @@
 import Foundation
-import ZephraBackendZImage
 import ZephraCore
 
-/// Drives the Z-Image backend through a load, a warm-up, and a set of timed runs.
+/// Drives a backend through a load, a warm-up, and a set of timed runs.
 enum BenchRunner {
     /// Runs the whole benchmark and returns what it measured.
-    static func run(_ options: BenchOptions) async throws -> BenchReport {
-        ZImageRuntime.configure(cacheLimitBytes: cacheLimit(), memoryLimitBytes: nil)
-        // Checked when the flag was parsed, so an unknown identifier cannot reach here.
-        let descriptor = ModelCatalog.descriptor(id: options.model) ?? ModelCatalog.default
-        let backend = ZImageBackend()
+    ///
+    /// The backend comes from `registry`, keyed by the descriptor, so the tool measures whichever
+    /// family the chosen model belongs to and never names one itself.
+    static func run(_ options: BenchOptions, registry: BackendRegistry) async throws -> BenchReport {
+        BenchBackends.runtime().setCacheLimit(bytes: cacheLimit())
+        // Either a catalogued model, or a snapshot named on the command line for a family whose
+        // catalog entry does not exist yet. The flag was checked when it was parsed, so an
+        // unknown identifier cannot reach here.
+        let descriptor =
+            if let snapshot = options.snapshot, let backend = options.backend {
+                BenchDescriptor.forSnapshot(
+                    snapshot, backend: backend, size: options.size, steps: options.steps)
+            } else {
+                ModelCatalog.descriptor(id: options.model) ?? ModelCatalog.default
+            }
+        let backend = try registry.make(descriptor)
         let verbose = !options.json
 
         let snapshot = try await backend.ensureAvailable(descriptor) { event in
@@ -39,18 +49,18 @@ enum BenchRunner {
             stepIntervals += stepClock.intervals
         }
         try write(image, to: options.output)
-        let memory = ZImageRuntime.memorySnapshot()
+        let memory = BenchBackends.runtime().memorySnapshot()
 
         return BenchReport(
-            device: ZImageRuntime.deviceSummary(),
+            device: BenchBackends.runtime().deviceSummary(),
             model: descriptor.id,
             size: settings.size.width,
             steps: settings.steps,
             loadSeconds: loadDuration.seconds,
             runSeconds: runSeconds,
             meanSecondsPerStep: mean(stepIntervals),
-            activeMemoryMB: Double(memory.active) / 1_000_000,
-            peakMemoryMB: Double(memory.peak) / 1_000_000,
+            activeMemoryMB: Double(memory.activeBytes) / 1_000_000,
+            peakMemoryMB: Double(memory.peakBytes) / 1_000_000,
             outputPath: options.output.path
         )
     }

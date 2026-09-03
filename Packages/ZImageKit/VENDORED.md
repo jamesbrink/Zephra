@@ -7,7 +7,8 @@
 - **License:** MIT, per upstream `README.md` "License" section. The upstream
   repository has **no LICENSE file**; the text in `LICENSE` here is the standard
   MIT text with the upstream author as copyright holder.
-- **Included:** `Sources/ZImage/**` (49 files, directory tree preserved verbatim).
+- **Included:** `Sources/ZImage/**` (49 upstream files, directory tree preserved verbatim,
+  plus the files the patch log below marks as new).
 - **Excluded:** `Sources/ZImageCLI`, `Tests/**`, `examples/**`, `images/**`.
 
 ## Manifest changes (Package.swift)
@@ -94,6 +95,15 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
   variable only decides what happens before the first window appears. Written from the main
   thread and read on the inference thread, which is why it is `nonisolated(unsafe)`: the worst a
   race can do is decode one image with the previous setting.
+
+  The pixels kept from each tile are the stride's worth, and the blend is the rest of the tile:
+  both are derived from the rounded latent stride rather than rounded separately, because a
+  tile edge whose quarter is not whole (18, say) would otherwise keep more than it strode past
+  and return an image wider than the latent with a doubled band at every seam.
+
+  `ZephraMLX.TiledDecode` in `Packages/ZephraMLXKit` is the same algorithm, shared by the other
+  families. This copy is kept on purpose: pointing vendored code at a Zephra package would
+  complicate every re-sync, so the two are expected to drift only when one of them is fixed.
 
 ## Known upstream behaviour (not patched)
 

@@ -3,10 +3,13 @@ import ZephraCore
 
 /// What one quantization run was asked to build.
 struct QuantizeOptions: Sendable {
+    /// Which family's plan to build with. Required, and deliberately without a default: a wrong
+    /// default silently produces the wrong artifact an hour later.
+    var family: QuantizeFamily?
     /// The full-precision snapshot to read, as a local directory.
     var source: URL?
-    /// Where to write the quantized snapshot.
-    var output = ModelCatalog.localModelsDirectory.appending(path: "z-image-turbo-4bit")
+    /// Where to write the quantized snapshot, defaulting to the family's own directory.
+    var output: URL?
     /// Bits per weight in the diffusion transformer.
     var bits = 4
     /// Weights per scale in the diffusion transformer.
@@ -15,8 +18,12 @@ struct QuantizeOptions: Sendable {
     var textEncoderBits: Int?
     /// Weights per scale in the text encoder, defaulting to the transformer's.
     var textEncoderGroupSize: Int?
-    /// The repository the weights came from, recorded in the manifest.
-    var sourceName = "Tongyi-MAI/Z-Image-Turbo"
+    /// The repository the weights came from, recorded in the manifest. Defaults to the
+    /// family's usual source.
+    var sourceName: String?
+    /// Low-rank adapter files merged into the transformer before it is packed. Repeat `--lora`
+    /// to stack more than one; the usual case is a single distillation adapter.
+    var adapters: [URL] = []
 
     /// Reads options from the command line, exiting with usage text on anything unrecognised.
     static func parse(_ arguments: [String]) -> QuantizeOptions {
@@ -34,15 +41,22 @@ struct QuantizeOptions: Sendable {
             index += 1
             apply(flag, value, to: &options)
         }
+        guard options.family != nil else { fail("--family is required (\(QuantizeFamily.names))") }
         guard options.source != nil else { fail("--source is required") }
         return options
     }
 
     private static func apply(_ flag: String, _ value: String, to options: inout QuantizeOptions) {
         switch flag {
+        case "--family":
+            guard let family = QuantizeFamily(rawValue: value) else {
+                fail("unknown --family \(value); use \(QuantizeFamily.names)")
+            }
+            options.family = family
         case "--source": options.source = URL(fileURLWithPath: value)
         case "--out": options.output = URL(fileURLWithPath: value)
         case "--source-name": options.sourceName = value
+        case "--lora": options.adapters.append(URL(fileURLWithPath: value))
         case "--bits": options.bits = positive(value, flag)
         case "--group-size": options.groupSize = positive(value, flag)
         case "--text-encoder-bits": options.textEncoderBits = positive(value, flag)
@@ -64,11 +78,17 @@ struct QuantizeOptions: Sendable {
     }
 
     private static let usage = """
-        usage: ZephraQuantize --source DIR [--out DIR] [--bits N] [--group-size N] \
-        [--text-encoder-bits N] [--text-encoder-group-size N] [--source-name ID]
+        usage: ZephraQuantize --family NAME --source DIR [--out DIR] [--bits N] \
+        [--group-size N] [--text-encoder-bits N] [--text-encoder-group-size N] \
+        [--lora FILE ...] [--source-name ID]
 
-        --source is a full-precision Z-Image snapshot directory, such as the one
-        `hf download Tongyi-MAI/Z-Image-Turbo` prints. The text encoder options default
-        to the transformer's, which is what a plain uniform build wants.
+        --family is one of \(QuantizeFamily.names) and decides which plan is used: which
+        directories are packed, which tensors are left alone, and where the result is written.
+        --source is a full-precision snapshot directory, such as the one `hf download` prints.
+        The text encoder options default to the transformer's, which is what a plain uniform
+        build wants.
+        --lora merges a low-rank adapter into the transformer on the way past, so a distilled
+        variant ships as an ordinary snapshot with no adapter code at run time. Every weight the
+        adapter names must exist in the transformer, or the build stops.
         """
 }

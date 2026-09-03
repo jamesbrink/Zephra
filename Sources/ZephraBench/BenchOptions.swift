@@ -17,6 +17,10 @@ struct BenchOptions: Sendable {
     var json = false
     /// Whether to skip the pipeline entirely and time individual MLX kernels instead.
     var micro = false
+    /// A backend to run a snapshot with directly, for a model the catalog does not carry yet.
+    var backend: BackendID?
+    /// The snapshot directory that backend should load.
+    var snapshot: URL?
     /// The catalog identifier of the model to load, defaulting to the app's own default.
     var model = ModelCatalog.default.id
 
@@ -37,7 +41,8 @@ struct BenchOptions: Sendable {
             case "--help", "-h":
                 print(usage)
                 exit(0)
-            case "--size", "--steps", "--runs", "--prompt", "--out", "--model":
+            case "--size", "--steps", "--runs", "--prompt", "--out", "--model", "--backend",
+                "--snapshot":
                 guard index < arguments.count else { fail("\(flag) needs a value") }
                 let value = arguments[index]
                 index += 1
@@ -57,6 +62,8 @@ struct BenchOptions: Sendable {
         case "--prompt": options.prompt = value
         case "--out": options.output = URL(fileURLWithPath: value)
         case "--model": options.model = resolvedModel(value)
+        case "--backend": options.backend = BackendID(value)
+        case "--snapshot": options.snapshot = URL(fileURLWithPath: value)
         default: fail("unknown option \(flag)")
         }
     }
@@ -84,9 +91,11 @@ struct BenchOptions: Sendable {
 
     private static let usage = """
         usage: ZephraBench [--model ID] [--size N] [--steps N] [--runs N] [--prompt TEXT] \
-        [--out PATH] [--json] [--micro]
+        [--out PATH] [--json] [--micro] [--backend NAME --snapshot DIR]
 
         --model names a catalog entry, so variants can be compared at a fixed seed.
+        --backend and --snapshot together run a model the catalog does not carry yet, which
+        is how a new family is measured before its entry can be written.
         --micro times the DiT's individual MLX kernels at --size worth of tokens and
         exits, without loading any weights.
         """

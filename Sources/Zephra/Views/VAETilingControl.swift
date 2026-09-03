@@ -19,13 +19,27 @@ struct VAETilingControl: View {
             }
         }
         .pickerStyle(.segmented)
-        Text("Tiling the decode saves about 6 GB of peak memory at 1024 pixels, and the image "
-            + "comes back differing by roughly 1 part in 255, with no visible seam. Automatic "
-            + "tiles only when the chosen model would otherwise page on this Mac.")
+        Text(caption)
             .font(.caption)
             .foregroundStyle(.secondary)
             .onChange(of: mode, initial: true) { apply() }
             .onChange(of: store.descriptor) { apply() }
+    }
+
+    /// What tiling costs and saves for the model that is actually selected. The saving is the
+    /// difference between two measured numbers in the descriptor, so it stays true as models are
+    /// added rather than quoting whichever one it was written against.
+    private var caption: String {
+        let model = store.descriptor
+        let saved = Double(model.peakBytes - model.tiledPeakBytes) / 1_000_000_000
+        return String(
+            format: "Tiling the decode saves about %.1f GB of peak memory for %@ at its default "
+                + "size, and the image comes back differing by about one part in 255, with no "
+                + "visible seam. Automatic tiles only when the chosen model would otherwise "
+                + "page on this Mac.",
+            saved,
+            model.fullName
+        )
     }
 
     private func apply() {

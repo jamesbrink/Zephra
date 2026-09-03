@@ -6,6 +6,12 @@ public protocol InferenceRuntime: Sendable {
     /// Caps the memory the allocator keeps for reuse between allocations. Takes effect at once.
     func setCacheLimit(bytes: Int)
 
+    /// Caps what the allocator may hold in total, so a run that would page fails instead.
+    func setMemoryLimit(bytes: Int)
+
+    /// One line naming the device and the memory it will work within, for logs and headers.
+    func deviceSummary() -> String
+
     /// Memory use right now.
     func memorySnapshot() -> MemorySnapshot
 

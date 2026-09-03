@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import ZephraTestSupport
 import ZephraCore
 
 @testable import ZephraBackendZImage

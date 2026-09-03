@@ -26,9 +26,9 @@ texts appear once per license type at the end of this file.
 - **Source:** https://github.com/ml-explore/mlx-swift
 - **Copyright:** Copyright (c) 2023 ml-explore
 - **License:** MIT
-- **Used as:** the Metal/MLX runtime the vendored Z-Image pipeline is built
-  on, a dependency of `ZImageKit` and of `ZephraBackendZImage`. It compiles the following
-  libraries into the same binary:
+- **Used as:** the Metal/MLX runtime every pipeline is built on, a dependency
+  of `ZImageKit`, `QwenImageKit`, `ZephraMLXKit`, and both backend packages.
+  It compiles the following libraries into the same binary:
   - **mlx** — https://github.com/ml-explore/mlx — Copyright © 2023 Apple
     Inc. — MIT
   - **mlx-c** — https://github.com/ml-explore/mlx-c — Copyright (c) 2023
@@ -40,13 +40,38 @@ texts appear once per license type at the end of this file.
   - **JSON for Modern C++** — https://github.com/nlohmann/json — Copyright
     (c) 2013-2022 Niels Lohmann — MIT
 
+### Qwen-Image port (`Packages/QwenImageKit`)
+
+`Packages/QwenImageKit` is Zephra's own code, not a vendored copy of anything.
+It is a clean-room MLX Swift implementation of Qwen-Image-2512, written from
+the model's published configuration files and from these references, and it is
+covered by Zephra's own `LICENSE`:
+
+- **diffusers** — https://github.com/huggingface/diffusers — Copyright 2024
+  The HuggingFace Team — Apache License 2.0 — the reference implementation the
+  port's behaviour is defined against. `QwenImageKit`'s test fixtures are
+  tensors dumped from it (see `Packages/QwenImageKit/Tools/dump_reference.py`).
+- **mlx-gen** — https://github.com/lpalbou/mlx-gen — Copyright (c) lpalbou —
+  MIT License — one finding, not code: that packing a Qwen-Image
+  transformer's modulation layers at four bits costs coherent structure. It is
+  why `QwenImageQuantizationPlan` holds them at eight.
+
+No code was taken from `mzbac/qwen.image.swift`, which is GPL-3.0. See
+`PROVENANCE.md` for what that means and how the boundary was kept.
+
+One file follows an approach taken from the vendored MIT-licensed
+`ZImageKit`: `Tokenizer/QwenImageTokenizer.swift` assembles a byte-level BPE
+tokenizer from `vocab.json` and `merges.txt` the same way, because Qwen-Image
+ships no `tokenizer.json` either. The zimage.swift copyright notice above
+covers it.
+
 ### swift-transformers
 
 - **Source:** https://github.com/huggingface/swift-transformers
 - **Copyright:** Copyright 2022 Hugging Face SAS
 - **License:** Apache License 2.0
-- **Used as:** tokenizer and Hugging Face Hub model resolution, pulled in as
-  a dependency of `ZImageKit`.
+- **Used as:** tokenizer and Hugging Face Hub model resolution, a dependency
+  of `ZImageKit` and of `QwenImageKit`.
 
 ### swift-log
 
@@ -86,18 +111,27 @@ texts appear once per license type at the end of this file.
 
 ## Model weights
 
-Not redistributed with the app; downloaded at runtime from Hugging Face and
-cached locally under `~/.cache/huggingface/hub`.
+Not redistributed with the app. The default model is downloaded on first run
+from Hugging Face into `~/.cache/huggingface/hub`; the others are fetched by
+`make quantize` and `make prefetch-qwen` and built into a local variant on the
+user's own machine.
 
 - **Tongyi-MAI/Z-Image-Turbo** — https://huggingface.co/Tongyi-MAI/Z-Image-Turbo
   — License: Apache License 2.0
 - **mzbac/Z-Image-Turbo-8bit** — https://huggingface.co/mzbac/Z-Image-Turbo-8bit
   — License: Apache License 2.0
+- **Qwen/Qwen-Image-2512** — https://huggingface.co/Qwen/Qwen-Image-2512
+  — License: Apache License 2.0
+- **lightx2v/Qwen-Image-2512-Lightning** — https://huggingface.co/lightx2v/Qwen-Image-2512-Lightning
+  — License: Apache License 2.0 — the four-step distillation adapter.
 
-The 4-bit variant is not downloaded and not redistributed either. `make quantize`
-derives it on the user's own Mac from **Tongyi-MAI/Z-Image-Turbo** above and writes
-it to `~/Library/Application Support/Zephra/Models`. It is a modified form of those
-weights, so the Apache License 2.0 that covers them covers it too.
+Neither 4-bit variant is downloaded and neither is redistributed. `make quantize`
+derives the Z-Image one on the user's own Mac from **Tongyi-MAI/Z-Image-Turbo**
+above; `make quantize-qwen` derives the Qwen-Image one from **Qwen/Qwen-Image-2512**
+with the **Lightning** adapter merged into its transformer. Both are written to
+`~/Library/Application Support/Zephra/Models`. Each is a modified form of
+Apache-2.0 weights — for the Qwen build, of two sets of them — so the Apache
+License 2.0 that covers those covers the result too.
 
 ---
 
@@ -179,7 +213,8 @@ SOFTWARE.
 ### Apache License, Version 2.0
 
 Applies to: swift-transformers, swift-log, swift-collections, swift-numerics,
-swift-argument-parser, metal-cpp, and the Z-Image model weights.
+swift-argument-parser, metal-cpp, diffusers, and the Z-Image and Qwen-Image
+model weights.
 
 ```
                                  Apache License

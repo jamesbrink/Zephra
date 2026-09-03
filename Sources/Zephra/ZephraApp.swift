@@ -1,4 +1,5 @@
 import SwiftUI
+import ZephraBackendQwenImage
 import ZephraBackendZImage
 import ZephraCore
 import ZephraEngine
@@ -9,9 +10,13 @@ import ZephraEngine
 struct ZephraApp: App {
     @State private var store = ZephraApp.makeStore()
     @State private var cache = ImageCache()
-    /// The GPU runtime the Performance tab reads and tunes. Built here because this is the only
-    /// file allowed to name a backend.
-    private let runtime = ZImageInferenceRuntime()
+    /// The GPU runtime the Performance tab reads and tunes, over every backend at once. Built
+    /// here because this is the only file allowed to name a backend.
+    private static let runtime = CombinedInferenceRuntime([
+        ZImageInferenceRuntime(),
+        QwenImageInferenceRuntime(),
+    ])
+    private var runtime: CombinedInferenceRuntime { Self.runtime }
 
     var body: some Scene {
         WindowGroup("Zephra") {
@@ -42,12 +47,11 @@ struct ZephraApp: App {
     /// screenshotted without a model. See `InterfacePreview`.
     private static func makeStore() -> GenerationStore {
         if let frozen = InterfacePreview.store() { return frozen }
-        ZImageRuntime.configure(
-            cacheLimitBytes: InferenceTuning.storedCacheLimitBytes(),
-            memoryLimitBytes: InferenceTuning.forThisMachine().memoryLimitBytes
-        )
+        runtime.setCacheLimit(bytes: InferenceTuning.storedCacheLimitBytes())
+        runtime.setMemoryLimit(bytes: InferenceTuning.forThisMachine().memoryLimitBytes)
         var registry = BackendRegistry()
         registry.register(.zImage, ZImageBackendFactory.make)
+        registry.register(.qwenImage, QwenImageBackendFactory.make)
         return GenerationStore(descriptor: ZephraApp.savedModel(), registry: registry)
     }
 

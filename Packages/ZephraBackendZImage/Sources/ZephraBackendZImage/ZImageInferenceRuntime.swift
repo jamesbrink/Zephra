@@ -1,12 +1,18 @@
 import ZephraCore
+import ZephraMLX
 
-/// `ZImageRuntime` as something the app can hold and hand to a view, so the settings window can
-/// read and change MLX's allocator without importing MLX.
+/// The MLX runtime as something the app can hold and hand to a view, so the settings window can
+/// read and change the allocator without importing MLX. The allocator answers come from
+/// `MLXRuntime`, which every family shares; the tile is `ZImageRuntime`'s.
 public struct ZImageInferenceRuntime: InferenceRuntime {
     public init() {}
 
     public func setCacheLimit(bytes: Int) {
-        ZImageRuntime.configure(cacheLimitBytes: bytes, memoryLimitBytes: nil)
+        MLXRuntime.configure(cacheLimitBytes: bytes, memoryLimitBytes: nil)
+    }
+
+    public func setMemoryLimit(bytes: Int) {
+        MLXRuntime.configure(cacheLimitBytes: nil, memoryLimitBytes: bytes)
     }
 
     public func setVAETileSize(_ tile: Int?) {
@@ -18,11 +24,10 @@ public struct ZImageInferenceRuntime: InferenceRuntime {
     }
 
     public func memorySnapshot() -> MemorySnapshot {
-        let snapshot = ZImageRuntime.memorySnapshot()
-        return MemorySnapshot(
-            activeBytes: snapshot.active,
-            cacheBytes: snapshot.cache,
-            peakBytes: snapshot.peak
-        )
+        MLXRuntime.memorySnapshot()
+    }
+
+    public func deviceSummary() -> String {
+        MLXRuntime.deviceSummary()
     }
 }
