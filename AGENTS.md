@@ -179,6 +179,38 @@ Four directories, by what a file is rather than what screen it is on:
   under it. `SessionTimeline` in `ZephraEngine` works out what those rows are;
   nothing here filters, groups, or sorts.
 
+Albums are made and filed from the library sidebar, and both of those are worth
+knowing about before touching `Sidebar/`:
+
+- An album is made by `NewAlbumBar`, pinned at the foot under
+  `RecentlyDeletedRow`, or by ⌘N, and it is named in its own row rather than in
+  an alert. The album is created first, called "Untitled Album", and what
+  follows is a rename of a real album — so `AlbumEdit` has one naming path
+  instead of two, and Escape leaves the album behind the way the Finder leaves
+  "untitled folder". `SidebarView` owns that one `AlbumEdit`, above both the
+  list and the bar, because the making and the naming happen in different
+  views. Only the deletion still asks in an alert.
+- `AlbumNameField` enters its own focus in `.task`, after one `Task.yield()`.
+  In a `List(selection:)` the first click selects the row rather than reaching
+  the field, and focus set on the list's first pass — before the row is in a
+  window — is dropped. `NSTextField` selects all on programmatic focus, which
+  is what puts "Untitled Album" under the cursor ready to be typed over.
+- Images are filed by dragging them from the grid onto an album row.
+  `LibraryItem`'s `Transferable` exports `LibraryItemReference` first and the
+  file second: a `FileRepresentation` cannot be received by a
+  `dropDestination`, and inside the app the id is what is wanted anyway. The
+  type is `io.zephra.library-item`, declared in
+  `Sources/Zephra/Resources/Info.plist` under `UTExportedTypeDeclarations` —
+  `UTType(exportedAs:)` is only the reading half of that. A drag that started
+  inside the grid's selection files the whole selection, the rule
+  `LibraryGrid.targets(for:)` already uses; `AlbumDropTarget` reads it through
+  `@FocusedValue(\.librarySelection)`.
+- ⌘N reaches `SidebarView`'s state through `@Entry var newAlbum` in
+  `FocusedValues`, an action rather than a piece of state. The menu bar cannot
+  see a view's `@State`, and putting album state in `ZephraEngine` or in
+  `WorkspaceSelection` would put interface bookkeeping somewhere it does not
+  belong. Publishing nothing on the canvas is what greys the menu item out.
+
 ## Adding a model or a backend
 
 This is the seam priority 2 exists for. Both cases are additive: no view and
