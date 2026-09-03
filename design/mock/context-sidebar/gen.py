@@ -239,7 +239,7 @@ def sidebar_library(editing=False, drop_on=None, ghost=False, height=None):
   <div style="height:1px;background:{HAIR}"></div>
   <div style="flex:1;overflow:hidden;padding:10px 10px 0;position:relative">
     {lib_rows(editing=editing, drop_on=drop_on)}
-    <div style="position:absolute;left:0;top:{'532' if ghost else '0'}px;width:280px;height:0">{ghost_html}</div>
+    <div style="position:absolute;left:0;top:{'398' if ghost else '0'}px;width:280px;height:0">{ghost_html}</div>
   </div>
   <div style="border-top:1px solid {HAIR};padding:9px 18px;display:flex;align-items:center;gap:8px;font-size:12px;color:{P2}">{ic("trash", 14, P2)}<span>Recently Deleted</span><span class="cnt" style="font-size:12px">0</span></div>
   <div style="border-top:1px solid {HAIR};padding:9px 18px;display:flex;align-items:center;gap:8px;font-size:12px;color:{P2}">{ic("plus-c", 14, P2)}<span>New Album</span></div>
