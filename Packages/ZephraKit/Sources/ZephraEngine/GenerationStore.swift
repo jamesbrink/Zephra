@@ -65,6 +65,9 @@ public final class GenerationStore {
     /// Which backend runs which model family, or nil for a preview store, which has none and so
     /// never loads, generates, or reaches a model at all.
     let registry: BackendRegistry?
+    /// How to build the one upscaler, or nil for a build that carries none — a preview store,
+    /// or a tool. Nil is what greys every Upscale button, with no other rule needed.
+    let upscalerFactory: UpscalerFactory?
     let library: ImageLibrary
     let logger = Logger(subsystem: "io.zephra", category: "engine")
 
@@ -82,17 +85,24 @@ public final class GenerationStore {
     public convenience init(
         descriptor: ModelDescriptor = ModelCatalog.default,
         registry: BackendRegistry,
-        outputDirectory: URL? = nil
+        outputDirectory: URL? = nil,
+        upscaler: UpscalerFactory? = nil
     ) {
-        self.init(descriptor: descriptor, registry: registry, output: outputDirectory)
+        self.init(
+            descriptor: descriptor, registry: registry, output: outputDirectory,
+            upscaler: upscaler)
     }
 
     /// The one designated initializer. A nil `registry` makes a preview store: see
     /// `GenerationStore+Preview.swift`.
-    init(descriptor: ModelDescriptor, registry: BackendRegistry?, output: URL?) {
+    init(
+        descriptor: ModelDescriptor, registry: BackendRegistry?, output: URL?,
+        upscaler: UpscalerFactory? = nil
+    ) {
         self.descriptor = descriptor
         self.settings = GenerationSettings.defaults(for: descriptor)
         self.registry = registry
+        self.upscalerFactory = upscaler
         self.library = output.map { ImageLibrary(root: $0) } ?? .pictures()
     }
 
@@ -127,9 +137,11 @@ public final class GenerationStore {
         await switchTask?.value
         await bootstrapTask?.value
         await generationTask?.value
+        // Before the save task: an upscale's write is queued on it as the upscale ends, and
+        // this one is nil the moment that has happened.
+        await upscaleTask?.value
         await saveTask?.value
         await libraryTask?.value
         await openTask?.value
-        await upscaleTask?.value
     }
 }

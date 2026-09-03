@@ -9,7 +9,7 @@ extension GenerationStore {
     func inferenceActor() -> InferenceActor? {
         guard let registry else { return nil }
         if let inference { return inference }
-        let made = InferenceActor(registry: registry)
+        let made = InferenceActor(registry: registry, upscaler: upscalerFactory)
         inference = made
         return made
     }

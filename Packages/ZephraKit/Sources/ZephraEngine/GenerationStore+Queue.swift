@@ -5,9 +5,12 @@ import ZephraCore
 extension GenerationStore {
     /// Whether a generation is in flight, including one that is being stopped.
     var isRunning: Bool {
+        // An upscale that is stopping is also in `.cancelling`, and it is not a generation:
+        // counting it as one would let Generate queue work behind a model that never loaded.
+        guard !isUpscaling else { return false }
         switch state {
-        case .generating, .cancelling: true
-        default: false
+        case .generating, .cancelling: return true
+        default: return false
         }
     }
 
