@@ -106,9 +106,10 @@ It is the app's Upscale 2x / 4x, a post-process beside the image models.
 - **Real-ESRGAN** — https://github.com/xinntao/Real-ESRGAN — Copyright (c)
   2021, Xintao Wang — BSD 3-Clause License — the network's shape
   (`realesrgan/archs/srvgg_arch.py`): the convolution and PReLU stack, the
-  pixel shuffle, and the nearest-neighbour residual. No code was copied; the
-  Swift is written from that file and pinned by fixtures dumped from a plain
-  PyTorch re-statement of it (see `Packages/ZephraUpscaleRealESRGAN/Tools`).
+  pixel shuffle, and the nearest-neighbour residual, translated with
+  attribution from that file into MLX Swift and pinned by fixtures dumped from
+  a plain PyTorch re-statement of it (see `Packages/ZephraUpscaleRealESRGAN/Tools`
+  and the package's `PROVENANCE.md`).
 
 `xocialize/realesrgan-mlx`, the Python MLX port a Hugging Face mirror points
 at, carries no license file and was never opened.

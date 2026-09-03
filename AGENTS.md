@@ -111,7 +111,8 @@ engine be tested in seconds without Metal.
 - `GenerationStore` (`@MainActor @Observable`) is the only object the UI
   observes, and it is split across `GenerationStore+*.swift` by concern —
   loading, generation, the queue, batches (several seeds of one prompt from
-  one press of Generate), model switching, history, availability, preview.
+  one press of Generate), model switching, history, availability, preview,
+  upscaling.
   Add a new concern as another extension file, not as more lines in
   `GenerationStore.swift`.
 - `InferenceActor` is the only place backend code runs. It overrides
@@ -161,7 +162,7 @@ as an index, and it is Foundation only, so `make test` covers all of it.
   Nothing is unlinked on the user's behalf before then.
 - `LibrarySelection` holds what is chosen; `LibraryCursor` is the pure
   arithmetic of moving through a grid, so keyboard navigation is tested without
-  a window. `ImageFacts` formats the six rows the inspector shows.
+  a window. `ImageFacts` formats the seven rows the inspector shows.
 
 ## The app target's shape
 
@@ -470,14 +471,17 @@ later post-process should copy:
   carrying the parent's record with the new size, `upscaledFrom` and
   `upscaleFactor` set, `batchID` cleared, and the parent's reference chunk copied
   verbatim. An imported parent gets a minimal record so the result is indexed.
-  Nothing rewrites the parent.
+  Nothing rewrites the parent. A grid cell and a sidebar square wear an
+  `UpscaleBadge` (`Style/`) in the top-left corner, because an upscale looks
+  exactly like its parent at thumbnail size.
 - The weights are bundled as a package resource, 2.4 MB of float16 safetensors
   converted once by `Packages/ZephraUpscaleRealESRGAN/Tools/convert_weights.py`
   from the v0.2.5.0 release asset; `PROVENANCE.md` there records the checksum.
   2x is the 4x pass followed by an exact 2x2 box mean; the network is 4x only.
-  The picture runs through `TiledDecode` in 512-pixel input tiles at scale 4,
-  which is what keeps a 2048 input around 3 GB. Alpha is dropped; library PNGs
-  are opaque. The port is written from `srvgg_arch.py` and never from
+  The picture runs through `TiledDecode` in 512-pixel input tiles at scale 4;
+  a 1024 input measured 2466 MB peak and 3.75 s at 4x on an M4 Max, and 2x
+  costs the same peak because the 4x join sets it. Alpha is dropped; library
+  PNGs are opaque. The port is written from `srvgg_arch.py` and never from
   `xocialize/realesrgan-mlx`, which has no license.
 
 Everything the upscaler leaves out on purpose is listed in `ROADMAP.md`.

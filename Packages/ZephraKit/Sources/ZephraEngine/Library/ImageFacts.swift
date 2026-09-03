@@ -3,7 +3,7 @@ import ZephraCore
 
 /// The lines the inspector shows about one image, already formatted.
 ///
-/// Formatting here rather than in the view because the same six lines describe an image on the
+/// Formatting here rather than in the view because the same seven lines describe an image on the
 /// canvas and an image in the library, and because "how long it took" has enough rules — no
 /// answer at all, seconds, minutes, a per-step figure — to be worth testing.
 public struct ImageFacts: Hashable, Sendable {

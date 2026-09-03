@@ -98,11 +98,11 @@ readout while that happens.
   Reveal in Finder, and Upscale 2× or 4×. Select several and it says what they have in common
   and acts on all of them.
 - Upscale runs Real-ESRGAN's compact network over the picture in tiles, on any Mac, in a few
-  seconds, and writes the result beside the original as `<name>-x4.png` with the original's
-  prompt, seed and steps inside it and a row in the inspector saying what it was made from. It
-  needs no model loaded and works on the canvas's picture, a library selection, and the
-  right-click menu; it is 4× by nature, and 2× is that pass averaged back down. Generate waits
-  while it runs.
+  seconds, and writes the result into the library as `<name>-x2.png` or `<name>-x4.png` with
+  the original's prompt, seed and steps inside it, a row in the inspector saying what it was
+  made from, and a small ×2 or ×4 badge on its thumbnail. It needs no model loaded and works
+  on the canvas's picture, a library selection, and the right-click menu; it is 4× by nature,
+  and 2× is that pass averaged back down. Generate waits while it runs.
 - Type a prompt and press Generate (or ⌘↩); Return breaks the line, and a selection is painted
   only as far as the text. The window subtitle shows what the engine is doing.
 - The control beside Generate says how many seeds one press queues — 1, 2, 4, or 8 of the same
