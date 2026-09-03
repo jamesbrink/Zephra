@@ -166,12 +166,13 @@ with a progress readout while that happens.
   image on the canvas) moves the file to `~/Pictures/Zephra/Recently Deleted`, where it
   waits thirty days before it is thrown away for good. In that collection the menu offers
   Put Back and Delete Immediately instead.
-- Settings holds where images are written and the seed preference under General. Performance
-  has the after-load warm-up, the ceiling on the GPU scratch the runtime keeps between
-  generations — with the figure recommended for your Mac, and a reset back to it — whether
-  the VAE decode is tiled (Automatic, Always, Never), and a live readout of active, cached
-  and peak GPU memory plus which way the decode is currently set. Both changes apply
-  immediately. About shows the version and the third-party license notices.
+- Settings holds the appearance — System, Light, or Dark, applied to every window as the
+  segment moves — with where images are written and the seed preference under General.
+  Performance has the after-load warm-up, the ceiling on the GPU scratch the runtime keeps
+  between generations — with the figure recommended for your Mac, and a reset back to it —
+  whether the VAE decode is tiled (Automatic, Always, Never), and a live readout of active,
+  cached and peak GPU memory plus which way the decode is currently set. Every change
+  applies immediately. About shows the version and the third-party license notices.
 - Shortcuts: Generate ⌘↩, Stop ⌘., New Album ⌘N, Canvas ⌘1, Library ⌘2, Find ⌘F, Show
   Inspector ⌥⌘I, Hide Prompt ⌥⌘P, Select All Images ⌘A, Favourite ⌘⇧D, thumbnail size ⌘+ and
   ⌘−, Save As ⌘S, Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C, Use as Reference ⌥⌘R, Clear
