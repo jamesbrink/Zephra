@@ -58,6 +58,13 @@ struct ZephraCommands: Commands {
             Button("Clear Reference") { store.useAsReference(nil) }
                 .keyboardShortcut("r", modifiers: [.command, .option, .shift])
                 .disabled(store.settings.referenceImage == nil)
+            Divider()
+            Button("Upscale 2\u{00D7}") { upscale(2) }
+                .keyboardShortcut("u", modifiers: [.command, .option])
+                .disabled(upscaleSource == nil || !store.canUpscale)
+            Button("Upscale 4\u{00D7}") { upscale(4) }
+                .keyboardShortcut("u", modifiers: [.command, .option, .shift])
+                .disabled(upscaleSource == nil || !store.canUpscale)
         }
     }
 }

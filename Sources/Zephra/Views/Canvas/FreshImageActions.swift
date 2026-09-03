@@ -25,6 +25,10 @@ struct FreshImageActions: View {
                     button("Use as reference") { store.useAsReference(image.pngData) }
                 }
             }
+            GridRow {
+                UpscaleImageButtons(image: image)
+                    .gridCellColumns(2)
+            }
         }
         .lineLimit(1)
     }
