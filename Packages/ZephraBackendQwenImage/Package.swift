@@ -19,6 +19,7 @@ let package = Package(
             dependencies: [
                 .product(name: "ZephraCore", package: "ZephraKit"),
                 .product(name: "ZephraSnapshot", package: "ZephraKit"),
+                .product(name: "ZephraMLX", package: "ZephraMLXKit"),
                 .product(name: "ZephraQuantization", package: "ZephraMLXKit"),
                 .product(name: "QwenImage", package: "QwenImageKit"),
                 .product(name: "MLX", package: "mlx-swift"),

@@ -23,6 +23,6 @@ enum BenchBackends {
     /// because the rest of the tool is not allowed to know that any of them exist.
     static func runtime() -> any InferenceRuntime { ZImageInferenceRuntime() }
 
-    /// One line naming the Metal device and the memory it will work within, for the header.
-    static func deviceSummary() -> String { ZImageRuntime.deviceSummary() }
+    /// Times one family's kernels at `tokens` without loading weights. Only Z-Image has one.
+    static func microbench(tokens: Int) { ZImageMicrobench.run(tokens: tokens) }
 }

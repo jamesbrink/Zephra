@@ -1,5 +1,4 @@
 import Foundation
-import ZephraBackendZImage
 
 // Headless timing harness. It talks to the same protocol the app does, through the same kind
 // of backend registry, so a number measured here is a number the app can hit.
@@ -10,7 +9,7 @@ if options.micro {
     // so a 1024 px side is 64 patches (4,096 tokens), plus a caption stream padded to 64.
     let side = options.size / 8 / 2
     let patches = side * side
-    ZImageMicrobench.run(tokens: patches + 64)
+    BenchBackends.microbench(tokens: patches + 64)
     exit(0)
 }
 

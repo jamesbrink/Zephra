@@ -26,7 +26,10 @@ let package = Package(
         // A model package may depend on this; nothing here may depend on a model package.
         .target(
             name: "ZephraMLX",
-            dependencies: [.product(name: "MLX", package: "mlx-swift")]
+            dependencies: [
+                .product(name: "MLX", package: "mlx-swift"),
+                .product(name: "ZephraCore", package: "ZephraKit"),
+            ]
         ),
         .testTarget(
             name: "ZephraMLXTests",

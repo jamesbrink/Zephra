@@ -29,7 +29,8 @@ Shared, by what a file actually touches:
   ZephraKit/ZephraSnapshot     Foundation only  — hub cache, local snapshot checks
   ZephraKit/ZephraTestSupport  Foundation only  — Scratch, the filesystem test fixture
   ZephraMLXKit/ZephraQuantization  MLX          — the streaming weight packer
-  ZephraMLXKit/ZephraMLX           MLX          — the tiled decode; <Family>Kit may take it
+  ZephraMLXKit/ZephraMLX           MLX, ZephraCore — the tiled decode and the allocator's
+                                                  knobs; <Family>Kit may take it
 ```
 
 - `ZephraCore` (in `Packages/ZephraKit`): Sendable value types + protocols.
@@ -43,9 +44,11 @@ Shared, by what a file actually touches:
   tensors to leave alone, how finely to squeeze the rest, and which low-rank
   adapters to merge on the way past.
 - `ZephraMLX` (in `Packages/ZephraMLXKit`): MLX work that is the same job for
-  every family. `TiledDecode` is what is there: an autoencoder's decode
+  every family. Two things are there. `TiledDecode`: an autoencoder's decode
   allocates in proportion to the image, so decoding overlapping latent tiles
-  bounds the peak by the tile. A model package may depend on this; nothing in
+  bounds the peak by the tile. `MLXRuntime`: the process-wide allocator's
+  limits and readings, which each family's `InferenceRuntime` forwards to,
+  adding only its own VAE tile. A model package may depend on this; nothing in
   it may depend on a model package. The vendored `ZImageKit` keeps its own
   copy as a `ZEPHRA-PATCH`, because pointing vendored code at ours would
   complicate every re-sync.

@@ -13,13 +13,22 @@ import ZephraCore
 struct CombinedInferenceRuntime: InferenceRuntime {
     private let runtimes: [any InferenceRuntime]
 
-    /// Creates a runtime that writes to every one of `runtimes` and reads from the first.
+    /// Creates a runtime that writes to every one of `runtimes` and reads from the first,
+    /// which is right only because every reading is process-wide or was written to all of them.
     init(_ runtimes: [any InferenceRuntime]) {
         self.runtimes = runtimes
     }
 
     func setCacheLimit(bytes: Int) {
         for runtime in runtimes { runtime.setCacheLimit(bytes: bytes) }
+    }
+
+    func setMemoryLimit(bytes: Int) {
+        for runtime in runtimes { runtime.setMemoryLimit(bytes: bytes) }
+    }
+
+    func deviceSummary() -> String {
+        runtimes.first?.deviceSummary() ?? ""
     }
 
     func setVAETileSize(_ tile: Int?) {

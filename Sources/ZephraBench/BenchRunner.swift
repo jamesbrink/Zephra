@@ -1,5 +1,4 @@
 import Foundation
-import ZephraBackendZImage
 import ZephraCore
 
 /// Drives a backend through a load, a warm-up, and a set of timed runs.
@@ -53,7 +52,7 @@ enum BenchRunner {
         let memory = BenchBackends.runtime().memorySnapshot()
 
         return BenchReport(
-            device: BenchBackends.deviceSummary(),
+            device: BenchBackends.runtime().deviceSummary(),
             model: descriptor.id,
             size: settings.size.width,
             steps: settings.steps,

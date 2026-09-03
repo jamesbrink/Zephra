@@ -12,10 +12,11 @@ struct ZephraApp: App {
     @State private var cache = ImageCache()
     /// The GPU runtime the Performance tab reads and tunes, over every backend at once. Built
     /// here because this is the only file allowed to name a backend.
-    private let runtime = CombinedInferenceRuntime([
+    private static let runtime = CombinedInferenceRuntime([
         ZImageInferenceRuntime(),
         QwenImageInferenceRuntime(),
     ])
+    private var runtime: CombinedInferenceRuntime { Self.runtime }
 
     var body: some Scene {
         WindowGroup("Zephra") {
@@ -46,11 +47,8 @@ struct ZephraApp: App {
     /// screenshotted without a model. See `InterfacePreview`.
     private static func makeStore() -> GenerationStore {
         if let frozen = InterfacePreview.store() { return frozen }
-        // One copy of MLX serves every backend, so either family's knobs set the same allocator.
-        ZImageRuntime.configure(
-            cacheLimitBytes: InferenceTuning.storedCacheLimitBytes(),
-            memoryLimitBytes: InferenceTuning.forThisMachine().memoryLimitBytes
-        )
+        runtime.setCacheLimit(bytes: InferenceTuning.storedCacheLimitBytes())
+        runtime.setMemoryLimit(bytes: InferenceTuning.forThisMachine().memoryLimitBytes)
         var registry = BackendRegistry()
         registry.register(.zImage, ZImageBackendFactory.make)
         registry.register(.qwenImage, QwenImageBackendFactory.make)
