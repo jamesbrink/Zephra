@@ -10,8 +10,8 @@ ready to ship.
 
 ## Next steps, in order
 
-1. **Upscale with Real-ESRGAN** (in progress on `feat/upscale`). A post-process beside
-   the backends; see `Packages/ZephraUpscaleRealESRGAN`.
+1. **Upscale with Real-ESRGAN** (shipped, PR #7). A post-process beside the
+   backends; see `Packages/ZephraUpscaleRealESRGAN` and the follow-ups below.
 2. **Several reference pictures at once.** klein assigns each picture its own image
    index on the rotary embedding, so this is mostly plumbing: `referenceImage` becomes
    a list capped by a new capability, the well beside the prompt becomes a row, and the

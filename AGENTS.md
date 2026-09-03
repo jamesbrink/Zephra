@@ -112,7 +112,7 @@ engine be tested in seconds without Metal.
   observes, and it is split across `GenerationStore+*.swift` by concern —
   loading, generation, the queue, batches (several seeds of one prompt from
   one press of Generate), model switching, history, availability, preview,
-  upscaling.
+  the reference picture, the library, upscaling and filing the upscaled result.
   Add a new concern as another extension file, not as more lines in
   `GenerationStore.swift`.
 - `InferenceActor` is the only place backend code runs. It overrides
@@ -185,7 +185,9 @@ Four directories, by what a file is rather than what screen it is on:
   `ThumbnailCache` coalesces the in-flight requests. Nothing decodes an image
   on the main actor.
 - `Views/` — one subfolder per surface (`Canvas/`, `Library/`,
-  `Library/Inspector/`, `Sidebar/`, `Sidebar/Timeline/`, `Toolbar/`). The
+  `Library/Inspector/`, `Sidebar/`, `Sidebar/Timeline/`, `Toolbar/`); the
+  prompt capsule, its controls, the commands, and Settings sit at the top of
+  `Views/` because they belong to no one surface. The
   three-stored-property rule is what keeps them small; a view that needs a
   fourth wants a subview. `Sidebar/CanvasSidebar` is the canvas sidebar,
   which builds today's runs once and hands them to `Sidebar/Timeline/` — a
@@ -256,10 +258,12 @@ touch both, once each, for behaviour that turned out to be family-generic: a
 cross-family switch takes the new family's schedule, and the tiling caption
 reads the model's own peak.)
 
-**A model an existing backend can already run** — one entry in
-`Packages/ZephraKit/Sources/ZephraCore/Model/ModelCatalog.swift`, listed in
-`all`. `ModelDescriptor` carries where the weights come from (`ModelSource`:
-a Hugging Face repo or a local directory), the download and resident sizes,
+**A model an existing backend can already run** — one entry in that family's
+`Packages/ZephraKit/Sources/ZephraCore/Model/ModelCatalog+<Family>.swift`
+(Z-Image's two are in `ModelCatalog.swift` itself), listed in `all` in
+`ModelCatalog.swift`. `ModelDescriptor` carries where the weights come from
+(`ModelSource`: a Hugging Face repo or a local directory), the download and
+resident sizes,
 and a `ModelCapabilities` the interface draws itself from — size presets and
 bounds, step and guidance bounds, whether a negative prompt or a seed does
 anything. Every number in an entry is hand-written because every number is
@@ -268,7 +272,9 @@ measured; leave a comment saying where a figure came from. `ModelMenu` lists
 
 **A new backend family** — four things in the app, then the tooling:
 
-1. A `BackendID` case in `.../ZephraCore/Model/BackendID.swift`.
+1. A `static let` on `BackendID` in `.../ZephraCore/Model/BackendID.swift`
+   (it is a string-backed struct, not an enum, so a persisted setting naming
+   an unknown family still decodes).
 2. A package under `Packages/`, alongside `ZephraBackendZImage`, whose one
    public type conforms to `ImageGenerationBackend` and whose one public
    entry point is a `BackendFactory` (see `ZImageBackendFactory`). It may
