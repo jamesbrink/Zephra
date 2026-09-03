@@ -24,11 +24,19 @@ extension GenerationStore {
         switchModel(to: descriptor)
     }
 
-    /// Picks a fresh seed if the preference asks for one, then generates. The one way the
-    /// interface starts a generation: the button, the return key, and the menu bar.
+    /// Generates as many seeds as the batch control is set to. The menu bar's Generate and the
+    /// return key come through here, so every route does the same thing as the button.
     func generateFromInterface() {
+        generateFromInterface(count: AppSettings.integer(AppSettings.batchCount))
+    }
+
+    /// Picks a fresh seed if the preference asks for one, then queues `count` seeds of it.
+    ///
+    /// The randomize-seed preference is applied once, before the batch is expanded, so the
+    /// first image of a batch is exactly what a batch of one would have produced.
+    func generateFromInterface(count: Int) {
         guard canQueue else { return }
         if AppSettings.flag(AppSettings.randomizeSeedEachRun) { randomizeSeed() }
-        generate()
+        generate(count: count)
     }
 }

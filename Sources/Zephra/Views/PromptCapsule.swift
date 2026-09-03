@@ -20,7 +20,7 @@ struct PromptCapsule: View {
                 HStack(alignment: .bottom, spacing: 12) {
                     ControlsRow()
                     Spacer(minLength: 12)
-                    QueueChip()
+                    BatchCountControl()
                     StopButton()
                     GenerateButton()
                 }

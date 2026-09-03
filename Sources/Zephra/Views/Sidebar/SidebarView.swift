@@ -11,6 +11,9 @@ struct SidebarView: View {
         VStack(spacing: 0) {
             SidebarHeader()
             Divider()
+            // The queue draws its own divider under itself, so an idle sidebar has one line
+            // here rather than two touching ones.
+            QueueSection()
             SidebarSources()
             Divider()
             RecentlyDeletedRow()

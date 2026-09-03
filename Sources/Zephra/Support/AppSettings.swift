@@ -64,6 +64,11 @@ enum AppSettings {
         UserDefaults.standard.object(forKey: key) as? Bool ?? initialValue(of: key)
     }
 
+    /// A stored whole number as it stands right now, for the same reason `flag(_:)` exists.
+    static func integer(_ key: String) -> Int {
+        UserDefaults.standard.object(forKey: key) as? Int ?? initialInteger(of: key)
+    }
+
     /// Stores one preference from outside a view, for state an `@Observable` owns rather than
     /// an `@AppStorage`. The reading half of the same pair is `flag(_:)` for a switch and
     /// `UserDefaults` for a raw value that is parsed back into its own type.
@@ -78,6 +83,13 @@ enum AppSettings {
         case warmUpOnLaunch: initialWarmUpOnLaunch
         case inspectorVisible: initialInspectorVisible
         default: false
+        }
+    }
+
+    private static func initialInteger(of key: String) -> Int {
+        switch key {
+        case batchCount: initialBatchCount
+        default: 0
         }
     }
 }
