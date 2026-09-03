@@ -29,13 +29,7 @@ struct PromptCapsule: View {
             .padding(.top, 13)
             .padding(.bottom, 12)
         }
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
-        }
-        .shadow(color: .black.opacity(0.28), radius: 22, y: 8)
+        .chromePanel(.floating)
         .frame(maxWidth: 680)
     }
 }
