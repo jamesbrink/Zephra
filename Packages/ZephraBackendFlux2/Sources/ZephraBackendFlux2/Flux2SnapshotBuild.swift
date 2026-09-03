@@ -6,8 +6,9 @@ import ZephraQuantization
 ///
 /// The only file in the backend that touches the quantizer. It writes into a sibling `.partial`
 /// directory and renames on success, so a build that is stopped never leaves a directory the
-/// loader would accept; and it refuses before writing when the volume cannot hold the result,
-/// because a partial component looks like a snapshot to the loader.
+/// loader would accept, and removes that directory when the build fails or is stopped; and it
+/// refuses before writing when the volume cannot hold the result, because a partial component
+/// looks like a snapshot to the loader.
 enum Flux2SnapshotBuild {
     /// Bytes to buffer before spilling a shard: the packer's default, or an eighth of the
     /// machine's memory on a Mac where the default would not leave room for the app.
@@ -31,15 +32,21 @@ enum Flux2SnapshotBuild {
             .appending(path: destination.lastPathComponent + ".partial", directoryHint: .isDirectory)
         try? FileManager.default.removeItem(at: partial)
         let progress = Flux2BuildProgress(plan: plan, report: onProgress)
-        try SnapshotQuantizer.quantize(
-            source: release,
-            destination: partial,
-            plan: plan,
-            sourceName: sourceName,
-            shardBudgetBytes: shardBudgetBytes,
-            note: { progress.note($0) },
-            shouldContinue: { try Task.checkCancellation() }
-        )
+        do {
+            try SnapshotQuantizer.quantize(
+                source: release,
+                destination: partial,
+                plan: plan,
+                sourceName: sourceName,
+                shardBudgetBytes: shardBudgetBytes,
+                note: { progress.note($0) },
+                shouldContinue: { try Task.checkCancellation() }
+            )
+        } catch {
+            // Gigabytes nobody asked to keep: a stopped build starts over anyway.
+            try? FileManager.default.removeItem(at: partial)
+            throw error
+        }
         try? FileManager.default.removeItem(at: destination)
         try FileManager.default.moveItem(at: partial, to: destination)
         return destination

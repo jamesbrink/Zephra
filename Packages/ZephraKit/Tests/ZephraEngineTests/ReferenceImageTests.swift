@@ -89,4 +89,21 @@ struct ReferenceImageTests {
         store.select(edited)
         #expect(store.settings.referenceImage == Self.picture)
     }
+
+    @Test("selecting an edited image on a model that cannot read a picture adopts everything but the picture")
+    func selectingOnAPlainModelDropsThePicture() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store(descriptor: Self.plain)
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        var settings = GenerationSettings.defaults(for: Self.editing)
+        settings.prompt = "an edit made elsewhere"
+        settings.referenceImage = Self.picture
+        let edited = GeneratedImage(
+            pngData: MockBackend.pngData, settings: settings, modelID: Self.editing.id,
+            createdAt: Date(), duration: .seconds(1))
+        store.select(edited)
+        #expect(store.settings.prompt == "an edit made elsewhere")
+        #expect(store.settings.referenceImage == nil)
+    }
 }

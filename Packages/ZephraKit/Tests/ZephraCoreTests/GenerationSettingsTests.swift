@@ -53,7 +53,7 @@ struct GenerationSettingsTests {
         #expect(decoded == settings)
     }
 
-    @Test("moving to another model.s schedule keeps the reference image, as it keeps the size")
+    @Test("moving to another model's schedule keeps the reference image, as it keeps the size")
     func scheduleKeepsTheReference() {
         var settings = GenerationSettings.defaults(for: descriptor)
         settings.referenceImage = Data([9, 9])

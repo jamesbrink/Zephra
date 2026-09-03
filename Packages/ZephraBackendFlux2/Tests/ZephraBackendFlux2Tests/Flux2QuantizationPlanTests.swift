@@ -6,12 +6,15 @@ import ZephraQuantization
 
 @Suite("The klein packing plan")
 struct Flux2QuantizationPlanTests {
-    private let plan = try! Flux2QuantizationPlan.plan(bits: 4, groupSize: 64)
-    private var transformer: QuantizedComponent { plan.components[0] }
-    private var textEncoder: QuantizedComponent { plan.components[1] }
+    private func plan() throws -> QuantizationPlan {
+        try Flux2QuantizationPlan.plan(bits: 4, groupSize: 64)
+    }
+    private func transformer() throws -> QuantizedComponent { try plan().components[0] }
+    private func textEncoder() throws -> QuantizedComponent { try plan().components[1] }
 
     @Test("block projections pack, and everything that conditions them stays whole")
-    func transformerRules() {
+    func transformerRules() throws {
+        let transformer = try transformer()
         for name in [
             "transformer_blocks.0.attn.to_q.weight",
             "transformer_blocks.4.ff_context.linear_in.weight",
@@ -35,7 +38,8 @@ struct Flux2QuantizationPlanTests {
     }
 
     @Test("the encoder packs its first 27 layers and omits the rest and the final norm")
-    func textEncoderRules() {
+    func textEncoderRules() throws {
+        let textEncoder = try textEncoder()
         #expect(textEncoder.precision(for: "model.layers.0.self_attn.q_proj.weight")?.bits == 4)
         #expect(textEncoder.precision(for: "model.layers.26.mlp.down_proj.weight")?.bits == 4)
         #expect(textEncoder.precision(for: "model.embed_tokens.weight") == nil)
@@ -49,7 +53,8 @@ struct Flux2QuantizationPlanTests {
     }
 
     @Test("nothing the plan packs is a shape the packer would refuse at group 64")
-    func packedShapesDivide() {
+    func packedShapesDivide() throws {
+        let (transformer, textEncoder) = (try transformer(), try textEncoder())
         let shapes: [(String, [Int])] = [
             ("transformer_blocks.0.attn.to_q.weight", [3072, 3072]),
             ("transformer_blocks.0.ff.linear_in.weight", [18432, 3072]),
@@ -73,12 +78,13 @@ struct Flux2QuantizationPlanTests {
     }
 
     @Test("the VAE, tokenizer, and scheduler are copied verbatim, and the plan is uniform")
-    func verbatimAndUniform() {
+    func verbatimAndUniform() throws {
+        let plan = try plan()
         #expect(plan.verbatimDirectories == ["tokenizer", "scheduler", "vae"])
         #expect(plan.isUniform)
         let mixed = Flux2QuantizationPlan.plan(
-            transformer: try! QuantizationPrecision(bits: 4, groupSize: 64),
-            textEncoder: try! QuantizationPrecision(bits: 8, groupSize: 64))
+            transformer: try QuantizationPrecision(bits: 4, groupSize: 64),
+            textEncoder: try QuantizationPrecision(bits: 8, groupSize: 64))
         #expect(!mixed.isUniform)
     }
 }

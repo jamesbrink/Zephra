@@ -33,11 +33,11 @@ QWEN_OUT    ?= $(HOME)/Library/Application Support/Zephra/Models/qwen-image-2512
 # `make quantize-flux2` is the same build by hand, for benchmarking and for a machine whose copy
 # of the release lives elsewhere (set FLUX2_SOURCE). The root `flux-2-klein-4b.safetensors` is
 # Black Forest Labs' own single-file format, 7.75 GB the loader never reads, so it is excluded.
-# For the 8-bit variant: make quantize-flux2 BITS=8 FLUX2_OUT="...Models/flux2-klein-4b-8bit".
+# The output directory follows BITS, so `make quantize-flux2 BITS=8` lands in flux2-klein-4b-8bit.
 FLUX2_MODEL   := black-forest-labs/FLUX.2-klein-4B
 FLUX2_EXCLUDE := --exclude "flux-2-klein-4b.safetensors" --exclude "*.jpg"
 FLUX2_SOURCE  ?=
-FLUX2_OUT     ?= $(HOME)/Library/Application Support/Zephra/Models/flux2-klein-4b-4bit
+FLUX2_OUT     ?= $(HOME)/Library/Application Support/Zephra/Models/flux2-klein-4b-$(BITS)bit
 DEST     := platform=macOS,arch=arm64
 XCB      := xcodebuild -project $(PROJECT) -destination '$(DEST)' SYMROOT=$(BUILD) -derivedDataPath $(DERIVED)
 # Every package that links MLX, and so needs xcodebuild rather than `swift test`, written as

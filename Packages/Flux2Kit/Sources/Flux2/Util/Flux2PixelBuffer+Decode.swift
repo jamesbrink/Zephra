@@ -32,9 +32,11 @@ extension Flux2PixelBuffer {
                     bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)
             else { return false }
             context.interpolationQuality = .high
-            // Scale to the fitted size, then centre: the trim to a multiple of sixteen comes
-            // off both edges equally.
-            let scale = min(
+            // Scale so the picture covers the fitted size and centre it: the trim to a
+            // multiple of sixteen comes off both edges equally, and the overflow is clipped by
+            // the bitmap. The larger ratio, not the smaller, or the trim would become black
+            // bars down one edge that encode as a stripe of -1.
+            let scale = max(
                 Double(width) / Double(image.width), Double(height) / Double(image.height))
             let drawnWidth = Double(image.width) * scale
             let drawnHeight = Double(image.height) * scale

@@ -1,7 +1,6 @@
 import Flux2
 import Foundation
 import ZephraCore
-import ZephraSnapshot
 
 /// Runs FLUX.2 klein models through Zephra's own MLX pipeline.
 ///

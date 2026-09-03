@@ -21,6 +21,7 @@ from safetensors.torch import save_file
 # Each component's dumper lives beside this script in a module of its own, so a component can
 # be regenerated alone with --only and its dumper read next to its Swift test.
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import dump_reference_conditioning  # noqa: E402
 import dump_text_encoder  # noqa: E402
 import dump_transformer  # noqa: E402
 import dump_vae  # noqa: E402
@@ -115,6 +116,7 @@ def main() -> None:
         "rope": dump_rope,
         "patchify": dump_patchify,
         "scheduler": dump_scheduler,
+        "reference_conditioning": dump_reference_conditioning.dump,
         "text_encoder": dump_text_encoder.dump,
         "transformer": dump_transformer.dump,
         "vae": dump_vae.dump,

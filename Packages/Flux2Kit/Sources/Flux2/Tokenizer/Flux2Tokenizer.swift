@@ -24,7 +24,7 @@ public struct Flux2Tokenizer {
                 tokenizerData: try HubApi().configuration(fileURL: dataURL)
             )
         } catch {
-            throw Flux2TokenizerError.malformed(dataURL)
+            throw Flux2TokenizerError.malformed(dataURL, reason: String(describing: error))
         }
     }
 

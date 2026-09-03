@@ -1,7 +1,7 @@
 # Zephra
 
 A native macOS app that generates images locally on Apple Silicon, via
-MLX/Metal. It runs Z-Image-Turbo and Qwen-Image-2512.
+MLX/Metal. It runs Z-Image-Turbo, Qwen-Image-2512, and FLUX.2 klein 4B.
 
 ## Why
 
@@ -26,12 +26,12 @@ MLX/Metal. It runs Z-Image-Turbo and Qwen-Image-2512.
 - About 14 GB free disk for the 8-bit Z-Image weights, or 7 GB for the 4-bit ones.
   Building the 4-bit variant needs 33 GB more, for the full-precision release it is
   derived from; that download can be deleted afterwards. Qwen-Image is 22 GB built,
-  from a 58 GB source. FLUX.2 klein is a 16 GB download plus about 4.5 GB of packed
-  variant, both kept: the 8-bit variant packs from the same download, and the hub cache
-  is `hf`'s to prune (`hf cache delete`), not Zephra's.
-- 16 GB RAM for FLUX.2 klein 4B, the small, fast model: about 5.4 GB resident and a
-  peak that fits a 16 GB Mac at 1024² without tiling (estimates until measured; see
-  Performance). 32 GB for the 8-bit Z-Image model, which holds 12.2 GB resident and
+  from a 58 GB source. FLUX.2 klein is a 16 GB download plus the packed variant beside
+  it, 5.4 GB for 4-bit or 8.6 GB for 8-bit, both kept: each variant packs from the
+  same download, and the hub cache is `hf`'s to prune (`hf cache delete`), not Zephra's.
+- 16 GB RAM for FLUX.2 klein 4B, the small, fast model: 4.9 GB resident and a 12.1 GB
+  peak at 1024², which fits a 16 GB Mac without tiling; its 8-bit variant holds 8.1 GB
+  and peaks at 15.3 GB, or 10.9 GB tiled. 32 GB for the 8-bit Z-Image model, which holds 12.2 GB resident and
   peaks at 23.5 GB while decoding a 1024² image. The 4-bit variant brings that to 6.6 GB
   resident and a 17.8 GB peak at 1024², or 10.7 GB at 512². Peak, not resident, is
   what decides whether a Mac pages, and the tiled VAE decode below takes about 6 GB
@@ -176,10 +176,32 @@ nothing past it is loaded — and copying the 168 MB autoencoder whole. `make
 quantize-flux2` is the same build by hand, for benchmarking or for a copy of the
 release kept elsewhere (`FLUX2_SOURCE`).
 
-The memory figures in the catalog are estimates until the benchmark run replaces
-them; the port in `Packages/Flux2Kit` is Zephra's own, translated from two
-MIT-licensed Swift ports and pinned against `diffusers` — see `PROVENANCE.md` for
-the four places it departs from those ports on purpose.
+Measured on an M4 Max at seed 42, four steps, Release, idle:
+
+| | 4-bit | 8-bit |
+|---|---|---|
+| resident after a generation | 4941 MB | 8144 MB |
+| peak at 1024² | 12087 MB | 15289 MB |
+| peak at 1024², tiled decode | 7660 MB | 10861 MB |
+| peak at 768² | 9037 MB | — |
+| peak at 512² | 7651 MB | 10854 MB |
+| s/step at 1024² | 6.9 s | 7.0 s |
+| s/step at 768² / 512² | 4.5 s / 2.1 s | — / 2.4 s |
+| a 1024² image, four steps | 29 s | 29 s |
+| on disk | 5.4 GB | 8.6 GB |
+
+Twice as fast as Z-Image Turbo per image at 1024 (four steps of 6.9 s against nine of
+6.3 s) at a third of the resident memory, and the first model in the catalog that runs
+1024² on a 16 GB Mac with the exact, untiled decode. As with Z-Image, eight bits buys
+quality rather than costing time. Editing is dearer: a 1024² image made from a 512²
+reference took 66 s and peaked at 19.2 GB, because the reference's tokens ride through
+every attention layer beside the image's, so on a 16 GB Mac edit at 768² or below.
+
+The port in `Packages/Flux2Kit` is Zephra's own, translated from two MIT-licensed
+Swift ports and pinned against `diffusers` — see `PROVENANCE.md` for the four places
+it departs from those ports on purpose. The transformer runs in bfloat16;
+`ZEPHRA_DIT_DTYPE=f32` runs it in float32, which is the workaround should mlx-swift's
+bfloat16 split-K bug on M5-class GPUs reach it, at about three times the step time.
 
 | Machine | Resolution | Steps | Time |
 |---|---|---|---|

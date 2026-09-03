@@ -14,10 +14,10 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
     /// The PNG text keyword the JSON is filed under.
     public static let keyword = "zephra:generation"
     /// The keyword the reference image is filed under, when the image was edited from one:
-    /// the reference.s own PNG bytes, base64, in a chunk of their own beside the record.
+    /// the reference's own PNG bytes, base64, in a chunk of their own beside the record.
     public static let referenceKeyword = "zephra:reference"
     /// The shape written today. A file claiming a higher version is left alone rather than
-    /// guessed at, so an older build never misreads a newer one.s record.
+    /// guessed at, so an older build never misreads a newer one's record.
     ///
     /// The version is for a change an older build would misread, not for a field it would
     /// simply not know: an optional field decodes as absent on an older file and is skipped by

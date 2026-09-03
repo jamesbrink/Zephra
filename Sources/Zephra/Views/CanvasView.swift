@@ -20,11 +20,8 @@ struct CanvasView: View {
         .ignoresSafeArea()
         // Dropping a picture on the canvas is what people will try first; it lands in the
         // same well as dropping it on the well, and does nothing for a model without one.
-        .dropDestination(for: URL.self) { urls, _ in
-            guard store.descriptor.capabilities.supportsReferenceImage, let url = urls.first
-            else { return false }
-            store.useAsReference(ReferenceImageEncoder.pngData(contentsOf: url))
-            return store.settings.referenceImage != nil
+        .onDrop(of: ReferenceDrop.types, isTargeted: nil) { providers in
+            ReferenceDrop.handle(providers, into: store)
         }
     }
 

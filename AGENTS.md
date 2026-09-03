@@ -240,7 +240,8 @@ Makefile targets:
   `GROUP_SIZE`, and `QUANT_OUT` override the defaults (4 bits, group 64).
   `ZephraQuantize` takes a required `--family`; there is deliberately no
   default, because the wrong one silently produces the wrong artifact an hour
-  later.
+  later. For the same reason it refuses any `BITS` other than 4 unless the
+  output directory is given explicitly: every default output name says `4bit`.
 - `make quantize-qwen` — build the 4-bit Qwen-Image variant from `QWEN_SOURCE`
   with `QWEN_LORA` merged into its transformer, into
   `~/Library/Application Support/Zephra/Models/qwen-image-2512-4bit`
@@ -248,8 +249,7 @@ Makefile targets:
 - `make quantize-flux2` — the build the app does on first load, by hand: pack
   the klein release from the hub cache (or `FLUX2_SOURCE`) into
   `~/Library/Application Support/Zephra/Models/flux2-klein-4b-4bit`
-  (`FLUX2_OUT` overrides; `BITS=8` needs a different `FLUX2_OUT`, and the tool
-  refuses otherwise). About a minute.
+  (`FLUX2_OUT` overrides; `BITS=8` needs one, as above). About a minute.
 - `make lint-layers` — enforce the layering rules above.
 - `make logs` — stream app logs (`log stream`, subsystem `io.zephra`).
 - `make screenshot` — capture the app window (see debugging hooks).
@@ -382,8 +382,19 @@ shared by every block of their kind and held whole: 142 million parameters is
 not worth a knob. The autoencoder normalises its packed 128-channel latent with
 batch-norm running statistics rather than a scaling factor, and its config
 names FLUX.2-dev as its origin; only the copy inside the klein-4B repository is
-ever read. Its memory figures in the catalog are estimates marked
-`TODO(measure)` until the benchmark run replaces them.
+ever read.
+
+Measured on an M4 Max, four steps, seed 42: the 4-bit variant holds 4941 MB at
+every size and peaks at 7651 MB at 512, 9037 MB at 768, and 12087 MB at 1024,
+7660 MB tiled; a step is 2.1 s, 4.5 s, and 6.9 s. The 8-bit variant holds 8144 MB
+and peaks at 15289 MB at 1024, 10861 MB tiled, for the same step time. So 1024 is
+the default size and the 4-bit entry is what a 16 GB Mac opens on, with the exact
+decode. An edit is dearer: a 1024 image from a 512 reference peaked at 19227 MB and
+took 66 s, the reference's 1024 tokens riding through every attention layer. The
+stream runs in bfloat16; `ZEPHRA_DIT_DTYPE=f32` is the escape hatch for the
+mlx-swift split-K bug on M5-class GPUs, at three times the step time, and the
+packer's float32 scales are cast to the stream's dtype at load, without which MLX's
+quantized matmul widens every activation to float32.
 
 Two of this port's choices are load-bearing and easy to undo by accident. The
 schedule uses the pipeline's empirical shift, not the scheduler config's

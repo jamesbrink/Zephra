@@ -38,19 +38,22 @@ extension ModelCatalog {
         ),
         quantization: .int4,
         downloadBytes: flux2KleinDownloadBytes,
-        // TODO(measure): estimates, not measurements. Derived from Z-Image's measured bytes per
-        // parameter: 3.5 billion transformer weights packed at four bits plus 0.4 billion held
-        // whole, the first 27 of the encoder's 36 layers packed the same way with its
-        // embedding table whole, and the 168 MB autoencoder verbatim. Replace all four with
-        // `make bench ARGS="--model flux2-klein-4b-4bit --size 1024 --steps 4 --runs 3 --json"`
-        // on Release, idle, with and without ZEPHRA_VAE_TILE=64.
-        residentBytes: 5_400_000_000,
-        peakBytes: 10_500_000_000,
-        tiledPeakBytes: 7_500_000_000,
+        // Measured on an M4 Max, four steps, seed 42, identical across repetitions: 4941 MB
+        // live after a generation at any size, because the weights are the whole of it. Peak
+        // follows the image: 7651 MB at 512, 9037 MB at 768, 12087 MB at 1024. So 1024 fits a
+        // 16 GB Mac's budget outright, which is what this entry is for. Editing costs more: a
+        // 1024 image from a 512 reference peaked at 19227 MB, the reference's tokens riding
+        // through every attention layer beside the image's.
+        residentBytes: 4_940_000_000,
+        peakBytes: 12_090_000_000,
+        // Measured, same machine and seed, tiled at a 64-cell latent tile: 7660 MB at 1024.
+        tiledPeakBytes: 7_660_000_000,
         // The pipeline pads every prompt to 512 tokens and conditions on all of them.
         maxPromptTokens: 512,
         capabilities: flux2KleinCapabilities,
-        builtBytes: 4_500_000_000
+        // Measured: 5,365,936,128 bytes written by the build, 2.70 GB of transformer, 2.49 GB
+        // of the encoder's first 27 layers and embedding, and the 168 MB autoencoder verbatim.
+        builtBytes: 5_370_000_000
     )
 
     /// FLUX.2 klein 4B at eight-bit precision, built the same way from the same download.
@@ -66,13 +69,17 @@ extension ModelCatalog {
         ),
         quantization: .int8,
         downloadBytes: flux2KleinDownloadBytes,
-        // TODO(measure): estimates; see the 4-bit entry for the procedure.
-        residentBytes: 8_500_000_000,
-        peakBytes: 13_500_000_000,
-        tiledPeakBytes: 10_500_000_000,
+        // Measured as the 4-bit entry was: 8144 MB live, 10854 MB peak at 512 and 15289 MB at
+        // 1024, 10861 MB tiled at 1024. A step costs the same as at four bits, 7.0 s against
+        // 6.9 s at 1024: the quantized matmul is compute-bound at these shapes whichever width
+        // it packs, as it is for Z-Image.
+        residentBytes: 8_140_000_000,
+        peakBytes: 15_290_000_000,
+        tiledPeakBytes: 10_860_000_000,
         maxPromptTokens: 512,
         capabilities: flux2KleinCapabilities,
-        builtBytes: 7_500_000_000
+        // Measured: 8,572,731,392 bytes written by the build.
+        builtBytes: 8_570_000_000
     )
 
     /// What the distilled klein accepts.

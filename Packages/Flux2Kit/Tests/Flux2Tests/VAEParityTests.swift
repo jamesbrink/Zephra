@@ -57,12 +57,12 @@ struct VAEParityTests {
         let fixture = try Fixture.load("vae")
         let model = try Self.loaded(fixture)
 
-        let pixels = model.decodePacked(fixture["vae.in.packed"]!)
+        let pixels = model.decodePacked(try #require(fixture["vae.in.packed"]))
         // The reference is dumped straight out of the decoder and this doll's house overshoots
         // -1 slightly, so the comparison clips it the way `decodePacked` clips its own output
         // and the way diffusers' image processor clips the real one.
         let reference = MLX.clip(
-            fixture["vae.out.pixels"]!.transposed(0, 2, 3, 1),
+            try #require(fixture["vae.out.pixels"]).transposed(0, 2, 3, 1),
             min: MLXArray(Float(-1)), max: MLXArray(Float(1)))
 
         #expect(pixels.shape == reference.shape)
@@ -75,8 +75,8 @@ struct VAEParityTests {
         let fixture = try Fixture.load("vae")
         let model = try Self.loaded(fixture)
 
-        let packed = model.encodePacked(fixture["vae.in.image"]!)
-        let reference = fixture["vae.out.packed"]!
+        let packed = model.encodePacked(try #require(fixture["vae.in.image"]))
+        let reference = try #require(fixture["vae.out.packed"])
 
         #expect(packed.shape == reference.shape)
         let difference = Fixture.maxAbsoluteDifference(packed, reference)

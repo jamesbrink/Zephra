@@ -5,8 +5,8 @@ import ZephraCore
 extension GenerationRecord {
     /// `image`'s PNG bytes with its record inside them.
     ///
-    /// Three chunks go in: the JSON under Zephra.s own keyword, a standard `Software` line, and
-    /// a `Description` holding the prompt, so the Finder.s inspector, Preview, and exiftool all
+    /// Three chunks go in: the JSON under Zephra's own keyword, a standard `Software` line, and
+    /// a `Description` holding the prompt, so the Finder's inspector, Preview, and exiftool all
     /// show something worth reading without knowing anything about Zephra. An edited image
     /// carries a fourth, the reference it was edited from, so that selecting it later puts the
     /// picture back and an exported edit can reproduce itself.

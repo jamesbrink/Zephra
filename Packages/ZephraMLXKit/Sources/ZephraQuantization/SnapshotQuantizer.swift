@@ -30,7 +30,7 @@ public enum SnapshotQuantizer {
     ///   - shouldContinue: Called once before each tensor is read. Throw from it to stop the
     ///     build; the partly written component is cleared by the next run. A closure rather
     ///     than a task check because this runs from a synchronous command-line tool as well as
-    ///     from the app.s inference executor, and only one of them has a task to ask.
+    ///     from the app's inference executor, and only one of them has a task to ask.
     public static func quantize(
         source: URL,
         destination: URL,

@@ -13,14 +13,19 @@ struct ReferenceImageWell: View {
             well
                 .dropDestination(for: URL.self) { urls, _ in
                     // Read inside the closure: a dropped file's read grant lasts the drop.
-                    guard let url = urls.first else { return false }
-                    store.useAsReference(ReferenceImageEncoder.pngData(contentsOf: url))
-                    return store.settings.referenceImage != nil
+                    // A file macOS cannot read leaves whatever was there alone.
+                    guard let url = urls.first,
+                          let png = ReferenceImageEncoder.pngData(contentsOf: url)
+                    else { return false }
+                    store.useAsReference(png)
+                    return true
                 }
                 .dropDestination(for: Data.self) { items, _ in
-                    guard let data = items.first else { return false }
-                    store.useAsReference(ReferenceImageEncoder.pngData(from: data))
-                    return store.settings.referenceImage != nil
+                    guard let data = items.first,
+                          let png = ReferenceImageEncoder.pngData(from: data)
+                    else { return false }
+                    store.useAsReference(png)
+                    return true
                 }
         }
     }
@@ -49,7 +54,7 @@ struct ReferenceImageWell: View {
                 .accessibilityLabel("Reference image")
         } else {
             Button {
-                store.useAsReference(ReferenceImagePicker.choose())
+                if let png = ReferenceImagePicker.choose() { store.useAsReference(png) }
             } label: {
                 Image(systemName: "photo.badge.plus")
                     .font(.title3)

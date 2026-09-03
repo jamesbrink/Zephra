@@ -13,10 +13,12 @@ struct SchedulerTests {
     @Test("the sigma ladder matches the reference at every step count and size dumped")
     func sigmasMatchReference() throws {
         let fixture = try Fixture.load("scheduler")
-        for (key, expected) in fixture where key.hasSuffix(".sigmas") {
+        let ladders = fixture.filter { $0.key.hasSuffix(".sigmas") }
+        #expect(ladders.count == 7, "the fixture names seven step-and-size pairs")
+        for (key, expected) in ladders {
             let parts = key.split(separator: ".")
-            let steps = Int(parts[0].dropFirst("steps".count))!
-            let tokens = Int(parts[1].dropFirst("tokens".count))!
+            let steps = try #require(Int(parts[0].dropFirst("steps".count)))
+            let tokens = try #require(Int(parts[1].dropFirst("tokens".count)))
             let scheduler = FlowMatchEulerScheduler(
                 configuration: Self.klein, steps: steps, imageSequenceLength: tokens)
             let ours = MLXArray(scheduler.sigmas.map(Float.init))
