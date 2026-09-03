@@ -6,10 +6,6 @@ import ZephraCore
 enum AppSettings {
     /// The prompt text, restored on the next launch.
     static let lastPrompt = "lastPrompt"
-    /// Whether the strip of this run's images is showing under the capsule. The stored key
-    /// still says "filmstrip", which is what the strip was before it shrank to one run;
-    /// renaming it would forget the preference of everyone who had already turned it off.
-    static let runStripVisible = "filmstripVisible"
     /// Whether every run picks a fresh seed instead of repeating the last one.
     static let randomizeSeedEachRun = "randomizeSeedEachRun"
     /// Whether the model runs a throwaway generation after loading.
@@ -35,7 +31,7 @@ enum AppSettings {
     static let batchCount = "batchCount"
 
     /// Starting values, matching the defaults written at each `@AppStorage` site.
-    static let initialRunStripVisible = true
+    ///
     /// A fresh seed each run is the friendlier default; a fixed seed is the deliberate choice.
     static let initialRandomizeSeedEachRun = true
     /// Warming up costs a second at launch and saves several on the first real image.
@@ -84,7 +80,6 @@ enum AppSettings {
 
     private static func initialValue(of key: String) -> Bool {
         switch key {
-        case runStripVisible: initialRunStripVisible
         case randomizeSeedEachRun: initialRandomizeSeedEachRun
         case warmUpOnLaunch: initialWarmUpOnLaunch
         case inspectorVisible: initialInspectorVisible

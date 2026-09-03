@@ -172,9 +172,12 @@ Four directories, by what a file is rather than what screen it is on:
   `ThumbnailCache` coalesces the in-flight requests. Nothing decodes an image
   on the main actor.
 - `Views/` — one subfolder per surface (`Canvas/`, `Library/`,
-  `Library/Inspector/`, `Queue/`, `Sidebar/`, `Toolbar/`). The three-stored-
-  property rule is what keeps them small; a view that needs a fourth wants a
-  subview.
+  `Library/Inspector/`, `Sidebar/`, `Sidebar/Timeline/`, `Toolbar/`). The
+  three-stored-property rule is what keeps them small; a view that needs a
+  fourth wants a subview. `Sidebar/Timeline/` is the canvas sidebar: one row
+  per run, waiting, running, or finished, with the run's seeds as squares
+  under it. `SessionTimeline` in `ZephraEngine` works out what those rows are;
+  nothing here filters, groups, or sorts.
 
 ## Adding a model or a backend
 
