@@ -102,9 +102,13 @@ readout while that happens.
   queue entries as it goes. Your choice is remembered.
 - Size, steps, and seed sit under the prompt. A model that reads a negative prompt gets a
   second field for it, and one that responds to guidance gets a guidance slider; no model
-  shipped today does either, so neither shows. A model that edits a picture, which FLUX.2
-  klein does, gets a well beside the prompt: drop a picture on it or on the canvas, click it
-  to choose one, or use the image on the canvas as the reference (⌥⌘R; ⇧⌥⌘R clears it). The
+  shipped today does either, so neither shows. Every model can start from a picture, so each
+  gets a well beside the prompt: drop a picture on it or on the canvas, click it to choose one,
+  or use the image on the canvas as the reference (⌥⌘R; ⇧⌥⌘R clears it). What a picture means
+  differs by model. FLUX.2 klein attends to it as extra tokens and still renders the whole
+  schedule, so the picture guides the image without a strength to set. Z-Image and Qwen-Image
+  start from a noised copy of it instead, so a strength decides how much of it survives: a
+  strength buys that share of the model's steps, and less strength keeps more of the picture. The
   prompt then says what to change. An edited image carries its reference inside its PNG, so
   selecting it later puts the picture back, and an exported edit can reproduce itself. Steps and size stay as you set them when
   you switch between variants of one model, and steps go back to the new model's own default
@@ -395,7 +399,7 @@ Zephra/
   cache with the klein release ahead of a first launch.
 - `make lint-layers` — check the module boundaries above.
 - `make bench ARGS="..."` — headless timing (`--size`, `--steps`, `--runs`, `--model`, `--json`,
-  `--out`, `--micro`, `--reference` to time the editing path); `make logs` streams the app's log; `make screenshot` captures the window;
+  `--out`, `--micro`, `--reference` to time the editing path, `--strength`); `make logs` streams the app's log; `make screenshot` captures the window;
   `make open` opens the generated project in Xcode; `make clean` removes build output.
 - `ZEPHRA_PREVIEW_STATE=ready|image|editing|generating|queued|batch|library|downloading|building|failed`
   launches a Debug build frozen in that state with no model, for screenshots.

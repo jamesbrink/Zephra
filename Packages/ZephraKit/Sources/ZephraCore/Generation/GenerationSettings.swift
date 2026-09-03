@@ -29,9 +29,11 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
     /// this, and says so with a `referenceStrengthBounds` of `1...1`.
     ///
     /// Not optional, because every generation has one whether or not its model reads it, and a
-    /// default of 1 is the value that changes nothing. Optional in the *encoded* form, though:
-    /// Swift's synthesised decoding reads a missing key into the initializer's default, so
-    /// settings written before strength existed still decode.
+    /// default of 1 is the value that changes nothing. Optional in the *encoded* form, though,
+    /// which is what `GenerationSettings+Codable.swift` is for: a synthesised `Decodable` throws
+    /// on a missing key for a non-optional property — the memberwise initializer's default is
+    /// not the decoder's — so reading a value written before strength existed takes a
+    /// hand-written `init(from:)`.
     public var referenceStrength: Double
 
     /// Creates a settings value from explicit choices.
@@ -80,6 +82,10 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
         var copy = self
         copy.steps = descriptor.capabilities.defaultSteps
         copy.guidance = descriptor.capabilities.defaultGuidance
+        // Strength is a schedule setting too: a share of the steps means nothing across a move
+        // from nine steps to four, and on a model that conditions on the picture directly it
+        // means nothing at all.
+        copy.referenceStrength = descriptor.capabilities.defaultReferenceStrength
         return copy
     }
 

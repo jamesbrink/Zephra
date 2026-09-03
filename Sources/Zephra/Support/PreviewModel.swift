@@ -60,7 +60,9 @@ enum PreviewModel {
             defaultGuidance: 0,
             supportsNegativePrompt: false,
             supportsSeed: true,
-            supportsReferenceImage: true
+            supportsReferenceImage: true,
+            referenceStrengthBounds: 0.1...0.9,
+            defaultReferenceStrength: 0.6
         )
     )
 }

@@ -52,6 +52,7 @@ struct GenerationSettingsTests {
         let decoded = try JSONDecoder().decode(GenerationSettings.self, from: data)
         #expect(decoded == settings)
     }
+
     @Test("moving to another model's schedule keeps the reference image, as it keeps the size")
     func scheduleKeepsTheReference() {
         var settings = GenerationSettings.defaults(for: descriptor)

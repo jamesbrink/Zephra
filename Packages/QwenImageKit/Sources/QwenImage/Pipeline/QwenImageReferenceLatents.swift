@@ -16,21 +16,23 @@ public enum QwenImageReferenceLatents {
     /// Where in the run to start, for a strength between zero and one.
     ///
     /// Strength buys a *share of the steps*, not a noise level: `steps * strength` steps run,
-    /// rounded and never fewer than one, and the loop enters that far from the end. This is the
+    /// truncated and never fewer than one, and the loop enters that far from the end. This is the
     /// mapping diffusers' image-to-image pipelines use in `get_timesteps`, and this model is
     /// exactly why it is the right one. Its four distilled steps are 1.0, 0.767, 0.456 and
     /// 0.02, so picking the first sigma at or below the strength would send every strength from
     /// 0.1 to 0.4 to that 0.02 — one step from almost no noise, and the picture handed back
     /// unchanged.
     ///
-    /// So 0.6 of four steps enters at 2 and runs 2; 0.9 of four rounds up to all four, which
-    /// enters at 0, where the mix below is pure noise and the reference contributes nothing.
-    /// A reference at full strength is exactly the text-to-image path.
+    /// So 0.6 of four steps enters at 2 and runs 2; 0.9 of four is 3.6, truncated to three, and
+    /// enters at 1. Truncating matters most here: rounding 3.6 up to four would enter at 0,
+    /// where the mix below is pure noise and the picture is silently discarded at the very top
+    /// of the range the model offers. The entry is 0 only at a strength of exactly 1, which is
+    /// the text-to-image path, and is why the upper bound stays below it.
     ///
     /// The sigma ladder is not consulted here; the caller reads `sigmas[startIndex]` for the mix.
     public static func startIndex(strength: Double, steps: Int) -> Int {
         guard steps > 0 else { return 0 }
-        let requested = Int((Double(steps) * strength).rounded())
+        let requested = Int(Double(steps) * strength)
         let running = min(max(requested, 1), steps)
         return steps - running
     }

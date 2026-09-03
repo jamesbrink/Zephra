@@ -69,15 +69,18 @@ struct ZImageScheduleTests {
     func startIndexIsAShareOfTheSteps() {
         // 9 * 0.6 = 5.4, so five of the nine steps run and the loop enters at 4.
         #expect(ReferenceLatents.startIndex(strength: 0.6, steps: 9) == 4)
-        #expect(ReferenceLatents.startIndex(strength: 0.9, steps: 9) == 1, "8.1 rounds to 8")
-        // 4.5 rounds away from zero to 5, so a half-strength run is the same five steps as 0.6.
-        #expect(ReferenceLatents.startIndex(strength: 0.5, steps: 9) == 4)
-        #expect(ReferenceLatents.startIndex(strength: 0.1, steps: 9) == 8, "0.9 rounds to 1")
+        #expect(ReferenceLatents.startIndex(strength: 0.9, steps: 9) == 1, "8.1 truncates to 8")
+        // Truncated, not rounded, as diffusers does it: 4.5 buys four steps, not five.
+        #expect(ReferenceLatents.startIndex(strength: 0.5, steps: 9) == 5)
+        #expect(
+            ReferenceLatents.startIndex(strength: 0.1, steps: 9) == 8,
+            "0.9 truncates to none, and the floor of one step applies")
     }
 
     @Test("a strength too small to buy a whole step still buys one, never none")
     func tinyStrengthRunsTheLastStep() {
-        // 4 * 0.1 is 0.4, which rounds to nothing; running no steps would hand the picture back.
+        // 4 * 0.1 is 0.4, which truncates to nothing; running no steps would hand the picture
+        // back untouched, so one step is the floor.
         #expect(ReferenceLatents.startIndex(strength: 0.1, steps: 4) == 3)
         #expect(ReferenceLatents.startIndex(strength: 0, steps: 9) == 8)
     }

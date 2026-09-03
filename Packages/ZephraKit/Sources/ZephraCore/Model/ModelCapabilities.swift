@@ -83,6 +83,10 @@ public struct ModelCapabilities: Hashable, Sendable {
         if !supportsReferenceImage {
             result.referenceImage = nil
         }
+        // Bounded whether or not there is a picture. Nothing reads the strength without one,
+        // so the 1 a text-to-image request carries becomes this model's upper bound and means
+        // nothing — but a request that leaves `clamp` holding a value its model would reject is
+        // a trap for whoever attaches a picture to it later.
         result.referenceStrength = min(
             max(settings.referenceStrength, referenceStrengthBounds.lowerBound),
             referenceStrengthBounds.upperBound

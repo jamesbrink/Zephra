@@ -11,7 +11,7 @@ public enum ReferenceLatents {
   /// Where in the run to start, for a strength between zero and one.
   ///
   /// Strength buys a *share of the steps*, not a noise level: `steps * strength` steps run,
-  /// rounded and never fewer than one, and the loop enters that far from the end. This is the
+  /// truncated and never fewer than one, and the loop enters that far from the end. This is the
   /// mapping diffusers' image-to-image pipelines use in `get_timesteps`, and the reason to
   /// follow it rather than to look up the first sigma at or below the strength is that a
   /// distilled ladder is not evenly spaced. Qwen-Image's four steps are 1.0, 0.767, 0.456 and
@@ -19,14 +19,18 @@ public enum ReferenceLatents {
   /// almost no noise, and hand the picture back unchanged.
   ///
   /// So 0.9 of nine steps enters at 1 and runs 8; 0.6 of nine enters at 4 and runs 5; 0.1 of
-  /// nine enters at 8 and runs the last one alone. At a strength of 1 the entry is 0, where the
-  /// mix below is pure noise and the reference contributes nothing — a reference at full
-  /// strength is exactly the text-to-image path, which is why the models' bounds stop at 0.9.
+  /// nine enters at 8 and runs the last one alone. Truncating rather than rounding is what keeps
+  /// the top of the range meaningful on a short ladder: 0.9 of four steps is 3.6, which rounded
+  /// would run all four from an entry of 0 — pure noise, the picture discarded — and truncated
+  /// runs three from the second rung. So the entry is 0 only at a strength of exactly 1, which
+  /// is the text-to-image path, and that is why a model that reads a picture keeps its upper
+  /// bound below 1: the bound is a floor on how much of the picture survives, and how much a
+  /// tenth of strength is worth depends on how many steps the model runs.
   ///
   /// The sigma ladder is not consulted here; the caller reads `sigmas[startIndex]` for the mix.
   public static func startIndex(strength: Float, steps: Int) -> Int {
     guard steps > 0 else { return 0 }
-    let requested = Int((Float(steps) * strength).rounded())
+    let requested = Int(Float(steps) * strength)
     let running = min(max(requested, 1), steps)
     return steps - running
   }

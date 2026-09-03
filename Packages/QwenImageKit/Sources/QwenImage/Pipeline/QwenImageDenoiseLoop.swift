@@ -19,8 +19,8 @@ enum QwenImageDenoiseLoop {
 
     /// Runs the ladder and returns the final latents, still packed.
     ///
-    /// With a `reference`, the loop starts at the first step whose sigma is at or below its
-    /// strength, from that picture's latent carrying that step's share of `noise`. Progress is
+    /// With a `reference`, its strength buys a share of the steps and the loop enters that many
+    /// from the end, from that picture's latent carrying that step's share of `noise`. Progress is
     /// reported against the full step count either way, so a host drawing one segment per step
     /// shows the skipped ones as finished rather than showing a shorter run.
     static func run(

@@ -41,14 +41,17 @@ struct ReferenceLatentsTests {
     func startIndexIsAShareOfTheSteps() {
         // 4 * 0.6 = 2.4, so two of the four steps run and the loop enters at 2.
         #expect(QwenImageReferenceLatents.startIndex(strength: 0.6, steps: 4) == 2)
-        // 4 * 0.9 = 3.6, which rounds to the whole run: entry 0, where the mix is pure noise.
-        #expect(QwenImageReferenceLatents.startIndex(strength: 0.9, steps: 4) == 0)
+        // 4 * 0.9 = 3.6, truncated to three steps: entry 1, still carrying the picture.
+        // Rounding it up to the whole run would enter at 0, where the mix is pure noise, and
+        // so would discard the picture at the very top of the range the model offers.
+        #expect(QwenImageReferenceLatents.startIndex(strength: 0.9, steps: 4) == 1)
         #expect(QwenImageReferenceLatents.startIndex(strength: 0.5, steps: 4) == 2)
     }
 
     @Test("a strength too small to buy a whole step still buys one, never none")
     func tinyStrengthRunsTheLastStep() {
-        // 4 * 0.1 is 0.4, which rounds to nothing; running no steps would hand the picture back.
+        // 4 * 0.1 is 0.4, which truncates to nothing; running no steps would hand the picture
+        // back untouched, so one step is the floor.
         #expect(QwenImageReferenceLatents.startIndex(strength: 0.1, steps: 4) == 3)
         #expect(QwenImageReferenceLatents.startIndex(strength: 0, steps: 4) == 3)
     }
@@ -65,14 +68,17 @@ struct ReferenceLatentsTests {
         let entries = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9].map {
             QwenImageReferenceLatents.startIndex(strength: $0, steps: 4)
         }
-        #expect(Set(entries) == [0, 1, 2, 3], "every rung is reachable")
-        #expect(entries.filter { $0 == 3 }.count == 3, "only 0.1 to 0.3 run a single step")
+        #expect(Set(entries) == [1, 2, 3], "the strengths on offer spread over three rungs")
+        #expect(
+            !entries.contains(0),
+            "no strength a model offers may enter at 0, which is pure noise and no picture")
+        #expect(entries.filter { $0 == 3 }.count == 4, "0.1 to 0.4 all run a single step")
         // Four steps is four entry points, so the bottom of the range has nowhere else to go:
         // one step is the fewest that can run, and it necessarily starts at the last sigma.
         // That is the distillation's granularity, not this mapping's doing — the nine-step
         // Z-Image ladder spreads the same range over nine.
-        #expect(QwenImageReferenceLatents.startIndex(strength: 0.4, steps: 4) == 2)
-        #expect(ladder[2] > 0.4, "0.4 now enters at a real noise level, where it used to not")
+        #expect(QwenImageReferenceLatents.startIndex(strength: 0.5, steps: 4) == 2)
+        #expect(ladder[2] > 0.4, "0.5 enters at a real noise level, where the old rule did not")
     }
 
     @Test("the entry point falls as the strength rises, and never leaves the run")

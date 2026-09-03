@@ -314,7 +314,7 @@ For the models where it does apply:
   on it directly, which is how a klein edit says it had no distance to travel.
 
 Each backend package decodes the bytes to a `CGImage` in its own
-`ReferenceImageDecoding` — eleven identical lines per package, because no backend
+`ReferenceImageDecoding` — a small file duplicated per package, because no backend
 package may import another. Backends decode; the kits are handed decoded images
 and never touch the filesystem.
 

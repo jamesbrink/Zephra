@@ -490,10 +490,10 @@ public final class ZImagePipeline {
     let timestepsArray = scheduler.timesteps.asArray(Float.self)
 
     // ZEPHRA-PATCH: SDEdit. With a reference picture the loop does not start from pure noise at
-    // the top of the ladder: it starts at the first step whose sigma is at or below the
-    // requested strength, from that picture's latent carrying that step's share of the run's
-    // own seeded noise. Without one, `startIndex` is 0 and `latents` is untouched, which is the
-    // unpatched behaviour exactly.
+    // the top of the ladder: strength buys a share of the steps, so it enters that many from
+    // the end, from that picture's latent carrying that step's share of the run's own seeded
+    // noise. Without one, `startIndex` is 0 and `latents` is untouched, which is the unpatched
+    // behaviour exactly.
     var startIndex = 0
     #if canImport(CoreGraphics)
     if let reference = request.referenceImage {
