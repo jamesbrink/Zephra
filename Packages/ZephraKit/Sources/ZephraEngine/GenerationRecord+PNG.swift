@@ -11,11 +11,19 @@ extension GenerationRecord {
     ///
     /// Idempotent: bytes that already carry a record come back untouched, so exporting an image
     /// that was itself restored from disk never doubles the chunk up.
-    public static func embedded(in image: GeneratedImage) throws -> Data {
+    ///
+    /// `referenceDigest` is the SHA-256 of the source file this generation started from, which
+    /// only the caller can supply: hashing it is I/O, and the writer is already off the main
+    /// actor. Leave it nil and the record still names the file, just not its exact bytes.
+    public static func embedded(
+        in image: GeneratedImage,
+        referenceDigest: String? = nil
+    ) throws -> Data {
         let existing = try PNGTextChunks.read(from: image.pngData)
         guard existing[keyword] == nil else { return image.pngData }
+        let record = GenerationRecord(image, referenceDigest: referenceDigest)
         var entries: [PNGTextChunks.Entry] = [
-            (keyword: keyword, text: try json(for: GenerationRecord(image))),
+            (keyword: keyword, text: try json(for: record)),
             (keyword: "Software", text: software),
         ]
         let prompt = image.settings.prompt.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -51,4 +51,33 @@ struct GenerationSettingsTests {
         let decoded = try JSONDecoder().decode(GenerationSettings.self, from: data)
         #expect(decoded == settings)
     }
+
+    @Test("defaults start with no reference image")
+    func defaultsCarryNoReference() {
+        #expect(GenerationSettings.defaults(for: descriptor).reference == nil)
+    }
+
+    @Test("a reference survives the round trip, and settings written without one still decode")
+    func referenceRoundTrip() throws {
+        var settings = GenerationSettings.defaults(for: descriptor)
+        settings.prompt = "a lighthouse at dusk"
+        settings.reference = ReferenceImage(
+            url: URL(fileURLWithPath: "/tmp/sources/harbour.png"), strength: 0.45
+        )
+
+        let data = try JSONEncoder().encode(settings)
+        let decoded = try JSONDecoder().decode(GenerationSettings.self, from: data)
+        #expect(decoded == settings)
+        #expect(decoded.reference?.strength == 0.45)
+
+        // What a build that predates references wrote: the key is simply absent.
+        var older = try #require(
+            try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        older.removeValue(forKey: "reference")
+        let olderData = try JSONSerialization.data(withJSONObject: older)
+        let fromOlder = try JSONDecoder().decode(GenerationSettings.self, from: olderData)
+        #expect(fromOlder.reference == nil)
+        #expect(fromOlder.prompt == settings.prompt)
+    }
 }

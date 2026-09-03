@@ -126,6 +126,14 @@ public enum ModelCatalog {
         guidanceBounds: 0...0,
         defaultGuidance: 0,
         supportsNegativePrompt: false,
-        supportsSeed: true
+        supportsSeed: true,
+        // SDEdit needs only an image encoder and a linear schedule, and Z-Image has both: the
+        // autoencoder's encoder is in every snapshot Zephra loads, 106 tensors the loader
+        // already applies, and the flow-matching scheduler interpolates
+        // `x_t = (1 - sigma) * x0 + sigma * noise`. Nothing extra is downloaded or loaded for
+        // this, which is why both variants get it.
+        supportsReferenceImage: true,
+        referenceStrengthBounds: 0.1...0.9,
+        defaultReferenceStrength: 0.6
     )
 }

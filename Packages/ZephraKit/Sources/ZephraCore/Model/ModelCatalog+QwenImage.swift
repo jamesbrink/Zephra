@@ -69,6 +69,13 @@ extension ModelCatalog {
         guidanceBounds: 0...0,
         defaultGuidance: 0,
         supportsNegativePrompt: false,
-        supportsSeed: true
+        supportsSeed: true,
+        // As for Z-Image: SDEdit wants an image encoder and a linear schedule, and the
+        // quantizer copies the autoencoder's encoder into the local build verbatim, so the
+        // weights are already on disk. Not to be confused with Qwen-Image-Edit, which
+        // conditions the transformer on a picture and is a different model, not a setting.
+        supportsReferenceImage: true,
+        referenceStrengthBounds: 0.1...0.9,
+        defaultReferenceStrength: 0.6
     )
 }

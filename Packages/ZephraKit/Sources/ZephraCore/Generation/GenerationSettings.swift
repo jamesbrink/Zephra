@@ -12,6 +12,12 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
     public var guidance: Double
     /// The noise seed, so an image can be reproduced exactly.
     public var seed: UInt64
+    /// A picture to start the denoising from, on models that can encode one.
+    ///
+    /// Optional, and optional in the encoded form too: Swift's synthesised decoding reads an
+    /// optional property with `decodeIfPresent`, so settings written before references existed
+    /// still decode, with no reference.
+    public var reference: ReferenceImage?
 
     /// Creates a settings value from explicit choices.
     public init(
@@ -20,7 +26,8 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
         size: ImageSize,
         steps: Int,
         guidance: Double,
-        seed: UInt64
+        seed: UInt64,
+        reference: ReferenceImage? = nil
     ) {
         self.prompt = prompt
         self.negativePrompt = negativePrompt
@@ -28,6 +35,7 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
         self.steps = steps
         self.guidance = guidance
         self.seed = seed
+        self.reference = reference
     }
 
     /// The starting point for a model: an empty prompt, its own defaults, and a fresh seed.

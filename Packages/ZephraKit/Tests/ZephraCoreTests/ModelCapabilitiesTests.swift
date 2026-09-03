@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import ZephraCore
@@ -55,11 +56,34 @@ struct ModelCapabilitiesTests {
         #expect(supporting.clamp(settings).negativePrompt == "blurry")
     }
 
+    @Test("clamp drops a reference the model cannot start from")
+    func dropsUnsupportedReference() {
+        let settings = makeSettings(reference: Self.reference)
+        #expect(withoutReferences.clamp(settings).reference == nil)
+    }
+
+    @Test("clamp holds the reference strength inside the model's bounds")
+    func clampsReferenceStrength() {
+        #expect(capabilities.supportsReferenceImage)
+        let strong = makeSettings(reference: Self.reference.withStrength(4))
+        #expect(capabilities.clamp(strong).reference?.strength == 0.9)
+
+        let weak = makeSettings(reference: Self.reference.withStrength(-1))
+        #expect(capabilities.clamp(weak).reference?.strength == 0.1)
+    }
+
+    @Test("clamp leaves a reference already inside the bounds exactly as it is")
+    func keepsAcceptableReference() {
+        let settings = makeSettings(reference: Self.reference)
+        #expect(capabilities.clamp(settings).reference == Self.reference)
+    }
+
     private func makeSettings(
         negativePrompt: String? = nil,
         size: ImageSize = ImageSize(width: 1024, height: 1024),
         steps: Int = 9,
-        guidance: Double = 0
+        guidance: Double = 0,
+        reference: ReferenceImage? = nil
     ) -> GenerationSettings {
         GenerationSettings(
             prompt: "a lighthouse",
@@ -67,7 +91,30 @@ struct ModelCapabilitiesTests {
             size: size,
             steps: steps,
             guidance: guidance,
-            seed: 42
+            seed: 42,
+            reference: reference
         )
     }
+
+    /// The same capabilities with references turned off, so the drop is exercised rather than
+    /// assumed: both shipped families support them.
+    private var withoutReferences: ModelCapabilities {
+        ModelCapabilities(
+            sizeAlignment: capabilities.sizeAlignment,
+            sizePresets: capabilities.sizePresets,
+            sizeBounds: capabilities.sizeBounds,
+            defaultSize: capabilities.defaultSize,
+            stepBounds: capabilities.stepBounds,
+            defaultSteps: capabilities.defaultSteps,
+            guidanceBounds: capabilities.guidanceBounds,
+            defaultGuidance: capabilities.defaultGuidance,
+            supportsNegativePrompt: capabilities.supportsNegativePrompt,
+            supportsSeed: capabilities.supportsSeed,
+            supportsReferenceImage: false
+        )
+    }
+
+    private static let reference = ReferenceImage(
+        url: URL(fileURLWithPath: "/tmp/sources/harbour.png"), strength: 0.6
+    )
 }

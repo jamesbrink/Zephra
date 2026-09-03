@@ -20,8 +20,26 @@ public struct ModelCapabilities: Hashable, Sendable {
     public let supportsNegativePrompt: Bool
     /// Whether a fixed seed reproduces an earlier image.
     public let supportsSeed: Bool
+    /// Whether the model can start from a picture instead of from pure noise.
+    ///
+    /// This asks only whether the family has an image encoder Zephra can reach and a schedule
+    /// that interpolates linearly, which is what SDEdit needs. It is not a claim about edit
+    /// conditioning: a model that takes a reference image as a *prompt* is a different model,
+    /// not this flag turned on.
+    public let supportsReferenceImage: Bool
+    /// How far a reference may be taken from, when one is supported.
+    ///
+    /// Neither end is offered: 1 is text-to-image with extra steps, and 0 hands the picture
+    /// back unchanged.
+    public let referenceStrengthBounds: ClosedRange<Double>
+    /// The strength to start from, which should keep composition while redrawing detail.
+    public let defaultReferenceStrength: Double
 
     /// Creates a capability set describing one model's accepted inputs.
+    ///
+    /// The reference-image parameters carry defaults — no reference, and the usual bounds — so
+    /// that a descriptor written before references existed still compiles and still means what
+    /// it meant. Everything else is spelled out at every site on purpose.
     public init(
         sizeAlignment: Int,
         sizePresets: [ImageSize],
@@ -32,8 +50,14 @@ public struct ModelCapabilities: Hashable, Sendable {
         guidanceBounds: ClosedRange<Double>,
         defaultGuidance: Double,
         supportsNegativePrompt: Bool,
-        supportsSeed: Bool
+        supportsSeed: Bool,
+        supportsReferenceImage: Bool = false,
+        referenceStrengthBounds: ClosedRange<Double> = 0.1...0.9,
+        defaultReferenceStrength: Double = 0.6
     ) {
+        self.supportsReferenceImage = supportsReferenceImage
+        self.referenceStrengthBounds = referenceStrengthBounds
+        self.defaultReferenceStrength = defaultReferenceStrength
         self.sizeAlignment = sizeAlignment
         self.sizePresets = sizePresets
         self.sizeBounds = sizeBounds
@@ -58,7 +82,19 @@ public struct ModelCapabilities: Hashable, Sendable {
         if !supportsNegativePrompt {
             result.negativePrompt = nil
         }
+        result.reference = constrain(settings.reference)
         return result
+    }
+
+    /// The reference this model will actually honour: none at all when it cannot encode one,
+    /// and otherwise the same picture at a strength inside the bounds.
+    private func constrain(_ reference: ReferenceImage?) -> ReferenceImage? {
+        guard supportsReferenceImage, let reference else { return nil }
+        let strength = min(
+            max(reference.strength, referenceStrengthBounds.lowerBound),
+            referenceStrengthBounds.upperBound
+        )
+        return reference.withStrength(strength)
     }
 
     private func constrain(_ size: ImageSize) -> ImageSize {
