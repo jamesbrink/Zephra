@@ -2,9 +2,14 @@ import Foundation
 import ZephraCore
 import ZephraEngine
 
-/// Where the engine meets the app's preferences. `ZephraEngine` knows nothing about
-/// `UserDefaults`, so every stored preference it acts on is applied here, on the way in.
+/// Where the engine meets the interface: every stored preference it acts on is applied here,
+/// on the way in, because `ZephraEngine` knows nothing about `UserDefaults`, and the one or two
+/// questions the interface asks in its own terms are answered here too.
 extension GenerationStore {
+    /// Whether the canvas has a picture on it, which is what decides whether there is an
+    /// inspector to show beside it.
+    var hasPicture: Bool { current != nil }
+
     /// Applies the launch preferences, then loads the model. The root view's only entry point.
     func bootstrapFromInterface() async {
         warmsUpAfterLoad = AppSettings.flag(AppSettings.warmUpOnLaunch)

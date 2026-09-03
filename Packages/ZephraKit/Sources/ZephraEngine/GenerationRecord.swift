@@ -56,6 +56,13 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
     /// copy of it. Nil when there was no reference, and 1 on a model that conditions on the
     /// picture directly and so has no such distance to record.
     public var referenceStrength: Double?
+    /// Which press of Generate produced the image, when it was one of several seeds, and nil
+    /// otherwise.
+    ///
+    /// It is written so a run survives the session that made it: the timeline groups images by
+    /// this, and a file read back after a relaunch would otherwise be a run of one. An optional
+    /// field, so an older build reads a newer file as it always did and the version stays 1.
+    public var batchID: UUID?
 
     /// The record for a finished image.
     public init(_ image: GeneratedImage) {
@@ -73,6 +80,7 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
         referenceBytes = image.settings.referenceImage?.count
         referenceStrength = image.settings.referenceImage == nil
             ? nil : image.settings.referenceStrength
+        batchID = image.batchID
     }
 
     /// What the record asks for, as a request that could be run again.
@@ -112,7 +120,8 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
             modelID: modelID,
             createdAt: createdAt,
             duration: .seconds(durationSeconds),
-            fileURL: fileURL
+            fileURL: fileURL,
+            batchID: batchID
         )
     }
 }

@@ -41,6 +41,7 @@ struct PromptCapsule: View {
         .padding(30)
         .frame(width: 900)
         .background(Color.canvasBackground)
+        .environment(WorkspaceSelection(pane: .canvas))
         .environment(GenerationStore.preview(state: .ready))
 }
 
@@ -49,5 +50,6 @@ struct PromptCapsule: View {
         .padding(30)
         .frame(width: 900)
         .background(Color.canvasBackground)
+        .environment(WorkspaceSelection(pane: .canvas))
         .environment(GenerationStore.preview(state: .ready, descriptor: PreviewModel.guided))
 }

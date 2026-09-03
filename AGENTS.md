@@ -131,7 +131,11 @@ as an index, and it is Foundation only, so `make test` covers all of it.
   without it was not made here and is skipped, so a folder can hold more
   pictures than the library lists. `zephra:library` is `LibraryAnnotation`: favourite,
   tags, albums — the things a person changes afterwards. Anything mutable goes
-  in the second chunk; nothing rewrites the first.
+  in the second chunk; nothing rewrites the first. The record also carries the
+  `batchID` of the press of Generate that made the image, so a run survives the
+  session that made it: the canvas sidebar's timeline groups by it after a
+  relaunch, and falls back to adjacency for files written before the field
+  existed.
 - `PNGTextChunks+Header` reads a chunk without reading the file: 64 KiB, stop at
   the first IDAT, grow only if the chunks have not been seen yet. A grid of two
   thousand images is two thousand header reads, not two thousand full decodes.
@@ -161,7 +165,9 @@ Four directories, by what a file is rather than what screen it is on:
   `Chip`, `SectionHeader`, `CountBadge`, `KeyValueRow`, `WrappingHStack`,
   `ModelDot`. A view that reaches for a literal radius or a raw colour belongs
   here instead. Safelight amber means "only while the model works" and appears
-  nowhere else.
+  nowhere else. The radii step down by what a thing is: 16 for the capsule,
+  8 for a card or a thumbnail, 5 for a square on the sidebar's wall, so a card
+  reads as a thing to act on and a square as a thing to look at.
 - `Workspace/` — which pane is up, which query the library is showing, whether
   the inspector is open, and the labels those enums draw themselves with.
   `WorkspaceSelection` is one `@Observable`, injected by the composition root
@@ -172,9 +178,68 @@ Four directories, by what a file is rather than what screen it is on:
   `ThumbnailCache` coalesces the in-flight requests. Nothing decodes an image
   on the main actor.
 - `Views/` — one subfolder per surface (`Canvas/`, `Library/`,
-  `Library/Inspector/`, `Queue/`, `Sidebar/`, `Toolbar/`). The three-stored-
-  property rule is what keeps them small; a view that needs a fourth wants a
-  subview.
+  `Library/Inspector/`, `Sidebar/`, `Sidebar/Timeline/`, `Toolbar/`). The
+  three-stored-property rule is what keeps them small; a view that needs a
+  fourth wants a subview. `Sidebar/CanvasSidebar` is the canvas sidebar,
+  which builds today's runs once and hands them to `Sidebar/Timeline/` — a
+  card per run still waiting, the running run's card in amber, and under those
+  the wall of today's pictures in small squares — and to the "Today in
+  Library" bar pinned at its foot. `SessionTimeline` in `ZephraEngine` works
+  out the runs and cuts the wall into blocks (the running run and any run of
+  several squares on their own, consecutive singles packed together); nothing
+  here filters, groups, or sorts. The inspector is `WorkspaceInspector`, a
+  fixed column `WorkspaceDetail` puts beside whichever pane is up, under the
+  toolbar rather than splitting it, and only when it has something to
+  describe: always in the library, on the canvas only while a picture is
+  showing (`GenerationStore.hasPicture`, which the toolbar toggle and the menu
+  read too). `Library/Inspector/` describes the grid's selection and
+  `Canvas/CanvasInspector` the picture on the canvas, which is the library's
+  own inspector once the file is indexed and `FreshImageInspector` until then.
+  An empty canvas shows `CanvasEmptyState`, with the last three prompts from
+  the index (`RecentPrompts`, nothing persisted) as chips. `CanvasView`
+  ignores only the vertical safe areas: under the sidebar's it would centre
+  the picture on a width that includes the column.
+
+The prompt is `PromptTextView`, an `NSTextView` of our own on TextKit 1 rather
+than `TextEditor`, for one reason: a text view paints a selected line break out
+to the trailing edge of its container, which in the capsule is the whole prompt
+area, and `PromptLayoutManager` clips every selection rectangle to the line's
+used width instead. `CapsuleTextView` underneath it stays as tall as its clip,
+so a click in the empty part of the band still places the caret, and reports
+focus from the responder chain rather than from the delegate's editing
+callbacks, which are not sent for a click in and straight back out.
+
+Albums are made and filed from the library sidebar, and both of those are worth
+knowing about before touching `Sidebar/`:
+
+- An album is made by `NewAlbumBar`, pinned at the foot under
+  `RecentlyDeletedRow`, or by ⌘N, and it is named in its own row rather than in
+  an alert. The album is created first, called "Untitled Album", and what
+  follows is a rename of a real album — so `AlbumEdit` has one naming path
+  instead of two, and Escape leaves the album behind the way the Finder leaves
+  "untitled folder". `SidebarView` owns that one `AlbumEdit`, above both the
+  list and the bar, because the making and the naming happen in different
+  views. Only the deletion still asks in an alert.
+- `AlbumNameField` enters its own focus in `.task`, after one `Task.yield()`.
+  In a `List(selection:)` the first click selects the row rather than reaching
+  the field, and focus set on the list's first pass — before the row is in a
+  window — is dropped. `NSTextField` selects all on programmatic focus, which
+  is what puts "Untitled Album" under the cursor ready to be typed over.
+- Images are filed by dragging them from the grid onto an album row.
+  `LibraryItem`'s `Transferable` exports `LibraryItemReference` first and the
+  file second: a `FileRepresentation` cannot be received by a
+  `dropDestination`, and inside the app the id is what is wanted anyway. The
+  type is `io.zephra.library-item`, declared in
+  `Sources/Zephra/Resources/Info.plist` under `UTExportedTypeDeclarations` —
+  `UTType(exportedAs:)` is only the reading half of that. A drag that started
+  inside the grid's selection files the whole selection, the rule
+  `LibraryGrid.targets(for:)` already uses; `AlbumDropTarget` reads it through
+  `@FocusedValue(\.librarySelection)`.
+- ⌘N reaches `SidebarView`'s state through `@Entry var newAlbum` in
+  `FocusedValues`, an action rather than a piece of state. The menu bar cannot
+  see a view's `@State`, and putting album state in `ZephraEngine` or in
+  `WorkspaceSelection` would put interface bookkeeping somewhere it does not
+  belong. Publishing nothing on the canvas is what greys the menu item out.
 
 ## Adding a model or a backend
 
@@ -598,8 +663,9 @@ the re-sync procedure, and the running patch log. Any change inside
 
 ## Debugging hooks
 
-- `ZEPHRA_PREVIEW_STATE=ready|image|editing|generating|queued|batch|library|downloading|building|failed`
+- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|queued|batch|library|downloading|building|failed`
   launches a Debug build frozen in that state with no model, for screenshots (`make screenshot`).
+  `tucked` is `image` with the canvas's floating prompt slid down to its lip.
 - `make logs` streams `os.Logger` output for subsystem `io.zephra`.
 - `make screenshot` photographs the app's window by its CoreGraphics id, so it captures the
   window rather than the rectangle of screen it sits in, and it fails rather than falling back

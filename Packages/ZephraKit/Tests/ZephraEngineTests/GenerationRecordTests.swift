@@ -93,6 +93,33 @@ struct GenerationRecordTests {
         #expect(GenerationRecord.reference(in: stripped) == nil)
     }
 
+    @Test("the run an image belonged to survives the trip through a PNG")
+    func batchRoundTrip() throws {
+        let batch = UUID()
+        var settings = GenerationSettings.defaults(for: ModelCatalog.default)
+        settings.prompt = "a red bicycle against a limestone wall"
+        let image = GeneratedImage(
+            pngData: MockBackend.pngData, settings: settings, modelID: ModelCatalog.default.id,
+            createdAt: Date(timeIntervalSince1970: 1_772_000_000), duration: .seconds(7),
+            batchID: batch)
+
+        let data = try GenerationRecord.embedded(in: image)
+        let record = try #require(GenerationRecord.read(from: data))
+
+        #expect(record.batchID == batch)
+        #expect(record.image(pngData: data, fileURL: nil).batchID == batch,
+                "so a run read back after a relaunch is still one run")
+    }
+
+    @Test("an image that was not one of several seeds files no run, and reads back as none")
+    func noBatchIsNoField() throws {
+        let data = try GenerationRecord.embedded(in: Self.image(prompt: "a lighthouse"))
+        let text = try PNGTextChunks.read(from: data)
+
+        #expect(text[GenerationRecord.keyword]?.contains("batchID") == false)
+        #expect(GenerationRecord.read(from: data)?.batchID == nil)
+    }
+
     @Test("embedding a record twice changes nothing the second time")
     func idempotent() throws {
         let image = Self.image(prompt: "a lighthouse")

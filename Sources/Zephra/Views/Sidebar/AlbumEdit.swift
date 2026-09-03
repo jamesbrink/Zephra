@@ -1,19 +1,24 @@
 import Foundation
 import ZephraEngine
 
-/// A change to the album list that is waiting on the person to confirm it.
+/// A change to one album that has not finished happening: the name being typed into its row, or
+/// the deletion waiting on an alert.
 ///
-/// One value for all three — make, rename, delete — because they are one alert with different
-/// words in it, and because holding them as three separate flags is how a sidebar ends up
-/// showing two alerts at once.
+/// One value for both, held by `SidebarView` rather than by the rows, because two rows renaming
+/// themselves at once — or one renaming while another asks to be deleted — is a state the
+/// sidebar should not be able to reach.
+///
+/// Making an album is deliberately not one of the kinds. The album is made the moment it is
+/// asked for and what is left is a rename of it, the way the Finder makes a folder called
+/// "untitled folder" and then lets you type over it. So there is one naming path rather than
+/// two, and Escape leaves a real album behind instead of undoing something.
 struct AlbumEdit: Identifiable, Hashable {
-    /// Which change is being asked about.
+    /// Which change is under way.
     enum Kind: Hashable {
-        /// Make a new album.
-        case create
-        /// Give an existing one a different name.
+        /// Give an album a different name, in its own row.
         case rename
-        /// Take an existing one away.
+        /// Take an album away. The one album change still worth an alert: it is the only one
+        /// that cannot be shrugged off by typing the old word back.
         case delete
     }
 
@@ -21,49 +26,27 @@ struct AlbumEdit: Identifiable, Hashable {
     let id = UUID()
     /// Which change.
     let kind: Kind
-    /// The album it is about, or nil when making one.
-    let album: Album?
+    /// The album it is about. Not optional: both kinds are about an album that already exists.
+    let album: Album
     /// What the name field currently says. Unused by `delete`.
     var name: String
 
-    /// An edit about an album, or about no album yet.
-    init(kind: Kind, album: Album? = nil) {
+    /// An edit about one album, starting from the name it has now.
+    init(kind: Kind, album: Album) {
         self.kind = kind
         self.album = album
-        self.name = album?.name ?? ""
+        self.name = album.name
     }
 
-    /// The alert's title.
-    var title: String {
-        switch kind {
-        case .create: "New Album"
-        case .rename: "Rename Album"
-        case .delete: "Delete “\(album?.name ?? "")”?"
-        }
+    /// Whether this edit is `album`'s own row being renamed, which is what makes that row draw
+    /// a text field instead of a label.
+    func isRenaming(_ album: Album) -> Bool {
+        kind == .rename && self.album.id == album.id
     }
 
-    /// What the button that goes through with it says.
-    var confirmTitle: String {
-        switch kind {
-        case .create: "Create"
-        case .rename: "Rename"
-        case .delete: "Delete"
-        }
-    }
+    /// The deletion alert's title. Only the deletion has an alert, so there is only one title.
+    var deleteTitle: String { "Delete “\(album.name)”?" }
 
-    /// The line under the title, where there is one worth saying.
-    var message: String? {
-        switch kind {
-        case .create, .rename: nil
-        case .delete: "The images stay in the library. Only the album goes."
-        }
-    }
-
-    /// Whether the alert shows a name field.
-    var isNaming: Bool { kind != .delete }
-
-    /// Whether the confirm button can be pressed: a name that is only spaces is not a name.
-    var isReady: Bool {
-        !isNaming || !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
+    /// The line under it, which is the half that says what is not being lost.
+    var deleteMessage: String { "The images stay in the library. Only the album goes." }
 }

@@ -13,8 +13,10 @@ struct QueueVariationButton: View {
     @Environment(GenerationStore.self) private var store
 
     var body: some View {
-        Button("Queue a variation") { store.queueVariation(of: item) }
-            .disabled(!canQueue)
+        Button { store.queueVariation(of: item) } label: {
+            Text("Queue a variation").frame(maxWidth: .infinity)
+        }
+        .disabled(!canQueue)
     }
 
     /// The same test `queueVariation(of:)` makes before it does anything, said in public terms:

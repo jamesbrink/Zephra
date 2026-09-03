@@ -2,14 +2,17 @@ import SwiftUI
 import ZephraCore
 import ZephraEngine
 
-/// Where to look: the standing collections, one row per model, the tags in use, and then
-/// whichever of Today and Albums belongs to the pane that is showing.
+/// Where to look, on the library pane: the standing collections, one row per model, the tags in
+/// use, and the albums.
 ///
-/// The last section changes with the pane because the two answer different questions. On the
-/// canvas the sidebar is a way back to what was just made, so it shows today's images. In the
-/// library the pane is already showing them at full size, so the sidebar stops repeating itself
-/// and does the filing instead.
+/// The library pane only. The canvas sidebar is the session timeline, which answers a different
+/// question — what have I just made, and what is still coming — and a filing cabinet beside a
+/// picture being worked on is a filing cabinet nobody opens.
 struct SidebarSources: View {
+    /// The album edit under way, owned by `SidebarView` so the rows here and the New Album bar
+    /// below the list are looking at one value.
+    @Binding var albumEdit: AlbumEdit?
+
     @Environment(WorkspaceSelection.self) private var workspace
 
     /// The collections that are always there, in the order they read.
@@ -28,10 +31,7 @@ struct SidebarSources: View {
                 }
             }
             TagSources()
-            switch workspace.pane {
-            case .canvas: TodaySection()
-            case .library: AlbumSources()
-            }
+            AlbumSources(edit: $albumEdit)
         }
         .listStyle(.sidebar)
     }
@@ -47,19 +47,11 @@ struct SidebarSources: View {
     }
 }
 
-#Preview("Sources, library pane") {
-    SidebarSources()
+#Preview("Sources") {
+    @Previewable @State var albumEdit: AlbumEdit?
+    SidebarSources(albumEdit: $albumEdit)
         .frame(width: 280, height: 560)
         .environment(WorkspaceSelection(pane: .library))
-        .environment(PreviewImages.library(count: 38))
-        .environment(ThumbnailCache())
-        .environment(GenerationStore.preview(state: .ready))
-}
-
-#Preview("Sources, canvas pane") {
-    SidebarSources()
-        .frame(width: 280, height: 560)
-        .environment(WorkspaceSelection(pane: .canvas))
         .environment(PreviewImages.library(count: 38))
         .environment(ThumbnailCache())
         .environment(GenerationStore.preview(state: .ready))

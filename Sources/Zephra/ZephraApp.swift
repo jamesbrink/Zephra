@@ -43,7 +43,7 @@ struct ZephraApp: App {
         .windowToolbarStyle(.unified)
         .commands {
             ZephraCommands(store: store)
-            WorkspaceCommands(workspace: workspace)
+            WorkspaceCommands(workspace: workspace, store: store)
             LibraryCommands()
             ThumbnailSizeCommands()
         }

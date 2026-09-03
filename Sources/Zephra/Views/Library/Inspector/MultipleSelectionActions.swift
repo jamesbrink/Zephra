@@ -16,23 +16,30 @@ struct MultipleSelectionActions: View {
     @Environment(GenerationStore.self) private var store
 
     var body: some View {
-        VStack(spacing: 8) {
-            Button("Open in canvas") {}
+        Grid(horizontalSpacing: 8, verticalSpacing: 8) {
+            GridRow {
+                Button {} label: {
+                    Text("Open in canvas").frame(maxWidth: .infinity)
+                }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
-                .frame(maxWidth: .infinity)
                 .disabled(true)
                 .help("A canvas shows one image at a time.")
-            HStack(spacing: 8) {
-                Button("Queue \(variations.count) variations") {
+                .gridCellColumns(2)
+            }
+            GridRow {
+                Button {
                     for item in variations { store.queueVariation(of: item) }
+                } label: {
+                    Text("Queue \(variations.count) variations").frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
                 .disabled(variations.isEmpty || !canQueue)
-                Button("Reveal in Finder") {
+                Button {
                     ImageExport.revealInFinder(files: items.map(\.url))
+                } label: {
+                    Text("Reveal in Finder").frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
+                .help("\(items.count) files")
             }
         }
         .lineLimit(1)

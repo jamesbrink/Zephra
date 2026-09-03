@@ -16,16 +16,12 @@ import ZephraEngine
 /// writes it whichever pane is showing, and the index has to be projecting the right thing by
 /// the time the Library pane is built rather than a frame afterwards.
 ///
-/// The inspector hangs off the split view rather than off the Library pane. Inside the pane it
-/// was a column within a column, and the unified toolbar split at its edge: the pane picker
-/// ended up on the content side of the divider and the other four items on the inspector side,
-/// one group torn in half. Here the trailing items stay together above the inspector.
-///
-/// Which is also why what opening an image means is decided here and not in the Library pane.
-/// The inspector is a sibling of the pane, not a view inside it, so an action handed down from
-/// the pane never reaches the inspector's own "Open in canvas" — it silently took the
-/// environment's default and did nothing. Handed down from here, every place that asks (the
-/// grid's double-click, the cell's menu, Return, and the inspector) gets the same one.
+/// What opening an image means is decided here and not in the Library pane. The inspector is
+/// a sibling of the pane inside `WorkspaceDetail`, not a view inside the pane, so an action
+/// handed down from the pane never reaches the inspector's own "Open in canvas" — it silently
+/// took the environment's default and did nothing. Handed down from here, every place that
+/// asks (the grid's double-click, the cell's menu, Return, the sidebar's wall, and the
+/// inspector) gets the same one.
 struct RootView: View {
     @Environment(GenerationStore.self) private var store
     @Environment(WorkspaceSelection.self) private var workspace
@@ -37,10 +33,6 @@ struct RootView: View {
                 .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 360)
         } detail: {
             WorkspaceDetail()
-        }
-        .inspector(isPresented: inspectorVisible) {
-            LibraryInspector()
-                .inspectorColumnWidth(min: 280, ideal: 320, max: 420)
         }
         .navigationTitle("Zephra")
         .navigationSubtitle(store.windowSubtitle)
@@ -56,16 +48,6 @@ struct RootView: View {
     private func open(_ item: LibraryItem) {
         Task { await store.open(item) }
         workspace.pane = .canvas
-    }
-
-    /// Shown only beside the Library, since there is nothing for it to say about the canvas.
-    /// Written as a binding rather than an `if` so hiding it animates the column away instead
-    /// of taking the whole modifier out from under the view.
-    private var inspectorVisible: Binding<Bool> {
-        Binding(
-            get: { workspace.pane == .library && workspace.inspectorVisible },
-            set: { workspace.inspectorVisible = $0 }
-        )
     }
 }
 

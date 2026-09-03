@@ -12,10 +12,14 @@ struct LibraryFilterTokens: View {
     @Environment(LibraryIndex.self) private var index
 
     var body: some View {
-        HStack(spacing: 6) {
-            ForEach(workspace.query.tokens, id: \.self) { token in
-                Chip(token.title(albumName: index.name(of:)), isSelected: true) {
-                    workspace.query = workspace.query.removing(token)
+        // Nothing at all rather than an empty stack: the bar spaces its children, and an empty
+        // stack still counts as one, which pushed the count off the grid's left edge.
+        if !workspace.query.tokens.isEmpty {
+            HStack(spacing: 6) {
+                ForEach(workspace.query.tokens, id: \.self) { token in
+                    Chip(token.title(albumName: index.name(of:)), isSelected: true) {
+                        workspace.query = workspace.query.removing(token)
+                    }
                 }
             }
         }

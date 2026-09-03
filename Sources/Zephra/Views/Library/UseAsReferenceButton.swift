@@ -19,8 +19,10 @@ struct UseAsReferenceButton: View {
     @Environment(GenerationStore.self) private var store
 
     var body: some View {
-        Button("Use as reference") { adopt() }
-            .disabled(!store.descriptor.capabilities.supportsReferenceImage)
+        Button { adopt() } label: {
+            Text("Use as reference").frame(maxWidth: .infinity)
+        }
+        .disabled(!store.descriptor.capabilities.supportsReferenceImage)
     }
 
     private func adopt() {

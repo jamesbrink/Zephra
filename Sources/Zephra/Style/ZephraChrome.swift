@@ -14,6 +14,9 @@ enum ZephraChrome {
     static let cardRadius: CGFloat = 8
     /// A square image standing in for a bigger one.
     static let thumbnailRadius: CGFloat = 8
+    /// A small square on the sidebar's wall: a step under the cards above it, so a card reads
+    /// as a thing to act on and a square as a thing to look at.
+    static let tileRadius: CGFloat = 5
     /// Half the height of a 22 pt chip, which is what makes it a capsule.
     static let chipRadius: CGFloat = 11
 

@@ -1,11 +1,13 @@
 import SwiftUI
+import ZephraCore
 import ZephraEngine
 
 /// One image, at length: the picture, what it was asked for, how it was made, and what has
 /// been said about it.
 ///
-/// The prompt is set in a serif face and at reading size, because it is the one thing in this
-/// column that is prose rather than data. Everything below it is a table, and looks like one.
+/// The prompt is the one thing in this column that is prose rather than data, and it is set
+/// as secondary text in the system face so the column reads as one thing; the serif is kept for
+/// the canvas's invitation. Everything below the prompt is a table, and looks like one.
 struct SingleImageInspector: View {
     /// The image being looked at.
     let item: LibraryItem
@@ -20,11 +22,11 @@ struct SingleImageInspector: View {
                 if !item.prompt.isEmpty {
                     Text(item.prompt)
                         .font(.callout)
-                        .fontDesign(.serif)
+                        .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                ImageFactsView(item: item)
+                ImageFactsView(facts: facts, edited: item.provenance.record?.referenceBytes != nil)
                 TagChips(ids: [item.id], tags: item.tags)
                 AlbumChips(ids: [item.id], albums: albums)
                 Spacer(minLength: 8)
@@ -50,6 +52,12 @@ struct SingleImageInspector: View {
                     .padding(10)
                     .shadow(color: .black.opacity(ZephraChrome.shadowOpacity), radius: 4, y: 1)
             }
+    }
+
+    /// The catalog's name for the model when this build still ships it, and the identifier
+    /// written into the file when it does not — which is the honest answer, not a blank.
+    private var facts: ImageFacts {
+        ImageFacts(item, modelName: item.modelID.flatMap(ModelCatalog.descriptor(id:))?.fullName)
     }
 
     /// The albums it is in, in the sidebar's order, named by the manifest rather than by the

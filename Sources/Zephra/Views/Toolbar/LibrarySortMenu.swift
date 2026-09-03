@@ -2,6 +2,8 @@ import SwiftUI
 import ZephraEngine
 
 /// The order the library is listed in. Absent on the canvas, where there is no list to order.
+/// The chip says the current order, the way the model chip beside it says the current model,
+/// so the two read as one family rather than a word beside a glyph.
 struct LibrarySortMenu: View {
     @Environment(WorkspaceSelection.self) private var workspace
 
@@ -20,7 +22,8 @@ struct LibrarySortMenu: View {
                     }
                 }
             } label: {
-                Label("Sort", systemImage: "arrow.up.arrow.down")
+                Text(workspace.query.sort.title)
+                    .font(.callout)
             }
             .menuStyle(.button)
             .buttonStyle(.accessoryBar)

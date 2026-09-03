@@ -18,9 +18,10 @@ public struct GeneratedImage: Identifiable, Hashable, Sendable {
     public private(set) var fileURL: URL?
     /// Which press of Generate produced it, when it was one of several seeds, and nil otherwise.
     ///
-    /// Session-only, and deliberately not part of `GenerationRecord`: what the file on disk
-    /// carries is how to reproduce the image, and which of four seeds it was on one afternoon
-    /// is not that. An image read back from the library therefore has no batch.
+    /// Written into the file's own record as well, so a run outlives the session that made it:
+    /// the session timeline groups by this, and an image read back after a relaunch would
+    /// otherwise be a run of one. A file written before the field existed has no batch, which
+    /// is why the timeline can also group by adjacency.
     public let batchID: UUID?
 
     /// Creates a record of a finished image.

@@ -70,29 +70,44 @@ readout while that happens.
 
 ## Using it
 
-- The window is a sidebar and one of two panes. The sidebar is the same in both: one search
-  field at the top (⌘F), chips for everything and favourites, the queue, and the collections to
-  look in — every image, favourites, the last seven days, one row per model with a count, the
-  tags in use, albums, and Recently deleted pinned at the foot. Canvas (⌘1) is the picture with
-  the prompt floating over it; Library (⌘2) is everything made so far, in day-grouped grids
-  with a filter bar over them and an inspector beside them (⌥⌘I). Typing in the search while
-  the canvas is up takes you to the Library showing the hits, and clearing the field puts you
-  back where you were.
+- The window is a sidebar and one of two panes, and the sidebar changes with the pane. On
+  Canvas (⌘1) it is the session: the search field (⌘F) over today's runs — what is waiting,
+  what is being rendered, and the images as they come out. On Library (⌘2) it is the search
+  field, chips for everything and favourites, and the collections to look in — every image,
+  favourites, the last seven days, one row per model with a count, the tags in use, albums,
+  and Recently deleted and New Album pinned at the foot. Canvas is the picture with the prompt
+  floating over it and, in the sidebar, today's run as a wall of small squares that fill in as
+  the seeds land; an empty canvas offers the last three prompts as chips. Library is
+  everything made so far, in day-grouped grids with a filter bar over them. The inspector
+  (⌥⌘I) sits beside either pane, under the toolbar: in the Library it describes whatever is
+  selected, on the canvas the picture showing, and it stays away until there is one. Typing in
+  the search while the canvas is up takes you to the Library showing the hits, and clearing the
+  field puts you back where you were.
+- New Album (⌘N, or the bar at the foot of the sidebar) makes one called "Untitled Album" and
+  puts the cursor in its name, in the row itself: Return keeps what you typed, Escape keeps
+  "Untitled Album", and clicking away keeps what you typed, as the Finder does. Rename in a
+  row's menu edits the same way. Drag images from the grid onto an album row to file them —
+  the row rings in the accent colour as you come over it, and dragging one of several selected
+  images files all of them.
 - The Library's filter bar says what is being shown and how much of it is selected, carries a
   removable token per filter, and has a slider for the thumbnail size (⌘+ and ⌘− step it).
   Click to select, shift-click for a range, ⌘-click to add one, ⌘A for all of them, arrow keys
   to walk the grid, space for Quick Look. The inspector shows the image, its prompt, and the
-  Model, Size, Steps, Seed, Took and File rows read out of the PNG, with its tags and albums,
-  and offers Open in canvas, Queue a variation, and Reveal in Finder. Select several and it
-  says what they have in common and acts on all of them.
-- Type a prompt and press Generate (or ⌘↩). The window subtitle shows what the engine is doing.
+  Model, Size, Steps, Seed and Took rows read out of the PNG (the filename is the tooltip on
+  Reveal in Finder), with its tags and albums, and offers Open in canvas, Queue a variation,
+  and Reveal in Finder. Select several and it says what they have in common and acts on all
+  of them.
+- Type a prompt and press Generate (or ⌘↩); Return breaks the line, and a selection is painted
+  only as far as the text. The window subtitle shows what the engine is doing.
 - The control beside Generate says how many seeds one press queues — 1, 2, 4, or 8 of the same
   prompt, the first of them on the seed in the field, so a run of four is a superset of the one
   image the same press would have made.
 - Press Generate again while an image is running to queue the next prompt; prompts run one
-  after another and the subtitle counts what is still waiting. The sidebar shows the same
-  queue: the seed being rendered as an amber card with its steps filling in, then a row per
-  seed waiting, each with a cross to take it back out. Stop ends the current image and drops
+  after another and the subtitle counts what is still waiting. The sidebar's timeline shows
+  the same work as one list: the runs still waiting as cards, each with a cross that takes the
+  whole run back out, the run being rendered as an amber card with its steps filling in, and
+  under those one wall of today's pictures with a dashed square at its head for each seed still
+  to come — the image lands in its square, and a press puts it back on the canvas. Stop ends the current image and drops
   the queue; during the first-run download or the load it abandons that instead, and the canvas
   offers to pick it up again — a stopped download resumes from what it already fetched.
 - The model menu in the toolbar names the model that is running and lists the rest, each with
@@ -127,8 +142,9 @@ readout while that happens.
   every run gets a fresh one. Images save to `~/Pictures/Zephra` with the seed in the file name;
   if a write fails, a notice sits over the prompt until an image saves, and the picture stays on
   the canvas either way.
-- The strip under the prompt is the run in progress: the seeds one press of Generate queued,
-  with a dashed square for each one still to come (⌥⌘T hides it). Everything ever made is in
+- The sidebar's wall is today's work: a batch of seeds sits in a block of its own, single
+  pictures pack together, a dashed square stands for each seed still to come, and "Today in
+  Library" at the foot counts them. Everything ever made is in
   `~/Pictures/Zephra`, and the Library reads that folder rather than the app keeping a list of
   its own. The record of what made an image — prompt, size, steps, seed, model, and how long it
   took — lives inside the PNG itself, so moving, renaming, or copying a file to another Mac
@@ -144,7 +160,7 @@ readout while that happens.
   VAE decode is tiled (Automatic, Always, Never), and a live readout of active, cached and peak
   GPU memory plus which way the decode is currently set. Both changes apply immediately. About
   shows the version and the third-party license notices.
-- Shortcuts: Generate ⌘↩, Stop ⌘., Canvas ⌘1, Library ⌘2, Find ⌘F, Show This Run ⌥⌘T, Show
+- Shortcuts: Generate ⌘↩, Stop ⌘., New Album ⌘N, Canvas ⌘1, Library ⌘2, Find ⌘F, Show
   Inspector ⌥⌘I, Select All Images ⌘A, Favourite ⌘⇧D, thumbnail size ⌘+ and ⌘−, Save As ⌘S,
   Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C, Use as Reference ⌥⌘R, Clear Reference ⇧⌥⌘R, Delete
   Image ⌘⌫. Return in the prompt field breaks the line, which is why Generate is ⌘↩; Cut,
@@ -375,7 +391,8 @@ Zephra/
 │   ├── ZephraKit/                 # ours — no MLX dependency
 │   │   ├── Sources/ZephraCore/          # value types + protocols
 │   │   ├── Sources/ZephraEngine/        # actor + store, depends on ZephraCore only
-│   │   │   └── Library/                 # the image folder as an index: scan, query, annotate
+│   │   │   ├── Library/                 # the image folder as an index: scan, query, annotate
+│   │   │   └── Timeline/                # the canvas sidebar: queue cards, then today's pictures as one wall
 │   │   ├── Sources/ZephraSnapshot/      # hub cache and local snapshot checks, Foundation only
 │   │   └── Tests/ZephraCoreTests, ZephraEngineTests, ZephraSnapshotTests
 │   ├── ZephraMLXKit/              # ours — MLX work no family owns: the packer, the tiled decode
@@ -387,7 +404,7 @@ Zephra/
 │   ├── Style/                     # the chrome every view draws itself from
 │   ├── Workspace/                 # which pane, which query, whether the inspector is up
 │   ├── Support/                   # caches, exports, previews, settings
-│   └── Views/                     # Canvas/ Library/ Queue/ Sidebar/ Toolbar/ and the rest
+│   └── Views/                     # Canvas/ Library/ Sidebar/ Sidebar/Timeline/ Toolbar/
 ├── Sources/ZephraBench/           # headless benchmark tool
 ├── Sources/ZephraQuantize/        # builds a 4-bit variant from a bf16 release
 ├── design/mock/                   # the UI the app was built against
@@ -417,8 +434,9 @@ Zephra/
 - `make bench ARGS="..."` — headless timing (`--size`, `--steps`, `--runs`, `--model`, `--json`,
   `--out`, `--micro`, `--reference` to time the editing path, `--strength`); `make logs` streams the app's log; `make screenshot` captures the window;
   `make open` opens the generated project in Xcode; `make clean` removes build output.
-- `ZEPHRA_PREVIEW_STATE=ready|image|editing|generating|queued|batch|library|downloading|building|failed`
-  launches a Debug build frozen in that state with no model, for screenshots.
+- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|queued|batch|library|downloading|building|failed`
+  launches a Debug build frozen in that state with no model, for screenshots; `tucked` is
+  `image` with the floating prompt slid down to its lip.
 
 ### Releasing
 
