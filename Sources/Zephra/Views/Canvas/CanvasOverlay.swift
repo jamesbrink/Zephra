@@ -13,7 +13,7 @@ struct CanvasOverlay: View {
             SaveNotice()
             PromptCaption()
             PromptCapsule()
-            if filmstripVisible { Filmstrip() }
+            if filmstripVisible { RunStrip() }
         }
         .padding(.horizontal, 28)
         .padding(.bottom, 18)
@@ -27,5 +27,6 @@ struct CanvasOverlay: View {
         .frame(width: 900)
         .background(Color.canvasBackground)
         .environment(ImageCache())
+        .environment(WorkspaceSelection(pane: .canvas))
         .environment(GenerationStore.preview(state: .ready, image: PreviewImages.sample()))
 }
