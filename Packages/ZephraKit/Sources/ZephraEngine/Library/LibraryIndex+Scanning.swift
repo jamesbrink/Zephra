@@ -48,6 +48,7 @@ extension LibraryIndex {
     ///
     /// This is what a finished generation calls. A rescan would be correct too, and on a folder
     /// of ten thousand images it would also be a directory listing every time an image is saved.
+    /// The albums are left alone: a file that has only just been written is in none of them.
     public func insert(fileAt url: URL) {
         guard isLive else { return }
         let standardized = url.standardizedFileURL
@@ -60,7 +61,6 @@ extension LibraryIndex {
         items.removeAll { $0.id == item.id }
         let position = items.firstIndex { $0.createdAt < item.createdAt } ?? items.count
         items.insert(item, at: position)
-        albums = library.albumManifest().reconciled(with: items)
         reproject()
     }
 
@@ -72,7 +72,9 @@ extension LibraryIndex {
         debounce = Task { [settleFor] in
             try? await Task.sleep(for: settleFor)
             guard !Task.isCancelled else { return }
-            await self.rescanIfChanged()
+            // Behind the writes, not beside them: a scan that read a file Zephra was halfway
+            // through annotating would show the old answer and then have to be told again.
+            self.enqueue { await self.rescanIfChanged() }
         }
     }
 
