@@ -109,6 +109,7 @@ extension GenerationStore {
     func applyLoadEvent(_ event: EngineEvent) {
         switch event {
         case .download(let progress): state = .downloading(progress)
+        case .build(let progress): state = .building(progress)
         case .progress(let progress): state = .loading(progress.phase)
         }
     }

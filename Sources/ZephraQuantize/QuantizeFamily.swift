@@ -1,4 +1,5 @@
 import Foundation
+import ZephraBackendFlux2
 import ZephraBackendQwenImage
 import ZephraBackendZImage
 import ZephraCore
@@ -12,6 +13,7 @@ import ZephraQuantization
 enum QuantizeFamily: String, CaseIterable, Sendable {
     case zImage = "z-image"
     case qwenImage = "qwen-image"
+    case flux2 = "flux2"
 
     /// Every value `--family` accepts, for the usage text.
     static var names: String { allCases.map(\.rawValue).joined(separator: "|") }
@@ -22,6 +24,7 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
         switch self {
         case .zImage: "z-image-turbo-4bit"
         case .qwenImage: "qwen-image-2512-4bit"
+        case .flux2: "flux2-klein-4b-4bit"
         }
     }
 
@@ -30,6 +33,7 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
         switch self {
         case .zImage: "Tongyi-MAI/Z-Image-Turbo"
         case .qwenImage: "Qwen/Qwen-Image-2512"
+        case .flux2: "black-forest-labs/FLUX.2-klein-4B"
         }
     }
 
@@ -38,7 +42,10 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
     /// Qwen-Image holds its modulation layers at eight bits whatever the rest is set to: they
     /// are a third of its parameters and they decide how strongly every other layer responds.
     ///
-    /// `adapters` are merged into whichever component the family adapts, which for both families
+    /// FLUX.2 klein holds its three shared modulation linears whole and omits the text encoder
+    /// layers past the last one the transformer reads.
+    ///
+    /// `adapters` are merged into whichever component the family adapts, which for every family
     /// here is the diffusion transformer.
     func plan(
         transformer: QuantizationPrecision,
@@ -58,6 +65,9 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
                     : transformer,
                 adapters: adapters
             )
+        case .flux2:
+            Flux2QuantizationPlan.plan(
+                transformer: transformer, textEncoder: textEncoder, adapters: adapters)
         }
     }
 }

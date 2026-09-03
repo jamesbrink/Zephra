@@ -20,6 +20,8 @@ public struct ModelCapabilities: Hashable, Sendable {
     public let supportsNegativePrompt: Bool
     /// Whether a fixed seed reproduces an earlier image.
     public let supportsSeed: Bool
+    /// Whether a picture can be handed in to be edited rather than started from noise.
+    public let supportsReferenceImage: Bool
 
     /// Creates a capability set describing one model's accepted inputs.
     public init(
@@ -32,7 +34,8 @@ public struct ModelCapabilities: Hashable, Sendable {
         guidanceBounds: ClosedRange<Double>,
         defaultGuidance: Double,
         supportsNegativePrompt: Bool,
-        supportsSeed: Bool
+        supportsSeed: Bool,
+        supportsReferenceImage: Bool = false
     ) {
         self.sizeAlignment = sizeAlignment
         self.sizePresets = sizePresets
@@ -44,6 +47,7 @@ public struct ModelCapabilities: Hashable, Sendable {
         self.defaultGuidance = defaultGuidance
         self.supportsNegativePrompt = supportsNegativePrompt
         self.supportsSeed = supportsSeed
+        self.supportsReferenceImage = supportsReferenceImage
     }
 
     /// Rewrites settings into the nearest form this model can run, rather than rejecting them.
@@ -57,6 +61,9 @@ public struct ModelCapabilities: Hashable, Sendable {
         )
         if !supportsNegativePrompt {
             result.negativePrompt = nil
+        }
+        if !supportsReferenceImage {
+            result.referenceImage = nil
         }
         return result
     }

@@ -13,8 +13,15 @@ import ZephraCore
 public struct GenerationRecord: Hashable, Sendable, Codable {
     /// The PNG text keyword the JSON is filed under.
     public static let keyword = "zephra:generation"
+    /// The keyword the reference image is filed under, when the image was edited from one:
+    /// the reference's own PNG bytes, base64, in a chunk of their own beside the record.
+    public static let referenceKeyword = "zephra:reference"
     /// The shape written today. A file claiming a higher version is left alone rather than
     /// guessed at, so an older build never misreads a newer one's record.
+    ///
+    /// The version is for a change an older build would misread, not for a field it would
+    /// simply not know: an optional field decodes as absent on an older file and is skipped by
+    /// an older build, so adding one needs no bump.
     public static let currentVersion = 1
 
     /// Which shape this record is in.
@@ -39,6 +46,12 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
     public var createdAt: Date
     /// How long the whole generation took, in seconds.
     public var durationSeconds: Double
+    /// How many bytes of PNG the reference image was, or nil when there was none.
+    ///
+    /// A count, not a flag: it puts "this was an edit" in the human-readable JSON that exiftool
+    /// shows, and it is the check that the second chunk survived whatever tool last touched the
+    /// file.
+    public var referenceBytes: Int?
 
     /// The record for a finished image.
     public init(_ image: GeneratedImage) {
@@ -53,20 +66,24 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
         modelID = image.modelID
         createdAt = image.createdAt
         durationSeconds = image.duration.seconds
+        referenceBytes = image.settings.referenceImage?.count
     }
 
     /// What the record asks for, as a request that could be run again.
     ///
     /// The one place the flat on-disk fields become a `GenerationSettings`, so opening an image
-    /// and queueing a variation of it read the record the same way.
-    public var settings: GenerationSettings {
+    /// and queueing a variation of it read the record the same way. The picture an edit started
+    /// from is a separate chunk rather than a field, so it is passed in by whoever read the
+    /// file: `GenerationRecord.reference(in:)` answers for the bytes in hand.
+    public func settings(referenceImage: Data? = nil) -> GenerationSettings {
         GenerationSettings(
             prompt: prompt,
             negativePrompt: negativePrompt,
             size: ImageSize(width: width, height: height),
             steps: steps,
             guidance: guidance,
-            seed: seed
+            seed: seed,
+            referenceImage: referenceImage
         )
     }
 
@@ -75,10 +92,12 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
     /// The identity is new every time: it is this session's handle on the file, not something
     /// the file carries. The model id is whatever produced the image, which need not be the
     /// model loaded now — selecting the image adopts its settings and leaves the model alone.
-    public func image(pngData: Data, fileURL: URL?) -> GeneratedImage {
+    public func image(
+        pngData: Data, fileURL: URL?, referenceImage: Data? = nil
+    ) -> GeneratedImage {
         GeneratedImage(
             pngData: pngData,
-            settings: settings,
+            settings: settings(referenceImage: referenceImage),
             modelID: modelID,
             createdAt: createdAt,
             duration: .seconds(durationSeconds),

@@ -1,0 +1,57 @@
+import Foundation
+
+/// The `quantization.json` a locally built snapshot carries.
+///
+/// Its presence is what tells the loader the weights are packed. The top-level pair is only a
+/// fallback: every layer states its own width, which is what lets a build hold some layers at
+/// eight bits while everything else is at four.
+public struct Flux2QuantizationManifest: Decodable {
+    /// One packed layer.
+    public struct Layer: Decodable {
+        /// The checkpoint name of the layer, without `.weight`.
+        public let name: String
+        /// Bits per weight.
+        public let bits: Int
+        /// Weights sharing a scale.
+        public let groupSize: Int
+
+        enum CodingKeys: String, CodingKey {
+            case name, bits
+            case groupSize = "group_size"
+        }
+    }
+
+    /// What to assume for a layer not listed.
+    public let bits: Int
+    /// What to assume for a layer not listed.
+    public let groupSize: Int
+    /// Every packed layer.
+    public let layers: [Layer]
+
+    private let byName: [String: Layer]
+
+    enum CodingKeys: String, CodingKey {
+        case bits, layers
+        case groupSize = "group_size"
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        bits = try container.decode(Int.self, forKey: .bits)
+        groupSize = try container.decode(Int.self, forKey: .groupSize)
+        layers = try container.decode([Layer].self, forKey: .layers)
+        byName = Dictionary(layers.map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    /// Reads the manifest at a snapshot's root, or nil when the snapshot is full precision.
+    public static func read(from snapshot: URL) -> Flux2QuantizationManifest? {
+        guard let data = try? Data(contentsOf: snapshot.appending(path: "quantization.json"))
+        else { return nil }
+        return try? JSONDecoder().decode(Self.self, from: data)
+    }
+
+    /// How a named layer was packed, falling back to the header when it is not listed.
+    public func precision(of name: String) -> (bits: Int, groupSize: Int) {
+        byName[name].map { ($0.bits, $0.groupSize) } ?? (bits, groupSize)
+    }
+}

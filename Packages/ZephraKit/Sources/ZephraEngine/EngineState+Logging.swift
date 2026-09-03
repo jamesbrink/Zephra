@@ -6,6 +6,7 @@ extension EngineState {
         case .idle: "idle"
         case .checkingModel: "checkingModel"
         case .downloading: "downloading"
+        case .building: "building"
         case .loading: "loading"
         case .warmingUp: "warmingUp"
         case .ready: "ready"

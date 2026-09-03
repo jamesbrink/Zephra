@@ -41,4 +41,14 @@ extension LibraryItem {
 
     /// The tags it carries.
     public var tags: [String] { annotation.tags }
+
+    /// The picture this image was edited from, when it was, read from the file's own second
+    /// chunk. Nil for an image made from noise, and nil rather than an error when the file has
+    /// gone: a variation of a missing file is a request without a reference, not a failure.
+    public var referenceImage: Data? {
+        guard provenance.record?.referenceBytes != nil,
+              let data = try? Data(contentsOf: url)
+        else { return nil }
+        return GenerationRecord.reference(in: data)
+    }
 }

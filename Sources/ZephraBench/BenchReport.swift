@@ -24,6 +24,9 @@ struct BenchReport: Codable, Sendable {
     let peakMemoryMB: Double
     /// Where the last run's image was written.
     let outputPath: String
+    /// The picture the runs edited, when they edited one. A path, not a flag: it is what makes
+    /// a recorded run reproducible.
+    let referencePath: String?
 
     /// Mean wall-clock seconds across the timed runs.
     var meanRunSeconds: Double {
@@ -51,6 +54,9 @@ struct BenchReport: Codable, Sendable {
             row("image", "\(size) x \(size), \(steps) steps"),
             row("load", seconds(loadSeconds)),
         ]
+        if let referencePath {
+            lines.insert(row("reference", referencePath), at: 3)
+        }
         for (index, value) in runSeconds.enumerated() {
             lines.append(row("run \(index + 1)", seconds(value)))
         }

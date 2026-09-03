@@ -17,12 +17,14 @@ struct ModelCatalogTests {
         }
     }
 
-    @Test("a 16 GB Mac is offered the 4-bit Turbo model, tiled, but not the 8-bit one")
-    func sixteenGigabytesFitsOnlyFourBit() {
+    @Test("a 16 GB Mac is offered the small models: klein exactly, the 4-bit Turbo model tiled")
+    func sixteenGigabytesIsOfferedTheSmallModels() {
         let memory = Self.gigabytes(16)
         let fitting = ModelCatalog.fitting(physicalMemory: memory)
         #expect(!fitting.contains(ModelCatalog.zImageTurbo8bit))
         #expect(fitting.contains(ModelCatalog.zImageTurbo4bit))
+        #expect(fitting.contains(ModelCatalog.flux2Klein4bit))
+        #expect(ModelCatalog.fit(ModelCatalog.flux2Klein4bit, physicalMemory: memory) == .fits)
         // 12.0 GB tiled against a 13.7 GB budget; 17.8 GB untiled is well over it.
         #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo4bit, physicalMemory: memory) == .fitsTiled)
         #expect(!ModelCatalog.fitsComfortably(ModelCatalog.zImageTurbo4bit, physicalMemory: memory))
@@ -32,7 +34,10 @@ struct ModelCatalogTests {
     func thirtyTwoGigabytesFitsEverythingSomehow() {
         let memory = Self.gigabytes(32)
         #expect(ModelCatalog.fitting(physicalMemory: memory) == ModelCatalog.all)
-        for model in [ModelCatalog.zImageTurbo8bit, ModelCatalog.zImageTurbo4bit] {
+        for model in [
+            ModelCatalog.zImageTurbo8bit, ModelCatalog.zImageTurbo4bit,
+            ModelCatalog.flux2Klein4bit, ModelCatalog.flux2Klein8bit,
+        ] {
             #expect(ModelCatalog.fit(model, physicalMemory: memory) == .fits)
         }
         // 30.4 GB untiled is over the 27.5 GB budget; 26.1 GB tiled is under it. A 20-billion
@@ -65,7 +70,8 @@ struct ModelCatalogTests {
         #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo4bit, physicalMemory: memory) == .fits)
         // 23.5 GB untiled is over the 19.3 GB budget; 17.7 GB tiled is under it.
         #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo8bit, physicalMemory: memory) == .fitsTiled)
-        #expect(ModelCatalog.fitting(physicalMemory: memory).count == 2)
+        // Both Z-Image variants and both klein variants; only Qwen-Image is left out.
+        #expect(ModelCatalog.fitting(physicalMemory: memory).count == 4)
     }
 
     @Test("a Mac too small for a model is told how much memory it would take")
@@ -97,11 +103,38 @@ struct ModelCatalogTests {
         #expect(
             ModelCatalog.all == [
                 ModelCatalog.zImageTurbo8bit,
+                ModelCatalog.flux2Klein4bit,
+                ModelCatalog.flux2Klein8bit,
                 ModelCatalog.zImageTurbo4bit,
                 ModelCatalog.qwenImage2512_4bit,
             ],
-            "the order is what a picker shows and what default(fitting:) walks, so a model that needs a larger Mac than the ones before it goes last"
+            "the order is what a picker shows and what default(fitting:) walks, so a model that needs a larger Mac than the ones before it goes last; klein 4-bit sits before 8-bit so a 16 GB Mac lands on it by construction rather than by a measurement within a gigabyte of the budget"
         )
+    }
+
+    @Test("the klein entries are built here from one shared download, and one of them edits")
+    func kleinIsBuiltFromItsOwnDownload() {
+        for descriptor in [ModelCatalog.flux2Klein4bit, ModelCatalog.flux2Klein8bit] {
+            #expect(descriptor.backend == .flux2)
+            #expect(descriptor.source.requiresDownload)
+            #expect(descriptor.isBuiltLocally)
+            #expect(descriptor.builtBytes > 0)
+            #expect(descriptor.downloadBytes == ModelCatalog.flux2KleinDownloadBytes)
+            #expect(descriptor.source == ModelCatalog.flux2Klein4bit.source, "one download for both")
+            #expect(descriptor.capabilities.supportsReferenceImage)
+            #expect(descriptor.capabilities.defaultSteps == 4)
+            #expect(descriptor.capabilities.guidanceBounds == 0...0)
+            #expect(!descriptor.capabilities.supportsNegativePrompt)
+            #expect(descriptor.maxPromptTokens == 512)
+        }
+        #expect(ModelCatalog.flux2Klein4bit.fullName == "FLUX.2 klein 4B · 4-bit")
+        guard case .huggingFace(_, _, let patterns) = ModelCatalog.flux2Klein4bit.source else {
+            Issue.record("klein downloads from the hub")
+            return
+        }
+        // The root single-file checkpoint is 7.75 GB this loader never reads.
+        #expect(!patterns.contains("*") && !patterns.contains("*.safetensors"))
+        #expect(patterns.contains("vae/*") && patterns.contains("transformer/*"))
     }
 
     @Test("the Qwen-Image entry is a local build of a distilled model")
@@ -110,6 +143,8 @@ struct ModelCatalogTests {
         #expect(descriptor.backend == .qwenImage)
         #expect(!descriptor.source.requiresDownload)
         #expect(descriptor.downloadBytes == 0)
+        #expect(descriptor.builtBytes == 21_600_000_000)
+        #expect(!descriptor.isBuiltLocally, "built by make, not by the app: there is no download")
         #expect(descriptor.fullName == "Qwen-Image 2512 · 4-bit")
         #expect(
             descriptor.source
@@ -157,7 +192,7 @@ struct ModelCatalogTests {
     func defaultFollowsTheMachine() {
         #expect(ModelCatalog.default(fitting: Self.gigabytes(48)) == ModelCatalog.zImageTurbo8bit)
         #expect(ModelCatalog.default(fitting: Self.gigabytes(24)) == ModelCatalog.zImageTurbo8bit)
-        #expect(ModelCatalog.default(fitting: Self.gigabytes(16)) == ModelCatalog.zImageTurbo4bit)
+        #expect(ModelCatalog.default(fitting: Self.gigabytes(16)) == ModelCatalog.flux2Klein4bit)
         // Nothing fits an 8 GB Mac, so it opens on the plain default rather than on nothing.
         #expect(ModelCatalog.default(fitting: Self.gigabytes(8)) == ModelCatalog.default)
         for gigabytes in [UInt64(8), 16, 24, 32, 48] {

@@ -36,6 +36,28 @@ final class MockBackend: ImageGenerationBackend {
         return URL(filePath: NSTemporaryDirectory()).appending(path: descriptor.id)
     }
 
+    func build(
+        _ descriptor: ModelDescriptor,
+        at localPath: URL,
+        onProgress: @escaping @Sendable (BuildProgressEvent) -> Void
+    ) async throws -> URL {
+        let dials = control.settings
+        guard dials.buildEvents > 0 else { return localPath }
+        control.update { $0.builds += 1 }
+        for step in 1...dials.buildEvents {
+            try Task.checkCancellation()
+            if dials.buildDelay > .zero {
+                try await Task.sleep(for: dials.buildDelay)
+            }
+            onProgress(
+                BuildProgressEvent(
+                    component: "transformer", completedComponents: step,
+                    totalComponents: dials.buildEvents,
+                    fraction: Double(step) / Double(dials.buildEvents)))
+        }
+        return localPath.appending(path: "built")
+    }
+
     func load(
         _ descriptor: ModelDescriptor,
         at localPath: URL,
@@ -56,7 +78,7 @@ final class MockBackend: ImageGenerationBackend {
         _ settings: GenerationSettings,
         onProgress: @escaping (GenerationProgressEvent) -> Void
     ) async throws -> Data {
-        control.update { $0.generations += 1 }
+        control.update { $0.generations += 1; $0.lastSettings = settings }
         let dials = control.settings
         if let error = dials.generateError { throw error }
         onProgress(GenerationProgressEvent(phase: .encodingText, fraction: 0))

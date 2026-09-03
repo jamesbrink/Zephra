@@ -43,12 +43,12 @@ extension GenerationStore {
     /// record's rather than the one in the field, because that is the one about to run.
     public func queueVariation(of item: LibraryItem) {
         guard let record = item.provenance.record,
-              record.settings.isReadyToGenerate,
+              record.settings().isReadyToGenerate,
               state.acceptsGeneration || isDraining
         else { return }
         let known = ModelCatalog.descriptor(id: record.modelID)
         let model = known ?? descriptor
-        var request = record.settings.withRandomSeed()
+        var request = record.settings(referenceImage: item.referenceImage).withRandomSeed()
         if known == nil { request = request.onSchedule(of: model) }
         request = model.capabilities.clamp(request)
         descriptor = model
@@ -67,7 +67,9 @@ extension GenerationStore {
             guard let data = try? Data(contentsOf: item.url),
                   let record = GenerationRecord.read(from: data)
             else { return nil }
-            return record.image(pngData: data, fileURL: item.url)
+            return record.image(
+                pngData: data, fileURL: item.url,
+                referenceImage: GenerationRecord.reference(in: data))
         }.value
     }
 }
