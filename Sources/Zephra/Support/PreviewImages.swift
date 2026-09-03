@@ -24,6 +24,34 @@ enum PreviewImages {
         )
     }
 
+    /// One press of Generate's worth of images, newest first as `history` holds them, all
+    /// sharing a batch id so the strip under the capsule has a run to draw.
+    static func run(
+        of count: Int,
+        prompt: String = "a red bicycle against a limestone wall, hard afternoon shadow"
+    ) -> [GeneratedImage] {
+        let batch = UUID()
+        let size = ImageSize(width: 1024, height: 1024)
+        let data = gradientPNG(size: size)
+        let now = Date()
+        return (0..<count).reversed().map { index in
+            GeneratedImage(
+                pngData: data,
+                settings: GenerationSettings(
+                    prompt: prompt,
+                    size: size,
+                    steps: 4,
+                    guidance: 0,
+                    seed: 8_123_447_209_115_662 &+ UInt64(index)
+                ),
+                modelID: ModelCatalog.default.id,
+                createdAt: now.addingTimeInterval(-Double(count - index) * 7),
+                duration: .seconds(6) + .milliseconds(900),
+                batchID: batch
+            )
+        }
+    }
+
     /// PNG bytes for a dusk-coloured gradient with a low horizon, drawn with Core Graphics.
     static func gradientPNG(size: ImageSize) -> Data {
         let rect = CGRect(x: 0, y: 0, width: size.width, height: size.height)

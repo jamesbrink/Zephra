@@ -96,8 +96,9 @@ engine be tested in seconds without Metal.
 
 - `GenerationStore` (`@MainActor @Observable`) is the only object the UI
   observes, and it is split across `GenerationStore+*.swift` by concern —
-  loading, generation, the queue, model switching, history, availability,
-  preview. Add a new concern as another extension file, not as more lines in
+  loading, generation, the queue, batches (several seeds of one prompt from
+  one press of Generate), model switching, history, availability, preview.
+  Add a new concern as another extension file, not as more lines in
   `GenerationStore.swift`.
 - `InferenceActor` is the only place backend code runs. It overrides
   `unownedExecutor` with a serial `DispatchQueue`: a generation is tens of
@@ -383,7 +384,7 @@ the re-sync procedure, and the running patch log. Any change inside
 
 ## Debugging hooks
 
-- `ZEPHRA_PREVIEW_STATE=ready|image|generating|downloading|failed` launches a Debug build
+- `ZEPHRA_PREVIEW_STATE=ready|image|generating|queued|batch|library|downloading|failed` launches a Debug build
   frozen in that state with no model, for screenshots (`make screenshot`).
 - `make logs` streams `os.Logger` output for subsystem `io.zephra`.
 - `make bench ARGS="--size 1024 --steps 9 --runs 3 --json"` measures load, s/step, and peak memory

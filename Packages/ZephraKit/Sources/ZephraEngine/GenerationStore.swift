@@ -29,6 +29,9 @@ public final class GenerationStore {
     public internal(set) var lastSaveFailure: SaveFailure?
     /// Generations waiting their turn, oldest first. Runs down by itself after each image.
     public internal(set) var queue: [QueuedGeneration] = []
+    /// The generation being rendered right now, or nil when none is. It is not in `queue`: the
+    /// queue is what is still waiting, and a list showing both reads it straight off.
+    public internal(set) var running: QueuedGeneration?
     /// The model whose weights are resident right now, or nil while none are. It trails
     /// `descriptor` whenever a switch is waiting for the queue to drain.
     public internal(set) var loadedDescriptor: ModelDescriptor?

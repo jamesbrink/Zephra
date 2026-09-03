@@ -16,6 +16,12 @@ public struct GeneratedImage: Identifiable, Hashable, Sendable {
     public let duration: Duration
     /// Where the bytes were written, once they have been saved.
     public private(set) var fileURL: URL?
+    /// Which press of Generate produced it, when it was one of several seeds, and nil otherwise.
+    ///
+    /// Session-only, and deliberately not part of `GenerationRecord`: what the file on disk
+    /// carries is how to reproduce the image, and which of four seeds it was on one afternoon
+    /// is not that. An image read back from the library therefore has no batch.
+    public let batchID: UUID?
 
     /// Creates a record of a finished image.
     public init(
@@ -25,7 +31,8 @@ public struct GeneratedImage: Identifiable, Hashable, Sendable {
         modelID: String,
         createdAt: Date = Date(),
         duration: Duration,
-        fileURL: URL? = nil
+        fileURL: URL? = nil,
+        batchID: UUID? = nil
     ) {
         self.id = id
         self.pngData = pngData
@@ -34,6 +41,7 @@ public struct GeneratedImage: Identifiable, Hashable, Sendable {
         self.createdAt = createdAt
         self.duration = duration
         self.fileURL = fileURL
+        self.batchID = batchID
     }
 
     /// A copy that knows where it now lives on disk.

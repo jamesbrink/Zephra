@@ -10,6 +10,7 @@ import ZephraEngine
 struct ZephraApp: App {
     @State private var store = ZephraApp.makeStore()
     @State private var cache = ImageCache()
+    @State private var workspace = InterfacePreview.workspace() ?? WorkspaceSelection()
     /// The GPU runtime the Performance tab reads and tunes, over every backend at once. Built
     /// here because this is the only file allowed to name a backend.
     private static let runtime = CombinedInferenceRuntime([
@@ -23,6 +24,7 @@ struct ZephraApp: App {
             RootView()
                 .environment(store)
                 .environment(cache)
+                .environment(workspace)
                 // The tiled decode is chosen for the model that is about to run, so the answer
                 // is worked out again whenever the model changes. Settings re-applies it when
                 // the preference itself changes; see `VAETilingControl`.
@@ -32,7 +34,10 @@ struct ZephraApp: App {
         }
         .defaultSize(width: 1200, height: 840)
         .windowToolbarStyle(.unified)
-        .commands { ZephraCommands(store: store) }
+        .commands {
+            ZephraCommands(store: store)
+            WorkspaceCommands(workspace: workspace)
+        }
 
         Settings {
             SettingsView()

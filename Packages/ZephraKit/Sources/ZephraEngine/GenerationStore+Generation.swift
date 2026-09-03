@@ -14,6 +14,7 @@ extension GenerationStore {
     /// Returns to `.ready`, then works on down the queue. Every way a run can end goes through
     /// here so the queue never stalls.
     private func finish() {
+        running = nil
         transition(to: .ready)
         drain()
     }
@@ -40,9 +41,11 @@ extension GenerationStore {
             finish()
         } catch let error as BackendError {
             queue.removeAll()
+            running = nil
             transition(to: .failed(.backend(error)))
         } catch {
             queue.removeAll()
+            running = nil
             transition(to: .failed(.backend(.generationFailed(error.localizedDescription))))
         }
     }
@@ -54,7 +57,8 @@ extension GenerationStore {
             pngData: data,
             settings: request,
             modelID: loadedDescriptor?.id ?? descriptor.id,
-            duration: duration
+            duration: duration,
+            batchID: running?.batchID
         )
         current = image
         history.insert(image, at: 0)

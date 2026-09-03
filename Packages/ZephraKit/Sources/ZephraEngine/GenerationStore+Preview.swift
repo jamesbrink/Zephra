@@ -8,15 +8,24 @@ extension GenerationStore {
     ///
     /// `descriptor` picks the model whose capabilities the controls are drawn from, so a
     /// preview can hand in an invented model to see the negative prompt and guidance appear.
+    ///
+    /// `images`, `running`, and `queue` stand a whole run up at once, which is the only way to
+    /// see the sidebar's queue and the strip under the capsule without a backend: both are
+    /// `internal(set)` on the real store, and rightly so.
     public static func preview(
         state: EngineState,
         image: GeneratedImage? = nil,
-        descriptor: ModelDescriptor = ModelCatalog.default
+        descriptor: ModelDescriptor = ModelCatalog.default,
+        images: [GeneratedImage] = [],
+        running: QueuedGeneration? = nil,
+        queue: [QueuedGeneration] = []
     ) -> GenerationStore {
         let store = GenerationStore(descriptor: descriptor, registry: nil, output: nil)
         store.state = state
-        store.current = image
-        store.history = image.map { [$0] } ?? []
+        store.history = images.isEmpty ? image.map { [$0] } ?? [] : images
+        store.current = image ?? store.history.first
+        store.running = running
+        store.queue = queue
         store.settings.prompt = "A lighthouse at dusk, fog rolling in over black rocks"
         store.availability = previewAvailability(current: descriptor)
         return store
