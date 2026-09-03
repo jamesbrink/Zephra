@@ -7,9 +7,11 @@ import Testing
 /// so a silent change upstream should fail here rather than three milestones later.
 @Suite("Qwen-Image configuration")
 struct QwenImageConfigurationTests {
-    @Test("the published snapshot decodes to the shapes this package is built for")
+    @Test(
+        "the published snapshot decodes to the shapes this package is built for",
+        .enabled(if: SnapshotUnderTest.isPresent))
     func decodesThePublishedSnapshot() throws {
-        guard let snapshot = SnapshotUnderTest.directory else { return }
+        let snapshot = try #require(SnapshotUnderTest.directory)
         let configuration = try QwenImageConfiguration(readingFrom: snapshot)
 
         let transformer = configuration.transformer

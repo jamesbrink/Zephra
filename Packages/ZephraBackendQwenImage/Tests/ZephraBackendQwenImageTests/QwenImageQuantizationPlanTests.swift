@@ -6,7 +6,7 @@ import ZephraQuantization
 
 /// What the plan packs, and at what precision.
 ///
-/// The modulation rule is the one with a real cost attached — roughly 2.4 GB of resident memory
+/// The modulation rule is the one with a real cost attached — about 3.4 GB of resident memory
 /// — so it is asserted rather than left to a comment.
 @Suite("Qwen-Image quantization plan")
 struct QwenImageQuantizationPlanTests {
@@ -42,6 +42,19 @@ struct QwenImageQuantizationPlanTests {
         let component = try Self.transformer()
         #expect(component.precision(for: "transformer_blocks.0.attn.norm_q.weight") == nil)
         #expect(component.precision(for: "txt_norm.weight") == nil)
+    }
+
+    @Test("the timestep embedder and the output projection are left whole, on purpose")
+    func conditioningLinearsStayWhole() throws {
+        let component = try Self.transformer()
+        // Both would pass QuantizableWeight's shape test, so only a rule keeps them out.
+        for name in [
+            "time_text_embed.timestep_embedder.linear_1.weight",
+            "time_text_embed.timestep_embedder.linear_2.weight",
+            "norm_out.linear.weight",
+        ] {
+            #expect(component.precision(for: name) == nil, "\(name)")
+        }
     }
 
     @Test("the text encoder's vision tower and language head are left out of the build")

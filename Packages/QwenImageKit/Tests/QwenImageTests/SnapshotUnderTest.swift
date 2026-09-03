@@ -2,12 +2,16 @@ import Foundation
 
 /// The real Qwen-Image snapshot on this machine, when there is one.
 ///
-/// Tests that need published weights or published configs ask for this and skip themselves when
-/// it returns nil, so a fresh clone with an empty cache still runs the suite green. Point
+/// Tests that need published configs or tokenizer files are `.enabled(if:)` this, so a fresh
+/// clone with an empty cache reports them skipped rather than quietly green. Point
 /// `QWEN_IMAGE_SNAPSHOT` at a directory to use one somewhere else.
 enum SnapshotUnderTest {
     /// The repository these tests are written against.
     static let repository = "Qwen/Qwen-Image-2512"
+
+    /// Whether there is one, for `.enabled(if:)`, so a test that needs it is reported as
+    /// skipped rather than as a pass that ran nothing.
+    static var isPresent: Bool { directory != nil }
 
     /// The snapshot directory, or nil when the cache has not got it.
     static var directory: URL? {

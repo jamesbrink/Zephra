@@ -25,6 +25,14 @@ public enum QwenImageQuantizationPlan {
     /// The layers held at higher precision than the rest of the transformer.
     static let precisionSensitive = [NamePattern.contains("_mod.")]
 
+    /// Linears left at full precision on purpose: the timestep embedder and the output norm's
+    /// projection. They are a few million parameters between them and every block's
+    /// conditioning passes through them, so packing them saves nothing worth the risk. The
+    /// generic norm and embedding rules happen to catch both by substring; this says it is meant.
+    static let conditioningStaysWhole = [
+        NamePattern.prefix("time_text_embed."), NamePattern.prefix("norm_out."),
+    ]
+
     /// A plan packing the transformer and the text encoder at the given precisions, with the
     /// modulation layers held at `modulation`.
     public static func plan(
@@ -39,6 +47,7 @@ public enum QwenImageQuantizationPlan {
                 QuantizedComponent(
                     directoryName: "transformer",
                     rules: exclusions
+                        + conditioningStaysWhole.map { WeightPrecisionRule($0, precision: nil) }
                         + precisionSensitive.map {
                             WeightPrecisionRule($0, precision: modulation)
                         },
