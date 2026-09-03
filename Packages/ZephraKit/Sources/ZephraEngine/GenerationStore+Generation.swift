@@ -83,7 +83,7 @@ extension GenerationStore {
         }
     }
 
-    private func attach(_ url: URL, to id: GeneratedImage.ID) {
+    func attach(_ url: URL, to id: GeneratedImage.ID) {
         lastSaveFailure = nil
         if current?.id == id {
             current = current?.withFileURL(url)
@@ -101,7 +101,7 @@ extension GenerationStore {
     /// started the next queued generation, so failing the engine here would stop a queue over
     /// a full disk, and the remedy on the failure screen reloads the model, which would be no
     /// remedy at all. The interface shows this as a notice until an image saves cleanly.
-    private func saveFailed(_ failure: SaveFailure) {
+    func saveFailed(_ failure: SaveFailure) {
         logger.error("save failed: \(failure.reason, privacy: .public)")
         lastSaveFailure = failure
     }
@@ -111,6 +111,8 @@ extension GenerationStore {
         case .download(let progress): state = .downloading(progress)
         case .build(let progress): state = .building(progress)
         case .progress(let progress): state = .loading(progress.phase)
+        // A load never upscales anything; the case is here because the switch is exhaustive.
+        case .upscale: break
         }
     }
 

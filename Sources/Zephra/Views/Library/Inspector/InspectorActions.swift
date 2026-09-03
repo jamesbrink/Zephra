@@ -37,6 +37,10 @@ struct InspectorActions: View {
                 }
                 .help(item.fileName)
             }
+            GridRow {
+                UpscaleButtons(item: item)
+                    .gridCellColumns(2)
+            }
             if store.descriptor.capabilities.supportsReferenceImage {
                 GridRow {
                     UseAsReferenceButton(item: item)

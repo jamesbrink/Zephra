@@ -9,4 +9,7 @@ public enum EngineEvent: Sendable {
     case build(BuildProgressEvent)
     /// Compute is happening, either loading weights or running a generation.
     case progress(GenerationProgressEvent)
+    /// An upscale has finished another tile. Its own case rather than a phase of `.progress`:
+    /// an upscale has no denoising steps to count and no model behind it.
+    case upscale(UpscaleProgressEvent)
 }

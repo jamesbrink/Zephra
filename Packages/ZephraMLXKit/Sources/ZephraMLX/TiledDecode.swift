@@ -30,30 +30,40 @@ public nonisolated enum TiledDecode {
     /// the region that is kept.
     public static let overlapFactor = 0.25
 
+    /// How many tiles `run` cuts a `height` by `width` input into at `tile`, so a caller
+    /// reporting progress does not keep a second copy of the stride arithmetic.
+    public static func tileCount(height: Int, width: Int, tile: Int) -> Int {
+        let step = stride(for: tile)
+        return tilesAlong(height, stride: step) * tilesAlong(width, stride: step)
+    }
+
     /// Decodes `latents` (NHWC) tile by tile.
     ///
     /// - Parameters:
     ///   - latents: the latent in NHWC, already denormalised, exactly as `decode` wants it.
     ///   - tile: tile edge in latent cells.
     ///   - scale: how many pixels one latent cell becomes along each edge.
-    ///   - decode: the untiled decoder.
+    ///   - onTile: called after each tile with how many are done and how many there are.
+    ///     Declared before `decode` so a trailing closure still binds to the decoder.
+    ///   - decode: the untiled decoder. It may throw, which is how a caller stops between
+    ///     tiles: `try Task.checkCancellation()` at its top unwinds the whole run.
     /// - Returns: the decoded image, the same shape the untiled decode would have produced.
     public static func run(
         _ latents: MLXArray,
         tile: Int,
         scale: Int,
-        decode: (MLXArray) -> MLXArray
-    ) -> MLXArray {
+        onTile: ((Int, Int) -> Void)? = nil,
+        decode: (MLXArray) throws -> MLXArray
+    ) rethrows -> MLXArray {
         let height = latents.dim(1)
         let width = latents.dim(2)
-        // Stride is rounded once, in latent cells, and the pixel counts follow from it: a tile
-        // whose quarter is not whole would otherwise keep more pixels than it strides past, and
-        // the output would come back wider than the image with a doubled band at every seam.
-        let stride = max(1, Int(Double(tile) * (1 - overlapFactor)))
+        let stride = stride(for: tile)
         let blend = (tile - stride) * scale
         let keep = stride * scale
+        let total = tileCount(height: height, width: width, tile: tile)
 
         var rows: [[MLXArray]] = []
+        var completed = 0
         for top in Swift.stride(from: 0, to: height, by: stride) {
             var row: [MLXArray] = []
             for left in Swift.stride(from: 0, to: width, by: stride) {
@@ -63,9 +73,11 @@ public nonisolated enum TiledDecode {
                     left..<Swift.min(left + tile, width),
                     0...
                 ]
-                let decoded = decode(patch)
+                let decoded = try decode(patch)
                 MLX.eval(decoded)
                 row.append(decoded)
+                completed += 1
+                onTile?(completed, total)
             }
             rows.append(row)
         }
@@ -87,6 +99,18 @@ public nonisolated enum TiledDecode {
             joinedRows.append(MLX.concatenated(pieces, axis: 2))
         }
         return MLX.concatenated(joinedRows, axis: 1)
+    }
+
+    /// The stride between tiles, rounded once in latent cells so the pixel counts follow from
+    /// it: a tile whose quarter is not whole would otherwise keep more pixels than it strides
+    /// past, and the output would come back wider than the image with a doubled band at every
+    /// seam.
+    private static func stride(for tile: Int) -> Int {
+        max(1, Int(Double(tile) * (1 - overlapFactor)))
+    }
+
+    private static func tilesAlong(_ extent: Int, stride: Int) -> Int {
+        extent <= 0 ? 0 : (extent + stride - 1) / stride
     }
 
     /// Replaces the first `extent` entries of `next` along `axis` with a linear ramp from the

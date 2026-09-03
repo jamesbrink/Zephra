@@ -14,20 +14,36 @@ extension GenerationRecord {
     /// Idempotent: bytes that already carry a record come back untouched, so exporting an image
     /// that was itself restored from disk never doubles the chunk up.
     public static func embedded(in image: GeneratedImage) throws -> Data {
-        let existing = try PNGTextChunks.read(from: image.pngData)
-        guard existing[keyword] == nil else { return image.pngData }
+        try embedded(
+            GenerationRecord(image), in: image.pngData, prompt: image.settings.prompt,
+            referenceText: image.settings.referenceImage?.base64EncodedString())
+    }
+
+    /// `pngData` with `record` and its companions inside it, for a caller that has the record
+    /// rather than a `GeneratedImage`: an upscale, whose record is derived from its parent's.
+    ///
+    /// `referenceText` is the base64 the `zephra:reference` chunk holds, passed through
+    /// untouched. An upscale hands over the parent's own text verbatim rather than decoding and
+    /// re-encoding it, so `referenceBytes` still counts what the chunk actually carries.
+    ///
+    /// The one place the chunk list is spelled out, so the two callers cannot drift apart.
+    public static func embedded(
+        _ record: GenerationRecord, in pngData: Data, prompt: String, referenceText: String?
+    ) throws -> Data {
+        let existing = try PNGTextChunks.read(from: pngData)
+        guard existing[keyword] == nil else { return pngData }
         var entries: [PNGTextChunks.Entry] = [
-            (keyword: keyword, text: try json(for: GenerationRecord(image))),
+            (keyword: keyword, text: try json(for: record)),
             (keyword: "Software", text: software),
         ]
-        let prompt = image.settings.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !prompt.isEmpty {
-            entries.append((keyword: "Description", text: prompt))
+        let described = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !described.isEmpty {
+            entries.append((keyword: "Description", text: described))
         }
-        if let reference = image.settings.referenceImage {
-            entries.append((keyword: referenceKeyword, text: reference.base64EncodedString()))
+        if let referenceText {
+            entries.append((keyword: referenceKeyword, text: referenceText))
         }
-        return try PNGTextChunks.inserting(entries, into: image.pngData)
+        return try PNGTextChunks.inserting(entries, into: pngData)
     }
 
     /// The record inside a PNG, or nil when the file carries none, is not a PNG at all, or

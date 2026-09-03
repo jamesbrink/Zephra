@@ -63,6 +63,15 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
     /// this, and a file read back after a relaunch would otherwise be a run of one. An optional
     /// field, so an older build reads a newer file as it always did and the version stays 1.
     public var batchID: UUID?
+    /// The file name of the picture this one was made larger from, when it was an upscale, and
+    /// nil when the pixels came out of a model.
+    ///
+    /// A name rather than a path, for the reason the whole record is inside the PNG: a library
+    /// that survives being moved to another Mac cannot hold absolute paths. Optional, so an
+    /// older build reads a newer file as it always did and the version stays 1.
+    public var upscaledFrom: String?
+    /// How many times larger each edge was made, when this was an upscale.
+    public var upscaleFactor: Int?
 
     /// The record for a finished image.
     public init(_ image: GeneratedImage) {
@@ -81,6 +90,8 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
         referenceStrength = image.settings.referenceImage == nil
             ? nil : image.settings.referenceStrength
         batchID = image.batchID
+        upscaledFrom = nil
+        upscaleFactor = nil
     }
 
     /// What the record asks for, as a request that could be run again.

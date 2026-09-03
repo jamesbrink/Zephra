@@ -48,6 +48,31 @@ extension ZephraCommands {
         return chosen.isEmpty ? .canvas(store.current) : .library(chosen)
     }
 
+    /// The picture the two Upscale items act on: the one image chosen in the grid, or the one on
+    /// the canvas.
+    ///
+    /// Nil for several images, because an upscale is one picture at a time, and nil inside
+    /// Recently Deleted, where the remedies are Put Back and Delete Immediately and making a
+    /// larger copy of something on its way out would be the wrong offer entirely.
+    var upscaleSource: UpscaleSource? {
+        switch target {
+        case .canvas(let image):
+            return image.map(UpscaleSource.image)
+        case .library(let items):
+            guard items.count == 1, let item = items.first,
+                  libraryIndex?.query.scope != .recentlyDeleted
+            else { return nil }
+            return .file(item.url)
+        }
+    }
+
+    /// Makes that picture `factor` times larger. Does nothing when there is none, which is also
+    /// what greys the items.
+    func upscale(_ factor: Int) {
+        guard let upscaleSource else { return }
+        store.upscale(upscaleSource, factor: factor)
+    }
+
     func save() {
         switch target {
         case .canvas(let image): image.map { ImageExport.saveAs($0) }

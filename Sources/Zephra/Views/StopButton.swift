@@ -27,7 +27,7 @@ struct StopButton: View {
 
     private var isRunning: Bool {
         switch store.state {
-        case .generating, .cancelling: true
+        case .generating, .upscaling, .cancelling: true
         default: false
         }
     }

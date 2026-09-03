@@ -36,6 +36,15 @@ extension LibraryItem {
     /// The guidance the generation ran at, or nil for an imported picture.
     public var guidance: Double? { provenance.record?.guidance }
 
+    /// What this picture was made larger from, and by how much, or nil when it was made by a
+    /// model rather than from another picture.
+    public var upscale: (factor: Int, parent: String)? {
+        guard let record = provenance.record, let factor = record.upscaleFactor,
+              let parent = record.upscaledFrom
+        else { return nil }
+        return (factor, parent)
+    }
+
     /// Whether the image is marked as a favourite.
     public var isFavourite: Bool { annotation.isFavourite }
 

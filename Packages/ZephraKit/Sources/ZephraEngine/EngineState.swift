@@ -21,6 +21,10 @@ public enum EngineState: Hashable, Sendable {
     case ready
     /// Producing an image.
     case generating(GenerationProgressEvent)
+    /// Making a finished picture larger, a tile at a time. Its own state rather than a kind of
+    /// generating: no model need be loaded for it, and the engine returns to whatever it was
+    /// doing before once it is over.
+    case upscaling(UpscaleProgressEvent)
     /// A cancel was requested; finishing the current step.
     case cancelling
     /// Stopped on an error the user needs to see.

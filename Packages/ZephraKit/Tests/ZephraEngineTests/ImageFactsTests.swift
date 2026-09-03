@@ -47,6 +47,58 @@ struct ImageFactsTests {
         #expect(facts.took == "\(Self.number(66.7)) s \u{00B7} \(Self.number(66.7 / 4)) s/step")
     }
 
+    @Test("a picture made larger says so, and by how much and from what")
+    func upscaledReadsItsProvenance() {
+        var record = GenerationRecord.upscaled(
+            from: nil, parentFileName: "holiday.png", factor: 4,
+            size: ImageSize(width: 4096, height: 3072), duration: .seconds(2))
+        let facts = ImageFacts(Self.item(record), modelName: "Real-ESRGAN")
+
+        #expect(facts.upscaled == "\u{00D7}4 from holiday.png")
+        // Nothing generated it, so nothing is claimed about how it was.
+        #expect(facts.steps == ImageFacts.unknown)
+        #expect(facts.seed == ImageFacts.unknown)
+        #expect(facts.size == "4096 \u{00D7} 3072")
+
+        record.upscaleFactor = nil
+        record.upscaledFrom = nil
+        #expect(ImageFacts(Self.item(record)).upscaled == nil)
+    }
+
+    @Test("an upscale of a generated picture keeps the steps but not a per-step time")
+    func upscaledTookHasNoPerStepFigure() {
+        var parent = GenerationRecord.upscaled(
+            from: nil, parentFileName: "a.png", factor: 2,
+            size: ImageSize(width: 8, height: 8), duration: .seconds(1))
+        parent.steps = 9
+        parent.upscaleFactor = nil
+        parent.upscaledFrom = nil
+        let record = GenerationRecord.upscaled(
+            from: parent, parentFileName: "a.png", factor: 4,
+            size: ImageSize(width: 32, height: 32), duration: .seconds(4.6))
+        let facts = ImageFacts(Self.item(record))
+
+        #expect(facts.steps == "9")
+        // 4.6 s over the parent's nine steps would be a figure that was never true.
+        #expect(facts.took == "4.6 s")
+    }
+
+    @Test("an image still in memory claims no upscale, because it has no record to read one from")
+    func aFreshPictureClaimsNothing() {
+        let image = GeneratedImage(
+            pngData: Data(),
+            settings: GenerationSettings(
+                prompt: "", size: ImageSize(width: 2048, height: 2048), steps: 0, guidance: 0,
+                seed: 0),
+            modelID: "real-esrgan-x2",
+            duration: .seconds(1))
+        let facts = ImageFacts(image)
+
+        #expect(facts.upscaled == nil)
+        #expect(facts.steps == ImageFacts.unknown)
+        #expect(facts.seed == ImageFacts.unknown)
+    }
+
     @Test("how long it took: nothing, seconds, minutes, and with no steps to divide by")
     func tookLabels() {
         #expect(ImageFacts.tookLabel(seconds: 0, steps: 4) == "\u{2014}")
@@ -60,6 +112,17 @@ struct ImageFactsTests {
             ImageFacts.tookLabel(seconds: 660, steps: 4)
                 == "\(Self.number(11)) min \u{00B7} \(Self.number(165)) s/step")
         #expect(ImageFacts.tookLabel(seconds: 600, steps: 0) == "\(Self.number(600)) s")
+    }
+
+    /// One library item carrying exactly the record handed in.
+    private static func item(_ record: GenerationRecord) -> LibraryItem {
+        LibraryItem(
+            url: URL(filePath: "/Zephra/holiday-x4.png"),
+            collection: .generated,
+            provenance: .generated(record),
+            annotation: LibraryAnnotation(),
+            fileSize: 4096,
+            contentModifiedAt: record.createdAt)
     }
 
     /// The same formatting the facts use, so these assertions hold in any locale.

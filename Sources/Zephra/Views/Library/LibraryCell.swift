@@ -1,7 +1,8 @@
 import SwiftUI
 import ZephraEngine
 
-/// One image in the grid: the picture, a star if it is a favourite, and what a press means.
+/// One image in the grid: the picture, a star if it is a favourite, a badge if it was made
+/// larger from another, and what a press means.
 ///
 /// Two taps rather than one, and the two-tap gesture is declared first, which is the whole
 /// trick: SwiftUI offers a tap to the gestures in the order they were attached, so a
@@ -22,6 +23,7 @@ struct LibraryCell: View {
         LibraryThumbnail(item: item)
             .clipShape(RoundedRectangle(cornerRadius: ZephraChrome.thumbnailRadius, style: .continuous))
             .overlay(alignment: .bottomTrailing) { favourite }
+            .overlay(alignment: .topLeading) { upscaled }
             .contentShape(Rectangle())
             .onTapGesture(count: 2) { openLibraryItem(item) }
             .onTapGesture(count: 1) { onPress(.current) }
@@ -39,6 +41,13 @@ struct LibraryCell: View {
                 .foregroundStyle(.white)
                 .shadow(color: .black.opacity(ZephraChrome.shadowOpacity), radius: 3, y: 1)
                 .padding(6)
+        }
+    }
+
+    @ViewBuilder
+    private var upscaled: some View {
+        if let upscale = item.upscale {
+            UpscaleBadge(factor: upscale.factor)
         }
     }
 

@@ -18,7 +18,7 @@ extension GenerationStore {
         self.descriptor = descriptor
         settings = descriptor.capabilities.clamp(
             descriptor.backend == family ? settings : settings.onSchedule(of: descriptor))
-        guard !isDraining, queue.isEmpty else { return }
+        guard !isDraining, !isUpscaling, queue.isEmpty else { return }
         reload(descriptor, thenDrain: false)
     }
 

@@ -1,9 +1,9 @@
 import Foundation
 import ZephraCore
 
-/// The six lines the inspector shows about one image, already formatted.
+/// The lines the inspector shows about one image, already formatted.
 ///
-/// Formatting here rather than in the view because the same six lines describe an image on the
+/// Formatting here rather than in the view because the same seven lines describe an image on the
 /// canvas and an image in the library, and because "how long it took" has enough rules — no
 /// answer at all, seconds, minutes, a per-step figure — to be worth testing.
 public struct ImageFacts: Hashable, Sendable {
@@ -19,6 +19,8 @@ public struct ImageFacts: Hashable, Sendable {
     public let took: String
     /// The file's name on disk.
     public let file: String
+    /// What it was made larger from, and by how much, or nil when it was not an upscale.
+    public let upscaled: String?
 
     /// The facts about a library image. `modelName` is the catalog's name for it, when there is
     /// one; without it the identifier written into the file is shown, which is the honest answer
@@ -26,20 +28,27 @@ public struct ImageFacts: Hashable, Sendable {
     public init(_ item: LibraryItem, modelName: String? = nil) {
         model = modelName ?? item.modelID ?? Self.unknown
         size = Self.label(item.size)
-        steps = item.steps.map(String.init) ?? Self.unknown
-        seed = item.seed?.shortSeedLabel ?? Self.unknown
-        took = Self.tookLabel(seconds: item.durationSeconds ?? 0, steps: item.steps ?? 0)
+        steps = Self.stepsLabel(item.steps)
+        seed = Self.seedLabel(item.seed)
+        // An upscale's seconds are the network's, not the steps', so the per-step figure that
+        // would follow from the parent's step count is left off.
+        took = Self.tookLabel(
+            seconds: item.durationSeconds ?? 0, steps: item.upscale == nil ? item.steps ?? 0 : 0)
         file = item.fileName
+        upscaled = item.upscale.map { "\u{00D7}\($0.factor) from \($0.parent)" }
     }
 
     /// The facts about an image in memory, which may not have reached the disk yet.
     public init(_ image: GeneratedImage, modelName: String? = nil) {
         model = modelName ?? image.modelID
         size = Self.label(image.settings.size)
-        steps = String(image.settings.steps)
-        seed = image.settings.seed.shortSeedLabel
+        steps = Self.stepsLabel(image.settings.steps)
+        seed = Self.seedLabel(image.settings.seed)
         took = Self.tookLabel(seconds: image.duration.seconds, steps: image.settings.steps)
         file = image.fileURL?.lastPathComponent ?? Self.notSaved
+        // A picture in memory has no record to read it from, and the library's own inspector
+        // takes over the moment the scan lands, which is typically inside a second.
+        upscaled = nil
     }
 
     /// How long a generation took, with what that came to per step.
@@ -54,6 +63,19 @@ public struct ImageFacts: Hashable, Sendable {
             : "\(number(seconds)) s"
         guard steps > 0 else { return whole }
         return "\(whole) \(separator) \(number(seconds / Double(steps))) s/step"
+    }
+
+    /// How many steps ran. None at all is not a generation but an upscale of a picture Zephra
+    /// did not make, and "0" would read as a number that was once true.
+    static func stepsLabel(_ steps: Int?) -> String {
+        guard let steps, steps > 0 else { return unknown }
+        return String(steps)
+    }
+
+    /// The seed, for the same reason: no seed was drawn when no denoising loop ran.
+    static func seedLabel(_ seed: UInt64?) -> String {
+        guard let seed, seed > 0 else { return unknown }
+        return seed.shortSeedLabel
     }
 
     /// A middle dot, the separator the rest of the interface uses between facts.

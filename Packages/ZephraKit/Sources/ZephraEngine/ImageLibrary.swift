@@ -32,6 +32,25 @@ public struct ImageLibrary: Sendable {
         return url
     }
 
+    /// Writes PNG bytes that already have a record of their own, under a name of the caller's
+    /// choosing, and returns where they landed.
+    ///
+    /// The second way into the library, for a picture Zephra produced from another picture
+    /// rather than from a prompt: the record is derived rather than read off a `GeneratedImage`,
+    /// and `referenceText` is the parent's `zephra:reference` chunk passed through verbatim, so
+    /// the count in the record still matches what the chunk carries.
+    @discardableResult
+    public func write(
+        _ data: Data, record: GenerationRecord, named name: String, referenceText: String?
+    ) throws -> URL {
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let url = availableURL(named: name)
+        let annotated = (try? GenerationRecord.embedded(
+            record, in: data, prompt: record.prompt, referenceText: referenceText)) ?? data
+        try annotated.write(to: url, options: .atomic)
+        return url
+    }
+
     /// The bytes to write: the image with its record embedded, or the plain pixels when that
     /// could not be done. A picture on disk without its provenance beats no picture at all.
     private static func annotated(_ image: GeneratedImage) -> Data {
