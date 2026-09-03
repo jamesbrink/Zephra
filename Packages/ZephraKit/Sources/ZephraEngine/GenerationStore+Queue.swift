@@ -54,6 +54,11 @@ extension GenerationStore {
             running = nil
             transition(to: .cancelling)
             generationTask?.cancel()
+        case .upscaling:
+            // Nothing is queued during an upscale, so there is nothing to empty: the run itself
+            // is what stops, and the store puts back the state it was in before it started.
+            transition(to: .cancelling)
+            upscaleTask?.cancel()
         case .checkingModel, .downloading, .building, .loading, .warmingUp:
             queue.removeAll()
             isSwitchingForQueue = false

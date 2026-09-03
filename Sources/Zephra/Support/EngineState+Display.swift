@@ -40,6 +40,7 @@ extension EngineState {
         case .warmingUp: "Warming up"
         case .ready: "Ready"
         case .generating: "Generating"
+        case .upscaling: "Upscaling"
         case .cancelling: "Stopping"
         case .failed: "Failed"
         }
@@ -58,6 +59,8 @@ extension EngineState {
             "Building the \(descriptor.variantName ?? "packed") variant of \(descriptor.displayName). This happens once."
         case .warmingUp:
             "Warming up…"
+        case .upscaling:
+            "Upscaling…"
         case .cancelling:
             "Stopping after this step…"
         case .failed(let error):
@@ -76,6 +79,8 @@ extension EngineState {
             Self.buildDetail(event)
         case .generating(let event):
             Self.generationDetail(event)
+        case .upscaling(let event):
+            "Tile \(event.completedTiles) of \(event.totalTiles)"
         default:
             nil
         }
@@ -86,6 +91,7 @@ extension EngineState {
         if case .generating = self { return true }
         if case .downloading = self { return true }
         if case .building = self { return true }
+        if case .upscaling = self { return true }
         return false
     }
 
@@ -95,6 +101,7 @@ extension EngineState {
         switch self {
         case .downloading(let event): event.fraction
         case .building(let event): event.fraction
+        case .upscaling(let event): event.fraction
         default: nil
         }
     }

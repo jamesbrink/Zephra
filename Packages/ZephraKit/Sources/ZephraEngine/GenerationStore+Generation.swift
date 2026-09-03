@@ -111,6 +111,8 @@ extension GenerationStore {
         case .download(let progress): state = .downloading(progress)
         case .build(let progress): state = .building(progress)
         case .progress(let progress): state = .loading(progress.phase)
+        // A load never upscales anything; the case is here because the switch is exhaustive.
+        case .upscale: break
         }
     }
 

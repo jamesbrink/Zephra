@@ -75,6 +75,7 @@ public final class GenerationStore {
     @ObservationIgnored var saveTask: Task<Void, Never>?
     @ObservationIgnored var libraryTask: Task<Void, Never>?
     @ObservationIgnored var openTask: Task<Void, Never>?
+    @ObservationIgnored var upscaleTask: Task<Void, Never>?
 
     /// Creates a store for one model, running on the backends `registry` knows how to build.
     /// `outputDirectory` nil means ~/Pictures/Zephra.
@@ -129,5 +130,6 @@ public final class GenerationStore {
         await saveTask?.value
         await libraryTask?.value
         await openTask?.value
+        await upscaleTask?.value
     }
 }
