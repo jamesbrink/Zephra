@@ -28,6 +28,16 @@ QWEN_MODELS ?= /Volumes/ExternalStorage/Models
 QWEN_SOURCE ?= $(QWEN_MODELS)/Qwen-Image-2512
 QWEN_LORA   ?= $(QWEN_MODELS)/Qwen-Image-2512-Lightning/$(QWEN_LORA_FILE)
 QWEN_OUT    ?= $(HOME)/Library/Application Support/Zephra/Models/qwen-image-2512-4bit
+
+# FLUX.2 klein 4B is built by the app on first load, from the bf16 release in the hub cache.
+# `make quantize-flux2` is the same build by hand, for benchmarking and for a machine whose copy
+# of the release lives elsewhere (set FLUX2_SOURCE). The root `flux-2-klein-4b.safetensors` is
+# Black Forest Labs' own single-file format, 7.75 GB the loader never reads, so it is excluded.
+# For the 8-bit variant: make quantize-flux2 BITS=8 FLUX2_OUT="...Models/flux2-klein-4b-8bit".
+FLUX2_MODEL   := black-forest-labs/FLUX.2-klein-4B
+FLUX2_EXCLUDE := --exclude "flux-2-klein-4b.safetensors" --exclude "*.jpg"
+FLUX2_SOURCE  ?=
+FLUX2_OUT     ?= $(HOME)/Library/Application Support/Zephra/Models/flux2-klein-4b-4bit
 DEST     := platform=macOS,arch=arm64
 XCB      := xcodebuild -project $(PROJECT) -destination '$(DEST)' SYMROOT=$(BUILD) -derivedDataPath $(DERIVED)
 # Every package that links MLX, and so needs xcodebuild rather than `swift test`, written as
@@ -36,8 +46,10 @@ XCB      := xcodebuild -project $(PROJECT) -destination '$(DEST)' SYMROOT=$(BUIL
 # <name>-Package. Only ZephraMLXKit does, because a model package takes ZephraMLX without
 # dragging in the quantizer.
 MLX_PACKAGES := ZephraMLXKit:ZephraMLXKit-Package QwenImageKit:QwenImageKit \
+                Flux2Kit:Flux2Kit \
                 ZephraBackendZImage:ZephraBackendZImage \
-                ZephraBackendQwenImage:ZephraBackendQwenImage
+                ZephraBackendQwenImage:ZephraBackendQwenImage \
+                ZephraBackendFlux2:ZephraBackendFlux2
 
 # Distribution signing. The build itself is ad-hoc signed (project.yml), so these
 # matter only to `make release` and `make notarize`. Leave SIGN_IDENTITY empty to
@@ -47,7 +59,7 @@ NOTARY_PROFILE ?= zephra-notary
 RELEASE_APP    := $(BUILD)/Release/Zephra.app
 RELEASE_ZIP    := $(BUILD)/Zephra.zip
 
-.PHONY: doctor gen build run bench quantize quantize-qwen prefetch prefetch-qwen open clean lint-layers logs screenshot test test-mlx test-backend icon release notarize
+.PHONY: doctor gen build run bench quantize quantize-qwen quantize-flux2 prefetch prefetch-qwen prefetch-flux2 open clean lint-layers logs screenshot test test-mlx test-backend icon release notarize
 
 # What a fresh Mac needs before `make build` can work, each with its fix printed.
 doctor:
@@ -85,6 +97,13 @@ quantize-qwen: gen
 	  --source "$(QWEN_SOURCE)" --lora "$(QWEN_LORA)" \
 	  --source-name $(QWEN_MODEL) --bits $(BITS) --group-size $(GROUP_SIZE) \
 	  --out "$(QWEN_OUT)" $(ARGS)
+
+quantize-flux2: gen
+	$(XCB) -scheme ZephraQuantize -configuration Release build >/dev/null
+	"$(QUANTIZE)" --family flux2 \
+	  --source "$${FLUX2_SOURCE:-$$(hf download $(FLUX2_MODEL) $(FLUX2_EXCLUDE))}" \
+	  --source-name $(FLUX2_MODEL) --bits $(BITS) --group-size $(GROUP_SIZE) \
+	  --out "$(FLUX2_OUT)" $(ARGS)
 
 test:
 	cd Packages/ZephraKit && swift test
@@ -131,6 +150,10 @@ prefetch-qwen:
 	hf download $(QWEN_LORA_REPO) $(QWEN_LORA_FILE) \
 	  --local-dir "$(QWEN_MODELS)/Qwen-Image-2512-Lightning"
 
+# The klein release into the hub cache, which is where the app looks for it on first load.
+prefetch-flux2:
+	hf download $(FLUX2_MODEL) $(FLUX2_EXCLUDE)
+
 open: gen
 	open $(PROJECT)
 
@@ -146,14 +169,19 @@ screenshot:
 # Layering rules from CLAUDE.md, enforced mechanically. The patterns are deliberately
 # family-agnostic: a second backend package must not need a Makefile edit to be policed.
 lint-layers:
-	@! grep -rlnE '^import (ZImage|QwenImage|MLX)' Sources/Zephra Sources/ZephraBench Sources/ZephraQuantize --include='*.swift' \
+	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|MLX)' Sources/Zephra Sources/ZephraBench Sources/ZephraQuantize --include='*.swift' \
 	  || (echo "LAYER VIOLATION: app or tool target imports a model package or MLX directly"; exit 1)
 	@! grep -rlnE '^import ZephraBackend' Sources/Zephra --include='*.swift' | grep -v 'ZephraApp.swift' \
 	  || (echo "LAYER VIOLATION: a backend package is imported outside ZephraApp.swift"; exit 1)
-	@! grep -rlnE '^import (ZImage|QwenImage|MLX)' Packages/ZephraKit/Sources 2>/dev/null \
+	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|MLX)' Packages/ZephraKit/Sources 2>/dev/null \
 	  || (echo "LAYER VIOLATION: ZephraKit imports a model package or MLX"; exit 1)
 	@! grep -rlnE '^import ZephraBackend' Packages/ZephraBackend*/Sources 2>/dev/null \
 	  || (echo "LAYER VIOLATION: one backend package imports another"; exit 1)
+	@for family in ZImage QwenImage Flux2; do \
+	  others=$$(echo "ZImage QwenImage Flux2" | tr ' ' '\n' | grep -v "^$$family$$" | paste -sd'|' -); \
+	  ! grep -rlnE "^import ($$others)$$" Packages/ZephraBackend$$family/Sources 2>/dev/null \
+	    || (echo "LAYER VIOLATION: ZephraBackend$$family imports another family's kit"; exit 1); \
+	done
 	@! grep -rlnE '^import (SwiftUI|AppKit)' Packages/ZephraKit/Sources 2>/dev/null \
 	  || (echo "LAYER VIOLATION: UI framework imported inside ZephraKit"; exit 1)
 	@echo "layers ok"

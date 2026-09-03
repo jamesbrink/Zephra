@@ -47,6 +47,10 @@ packages:
     path: Packages/ZephraBackendZImage
   ZephraBackendQwenImage:
     path: Packages/ZephraBackendQwenImage
+  ZephraBackendFlux2:
+    path: Packages/ZephraBackendFlux2
+  Flux2Kit:
+    path: Packages/Flux2Kit
   QwenImageKit:
     path: Packages/QwenImageKit
   ZImageKit:
@@ -69,6 +73,8 @@ targets:
         product: ZephraBackendZImage
       - package: ZephraBackendQwenImage
         product: ZephraBackendQwenImage
+      - package: ZephraBackendFlux2
+        product: ZephraBackendFlux2
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.zephra.Zephra
@@ -93,6 +99,8 @@ targets:
         product: ZephraBackendZImage
       - package: ZephraBackendQwenImage
         product: ZephraBackendQwenImage
+      - package: ZephraBackendFlux2
+        product: ZephraBackendFlux2
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.zephra.ZephraBench
@@ -112,6 +120,8 @@ targets:
         product: ZephraBackendZImage
       - package: ZephraBackendQwenImage
         product: ZephraBackendQwenImage
+      - package: ZephraBackendFlux2
+        product: ZephraBackendFlux2
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.zephra.ZephraQuantize

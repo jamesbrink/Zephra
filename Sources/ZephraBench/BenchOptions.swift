@@ -23,6 +23,8 @@ struct BenchOptions: Sendable {
     var snapshot: URL?
     /// The catalog identifier of the model to load, defaulting to the app's own default.
     var model = ModelCatalog.default.id
+    /// A picture to edit, so the editing path is what gets measured.
+    var reference: URL?
 
     /// Reads options from the command line, exiting with usage text on anything unrecognised.
     /// A benchmark is run by hand, so a typo should stop it rather than quietly measure the
@@ -42,7 +44,7 @@ struct BenchOptions: Sendable {
                 print(usage)
                 exit(0)
             case "--size", "--steps", "--runs", "--prompt", "--out", "--model", "--backend",
-                "--snapshot":
+                "--snapshot", "--reference":
                 guard index < arguments.count else { fail("\(flag) needs a value") }
                 let value = arguments[index]
                 index += 1
@@ -64,6 +66,7 @@ struct BenchOptions: Sendable {
         case "--model": options.model = resolvedModel(value)
         case "--backend": options.backend = BackendID(value)
         case "--snapshot": options.snapshot = URL(fileURLWithPath: value)
+        case "--reference": options.reference = readableFile(value, flag)
         default: fail("unknown option \(flag)")
         }
     }
@@ -75,6 +78,16 @@ struct BenchOptions: Sendable {
             fail("unknown model \(value); try one of \(ModelCatalog.all.map(\.id).joined(separator: ", "))")
         }
         return value
+    }
+
+    /// Checks that a file is there before anything is loaded: a benchmark run by hand should
+    /// stop on a typo rather than quietly measure text-to-image and report it as an edit.
+    private static func readableFile(_ value: String, _ flag: String) -> URL {
+        let url = URL(fileURLWithPath: value)
+        guard FileManager.default.isReadableFile(atPath: url.path(percentEncoded: false)) else {
+            fail("\(flag) needs a readable file, and \(value) is not one")
+        }
+        return url
     }
 
     private static func positive(_ value: String, _ flag: String) -> Int {
@@ -91,11 +104,14 @@ struct BenchOptions: Sendable {
 
     private static let usage = """
         usage: ZephraBench [--model ID] [--size N] [--steps N] [--runs N] [--prompt TEXT] \
-        [--out PATH] [--json] [--micro] [--backend NAME --snapshot DIR]
+        [--out PATH] [--json] [--micro] [--backend NAME --snapshot DIR] [--reference IMAGE]
 
         --model names a catalog entry, so variants can be compared at a fixed seed.
         --backend and --snapshot together run a model the catalog does not carry yet, which
         is how a new family is measured before its entry can be written.
+        --reference takes any picture macOS can read and measures the editing path on a
+        model that has one; the picture's own pixels add tokens, so its size is part of what
+        is being measured.
         --micro times the DiT's individual MLX kernels at --size worth of tokens and
         exits, without loading any weights.
         """

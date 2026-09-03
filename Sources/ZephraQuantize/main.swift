@@ -18,6 +18,12 @@ do {
         ),
         adapters: options.adapters
     )
+    // The default directory is named for four bits. Writing eight into it would hand the app a
+    // variant its catalog entry describes wrongly, an hour after the mistake was made.
+    if options.output == nil, options.bits != 4 {
+        throw QuantizeUsageError.precisionNeedsAnOutput(
+            bits: options.bits, defaultName: family.defaultOutputName)
+    }
     let destination =
         options.output
         ?? ModelCatalog.localModelsDirectory.appending(path: family.defaultOutputName)
