@@ -92,14 +92,16 @@ readout while that happens.
   every run gets a fresh one. Images save to `~/Pictures/Zephra` with the seed in the file name;
   if a write fails, a notice sits over the prompt until an image saves, and the picture stays on
   the canvas either way.
-- The filmstrip under the prompt keeps its images across launches: Zephra reads the newest
-  two dozen back out of `~/Pictures/Zephra` at startup, in the background, so it is filled in
-  before the model has finished loading. The record of what made an image — prompt, size,
-  steps, seed, model, and how long it took — lives inside the PNG itself, so moving, renaming,
-  or copying a file to another Mac keeps it, and clicking a restored image loads its settings
-  ready to vary. A PNG that Zephra did not make carries no record and is ignored. Right-click a
+- The filmstrip under the prompt holds what this session has made. Everything ever made is in
+  `~/Pictures/Zephra`, and the Library reads that folder rather than the app keeping a list of
+  its own. The record of what made an image — prompt, size, steps, seed, model, and how long it
+  took — lives inside the PNG itself, so moving, renaming, or copying a file to another Mac
+  keeps it, and opening an image again shows what it was made from, ready to vary. Favourites,
+  tags and album membership go into the same file, under a second keyword, so they travel with
+  the picture too. A PNG that Zephra did not make carries no record and is ignored. Right-click a
   thumbnail for Save as, Copy, Reveal in Finder, and Delete; Delete (⌘⌫ for the image on the
-  canvas) moves the file to the Trash, so it is recoverable from the Finder.
+  canvas) moves the file to `~/Pictures/Zephra/Recently Deleted`, where it waits thirty days
+  before it is thrown away for good, so it can be put back.
 - Settings holds where images are written and the seed preference under General. Performance
   has the after-load warm-up, the ceiling on the GPU scratch the runtime keeps between
   generations — with the figure recommended for your Mac, and a reset back to it — whether the

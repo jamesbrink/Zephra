@@ -67,6 +67,12 @@ final class EngineTestBed {
         )
     }
 
+    /// An index over this bed's folder. `settleFor` is the folder watch's debounce, which a
+    /// test wants in milliseconds rather than the app's quarter of a second.
+    func index(settleFor: Duration = .milliseconds(20)) -> LibraryIndex {
+        LibraryIndex(library: library, settleFor: settleFor)
+    }
+
     /// The file names written so far, newest-first order not guaranteed.
     func writtenFiles() throws -> [String] {
         guard FileManager.default.fileExists(atPath: directory.path(percentEncoded: false)) else {

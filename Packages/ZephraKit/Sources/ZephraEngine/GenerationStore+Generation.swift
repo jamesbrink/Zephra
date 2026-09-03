@@ -87,6 +87,7 @@ extension GenerationStore {
         if let index = history.firstIndex(where: { $0.id == id }) {
             history[index] = history[index].withFileURL(url)
         }
+        onImageSaved?(url)
     }
 
     /// A failed write is worth showing, but the pixels are still in memory and still on the
