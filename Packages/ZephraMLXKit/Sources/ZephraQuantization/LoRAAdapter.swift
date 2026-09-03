@@ -44,19 +44,22 @@ public final class LoRAAdapter {
 
     /// Reads every adapter file into one index.
     ///
-    /// Later files win on a key they share with an earlier one, which is what stacking two
-    /// adapters means; in practice there is one.
+    /// A later file replaces an earlier one on a key they share, whole: both factors and the
+    /// scale come from the same file, never one half from each, which would multiply factors
+    /// that were never trained together. In practice there is one file.
     public init(contentsOf urls: [URL]) throws {
         var updates: [String: Update] = [:]
         for url in urls {
+            var fromThisFile: [String: Update] = [:]
             for (name, tensor) in try MLX.loadArrays(url: url) {
                 guard let (key, part) = Self.parse(name) else { continue }
                 switch part {
-                case .down: updates[key, default: Update()].down = tensor
-                case .up: updates[key, default: Update()].up = tensor
-                case .alpha: updates[key, default: Update()].alpha = tensor.item(Float.self)
+                case .down: fromThisFile[key, default: Update()].down = tensor
+                case .up: fromThisFile[key, default: Update()].up = tensor
+                case .alpha: fromThisFile[key, default: Update()].alpha = tensor.item(Float.self)
                 }
             }
+            updates.merge(fromThisFile) { _, later in later }
         }
         // A factor with no partner is a truncated or mis-shaped export, and merging half of one
         // silently produces a model that is neither the base nor the distilled variant.
@@ -75,7 +78,6 @@ public final class LoRAAdapter {
         guard let update = updates[key], let down = update.down, let up = update.up else {
             return weight
         }
-        mergedKeys.insert(key)
         let rank = down.shape[0]
         let scale = (update.alpha ?? Float(rank)) / Float(rank)
         let delta = MLX.matmul(up.asType(.float32), down.asType(.float32)) * scale
@@ -83,6 +85,7 @@ public final class LoRAAdapter {
             throw QuantizationError.adapterShapeMismatch(
                 key, adapter: delta.shape, weight: weight.shape)
         }
+        mergedKeys.insert(key)
         return weight.asType(.float32) + delta
     }
 
@@ -98,10 +101,13 @@ public final class LoRAAdapter {
     /// in — and exports vary on whether the module path is bare or carries the component in
     /// front of it. Reducing all of that here means the rest of this type deals in checkpoint
     /// keys and nothing else.
+    ///
+    /// Not handled: kohya's `lora_unet_` exports, which flatten the module path with underscores
+    /// and so cannot be mapped back to a checkpoint key by stripping anything. They come out
+    /// unmatched and stop the build, which is the right answer for a format this does not read.
     static func parse(_ name: String) -> (key: String, part: Part)? {
         var path = name
-        for prefix in ["transformer.", "diffusion_model.", "lora_unet_"] where path.hasPrefix(prefix)
-        {
+        for prefix in ["transformer.", "diffusion_model."] where path.hasPrefix(prefix) {
             path = String(path.dropFirst(prefix.count))
         }
         for (suffix, part) in suffixes where path.hasSuffix(suffix) {

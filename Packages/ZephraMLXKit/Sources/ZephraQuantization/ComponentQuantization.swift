@@ -78,13 +78,16 @@ public struct ComponentQuantization {
         let shardOfTensor = try writer.finish(relativeTo: component.directoryName)
         note("\(component.directoryName): packed \(packed.count) layers")
 
-        return packed.map { weight, precision in
-            QuantizationManifest.Layer(
+        return try packed.map { weight, precision in
+            guard let file = shardOfTensor[weight.weightKey] else {
+                throw QuantizationError.unwrittenTensor(weight.weightKey)
+            }
+            return QuantizationManifest.Layer(
                 name: weight.base,
                 shape: [weight.outDim, weight.inDim],
                 inDim: weight.inDim,
                 outDim: weight.outDim,
-                file: shardOfTensor[weight.weightKey] ?? "",
+                file: file,
                 precision: precision,
                 mode: "affine"
             )
@@ -122,6 +125,7 @@ public struct ComponentQuantization {
             if component.omits(entry.name) { continue }
             // Merge before anything else looks at the values: an adapted weight is simply the
             // weight this build has, whether it then gets packed or copied across whole.
+            let sourceType = tensor.dtype
             if let adapter {
                 tensor = try adapter.applied(to: tensor, named: entry.name)
             }
@@ -130,8 +134,11 @@ public struct ComponentQuantization {
                 let weight = QuantizableWeight(
                     name: entry.name, shape: entry.shape, groupSize: precision.groupSize)
             else {
-                MLX.eval(tensor)
-                try writer.add(entry.name, tensor)
+                // Back to the source's own dtype: the merge ran in float32, and a copied
+                // tensor should not come out twice the size it went in.
+                let verbatim = tensor.asType(sourceType)
+                MLX.eval(verbatim)
+                try writer.add(entry.name, verbatim)
                 continue
             }
             // Float32 in, so the scales and biases come out float32 and match the reference

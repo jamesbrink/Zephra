@@ -14,6 +14,8 @@ public enum QuantizationError: Error, LocalizedError, Equatable {
     case unreadableShard(URL, reason: String)
     /// The plan packed nothing at all, so there is no manifest to write and no build to load.
     case nothingPacked
+    /// A packed tensor was handed to the shard writer and no shard came back holding it.
+    case unwrittenTensor(String)
     /// An adapter file holds one half of a low-rank update and not the other.
     case incompleteAdapterLayer(String)
     /// An adapter's update is not the shape of the weight it claims to modify.
@@ -34,6 +36,8 @@ public enum QuantizationError: Error, LocalizedError, Equatable {
             "No .safetensors shards in \(name) at \(directory.path(percentEncoded: false))."
         case .unreadableShard(let url, let reason):
             "Could not read \(url.lastPathComponent): \(reason)."
+        case .unwrittenTensor(let key):
+            "\(key) was packed but landed in no shard; the build cannot be loaded."
         case .nothingPacked:
             "The quantization plan packed no layers, so the result would not load."
         case .incompleteAdapterLayer(let key):

@@ -88,7 +88,10 @@ struct LoRAAdapterTests {
         try Self.write(Self.pair(), to: scratch.url("adapter.safetensors"))
         let adapter = try LoRAAdapter(contentsOf: [scratch.url("adapter.safetensors")])
 
-        #expect(throws: QuantizationError.self) {
+        #expect(
+            throws: QuantizationError.adapterShapeMismatch(
+                "blocks.0.to_q.weight", adapter: [4, 3], weight: [4, 5])
+        ) {
             // The update is 4 by 3; this weight is 4 by 5, which is a different layer entirely.
             _ = try adapter.applied(to: MLXArray.zeros([4, 5]), named: "blocks.0.to_q.weight")
         }
@@ -110,7 +113,10 @@ struct LoRAAdapterTests {
             ["blocks.0.to_q.weight"], to: scratch.url("source/transformer/model.safetensors"))
         try scratch.write("{}", to: "source/model_index.json")
 
-        #expect(throws: QuantizationError.self) {
+        #expect(
+            throws: QuantizationError.unmatchedAdapterLayers(
+                component: "transformer", keys: ["blocks.0.attention.query.weight"])
+        ) {
             try SnapshotQuantizer.quantize(
                 source: scratch.url("source"),
                 destination: scratch.url("out"),
