@@ -29,8 +29,14 @@ extension GenerationRecord {
     /// claims a version this build was not written to read. A foreign PNG dropped into the
     /// library reads as nil, which is how the library comes to ignore it.
     public static func read(from data: Data) -> GenerationRecord? {
-        guard let text = try? PNGTextChunks.read(from: data),
-              let json = text[keyword],
+        guard let text = try? PNGTextChunks.read(from: data) else { return nil }
+        return decode(from: text)
+    }
+
+    /// The record in a PNG's text chunks, which a scan already has in hand: it reads every
+    /// keyword out of the header in one pass and asks each type to pick out its own.
+    public static func decode(from text: [String: String]) -> GenerationRecord? {
+        guard let json = text[keyword],
               let record = try? decoder().decode(Self.self, from: Data(json.utf8)),
               record.version <= currentVersion
         else { return nil }

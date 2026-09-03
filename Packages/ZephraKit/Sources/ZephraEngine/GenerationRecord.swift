@@ -55,6 +55,21 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
         durationSeconds = image.duration.seconds
     }
 
+    /// What the record asks for, as a request that could be run again.
+    ///
+    /// The one place the flat on-disk fields become a `GenerationSettings`, so opening an image
+    /// and queueing a variation of it read the record the same way.
+    public var settings: GenerationSettings {
+        GenerationSettings(
+            prompt: prompt,
+            negativePrompt: negativePrompt,
+            size: ImageSize(width: width, height: height),
+            steps: steps,
+            guidance: guidance,
+            seed: seed
+        )
+    }
+
     /// The image this record describes, given the bytes it was read from and where they live.
     ///
     /// The identity is new every time: it is this session's handle on the file, not something
@@ -63,14 +78,7 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
     public func image(pngData: Data, fileURL: URL?) -> GeneratedImage {
         GeneratedImage(
             pngData: pngData,
-            settings: GenerationSettings(
-                prompt: prompt,
-                negativePrompt: negativePrompt,
-                size: ImageSize(width: width, height: height),
-                steps: steps,
-                guidance: guidance,
-                seed: seed
-            ),
+            settings: settings,
             modelID: modelID,
             createdAt: createdAt,
             duration: .seconds(durationSeconds),
