@@ -38,8 +38,11 @@ enum QwenImageDenoiseLoop {
         var startIndex = 0
 
         if let reference {
+            // The encode is a whole pass through the autoencoder, so a run cancelled while the
+            // model was still loading should stop here rather than at the first step.
+            try Task.checkCancellation()
             startIndex = QwenImageReferenceLatents.startIndex(
-                sigmas: scheduler.sigmas, strength: reference.strength, steps: sigmas.count)
+                strength: reference.strength, steps: sigmas.count)
             let pixels = try QwenPixelBuffer.pixels(
                 from: reference.image, width: reference.width, height: reference.height)
             let encoded = QwenImageLatentPacking.pack(autoencoder.encode(pixels))

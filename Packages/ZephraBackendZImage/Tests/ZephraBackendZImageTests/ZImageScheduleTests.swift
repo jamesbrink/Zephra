@@ -59,41 +59,44 @@ struct ZImageScheduleTests {
     }
 
     @Test("a strength of 1 runs every step, so a reference at full strength changes nothing")
-    func fullStrengthStartsAtZero() throws {
+    func fullStrengthStartsAtZero() {
         for steps in [1, 4, 9, 20] {
-            let index = ReferenceLatents.startIndex(
-                sigmas: try sigmas(steps: steps), strength: 1.0, steps: steps
-            )
-            #expect(index == 0, "\(steps) steps")
+            #expect(ReferenceLatents.startIndex(strength: 1, steps: steps) == 0, "\(steps) steps")
         }
     }
 
-    @Test("the default strength of 0.6 enters two thirds of the way down a nine-step run")
-    func defaultStrengthEntersLate() throws {
-        let ladder = try sigmas(steps: 9)
-        let index = ReferenceLatents.startIndex(sigmas: ladder, strength: 0.6, steps: 9)
-        #expect(index == 6, "the first sigma at or below 0.6")
-        #expect(ladder[index] <= 0.6)
-        #expect(ladder[index - 1] > 0.6, "and the one before it is not")
+    @Test("strength is a share of the steps, not a noise level")
+    func startIndexIsAShareOfTheSteps() {
+        // 9 * 0.6 = 5.4, so five of the nine steps run and the loop enters at 4.
+        #expect(ReferenceLatents.startIndex(strength: 0.6, steps: 9) == 4)
+        #expect(ReferenceLatents.startIndex(strength: 0.9, steps: 9) == 1, "8.1 rounds to 8")
+        // 4.5 rounds away from zero to 5, so a half-strength run is the same five steps as 0.6.
+        #expect(ReferenceLatents.startIndex(strength: 0.5, steps: 9) == 4)
+        #expect(ReferenceLatents.startIndex(strength: 0.1, steps: 9) == 8, "0.9 rounds to 1")
     }
 
-    @Test("a strength below the whole ladder still runs the last step, never none")
-    func zeroStrengthRunsTheLastStep() throws {
-        for steps in [1, 4, 9, 20] {
-            let index = ReferenceLatents.startIndex(
-                sigmas: try sigmas(steps: steps), strength: 0, steps: steps
-            )
-            #expect(index == steps - 1, "\(steps) steps")
-        }
+    @Test("a strength too small to buy a whole step still buys one, never none")
+    func tinyStrengthRunsTheLastStep() {
+        // 4 * 0.1 is 0.4, which rounds to nothing; running no steps would hand the picture back.
+        #expect(ReferenceLatents.startIndex(strength: 0.1, steps: 4) == 3)
+        #expect(ReferenceLatents.startIndex(strength: 0, steps: 9) == 8)
     }
 
-    @Test("the entry point falls as the strength falls, and never leaves the run")
-    func startIndexIsMonotonic() throws {
+    @Test("the ladder is not consulted: the same strength lands the same way at every size")
+    func entryDoesNotDependOnTheLadder() throws {
+        // The point of the share mapping. Z-Image's ladder is bent by a shift of 3, so its
+        // sigmas at 9 steps are nowhere near evenly spaced, yet 0.6 buys five steps regardless.
         let ladder = try sigmas(steps: 9)
-        let indices = stride(from: Float(1.0), through: 0.0, by: -0.05).map {
-            ReferenceLatents.startIndex(sigmas: ladder, strength: $0, steps: 9)
+        #expect(ladder[4] > 0.7, "the entry sigma is a real noise level, not the ladder's tail")
+        #expect(ReferenceLatents.startIndex(strength: 0.6, steps: 9) == 4)
+    }
+
+    @Test("the entry point falls as the strength rises, and never leaves the run")
+    func startIndexIsMonotonic() {
+        let indices = stride(from: Float(0), through: 1, by: 0.05).map {
+            ReferenceLatents.startIndex(strength: $0, steps: 9)
         }
         #expect(indices.allSatisfy { (0..<9).contains($0) })
-        #expect(zip(indices, indices.dropFirst()).allSatisfy { $0 <= $1 }, "never goes back up")
+        #expect(zip(indices, indices.dropFirst()).allSatisfy { $0 >= $1 }, "never goes back down")
     }
 }

@@ -5,18 +5,10 @@ import MLX
 import UniformTypeIdentifiers
 
 /// Turning the decoder's output into PNG bytes, and a picture back into the encoder's input.
+///
+/// Both directions take or return a `CGImage`; reading one off disk is the backend's job, not
+/// the kit's, so nothing here opens a file.
 public enum QwenPixelBuffer {
-    /// The first image in the file at `url`, unscaled.
-    ///
-    /// ImageIO rather than AppKit, so this can be called off the main actor and from a package
-    /// that must not import a UI framework. Whatever ImageIO reads is accepted.
-    public static func image(at url: URL) throws -> CGImage {
-        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-              let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
-        else { throw QwenImagePipelineError.referenceUnreadable(url) }
-        return image
-    }
-
     /// Draws `image` at `width` by `height` and returns it the way the encoder wants it.
     ///
     /// - Returns: `[1, height, width, 3]` in the range -1 to 1, which is `png(from:)`'s input

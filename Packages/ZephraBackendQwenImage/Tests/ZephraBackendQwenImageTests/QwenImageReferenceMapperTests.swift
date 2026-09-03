@@ -58,10 +58,21 @@ struct QwenImageReferenceMapperTests {
         #expect(try request(settings(reference: .init(url: url, strength: 0))).referenceStrength == 0.1)
     }
 
+    @Test("a model that cannot start from a picture is never handed one")
+    func unsupportedModelDropsTheReference() throws {
+        let url = try writePNG(width: 8, height: 8)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let made = try request(
+            settings(reference: ReferenceImage(url: url, strength: 0.5)), Self.referencelessModel
+        )
+        #expect(made.referenceImage == nil)
+        #expect(made.referenceStrength == 1)
+    }
+
     @Test("a reference that will not open fails before any denoising starts")
     func unreadableReferenceThrows() {
         let missing = folder.appending(path: "not-a-picture.png")
-        #expect(throws: QwenImagePipelineError.referenceUnreadable(missing)) {
+        #expect(throws: ReferenceImageDecoding.Failure.self) {
             try request(settings(reference: ReferenceImage(url: missing, strength: 0.5)))
         }
     }
@@ -87,4 +98,37 @@ struct QwenImageReferenceMapperTests {
         #expect(CGImageDestinationFinalize(destination))
         return url
     }
+
+    /// A stand-in for a model with no image encoder, so the drop is exercised: both models the
+    /// catalog ships can start from a picture.
+    private static let referencelessModel: ModelDescriptor = {
+        let base = ModelCatalog.qwenImage2512_4bit
+        let capabilities = ModelCapabilities(
+            sizeAlignment: base.capabilities.sizeAlignment,
+            sizePresets: base.capabilities.sizePresets,
+            sizeBounds: base.capabilities.sizeBounds,
+            defaultSize: base.capabilities.defaultSize,
+            stepBounds: base.capabilities.stepBounds,
+            defaultSteps: base.capabilities.defaultSteps,
+            guidanceBounds: base.capabilities.guidanceBounds,
+            defaultGuidance: base.capabilities.defaultGuidance,
+            supportsNegativePrompt: base.capabilities.supportsNegativePrompt,
+            supportsSeed: base.capabilities.supportsSeed,
+            supportsReferenceImage: false
+        )
+        return ModelDescriptor(
+            id: "referenceless",
+            displayName: "Referenceless",
+            variantName: nil,
+            backend: .qwenImage,
+            source: base.source,
+            quantization: base.quantization,
+            downloadBytes: base.downloadBytes,
+            residentBytes: base.residentBytes,
+            peakBytes: base.peakBytes,
+            tiledPeakBytes: base.tiledPeakBytes,
+            maxPromptTokens: base.maxPromptTokens,
+            capabilities: capabilities
+        )
+    }()
 }

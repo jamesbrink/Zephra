@@ -10,16 +10,22 @@ import Foundation
 ///
 /// `strength` is that number, read as "how much of the picture to throw away":
 ///
-/// - `1` is the ordinary text-to-image path — the loop starts at the first sigma, which is
-///   pure noise, and the reference contributes nothing.
-/// - `0` would return the reference unchanged, which is why no model offers it.
+/// - `1` is the ordinary text-to-image path — the whole run happens, starting from pure noise,
+///   and the reference contributes nothing. Models' bounds stop short of it for that reason.
+/// - `0` would return the reference unchanged, which is why no model offers it either.
 /// - `0.6`, the default, keeps the reference's composition and colour while re-drawing the
 ///   detail from the prompt.
 ///
-/// Concretely, the loop starts at the first step whose sigma is at or below `strength`, and the
-/// latent it starts from is the encoded reference mixed with that step's share of noise. So a
-/// nine-step run at `0.6` runs the last four or five of its steps, and the step count the user
-/// asked for stays the count they see: progress still reports out of nine.
+/// Concretely, strength buys a share of the steps: `steps * strength` of them run, rounded and
+/// never fewer than one, and the loop enters that far from the end, starting from the encoded
+/// reference mixed with that step's share of noise. So a nine-step run at `0.6` runs its last
+/// five steps. The step count the user asked for stays the count they see: progress still
+/// reports out of nine.
+///
+/// Reading it as a noise level instead — entering at the first sigma at or below the strength —
+/// looks equivalent and is not, because a distilled ladder is not evenly spaced. Qwen-Image's
+/// four steps are 1.0, 0.767, 0.456 and 0.02, so every strength from 0.1 to 0.4 would find that
+/// 0.02 first and hand the picture back untouched.
 public struct ReferenceImage: Hashable, Sendable, Codable {
     /// Where the picture lives. A PNG in the library's `Sources/` folder, in practice, but the
     /// backends decode whatever ImageIO reads.
@@ -50,10 +56,17 @@ public struct ReferenceImage: Hashable, Sendable, Codable {
         try Self.digest(ofFileAt: url)
     }
 
-    /// The SHA-256 of any file's bytes, lowercase hex, read without mapping the whole file into
-    /// memory eagerly.
+    /// The SHA-256 of any file's bytes, lowercase hex.
+    ///
+    /// Read a megabyte at a time rather than in one go: this runs on whatever thread is saving
+    /// a generation, and a source image is an arbitrary file the user chose.
     public static func digest(ofFileAt url: URL) throws -> String {
-        let data = try Data(contentsOf: url, options: .mappedIfSafe)
-        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        var hash = SHA256()
+        while let chunk = try handle.read(upToCount: 1 << 20), !chunk.isEmpty {
+            hash.update(data: chunk)
+        }
+        return hash.finalize().map { String(format: "%02x", $0) }.joined()
     }
 }

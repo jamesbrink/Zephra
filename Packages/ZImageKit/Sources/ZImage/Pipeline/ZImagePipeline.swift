@@ -497,9 +497,12 @@ public final class ZImagePipeline {
     var startIndex = 0
     #if canImport(CoreGraphics)
     if let reference = request.referenceImage {
+      // The encode is a whole pass through the autoencoder, so a run cancelled while the model
+      // was still loading should stop here rather than at the first step.
+      try Task.checkCancellation()
       let sigmasArray = scheduler.sigmas.asArray(Float.self)
       startIndex = ReferenceLatents.startIndex(
-        sigmas: sigmasArray, strength: request.referenceStrength, steps: request.steps
+        strength: request.referenceStrength, steps: request.steps
       )
       let referenceLatents = try ZImageStepProfile.measure("reference encode") { () -> MLXArray in
         let encoded = try PipelineUtilities.encodeImageToLatents(

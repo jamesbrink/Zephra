@@ -55,9 +55,6 @@ public struct ModelCapabilities: Hashable, Sendable {
         referenceStrengthBounds: ClosedRange<Double> = 0.1...0.9,
         defaultReferenceStrength: Double = 0.6
     ) {
-        self.supportsReferenceImage = supportsReferenceImage
-        self.referenceStrengthBounds = referenceStrengthBounds
-        self.defaultReferenceStrength = defaultReferenceStrength
         self.sizeAlignment = sizeAlignment
         self.sizePresets = sizePresets
         self.sizeBounds = sizeBounds
@@ -68,6 +65,9 @@ public struct ModelCapabilities: Hashable, Sendable {
         self.defaultGuidance = defaultGuidance
         self.supportsNegativePrompt = supportsNegativePrompt
         self.supportsSeed = supportsSeed
+        self.supportsReferenceImage = supportsReferenceImage
+        self.referenceStrengthBounds = referenceStrengthBounds
+        self.defaultReferenceStrength = defaultReferenceStrength
     }
 
     /// Rewrites settings into the nearest form this model can run, rather than rejecting them.

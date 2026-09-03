@@ -111,8 +111,10 @@ struct BenchOptions: Sendable {
 
         --model names a catalog entry, so variants can be compared at a fixed seed.
         --reference starts every timed run from that picture instead of from pure noise, and
-        --strength (0 to 1, default 0.6) says how far it may travel from it: 1 ignores the
-        picture, small values keep most of it. The report says which step the run began at.
+        --strength (0 to 1, default 0.6) says how far it may travel from it: it buys that share
+        of the steps, so 1 runs them all and ignores the picture while small values keep most of
+        it. The model's own bounds still apply — both shipped families clamp to 0.1 to 0.9 — so
+        the report, not this flag, is what says the strength and the step the run began at.
         --backend and --snapshot together run a model the catalog does not carry yet, which
         is how a new family is measured before its entry can be written.
         --micro times the DiT's individual MLX kernels at --size worth of tokens and

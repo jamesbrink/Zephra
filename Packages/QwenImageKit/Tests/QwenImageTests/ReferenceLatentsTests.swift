@@ -31,40 +31,57 @@ struct ReferenceLatentsTests {
     @Test("a strength of 1 runs every step, so a reference at full strength changes nothing")
     func fullStrengthStartsAtZero() {
         for steps in [1, 4, 8, 12] {
-            let index = QwenImageReferenceLatents.startIndex(
-                sigmas: sigmas(steps: steps), strength: 1, steps: steps)
-            #expect(index == 0, "\(steps) steps")
+            #expect(
+                QwenImageReferenceLatents.startIndex(strength: 1, steps: steps) == 0,
+                "\(steps) steps")
         }
     }
 
-    @Test("a strength below the whole ladder still runs the last step, never none")
-    func zeroStrengthRunsTheLastStep() {
-        for steps in [1, 4, 8, 12] {
-            let index = QwenImageReferenceLatents.startIndex(
-                sigmas: sigmas(steps: steps), strength: 0, steps: steps)
-            #expect(index == steps - 1, "\(steps) steps")
-        }
+    @Test("strength is a share of the steps, not a noise level")
+    func startIndexIsAShareOfTheSteps() {
+        // 4 * 0.6 = 2.4, so two of the four steps run and the loop enters at 2.
+        #expect(QwenImageReferenceLatents.startIndex(strength: 0.6, steps: 4) == 2)
+        // 4 * 0.9 = 3.6, which rounds to the whole run: entry 0, where the mix is pure noise.
+        #expect(QwenImageReferenceLatents.startIndex(strength: 0.9, steps: 4) == 0)
+        #expect(QwenImageReferenceLatents.startIndex(strength: 0.5, steps: 4) == 2)
     }
 
-    @Test("the chosen step is the first at or below the strength, and the one before is above")
-    func startIndexStraddlesTheStrength() {
-        let ladder = sigmas(steps: 8)
-        for strength in [0.2, 0.4, 0.6, 0.8] {
-            let index = QwenImageReferenceLatents.startIndex(
-                sigmas: ladder, strength: strength, steps: 8)
-            #expect(ladder[index] <= strength, "strength \(strength)")
-            if index > 0 { #expect(ladder[index - 1] > strength, "strength \(strength)") }
-        }
+    @Test("a strength too small to buy a whole step still buys one, never none")
+    func tinyStrengthRunsTheLastStep() {
+        // 4 * 0.1 is 0.4, which rounds to nothing; running no steps would hand the picture back.
+        #expect(QwenImageReferenceLatents.startIndex(strength: 0.1, steps: 4) == 3)
+        #expect(QwenImageReferenceLatents.startIndex(strength: 0, steps: 4) == 3)
     }
 
-    @Test("the entry point falls as the strength falls, and never leaves the run")
+    @Test("the four-step ladder's tail no longer swallows most of the strength range")
+    func strengthsSpreadAcrossTheLadder() {
+        // The regression this mapping exists for. The four-step ladder ends at the configured
+        // terminal sigma, near zero, so choosing the first sigma at or below the strength sent
+        // every strength from 0.1 to 0.4 to that last rung — one step from almost no noise, and
+        // the picture handed straight back.
+        let ladder = sigmas(steps: 4)
+        #expect(ladder[3] < 0.05, "the tail really is that low")
+
+        let entries = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9].map {
+            QwenImageReferenceLatents.startIndex(strength: $0, steps: 4)
+        }
+        #expect(Set(entries) == [0, 1, 2, 3], "every rung is reachable")
+        #expect(entries.filter { $0 == 3 }.count == 3, "only 0.1 to 0.3 run a single step")
+        // Four steps is four entry points, so the bottom of the range has nowhere else to go:
+        // one step is the fewest that can run, and it necessarily starts at the last sigma.
+        // That is the distillation's granularity, not this mapping's doing — the nine-step
+        // Z-Image ladder spreads the same range over nine.
+        #expect(QwenImageReferenceLatents.startIndex(strength: 0.4, steps: 4) == 2)
+        #expect(ladder[2] > 0.4, "0.4 now enters at a real noise level, where it used to not")
+    }
+
+    @Test("the entry point falls as the strength rises, and never leaves the run")
     func startIndexIsMonotonic() {
-        let ladder = sigmas(steps: 8)
-        let indices = stride(from: 1.0, through: 0.0, by: -0.05).map {
-            QwenImageReferenceLatents.startIndex(sigmas: ladder, strength: $0, steps: 8)
+        let indices = stride(from: 0.0, through: 1.0, by: 0.05).map {
+            QwenImageReferenceLatents.startIndex(strength: $0, steps: 8)
         }
         #expect(indices.allSatisfy { (0..<8).contains($0) })
-        #expect(zip(indices, indices.dropFirst()).allSatisfy { $0 <= $1 }, "never goes back up")
+        #expect(zip(indices, indices.dropFirst()).allSatisfy { $0 >= $1 }, "never goes back down")
     }
 
     @Test("the mix is the schedule's own interpolation, and its ends are the two inputs")

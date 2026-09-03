@@ -98,8 +98,10 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
   branch beside it. A strength below the last sigma still runs the last step: running none would
   hand the reference straight back.
 
-  `encodeImageToLatents` moved from `ZImageControlPipeline`, where it was private and never
-  called, to `PipelineUtilities`, so the SDEdit path and the ControlNet path share one encode
+  `encodeImageToLatents` moved from `ZImageControlPipeline`, where it was private to the
+  ControlNet path and so never reached from Zephra, which does not run that pipeline — it was
+  live code upstream, not dead code. It is now in `PipelineUtilities`, so the SDEdit path and
+  the ControlNet path share one encode
   instead of drifting as two copies. Its body is unchanged apart from taking the latent channel
   count and the scale and shift factors directly rather than a `ZImageVAEConfig`, because the
   two callers have that config in two different shapes. The encoder it drives needs no new

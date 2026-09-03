@@ -8,21 +8,27 @@ import Foundation
 import MLX
 
 public enum ReferenceLatents {
-  /// The first step whose sigma is at or below `strength`, which is where the loop starts.
+  /// Where in the run to start, for a strength between zero and one.
   ///
-  /// The ladder runs from 1 down to nearly 0, so a strength of 1 lands on step 0 and runs
-  /// everything (and the mix below is then pure noise, exactly the text-to-image path); a
-  /// small strength lands near the end and keeps most of the picture. When nothing on the
-  /// ladder is small enough — a strength below the last sigma — the answer is the last step,
-  /// because running no steps at all would hand the reference straight back.
+  /// Strength buys a *share of the steps*, not a noise level: `steps * strength` steps run,
+  /// rounded and never fewer than one, and the loop enters that far from the end. This is the
+  /// mapping diffusers' image-to-image pipelines use in `get_timesteps`, and the reason to
+  /// follow it rather than to look up the first sigma at or below the strength is that a
+  /// distilled ladder is not evenly spaced. Qwen-Image's four steps are 1.0, 0.767, 0.456 and
+  /// 0.02: every strength from 0.1 to 0.4 would find that 0.02 first, run a single step from
+  /// almost no noise, and hand the picture back unchanged.
   ///
-  /// `sigmas` is the scheduler's array including its trailing zero; only the first `steps` of
-  /// it are steps, so the zero is never chosen.
-  public static func startIndex(sigmas: [Float], strength: Float, steps: Int) -> Int {
+  /// So 0.9 of nine steps enters at 1 and runs 8; 0.6 of nine enters at 4 and runs 5; 0.1 of
+  /// nine enters at 8 and runs the last one alone. At a strength of 1 the entry is 0, where the
+  /// mix below is pure noise and the reference contributes nothing — a reference at full
+  /// strength is exactly the text-to-image path, which is why the models' bounds stop at 0.9.
+  ///
+  /// The sigma ladder is not consulted here; the caller reads `sigmas[startIndex]` for the mix.
+  public static func startIndex(strength: Float, steps: Int) -> Int {
     guard steps > 0 else { return 0 }
-    let ladder = sigmas.prefix(steps)
-    guard let found = ladder.firstIndex(where: { $0 <= strength }) else { return steps - 1 }
-    return min(max(found, 0), steps - 1)
+    let requested = Int((Float(steps) * strength).rounded())
+    let running = min(max(requested, 1), steps)
+    return steps - running
   }
 
   /// The latent that step starts from: the encoded reference carrying that step's share of

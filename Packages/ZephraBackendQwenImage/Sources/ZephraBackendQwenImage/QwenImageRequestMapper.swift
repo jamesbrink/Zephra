@@ -21,7 +21,9 @@ enum QwenImageRequestMapper {
             steps: clamped.steps,
             seed: clamped.seed,
             maxPromptTokens: descriptor.maxPromptTokens,
-            referenceImage: try clamped.reference.map { try QwenPixelBuffer.image(at: $0.url) },
+            referenceImage: try clamped.reference.map {
+                try ReferenceImageDecoding.cgImage(at: $0.url)
+            },
             referenceStrength: clamped.reference?.strength ?? 1
         )
     }

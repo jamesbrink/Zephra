@@ -54,9 +54,10 @@ public enum PipelineUtilities {
     }
 
     #if canImport(CoreGraphics)
-    // ZEPHRA-PATCH: lifted verbatim out of ZImageControlPipeline, where it was private and
-    // unreachable, so the main pipeline's SDEdit path and the control pipeline's conditioning
-    // share one encode instead of drifting apart as two copies.
+    // ZEPHRA-PATCH: lifted verbatim out of ZImageControlPipeline, where it was private to the
+    // ControlNet path and so never reached from Zephra, which does not run that pipeline. Here
+    // the main pipeline's SDEdit path and the control pipeline's conditioning share one encode
+    // instead of drifting apart as two copies.
     public static func encodeImageToLatents(
         cgImage: CGImage,
         vae: AutoencoderKL,

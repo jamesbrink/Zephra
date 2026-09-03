@@ -237,13 +237,20 @@ signature it has and nothing above the backends learns a new call.
   Zephra can reach and a schedule that interpolates linearly, not about edit
   conditioning, which is a different model rather than a setting.
 - Strength reads as "how much of the picture to throw away". 1 is the ordinary
-  text-to-image path — the loop starts at the first sigma, which is pure noise,
-  and the reference contributes nothing — and 0 would return it unchanged, so
-  neither end is offered. Both families take the same number because both
-  schedules interpolate `x_t = (1 - sigma) * x0 + sigma * noise`: the loop
-  starts at the first step whose sigma is at or below the strength, from the
-  encoded picture mixed with that step's share of the run's own seeded noise.
-  Measured on the shipped nine-step Z-Image ladder, 0.6 enters at step 7 of 9.
+  text-to-image path — the whole run happens from pure noise and the reference
+  contributes nothing — and 0 would return it unchanged, so neither end is
+  offered and the bounds are 0.1 to 0.9.
+- **Strength buys a share of the steps, not a noise level.** `steps * strength`
+  of them run, rounded and never fewer than one, and the loop enters that far
+  from the end, starting from the encoded picture mixed with that step's share
+  of the run's own seeded noise. So 0.6 of Z-Image's nine steps enters at 4 and
+  runs 5; 0.6 of Qwen-Image's four enters at 2 and runs 2. This is diffusers'
+  `get_timesteps` mapping, and following it rather than entering at the first
+  sigma at or below the strength is load-bearing: a distilled ladder is not
+  evenly spaced. Qwen-Image's four sigmas are 1.0, 0.767, 0.456 and 0.02, so
+  the noise-level reading sent every strength from 0.1 to 0.4 to that 0.02 and
+  handed the picture back untouched. Both families take the same number because
+  both schedules interpolate `x_t = (1 - sigma) * x0 + sigma * noise`.
 - Progress still counts against the full step count, so a queue card drawing
   one segment per step shows the skipped ones as finished rather than showing a
   shorter run.

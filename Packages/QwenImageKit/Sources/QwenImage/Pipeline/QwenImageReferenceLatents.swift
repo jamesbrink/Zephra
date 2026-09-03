@@ -13,20 +13,26 @@ import MLX
 /// schedules they read are typed differently. Fifteen lines of interpolation is a smaller cost
 /// than a dependency edge between a vendored package and ours.
 public enum QwenImageReferenceLatents {
-    /// The first step whose sigma is at or below `strength`, which is where the loop starts.
+    /// Where in the run to start, for a strength between zero and one.
     ///
-    /// The ladder falls from 1 to nearly 0, so a strength of 1 lands on step 0 and runs
-    /// everything — and the mix there is pure noise, so a reference at full strength produces
-    /// the text-to-image image exactly. A strength below every rung still runs the last step:
-    /// running none would hand the reference straight back.
+    /// Strength buys a *share of the steps*, not a noise level: `steps * strength` steps run,
+    /// rounded and never fewer than one, and the loop enters that far from the end. This is the
+    /// mapping diffusers' image-to-image pipelines use in `get_timesteps`, and this model is
+    /// exactly why it is the right one. Its four distilled steps are 1.0, 0.767, 0.456 and
+    /// 0.02, so picking the first sigma at or below the strength would send every strength from
+    /// 0.1 to 0.4 to that 0.02 — one step from almost no noise, and the picture handed back
+    /// unchanged.
     ///
-    /// `sigmas` may carry the scheduler's trailing zero; only the first `steps` are steps, so
-    /// the zero is never chosen.
-    public static func startIndex(sigmas: [Double], strength: Double, steps: Int) -> Int {
+    /// So 0.6 of four steps enters at 2 and runs 2; 0.9 of four rounds up to all four, which
+    /// enters at 0, where the mix below is pure noise and the reference contributes nothing.
+    /// A reference at full strength is exactly the text-to-image path.
+    ///
+    /// The sigma ladder is not consulted here; the caller reads `sigmas[startIndex]` for the mix.
+    public static func startIndex(strength: Double, steps: Int) -> Int {
         guard steps > 0 else { return 0 }
-        let ladder = sigmas.prefix(steps)
-        guard let found = ladder.firstIndex(where: { $0 <= strength }) else { return steps - 1 }
-        return min(max(found, 0), steps - 1)
+        let requested = Int((Double(steps) * strength).rounded())
+        let running = min(max(requested, 1), steps)
+        return steps - running
     }
 
     /// The latent that step starts from: `x_t = (1 - sigma) * x0 + sigma * noise`.
