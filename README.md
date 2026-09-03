@@ -101,10 +101,10 @@ readout while that happens.
   image the same press would have made.
 - Press Generate again while an image is running to queue the next prompt; prompts run one
   after another and the subtitle counts what is still waiting. The sidebar's timeline shows
-  the same work as one list: the run being rendered as an amber card with its steps filling in,
-  the runs still waiting above it, each with a cross that takes the whole run back out, and
-  under every run a square per seed — dashed until the image lands, then the picture, which a
-  press puts back on the canvas. Stop ends the current image and drops
+  the same work as one list: the runs still waiting as cards, each with a cross that takes the
+  whole run back out, the run being rendered as an amber card with its steps filling in, and
+  under those one wall of today's pictures with a dashed square at its head for each seed still
+  to come — the image lands in its square, and a press puts it back on the canvas. Stop ends the current image and drops
   the queue; during the first-run download or the load it abandons that instead, and the canvas
   offers to pick it up again — a stopped download resumes from what it already fetched.
 - The model menu in the toolbar names the model that is running and lists the rest, each with
