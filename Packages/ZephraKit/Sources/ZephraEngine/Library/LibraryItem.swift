@@ -26,7 +26,7 @@ public struct LibraryItem: Identifiable, Hashable, Sendable {
     /// Bytes on disk, for the inspector's File row.
     public let fileSize: Int64
     /// The file's modification date, which is what a rescan compares to decide what to re-read.
-    public let contentModifiedAt: Date
+    public private(set) var contentModifiedAt: Date
     /// Everything searchable about the item, folded once so matching is a substring test.
     public private(set) var searchKey: String
     /// The start of the local day the image was made on, which is what the grid groups by.
@@ -62,6 +62,15 @@ public struct LibraryItem: Identifiable, Hashable, Sendable {
         copy.annotation = annotation
         copy.searchKey = Self.searchKey(
             provenance: provenance, annotation: annotation, fileName: url.lastPathComponent)
+        return copy
+    }
+
+    /// The same item after a write this app made: the annotation that reached the file, and the
+    /// modification date it now has, so the next scan sees a file it already knows rather than
+    /// re-reading one Zephra changed itself.
+    public func written(_ annotation: LibraryAnnotation, modifiedAt: Date) -> LibraryItem {
+        var copy = withAnnotation(annotation)
+        copy.contentModifiedAt = modifiedAt
         return copy
     }
 

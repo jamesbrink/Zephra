@@ -8,27 +8,31 @@ extension LibraryScan {
     /// Files iCloud has evicted are left out: their metadata is there but their bytes are not,
     /// and asking for them would start a download nobody asked for.
     func listings(in directory: URL) -> [Listing] {
-        let keys: [URLResourceKey] = [
-            .contentModificationDateKey, .fileSizeKey, .ubiquitousItemDownloadingStatusKey,
-        ]
         let contents = (try? FileManager.default.contentsOfDirectory(
             at: directory,
-            includingPropertiesForKeys: keys,
+            includingPropertiesForKeys: Array(Self.listingKeys),
             options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants, .skipsPackageDescendants]
         )) ?? []
-        return contents.compactMap { url in
-            guard url.pathExtension.lowercased() == "png" else { return nil }
-            guard let values = try? url.resourceValues(forKeys: Set(keys)) else { return nil }
-            if let status = values.ubiquitousItemDownloadingStatus, status != .current {
-                return nil
-            }
-            return Listing(
-                url: url.standardizedFileURL,
-                modifiedAt: values.contentModificationDate ?? .distantPast,
-                size: Int64(values.fileSize ?? 0)
-            )
-        }
+        return contents.compactMap(listing(of:))
     }
+
+    /// One file's listing, for the case where the caller already knows which file changed and a
+    /// whole directory listing would be the expensive way to find out.
+    func listing(of url: URL) -> Listing? {
+        guard url.pathExtension.lowercased() == "png",
+              let values = try? url.resourceValues(forKeys: Self.listingKeys)
+        else { return nil }
+        if let status = values.ubiquitousItemDownloadingStatus, status != .current { return nil }
+        return Listing(
+            url: url.standardizedFileURL,
+            modifiedAt: values.contentModificationDate ?? .distantPast,
+            size: Int64(values.fileSize ?? 0)
+        )
+    }
+
+    static let listingKeys: Set<URLResourceKey> = [
+        .contentModificationDateKey, .fileSizeKey, .ubiquitousItemDownloadingStatusKey,
+    ]
 
     /// One file read into an item, or nil when Zephra has no business showing it.
     ///
