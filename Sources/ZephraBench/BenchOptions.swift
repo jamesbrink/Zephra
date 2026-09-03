@@ -23,6 +23,10 @@ struct BenchOptions: Sendable {
     var snapshot: URL?
     /// The catalog identifier of the model to load, defaulting to the app's own default.
     var model = ModelCatalog.default.id
+    /// A picture every timed run starts from instead of pure noise, SDEdit-style.
+    var reference: URL?
+    /// How far those runs may travel from it. Only read when there is a reference.
+    var referenceStrength = 0.6
 
     /// Reads options from the command line, exiting with usage text on anything unrecognised.
     /// A benchmark is run by hand, so a typo should stop it rather than quietly measure the
@@ -42,7 +46,7 @@ struct BenchOptions: Sendable {
                 print(usage)
                 exit(0)
             case "--size", "--steps", "--runs", "--prompt", "--out", "--model", "--backend",
-                "--snapshot":
+                "--snapshot", "--reference", "--strength":
                 guard index < arguments.count else { fail("\(flag) needs a value") }
                 let value = arguments[index]
                 index += 1
@@ -64,6 +68,8 @@ struct BenchOptions: Sendable {
         case "--model": options.model = resolvedModel(value)
         case "--backend": options.backend = BackendID(value)
         case "--snapshot": options.snapshot = URL(fileURLWithPath: value)
+        case "--reference": options.reference = URL(fileURLWithPath: value)
+        case "--strength": options.referenceStrength = fraction(value, flag)
         default: fail("unknown option \(flag)")
         }
     }
@@ -75,6 +81,15 @@ struct BenchOptions: Sendable {
             fail("unknown model \(value); try one of \(ModelCatalog.all.map(\.id).joined(separator: ", "))")
         }
         return value
+    }
+
+    /// A strength between zero and one. Out of range is a typo worth stopping for: the model
+    /// would clamp it into its own bounds and the report would quietly describe another run.
+    private static func fraction(_ value: String, _ flag: String) -> Double {
+        guard let number = Double(value), (0...1).contains(number) else {
+            fail("\(flag) needs a number from 0 to 1, got \(value)")
+        }
+        return number
     }
 
     private static func positive(_ value: String, _ flag: String) -> Int {
@@ -91,9 +106,13 @@ struct BenchOptions: Sendable {
 
     private static let usage = """
         usage: ZephraBench [--model ID] [--size N] [--steps N] [--runs N] [--prompt TEXT] \
-        [--out PATH] [--json] [--micro] [--backend NAME --snapshot DIR]
+        [--out PATH] [--reference PATH --strength S] [--json] [--micro] \
+        [--backend NAME --snapshot DIR]
 
         --model names a catalog entry, so variants can be compared at a fixed seed.
+        --reference starts every timed run from that picture instead of from pure noise, and
+        --strength (0 to 1, default 0.6) says how far it may travel from it: 1 ignores the
+        picture, small values keep most of it. The report says which step the run began at.
         --backend and --snapshot together run a model the catalog does not carry yet, which
         is how a new family is measured before its entry can be written.
         --micro times the DiT's individual MLX kernels at --size worth of tokens and

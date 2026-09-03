@@ -10,6 +10,16 @@ struct BenchReport: Codable, Sendable {
     let size: Int
     /// Denoising steps per timed run.
     let steps: Int
+    /// The step the loop actually began at, counting from one.
+    ///
+    /// 1 for an ordinary run. Starting from a reference picture joins the schedule partway
+    /// down, so `steps - firstStep + 1` steps ran and the wall-clock time is against that,
+    /// not against `steps`.
+    let firstStep: Int
+    /// The picture the runs started from, when there was one and the model could use it.
+    let referencePath: String?
+    /// How far they were allowed to travel from it.
+    let referenceStrength: Double?
     /// Seconds spent reading weights into memory, excluding any download.
     let loadSeconds: Double
     /// Wall-clock seconds for each timed run, warm-up excluded.
@@ -31,6 +41,9 @@ struct BenchReport: Codable, Sendable {
         return runSeconds.reduce(0, +) / Double(runSeconds.count)
     }
 
+    /// How many denoising steps each timed run actually took.
+    var effectiveSteps: Int { max(0, steps - firstStep + 1) }
+
     /// The report as JSON, with stable key order so runs can be diffed.
     func jsonText() -> String {
         let encoder = JSONEncoder()
@@ -51,6 +64,15 @@ struct BenchReport: Codable, Sendable {
             row("image", "\(size) x \(size), \(steps) steps"),
             row("load", seconds(loadSeconds)),
         ]
+        if let referencePath, let referenceStrength {
+            lines.append(row("reference", referencePath))
+            lines.append(
+                row(
+                    "strength",
+                    String(
+                        format: "%.2f, from step %d of %d (%d steps ran)",
+                        referenceStrength, firstStep, steps, effectiveSteps)))
+        }
         for (index, value) in runSeconds.enumerated() {
             lines.append(row("run \(index + 1)", seconds(value)))
         }

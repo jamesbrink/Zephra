@@ -37,6 +37,7 @@ enum BenchRunner {
         let settings = timedSettings(descriptor, options: options)
         var runSeconds: [Double] = []
         var stepIntervals: [Double] = []
+        var firstStep = 1
         var image = Data()
         for index in 1...options.runs {
             note("run \(index) of \(options.runs)", verbose)
@@ -47,6 +48,7 @@ enum BenchRunner {
             }
             runSeconds.append((clock.now - start).seconds)
             stepIntervals += stepClock.intervals
+            firstStep = stepClock.firstStep ?? 1
         }
         try write(image, to: options.output)
         let memory = BenchBackends.runtime().memorySnapshot()
@@ -56,6 +58,9 @@ enum BenchRunner {
             model: descriptor.id,
             size: settings.size.width,
             steps: settings.steps,
+            firstStep: firstStep,
+            referencePath: settings.reference?.url.path,
+            referenceStrength: settings.reference?.strength,
             loadSeconds: loadDuration.seconds,
             runSeconds: runSeconds,
             meanSecondsPerStep: mean(stepIntervals),
@@ -82,7 +87,11 @@ enum BenchRunner {
     /// The settings every timed run shares. The seed is fixed so repeated invocations produce
     /// the same image and the same amount of work. The result is put through the model's own
     /// limits here rather than only inside the backend, so the report states the size and step
-    /// count that actually ran instead of the ones that were asked for.
+    /// count that actually ran instead of the ones that were asked for — and, on a model that
+    /// cannot start from a picture, says so by leaving `--reference` out of the report.
+    ///
+    /// The warm-up is deliberately left alone: it builds its settings from `defaults(for:)`,
+    /// which carries no reference, so it stays the cheap full-ladder run it is meant to be.
     private static func timedSettings(
         _ descriptor: ModelDescriptor,
         options: BenchOptions
@@ -92,6 +101,9 @@ enum BenchRunner {
         settings.size = ImageSize(width: options.size, height: options.size)
         settings.steps = options.steps
         settings.seed = 42
+        settings.reference = options.reference.map {
+            ReferenceImage(url: $0, strength: options.referenceStrength)
+        }
         return descriptor.capabilities.clamp(settings)
     }
 
