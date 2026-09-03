@@ -5,9 +5,9 @@ import ZephraEngine
 /// Launches the app frozen in one engine state, with no model and no network, so the
 /// interface can be screenshotted and inspected on its own.
 ///
-/// Set `ZEPHRA_PREVIEW_STATE` to `ready`, `image`, `editing`, `generating`, `queued`, `batch`,
-/// `library`, `downloading`, `building`, or `failed` before launching. Debug builds only; in
-/// Release this is inert.
+/// Set `ZEPHRA_PREVIEW_STATE` to `ready`, `image`, `editing`, `tucked`, `generating`, `queued`,
+/// `batch`, `library`, `downloading`, `building`, or `failed` before launching. Debug builds
+/// only; in Release this is inert.
 enum InterfacePreview {
     /// A store frozen in the requested state, or nil for a normal launch. The frozen store has
     /// no backend, so `bootstrap()` on it does nothing and no model is ever looked for.
@@ -49,7 +49,11 @@ enum InterfacePreview {
     /// shows the same thing on every machine.
     static func workspace() -> WorkspaceSelection? {
         guard requestedState != nil else { return nil }
-        return WorkspaceSelection(pane: name == "library" ? .library : .canvas)
+        let workspace = WorkspaceSelection(pane: name == "library" ? .library : .canvas)
+        // `tucked` exists to photograph the lip, so the window has to actually be tucked when
+        // the screenshot is taken rather than reaching that state through a simulated click.
+        if name == "tucked" { workspace.promptTucked = true }
+        return workspace
     }
 
     /// A library with no folder behind it, or nil for a normal launch. Nothing in it is read
@@ -90,6 +94,7 @@ enum InterfacePreview {
         switch state {
         case .generating, .cancelling: PreviewImages.sample()
         case .ready where name == "image": PreviewImages.sample()
+        case .ready where name == "tucked": PreviewImages.sample()
         case .ready where name == "editing":
             PreviewImages.sample(reference: PreviewImages.referencePNG())
         default: nil
@@ -103,7 +108,7 @@ enum InterfacePreview {
     private static var requestedState: EngineState? {
         #if DEBUG
         switch name {
-        case "ready", "image", "editing", "batch", "library":
+        case "ready", "image", "editing", "tucked", "batch", "library":
             return .ready
         case "generating":
             return .generating(GenerationProgressEvent(

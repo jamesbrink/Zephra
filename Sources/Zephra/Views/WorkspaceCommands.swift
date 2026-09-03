@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The menu bar's half of the window's navigation: the two panes, the search field, the
-/// inspector, and the strip of this run's images.
+/// inspector, the strip of this run's images, and the canvas's tucked-away prompt.
 ///
 /// Every one of these has a visible twin in the window. The menu exists so the shortcuts are
 /// discoverable and so the Mac behaves like a Mac.
@@ -26,11 +26,26 @@ struct WorkspaceCommands: Commands {
             Button("Show Inspector") { workspace.inspectorVisible.toggle() }
                 .keyboardShortcut("i", modifiers: [.option, .command])
                 .disabled(workspace.pane != .library)
+            // Escape and typing also bring the prompt back, through `PromptTuckHost`; this is
+            // the discoverable, menu-bar way to do the same thing `WorkspaceCommands`' doc
+            // comment promises for everything else here.
+            Toggle("Hide Prompt", isOn: promptTucked)
+                .keyboardShortcut("p", modifiers: [.option, .command])
+                .disabled(workspace.pane != .canvas)
             Divider()
         }
         CommandGroup(after: .textEditing) {
             Button("Find") { workspace.focusSearch() }
                 .keyboardShortcut("f", modifiers: .command)
         }
+    }
+
+    /// `workspace` arrives as a plain reference rather than `@Bindable`, since `Commands` has no
+    /// view body of its own to project one from — so the toggle gets a binding written by hand.
+    private var promptTucked: Binding<Bool> {
+        Binding(
+            get: { workspace.promptTucked },
+            set: { workspace.promptTucked = $0 }
+        )
     }
 }
