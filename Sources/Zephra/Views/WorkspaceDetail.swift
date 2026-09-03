@@ -27,6 +27,8 @@ struct WorkspaceDetail: View {
         .frame(width: 900, height: 700)
         .environment(ImageCache())
         .environment(WorkspaceSelection(pane: .canvas))
+        .environment(LibraryIndex.preview(count: 38))
+        .environment(ThumbnailCache())
         .environment(GenerationStore.preview(state: .ready, image: PreviewImages.sample()))
 }
 
@@ -35,5 +37,7 @@ struct WorkspaceDetail: View {
         .frame(width: 900, height: 700)
         .environment(ImageCache())
         .environment(WorkspaceSelection(pane: .library))
+        .environment(LibraryIndex.preview(count: 38))
+        .environment(ThumbnailCache())
         .environment(GenerationStore.preview(state: .ready))
 }

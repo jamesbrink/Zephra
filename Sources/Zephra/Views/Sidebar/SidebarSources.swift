@@ -2,10 +2,13 @@ import SwiftUI
 import ZephraCore
 import ZephraEngine
 
-/// Where to look: the standing collections, then one row per model.
+/// Where to look: the standing collections, one row per model, the tags in use, and then
+/// whichever of Today and Albums belongs to the pane that is showing.
 ///
-/// The counts are zeroes until the library index exists. They are drawn now rather than left
-/// out so the row's shape is settled: a number that appears later must not move the title.
+/// The last section changes with the pane because the two answer different questions. On the
+/// canvas the sidebar is a way back to what was just made, so it shows today's images. In the
+/// library the pane is already showing them at full size, so the sidebar stops repeating itself
+/// and does the filing instead.
 struct SidebarSources: View {
     @Environment(WorkspaceSelection.self) private var workspace
 
@@ -16,14 +19,7 @@ struct SidebarSources: View {
         List(selection: selection) {
             Section("Library") {
                 ForEach(Self.standing, id: \.self) { scope in
-                    HStack(spacing: 8) {
-                        Label(scope.title, systemImage: scope.systemImage)
-                            .lineLimit(1)
-                        Spacer(minLength: 8)
-                        CountBadge(0)
-                    }
-                    .frame(height: ZephraChrome.sidebarRowHeight)
-                    .tag(scope)
+                    LibrarySourceRow(scope: scope)
                 }
             }
             Section("Models") {
@@ -31,7 +27,11 @@ struct SidebarSources: View {
                     ModelSourceRow(model: model)
                 }
             }
-            TodaySection()
+            TagSources()
+            switch workspace.pane {
+            case .canvas: TodaySection()
+            case .library: AlbumSources()
+            }
         }
         .listStyle(.sidebar)
     }
@@ -47,8 +47,20 @@ struct SidebarSources: View {
     }
 }
 
-#Preview("Sources") {
+#Preview("Sources, library pane") {
     SidebarSources()
-        .frame(width: 280, height: 460)
+        .frame(width: 280, height: 560)
         .environment(WorkspaceSelection(pane: .library))
+        .environment(LibraryIndex.preview(count: 38))
+        .environment(ThumbnailCache())
+        .environment(GenerationStore.preview(state: .ready))
+}
+
+#Preview("Sources, canvas pane") {
+    SidebarSources()
+        .frame(width: 280, height: 560)
+        .environment(WorkspaceSelection(pane: .canvas))
+        .environment(LibraryIndex.preview(count: 38))
+        .environment(ThumbnailCache())
+        .environment(GenerationStore.preview(state: .ready))
 }

@@ -12,6 +12,7 @@ struct ModelSourceRow: View {
     let model: ModelDescriptor
 
     @Environment(WorkspaceSelection.self) private var workspace
+    @Environment(LibraryIndex.self) private var index
 
     var body: some View {
         Button {
@@ -26,7 +27,7 @@ struct ModelSourceRow: View {
                 Text(model.fullName)
                     .lineLimit(1)
                 Spacer(minLength: 8)
-                CountBadge(0)
+                CountBadge(index.counts.perModel[model.id] ?? 0)
             }
             .frame(height: ZephraChrome.sidebarRowHeight)
             .contentShape(Rectangle())
@@ -51,4 +52,5 @@ struct ModelSourceRow: View {
     .listStyle(.sidebar)
     .frame(width: 280, height: 160)
     .environment(WorkspaceSelection(pane: .library))
+    .environment(LibraryIndex.preview(count: 38))
 }
