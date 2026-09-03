@@ -18,4 +18,14 @@ extension FocusedValues {
     @Entry var focusedLibraryGrid: LibrarySelection?
     /// The library those images came from, so a command can act on the files behind them.
     @Entry var libraryIndex: LibraryIndex?
+    /// Makes an album and starts naming it in the sidebar, or nil when there is no sidebar
+    /// listening — which is every moment the library pane is not up.
+    ///
+    /// An action rather than a piece of state, because the naming happens in `SidebarView`'s own
+    /// `@State` and the menu bar has no way into it. Publishing the action instead means ⌘N and
+    /// the New Album bar are the same line of code, and "is there anything to do" is answered by
+    /// whether anyone published it rather than by the menu re-deriving which pane is showing.
+    /// Spelled `@MainActor` because that is what it is: a method on a view, published by one
+    /// view and called from the menu bar, both of them on the main actor.
+    @Entry var newAlbum: (@MainActor () -> Void)?
 }

@@ -18,6 +18,10 @@ struct ZephraCommands: Commands {
     @FocusedValue(\.focusedLibraryGrid) var grid
     /// The library behind that selection.
     @FocusedValue(\.libraryIndex) var libraryIndex
+    /// Making an album, published by the sidebar while the library pane is up. An action rather
+    /// than a piece of state because naming the new album happens in `SidebarView`'s own state,
+    /// which nothing out here can reach; nil is what greys the item out on the canvas.
+    @FocusedValue(\.newAlbum) var newAlbum
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
@@ -27,6 +31,10 @@ struct ZephraCommands: Commands {
             Button("Cancel") { store.cancel() }
                 .keyboardShortcut(".", modifiers: .command)
                 .disabled(!store.state.isBusy)
+            Divider()
+            Button("New Album") { newAlbum?() }
+                .keyboardShortcut("n", modifiers: .command)
+                .disabled(newAlbum == nil)
         }
         CommandGroup(replacing: .saveItem) {
             Button(target.saveTitle) { save() }

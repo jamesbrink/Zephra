@@ -45,6 +45,17 @@ struct SidebarView: View {
                 NewAlbumBar(action: newAlbum)
             }
         }
+        .focusedSceneValue(\.newAlbum, published)
+    }
+
+    /// ⌘N is the same action as the bar, so the menu bar is handed the action itself rather than
+    /// being told how to make an album. It has to be an action: the naming lives in this view's
+    /// own `@State`, which nothing outside the window's view tree can reach, and putting album
+    /// bookkeeping into `ZephraEngine` or `WorkspaceSelection` to get at it would be moving
+    /// interface state somewhere it does not belong. On the canvas nothing is published, which
+    /// is what greys the menu item out.
+    private var published: (@MainActor () -> Void)? {
+        workspace.pane == .library ? newAlbum : nil
     }
 
     /// Makes an album, shows it, and puts the cursor in its name.
