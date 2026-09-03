@@ -384,7 +384,8 @@ Zephra/
 │   ├── ZephraKit/                 # ours — no MLX dependency
 │   │   ├── Sources/ZephraCore/          # value types + protocols
 │   │   ├── Sources/ZephraEngine/        # actor + store, depends on ZephraCore only
-│   │   │   └── Library/                 # the image folder as an index: scan, query, annotate
+│   │   │   ├── Library/                 # the image folder as an index: scan, query, annotate
+│   │   │   └── Timeline/                # the canvas sidebar's rows: runs grouped by batch, then by adjacency
 │   │   ├── Sources/ZephraSnapshot/      # hub cache and local snapshot checks, Foundation only
 │   │   └── Tests/ZephraCoreTests, ZephraEngineTests, ZephraSnapshotTests
 │   ├── ZephraMLXKit/              # ours — MLX work no family owns: the packer, the tiled decode
@@ -426,8 +427,9 @@ Zephra/
 - `make bench ARGS="..."` — headless timing (`--size`, `--steps`, `--runs`, `--model`, `--json`,
   `--out`, `--micro`, `--reference` to time the editing path, `--strength`); `make logs` streams the app's log; `make screenshot` captures the window;
   `make open` opens the generated project in Xcode; `make clean` removes build output.
-- `ZEPHRA_PREVIEW_STATE=ready|image|editing|generating|queued|batch|library|downloading|building|failed`
-  launches a Debug build frozen in that state with no model, for screenshots.
+- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|queued|batch|library|downloading|building|failed`
+  launches a Debug build frozen in that state with no model, for screenshots; `tucked` is
+  `image` with the floating prompt slid down to its lip.
 
 ### Releasing
 

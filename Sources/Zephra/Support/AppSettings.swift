@@ -30,8 +30,8 @@ enum AppSettings {
     /// How many seeds one press of Generate queues.
     static let batchCount = "batchCount"
 
-    /// Starting values, matching the defaults written at each `@AppStorage` site.
-    ///
+    // Starting values, matching the defaults written at each `@AppStorage` site.
+
     /// A fresh seed each run is the friendlier default; a fixed seed is the deliberate choice.
     static let initialRandomizeSeedEachRun = true
     /// Warming up costs a second at launch and saves several on the first real image.

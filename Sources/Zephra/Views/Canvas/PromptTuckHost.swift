@@ -28,7 +28,10 @@ struct PromptTuckHost: View {
                 return .handled
             }
             .onKeyPress(characters: .alphanumerics.union(.whitespaces).union(.punctuationCharacters)) { press in
-                guard workspace.promptTucked else { return .ignored }
+                // A Command or Option chord still reports its base letter as `characters`, so
+                // without this a tucked canvas would eat Save, Copy and Cancel and type the
+                // letter instead of running the command. Shift alone is a capital, which is text.
+                guard workspace.promptTucked, press.modifiers.isSubset(of: [.shift]) else { return .ignored }
                 workspace.promptTucked = false
                 store.settings.prompt += press.characters
                 workspace.focusPrompt()

@@ -131,7 +131,11 @@ as an index, and it is Foundation only, so `make test` covers all of it.
   without it was not made here and is skipped, so a folder can hold more
   pictures than the library lists. `zephra:library` is `LibraryAnnotation`: favourite,
   tags, albums — the things a person changes afterwards. Anything mutable goes
-  in the second chunk; nothing rewrites the first.
+  in the second chunk; nothing rewrites the first. The record also carries the
+  `batchID` of the press of Generate that made the image, so a run survives the
+  session that made it: the canvas sidebar's timeline groups by it after a
+  relaunch, and falls back to adjacency for files written before the field
+  existed.
 - `PNGTextChunks+Header` reads a chunk without reading the file: 64 KiB, stop at
   the first IDAT, grow only if the chunks have not been seen yet. A grid of two
   thousand images is two thousand header reads, not two thousand full decodes.
