@@ -14,8 +14,7 @@ struct PromptCapsule: View {
                 isRunning: store.state.denoisingProgress != nil
             )
             VStack(alignment: .leading, spacing: 12) {
-                PromptEditor()
-                PromptInputsRow()
+                PromptRow()
                 Divider()
                 HStack(alignment: .bottom, spacing: 12) {
                     ControlsRow()
