@@ -12,8 +12,13 @@ import ZephraEngine
 /// Loading the model is asked for here, not in either pane, because a pane is torn down when
 /// the other one shows. A window left on the Library would otherwise come back after a
 /// relaunch with nothing ever asking for the weights.
+/// The window's query is also copied into the library here, for the same reason: the sidebar
+/// writes it whichever pane is showing, and the index has to be projecting the right thing by
+/// the time the Library pane is built rather than a frame afterwards.
 struct RootView: View {
     @Environment(GenerationStore.self) private var store
+    @Environment(WorkspaceSelection.self) private var workspace
+    @Environment(LibraryIndex.self) private var index
 
     var body: some View {
         NavigationSplitView {
@@ -25,6 +30,7 @@ struct RootView: View {
         .navigationTitle("Zephra")
         .navigationSubtitle(store.windowSubtitle)
         .toolbar { WorkspaceToolbar() }
+        .onChange(of: workspace.query, initial: true) { index.query = $1 }
         .task { await store.bootstrapFromInterface() }
     }
 }

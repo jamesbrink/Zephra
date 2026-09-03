@@ -13,11 +13,7 @@ struct WorkspaceDetail: View {
         case .canvas:
             CanvasPane()
         case .library:
-            ContentUnavailableView(
-                "Library",
-                systemImage: "square.grid.2x2",
-                description: Text("Coming in the next phase.")
-            )
+            LibraryDetail()
         }
     }
 }

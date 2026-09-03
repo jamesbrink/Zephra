@@ -10,14 +10,23 @@ import SwiftUI
 struct LibraryThumbnails {
     /// Where the pixels come from.
     let cache: ThumbnailCache
-    /// Which bucket to bake at.
-    let size: ThumbnailSize
+    /// How wide one cell is, in points. The slider's exact value, so the grid can lay itself
+    /// out continuously; the bucket below is the coarse version that decides what to bake.
+    let edge: CGFloat
 
-    /// A thumbnail source at one size.
-    init(cache: ThumbnailCache, size: ThumbnailSize) {
+    /// A thumbnail source for cells of `edge` points.
+    init(cache: ThumbnailCache, edge: CGFloat) {
         self.cache = cache
-        self.size = size
+        self.edge = edge
     }
+
+    /// A thumbnail source at one fixed bucket, for a grid whose cells never change size.
+    init(cache: ThumbnailCache, size: ThumbnailSize) {
+        self.init(cache: cache, edge: size.points)
+    }
+
+    /// Which bucket to bake at for cells this wide.
+    var size: ThumbnailSize { .bucket(forWidth: edge) }
 }
 
 extension EnvironmentValues {
