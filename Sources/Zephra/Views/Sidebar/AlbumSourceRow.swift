@@ -11,6 +11,10 @@ import ZephraEngine
 ///
 /// The count stays visible while the name is being typed, because the row is not becoming a
 /// different thing: it is the same album with its name under the cursor.
+///
+/// Images dropped on it are filed into it. Being a drop target is `AlbumDropTarget`'s business
+/// rather than more lines here: it has state of its own and it needs the grid's selection, and
+/// the row is already holding the three things it is allowed to hold.
 struct AlbumSourceRow: View {
     /// The album this row stands for.
     let album: Album
@@ -40,6 +44,7 @@ struct AlbumSourceRow: View {
                 edit = AlbumEdit(kind: .delete, album: album)
             }
         }
+        .modifier(AlbumDropTarget { index.add($0, to: album) })
     }
 
     private var scope: LibraryScope { .album(album.id) }
