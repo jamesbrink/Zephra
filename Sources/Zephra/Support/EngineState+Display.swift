@@ -87,13 +87,10 @@ extension EngineState {
     }
 
     /// Whether the detail line is a measurement, which is set in a monospaced face.
-    var detailIsMeasurement: Bool {
-        if case .generating = self { return true }
-        if case .downloading = self { return true }
-        if case .building = self { return true }
-        if case .upscaling = self { return true }
-        return false
-    }
+    ///
+    /// Every state that has a detail line at all reports a count, a rate, or a percentage, so
+    /// there is one answer rather than a second list to keep in step with `detail`.
+    var detailIsMeasurement: Bool { detail != nil }
 
     /// How far along a download or a build is, for the bar under the headline, or nil when the
     /// state has no bar.
