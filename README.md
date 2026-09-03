@@ -15,10 +15,14 @@ MLX/Metal. It runs Z-Image-Turbo and Qwen-Image-2512.
 
 - Apple Silicon Mac
 - macOS 15 (Sequoia) or later
-- Xcode 26 or later
-- [`xcodegen`](https://github.com/yonaskolb/XcodeGen)
+- **Xcode 26 or later, the full Xcode.app.** The Command Line Tools are not
+  enough: mlx-swift's Metal kernels are compiled by `xcodebuild`, which they do
+  not ship. `xcode-select -p` must print a path inside `Xcode.app`, not
+  `/Library/Developer/CommandLineTools`.
+- [`xcodegen`](https://github.com/yonaskolb/XcodeGen): `brew install xcodegen`,
+  or `nix profile install nixpkgs#xcodegen`.
 - [`hf`](https://github.com/huggingface/huggingface_hub) CLI (optional, for
-  `make prefetch`)
+  `make prefetch`): `pip install -U huggingface_hub`.
 - About 14 GB free disk for the 8-bit Z-Image weights, or 7 GB for the 4-bit ones.
   Building the 4-bit variant needs 33 GB more, for the full-precision release it is
   derived from; that download can be deleted afterwards. Qwen-Image is 22 GB built,
@@ -32,6 +36,20 @@ MLX/Metal. It runs Z-Image-Turbo and Qwen-Image-2512.
   peak at 1024², so a 36 GB Mac decodes it exactly and a 32 GB one needs the tiled decode.
 
 ## Quick start
+
+One-time setup on a fresh Mac, after installing Xcode.app. `make doctor` checks
+all of it and prints the fix for whatever is missing:
+
+```sh
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+sudo xcodebuild -license accept
+sudo xcodebuild -runFirstLaunch
+xcodebuild -downloadComponent MetalToolchain   # about 700 MB; the only step that needs the network
+make doctor
+```
+
+The first Release build compiles MLX's Metal kernels from scratch and takes
+several minutes with no output; it has not hung.
 
 ```sh
 make prefetch        # optional: download Z-Image weights ahead of time
@@ -288,6 +306,8 @@ Zephra/
 
 ## Development
 
+- `make doctor` — check that Xcode.app, `xcodegen`, and the Metal toolchain are in
+  place, and print the fix for whichever is not.
 - `make test` — `ZephraCore`, `ZephraSnapshot` and `ZephraEngine` under `swift test`.
   No MLX, a couple of seconds.
 - `make test-mlx` — every package that links MLX: the packer, both backends' mapping

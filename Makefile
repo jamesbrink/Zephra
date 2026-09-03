@@ -47,7 +47,11 @@ NOTARY_PROFILE ?= zephra-notary
 RELEASE_APP    := $(BUILD)/Release/Zephra.app
 RELEASE_ZIP    := $(BUILD)/Zephra.zip
 
-.PHONY: gen build run bench quantize quantize-qwen prefetch prefetch-qwen open clean lint-layers logs screenshot test test-mlx test-backend icon release notarize
+.PHONY: doctor gen build run bench quantize quantize-qwen prefetch prefetch-qwen open clean lint-layers logs screenshot test test-mlx test-backend icon release notarize
+
+# What a fresh Mac needs before `make build` can work, each with its fix printed.
+doctor:
+	@scripts/doctor.sh
 
 gen:
 	xcodegen generate --spec project.yml
