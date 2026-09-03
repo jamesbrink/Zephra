@@ -1,7 +1,8 @@
 # Zephra
 
 A native macOS app that generates images locally on Apple Silicon, via
-MLX/Metal. It runs Z-Image-Turbo, Qwen-Image-2512, and FLUX.2 klein 4B.
+MLX/Metal. It runs Z-Image-Turbo, Qwen-Image-2512, and FLUX.2 klein 4B, edits a
+picture with any of them, and upscales with Real-ESRGAN.
 
 ## Why
 
@@ -21,23 +22,23 @@ MLX/Metal. It runs Z-Image-Turbo, Qwen-Image-2512, and FLUX.2 klein 4B.
   `/Library/Developer/CommandLineTools`.
 - [`xcodegen`](https://github.com/yonaskolb/XcodeGen): `brew install xcodegen`,
   or `nix profile install nixpkgs#xcodegen`.
-- [`hf`](https://github.com/huggingface/huggingface_hub) CLI (optional, for
-  `make prefetch` and `make prefetch-flux2`): `pip install -U huggingface_hub`.
-- About 14 GB free disk for the 8-bit Z-Image weights, or 7 GB for the 4-bit ones.
-  Building the 4-bit variant needs 33 GB more, for the full-precision release it is
-  derived from; that download can be deleted afterwards. Qwen-Image is 22 GB built,
-  from a 58 GB source. FLUX.2 klein is a 16 GB download plus the packed variant beside
-  it, 5.4 GB for 4-bit or 8.6 GB for 8-bit, both kept: each variant packs from the
-  same download, and the hub cache is `hf`'s to prune (`hf cache delete`), not Zephra's.
-- 16 GB RAM for FLUX.2 klein 4B, the small, fast model: 4.9 GB resident and a 12.1 GB
-  peak at 1024², which fits a 16 GB Mac without tiling; its 8-bit variant holds 8.1 GB
-  and peaks at 15.3 GB, or 10.9 GB tiled. 32 GB for the 8-bit Z-Image model, which holds 12.2 GB resident and
-  peaks at 23.5 GB while decoding a 1024² image. The 4-bit variant brings that to 6.6 GB
-  resident and a 17.8 GB peak at 1024², or 10.7 GB at 512². Peak, not resident, is
-  what decides whether a Mac pages, and the tiled VAE decode below takes about 6 GB
-  off it, so a 24 GB Mac runs both Z-Image variants at 1024² and a 16 GB Mac runs
-  the 4-bit one there. Qwen-Image is the large one: 21.5 GB resident and a 30.4 GB
-  peak at 1024², so a 36 GB Mac decodes it exactly and a 32 GB one needs the tiled decode.
+- [`hf`](https://github.com/huggingface/huggingface_hub) CLI (optional, for the
+  `make prefetch*` targets): `pip install -U huggingface_hub`.
+- Disk and memory depend on the model. Peak, not resident, is what decides whether
+  a Mac pages, and the tiled VAE decode (see Performance) takes a few gigabytes off
+  it, so the last column is the smallest Mac each model runs 1024² on:
+
+  | Model | Download | Built on this Mac | Resident | Peak at 1024² (tiled) | Runs 1024² on |
+  |---|---|---|---|---|---|
+  | FLUX.2 klein 4B, 4-bit | 16 GB | 5.4 GB | 4.9 GB | 12.1 GB (7.7 GB) | 16 GB |
+  | FLUX.2 klein 4B, 8-bit | same 16 GB | 8.6 GB | 8.1 GB | 15.3 GB (10.9 GB) | 16 GB, tiled |
+  | Z-Image-Turbo, 8-bit | 13.3 GB | — | 12.2 GB | 23.5 GB (17.7 GB) | 24 GB, tiled |
+  | Z-Image-Turbo, 4-bit | 33 GB source | 6.7 GB | 6.6 GB | 17.8 GB (12.0 GB) | 16 GB, tiled |
+  | Qwen-Image-2512, 4-bit | 58 GB source | 21.6 GB | 21.5 GB | 30.4 GB (26.1 GB) | 32 GB, tiled |
+
+  A built variant is packed from its download on this Mac (klein does that on
+  first load, the other two through `make quantize*`), and the download is kept
+  afterwards: the hub cache is `hf`'s to prune (`hf cache delete`), not Zephra's.
 
 ## Quick start
 
@@ -56,7 +57,8 @@ The first Release build compiles MLX's Metal kernels from scratch and takes
 several minutes with no output; it has not hung.
 
 ```sh
-make prefetch        # optional: download Z-Image weights ahead of time
+make prefetch-flux2  # optional: download the FLUX.2 klein release ahead of time
+make prefetch        # optional: download the 8-bit Z-Image weights
 make quantize        # optional: build the smaller 4-bit Z-Image variant (see below)
 make prefetch-qwen   # optional: download Qwen-Image-2512 and its 4-step adapter
 make quantize-qwen   # optional: build the 4-bit Qwen-Image variant
@@ -64,9 +66,11 @@ make build
 make run
 ```
 
-If you skip `make prefetch`, the first run downloads the model (about 13 GB)
-before it can generate anything — the window stays responsive with a progress
-readout while that happens.
+The first launch opens on the first model in the catalog that fits this Mac:
+FLUX.2 klein 4B on 16 GB, 8-bit Z-Image-Turbo on 32 GB and up. If nothing was
+prefetched, the first run downloads it (16 GB for klein, then a one-minute build;
+13 GB for Z-Image) before it can generate anything. The window stays responsive
+with a progress readout while that happens.
 
 ## Using it
 
@@ -75,102 +79,105 @@ readout while that happens.
   what is being rendered, and the images as they come out. On Library (⌘2) it is the search
   field, chips for everything and favourites, and the collections to look in — every image,
   favourites, the last seven days, one row per model with a count, the tags in use, albums,
-  and Recently deleted and New Album pinned at the foot. Canvas is the picture with the prompt
-  floating over it and, in the sidebar, today's run as a wall of small squares that fill in as
-  the seeds land; an empty canvas offers the last three prompts as chips. Library is
-  everything made so far, in day-grouped grids with a filter bar over them. The inspector
+  and Recently deleted and New Album pinned at the foot. Canvas is the picture with the
+  prompt floating over it and, in the sidebar, today's run as a wall of small squares that
+  fill in as the seeds land; an empty canvas offers the last three prompts as chips. Library
+  is everything made so far, in day-grouped grids with a filter bar over them. The inspector
   (⌥⌘I) sits beside either pane, under the toolbar: in the Library it describes whatever is
-  selected, on the canvas the picture showing, and it stays away until there is one. Typing in
-  the search while the canvas is up takes you to the Library showing the hits, and clearing the
-  field puts you back where you were.
-- New Album (⌘N, or the bar at the foot of the sidebar) makes one called "Untitled Album" and
-  puts the cursor in its name, in the row itself: Return keeps what you typed, Escape keeps
-  "Untitled Album", and clicking away keeps what you typed, as the Finder does. Rename in a
-  row's menu edits the same way. Drag images from the grid onto an album row to file them —
-  the row rings in the accent colour as you come over it, and dragging one of several selected
-  images files all of them.
-- The Library's filter bar says what is being shown and how much of it is selected, carries a
-  removable token per filter, and has a slider for the thumbnail size (⌘+ and ⌘− step it).
-  Click to select, shift-click for a range, ⌘-click to add one, ⌘A for all of them, arrow keys
-  to walk the grid, space for Quick Look. The inspector shows the image, its prompt, and the
-  Model, Size, Steps, Seed and Took rows read out of the PNG (the filename is the tooltip on
-  Reveal in Finder), with its tags and albums, and offers Open in canvas, Queue a variation,
-  Reveal in Finder, and Upscale 2× or 4×. Select several and it says what they have in common
-  and acts on all of them.
+  selected, on the canvas the picture showing, and it stays away until there is one. Typing
+  in the search while the canvas is up takes you to the Library showing the hits, and
+  clearing the field puts you back where you were.
+- New Album (⌘N, or the bar at the foot of the sidebar) makes one called "Untitled Album"
+  and puts the cursor in its name, in the row itself: Return keeps what you typed, Escape
+  keeps "Untitled Album", and clicking away keeps what you typed, as the Finder does. Rename
+  in a row's menu edits the same way. Drag images from the grid onto an album row to file
+  them — the row rings in the accent colour as you come over it, and dragging one of several
+  selected images files all of them.
+- The Library's filter bar says what is being shown and how much of it is selected, carries
+  a removable token per filter, and has a slider for the thumbnail size (⌘+ and ⌘− step it).
+  Click to select, shift-click for a range, ⌘-click to add one, ⌘A for all of them, arrow
+  keys to walk the grid, space for Quick Look. The inspector shows the image, its prompt,
+  and the Model, Size, Steps, Seed and Took rows read out of the PNG (the filename is the
+  tooltip on Reveal in Finder), with its tags and albums, and offers Open in canvas, Queue a
+  variation, Reveal in Finder, and Upscale 2× or 4×. Select several and it says what they
+  have in common and acts on all of them.
 - Upscale runs Real-ESRGAN's compact network over the picture in tiles, on any Mac, in a few
   seconds, and writes the result into the library as `<name>-x2.png` or `<name>-x4.png` with
   the original's prompt, seed and steps inside it, a row in the inspector saying what it was
   made from, and a small ×2 or ×4 badge on its thumbnail. It needs no model loaded and works
-  on the canvas's picture, a library selection, and the right-click menu; it is 4× by nature,
-  and 2× is that pass averaged back down. Generate waits while it runs.
-- Type a prompt and press Generate (or ⌘↩); Return breaks the line, and a selection is painted
-  only as far as the text. The window subtitle shows what the engine is doing.
-- The control beside Generate says how many seeds one press queues — 1, 2, 4, or 8 of the same
-  prompt, the first of them on the seed in the field, so a run of four is a superset of the one
-  image the same press would have made.
+  on the canvas's picture, a library selection, and the right-click menu; it is 4× by
+  nature, and 2× is that pass averaged back down. Generate waits while it runs.
+- Type a prompt and press Generate (or ⌘↩); Return breaks the line, and a selection is
+  painted only as far as the text. The window subtitle shows what the engine is doing.
+- The control beside Generate says how many seeds one press queues — 1, 2, 4, or 8 of the
+  same prompt, the first of them on the seed in the field, so a run of four is a superset of
+  the one image the same press would have made.
 - Press Generate again while an image is running to queue the next prompt; prompts run one
   after another and the subtitle counts what is still waiting. The sidebar's timeline shows
-  the same work as one list: the runs still waiting as cards, each with a cross that takes the
-  whole run back out, the run being rendered as an amber card with its steps filling in, and
-  under those one wall of today's pictures with a dashed square at its head for each seed still
-  to come — the image lands in its square, and a press puts it back on the canvas. Stop ends the current image and drops
-  the queue; during the first-run download or the load it abandons that instead, and the canvas
-  offers to pick it up again — a stopped download resumes from what it already fetched.
-- The model menu in the toolbar names the model that is running and lists the rest, each with
-  what choosing it would cost: "Downloaded", "13.3 GB download", "16 GB download, then built"
-  for FLUX.2 klein on a Mac that has never fetched it, "Builds on first load" once the
-  release is cached, "Not built yet" for a local variant that has not been quantized, "Tiles
-  the decode" for one this Mac reaches only with the tiled VAE decode, or "Needs N GB" for
-  one whose peak is over this Mac's budget even tiled. Picking a model that has not been
-  downloaded starts the download; klein then packs the release into the variant this Mac
-  runs, once, showing "Building" while it does. Memory never
-  disables a row — a model that would page at 1024² still runs at 768², and the tooltip says
-  so; only "Not built yet" is out of reach. Switching releases the old weights before it asks
-  for the new ones. Choosing a model while an image is running interrupts nothing: the running
-  image finishes on its model, anything already queued keeps the model it was queued for, and
-  the new choice applies to whatever you queue next, with the engine swapping weights between
-  queue entries as it goes. Your choice is remembered.
+  the same work as one list: the runs still waiting as cards, each with a cross that takes
+  the whole run back out, the run being rendered as an amber card with its steps filling in,
+  and under those one wall of today's pictures with a dashed square at its head for each
+  seed still to come — the image lands in its square, and a press puts it back on the
+  canvas. Stop ends the current image and drops the queue; during the first-run download or
+  the load it abandons that instead, and the canvas offers to pick it up again — a stopped
+  download resumes from what it already fetched.
+- The model menu in the toolbar names the model that is running and lists the rest, each
+  with what choosing it would cost: "Downloaded", "13.3 GB download", "16 GB download, then
+  built" for FLUX.2 klein on a Mac that has never fetched it, "Builds on first load" once
+  the release is cached, "Not built yet" for a local variant that has not been quantized,
+  "Tiles the decode" for one this Mac reaches only with the tiled VAE decode, or "Needs N
+  GB" for one whose peak is over this Mac's budget even tiled. Picking a model that has not
+  been downloaded starts the download; klein then packs the release into the variant this
+  Mac runs, once, showing "Building" while it does. Memory never disables a row — a model
+  that would page at 1024² still runs at 768², and the tooltip says so; only "Not built yet"
+  is out of reach. Switching releases the old weights before it asks for the new ones.
+  Choosing a model while an image is running interrupts nothing: the running image finishes
+  on its model, anything already queued keeps the model it was queued for, and the new
+  choice applies to whatever you queue next, with the engine swapping weights between queue
+  entries as it goes. Your choice is remembered.
 - Size, steps, and seed sit under the prompt. A model that reads a negative prompt gets a
   second field for it, and one that responds to guidance gets a guidance slider; no model
   shipped today does either, so neither shows. Every model can start from a picture, so each
-  gets a well beside the prompt: drop a picture on it or on the canvas, click it to choose one,
-  or use the image on the canvas as the reference (⌥⌘R; ⇧⌥⌘R clears it). What a picture means
-  differs by model. FLUX.2 klein attends to it as extra tokens and still renders the whole
-  schedule, so the picture guides the image without a strength to set. Z-Image and Qwen-Image
-  start from a noised copy of it instead, so a strength decides how much of it survives: a
-  strength buys that share of the model's steps, and less strength keeps more of the picture. The
-  prompt then says what to change. An edited image carries its reference inside its PNG, so
-  selecting it later puts the picture back, and an exported edit can reproduce itself. Steps and size stay as you set them when
-  you switch between variants of one model, and steps go back to the new model's own default
-  when you switch to a different model — nine steps of Z-Image's schedule and nine of
-  Qwen-Image's four-step distillation are not the same request. The lock keeps the seed across
-  runs; unlocked,
-  every run gets a fresh one. Images save to `~/Pictures/Zephra` with the seed in the file name;
-  if a write fails, a notice sits over the prompt until an image saves, and the picture stays on
-  the canvas either way.
+  gets a well beside the prompt: drop a picture on it or on the canvas, click it to choose
+  one, or use the image on the canvas as the reference (⌥⌘R; ⇧⌥⌘R clears it). What a picture
+  means differs by model. FLUX.2 klein attends to it as extra tokens and still renders the
+  whole schedule, so the picture guides the image without a strength to set. Z-Image and
+  Qwen-Image start from a noised copy of it instead, so a strength decides how much of it
+  survives: a strength buys that share of the model's steps, and less strength keeps more of
+  the picture. The prompt then says what to change. An edited image carries its reference
+  inside its PNG, so selecting it later puts the picture back, and an exported edit can
+  reproduce itself. Steps and size stay as you set them when you switch between variants of
+  one model, and steps go back to the new model's own default when you switch to a different
+  model — nine steps of Z-Image's schedule and nine of Qwen-Image's four-step distillation
+  are not the same request. The lock keeps the seed across runs; unlocked, every run gets a
+  fresh one. Images save to `~/Pictures/Zephra` with the seed in the file name; if a write
+  fails, a notice sits over the prompt until an image saves, and the picture stays on the
+  canvas either way.
 - The sidebar's wall is today's work: a batch of seeds sits in a block of its own, single
   pictures pack together, a dashed square stands for each seed still to come, and "Today in
-  Library" at the foot counts them. Everything ever made is in
-  `~/Pictures/Zephra`, and the Library reads that folder rather than the app keeping a list of
-  its own. The record of what made an image — prompt, size, steps, seed, model, and how long it
-  took — lives inside the PNG itself, so moving, renaming, or copying a file to another Mac
-  keeps it, and opening an image again shows what it was made from, ready to vary. Favourites,
-  tags and album membership go into the same file, under a second keyword, so they travel with
-  the picture too. A PNG that Zephra did not make carries no record and is ignored. Right-click a
-  thumbnail for Save as, Copy, Reveal in Finder, Upscale, and Delete; Delete (⌘⌫ for the image on the
-  canvas) moves the file to `~/Pictures/Zephra/Recently Deleted`, where it waits thirty days
-  before it is thrown away for good, so it can be put back.
+  Library" at the foot counts them. Everything ever made is in `~/Pictures/Zephra`, and the
+  Library reads that folder rather than the app keeping a list of its own. The record of
+  what made an image — prompt, size, steps, seed, model, and how long it took — lives inside
+  the PNG itself, so moving, renaming, or copying a file to another Mac keeps it, and
+  opening an image again shows what it was made from, ready to vary. Favourites, tags and
+  album membership go into the same file, under a second keyword, so they travel with the
+  picture too. A PNG that Zephra did not make carries no record and is ignored. Right-click
+  a thumbnail for Save as, Copy, Reveal in Finder, Upscale, and Delete; Delete (⌘⌫ for the
+  image on the canvas) moves the file to `~/Pictures/Zephra/Recently Deleted`, where it
+  waits thirty days before it is thrown away for good. In that collection the menu offers
+  Put Back and Delete Immediately instead.
 - Settings holds where images are written and the seed preference under General. Performance
   has the after-load warm-up, the ceiling on the GPU scratch the runtime keeps between
-  generations — with the figure recommended for your Mac, and a reset back to it — whether the
-  VAE decode is tiled (Automatic, Always, Never), and a live readout of active, cached and peak
-  GPU memory plus which way the decode is currently set. Both changes apply immediately. About
-  shows the version and the third-party license notices.
+  generations — with the figure recommended for your Mac, and a reset back to it — whether
+  the VAE decode is tiled (Automatic, Always, Never), and a live readout of active, cached
+  and peak GPU memory plus which way the decode is currently set. Both changes apply
+  immediately. About shows the version and the third-party license notices.
 - Shortcuts: Generate ⌘↩, Stop ⌘., New Album ⌘N, Canvas ⌘1, Library ⌘2, Find ⌘F, Show
-  Inspector ⌥⌘I, Select All Images ⌘A, Favourite ⌘⇧D, thumbnail size ⌘+ and ⌘−, Save As ⌘S,
-  Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C, Use as Reference ⌥⌘R, Clear Reference ⇧⌥⌘R, Upscale
-  2× ⌥⌘U, Upscale 4× ⌥⇧⌘U, Delete Image ⌘⌫. Return in the prompt field breaks the line, which is why Generate is ⌘↩; Cut,
-  Copy, Paste and Select All there are the standard Edit menu items.
+  Inspector ⌥⌘I, Hide Prompt ⌥⌘P, Select All Images ⌘A, Favourite ⌘⇧D, thumbnail size ⌘+ and
+  ⌘−, Save As ⌘S, Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C, Use as Reference ⌥⌘R, Clear
+  Reference ⇧⌥⌘R, Upscale 2× ⌥⌘U, Upscale 4× ⌥⇧⌘U, Delete Image ⌘⌫. Return in the prompt
+  field breaks the line, which is why Generate is ⌘↩; Cut, Copy, Paste and Select All there
+  are the standard Edit menu items.
 
 ## How it works
 
@@ -184,26 +191,36 @@ not what gets loaded, and a reference picture on the request, for a model that e
 
 ```
 Sources/Zephra (SwiftUI app) ─→ ZephraEngine ─→ ZephraCore
-                             ─→ ZephraBackend<Family> ─→ ZephraCore, <Family>Kit
-                                                        [imported in ZephraApp.swift ONLY]
+                             ─→ ZephraBackend<Family> ─→ ZephraCore, ZephraSnapshot,
+                                                          ZephraQuantization, <Family>Kit
+                                                          [imported in ZephraApp.swift ONLY]
+                             ─→ ZephraUpscale<Network> ─→ ZephraCore, ZephraMLX
+                                                          [imported in ZephraApp.swift ONLY]
 Sources/ZephraBench (tool)   ─→ ZephraCore, every ZephraBackend<Family>
 Sources/ZephraQuantize (tool)─→ ZephraCore, ZephraQuantization, every ZephraBackend<Family>
 ```
 
-`ZephraCore` and `ZephraEngine` have zero MLX dependencies, so they build and
-test in seconds. A backend package is the only thing that speaks to its
-family's pipeline, and no backend package may import another — a build for one
-family must not drag in every other family's weights-loading code.
+`ZephraCore`, `ZephraSnapshot`, and `ZephraEngine` have zero MLX dependencies,
+so they build and test in seconds. A backend package is the only thing that
+speaks to its family's pipeline, and no backend package may import another — a
+build for one family must not drag in every other family's weights-loading
+code. The MLX work no family owns — the streaming weight packer and the tiled
+decode — lives in `ZephraMLXKit`, which a family may depend on and which
+depends on no family. The upscaler sits beside the backends behind its own
+`ImageUpscaler` protocol rather than pretending to be a model family: it needs
+no model loaded and holds five megabytes.
 
 History needs no database: every image is saved with its `GenerationRecord` as
 JSON in a `zephra:generation` PNG text chunk, spliced in ahead of the pixel data
-so the bytes a seed produces never change, and the library folder is read back
-at launch.
+so the bytes a seed produces never change. Favourite, tags, and albums go in a
+second chunk, `zephra:library`, so nothing ever rewrites the record. The
+library is the folder read back as an index, from each file's header rather
+than its pixels, and a watch on the folder keeps it current.
 
 Adding a model that an existing backend can run is one entry in `ModelCatalog`:
 the picker lists the catalog, and the interface draws itself from the entry's
-`ModelCapabilities`. Adding a new backend is that entry plus a `BackendID` case,
-a package implementing `ImageGenerationBackend`, and one `registry.register(...)`
+`ModelCapabilities`. Adding a new backend is that entry plus a `BackendID`, a
+package implementing `ImageGenerationBackend`, and one `registry.register(...)`
 line in `ZephraApp.swift` — no view and nothing in `ZephraEngine` changes. A
 family whose download is not what it loads also implements `build`, which the
 engine shows as its own state; the others take the default and never build.
@@ -254,13 +271,24 @@ it departs from those ports on purpose. The transformer runs in bfloat16;
 `ZEPHRA_DIT_DTYPE=f32` runs it in float32, which is the workaround should mlx-swift's
 bfloat16 split-K bug on M5-class GPUs reach it, at about three times the step time.
 
+### Z-Image-Turbo
+
+The model a 32 GB Mac opens on: a six-billion-parameter transformer distilled to
+nine steps, downloaded as `mzbac/Z-Image-Turbo-8bit` and run through the vendored
+`ZImageKit`. The 8-bit model, measured on an M4 Max:
+
 | Machine | Resolution | Steps | Time |
 |---|---|---|---|
 | Apple M4 Max 48 GB, GPU shared with other apps (~50 % busy at idle) | 1024×1024 | 9 | ~57 s (6.3 s/step) |
 | Apple M4 Max 48 GB, same conditions | 512×512 | 4 | ~7 s (1.6 s/step) |
 | Apple M2 Ultra (upstream report) | 1024×1024 | 9 | ~44 s |
 
-Qwen-Image-2512, 4-bit and distilled to four steps, on the same M4 Max:
+These figures are due a rerun on an idle machine; see "Where the time goes".
+
+### Qwen-Image-2512
+
+The large one: a twenty-billion-parameter transformer conditioned on
+Qwen2.5-VL-7B, 4-bit and distilled to four steps, on the same M4 Max:
 
 | Resolution | Steps | Time | Resident | Peak | Peak tiled |
 |---|---|---|---|---|---|
@@ -270,11 +298,10 @@ Qwen-Image-2512, 4-bit and distilled to four steps, on the same M4 Max:
 
 Twenty billion parameters against Z-Image Turbo's six, yet a step costs only
 about a third more — 8.2 s against 6.3 s at 1024 — and four steps against nine
-make the image quicker overall, with text rendering in a different class. Resident does not move with resolution because the weights are
-all of it. The tiled peak barely moves either: the tile, not the image, sets the
-decode's transient, and what is left is the transformer.
-
-### Qwen-Image-2512
+make the image quicker overall, with text rendering in a different class.
+Resident does not move with resolution because the weights are all of it. The
+tiled peak barely moves either: the tile, not the image, sets the decode's
+transient, and what is left is the transformer.
 
 `make quantize-qwen` builds the four-bit copy, because nothing publishes one in a
 form Zephra can load. It reads the 57.7 GB bfloat16 release, merges the Apache-2.0
@@ -343,6 +370,14 @@ is no closer to the 8-bit output (29.9 of 255, further away than group 64), and 
 better, so 64 is the default. Output is reproducible — two runs of the same variant at seed 42
 are identical to the byte.
 
+### Upscaling
+
+Real-ESRGAN's compact network (`realesr-general-x4v3`, 1.2M parameters, 2.4 MB
+of float16 weights bundled with the app) runs in 512-pixel tiles through the
+same tiler the VAE decode uses. A 1024² input measured 2466 MB peak and 3.75 s
+at 4× on an M4 Max; 2× is the 4× pass averaged down and costs the same peak. It
+needs no model loaded, so it runs on any Mac the app does.
+
 ### Where the time goes
 
 Where a 1024² step goes: the denoiser is compute-bound. A step is 4,160 tokens (4,096 image
@@ -362,11 +397,15 @@ explain the 5× gap. The microbench was applying the VAE's divisor twice and so 
 tokens rather than 4,160; at the true length the projections cost about 3.8× and attention about
 14× more, which is where the gap went.
 
-**To do: rerun the Z-Image benchmarks on an idle machine.** Every number in this section was taken on a machine running
-other builds (load average 10 to 70), where a re-measured 1024² step came out at 10 s rather than
-6.3 s and individual microbench rows varied by 2× between two runs an hour apart. The table is
-the last set taken under lighter load; treat it as provisional. The steps: pick a quiet hour, run `make bench ARGS="--size 1024 --steps 9 --runs 3"` and `make bench ARGS="--micro --size 1024"` from a Release build, and replace the table, the kernel sum, and the catalog comments with what they say. Text encoding is ~40 ms and the
-VAE decode ~4 s at 1024².
+**To do: rerun the Z-Image benchmarks on an idle machine.** Every Z-Image number
+in this section was taken on a machine running other builds (load average 10 to
+70), where a re-measured 1024² step came out at 10 s rather than 6.3 s and
+individual microbench rows varied by 2× between two runs an hour apart. The
+table is the last set taken under lighter load; treat it as provisional. The
+steps: pick a quiet hour, run `make bench ARGS="--size 1024 --steps 9 --runs 3"`
+and `make bench ARGS="--micro --size 1024"` from a Release build, and replace the
+table, the kernel sum, and the catalog comments with what they say. Text encoding
+is ~40 ms and the VAE decode ~4 s at 1024².
 
 Two experiments, both measured at a fixed seed. **Step caching does not work here**: reusing the
 transformer's residual on steps whose input barely moved, TeaCache-style, needs consecutive steps
@@ -388,29 +427,34 @@ reaches 1024² on the 4-bit one. Always and Never override the judgement, and
 
 ```
 Zephra/
-├── .gitignore  AGENTS.md (CLAUDE.md symlinks to it)  LICENSE  THIRD_PARTY_NOTICES.md
-├── PROVENANCE.md  Makefile  README.md  project.yml
+├── AGENTS.md (CLAUDE.md symlinks to it)  README.md  ROADMAP.md  LICENSE
+├── THIRD_PARTY_NOTICES.md  PROVENANCE.md  Makefile  project.yml
 ├── Packages/
-│   ├── ZImageKit/                 # vendored (MIT). LICENSE, VENDORED.md, Package.swift, Sources/ZImage/**
+│   ├── ZImageKit/                 # vendored (MIT). LICENSE, VENDORED.md, Sources/ZImage/**
 │   ├── QwenImageKit/              # ours, clean-room — the Qwen-Image pipeline. See PROVENANCE.md
 │   ├── Flux2Kit/                  # ours, translated from MIT ports — FLUX.2 klein. See PROVENANCE.md
 │   ├── ZephraKit/                 # ours — no MLX dependency
 │   │   ├── Sources/ZephraCore/          # value types + protocols
 │   │   ├── Sources/ZephraEngine/        # actor + store, depends on ZephraCore only
 │   │   │   ├── Library/                 # the image folder as an index: scan, query, annotate
-│   │   │   └── Timeline/                # the canvas sidebar: queue cards, then today's pictures as one wall
+│   │   │   ├── Timeline/                # the canvas sidebar: queue cards, then today's pictures as one wall
+│   │   │   └── Upscale/                 # the record an upscale carries and where it is filed
 │   │   ├── Sources/ZephraSnapshot/      # hub cache and local snapshot checks, Foundation only
 │   │   └── Tests/ZephraCoreTests, ZephraEngineTests, ZephraSnapshotTests
-│   ├── ZephraMLXKit/              # ours — MLX work no family owns: the packer, the tiled decode
+│   ├── ZephraMLXKit/              # ours — MLX work no family owns
+│   │   ├── Sources/ZephraQuantization/  # the streaming weight packer every family drives
+│   │   └── Sources/ZephraMLX/           # the tiled decode and the allocator's knobs
 │   ├── ZephraBackendZImage/       # ours — the only package that imports ZImage
 │   ├── ZephraBackendQwenImage/    # ours — the only package that imports QwenImage
-│   └── ZephraBackendFlux2/        # ours — the only package that imports Flux2; builds on first load
+│   ├── ZephraBackendFlux2/        # ours — the only package that imports Flux2; builds on first load
+│   └── ZephraUpscaleRealESRGAN/   # ours — the upscaler, weights bundled. See its PROVENANCE.md
 ├── Sources/Zephra/                # app target: SwiftUI only, composition root is ZephraApp.swift
 │   ├── ZephraApp.swift  Resources/{Info.plist, Assets.xcassets}
 │   ├── Style/                     # the chrome every view draws itself from
 │   ├── Workspace/                 # which pane, which query, whether the inspector is up
 │   ├── Support/                   # caches, exports, previews, settings
-│   └── Views/                     # Canvas/ Library/ Sidebar/ Sidebar/Timeline/ Toolbar/
+│   └── Views/                     # the prompt capsule, its controls, Settings, and the commands;
+│                                  # Canvas/ Library/ Library/Inspector/ Sidebar/ Sidebar/Timeline/ Toolbar/
 ├── Sources/ZephraBench/           # headless benchmark tool
 ├── Sources/ZephraQuantize/        # builds a 4-bit variant from a bf16 release
 ├── design/mock/                   # the UI the app was built against
@@ -422,8 +466,13 @@ Zephra/
 
 - `make doctor` — check that Xcode.app, `xcodegen`, and the Metal toolchain are in
   place, and print the fix for whichever is not.
+- `make gen` / `make build` / `make run` — regenerate `Zephra.xcodeproj` from
+  `project.yml` (the project is generated and gitignored; never edit it), build the
+  `Zephra` scheme (`CONFIG=Release` by default), and open the result.
 - `make test` — `ZephraCore`, `ZephraSnapshot` and `ZephraEngine` under `swift test`.
-  No MLX, a couple of seconds.
+  No MLX, a couple of seconds. One suite:
+  `cd Packages/ZephraKit && swift test --filter ModelSwap` (the filter is a regex
+  over type names).
 - `make test-mlx` — every package that links MLX: the packer, the backends' mapping
   tests, and `QwenImageKit`'s and `Flux2Kit`'s parity suites against tensors dumped
   from `diffusers`.
@@ -431,14 +480,18 @@ Zephra/
   them loads model weights, though the tensors they run do go through Metal.
   `make test-backend` is an alias.
 - `make icon` — re-render `AppIcon.appiconset` from `scripts/make-icon.swift`.
+- `make prefetch` / `make prefetch-qwen` / `make prefetch-flux2` — download a
+  release ahead of a first launch, with `hf`. Qwen's goes to `QWEN_MODELS` rather
+  than the hub cache, because 58 GB does not belong on a boot volume.
 - `make quantize` / `make quantize-qwen` / `make quantize-flux2` — build a 4-bit
   variant. `BITS` and `GROUP_SIZE` override the 4-bit, group-64 default; `QUANT_OUT`,
   `QWEN_OUT` and `FLUX2_OUT` override where it lands, and `QWEN_SOURCE` / `QWEN_LORA`
-  / `FLUX2_SOURCE` say what it is built from. `make prefetch-flux2` seeds the hub
-  cache with the klein release ahead of a first launch.
-- `make lint-layers` — check the module boundaries above.
-- `make bench ARGS="..."` — headless timing (`--size`, `--steps`, `--runs`, `--model`, `--json`,
-  `--out`, `--micro`, `--reference` to time the editing path, `--strength`); `make logs` streams the app's log; `make screenshot` captures the window;
+  / `FLUX2_SOURCE` say what it is built from.
+- `make lint-layers` — check the module boundaries above. Run it before every commit.
+- `make bench ARGS="..."` — headless timing (`--size`, `--steps`, `--runs`, `--model`,
+  `--prompt`, `--json`, `--out`, `--micro` for the DiT's kernels alone, `--reference`
+  to time the editing path, `--strength`). Benchmark on an idle machine, Release only.
+- `make logs` streams the app's log; `make screenshot` captures the window;
   `make open` opens the generated project in Xcode; `make clean` removes build output.
 - `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|queued|batch|library|downloading|building|failed`
   launches a Debug build frozen in that state with no model, for screenshots; `tucked` is
