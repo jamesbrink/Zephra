@@ -18,6 +18,7 @@ extension GenerationStore {
         store.current = image
         store.history = image.map { [$0] } ?? []
         store.settings.prompt = "A lighthouse at dusk, fog rolling in over black rocks"
+        store.settings.referenceImage = image?.settings.referenceImage
         store.availability = previewAvailability(current: descriptor)
         return store
     }
@@ -30,7 +31,11 @@ extension GenerationStore {
         var map: [ModelDescriptor.ID: ModelAvailability] = [current.id: .available]
         for model in ModelCatalog.all where model.id != current.id {
             switch model.source {
-            case .huggingFace: map[model.id] = .needsDownload(bytes: model.downloadBytes)
+            case .huggingFace:
+                map[model.id] =
+                    model.isBuiltLocally
+                    ? .needsDownloadAndBuild(bytes: model.downloadBytes)
+                    : .needsDownload(bytes: model.downloadBytes)
             case .localDirectory: map[model.id] = .missing(reason: "Not built yet; run make quantize.")
             }
         }

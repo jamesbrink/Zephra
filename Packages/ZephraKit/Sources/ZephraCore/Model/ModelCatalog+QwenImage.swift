@@ -36,7 +36,9 @@ extension ModelCatalog {
         // (`max_sequence_length`, its default); the tokenizer would allow 1024, but nothing
         // past 512 ever reaches the transformer there, so nothing past 512 does here.
         maxPromptTokens: 512,
-        capabilities: qwenImage2512Capabilities
+        capabilities: qwenImage2512Capabilities,
+        // Measured: what `make quantize-qwen` writes, 16.2 GB of transformer and the rest.
+        builtBytes: 21_600_000_000
     )
 
     /// What the distilled Qwen-Image variant accepts.

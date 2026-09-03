@@ -24,6 +24,10 @@ public struct ComponentQuantization {
     public let shardBudgetBytes: Int
     /// Where to report progress.
     public let note: (String) -> Void
+    /// Asked before each tensor; throwing stops the conversion where it is. The largest tensor
+    /// in any family here is a few hundred megabytes, so a stop lands within a second except
+    /// across a shard flush.
+    public let shouldContinue: () throws -> Void
 
     /// Prepares a conversion of one component.
     public init(
@@ -31,13 +35,15 @@ public struct ComponentQuantization {
         source: URL,
         destination: URL,
         shardBudgetBytes: Int,
-        note: @escaping (String) -> Void
+        note: @escaping (String) -> Void,
+        shouldContinue: @escaping () throws -> Void = {}
     ) {
         self.component = component
         self.source = source
         self.destination = destination
         self.shardBudgetBytes = shardBudgetBytes
         self.note = note
+        self.shouldContinue = shouldContinue
     }
 
     /// Converts the component and returns a manifest entry per packed layer.
@@ -116,6 +122,7 @@ public struct ComponentQuantization {
         var packed: [(QuantizableWeight, QuantizationPrecision)] = []
         // In file order, so the mapped shard is read once from front to back.
         for entry in try SafeTensorsHeader(contentsOf: shard).entries {
+            try shouldContinue()
             guard var tensor = tensors[entry.name] else {
                 throw QuantizationError.unreadableShard(
                     shard, reason: "header names \(entry.name) but the file does not hold it")

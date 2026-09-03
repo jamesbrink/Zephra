@@ -46,6 +46,51 @@ struct GenerationRecordTests {
         #expect(text[GenerationRecord.keyword]?.contains(#""seed":99"#) == true)
         // Sorted keys, so the same image always writes the same bytes.
         #expect(text[GenerationRecord.keyword]?.hasPrefix(#"{"createdAt""#) == true)
+        #expect(text[GenerationRecord.referenceKeyword] == nil, "a plain generation files no reference")
+    }
+
+    @Test("an edited image carries its reference beside the record, and the record says how large it was")
+    func referenceRoundTrip() throws {
+        let reference = Data((0..<300).map { UInt8($0 % 251) })
+        var settings = Self.image(prompt: "the same harbour, at night").settings
+        settings.referenceImage = reference
+        let image = GeneratedImage(
+            pngData: MockBackend.pngData, settings: settings, modelID: "flux2-klein-4b-4bit",
+            createdAt: Date(timeIntervalSince1970: 1_772_000_000), duration: .seconds(6))
+
+        let data = try GenerationRecord.embedded(in: image)
+        let record = try #require(GenerationRecord.read(from: data))
+        #expect(record.referenceBytes == 300)
+        #expect(GenerationRecord.reference(in: data) == reference)
+        let restored = record.image(
+            pngData: data, fileURL: nil, referenceImage: GenerationRecord.reference(in: data))
+        #expect(restored.settings == settings, "the reference comes back with the rest")
+    }
+
+    @Test("a record whose reference chunk was stripped, or rewritten to another length, reads as a plain generation")
+    func damagedReferenceIsDropped() throws {
+        var settings = Self.image(prompt: "a harbour").settings
+        settings.referenceImage = Data(repeating: 7, count: 64)
+        let image = GeneratedImage(
+            pngData: MockBackend.pngData, settings: settings, modelID: "flux2-klein-4b-4bit",
+            createdAt: Date(), duration: .seconds(1))
+        let data = try GenerationRecord.embedded(in: image)
+
+        // Keep the record, replace the reference with one of another length.
+        let record = try #require(PNGTextChunks.read(from: data)[GenerationRecord.keyword])
+        let rewritten = try PNGTextChunks.inserting(
+            [
+                (keyword: GenerationRecord.keyword, text: record),
+                (keyword: GenerationRecord.referenceKeyword,
+                 text: Data(repeating: 7, count: 32).base64EncodedString()),
+            ],
+            into: MockBackend.pngData)
+        #expect(GenerationRecord.read(from: rewritten)?.referenceBytes == 64)
+        #expect(GenerationRecord.reference(in: rewritten) == nil)
+
+        let stripped = try PNGTextChunks.inserting(
+            [(keyword: GenerationRecord.keyword, text: record)], into: MockBackend.pngData)
+        #expect(GenerationRecord.reference(in: stripped) == nil)
     }
 
     @Test("embedding a record twice changes nothing the second time")

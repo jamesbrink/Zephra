@@ -62,8 +62,13 @@ public enum ModelCatalog {
     )
 
     /// Every known model, in the order a picker should list them.
+    ///
+    /// klein.s 4-bit variant sits before its 8-bit one on purpose: `default(fitting:)` takes the
+    /// first entry that runs, and the 8-bit variant.s peak lands within a gigabyte of a 16 GB
+    /// Mac.s budget, so which variant such a Mac opened on would otherwise be decided by a
+    /// measurement error rather than by a decision.
     public static let all: [ModelDescriptor] = [
-        zImageTurbo8bit, zImageTurbo4bit, qwenImage2512_4bit,
+        zImageTurbo8bit, flux2Klein4bit, flux2Klein8bit, zImageTurbo4bit, qwenImage2512_4bit,
     ]
 
     /// The model selected on first launch when nothing is known about the machine.
