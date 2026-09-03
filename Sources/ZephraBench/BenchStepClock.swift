@@ -10,10 +10,20 @@ import ZephraCore
 final class BenchStepClock {
     private var marks: [ContinuousClock.Instant] = []
 
+    /// The first step the model actually ran, counting from one.
+    ///
+    /// Normally 1. With a reference image the loop joins the schedule partway down, and this is
+    /// where — observed from what the backend reported rather than recomputed here, because the
+    /// ladder that decides it belongs to the family, not to the benchmark.
+    private(set) var firstStep: Int?
+
     /// Notes the time if this phase bounds a denoising step.
     func record(_ phase: GenerationPhase) {
         switch phase {
-        case .denoising, .decoding:
+        case .denoising(let step, _):
+            if firstStep == nil { firstStep = step }
+            marks.append(ContinuousClock.now)
+        case .decoding:
             marks.append(ContinuousClock.now)
         case .preparing, .encodingText, .saving:
             break

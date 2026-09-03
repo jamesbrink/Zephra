@@ -18,7 +18,7 @@ struct ModelSwapQueueTests {
         await store.bootstrap()
         store.settings.prompt = "first"
         store.generate()
-        try await bed.waitForFirstStep()
+        try await bed.waitForStep()
 
         store.switchModel(to: ModelSwitchingTests.smaller)
         #expect(store.descriptor.id == ModelSwitchingTests.smaller.id, "the choice lands at once")
@@ -48,7 +48,7 @@ struct ModelSwapQueueTests {
         await store.bootstrap()
         store.settings.prompt = "only"
         store.generate()
-        try await bed.waitForFirstStep()
+        try await bed.waitForStep()
 
         store.switchModel(to: ModelSwitchingTests.smaller)
         while store.isDraining || store.loadedDescriptor?.id != ModelSwitchingTests.smaller.id { await store.settle() }

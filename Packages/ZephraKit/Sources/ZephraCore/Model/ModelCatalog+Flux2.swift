@@ -109,6 +109,15 @@ extension ModelCatalog {
         defaultGuidance: 0,
         supportsNegativePrompt: false,
         supportsSeed: true,
-        supportsReferenceImage: true
+        supportsReferenceImage: true,
+        // Strength does not apply, the way guidance does not apply above, and for a reason
+        // worth stating: klein does not start from a noised copy of the picture. It encodes the
+        // reference to tokens, concatenates them after the image being made with their own
+        // image index on the rotary embedding, and walks the whole schedule from pure noise —
+        // see `Flux2ReferenceConditioning` and `Flux2Pipeline+Denoise`. There is no partway
+        // point to enter at, so there is no distance to choose, and a degenerate range is how a
+        // descriptor says so. The interface reads the range and shows no slider.
+        referenceStrengthBounds: 1...1,
+        defaultReferenceStrength: 1
     )
 }

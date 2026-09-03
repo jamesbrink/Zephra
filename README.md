@@ -70,9 +70,29 @@ readout while that happens.
 
 ## Using it
 
+- The window is a sidebar and one of two panes. The sidebar is the same in both: one search
+  field at the top (⌘F), chips for everything and favourites, the queue, and the collections to
+  look in — every image, favourites, the last seven days, one row per model with a count, the
+  tags in use, albums, and Recently deleted pinned at the foot. Canvas (⌘1) is the picture with
+  the prompt floating over it; Library (⌘2) is everything made so far, in day-grouped grids
+  with a filter bar over them and an inspector beside them (⌥⌘I). Typing in the search while
+  the canvas is up takes you to the Library showing the hits, and clearing the field puts you
+  back where you were.
+- The Library's filter bar says what is being shown and how much of it is selected, carries a
+  removable token per filter, and has a slider for the thumbnail size (⌘+ and ⌘− step it).
+  Click to select, shift-click for a range, ⌘-click to add one, ⌘A for all of them, arrow keys
+  to walk the grid, space for Quick Look. The inspector shows the image, its prompt, and the
+  Model, Size, Steps, Seed, Took and File rows read out of the PNG, with its tags and albums,
+  and offers Open in canvas, Queue a variation, and Reveal in Finder. Select several and it
+  says what they have in common and acts on all of them.
 - Type a prompt and press Generate (or ⌘↩). The window subtitle shows what the engine is doing.
+- The control beside Generate says how many seeds one press queues — 1, 2, 4, or 8 of the same
+  prompt, the first of them on the seed in the field, so a run of four is a superset of the one
+  image the same press would have made.
 - Press Generate again while an image is running to queue the next prompt; prompts run one
-  after another and the subtitle counts what is waiting. Stop ends the current image and drops
+  after another and the subtitle counts what is still waiting. The sidebar shows the same
+  queue: the seed being rendered as an amber card with its steps filling in, then a row per
+  seed waiting, each with a cross to take it back out. Stop ends the current image and drops
   the queue; during the first-run download or the load it abandons that instead, and the canvas
   offers to pick it up again — a stopped download resumes from what it already fetched.
 - The model menu in the toolbar names the model that is running and lists the rest, each with
@@ -91,9 +111,13 @@ readout while that happens.
   queue entries as it goes. Your choice is remembered.
 - Size, steps, and seed sit under the prompt. A model that reads a negative prompt gets a
   second field for it, and one that responds to guidance gets a guidance slider; no model
-  shipped today does either, so neither shows. A model that edits a picture, which FLUX.2
-  klein does, gets a well beside the prompt: drop a picture on it or on the canvas, click it
-  to choose one, or use the image on the canvas as the reference (⌥⌘R; ⇧⌥⌘R clears it). The
+  shipped today does either, so neither shows. Every model can start from a picture, so each
+  gets a well beside the prompt: drop a picture on it or on the canvas, click it to choose one,
+  or use the image on the canvas as the reference (⌥⌘R; ⇧⌥⌘R clears it). What a picture means
+  differs by model. FLUX.2 klein attends to it as extra tokens and still renders the whole
+  schedule, so the picture guides the image without a strength to set. Z-Image and Qwen-Image
+  start from a noised copy of it instead, so a strength decides how much of it survives: a
+  strength buys that share of the model's steps, and less strength keeps more of the picture. The
   prompt then says what to change. An edited image carries its reference inside its PNG, so
   selecting it later puts the picture back, and an exported edit can reproduce itself. Steps and size stay as you set them when
   you switch between variants of one model, and steps go back to the new model's own default
@@ -103,23 +127,28 @@ readout while that happens.
   every run gets a fresh one. Images save to `~/Pictures/Zephra` with the seed in the file name;
   if a write fails, a notice sits over the prompt until an image saves, and the picture stays on
   the canvas either way.
-- The filmstrip under the prompt keeps its images across launches: Zephra reads the newest
-  two dozen back out of `~/Pictures/Zephra` at startup, in the background, so it is filled in
-  before the model has finished loading. The record of what made an image — prompt, size,
-  steps, seed, model, and how long it took — lives inside the PNG itself, so moving, renaming,
-  or copying a file to another Mac keeps it, and clicking a restored image loads its settings
-  ready to vary. A PNG that Zephra did not make carries no record and is ignored. Right-click a
+- The strip under the prompt is the run in progress: the seeds one press of Generate queued,
+  with a dashed square for each one still to come (⌥⌘T hides it). Everything ever made is in
+  `~/Pictures/Zephra`, and the Library reads that folder rather than the app keeping a list of
+  its own. The record of what made an image — prompt, size, steps, seed, model, and how long it
+  took — lives inside the PNG itself, so moving, renaming, or copying a file to another Mac
+  keeps it, and opening an image again shows what it was made from, ready to vary. Favourites,
+  tags and album membership go into the same file, under a second keyword, so they travel with
+  the picture too. A PNG that Zephra did not make carries no record and is ignored. Right-click a
   thumbnail for Save as, Copy, Reveal in Finder, and Delete; Delete (⌘⌫ for the image on the
-  canvas) moves the file to the Trash, so it is recoverable from the Finder.
+  canvas) moves the file to `~/Pictures/Zephra/Recently Deleted`, where it waits thirty days
+  before it is thrown away for good, so it can be put back.
 - Settings holds where images are written and the seed preference under General. Performance
   has the after-load warm-up, the ceiling on the GPU scratch the runtime keeps between
   generations — with the figure recommended for your Mac, and a reset back to it — whether the
   VAE decode is tiled (Automatic, Always, Never), and a live readout of active, cached and peak
   GPU memory plus which way the decode is currently set. Both changes apply immediately. About
   shows the version and the third-party license notices.
-- Shortcuts: Generate ⌘↩, Stop ⌘., Save As ⌘S, Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C,
-  Use as Reference ⌥⌘R, Clear Reference ⇧⌥⌘R, Delete Image ⌘⌫. Cut, Copy, Paste and Select All in the prompt field are the standard Edit
-  menu items.
+- Shortcuts: Generate ⌘↩, Stop ⌘., Canvas ⌘1, Library ⌘2, Find ⌘F, Show This Run ⌥⌘T, Show
+  Inspector ⌥⌘I, Select All Images ⌘A, Favourite ⌘⇧D, thumbnail size ⌘+ and ⌘−, Save As ⌘S,
+  Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C, Use as Reference ⌥⌘R, Clear Reference ⇧⌥⌘R, Delete
+  Image ⌘⌫. Return in the prompt field breaks the line, which is why Generate is ⌘↩; Cut,
+  Copy, Paste and Select All there are the standard Edit menu items.
 
 ## How it works
 
@@ -346,6 +375,7 @@ Zephra/
 │   ├── ZephraKit/                 # ours — no MLX dependency
 │   │   ├── Sources/ZephraCore/          # value types + protocols
 │   │   ├── Sources/ZephraEngine/        # actor + store, depends on ZephraCore only
+│   │   │   └── Library/                 # the image folder as an index: scan, query, annotate
 │   │   ├── Sources/ZephraSnapshot/      # hub cache and local snapshot checks, Foundation only
 │   │   └── Tests/ZephraCoreTests, ZephraEngineTests, ZephraSnapshotTests
 │   ├── ZephraMLXKit/              # ours — MLX work no family owns: the packer, the tiled decode
@@ -353,11 +383,16 @@ Zephra/
 │   ├── ZephraBackendQwenImage/    # ours — the only package that imports QwenImage
 │   └── ZephraBackendFlux2/        # ours — the only package that imports Flux2; builds on first load
 ├── Sources/Zephra/                # app target: SwiftUI only, composition root is ZephraApp.swift
-│   └── ZephraApp.swift  Views/**  Support/**  Resources/{Info.plist, Assets.xcassets, Colors}
+│   ├── ZephraApp.swift  Resources/{Info.plist, Assets.xcassets}
+│   ├── Style/                     # the chrome every view draws itself from
+│   ├── Workspace/                 # which pane, which query, whether the inspector is up
+│   ├── Support/                   # caches, exports, previews, settings
+│   └── Views/                     # Canvas/ Library/ Queue/ Sidebar/ Toolbar/ and the rest
 ├── Sources/ZephraBench/           # headless benchmark tool
 ├── Sources/ZephraQuantize/        # builds a 4-bit variant from a bf16 release
-└── scripts/screenshot.sh, make-icon.swift, compare-safetensors.py,
-            sign-release.sh, notarize-release.sh
+├── design/mock/                   # the UI the app was built against
+└── scripts/doctor.sh, screenshot.sh, window-id.swift, make-icon.swift,
+            compare-safetensors.py, sign-release.sh, notarize-release.sh
 ```
 
 ## Development
@@ -380,10 +415,10 @@ Zephra/
   cache with the klein release ahead of a first launch.
 - `make lint-layers` — check the module boundaries above.
 - `make bench ARGS="..."` — headless timing (`--size`, `--steps`, `--runs`, `--model`, `--json`,
-  `--out`, `--micro`, `--reference` to time the editing path); `make logs` streams the app's log; `make screenshot` captures the window;
+  `--out`, `--micro`, `--reference` to time the editing path, `--strength`); `make logs` streams the app's log; `make screenshot` captures the window;
   `make open` opens the generated project in Xcode; `make clean` removes build output.
-- `ZEPHRA_PREVIEW_STATE=ready|image|editing|generating|downloading|building|failed` launches
-  a Debug build frozen in that state with no model, for screenshots.
+- `ZEPHRA_PREVIEW_STATE=ready|image|editing|generating|queued|batch|library|downloading|building|failed`
+  launches a Debug build frozen in that state with no model, for screenshots.
 
 ### Releasing
 

@@ -67,6 +67,12 @@ final class EngineTestBed {
         )
     }
 
+    /// An index over this bed's folder. `settleFor` is the folder watch's debounce, which a
+    /// test wants in milliseconds rather than the app's quarter of a second.
+    func index(settleFor: Duration = .milliseconds(20)) -> LibraryIndex {
+        LibraryIndex(library: library, settleFor: settleFor)
+    }
+
     /// The file names written so far, newest-first order not guaranteed.
     func writtenFiles() throws -> [String] {
         guard FileManager.default.fileExists(atPath: directory.path(percentEncoded: false)) else {
@@ -77,11 +83,18 @@ final class EngineTestBed {
             .filter { !$0.hasPrefix(".") }
     }
 
-    /// Blocks until the mock has reported one denoising step, so a cancel lands mid-run rather
-    /// than before the generation has begun.
-    func waitForFirstStep() async throws {
+    /// How many denoising steps the mock has reported so far, for a test that has to wait for
+    /// a *second* generation and so cannot wait for the count to leave zero.
+    var stepsEmitted: Int { control.settings.stepsEmitted }
+
+    /// Blocks until the mock has reported a denoising step past `baseline`, so a cancel lands
+    /// mid-run rather than before the generation has begun.
+    ///
+    /// `baseline` matters whenever a test starts a second run: the tally is cumulative, so
+    /// waiting for it to exceed zero returns instantly and the cancel lands on nothing.
+    func waitForStep(beyond baseline: Int = 0) async throws {
         for _ in 0..<500 {
-            if control.settings.stepsEmitted > 0 { return }
+            if control.settings.stepsEmitted > baseline { return }
             try await Task.sleep(for: .milliseconds(2))
         }
     }

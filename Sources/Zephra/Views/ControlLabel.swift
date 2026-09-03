@@ -15,6 +15,9 @@ struct ControlLabel<Content: View>: View {
             Text(title)
                 .font(.caption)
                 .foregroundStyle(.tertiary)
+                // A caption never wraps: the row is laid out by its controls, and a two-line
+                // "Strength" would push its slider out of line with every other field.
+                .fixedSize()
             content
                 .frame(height: 26)
         }

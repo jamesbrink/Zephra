@@ -3,18 +3,26 @@ import MLX
 import MLXNN
 import ZephraMLX
 
-/// Qwen-Image's autoencoder, decoding only.
+/// Qwen-Image's autoencoder, both ways.
 ///
-/// Text-to-image never encodes: the pipeline starts from noise, and only editing needs an image
-/// turned into latents. So the encoder is not built and its weights are not loaded.
+/// Text-to-image never encodes — the pipeline starts from noise — but starting from a picture
+/// does, so the encoder is built and loaded alongside the decoder. It costs 107 MB: measured
+/// from the shipped 4-bit build's `vae/diffusion_pytorch_model.safetensors`, where the 84
+/// encoder tensors plus `quant_conv` come to 107.2 MB of bfloat16 against the decoder's 146.6 MB.
+/// That is half a percent of the model's 21.5 GB, which is why it is unconditional rather than
+/// lazy: a nil module rebuilt on demand would have to keep the shard mapped for the life of the
+/// pipeline to have anything to fill itself from, and would buy a rounding error.
 public final class QwenImageAutoencoder: Module {
     @ModuleInfo(key: "post_quant_conv") var postQuantization: Conv2d
+    @ModuleInfo(key: "quant_conv") var quantization: Conv2d
     @ModuleInfo(key: "decoder") var decoder: QwenImageVAEDecoder
+    @ModuleInfo(key: "encoder") var encoder: QwenImageVAEEncoder
 
     // Held as plain floats, not MLXArrays: a bare MLXArray property on a Module is treated as a
     // learnable parameter, and these are configuration.
     private let latentsMean: [Float]
     private let latentsStandardDeviation: [Float]
+    private let latentChannels: Int
 
     /// How many pixels one latent cell becomes along each edge. Three spatial halvings in the
     /// encoder, so eight, and a tile of 64 latent cells decodes a 512-pixel square.
@@ -29,14 +37,21 @@ public final class QwenImageAutoencoder: Module {
     /// tear, and the worst a race can do is decode one image with the previous setting.
     public nonisolated(unsafe) static var latentTile: Int? = TiledDecode.environmentTile
 
-    /// Builds the decoder described by `configuration`. Weights arrive separately.
+    /// Builds the autoencoder described by `configuration`. Weights arrive separately.
     public init(_ configuration: QwenImageVAEConfiguration) {
         _postQuantization.wrappedValue = Conv2d(
             inputChannels: configuration.zDim, outputChannels: configuration.zDim,
             kernelSize: 1)
+        // Twice as wide as its sibling: `quant_conv` sees the mean and the log-variance the
+        // encoder produces together, and `post_quant_conv` sees only the sampled latent.
+        _quantization.wrappedValue = Conv2d(
+            inputChannels: configuration.zDim * 2, outputChannels: configuration.zDim * 2,
+            kernelSize: 1)
         _decoder.wrappedValue = QwenImageVAEDecoder(configuration)
+        _encoder.wrappedValue = QwenImageVAEEncoder(configuration)
         latentsMean = configuration.latentsMean.map(Float.init)
         latentsStandardDeviation = configuration.latentsStd.map(Float.init)
+        latentChannels = configuration.zDim
     }
 
     /// Turns latents into an image in the range -1 to 1.
@@ -64,7 +79,26 @@ public final class QwenImageAutoencoder: Module {
         return MLX.clip(pixels, min: MLXArray(Float(-1)), max: MLXArray(Float(1)))
     }
 
-    /// Loads decoder weights, converting them from the published 3-D video layout.
+    /// Turns an image into latents on the scale the denoising loop works in.
+    ///
+    /// The exact inverse of `decode`, read bottom to top: encode, `quant_conv`, take the
+    /// distribution's mode, normalise. Taking the mode — the first `zDim` channels, which are
+    /// the mean — rather than sampling from the distribution is what keeps a seeded generation
+    /// reproducible; the reference offers both and image-to-image pipelines use the mode.
+    ///
+    /// - Parameter pixels: `[batch, height, width, 3]` in the range -1 to 1, which is the shape
+    ///   and the scale `decode` returns.
+    /// - Returns: `[batch, channels, height / 8, width / 8]`, ready for
+    ///   `QwenImageLatentPacking.pack`.
+    public func encode(_ pixels: MLXArray) -> MLXArray {
+        let parameters = quantization(encoder(pixels))
+        let mode = parameters[0..., 0..., 0..., 0 ..< latentChannels]
+        let normalized =
+            (mode - MLXArray(latentsMean)) / MLXArray(latentsStandardDeviation)
+        return normalized.transposed(0, 3, 1, 2)
+    }
+
+    /// Loads the autoencoder's weights, converting them from the published 3-D video layout.
     public func load(weights: [String: MLXArray]) throws {
         let wanted = Set(parameters().flattened().map(\.0))
         let relevant = weights.filter { wanted.contains($0.key) }

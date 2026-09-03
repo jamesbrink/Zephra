@@ -17,7 +17,7 @@ struct GenerationQueueTests {
         store.settings.prompt = "first"
         store.settings.steps = 4
         store.generate()
-        try await bed.waitForFirstStep()
+        try await bed.waitForStep()
         #expect(!store.canGenerate)
         #expect(store.canQueue)
 
@@ -46,7 +46,7 @@ struct GenerationQueueTests {
         store.settings.prompt = "running"
         store.settings.steps = 8
         store.generate()
-        try await bed.waitForFirstStep()
+        try await bed.waitForStep()
         store.settings.prompt = "keep"
         store.generate()
         store.settings.prompt = "drop"
@@ -72,7 +72,7 @@ struct GenerationQueueTests {
         store.settings.prompt = "running"
         store.settings.steps = 6
         store.generate()
-        try await bed.waitForFirstStep()
+        try await bed.waitForStep()
         store.settings.prompt = "waiting"
         store.generate()
         #expect(store.queue.count == 1)

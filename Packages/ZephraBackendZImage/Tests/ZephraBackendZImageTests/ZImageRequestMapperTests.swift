@@ -28,10 +28,12 @@ struct ZImageRequestMapperTests {
         )
     }
 
+    /// The mapper only throws on a reference image it cannot open, and no test here passes one
+    /// it cannot, so the tests that are about arithmetic keep reading as one expression.
     private func request(_ settings: GenerationSettings, _ model: ModelDescriptor? = nil)
         -> ZImageGenerationRequest
     {
-        ZImageRequestMapper.request(
+        try! ZImageRequestMapper.request(
             for: settings, descriptor: model ?? descriptor, snapshot: snapshot
         )
     }

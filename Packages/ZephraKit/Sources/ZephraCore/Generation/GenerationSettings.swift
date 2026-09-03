@@ -21,6 +21,20 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
     /// its queue entry finally runs. The interface caps the picture before it lands here, so a
     /// reference is a megabyte or two, the same order as the images history already holds.
     public var referenceImage: Data?
+    /// How far from that picture to start, on models that begin from a noised copy of it.
+    ///
+    /// 1 discards the picture entirely and is the ordinary text-to-image path; smaller values
+    /// keep more of it. A model that conditions on the picture *directly* — FLUX.2 klein
+    /// attends to it as extra tokens and still walks the whole schedule from noise — ignores
+    /// this, and says so with a `referenceStrengthBounds` of `1...1`.
+    ///
+    /// Not optional, because every generation has one whether or not its model reads it, and a
+    /// default of 1 is the value that changes nothing. Optional in the *encoded* form, though,
+    /// which is what `GenerationSettings+Codable.swift` is for: a synthesised `Decodable` throws
+    /// on a missing key for a non-optional property — the memberwise initializer's default is
+    /// not the decoder's — so reading a value written before strength existed takes a
+    /// hand-written `init(from:)`.
+    public var referenceStrength: Double
 
     /// Creates a settings value from explicit choices.
     public init(
@@ -30,7 +44,8 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
         steps: Int,
         guidance: Double,
         seed: UInt64,
-        referenceImage: Data? = nil
+        referenceImage: Data? = nil,
+        referenceStrength: Double = 1
     ) {
         self.prompt = prompt
         self.negativePrompt = negativePrompt
@@ -39,6 +54,7 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
         self.guidance = guidance
         self.seed = seed
         self.referenceImage = referenceImage
+        self.referenceStrength = referenceStrength
     }
 
     /// The starting point for a model: an empty prompt, its own defaults, and a fresh seed.
@@ -66,6 +82,10 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
         var copy = self
         copy.steps = descriptor.capabilities.defaultSteps
         copy.guidance = descriptor.capabilities.defaultGuidance
+        // Strength is a schedule setting too: a share of the steps means nothing across a move
+        // from nine steps to four, and on a model that conditions on the picture directly it
+        // means nothing at all.
+        copy.referenceStrength = descriptor.capabilities.defaultReferenceStrength
         return copy
     }
 

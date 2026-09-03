@@ -68,4 +68,34 @@ struct GenerationSettingsTests {
         settings.referenceImage = Data([9, 9])
         #expect(!settings.isReadyToGenerate)
     }
+
+    @Test("defaults carry a strength that changes nothing")
+    func defaultsCarryANeutralStrength() {
+        #expect(GenerationSettings.defaults(for: descriptor).referenceImage == nil)
+        #expect(GenerationSettings.defaults(for: descriptor).referenceStrength == 1)
+    }
+
+    @Test("a strength survives the round trip, and settings written without one still decode")
+    func strengthRoundTrip() throws {
+        var settings = GenerationSettings.defaults(for: descriptor)
+        settings.prompt = "a lighthouse at dusk"
+        settings.referenceImage = Data([9, 9])
+        settings.referenceStrength = 0.45
+
+        let data = try JSONEncoder().encode(settings)
+        let decoded = try JSONDecoder().decode(GenerationSettings.self, from: data)
+        #expect(decoded == settings)
+        #expect(decoded.referenceStrength == 0.45)
+
+        // What a build that predates strength wrote: the key is simply absent. A synthesised
+        // decoder would throw here, because a non-optional property does not fall back to its
+        // initializer's default; the hand-written one reads the absence as "changes nothing".
+        var older = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        older.removeValue(forKey: "referenceStrength")
+        let olderData = try JSONSerialization.data(withJSONObject: older)
+        let fromOlder = try JSONDecoder().decode(GenerationSettings.self, from: olderData)
+        #expect(fromOlder.referenceStrength == 1)
+        #expect(fromOlder.prompt == settings.prompt)
+        #expect(fromOlder.referenceImage == settings.referenceImage)
+    }
 }

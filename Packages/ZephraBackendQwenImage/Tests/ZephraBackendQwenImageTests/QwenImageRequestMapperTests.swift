@@ -21,8 +21,10 @@ struct QwenImageRequestMapperTests {
             seed: seed)
     }
 
+    /// The mapper only throws on a reference image it cannot open, and nothing here passes one,
+    /// so the tests that are about arithmetic keep reading as one expression.
     private func request(_ settings: GenerationSettings) -> QwenImageGenerationRequest {
-        QwenImageRequestMapper.request(for: settings, descriptor: descriptor)
+        try! QwenImageRequestMapper.request(for: settings, descriptor: descriptor)
     }
 
     @Test("settings that already fit the model pass through untouched")

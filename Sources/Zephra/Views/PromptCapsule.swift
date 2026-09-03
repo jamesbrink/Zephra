@@ -14,13 +14,12 @@ struct PromptCapsule: View {
                 isRunning: store.state.denoisingProgress != nil
             )
             VStack(alignment: .leading, spacing: 12) {
-                PromptEditor()
-                PromptInputsRow()
+                PromptRow()
                 Divider()
                 HStack(alignment: .bottom, spacing: 12) {
                     ControlsRow()
                     Spacer(minLength: 12)
-                    QueueChip()
+                    BatchCountControl()
                     StopButton()
                     GenerateButton()
                 }
@@ -29,14 +28,11 @@ struct PromptCapsule: View {
             .padding(.top, 13)
             .padding(.bottom, 12)
         }
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
-        }
-        .shadow(color: .black.opacity(0.28), radius: 22, y: 8)
-        .frame(maxWidth: 680)
+        .chromePanel(.floating)
+        // Wide enough for the settings, the batch count, and a Generate button that spells out
+        // its shortcut, without the row overflowing the panel it is drawn in. The overlay above
+        // allows 736.
+        .frame(maxWidth: 736)
     }
 }
 

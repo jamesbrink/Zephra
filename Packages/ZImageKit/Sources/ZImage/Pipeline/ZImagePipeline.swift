@@ -7,6 +7,11 @@ import Tokenizers
 import Hub
 import Dispatch
 
+// ZEPHRA-PATCH: SDEdit takes its reference picture as a CGImage.
+#if canImport(CoreGraphics)
+import CoreGraphics
+#endif
+
 public struct ZImageGenerationRequest: Sendable {
   public var prompt: String
   public var negativePrompt: String?
@@ -25,6 +30,15 @@ public struct ZImageGenerationRequest: Sendable {
 
   public var enhanceMaxTokens: Int
 
+  // ZEPHRA-PATCH: SDEdit. A picture the generation starts from instead of pure noise, and how
+  // far it may travel from it: 1 ignores the picture entirely and is the ordinary
+  // text-to-image path, smaller values keep more of it. Both default to the old behaviour, so
+  // every existing caller is unchanged.
+  #if canImport(CoreGraphics)
+  public var referenceImage: CGImage? = nil
+  #endif
+  public var referenceStrength: Float
+
   public init(
     prompt: String,
     negativePrompt: String? = nil,
@@ -38,7 +52,9 @@ public struct ZImageGenerationRequest: Sendable {
     maxSequenceLength: Int = 512,
     lora: LoRAConfiguration? = nil,
     enhancePrompt: Bool = false,
-    enhanceMaxTokens: Int = 512
+    enhanceMaxTokens: Int = 512,
+    // ZEPHRA-PATCH: SDEdit, defaulted so this stays source-compatible.
+    referenceStrength: Float = 1.0
   ) {
     self.prompt = prompt
     self.negativePrompt = negativePrompt
@@ -53,6 +69,7 @@ public struct ZImageGenerationRequest: Sendable {
     self.lora = lora
     self.enhancePrompt = enhancePrompt
     self.enhanceMaxTokens = enhanceMaxTokens
+    self.referenceStrength = referenceStrength
   }
 }
 
@@ -472,8 +489,49 @@ public final class ZImagePipeline {
 
     let timestepsArray = scheduler.timesteps.asArray(Float.self)
 
-    logger.info("Running \(request.steps) denoising steps...")
-    for stepIndex in 0..<request.steps {
+    // ZEPHRA-PATCH: SDEdit. With a reference picture the loop does not start from pure noise at
+    // the top of the ladder: strength buys a share of the steps, so it enters that many from
+    // the end, from that picture's latent carrying that step's share of the run's own seeded
+    // noise. Without one, `startIndex` is 0 and `latents` is untouched, which is the unpatched
+    // behaviour exactly.
+    var startIndex = 0
+    #if canImport(CoreGraphics)
+    if let reference = request.referenceImage {
+      // The encode is a whole pass through the autoencoder, so a run cancelled while the model
+      // was still loading should stop here rather than at the first step.
+      try Task.checkCancellation()
+      let sigmasArray = scheduler.sigmas.asArray(Float.self)
+      startIndex = ReferenceLatents.startIndex(
+        strength: request.referenceStrength, steps: request.steps
+      )
+      let referenceLatents = try ZImageStepProfile.measure("reference encode") { () -> MLXArray in
+        let encoded = try PipelineUtilities.encodeImageToLatents(
+          cgImage: reference,
+          vae: vae,
+          latentChannels: vae.configuration.latentChannels,
+          shiftFactor: vae.configuration.shiftFactor,
+          scalingFactor: vae.configuration.scalingFactor,
+          pixelH: latentH * vaeDivisor,
+          pixelW: latentW * vaeDivisor
+        )
+        MLX.eval(encoded)
+        return encoded
+      }
+      latents = ReferenceLatents.mixed(
+        reference: referenceLatents, noise: latents, sigma: sigmasArray[startIndex]
+      )
+      MLX.eval(latents)
+      logger.info(
+        "Reference at strength \(request.referenceStrength): entering at step \(startIndex) of \(request.steps)"
+      )
+    }
+    #endif
+
+    logger.info("Running \(request.steps - startIndex) of \(request.steps) denoising steps...")
+    // ZEPHRA-PATCH: the range starts at `startIndex`, and the progress reports keep counting
+    // against the full `request.steps`, so a caller drawing one segment per step sees the
+    // skipped ones as already finished rather than seeing a shorter run.
+    for stepIndex in startIndex..<request.steps {
       try Task.checkCancellation()
       progressHandler?(GenerationProgress(stage: .denoising, stepIndex: stepIndex, totalSteps: request.steps))
       let timestep = timestepsArray[stepIndex]

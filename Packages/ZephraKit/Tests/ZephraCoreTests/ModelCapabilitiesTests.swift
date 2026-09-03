@@ -60,21 +60,34 @@ struct ModelCapabilitiesTests {
     func referenceImageFollowsTheCapability() {
         let picture = Data([0x89, 0x50, 0x4E, 0x47])
         let settings = makeSettings(referenceImage: picture)
-        #expect(capabilities.clamp(settings).referenceImage == nil)
-        let editing = ModelCapabilities(
-            sizeAlignment: capabilities.sizeAlignment,
-            sizePresets: capabilities.sizePresets,
-            sizeBounds: capabilities.sizeBounds,
-            defaultSize: capabilities.defaultSize,
-            stepBounds: capabilities.stepBounds,
-            defaultSteps: capabilities.defaultSteps,
-            guidanceBounds: capabilities.guidanceBounds,
-            defaultGuidance: capabilities.defaultGuidance,
-            supportsNegativePrompt: false,
-            supportsSeed: true,
-            supportsReferenceImage: true
-        )
-        #expect(editing.clamp(settings).referenceImage == picture)
+        #expect(capabilities.supportsReferenceImage, "Z-Image starts from a noised copy")
+        #expect(capabilities.clamp(settings).referenceImage == picture)
+        #expect(withoutReferences.clamp(settings).referenceImage == nil)
+    }
+
+    @Test("clamp holds the reference strength inside the model's bounds")
+    func clampsReferenceStrength() {
+        #expect(capabilities.referenceStrengthBounds == 0.1...0.9)
+        var settings = makeSettings()
+        settings.referenceStrength = 4
+        #expect(capabilities.clamp(settings).referenceStrength == 0.9)
+        settings.referenceStrength = -1
+        #expect(capabilities.clamp(settings).referenceStrength == 0.1)
+        settings.referenceStrength = 0.45
+        #expect(capabilities.clamp(settings).referenceStrength == 0.45, "already inside")
+    }
+
+    @Test("a model that conditions on the picture directly pins the strength at 1")
+    func degenerateBoundsMeanStrengthDoesNotApply() {
+        // What FLUX.2 klein declares: it attends to the reference as extra tokens and still
+        // walks the whole schedule, so there is no distance to travel and no slider to show.
+        // Expressed the way `guidanceBounds: 0...0` expresses "guidance does not apply".
+        let klein = ModelCatalog.flux2Klein4bit.capabilities
+        #expect(klein.supportsReferenceImage)
+        #expect(klein.referenceStrengthBounds == 1...1)
+        var settings = makeSettings()
+        settings.referenceStrength = 0.3
+        #expect(klein.clamp(settings).referenceStrength == 1)
     }
 
     private func makeSettings(
@@ -92,6 +105,24 @@ struct ModelCapabilitiesTests {
             guidance: guidance,
             seed: 42,
             referenceImage: referenceImage
+        )
+    }
+
+    /// The same capabilities with references turned off, so the drop is exercised rather than
+    /// assumed: every model the catalog ships can read one.
+    private var withoutReferences: ModelCapabilities {
+        ModelCapabilities(
+            sizeAlignment: capabilities.sizeAlignment,
+            sizePresets: capabilities.sizePresets,
+            sizeBounds: capabilities.sizeBounds,
+            defaultSize: capabilities.defaultSize,
+            stepBounds: capabilities.stepBounds,
+            defaultSteps: capabilities.defaultSteps,
+            guidanceBounds: capabilities.guidanceBounds,
+            defaultGuidance: capabilities.defaultGuidance,
+            supportsNegativePrompt: capabilities.supportsNegativePrompt,
+            supportsSeed: capabilities.supportsSeed,
+            supportsReferenceImage: false
         )
     }
 }

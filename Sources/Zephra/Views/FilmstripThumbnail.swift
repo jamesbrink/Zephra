@@ -21,6 +21,8 @@ struct FilmstripThumbnail: View {
         .draggable(image)
         .help(image.settings.prompt)
         .contextMenu {
+            CanvasFavouriteButton(image: image)
+            Divider()
             Button("Save as…") { ImageExport.saveAs(image) }
             Button("Copy") { ImageExport.copyToPasteboard(image) }
             Button("Reveal in Finder") { ImageExport.revealInFinder(image) }
@@ -44,12 +46,15 @@ struct FilmstripThumbnail: View {
             }
         }
         .frame(width: 72, height: 72)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: ZephraChrome.thumbnailRadius, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            let isSelected = store.current?.id == image.id
+            RoundedRectangle(cornerRadius: ZephraChrome.thumbnailRadius, style: .continuous)
+                // The unselected border is the system separator, not a white wash: white on a
+                // light background is invisible, which is what it used to be in light mode.
                 .strokeBorder(
-                    store.current?.id == image.id ? Color.primary.opacity(0.9) : Color.white.opacity(0.12),
-                    lineWidth: store.current?.id == image.id ? 2 : 1
+                    isSelected ? Color.primary.opacity(0.9) : ZephraChrome.hairline,
+                    lineWidth: isSelected ? 2 : 1
                 )
         }
     }
@@ -59,5 +64,6 @@ struct FilmstripThumbnail: View {
     FilmstripThumbnail(image: PreviewImages.sample())
         .padding()
         .environment(ImageCache())
+        .environment(PreviewImages.library(count: 4))
         .environment(GenerationStore.preview(state: .ready))
 }
