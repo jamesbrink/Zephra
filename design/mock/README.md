@@ -2,7 +2,10 @@
 
 The reference design for the three-column Zephra window: a full-height sidebar
 (search, scope chips, queue, sources, today's images), a Canvas/Library pane
-toggle in the toolbar, and an inspector beside the Library grid.
+toggle in the toolbar, and an inspector beside the Library grid. Since then the
+inspector has moved under the toolbar and onto the canvas as well, and the
+timeline's per-run grids have become one wall of squares; the artboards show
+the earlier shape.
 
 - `library-and-gallery.html` — two 1440 x 900 frames. Frame 3a is the Canvas
   pane, frame 3b the Library pane. Open it in a browser; it is self-contained.

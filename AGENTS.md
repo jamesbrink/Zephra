@@ -178,10 +178,17 @@ Four directories, by what a file is rather than what screen it is on:
 - `Views/` — one subfolder per surface (`Canvas/`, `Library/`,
   `Library/Inspector/`, `Sidebar/`, `Sidebar/Timeline/`, `Toolbar/`). The
   three-stored-property rule is what keeps them small; a view that needs a
-  fourth wants a subview. `Sidebar/Timeline/` is the canvas sidebar: one row
-  per run, waiting, running, or finished, with the run's seeds as squares
-  under it. `SessionTimeline` in `ZephraEngine` works out what those rows are;
-  nothing here filters, groups, or sorts.
+  fourth wants a subview. `Sidebar/Timeline/` is the canvas sidebar: a card
+  per run still waiting, the running run's card in amber, and under those one
+  wall of today's pictures in small squares, the running run's dashed places
+  first. `SessionTimeline` in `ZephraEngine` works out the runs; nothing here
+  filters, groups, or sorts. The inspector is `WorkspaceInspector`, a fixed
+  column `WorkspaceDetail` puts beside whichever pane is up, under the toolbar
+  rather than splitting it: `Library/Inspector/` for the grid's selection and
+  `Canvas/CanvasInspector` for the picture on the canvas, which is the
+  library's own inspector once the file is indexed and `FreshImageInspector`
+  until then. `CanvasView` ignores only the vertical safe areas: under the
+  sidebar's it would centre the picture on a width that includes the column.
 
 Albums are made and filed from the library sidebar, and both of those are worth
 knowing about before touching `Sidebar/`:

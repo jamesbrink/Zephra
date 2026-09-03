@@ -38,7 +38,7 @@ final class WorkspaceSelection {
         }
     }
 
-    /// Whether the library's inspector is out.
+    /// Whether the inspector is out, on either pane.
     var inspectorVisible: Bool {
         didSet {
             guard inspectorVisible != oldValue else { return }

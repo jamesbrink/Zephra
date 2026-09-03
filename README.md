@@ -76,8 +76,11 @@ readout while that happens.
   field, chips for everything and favourites, and the collections to look in — every image,
   favourites, the last seven days, one row per model with a count, the tags in use, albums,
   and Recently deleted and New Album pinned at the foot. Canvas is the picture with the prompt
-  floating over it; Library is everything made so far, in day-grouped grids with a filter bar
-  over them and an inspector beside them (⌥⌘I). Typing in the search while the canvas is up
+  floating over it and, in the sidebar, today's run as a wall of small squares that fill in as
+  the seeds land; Library is everything made so far, in day-grouped grids with a filter bar
+  over them. The inspector (⌥⌘I) sits beside either pane, under the toolbar: on the canvas it
+  describes the picture showing, in the Library whatever is selected. Typing in the search
+  while the canvas is up
   takes you to the Library showing the hits, and clearing the field puts you back where you were.
 - New Album (⌘N, or the bar at the foot of the sidebar) makes one called "Untitled Album" and
   puts the cursor in its name, in the row itself: Return keeps what you typed, Escape keeps
@@ -385,7 +388,7 @@ Zephra/
 │   │   ├── Sources/ZephraCore/          # value types + protocols
 │   │   ├── Sources/ZephraEngine/        # actor + store, depends on ZephraCore only
 │   │   │   ├── Library/                 # the image folder as an index: scan, query, annotate
-│   │   │   └── Timeline/                # the canvas sidebar's rows: runs grouped by batch, then by adjacency
+│   │   │   └── Timeline/                # the canvas sidebar: queue cards, then today's pictures as one wall
 │   │   ├── Sources/ZephraSnapshot/      # hub cache and local snapshot checks, Foundation only
 │   │   └── Tests/ZephraCoreTests, ZephraEngineTests, ZephraSnapshotTests
 │   ├── ZephraMLXKit/              # ours — MLX work no family owns: the packer, the tiled decode

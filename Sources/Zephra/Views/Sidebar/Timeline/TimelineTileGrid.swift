@@ -1,23 +1,30 @@
 import SwiftUI
 import ZephraEngine
 
-/// One run's seeds, two by two, in a single row of the sidebar's list.
+/// Today's pictures as one wall of small squares, newest run first, with a dashed place for each
+/// seed still to come at the top of it.
 ///
-/// One list row rather than a row per tile, because the grid is a single object to scroll past
-/// and a `List` that thought it held four rows would put separators through it.
+/// One grid for the whole day rather than one per run. A run of one picture in a grid of its
+/// own left two thirds of the row empty and put a caption over every single square; here the
+/// squares pack, and what any of them was asked for is one press away in the inspector or under
+/// the pointer as a tooltip. The columns follow the sidebar's width, three across at its usual
+/// size, the way Photos fills a column.
+///
+/// One list row rather than a row per tile, because the wall is a single object to scroll past
+/// and a `List` that thought it held forty rows would put separators through it.
 ///
 /// The ring is drawn here rather than by the tile, because being the picture the canvas is
 /// showing is a fact about the file and not about which of the three kinds of tile is standing
 /// in for it. A place still to be filled has no file and so is never ringed.
-struct RunTileGrid: View {
-    /// The run's squares, oldest seed first.
+struct TimelineTileGrid: View {
+    /// Every square of the day: the running run's, then the finished runs' newest first.
     let tiles: [TimelineTile]
 
     @Environment(GenerationStore.self) private var store
     @Environment(ThumbnailCache.self) private var thumbnails
 
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 2), spacing: 6) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: 4)], spacing: 4) {
             ForEach(tiles) { tile in
                 RunTile(tile: tile)
                     .clipShape(shape)
@@ -34,7 +41,7 @@ struct RunTileGrid: View {
     }
 
     private var shape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: ZephraChrome.thumbnailRadius, style: .continuous)
+        RoundedRectangle(cornerRadius: ZephraChrome.cardRadius, style: .continuous)
     }
 
     /// Whether this is the picture the canvas is showing, so the sidebar and the canvas agree
@@ -48,7 +55,7 @@ struct RunTileGrid: View {
 #Preview("Two done, two to come") {
     let run = PreviewImages.run(of: 2)
     List {
-        RunTileGrid(tiles: run.reversed().map { .fresh($0) } + [.pending(2), .pending(3)])
+        TimelineTileGrid(tiles: run.reversed().map { .fresh($0) } + [.pending(2), .pending(3)])
             .listRowBackground(Color.clear)
     }
     .listStyle(.sidebar)

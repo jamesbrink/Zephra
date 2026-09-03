@@ -7,7 +7,8 @@ import ZephraEngine
 /// leading up to: you looked at the facts, and this is the one. The rest are equals beneath it.
 ///
 /// "Use as reference" appears only on a model that reads one, so a build running Z-Image alone
-/// never shows a button that could not do anything.
+/// never shows a button that could not do anything. Opening is left out when the image is the
+/// one already on the canvas, which is what the inspector beside the canvas is describing.
 struct InspectorActions: View {
     /// The image the buttons act on.
     let item: LibraryItem
@@ -16,11 +17,13 @@ struct InspectorActions: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            LibraryOpenButton(item: item)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .keyboardShortcut(.defaultAction)
-                .frame(maxWidth: .infinity)
+            if !isOnCanvas {
+                LibraryOpenButton(item: item)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .keyboardShortcut(.defaultAction)
+                    .frame(maxWidth: .infinity)
+            }
             HStack(spacing: 8) {
                 QueueVariationButton(item: item)
                     .frame(maxWidth: .infinity)
@@ -35,6 +38,11 @@ struct InspectorActions: View {
             }
         }
         .lineLimit(1)
+    }
+
+    /// Whether the canvas is already showing this file.
+    private var isOnCanvas: Bool {
+        store.current?.fileURL?.standardizedFileURL == item.url
     }
 }
 

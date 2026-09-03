@@ -4,11 +4,11 @@ import ZephraEngine
 
 /// The canvas sidebar: the queue and the images as they come out, in one list.
 ///
-/// One list rather than a queue section above a grid of today's pictures, because they were
-/// never two things. A run is queued, runs, and becomes four pictures; showing the waiting half
-/// in one place and the finished half in another meant the same run appeared twice and moved
-/// between them. Here a run is a row from the moment it is asked for, and what changes is what
-/// its squares hold.
+/// Top to bottom it reads future, present, past: the runs still waiting as cards, the run being
+/// rendered in amber with its step segments, and under those one wall of today's pictures. The
+/// wall starts with the running run's own squares, so a seed lands where its dashed place was
+/// and nothing below it moves — and when the run is over its squares are simply the newest on
+/// the wall, which is where they already were.
 ///
 /// It is also what let the strip under the prompt capsule go. That strip pushed the capsule up
 /// the moment a run started, so the picture jumped every time you pressed Generate.
@@ -31,10 +31,21 @@ struct SessionTimelineList: View {
             isToday: { $0 >= day && $0 < next }
         )
         let made = runs.reduce(0) { $0 + $1.finishedCount }
+        let tiles = runs.filter { !$0.isWaiting }.flatMap(\.tiles)
         List {
             Section {
-                ForEach(runs) { run in
-                    row(for: run)
+                ForEach(runs.filter(\.isWaiting)) { run in
+                    WaitingRunCard(run: run)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                }
+                if let running = runs.first(where: \.isRunning) {
+                    RunningRunCard(run: running)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                }
+                if !tiles.isEmpty {
+                    TimelineTileGrid(tiles: tiles)
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                 }
@@ -68,19 +79,6 @@ struct SessionTimelineList: View {
             }
         }
         .listStyle(.sidebar)
-    }
-
-    /// Which of the three shapes a run takes. The tiles are the same in all three; what differs
-    /// is how much the row says about itself.
-    @ViewBuilder
-    private func row(for run: TimelineRun) -> some View {
-        if run.isRunning {
-            RunningRunCard(run: run)
-        } else if run.isWaiting {
-            WaitingRunCard(run: run)
-        } else {
-            FinishedRunRow(run: run)
-        }
     }
 }
 

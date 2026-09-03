@@ -20,7 +20,10 @@ struct CanvasView: View {
             currentImage
             CanvasStateView()
         }
-        .ignoresSafeArea()
+        // Only the vertical edges: the picture runs up under the title bar on purpose. It must
+        // not run under the sidebar, which the split view lets content do, or the picture is
+        // centred on a width that includes the column hiding its left edge.
+        .ignoresSafeArea(edges: .vertical)
         // Dropping a picture on the canvas is what people will try first; it lands in the
         // same well as dropping it on the well, and does nothing for a model without one.
         .onDrop(of: ReferenceDrop.types, isTargeted: nil) { providers in

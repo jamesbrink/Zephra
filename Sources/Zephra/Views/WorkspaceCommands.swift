@@ -16,9 +16,8 @@ struct WorkspaceCommands: Commands {
             Button("Library") { workspace.pane = .library }
                 .keyboardShortcut("2", modifiers: .command)
             Divider()
-            Button("Show Inspector") { workspace.inspectorVisible.toggle() }
+            Toggle("Show Inspector", isOn: inspectorVisible)
                 .keyboardShortcut("i", modifiers: [.option, .command])
-                .disabled(workspace.pane != .library)
             // Escape and typing also bring the prompt back, through `PromptTuckHost`; this is
             // the discoverable, menu-bar way to do the same thing `WorkspaceCommands`' doc
             // comment promises for everything else here.
@@ -34,7 +33,14 @@ struct WorkspaceCommands: Commands {
     }
 
     /// `workspace` arrives as a plain reference rather than `@Bindable`, since `Commands` has no
-    /// view body of its own to project one from — so the toggle gets a binding written by hand.
+    /// view body of its own to project one from — so the toggles get bindings written by hand.
+    private var inspectorVisible: Binding<Bool> {
+        Binding(
+            get: { workspace.inspectorVisible },
+            set: { workspace.inspectorVisible = $0 }
+        )
+    }
+
     private var promptTucked: Binding<Bool> {
         Binding(
             get: { workspace.promptTucked },
