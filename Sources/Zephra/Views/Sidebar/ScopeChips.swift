@@ -2,12 +2,14 @@ import SwiftUI
 import ZephraCore
 import ZephraEngine
 
-/// The two or three narrowings worth reaching for without opening a menu: everything,
-/// favourites, and one chip per model.
+/// The two narrowings worth reaching for without moving the eye: everything, and favourites.
 ///
-/// A model is named by its display name alone unless another catalog entry shares it, when
-/// both take their variant as well. Today that reads "Z-Image Turbo · 8-bit", "Z-Image Turbo ·
-/// 4-bit", "Qwen-Image 2512" — the shortest names that can still be told apart.
+/// Deliberately not one chip per model, which is what the mock drew when the catalog held
+/// three. Five entries wrap this row onto five lines and push the sources below it off the
+/// screen, and the Models section a few rows down already lists every one of them with its
+/// count. A chip row that grows with the catalog is a chip row that eventually swallows the
+/// sidebar, so this one is fixed at the two scopes that are about the pictures rather than
+/// about which model made them.
 struct ScopeChips: View {
     @Environment(WorkspaceSelection.self) private var workspace
 
@@ -23,23 +25,7 @@ struct ScopeChips: View {
                 workspace.query.modelID = nil
                 workspace.show(scope: .favourites)
             }
-            ForEach(ModelCatalog.all) { model in
-                chip(Self.title(of: model), isSelected: workspace.query.modelID == model.id) {
-                    if workspace.query.modelID == model.id {
-                        workspace.query.modelID = nil
-                    } else {
-                        workspace.show(modelID: model.id)
-                    }
-                }
-            }
         }
-    }
-
-    /// A model's shortest unambiguous name: its display name, or its full name when another
-    /// entry in the catalog goes by the same display name.
-    private static func title(of model: ModelDescriptor) -> String {
-        let sharers = ModelCatalog.all.count { $0.displayName == model.displayName }
-        return sharers > 1 ? model.fullName : model.displayName
     }
 
     private func chip(
@@ -62,12 +48,12 @@ struct ScopeChips: View {
         .environment(WorkspaceSelection(pane: .canvas))
 }
 
-#Preview("Narrowed to a model") {
+#Preview("Narrowed to favourites") {
     ScopeChips()
         .padding()
         .frame(width: 280)
         .environment(WorkspaceSelection(
             pane: .library,
-            query: LibraryQuery(modelID: ModelCatalog.default.id)
+            query: LibraryQuery(scope: .favourites)
         ))
 }
