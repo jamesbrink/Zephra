@@ -9,7 +9,43 @@ import ZephraCore
 struct ReferenceImageTests {
     private static let picture = Data([0x89, 0x50, 0x4E, 0x47, 1, 2, 3])
     private static let editing = ModelCatalog.flux2Klein4bit
-    private static let plain = ModelCatalog.zImageTurbo4bit
+
+    /// A stand-in for a model with no way to read a picture at all.
+    ///
+    /// Not a catalog entry any more: every model Zephra ships can now take a reference — klein
+    /// by conditioning on it, the other two by starting from a noised copy. So the drop this
+    /// suite is about has to be built rather than borrowed, which is the more honest test
+    /// anyway: it exercises the capability rather than today's catalog policy.
+    private static let plain: ModelDescriptor = {
+        let base = ModelCatalog.zImageTurbo4bit
+        let capabilities = ModelCapabilities(
+            sizeAlignment: base.capabilities.sizeAlignment,
+            sizePresets: base.capabilities.sizePresets,
+            sizeBounds: base.capabilities.sizeBounds,
+            defaultSize: base.capabilities.defaultSize,
+            stepBounds: base.capabilities.stepBounds,
+            defaultSteps: base.capabilities.defaultSteps,
+            guidanceBounds: base.capabilities.guidanceBounds,
+            defaultGuidance: base.capabilities.defaultGuidance,
+            supportsNegativePrompt: base.capabilities.supportsNegativePrompt,
+            supportsSeed: base.capabilities.supportsSeed,
+            supportsReferenceImage: false
+        )
+        return ModelDescriptor(
+            id: "text-to-image-only",
+            displayName: "Text to image only",
+            variantName: nil,
+            backend: base.backend,
+            source: base.source,
+            quantization: base.quantization,
+            downloadBytes: base.downloadBytes,
+            residentBytes: base.residentBytes,
+            peakBytes: base.peakBytes,
+            tiledPeakBytes: base.tiledPeakBytes,
+            maxPromptTokens: base.maxPromptTokens,
+            capabilities: capabilities
+        )
+    }()
 
     @Test("the reference image reaches the backend with the rest of the settings")
     func referenceReachesTheBackend() async throws {

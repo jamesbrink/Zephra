@@ -367,27 +367,6 @@ public class ZImageControlPipeline {
     }
     return cgImage
   }
-  private func encodeImageToLatents(
-    cgImage: CGImage,
-    vae: AutoencoderKL,
-    vaeConfig: ZImageVAEConfig,
-    pixelH: Int,
-    pixelW: Int
-  ) throws -> MLXArray {
-    let imageArray = try QwenImageIO.resizedPixelArray(
-      from: cgImage,
-      width: pixelW,
-      height: pixelH,
-      addBatchDimension: true,
-      dtype: .float32
-    )
-    let normalized = QwenImageIO.normalizeForEncoder(imageArray)
-    let encodedLatents = vae.encode(normalized)
-    let latentChannels = vaeConfig.latentChannels
-    let latents = encodedLatents[0..., 0..<latentChannels, 0..., 0...]
-    let normalizedLatents = (latents - vaeConfig.shiftFactor) * vaeConfig.scalingFactor
-    return normalizedLatents
-  }
   private func convertToRGBA(_ image: CGImage) -> CGImage? {
     let width = image.width
     let height = image.height
@@ -446,10 +425,14 @@ public class ZImageControlPipeline {
     let pixelW = latentW * vaeDivisor
     let controlLatents: MLXArray
     if let control = controlImage {
-      controlLatents = try encodeImageToLatents(
+      // ZEPHRA-PATCH: this encode moved to PipelineUtilities, so the SDEdit path in
+      // ZImagePipeline runs the same code rather than a second copy of it.
+      controlLatents = try PipelineUtilities.encodeImageToLatents(
         cgImage: control,
         vae: vae,
-        vaeConfig: vaeConfig,
+        latentChannels: vaeConfig.latentChannels,
+        shiftFactor: vaeConfig.shiftFactor,
+        scalingFactor: vaeConfig.scalingFactor,
         pixelH: pixelH,
         pixelW: pixelW
       )

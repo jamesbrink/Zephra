@@ -82,7 +82,7 @@ public nonisolated final class QwenImageBackend: ImageGenerationBackend {
         }
         do {
             return try pipeline.generate(
-                QwenImageRequestMapper.request(for: settings, descriptor: descriptor)
+                try QwenImageRequestMapper.request(for: settings, descriptor: descriptor)
             ) { progress in
                 onProgress(QwenImageProgressMapper.event(from: progress))
             }

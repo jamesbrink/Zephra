@@ -28,7 +28,44 @@ struct Flux2RequestMapperTests {
         let settings = GenerationSettings(
             prompt: "x", size: ImageSize(width: 1024, height: 1024), steps: 4, guidance: 0,
             seed: 1, referenceImage: Data([9]))
-        let request = Flux2RequestMapper.request(for: settings, descriptor: ModelCatalog.zImageTurbo4bit)
+        let request = Flux2RequestMapper.request(for: settings, descriptor: Self.referenceless)
         #expect(request.referenceImage == nil)
     }
+
+    /// A stand-in for a model with no way to read a picture.
+    ///
+    /// Built rather than borrowed from the catalog: every model Zephra ships can now take a
+    /// reference — klein by conditioning on it, Z-Image and Qwen-Image by starting from a
+    /// noised copy — so borrowing one would stop testing the drop the day the catalog changed
+    /// its mind, which is exactly what happened to the entry this used to name.
+    private static let referenceless: ModelDescriptor = {
+        let base = ModelCatalog.flux2Klein4bit
+        let capabilities = ModelCapabilities(
+            sizeAlignment: base.capabilities.sizeAlignment,
+            sizePresets: base.capabilities.sizePresets,
+            sizeBounds: base.capabilities.sizeBounds,
+            defaultSize: base.capabilities.defaultSize,
+            stepBounds: base.capabilities.stepBounds,
+            defaultSteps: base.capabilities.defaultSteps,
+            guidanceBounds: base.capabilities.guidanceBounds,
+            defaultGuidance: base.capabilities.defaultGuidance,
+            supportsNegativePrompt: base.capabilities.supportsNegativePrompt,
+            supportsSeed: base.capabilities.supportsSeed,
+            supportsReferenceImage: false
+        )
+        return ModelDescriptor(
+            id: "text-to-image-only",
+            displayName: "Text to image only",
+            variantName: nil,
+            backend: base.backend,
+            source: base.source,
+            quantization: base.quantization,
+            downloadBytes: base.downloadBytes,
+            residentBytes: base.residentBytes,
+            peakBytes: base.peakBytes,
+            tiledPeakBytes: base.tiledPeakBytes,
+            maxPromptTokens: base.maxPromptTokens,
+            capabilities: capabilities
+        )
+    }()
 }

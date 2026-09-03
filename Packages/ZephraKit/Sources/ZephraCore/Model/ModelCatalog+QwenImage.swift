@@ -26,6 +26,10 @@ extension ModelCatalog {
         // Measured on an M4 Max, deterministic across repetitions: 21532 MB live after a
         // generation at any size, because the weights are the whole of it — 21.6 GB on disk.
         // Peak follows the image: 26053 MB at 512, 30364 MB at 1024, 32520 MB at 1328.
+        //
+        // Taken before the autoencoder's encoder was ported, which adds 107 MB of always-loaded
+        // weights — inside this figure's own rounding, so it is left as measured rather than
+        // adjusted by arithmetic. Due a rerun on an idle machine either way.
         residentBytes: 21_530_000_000,
         peakBytes: 30_360_000_000,
         // Measured, same machine and seed, tiled at a 64-cell latent tile: 26068 MB at 1024 and
@@ -71,6 +75,13 @@ extension ModelCatalog {
         guidanceBounds: 0...0,
         defaultGuidance: 0,
         supportsNegativePrompt: false,
-        supportsSeed: true
+        supportsSeed: true,
+        // As for Z-Image: SDEdit wants an image encoder and a linear schedule, and the
+        // quantizer copies the autoencoder's encoder into the local build verbatim, so the
+        // weights are already on disk. Not to be confused with Qwen-Image-Edit, which
+        // conditions the transformer on a picture and is a different model, not a setting.
+        supportsReferenceImage: true,
+        referenceStrengthBounds: 0.1...0.9,
+        defaultReferenceStrength: 0.6
     )
 }

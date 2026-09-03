@@ -52,6 +52,10 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
     /// shows, and it is the check that the second chunk survived whatever tool last touched the
     /// file.
     public var referenceBytes: Int?
+    /// How far from that picture the generation started, on a model that begins from a noised
+    /// copy of it. Nil when there was no reference, and 1 on a model that conditions on the
+    /// picture directly and so has no such distance to record.
+    public var referenceStrength: Double?
 
     /// The record for a finished image.
     public init(_ image: GeneratedImage) {
@@ -67,6 +71,8 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
         createdAt = image.createdAt
         durationSeconds = image.duration.seconds
         referenceBytes = image.settings.referenceImage?.count
+        referenceStrength = image.settings.referenceImage == nil
+            ? nil : image.settings.referenceStrength
     }
 
     /// What the record asks for, as a request that could be run again.
@@ -75,6 +81,10 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
     /// and queueing a variation of it read the record the same way. The picture an edit started
     /// from is a separate chunk rather than a field, so it is passed in by whoever read the
     /// file: `GenerationRecord.reference(in:)` answers for the bytes in hand.
+    ///
+    /// The strength comes back with it, defaulting to 1 — no reference, or a model that never
+    /// had a distance to travel — so a variation of an edit repeats the edit rather than
+    /// quietly becoming a stronger one.
     public func settings(referenceImage: Data? = nil) -> GenerationSettings {
         GenerationSettings(
             prompt: prompt,
@@ -83,7 +93,8 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
             steps: steps,
             guidance: guidance,
             seed: seed,
-            referenceImage: referenceImage
+            referenceImage: referenceImage,
+            referenceStrength: referenceStrength ?? 1
         )
     }
 

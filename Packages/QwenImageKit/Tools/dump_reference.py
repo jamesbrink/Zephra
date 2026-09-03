@@ -216,11 +216,17 @@ def dump_transformer(out: pathlib.Path) -> None:
 
 
 def dump_vae(out: pathlib.Path) -> None:
-    """A doll's-house autoencoder decoding a single frame, with weights, latent, and pixels.
+    """A doll's-house autoencoder, both ways, with weights, latents, and pixels.
 
-    Single-frame decoding is the whole claim being checked here: the reference runs 3-D causal
+    Single-frame work is the whole claim being checked here: the reference runs 3-D causal
     convolutions over a one-frame tensor, and this port replaces each with the 2-D convolution it
     reduces to. If that reduction is wrong, this fixture says so.
+
+    The encode half adds two claims of its own. The reference skips a downsampler's `time_conv`
+    for the first chunk of a sequence -- and a still image is only ever the first chunk -- so a
+    port that ran it would not match. And `quant_conv` is applied inside `_encode`, before the
+    diagonal Gaussian is formed, so the mode this dumps is the mode of the post-`quant_conv`
+    parameters, not of the encoder's raw output.
     """
     from diffusers import AutoencoderKLQwenImage
 
@@ -239,12 +245,19 @@ def dump_vae(out: pathlib.Path) -> None:
     latent = torch.randn(1, 4, 1, 6, 6)
     mean = torch.tensor(vae.config.latents_mean).view(1, 4, 1, 1, 1)
     std = torch.tensor(vae.config.latents_std).view(1, 4, 1, 1, 1)
+    # One spatial halving for a dim_mult of length two, so the picture is twice the latent.
+    picture = torch.rand(1, 3, 1, 24, 24) * 2 - 1
     with torch.no_grad():
         pixels = vae.decode(latent * std + mean, return_dict=False)[0]
+        encoded = vae.encode(picture).latent_dist.mode()
 
     tensors = {f"vae.{k}": v.contiguous() for k, v in vae.state_dict().items()}
     tensors["vae.in.latent"] = latent.contiguous()
     tensors["vae.out.pixels"] = pixels.contiguous()
+    tensors["vae.in.pixels"] = picture.contiguous()
+    # Normalised the way an image-to-image pipeline normalises it, which makes this the exact
+    # counterpart of `vae.in.latent`: the scale the denoising loop works in, both ways.
+    tensors["vae.out.latent"] = ((encoded - mean) / std).contiguous()
     save_file(tensors, str(out / "vae.safetensors"))
     print(f"vae: {len(tensors)} tensors")
 

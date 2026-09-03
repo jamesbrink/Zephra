@@ -52,21 +52,18 @@ struct VAEParityTests {
         #expect(difference < 1e-4, "pixels differ by \(difference)")
     }
 
-    @Test("the decoder loads every weight the reference decoder carries")
+    @Test("the autoencoder loads every weight the reference carries, and nothing else")
     func weightNamesLineUp() throws {
         let fixture = try Fixture.load("vae")
         let autoencoder = QwenImageAutoencoder(Self.configuration)
         let ours = Set(autoencoder.parameters().flattened().map(\.0))
-        // The encoder's weights are in the checkpoint and deliberately unloaded: nothing in
-        // text-to-image ever turns an image into latents.
-        let decoderSide = Set(
-            Self.weights(fixture).keys.filter {
-                !$0.hasPrefix("encoder.") && $0 != "quant_conv.weight" && $0 != "quant_conv.bias"
-            })
+        // Both halves now: starting from a picture needs the encoder and `quant_conv`, so the
+        // set is the whole checkpoint rather than the decoder's share of it.
+        let theirs = Set(Self.weights(fixture).keys)
         #expect(
-            decoderSide.subtracting(ours).isEmpty,
-            "unloaded: \(decoderSide.subtracting(ours).sorted())")
-        #expect(ours.subtracting(decoderSide).isEmpty,
-            "unfilled: \(ours.subtracting(decoderSide).sorted())")
+            theirs.subtracting(ours).isEmpty,
+            "unloaded: \(theirs.subtracting(ours).sorted())")
+        #expect(ours.subtracting(theirs).isEmpty,
+            "unfilled: \(ours.subtracting(theirs).sorted())")
     }
 }

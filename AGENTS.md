@@ -181,10 +181,10 @@ hook is what makes a build stoppable between tensors.
 **A model that edits** reads `GenerationSettings.referenceImage`, PNG bytes the
 interface caps at 1024 pixels an edge before they land there.
 `ModelCapabilities.supportsReferenceImage` is the gate: `clamp` drops the
-picture for any model without it, so the Z-Image and Qwen-Image mappers never
-see one, and the well beside the prompt shows only for a model that has it.
-The picture is persisted in a second PNG chunk beside the record and comes back
-when the image is selected.
+picture for any model without it, and the well beside the prompt shows only for
+a model that has it. The picture is persisted in a second PNG chunk beside the
+record and comes back when the image is selected. Every model the catalog ships
+reads one, in one of the two ways the next section describes.
 
 ## Build & run
 
@@ -259,6 +259,64 @@ Makefile targets:
 The first Release build compiles MLX's Metal kernels from scratch and takes
 several minutes. Always benchmark and make performance claims against
 Release, never Debug — Debug has Metal validation and full debug info on.
+
+## Starting from a picture
+
+Every model Zephra ships can take a reference picture, and they take it in two
+different ways. The difference is the whole of this section, because the setting
+looks identical from the interface and means something else underneath.
+
+- **Conditioning on it.** FLUX.2 klein encodes the picture to tokens,
+  concatenates them after the image being made with their own image index on the
+  rotary embedding, and still walks the whole schedule from pure noise. See
+  `Flux2ReferenceConditioning` and `Flux2Pipeline+Denoise`. The picture is
+  something the model attends to, so there is no "how much of it to keep".
+- **Starting from a noised copy of it.** Z-Image and Qwen-Image have no such
+  conditioning path, but their autoencoders can encode and their schedules
+  interpolate `x_t = (1 - sigma) * x0 + sigma * noise`, which is all SDEdit
+  needs: encode the picture, noise it to the level some step expects, and resume
+  from there. How far down to resume is a real choice, and it is
+  `GenerationSettings.referenceStrength`.
+
+`referenceStrength` is a plain `Double`, not an optional, because every
+generation has one whether or not its model reads it, and 1 is the value that
+changes nothing. `ModelCapabilities.referenceStrengthBounds` says whether it
+applies at all: a degenerate `1...1` means it does not, the way `guidanceBounds`
+of `0...0` means guidance does not, and `clamp` pins it there. klein declares
+`1...1`; Z-Image and Qwen-Image declare `0.1...0.9` with a default of `0.6`. So
+the interface can decide whether to draw a slider by reading the range, without
+knowing which family it is looking at.
+
+For the models where it does apply:
+
+- Strength reads as "how much of the picture to throw away". 1 discards it
+  entirely and is the ordinary text-to-image path; 0 would return it unchanged.
+  Neither end is offered, which is why the bounds stop at 0.1 and 0.9.
+- **Strength buys a share of the steps, not a noise level.** `steps * strength`
+  of them run, rounded and never fewer than one, and the loop enters that far
+  from the end, starting from the encoded picture mixed with that step's share
+  of the run's own seeded noise. So 0.6 of Z-Image's nine steps enters at 4 and
+  runs 5; 0.6 of Qwen-Image's four enters at 2 and runs 2. This is diffusers'
+  `get_timesteps` mapping, and following it rather than entering at the first
+  sigma at or below the strength is load-bearing: a distilled ladder is not
+  evenly spaced. Qwen-Image's four sigmas are 1.0, 0.767, 0.456 and 0.02, so the
+  noise-level reading sent every strength from 0.1 to 0.4 to that 0.02 and handed
+  the picture back untouched.
+- Progress still counts against the full step count, so a queue card drawing one
+  segment per step shows the skipped ones as finished rather than showing a
+  shorter run.
+- `ZImage.ReferenceLatents` and `QwenImage.QwenImageReferenceLatents` are the
+  entry-point arithmetic, one per family, pure and pinned by their own suites.
+  Two copies on purpose: one lives inside vendored code that is re-synced against
+  upstream, and the two schedules are typed differently.
+- `GenerationRecord.referenceStrength` records what ran, beside
+  `referenceBytes`. Nil when there was no picture; 1 when the model conditioned
+  on it directly, which is how a klein edit says it had no distance to travel.
+
+Each backend package decodes the bytes to a `CGImage` in its own
+`ReferenceImageDecoding` — eleven identical lines per package, because no backend
+package may import another. Backends decode; the kits are handed decoded images
+and never touch the filesystem.
 
 ## Tests
 
@@ -361,6 +419,14 @@ ids and an attention mask and no pixels. So the ViT is not ported and its
 weights are not loaded, along with `lm_head` — together 391 of the checkpoint's
 729 text-encoder tensors. `WeightKeyCoverageTests` asserts that rather than
 leaving it to be assumed.
+
+The autoencoder's *own* encoder is a different matter, and is now ported and
+loaded, because starting from a noised copy of a picture needs it. It is
+107.2 MB of the 4-bit build's 253.8 MB VAE — half a percent of the model's
+21.5 GB — so it is built unconditionally rather than lazily: a nil module
+rebuilt on demand would have to keep the shard mapped for the pipeline's whole
+life to have anything to fill itself from. The catalog's measured figures have
+not been adjusted for it by arithmetic; they are due a rerun.
 
 Fourth model: `flux2-klein-4b-4bit` and `flux2-klein-4b-8bit` — **FLUX.2 klein
 4B** (`black-forest-labs/FLUX.2-klein-4B`, Apache 2.0, ungated), a 3.9-billion
@@ -480,6 +546,10 @@ the re-sync procedure, and the running patch log. Any change inside
 - `make bench ARGS="--size 1024 --steps 9 --runs 3 --json"` measures load, s/step, and peak memory
   headlessly; benchmark on an idle machine, Release only. `--reference IMAGE` measures the
   editing path on a model that has one.
+- `make bench ARGS="--reference design/mock/img/a2.png --strength 0.6"` adds the strength, on a
+  model that starts from a noised copy; the report says which step the loop began at and how
+  many steps actually ran, so a run that took a third of the seconds is not mistaken for a
+  model that got three times faster.
 - `make bench ARGS="--micro --size 1024"` times the DiT's individual MLX kernels at that size's
   token count without loading any weights, so a slow generation can be attributed to a primitive
   rather than guessed at.

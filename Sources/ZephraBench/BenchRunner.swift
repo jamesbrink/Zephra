@@ -46,6 +46,7 @@ enum BenchRunner {
         let settings = timedSettings(descriptor, options: options, reference: reference)
         var runSeconds: [Double] = []
         var stepIntervals: [Double] = []
+        var firstStep = 1
         var image = Data()
         for index in 1...options.runs {
             note("run \(index) of \(options.runs)", verbose)
@@ -56,6 +57,7 @@ enum BenchRunner {
             }
             runSeconds.append((clock.now - start).seconds)
             stepIntervals += stepClock.intervals
+            firstStep = stepClock.firstStep ?? 1
         }
         try write(image, to: options.output)
         let memory = BenchBackends.runtime().memorySnapshot()
@@ -65,13 +67,17 @@ enum BenchRunner {
             model: descriptor.id,
             size: settings.size.width,
             steps: settings.steps,
+            firstStep: firstStep,
+            // The clamped settings, not the options: a model that cannot read a picture, or
+            // one that pins the strength at 1, should report what it actually ran.
+            referenceStrength: settings.referenceImage == nil ? nil : settings.referenceStrength,
             loadSeconds: loadDuration.seconds,
             runSeconds: runSeconds,
             meanSecondsPerStep: mean(stepIntervals),
             activeMemoryMB: Double(memory.activeBytes) / 1_000_000,
             peakMemoryMB: Double(memory.peakBytes) / 1_000_000,
             outputPath: options.output.path,
-            referencePath: options.reference?.path
+            referencePath: settings.referenceImage == nil ? nil : options.reference?.path
         )
     }
 
@@ -98,7 +104,8 @@ enum BenchRunner {
     /// The settings every timed run shares. The seed is fixed so repeated invocations produce
     /// the same image and the same amount of work. The result is put through the model's own
     /// limits here rather than only inside the backend, so the report states the size and step
-    /// count that actually ran instead of the ones that were asked for.
+    /// count that actually ran instead of the ones that were asked for — and, on a model that
+    /// cannot start from a picture, says so by leaving `--reference` out of the report.
     private static func timedSettings(
         _ descriptor: ModelDescriptor,
         options: BenchOptions,
@@ -110,6 +117,7 @@ enum BenchRunner {
         settings.steps = options.steps
         settings.seed = 42
         settings.referenceImage = reference
+        settings.referenceStrength = options.referenceStrength
         return descriptor.capabilities.clamp(settings)
     }
 
