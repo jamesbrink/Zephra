@@ -4,6 +4,7 @@ import ZephraBackendQwenImage
 import ZephraBackendZImage
 import ZephraCore
 import ZephraEngine
+import ZephraUpscaleRealESRGAN
 
 /// The composition root. The only place that builds a store, and the only place allowed to
 /// know which backend it is built on.
@@ -81,7 +82,13 @@ struct ZephraApp: App {
         registry.register(.zImage, ZImageBackendFactory.make)
         registry.register(.qwenImage, QwenImageBackendFactory.make)
         registry.register(.flux2, Flux2BackendFactory.make)
-        return GenerationStore(descriptor: ZephraApp.savedModel(), registry: registry)
+        // The upscaler is registered here for the same reason the backends are: this is the one
+        // file that may name a concrete one.
+        return GenerationStore(
+            descriptor: ZephraApp.savedModel(),
+            registry: registry,
+            upscaler: RealESRGANUpscaler.make
+        )
     }
 
     /// The model chosen last time, or the largest one this Mac can actually run when nothing
