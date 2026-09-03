@@ -117,11 +117,18 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
         else {
             throw BackendError.loadFailed("No model is loaded.")
         }
-        let request = ZImageRequestMapper.request(
-            for: settings,
-            descriptor: descriptor,
-            snapshot: snapshot
-        )
+        let request: ZImageGenerationRequest
+        do {
+            request = try ZImageRequestMapper.request(
+                for: settings,
+                descriptor: descriptor,
+                snapshot: snapshot
+            )
+        } catch {
+            // A reference image that will not open, in practice. Reported as a generation
+            // failure rather than a load one: the model is loaded and fine, the request is not.
+            throw BackendError.generationFailed(error.readableMessage)
+        }
         do {
             return try await pipeline.generateToMemory(request) { progress in
                 onProgress(ZImageProgressMapper.event(from: progress))

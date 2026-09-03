@@ -2,6 +2,10 @@ import Foundation
 import MLX
 import MLXNN
 
+#if canImport(CoreGraphics)
+import CoreGraphics
+#endif
+
 public enum PipelineUtilities {
     public enum UtilityError: Error {
         case textEncoderFailed
@@ -48,6 +52,35 @@ public enum PipelineUtilities {
         image = QwenImageIO.denormalizeFromDecoder(image)
         return MLX.clip(image, min: 0, max: 1)
     }
+
+    #if canImport(CoreGraphics)
+    // ZEPHRA-PATCH: lifted verbatim out of ZImageControlPipeline, where it was private and
+    // unreachable, so the main pipeline's SDEdit path and the control pipeline's conditioning
+    // share one encode instead of drifting apart as two copies.
+    public static func encodeImageToLatents(
+        cgImage: CGImage,
+        vae: AutoencoderKL,
+        latentChannels: Int,
+        shiftFactor: Float,
+        scalingFactor: Float,
+        pixelH: Int,
+        pixelW: Int
+    ) throws -> MLXArray {
+        let imageArray = try QwenImageIO.resizedPixelArray(
+            from: cgImage,
+            width: pixelW,
+            height: pixelH,
+            addBatchDimension: true,
+            dtype: .float32
+        )
+        let normalized = QwenImageIO.normalizeForEncoder(imageArray)
+        let encodedLatents = vae.encode(normalized)
+        // The encoder returns mean and log-variance concatenated; the mean is the first half,
+        // and taking it rather than sampling is what makes a fixed seed reproducible.
+        let latents = encodedLatents[0..., 0..<latentChannels, 0..., 0...]
+        return (latents - shiftFactor) * scalingFactor
+    }
+    #endif
 
     public static func calculateShift(
         imageSeqLen: Int,

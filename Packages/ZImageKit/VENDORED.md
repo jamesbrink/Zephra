@@ -77,6 +77,34 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
 - `Pipeline/ZImagePipeline.swift`: `clearsCacheAfterGeneration` makes the trailing `GPU.clearCache()`
   a knob instead of an unconditional call. Default on, because the VAE decode peak is what pushes
   the process into memory pressure; `ZEPHRA_KEEP_CACHE=1` keeps the warm buffers for the next run.
+- `Pipeline/ReferenceLatents.swift` (new), `Pipeline/ZImagePipeline.swift`,
+  `Pipeline/PipelineUtilities.swift`, `Pipeline/ZImageControlPipeline.swift`: SDEdit, so a
+  generation can start from a picture instead of from pure noise.
+
+  `ZImageGenerationRequest` gains `referenceImage: CGImage?` and `referenceStrength: Float`,
+  both defaulted to the old behaviour, so every existing caller compiles and behaves unchanged.
+  When a reference is present, `generateCore` encodes it to a latent, enters the denoise loop at
+  the first step whose sigma is at or below the strength, and starts that step from
+  `(1 - sigma) * reference + sigma * noise` — the same interpolation the flow-matching scheduler
+  walks back down, using the run's own seeded noise, so a fixed seed still reproduces exactly.
+  The loop's range starts at that index; the progress reports still count against the full
+  requested step count, so a host drawing one segment per step shows the skipped ones as
+  finished rather than showing a shorter run.
+
+  The two decisions — where to enter and what to enter with — live in `ReferenceLatents` as pure
+  functions of the sigma ladder, so `ZImageScheduleTests` pins them without loading weights.
+  A strength of 1 lands on step 0, where the mix is pure noise and the picture contributes
+  nothing, which is why the unpatched path is a special case of the patched one rather than a
+  branch beside it. A strength below the last sigma still runs the last step: running none would
+  hand the reference straight back.
+
+  `encodeImageToLatents` moved from `ZImageControlPipeline`, where it was private and never
+  called, to `PipelineUtilities`, so the SDEdit path and the ControlNet path share one encode
+  instead of drifting as two copies. Its body is unchanged apart from taking the latent channel
+  count and the scale and shift factors directly rather than a `ZImageVAEConfig`, because the
+  two callers have that config in two different shapes. The encoder it drives needs no new
+  weights: the autoencoder builds it unconditionally and `WeightsMapping.applyVAE` has always
+  applied its 106 tensors, in both the 8-bit and the 4-bit snapshots.
 - `Model/VAE/VAETiledDecode.swift` (new), `Model/VAE/AutoencoderKL.swift`: an opt-in tiled decode.
   The decode's transient scales with the resolution it runs at, not with the weights, so a set
   latent tile edge makes the decoder take overlapping latent tiles, evaluate each as it is
