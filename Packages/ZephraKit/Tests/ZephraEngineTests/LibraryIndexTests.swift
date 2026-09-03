@@ -241,15 +241,29 @@ struct LibraryIndexTests {
     @Test("the preview index invents a library and never looks for one")
     func previewTouchesNoDisk() async {
         let index = LibraryIndex.preview(count: 12)
-        #expect(index.items.count == 12)
+        #expect(index.counts.total == 12, "the count asked for is the generated count")
+        #expect(index.counts.recentlyDeleted == 3, "and a handful are in the trash")
+        #expect(index.items.count == 15, "which is every item it holds")
         #expect(index.sections.count > 1, "spread over several days")
-        #expect(index.counts.total == 12)
         #expect(!index.albums.isEmpty)
-        #expect(index.allTags == ["night"])
+        #expect(index.allTags.count > 1, "several tags, so a sidebar has chips to show")
 
         index.start()
         await index.rescanNow()
-        #expect(index.items.count == 12, "nothing was read, so nothing was lost")
+        #expect(index.items.count == 15, "nothing was read, so nothing was lost")
         #expect(index.scanCount == 0)
+    }
+
+    @Test("the preview index points at the pictures it is given")
+    func previewTakesPictures() {
+        let pictures = (0..<4).map { URL(filePath: "/tmp/zephra-preview-\($0).png") }
+        let index = LibraryIndex.preview(count: 4, pictures: pictures)
+        #expect(index.items.prefix(4).map(\.url) == pictures)
+        #expect(
+            index.items.dropFirst(4).allSatisfy {
+                $0.url.path(percentEncoded: false).contains("Zephra Previews")
+            },
+            "and invents the rest rather than running out"
+        )
     }
 }
