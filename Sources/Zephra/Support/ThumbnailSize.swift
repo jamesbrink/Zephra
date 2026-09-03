@@ -30,16 +30,6 @@ nonisolated enum ThumbnailSize: Int, CaseIterable, Comparable, Sendable {
         allCases.first { $0.points >= width } ?? .extraLarge
     }
 
-    /// The next bucket up, or nil at the top. What ⌘+ steps through.
-    var larger: ThumbnailSize? {
-        Self.allCases.first { $0 > self }
-    }
-
-    /// The next bucket down, or nil at the bottom. What ⌘− steps through.
-    var smaller: ThumbnailSize? {
-        Self.allCases.last { $0 < self }
-    }
-
     static func < (lhs: ThumbnailSize, rhs: ThumbnailSize) -> Bool {
         lhs.rawValue < rhs.rawValue
     }

@@ -39,6 +39,9 @@ struct LibraryGrid: View {
             .onGeometryChange(for: Int.self) { columns(across: $0.size.width) } action: {
                 selection.columns = $0
             }
+            // Focus-scoped on purpose: it is what tells the menu bar that ⌘A means these
+            // images rather than the text in the sidebar's search field.
+            .focusedValue(\.focusedLibraryGrid, selection)
         }
         .modifier(LibraryOpenCommand(selection: selection))
         .modifier(LibraryQuickLook(selection: selection))

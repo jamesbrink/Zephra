@@ -19,8 +19,10 @@ struct WorkspaceCommands: Commands {
             Button("Library") { workspace.pane = .library }
                 .keyboardShortcut("2", modifiers: .command)
             Divider()
+            // ⌥⌘T, not ⌥⌘R: the reference well took R when the editing models arrived, and R
+            // means far more to "reference" than it does to a strip of thumbnails.
             Toggle("Show This Run", isOn: $runStripVisible)
-                .keyboardShortcut("r", modifiers: [.option, .command])
+                .keyboardShortcut("t", modifiers: [.option, .command])
             Button("Show Inspector") { workspace.inspectorVisible.toggle() }
                 .keyboardShortcut("i", modifiers: [.option, .command])
                 .disabled(workspace.pane != .library)

@@ -44,6 +44,8 @@ struct ZephraApp: App {
         .commands {
             ZephraCommands(store: store)
             WorkspaceCommands(workspace: workspace)
+            LibraryCommands()
+            ThumbnailSizeCommands()
         }
 
         Settings {
