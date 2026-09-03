@@ -1,8 +1,7 @@
 import SwiftUI
 import ZephraEngine
 
-/// The strip over the grid: what is narrowing it, how much of it there is, and how big to draw
-/// it.
+/// The strip over the grid: what is narrowing it, and how much of it there is.
 ///
 /// A safe-area inset rather than a row above the scroll view, so the grid scrolls under it and
 /// the window's own material shows through — and so the scroll view keeps the full height it
@@ -19,7 +18,6 @@ struct LibraryFilterBar: View {
             LibraryFilterTokens()
             LibrarySelectionCount(selection: selection)
             Spacer(minLength: 12)
-            ThumbnailSizeSlider()
         }
         .padding(.horizontal, 20)
         .frame(height: Self.height)
