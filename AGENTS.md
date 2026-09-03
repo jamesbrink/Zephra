@@ -543,6 +543,10 @@ the re-sync procedure, and the running patch log. Any change inside
 - `ZEPHRA_PREVIEW_STATE=ready|image|editing|generating|queued|batch|library|downloading|building|failed`
   launches a Debug build frozen in that state with no model, for screenshots (`make screenshot`).
 - `make logs` streams `os.Logger` output for subsystem `io.zephra`.
+- `make screenshot` photographs the app's window by its CoreGraphics id, so it captures the
+  window rather than the rectangle of screen it sits in, and it fails rather than falling back
+  when there is no window: a region or full-screen grab returns whatever is in front of Zephra,
+  which on a shared machine means somebody else's windows end up in `out/`.
 - `make bench ARGS="--size 1024 --steps 9 --runs 3 --json"` measures load, s/step, and peak memory
   headlessly; benchmark on an idle machine, Release only. `--reference IMAGE` measures the
   editing path on a model that has one.

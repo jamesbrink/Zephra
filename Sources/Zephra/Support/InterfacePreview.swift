@@ -34,8 +34,14 @@ enum InterfacePreview {
             // The editing preview runs against an invented model that reads a reference, so the
             // well beside the prompt is there to be screenshotted.
             let descriptor = name == "editing" ? PreviewModel.editing : ModelCatalog.default
-            return GenerationStore.preview(
+            let store = GenerationStore.preview(
                 state: state, image: frozenImage(for: state), descriptor: descriptor)
+            if name == "editing" {
+                // Through the same door the interface uses, so the frozen window shows the
+                // strength a dropped picture really gets rather than the 1 that means none.
+                store.useAsReference(PreviewImages.referencePNG())
+            }
+            return store
         }
     }
 
