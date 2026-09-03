@@ -75,10 +75,16 @@ readout while that happens.
   what is being rendered, and the images as they come out. On Library (⌘2) it is the search
   field, chips for everything and favourites, and the collections to look in — every image,
   favourites, the last seven days, one row per model with a count, the tags in use, albums,
-  and Recently deleted pinned at the foot. Canvas is the picture with the prompt floating over
-  it; Library is everything made so far, in day-grouped grids with a filter bar over them and
-  an inspector beside them (⌥⌘I). Typing in the search while the canvas is up takes you to the
-  Library showing the hits, and clearing the field puts you back where you were.
+  and Recently deleted and New Album pinned at the foot. Canvas is the picture with the prompt
+  floating over it; Library is everything made so far, in day-grouped grids with a filter bar
+  over them and an inspector beside them (⌥⌘I). Typing in the search while the canvas is up
+  takes you to the Library showing the hits, and clearing the field puts you back where you were.
+- New Album (⌘N, or the bar at the foot of the sidebar) makes one called "Untitled Album" and
+  puts the cursor in its name, in the row itself: Return keeps what you typed, Escape keeps
+  "Untitled Album", and clicking away keeps what you typed, as the Finder does. Rename in a
+  row's menu edits the same way. Drag images from the grid onto an album row to file them —
+  the row rings in the accent colour as you come over it, and dragging one of several selected
+  images files all of them.
 - The Library's filter bar says what is being shown and how much of it is selected, carries a
   removable token per filter, and has a slider for the thumbnail size (⌘+ and ⌘− step it).
   Click to select, shift-click for a range, ⌘-click to add one, ⌘A for all of them, arrow keys
@@ -147,7 +153,7 @@ readout while that happens.
   VAE decode is tiled (Automatic, Always, Never), and a live readout of active, cached and peak
   GPU memory plus which way the decode is currently set. Both changes apply immediately. About
   shows the version and the third-party license notices.
-- Shortcuts: Generate ⌘↩, Stop ⌘., Canvas ⌘1, Library ⌘2, Find ⌘F, Show
+- Shortcuts: Generate ⌘↩, Stop ⌘., New Album ⌘N, Canvas ⌘1, Library ⌘2, Find ⌘F, Show
   Inspector ⌥⌘I, Select All Images ⌘A, Favourite ⌘⇧D, thumbnail size ⌘+ and ⌘−, Save As ⌘S,
   Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C, Use as Reference ⌥⌘R, Clear Reference ⇧⌥⌘R, Delete
   Image ⌘⌫. Return in the prompt field breaks the line, which is why Generate is ⌘↩; Cut,
