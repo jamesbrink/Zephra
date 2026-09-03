@@ -96,6 +96,28 @@ struct LibraryCursorTests {
         #expect(LibraryCursor.move(.down, in: [], columns: 4, selection: [], anchor: nil) == nil)
     }
 
+    @MainActor
+    @Test("the selection adopts an outcome, and drops what is no longer on screen")
+    func selectionFollowsTheGrid() {
+        let selection = LibrarySelection()
+        selection.apply(LibraryCursor.selectAll(in: Self.sections))
+        #expect(selection.count == 10)
+        #expect(selection.single == nil)
+        #expect(selection.contains(Self.id("b2")))
+
+        selection.keeping(Self.ids("a0", "a1"))
+        #expect(selection.ids == Self.ids("a0", "a1"))
+        #expect(selection.anchor == Self.id("a0"), "the anchor is still on screen")
+
+        selection.keeping(Self.ids("a1"))
+        #expect(selection.single == Self.id("a1"))
+        #expect(selection.anchor == Self.id("a1"), "and follows the selection when it is not")
+
+        selection.clear()
+        #expect(selection.ids.isEmpty)
+        #expect(selection.anchor == nil)
+    }
+
     /// These tests talk in names; an item's identity is its path, so these two translate.
     static func id(_ name: String) -> LibraryItem.ID { "/Zephra/\(name)-0.png" }
 

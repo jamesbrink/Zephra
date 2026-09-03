@@ -169,6 +169,27 @@ struct LibraryIndexTests {
         #expect(index.items.map(\.prompt).contains("from the Finder"))
     }
 
+    @Test("a purge takes what is past its thirty days and leaves the rest")
+    func purgingWhatIsExpired() async throws {
+        let bed = EngineTestBed()
+        let deletedAt = Date(timeIntervalSince1970: 1_772_000_000)
+        try bed.library.moveToRecentlyDeleted(
+            try bed.library.write(LibraryAnnotationTests.image(seed: 20)), at: deletedAt)
+        try bed.library.moveToRecentlyDeleted(
+            try bed.library.write(LibraryAnnotationTests.image(seed: 21)),
+            at: deletedAt.addingTimeInterval(RecentlyDeletedManifest.grace))
+        let index = bed.index()
+        index.start()
+        await index.settle()
+        #expect(index.counts.recentlyDeleted == 2)
+
+        index.purgeExpired(now: deletedAt.addingTimeInterval(RecentlyDeletedManifest.grace + 1))
+        await index.settle()
+
+        #expect(index.counts.recentlyDeleted == 1)
+        #expect(index.items.map(\.seed) == [21])
+    }
+
     @Test("the preview index invents a library and never looks for one")
     func previewTouchesNoDisk() async {
         let index = LibraryIndex.preview(count: 12)
