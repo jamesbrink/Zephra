@@ -2,12 +2,18 @@ import SwiftUI
 import ZephraCore
 import ZephraEngine
 
-/// The six things worth knowing about an image, one to a line.
+/// The six things worth knowing about an image, one to a line, and a seventh when it was made
+/// from a picture rather than from noise.
 ///
 /// The values are formatted by `ImageFacts` in the engine, not here, because the same six lines
 /// describe an image on the canvas and an image in the library, and "how long it took" has
 /// enough rules to be worth testing. This view's only opinions are which face each value is set
 /// in and where the lines fall.
+///
+/// The Reference row says only that there was one. Showing the picture would mean reading the
+/// whole file to get at its second chunk, and this view is drawn for whatever is selected as
+/// the selection moves; "Use as reference" is where that read belongs, off the main actor and
+/// only when it is asked for.
 struct ImageFactsView: View {
     /// The image to describe.
     let item: LibraryItem
@@ -19,6 +25,9 @@ struct ImageFactsView: View {
             row("Steps", facts.steps, style: .digits)
             row("Seed", facts.seed, style: .monospaced)
             row("Took", facts.took, style: .digits)
+            if item.provenance.record?.referenceBytes != nil {
+                row("Reference", "Edited from a picture")
+            }
             row("File", facts.file, style: .monospaced)
             Divider()
         }

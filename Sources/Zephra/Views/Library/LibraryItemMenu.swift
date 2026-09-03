@@ -29,8 +29,11 @@ struct LibraryItemMenu: View {
                     .disabled(items.count > 1)
                 QueueVariationButton(item: first)
                     .disabled(items.count > 1)
+                UseAsReferenceButton(item: first)
+                    .disabled(items.count > 1)
                 Divider()
                 Button(favouriteTitle) { act { index.toggleFavourite($0) } }
+                AlbumMenu(ids: Set(items.map(\.id)))
                 Divider()
                 Button("Save as…") { act { _ in ImageExport.saveAs(files: urls) } }
                 Button("Copy") { act { _ in ImageExport.copyToPasteboard(files: urls) } }

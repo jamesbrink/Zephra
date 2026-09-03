@@ -21,6 +21,8 @@ struct FilmstripThumbnail: View {
         .draggable(image)
         .help(image.settings.prompt)
         .contextMenu {
+            CanvasFavouriteButton(image: image)
+            Divider()
             Button("Save as…") { ImageExport.saveAs(image) }
             Button("Copy") { ImageExport.copyToPasteboard(image) }
             Button("Reveal in Finder") { ImageExport.revealInFinder(image) }
@@ -62,5 +64,6 @@ struct FilmstripThumbnail: View {
     FilmstripThumbnail(image: PreviewImages.sample())
         .padding()
         .environment(ImageCache())
+        .environment(LibraryIndex.preview(count: 4))
         .environment(GenerationStore.preview(state: .ready))
 }
