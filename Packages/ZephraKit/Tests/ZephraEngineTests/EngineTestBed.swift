@@ -11,6 +11,8 @@ import ZephraCore
 final class EngineTestBed {
     /// The backend's behaviour, shared with every mock the factory produces.
     let control = MockBackendControl()
+    /// The upscaler's behaviour, shared the same way.
+    let upscalerControl = MockUpscalerControl()
     /// Where generated images are written.
     let directory = URL(filePath: NSTemporaryDirectory())
         .appending(path: "ZephraEngineTests-\(UUID().uuidString)", directoryHint: .isDirectory)
@@ -46,13 +48,34 @@ final class EngineTestBed {
         return registry
     }
 
-    /// A store wired to the mock backend and to this bed's output folder.
+    /// A store wired to the mock backend, the mock upscaler, and this bed's output folder.
     func store(descriptor: ModelDescriptor = ModelCatalog.default) -> GenerationStore {
+        store(descriptor: descriptor, upscaler: upscalerFactory())
+    }
+
+    /// A store with no upscaler in it, which is what a build carrying none looks like.
+    func storeWithoutUpscaler(
+        descriptor: ModelDescriptor = ModelCatalog.default
+    ) -> GenerationStore {
+        store(descriptor: descriptor, upscaler: nil)
+    }
+
+    /// A store wired to whichever upscaler is asked for.
+    func store(
+        descriptor: ModelDescriptor = ModelCatalog.default, upscaler: UpscalerFactory?
+    ) -> GenerationStore {
         GenerationStore(
             descriptor: descriptor,
             registry: registry(),
-            outputDirectory: directory
+            outputDirectory: directory,
+            upscaler: upscaler
         )
+    }
+
+    /// A factory making mock upscalers that all read this bed's one dial.
+    func upscalerFactory() -> UpscalerFactory {
+        let control = upscalerControl
+        return { MockUpscaler(control: control) }
     }
 
     /// A store whose writes can never succeed: the output folder would have to be created
@@ -95,6 +118,15 @@ final class EngineTestBed {
     func waitForStep(beyond baseline: Int = 0) async throws {
         for _ in 0..<500 {
             if control.settings.stepsEmitted > baseline { return }
+            try await Task.sleep(for: .milliseconds(2))
+        }
+    }
+
+    /// Blocks until the mock upscaler has reported a tile, so a stop lands mid-run rather than
+    /// before the first tile has been through.
+    func waitForTile(beyond baseline: Int = 0) async throws {
+        for _ in 0..<500 {
+            if upscalerControl.settings.tilesEmitted > baseline { return }
             try await Task.sleep(for: .milliseconds(2))
         }
     }

@@ -39,7 +39,10 @@ struct GenerateButton: View {
         if count > 1 {
             return "Queue \(count) seeds of this prompt"
         }
-        return store.state.isBusy ? "Queue this prompt behind the current image" : "Generate an image"
+        // canQueue rather than isBusy: while a picture is being made larger nothing may be
+        // queued at all, so a disabled button must not offer to queue anything behind it.
+        guard store.canQueue, store.state.isBusy else { return "Generate an image" }
+        return "Queue this prompt behind the current image"
     }
 }
 

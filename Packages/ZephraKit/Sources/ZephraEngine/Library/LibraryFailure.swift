@@ -21,6 +21,10 @@ public struct LibraryFailure: Hashable, Sendable {
         case purge
         /// Reading an image back to show it on the canvas.
         case open
+        /// Making a picture larger. Here rather than an engine state of its own: the parent is
+        /// untouched and still on the canvas, and the failure screen's remedy reloads the model,
+        /// which would be no remedy at all for a tile that ran out of memory.
+        case upscale
     }
 
     /// Which image it was, when it was about one. Album writes are about the library.
@@ -46,6 +50,7 @@ public struct LibraryFailure: Hashable, Sendable {
         case .restore: "Couldn't put that image back. \(reason)"
         case .purge: "Couldn't delete that image. \(reason)"
         case .open: "Couldn't open that image. \(reason) It may have been moved."
+        case .upscale: "Couldn't upscale that image. \(reason)"
         }
     }
 }

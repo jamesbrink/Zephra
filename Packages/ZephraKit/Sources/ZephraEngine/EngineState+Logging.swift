@@ -11,6 +11,7 @@ extension EngineState {
         case .warmingUp: "warmingUp"
         case .ready: "ready"
         case .generating: "generating"
+        case .upscaling: "upscaling"
         case .cancelling: "cancelling"
         case .failed(let error): "failed(\(error.message))"
         }
