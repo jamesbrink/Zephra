@@ -5,9 +5,10 @@ import ZephraEngine
 /// The full-height column down the left of the window, and the one thing in the app that is not
 /// the same in both panes.
 ///
-/// On the canvas it is the session: the search field, then the queue and the images as they come
-/// out, in one list. That is what the canvas needs a column for — the picture is on screen, and
-/// what you want beside it is what else this afternoon produced and what is still coming.
+/// On the canvas it is the session, `CanvasSidebar`: the search field, then the queue and the
+/// images as they come out, with the way to the library at the foot. That is what the canvas
+/// needs a column for — the picture is on screen, and what you want beside it is what else this
+/// afternoon produced and what is still coming.
 ///
 /// In the library the pane is already showing the pictures at a size worth looking at, so the
 /// sidebar stops repeating them and does the filing instead: the standing collections, the
@@ -30,11 +31,7 @@ struct SidebarView: View {
         VStack(spacing: 0) {
             switch workspace.pane {
             case .canvas:
-                SidebarSearch()
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 12)
-                Divider()
-                SessionTimelineList()
+                CanvasSidebar()
             case .library:
                 SidebarHeader()
                 Divider()

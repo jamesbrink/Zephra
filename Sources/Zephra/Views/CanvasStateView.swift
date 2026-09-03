@@ -22,7 +22,7 @@ struct CanvasStateView: View {
         .multilineTextAlignment(.center)
         .frame(maxWidth: 460)
         // Room for the floating capsule, or just the lip once the prompt has tucked away.
-        .padding(.bottom, workspace.promptTucked ? 24 : 120)
+        .padding(.bottom, workspace.promptTucked ? 24 : 128)
     }
 
     @ViewBuilder

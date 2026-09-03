@@ -17,7 +17,8 @@ struct CanvasOverlay: View {
             PromptCapsule()
         }
         .padding(.horizontal, 28)
-        .padding(.bottom, 18)
+        // A little more than the sidebar's foot, so the capsule floats rather than sits.
+        .padding(.bottom, 26)
         .frame(maxWidth: 736)
     }
 }

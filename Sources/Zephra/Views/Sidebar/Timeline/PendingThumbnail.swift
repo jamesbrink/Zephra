@@ -8,7 +8,7 @@ import SwiftUI
 /// above the grid, whose step segments are the real measurement.
 struct PendingThumbnail: View {
     var body: some View {
-        RoundedRectangle(cornerRadius: ZephraChrome.thumbnailRadius, style: .continuous)
+        RoundedRectangle(cornerRadius: ZephraChrome.tileRadius, style: .continuous)
             .strokeBorder(.quaternary, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
             .aspectRatio(1, contentMode: .fit)
             .overlay {
