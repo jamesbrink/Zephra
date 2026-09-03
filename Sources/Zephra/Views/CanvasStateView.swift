@@ -33,8 +33,8 @@ struct CanvasStateView: View {
                 .font(.title3)
                 .foregroundStyle(.primary)
         }
-        if case .downloading(let event) = store.state {
-            ProgressView(value: event.fraction)
+        if let fraction = store.state.progressFraction {
+            ProgressView(value: fraction)
                 .progressViewStyle(.linear)
                 .tint(.safelight)
                 .frame(width: 260)

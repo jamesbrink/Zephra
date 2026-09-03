@@ -42,13 +42,30 @@ struct GenerationSettingsTests {
         #expect(settings.isReadyToGenerate)
     }
 
-    @Test("settings survive a round trip through JSON")
+    @Test("settings survive a round trip through JSON, reference image included")
     func codableRoundTrip() throws {
         var settings = GenerationSettings.defaults(for: descriptor)
         settings.prompt = "a lighthouse at dusk"
+        settings.referenceImage = Data([1, 2, 3, 4])
 
         let data = try JSONEncoder().encode(settings)
         let decoded = try JSONDecoder().decode(GenerationSettings.self, from: data)
         #expect(decoded == settings)
+    }
+
+    @Test("moving to another model's schedule keeps the reference image, as it keeps the size")
+    func scheduleKeepsTheReference() {
+        var settings = GenerationSettings.defaults(for: descriptor)
+        settings.referenceImage = Data([9, 9])
+        let moved = settings.onSchedule(of: ModelCatalog.qwenImage2512_4bit)
+        #expect(moved.referenceImage == settings.referenceImage)
+        #expect(moved.size == settings.size)
+    }
+
+    @Test("a reference image alone is not enough to generate; the prompt still is what is required")
+    func referenceDoesNotMakeReady() {
+        var settings = GenerationSettings.defaults(for: descriptor)
+        settings.referenceImage = Data([9, 9])
+        #expect(!settings.isReadyToGenerate)
     }
 }

@@ -31,6 +31,13 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
     public let maxPromptTokens: Int
     /// The settings this model will accept.
     public let capabilities: ModelCapabilities
+    /// Approximate bytes the packed variant occupies once built on this Mac, or 0 for a model
+    /// whose download is what gets loaded.
+    ///
+    /// Separate from `downloadBytes` because for a variant built here both are paid: the release
+    /// is transferred, and the packed copy is written beside it. Non-zero is also what tells the
+    /// engine that loading this model means building it first.
+    public let builtBytes: Int64
 
     /// Creates a descriptor for one model variant.
     public init(
@@ -45,7 +52,8 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
         peakBytes: Int64,
         tiledPeakBytes: Int64,
         maxPromptTokens: Int,
-        capabilities: ModelCapabilities
+        capabilities: ModelCapabilities,
+        builtBytes: Int64 = 0
     ) {
         self.id = id
         self.displayName = displayName
@@ -59,7 +67,11 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
         self.tiledPeakBytes = tiledPeakBytes
         self.maxPromptTokens = maxPromptTokens
         self.capabilities = capabilities
+        self.builtBytes = builtBytes
     }
+
+    /// Whether loading this model means packing its download into a local variant first.
+    public var isBuiltLocally: Bool { builtBytes > 0 && source.requiresDownload }
 
     /// Family and variant together, as a model picker should label the row.
     public var fullName: String {

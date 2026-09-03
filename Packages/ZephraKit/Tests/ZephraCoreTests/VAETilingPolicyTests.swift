@@ -25,12 +25,19 @@ struct VAETilingPolicyTests {
         #expect(policy.tileSize(for: ModelCatalog.zImageTurbo4bit) == nil)
     }
 
-    @Test("a 16 GB Mac tiles for everything it is offered")
+    @Test("a 16 GB Mac tiles for every model whose untiled peak is over its budget")
     func smallMacAlwaysTiles() {
         let policy = Self.policy(.automatic, 16)
+        let budget = MemoryFit.budget(physicalMemory: ModelCatalogTests.gigabytes(16))
         for model in ModelCatalog.all {
-            #expect(policy.tileSize(for: model) == VAETilingPolicy.latentTileEdge)
+            let expected: Int? =
+                Double(model.peakBytes) > budget ? VAETilingPolicy.latentTileEdge : nil
+            #expect(policy.tileSize(for: model) == expected, Comment(rawValue: model.id))
         }
+        // Both Z-Image variants and Qwen-Image page untiled on a 16 GB Mac; klein 4-bit is the
+        // first entry that does not, which is the point of it.
+        #expect(policy.tileSize(for: ModelCatalog.zImageTurbo4bit) == VAETilingPolicy.latentTileEdge)
+        #expect(policy.tileSize(for: ModelCatalog.flux2Klein4bit) == nil)
     }
 
     @Test("always and never ignore both the model and the machine")

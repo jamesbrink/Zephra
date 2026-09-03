@@ -28,13 +28,16 @@ actor InferenceActor {
         self.registry = registry
     }
 
-    /// Fetches the weights if they are missing, then reads them into memory, reporting both
-    /// stages through `events`. Doing nothing is the right answer if the model is already loaded.
+    /// Fetches the weights if they are missing, packs them if the family loads something other
+    /// than its download, then reads them into memory, reporting every stage through `events`. Doing nothing is the right answer if the model is already loaded.
     func prepare(_ descriptor: ModelDescriptor, events: EngineEventSink) async throws {
         let live = try backend(for: descriptor)
         guard live.loadedModelID != descriptor.id else { return }
-        let localPath = try await live.ensureAvailable(descriptor) { event in
+        let downloaded = try await live.ensureAvailable(descriptor) { event in
             events.send(.download(event))
+        }
+        let localPath = try await live.build(descriptor, at: downloaded) { event in
+            events.send(.build(event))
         }
         try await live.load(descriptor, at: localPath) { event in
             events.send(.progress(event))

@@ -97,6 +97,11 @@ public final class GenerationStore {
     public func select(_ image: GeneratedImage) {
         current = image
         settings = image.settings
+        // Everything else carries over whichever model made it; a picture to edit does not,
+        // on a model that cannot read one, or the well could neither show it nor clear it.
+        if !descriptor.capabilities.supportsReferenceImage {
+            settings.referenceImage = nil
+        }
     }
 
     /// Picks a fresh seed for the next generation.

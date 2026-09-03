@@ -1,3 +1,5 @@
+import Foundation
+
 /// Everything the user chose for one generation, kept separate from the model that will run it.
 public struct GenerationSettings: Hashable, Sendable, Codable {
     /// What the image should show.
@@ -12,6 +14,13 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
     public var guidance: Double
     /// The noise seed, so an image can be reproduced exactly.
     public var seed: UInt64
+    /// A picture to edit rather than start from noise, as PNG bytes, on models that read one.
+    ///
+    /// Bytes and not a file URL. A settings value is what the user chose, and it has to keep
+    /// meaning that after the file is moved, after the app quits, and twenty minutes later when
+    /// its queue entry finally runs. The interface caps the picture before it lands here, so a
+    /// reference is a megabyte or two, the same order as the images history already holds.
+    public var referenceImage: Data?
 
     /// Creates a settings value from explicit choices.
     public init(
@@ -20,7 +29,8 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
         size: ImageSize,
         steps: Int,
         guidance: Double,
-        seed: UInt64
+        seed: UInt64,
+        referenceImage: Data? = nil
     ) {
         self.prompt = prompt
         self.negativePrompt = negativePrompt
@@ -28,6 +38,7 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
         self.steps = steps
         self.guidance = guidance
         self.seed = seed
+        self.referenceImage = referenceImage
     }
 
     /// The starting point for a model: an empty prompt, its own defaults, and a fresh seed.
@@ -49,7 +60,8 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
     /// Turbo's schedule and nine of a four-step distillation are different requests, and a
     /// number that happens to be inside both models' bounds survives clamping while meaning
     /// something else on the other side of it. A size or a seed does carry over: 1024 pixels is
-    /// 1024 pixels whoever draws them.
+    /// 1024 pixels whoever draws them, and a picture handed in to edit is the same picture whoever
+    /// edits it; clamping drops it where the new model cannot read one.
     public func onSchedule(of descriptor: ModelDescriptor) -> GenerationSettings {
         var copy = self
         copy.steps = descriptor.capabilities.defaultSteps

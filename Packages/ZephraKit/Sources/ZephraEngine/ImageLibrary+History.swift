@@ -21,7 +21,10 @@ extension ImageLibrary {
             guard let data = try? Data(contentsOf: url),
                   let record = GenerationRecord.read(from: data)
             else { continue }
-            found.append(record.image(pngData: data, fileURL: url))
+            found.append(
+                record.image(
+                    pngData: data, fileURL: url,
+                    referenceImage: GenerationRecord.reference(in: data)))
             if found.count == limit { break }
         }
         return found.enumerated()

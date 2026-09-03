@@ -58,7 +58,7 @@ extension GenerationStore {
             queue.removeAll()
             transition(to: .cancelling)
             generationTask?.cancel()
-        case .checkingModel, .downloading, .loading, .warmingUp:
+        case .checkingModel, .downloading, .building, .loading, .warmingUp:
             queue.removeAll()
             isSwitchingForQueue = false
             bootstrapTask?.cancel()

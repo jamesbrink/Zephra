@@ -15,7 +15,7 @@ struct PromptCapsule: View {
             )
             VStack(alignment: .leading, spacing: 12) {
                 PromptEditor()
-                NegativePromptField()
+                PromptInputsRow()
                 Divider()
                 HStack(alignment: .bottom, spacing: 12) {
                     ControlsRow()

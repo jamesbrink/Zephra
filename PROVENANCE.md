@@ -1,8 +1,12 @@
-# Provenance of `Packages/QwenImageKit`
+# Provenance of Zephra's own model ports
 
-Zephra may ship commercially, so where its Qwen-Image implementation came from
-is a legal question and not only a technical one. This file records the answer
-while it is still checkable.
+Zephra may ship commercially, so where each of its own model implementations
+came from is a legal question and not only a technical one. This file records
+the answers while they are still checkable. `Packages/QwenImageKit` is a
+clean-room port; `Packages/Flux2Kit` is a translation with attribution. The
+two claims are different, and each section says which it is making.
+
+# `Packages/QwenImageKit`
 
 ## The short version
 
@@ -65,3 +69,65 @@ The claim to defend is narrow: no file in `Packages/QwenImageKit` was copied
 from or derived from a GPL-licensed source. The git history of this branch
 shows the port being built component by component, each one landing with its
 `diffusers` fixture in the same commit or the one after it.
+
+# `Packages/Flux2Kit`
+
+## The short version
+
+`Packages/Flux2Kit` is a translation, not a clean-room port. Two MIT-licensed
+Swift implementations of FLUX.2 klein exist, and MIT permits translating them
+into proprietary software with attribution, so there was no reason to pretend
+otherwise. Both are credited in `THIRD_PARTY_NOTICES.md`. **No GPL-licensed
+source was consulted**, and one unlicensed package was deliberately not
+opened.
+
+## What was used
+
+| Reference | License | What was taken |
+|---|---|---|
+| `black-forest-labs/FLUX.2-klein-4B` config files | Apache 2.0 | Every architectural constant, read out of the model's `config.json` files: the block counts, the head width, the four rotary axes and their base, the encoder's layer count and head width, the autoencoder's widths and its batch-norm epsilon. |
+| `huggingface/diffusers` | Apache 2.0 | The reference behaviour. `Flux2Transformer2DModel`, `AutoencoderKLFlux2`, `Flux2KleinPipeline` and its `compute_empirical_mu` define what this port reproduces, and every fixture is dumped from them. |
+| `xocialize/flux2-klein-swift` | MIT | The shape of the transformer: modulation computed once and shared across blocks, the single-stream block's fused query-key-value-feed-forward projection, the four-axis rotary layout, and the finding that mlx-swift up to 0.31.6 miscompiles a bf16 split-K matmul on M5-class GPUs at the single block's output shape. |
+| `VincentGourbin/flux-2-swift-mlx` | MIT | The schedule with the empirical shift, the autoencoder's encoder and decoder, and how a reference picture is fitted and placed after the image being made. |
+| `mflux-community/mflux` | MIT | A third reading of the same architecture in Python, for the places the two Swift ports disagree. No code. |
+
+## What was not
+
+`xocialize/flux2-vae-mlx-swift`, from which the first port takes its
+autoencoder decoder, has no license file. It was never opened. The autoencoder
+here was written from the second port and from `diffusers`.
+
+`mzbac/qwen.image.swift` and `mzbac/flux.swift` are GPL-3.0 and were never
+opened, for the reason the Qwen-Image section gives.
+
+## Where this port departs from its sources, on purpose
+
+Because the fixtures pin the port to `diffusers` rather than to either Swift
+port, the places where a port disagrees with the reference show up as failing
+tests. Four were found and resolved in the reference's favour:
+
+- **The schedule.** `flux2-klein-swift` bends its sigma ladder with the
+  scheduler's published `base_shift` and `max_shift` and starts the ladder at
+  `linspace(1, 0.001, N)`. The klein pipeline ignores both numbers: it computes
+  its shift from the token count and the step count with fitted constants, and
+  starts from `linspace(1, 1/N, N)`. At 1024 pixels and four steps the two
+  schedules are not close. `EmpiricalShift` carries the reference's constants
+  and `SchedulerTests` pins the ladder.
+- **The query-key norm epsilon.** Both `flux2-klein-swift` and `mflux` use
+  1e-5. The reference threads the model's `eps`, 1e-6, into every norm.
+- **The timestep scale.** `mflux` multiplies the timestep by a thousand only
+  when it is at most one. The reference multiplies unconditionally, and so
+  does this port.
+- **Reference pictures.** `flux2-klein-swift` resizes a reference to the
+  output's square. The reference pipeline scales it to at most a megapixel
+  keeping its shape and trims each edge to a multiple of sixteen, so the
+  reference keeps its own grid; `Flux2ImageFitting` and
+  `ReferenceOrderingTests` hold that.
+
+## If this ever needs re-checking
+
+The claim to defend is narrower than the Qwen-Image one: every file in
+`Packages/Flux2Kit` was written by Zephra from MIT- or Apache-licensed
+sources, each credited in `THIRD_PARTY_NOTICES.md`, and nothing in it derives
+from a GPL-licensed or unlicensed source. The git history shows each component
+landing with its `diffusers` fixture.
