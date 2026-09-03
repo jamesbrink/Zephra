@@ -3,7 +3,9 @@ import ZephraEngine
 
 /// The strip over the grid: what is narrowing it, and how much of it there is.
 ///
-/// A safe-area inset rather than a row above the scroll view, so the grid scrolls under it and
+/// `LibraryPane` shows this only when there is something to say — a query with tokens on it, or
+/// a live selection — so an unfiltered library with nothing chosen shows the grid alone. A
+/// safe-area inset rather than a row above the scroll view, so the grid scrolls under it and
 /// the window's own material shows through — and so the scroll view keeps the full height it
 /// needs to place a section heading correctly.
 struct LibraryFilterBar: View {
