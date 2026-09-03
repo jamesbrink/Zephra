@@ -32,6 +32,24 @@ struct RootView: View {
         .environment(GenerationStore.preview(state: .ready, image: PreviewImages.sample()))
 }
 
+#Preview("Generating, with a queue") {
+    let run = InterfacePreview.queuedRun(of: 3)
+    RootView()
+        .frame(width: 1180, height: 800)
+        .environment(ImageCache())
+        .environment(WorkspaceSelection(pane: .canvas))
+        .environment(GenerationStore.preview(
+            state: .generating(GenerationProgressEvent(
+                phase: .denoising(step: 3, of: 4),
+                fraction: 0.75,
+                secondsPerStep: 8.2
+            )),
+            image: PreviewImages.sample(),
+            running: run[0],
+            queue: Array(run.dropFirst())
+        ))
+}
+
 #Preview("Downloading") {
     RootView()
         .frame(width: 1180, height: 800)

@@ -1,4 +1,5 @@
 import SwiftUI
+import ZephraCore
 import ZephraEngine
 
 /// The full-height column down the left of the window: what you are looking for at the top,
@@ -21,9 +22,21 @@ struct SidebarView: View {
     }
 }
 
-#Preview("Sidebar") {
+#Preview("Idle") {
     SidebarView()
         .frame(width: 280, height: 700)
         .environment(WorkspaceSelection(pane: .canvas))
         .environment(GenerationStore.preview(state: .ready))
+}
+
+#Preview("With a run going") {
+    let run = InterfacePreview.queuedRun(of: 3)
+    SidebarView()
+        .frame(width: 280, height: 700)
+        .environment(WorkspaceSelection(pane: .library))
+        .environment(GenerationStore.preview(
+            state: .generating(GenerationProgressEvent(phase: .denoising(step: 3, of: 4), fraction: 0.75)),
+            running: run[0],
+            queue: Array(run.dropFirst())
+        ))
 }

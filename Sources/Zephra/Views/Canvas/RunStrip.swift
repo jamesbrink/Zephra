@@ -1,4 +1,5 @@
 import SwiftUI
+import ZephraCore
 import ZephraEngine
 
 /// This run's seeds under the capsule: what has come out so far, then a dashed square for each
@@ -28,4 +29,27 @@ struct RunStrip: View {
             .frame(maxWidth: .infinity)
         }
     }
+}
+
+#Preview("Three done, one to come") {
+    let run = PreviewImages.run(of: 3)
+    RunStrip()
+        .padding()
+        .frame(width: 620)
+        .background(Color.canvasBackground)
+        .environment(ImageCache())
+        .environment(WorkspaceSelection(pane: .canvas))
+        .environment(GenerationStore.preview(
+            state: .generating(GenerationProgressEvent(
+                phase: .denoising(step: 3, of: 4),
+                fraction: 0.75
+            )),
+            images: run,
+            running: QueuedGeneration(
+                model: ModelCatalog.default,
+                settings: run[0].settings,
+                batchID: run[0].batchID ?? UUID(),
+                batchIndex: 3
+            )
+        ))
 }

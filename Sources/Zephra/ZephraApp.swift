@@ -10,7 +10,7 @@ import ZephraEngine
 struct ZephraApp: App {
     @State private var store = ZephraApp.makeStore()
     @State private var cache = ImageCache()
-    @State private var workspace = WorkspaceSelection()
+    @State private var workspace = InterfacePreview.workspace() ?? WorkspaceSelection()
     /// The GPU runtime the Performance tab reads and tunes, over every backend at once. Built
     /// here because this is the only file allowed to name a backend.
     private static let runtime = CombinedInferenceRuntime([

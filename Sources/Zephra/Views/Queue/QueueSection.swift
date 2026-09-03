@@ -1,4 +1,5 @@
 import SwiftUI
+import ZephraCore
 import ZephraEngine
 
 /// What the engine is working on, in the sidebar: the seed being rendered, then the ones
@@ -30,4 +31,25 @@ struct QueueSection: View {
             Divider()
         }
     }
+}
+
+#Preview("One seed running") {
+    let run = InterfacePreview.queuedRun(of: 1)
+    VStack(spacing: 0) { QueueSection() }
+        .frame(width: 280)
+        .environment(GenerationStore.preview(
+            state: .generating(GenerationProgressEvent(phase: .denoising(step: 3, of: 4), fraction: 0.75)),
+            running: run[0]
+        ))
+}
+
+#Preview("A run of four") {
+    let run = InterfacePreview.queuedRun(of: 4)
+    VStack(spacing: 0) { QueueSection() }
+        .frame(width: 280)
+        .environment(GenerationStore.preview(
+            state: .generating(GenerationProgressEvent(phase: .denoising(step: 3, of: 4), fraction: 0.75)),
+            running: run[0],
+            queue: Array(run.dropFirst())
+        ))
 }
