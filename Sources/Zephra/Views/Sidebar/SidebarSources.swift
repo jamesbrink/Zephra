@@ -9,6 +9,10 @@ import ZephraEngine
 /// question — what have I just made, and what is still coming — and a filing cabinet beside a
 /// picture being worked on is a filing cabinet nobody opens.
 struct SidebarSources: View {
+    /// The album edit under way, owned by `SidebarView` so the rows here and the New Album bar
+    /// below the list are looking at one value.
+    @Binding var albumEdit: AlbumEdit?
+
     @Environment(WorkspaceSelection.self) private var workspace
 
     /// The collections that are always there, in the order they read.
@@ -27,7 +31,7 @@ struct SidebarSources: View {
                 }
             }
             TagSources()
-            AlbumSources()
+            AlbumSources(edit: $albumEdit)
         }
         .listStyle(.sidebar)
     }
@@ -44,7 +48,8 @@ struct SidebarSources: View {
 }
 
 #Preview("Sources") {
-    SidebarSources()
+    @Previewable @State var albumEdit: AlbumEdit?
+    SidebarSources(albumEdit: $albumEdit)
         .frame(width: 280, height: 560)
         .environment(WorkspaceSelection(pane: .library))
         .environment(PreviewImages.library(count: 38))

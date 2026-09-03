@@ -16,8 +16,15 @@ import ZephraEngine
 /// The search field is on both, because the search you type on the canvas is the search the
 /// library answers. Only the chips are dropped from the canvas: they narrow a grid that is not
 /// on screen.
+///
+/// It also owns the album edit, which is a name being typed into one row or a deletion waiting
+/// on an alert. It is held here, above both the list and the New Album bar under it, because a
+/// new album is made in one place and named in another: the bar makes it and hands the naming to
+/// the row, and only a value that outlives both can carry that across.
 struct SidebarView: View {
     @Environment(WorkspaceSelection.self) private var workspace
+    @Environment(LibraryIndex.self) private var index
+    @State private var albumEdit: AlbumEdit?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -31,11 +38,25 @@ struct SidebarView: View {
             case .library:
                 SidebarHeader()
                 Divider()
-                SidebarSources()
+                SidebarSources(albumEdit: $albumEdit)
                 Divider()
                 RecentlyDeletedRow()
+                Divider()
+                NewAlbumBar(action: newAlbum)
             }
         }
+    }
+
+    /// Makes an album, shows it, and puts the cursor in its name.
+    ///
+    /// The album exists before it is named, which is what lets one code path do the naming: what
+    /// the bar starts is a rename of a real album, the same edit the row's own Rename starts.
+    /// Escape then leaves "Untitled Album" behind rather than unmaking anything, which is what
+    /// the Finder does with a new folder.
+    private func newAlbum() {
+        let album = index.createAlbum(named: "Untitled Album")
+        workspace.show(scope: .album(album.id))
+        albumEdit = AlbumEdit(kind: .rename, album: album)
     }
 }
 
