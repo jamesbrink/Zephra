@@ -35,6 +35,7 @@ extension EngineState {
         case .idle: "Not loaded"
         case .checkingModel: "Checking model"
         case .downloading: "Downloading"
+        case .building: "Building"
         case .loading: "Preparing"
         case .warmingUp: "Warming up"
         case .ready: "Ready"
@@ -53,6 +54,8 @@ extension EngineState {
             "Preparing model…"
         case .downloading:
             "\(descriptor.displayName) needs a one-time \(ByteCount.gigabytes(descriptor.downloadBytes)) download."
+        case .building:
+            "Building the \(descriptor.variantName ?? "packed") variant of \(descriptor.displayName). This happens once."
         case .warmingUp:
             "Warming up…"
         case .cancelling:
@@ -69,6 +72,8 @@ extension EngineState {
         switch self {
         case .downloading(let event):
             Self.downloadDetail(event)
+        case .building(let event):
+            Self.buildDetail(event)
         case .generating(let event):
             Self.generationDetail(event)
         default:
@@ -80,7 +85,18 @@ extension EngineState {
     var detailIsMeasurement: Bool {
         if case .generating = self { return true }
         if case .downloading = self { return true }
+        if case .building = self { return true }
         return false
+    }
+
+    /// How far along a download or a build is, for the bar under the headline, or nil when the
+    /// state has no bar.
+    var progressFraction: Double? {
+        switch self {
+        case .downloading(let event): event.fraction
+        case .building(let event): event.fraction
+        default: nil
+        }
     }
 
     /// The step the diffusion loop is on, and how many there are, while one is running.
@@ -97,6 +113,15 @@ extension EngineState {
             parts.append("\(Int64(rate).formatted(.byteCount(style: .file)))/s")
         }
         parts.append("\(Int((event.fraction * 100).rounded()))%")
+        return parts.joined(separator: " · ")
+    }
+
+    private static func buildDetail(_ event: BuildProgressEvent) -> String {
+        let parts = [
+            "Packing the \(event.component)",
+            "\(event.completedComponents) of \(event.totalComponents)",
+            "\(Int((event.fraction * 100).rounded()))%",
+        ]
         return parts.joined(separator: " · ")
     }
 

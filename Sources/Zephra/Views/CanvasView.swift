@@ -18,6 +18,14 @@ struct CanvasView: View {
             CanvasStateView()
         }
         .ignoresSafeArea()
+        // Dropping a picture on the canvas is what people will try first; it lands in the
+        // same well as dropping it on the well, and does nothing for a model without one.
+        .dropDestination(for: URL.self) { urls, _ in
+            guard store.descriptor.capabilities.supportsReferenceImage, let url = urls.first
+            else { return false }
+            store.useAsReference(ReferenceImageEncoder.pngData(contentsOf: url))
+            return store.settings.referenceImage != nil
+        }
     }
 
     @ViewBuilder
@@ -31,6 +39,10 @@ struct CanvasView: View {
                     Button("Save as…") { ImageExport.saveAs(image) }
                     Button("Copy") { ImageExport.copyToPasteboard(image) }
                     Button("Reveal in Finder") { ImageExport.revealInFinder(image) }
+                    if store.descriptor.capabilities.supportsReferenceImage {
+                        Divider()
+                        Button("Use as Reference") { store.useAsReference(image.pngData) }
+                    }
                 }
         }
     }

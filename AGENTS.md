@@ -1,8 +1,8 @@
 # Zephra
 
 Zephra is a native macOS app that generates images locally on Apple Silicon,
-via MLX/Metal. It runs two model families today, Z-Image-Turbo and
-Qwen-Image-2512, behind one backend seam.
+via MLX/Metal. It runs three model families today, Z-Image-Turbo,
+Qwen-Image-2512, and FLUX.2 klein 4B, behind one backend seam.
 
 ## Priorities
 
@@ -11,8 +11,8 @@ In order:
 1. **Very clean code.** Small files, one type per file, compiler-enforced
    module boundaries, no god objects.
 2. **Extensible for more models later.** An explicit backend/model seam
-   (protocol + descriptor catalog). Z-Image-Turbo and Qwen-Image are the
-   two implementations; the UI never touches either family's types.
+   (protocol + descriptor catalog). Z-Image-Turbo, Qwen-Image, and FLUX.2
+   klein are the implementations; the UI never touches any family's types.
 3. **Performance on Apple Silicon**, then a nice, fully native SwiftUI UI.
 
 ## Layering rules — non-negotiable
@@ -55,11 +55,13 @@ Shared, by what a file actually touches:
 - `ZephraEngine` (in `Packages/ZephraKit`): concurrency + state. Depends on
   `ZephraCore` only. Backends arrive as an injected `BackendRegistry` of
   `@Sendable` factories; this layer never names a concrete backend.
-- `ZephraBackendZImage` and `ZephraBackendQwenImage` (their own local
-  packages): translate `ZephraCore` types to and from one family's types. No
-  state, no UI. Each depends on `ZephraKit`'s `ZephraCore` and `ZephraSnapshot`
-  products, on `ZephraQuantization` for its packing plan, and on its own
-  family's kit. This split keeps `Packages/ZephraKit` free of MLX
+- `ZephraBackendZImage`, `ZephraBackendQwenImage`, and `ZephraBackendFlux2`
+  (their own local packages): translate `ZephraCore` types to and from one
+  family's types. No state, no UI. Each depends on `ZephraKit`'s `ZephraCore`
+  and `ZephraSnapshot` products, on `ZephraQuantization` for its packing plan,
+  and on its own family's kit. `ZephraBackendFlux2` is also the one that packs
+  its download into the variant it loads, on first load, through the
+  protocol's `build` step. This split keeps `Packages/ZephraKit` free of MLX
   dependencies, so `make test` (`swift test` there) stays fast and doesn't
   touch Metal.
 - `Packages/ZImageKit`: vendored. Edit only with a `// ZEPHRA-PATCH: <reason>`
@@ -67,6 +69,12 @@ Shared, by what a file actually touches:
 - `Packages/QwenImageKit`: ours, clean-room. Written from Qwen-Image-2512's own
   config files and from `diffusers`, never from the GPL-3.0
   `mzbac/qwen.image.swift`. `PROVENANCE.md` records why and how; keep it true.
+- `Packages/Flux2Kit`: ours, a translation with attribution from two MIT Swift
+  ports (`xocialize/flux2-klein-swift`, `VincentGourbin/flux-2-swift-mlx`) and
+  `diffusers`, pinned against `diffusers` and departing from the ports where
+  the reference says so. Never from GPL code, and never from
+  `xocialize/flux2-vae-mlx-swift`, which has no license. `PROVENANCE.md` lists
+  the deliberate departures; keep it true.
 - Nothing in the app target may import a model package or `MLX`. Only
   `Sources/Zephra/ZephraApp.swift` (the composition root) may import a
   `ZephraBackend*` package, to register the backend. Everywhere else in the
@@ -155,6 +163,28 @@ registered surfaces as `EngineError.noBackend`, not as a crash.
 never download, never disturb what is loaded. It is what lets the picker say
 "13.3 GB download" without starting one.
 
+**A model whose download is not what gets loaded** is the third case, and
+FLUX.2 klein is the one that has it: the release is 16 GB of bfloat16 and the
+loader reads a packed variant. Such a family implements
+`ImageGenerationBackend.build(_:at:onProgress:)`, which the engine calls
+between `ensureAvailable` and `load` and shows as `EngineState.building`; every
+other family takes the protocol's default, which returns the download
+untouched. `ModelDescriptor.builtBytes` says what the packed variant costs on
+disk, and non-zero is what tells the engine a build is involved. Availability
+then has two more answers, `.needsDownloadAndBuild(bytes:)` and `.needsBuild`,
+so the picker says what choosing the model will cost. The packed variant lives
+at `ModelCatalog.localModelsDirectory/<descriptor.id>`, which is the naming
+every locally built variant already follows. The packer's `shouldContinue`
+hook is what makes a build stoppable between tensors.
+
+**A model that edits** reads `GenerationSettings.referenceImage`, PNG bytes the
+interface caps at 1024 pixels an edge before they land there.
+`ModelCapabilities.supportsReferenceImage` is the gate: `clamp` drops the
+picture for any model without it, so the Z-Image and Qwen-Image mappers never
+see one, and the well beside the prompt shows only for a model that has it.
+The picture is persisted in a second PNG chunk beside the record and comes back
+when the image is selected.
+
 ## Build & run
 
 Prerequisites, on a fresh Mac: the full Xcode 26 `Xcode.app` selected with
@@ -197,6 +227,9 @@ Makefile targets:
   `xcrun notarytool store-credentials zephra-notary` run once; `NOTARY_PROFILE`
   names the profile.
 - `make prefetch` — download the default model weights via `hf download`.
+- `make prefetch-flux2` — download the FLUX.2 klein 4B release into the hub
+  cache, without the 7.75 GB single-file checkpoint the loader never reads, so
+  a first launch skips the download and goes straight to the build.
 - `make prefetch-qwen` — download Qwen-Image-2512 and its four-step Lightning
   adapter into `QWEN_MODELS` (external storage by default; 57.7 GB does not
   belong on a boot volume). Name the adapter file explicitly: the repository
@@ -212,6 +245,11 @@ Makefile targets:
   with `QWEN_LORA` merged into its transformer, into
   `~/Library/Application Support/Zephra/Models/qwen-image-2512-4bit`
   (`QWEN_OUT` overrides). About a minute with the source local.
+- `make quantize-flux2` — the build the app does on first load, by hand: pack
+  the klein release from the hub cache (or `FLUX2_SOURCE`) into
+  `~/Library/Application Support/Zephra/Models/flux2-klein-4b-4bit`
+  (`FLUX2_OUT` overrides; `BITS=8` needs a different `FLUX2_OUT`, and the tool
+  refuses otherwise). About a minute.
 - `make lint-layers` — enforce the layering rules above.
 - `make logs` — stream app logs (`log stream`, subsystem `io.zephra`).
 - `make screenshot` — capture the app window (see debugging hooks).
@@ -247,12 +285,14 @@ the snapshot, not whichever is listed first"); match that when adding one.
 
 No test loads model weights. The `ZephraKit` suites never touch Metal; the MLX
 packages' suites run doll's-house tensors through it, and a few of `QwenImageKit`'s
-read a real snapshot's config and tokenizer files when `QWEN_IMAGE_SNAPSHOT` names
-one. The engine tests drive `MockBackend`
+and `Flux2Kit`'s read a real snapshot's config, tokenizer, and safetensors header
+files when `QWEN_IMAGE_SNAPSHOT` or `FLUX2_KLEIN_SNAPSHOT` names one (or the hub
+cache holds exactly one snapshot). The engine tests drive `MockBackend`
 through `MockBackendControl`, a lock-protected dial a `@Sendable` factory can
-close over — it fails a load, delays one so cancellation lands mid-flight, and
-tallies loads and unloads — while `EngineTestBed` gives each test a throwaway
-output folder. `ZephraCoreTests` uses the smaller `StubBackend`.
+close over — it fails a load, delays one so cancellation lands mid-flight,
+pretends to build, tallies loads, unloads and builds, and records the last
+settings a generation was asked for — while `EngineTestBed` gives each test a
+throwaway output folder. `ZephraCoreTests` uses the smaller `StubBackend`.
 
 ## Model weights
 
@@ -321,6 +361,41 @@ weights are not loaded, along with `lm_head` — together 391 of the checkpoint'
 729 text-encoder tensors. `WeightKeyCoverageTests` asserts that rather than
 leaving it to be assumed.
 
+Fourth model: `flux2-klein-4b-4bit` and `flux2-klein-4b-8bit` — **FLUX.2 klein
+4B** (`black-forest-labs/FLUX.2-klein-4B`, Apache 2.0, ungated), a 3.9-billion
+parameter rectified-flow transformer of 5 dual-stream and 20 single-stream blocks,
+conditioned on Qwen3-4B and decoded by a plain 2-D KL autoencoder, distilled to
+four steps with no guidance. The one download is the bf16 release without the
+root single-file checkpoint, 16 GB; the app packs it into the chosen variant on
+first load (`builtBytes` says what that writes), and `make quantize-flux2` is the
+same build by hand. Both variants share the download. The release is kept
+afterwards: the other variant packs from it, and the hub cache is `hf`'s to
+prune, not Zephra's.
+
+The text encoder is Qwen3-4B, bit for bit, and the transformer conditions on
+the hidden state after its 9th, 18th and 27th layers laid side by side, padded
+to 512 tokens with every position kept. So only the first 27 layers are built,
+loaded, or packed; layers 27 to 35 and the final norm are omitted by the plan,
+`Qwen3Model` builds `layersNeeded` layers rather than what the config says, and
+`WeightKeyCoverageTests` pins the leftover set. The three modulation linears are
+shared by every block of their kind and held whole: 142 million parameters is
+not worth a knob. The autoencoder normalises its packed 128-channel latent with
+batch-norm running statistics rather than a scaling factor, and its config
+names FLUX.2-dev as its origin; only the copy inside the klein-4B repository is
+ever read. Its memory figures in the catalog are estimates marked
+`TODO(measure)` until the benchmark run replaces them.
+
+Two of this port's choices are load-bearing and easy to undo by accident. The
+schedule uses the pipeline's empirical shift, not the scheduler config's
+`base_shift` and `max_shift`, which klein's pipeline never reads. And the
+query-key norm epsilon is the config's 1e-6, where both MIT ports use 1e-5;
+`PROVENANCE.md` lists these with the other two departures.
+
+The same checkpoint edits: a reference picture is fitted to at most a megapixel
+keeping its shape, trimmed to multiples of 16, encoded, and its tokens placed
+after the image being made on image index 10 of the rotary embedding's first
+axis. The schedule's shift counts only the image being made.
+
 Each family's quantization plan lives in its own backend package's
 `Quantization` directory; the packer they drive is shared, in
 `ZephraQuantization`. Precision there is a function of the tensor name: an
@@ -374,6 +449,10 @@ the re-sync procedure, and the running patch log. Any change inside
 - Conventional Commits for all git messages.
 - Swift 6 strict concurrency in our code. The vendored `ZImageKit` package
   stays in Swift 5 language mode so its 49 upstream files compile untouched.
+- Every package pins the same exact `mlx-swift` version. When bumping it, re-run
+  `Flux2Kit`'s bf16 matmul probe test: mlx-swift up to 0.31.6 miscompiles a
+  bf16 split-K matmul on M5-class GPUs at the single block's output shape, and
+  the port relies on its conditioning stream being float32 to stay clear of it.
 - No emojis in code or docs.
 - Keep files small; split before a file grows past its target size.
 - Zephra may ship commercially. Every new dependency, vendored file, or model
@@ -383,11 +462,12 @@ the re-sync procedure, and the running patch log. Any change inside
 
 ## Debugging hooks
 
-- `ZEPHRA_PREVIEW_STATE=ready|image|generating|downloading|failed` launches a Debug build
-  frozen in that state with no model, for screenshots (`make screenshot`).
+- `ZEPHRA_PREVIEW_STATE=ready|image|editing|generating|downloading|building|failed` launches a
+  Debug build frozen in that state with no model, for screenshots (`make screenshot`).
 - `make logs` streams `os.Logger` output for subsystem `io.zephra`.
 - `make bench ARGS="--size 1024 --steps 9 --runs 3 --json"` measures load, s/step, and peak memory
-  headlessly; benchmark on an idle machine, Release only.
+  headlessly; benchmark on an idle machine, Release only. `--reference IMAGE` measures the
+  editing path on a model that has one.
 - `make bench ARGS="--micro --size 1024"` times the DiT's individual MLX kernels at that size's
   token count without loading any weights, so a slow generation can be attributed to a primitive
   rather than guessed at.
