@@ -5,7 +5,7 @@ import ZephraEngine
 /// Launches the app frozen in one engine state, with no model and no network, so the
 /// interface can be screenshotted and inspected on its own.
 ///
-/// Set `ZEPHRA_PREVIEW_STATE` to `ready`, `image`, `generating`, `queued`, `batch`,
+/// Set `ZEPHRA_PREVIEW_STATE` to `ready`, `image`, `generating`, `queued`, `batch`, `library`,
 /// `downloading`, or `failed` before launching. Debug builds only; in Release this is inert.
 enum InterfacePreview {
     /// A store frozen in the requested state, or nil for a normal launch. The frozen store has
@@ -34,11 +34,11 @@ enum InterfacePreview {
         }
     }
 
-    /// Where the frozen window is looking. The canvas for every state there is so far; the
-    /// library pane gets its own once there is a library to show.
+    /// Where the frozen window is looking. Stated rather than restored, so a screenshot build
+    /// shows the same thing on every machine.
     static func workspace() -> WorkspaceSelection? {
         guard requestedState != nil else { return nil }
-        return WorkspaceSelection(pane: .canvas)
+        return WorkspaceSelection(pane: name == "library" ? .library : .canvas)
     }
 
     /// A run of `count` seeds of one prompt, the first of which is the one being rendered.
@@ -80,7 +80,7 @@ enum InterfacePreview {
     private static var requestedState: EngineState? {
         #if DEBUG
         switch name {
-        case "ready", "image", "batch":
+        case "ready", "image", "batch", "library":
             return .ready
         case "generating":
             return .generating(GenerationProgressEvent(
