@@ -95,8 +95,14 @@ readout while that happens.
   to walk the grid, space for Quick Look. The inspector shows the image, its prompt, and the
   Model, Size, Steps, Seed and Took rows read out of the PNG (the filename is the tooltip on
   Reveal in Finder), with its tags and albums, and offers Open in canvas, Queue a variation,
-  and Reveal in Finder. Select several and it says what they have in common and acts on all
-  of them.
+  Reveal in Finder, and Upscale 2× or 4×. Select several and it says what they have in common
+  and acts on all of them.
+- Upscale runs Real-ESRGAN's compact network over the picture in tiles, on any Mac, in a few
+  seconds, and writes the result beside the original as `<name>-x4.png` with the original's
+  prompt, seed and steps inside it and a row in the inspector saying what it was made from. It
+  needs no model loaded and works on the canvas's picture, a library selection, and the
+  right-click menu; it is 4× by nature, and 2× is that pass averaged back down. Generate waits
+  while it runs.
 - Type a prompt and press Generate (or ⌘↩); Return breaks the line, and a selection is painted
   only as far as the text. The window subtitle shows what the engine is doing.
 - The control beside Generate says how many seeds one press queues — 1, 2, 4, or 8 of the same
@@ -151,7 +157,7 @@ readout while that happens.
   keeps it, and opening an image again shows what it was made from, ready to vary. Favourites,
   tags and album membership go into the same file, under a second keyword, so they travel with
   the picture too. A PNG that Zephra did not make carries no record and is ignored. Right-click a
-  thumbnail for Save as, Copy, Reveal in Finder, and Delete; Delete (⌘⌫ for the image on the
+  thumbnail for Save as, Copy, Reveal in Finder, Upscale, and Delete; Delete (⌘⌫ for the image on the
   canvas) moves the file to `~/Pictures/Zephra/Recently Deleted`, where it waits thirty days
   before it is thrown away for good, so it can be put back.
 - Settings holds where images are written and the seed preference under General. Performance
@@ -162,8 +168,8 @@ readout while that happens.
   shows the version and the third-party license notices.
 - Shortcuts: Generate ⌘↩, Stop ⌘., New Album ⌘N, Canvas ⌘1, Library ⌘2, Find ⌘F, Show
   Inspector ⌥⌘I, Select All Images ⌘A, Favourite ⌘⇧D, thumbnail size ⌘+ and ⌘−, Save As ⌘S,
-  Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C, Use as Reference ⌥⌘R, Clear Reference ⇧⌥⌘R, Delete
-  Image ⌘⌫. Return in the prompt field breaks the line, which is why Generate is ⌘↩; Cut,
+  Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C, Use as Reference ⌥⌘R, Clear Reference ⇧⌥⌘R, Upscale
+  2× ⌥⌘U, Upscale 4× ⌥⇧⌘U, Delete Image ⌘⌫. Return in the prompt field breaks the line, which is why Generate is ⌘↩; Cut,
   Copy, Paste and Select All there are the standard Edit menu items.
 
 ## How it works
@@ -474,9 +480,9 @@ re-checks with `spctl`. `NOTARY_PROFILE=...` selects a differently named profile
 
 ## Roadmap
 
-- More models, added as new backends behind the existing protocol
-- Runtime LoRA (adapters are merged at build time today)
-- Editing on more than one reference picture at once
+`ROADMAP.md` holds what comes next, in order, and what each finished feature
+deliberately left out: several reference pictures at once, Qwen-Image-Edit,
+Z-Image base, runtime LoRA, and the upscaler's follow-ups.
 
 ## License
 

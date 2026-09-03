@@ -49,6 +49,8 @@ packages:
     path: Packages/ZephraBackendQwenImage
   ZephraBackendFlux2:
     path: Packages/ZephraBackendFlux2
+  ZephraUpscaleRealESRGAN:
+    path: Packages/ZephraUpscaleRealESRGAN
   Flux2Kit:
     path: Packages/Flux2Kit
   QwenImageKit:
@@ -75,6 +77,8 @@ targets:
         product: ZephraBackendQwenImage
       - package: ZephraBackendFlux2
         product: ZephraBackendFlux2
+      - package: ZephraUpscaleRealESRGAN
+        product: ZephraUpscaleRealESRGAN
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.zephra.Zephra

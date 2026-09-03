@@ -22,6 +22,8 @@ Sources/Zephra (SwiftUI app) ─→ ZephraEngine ─→ ZephraCore
                              ─→ ZephraBackend<Family> ─→ ZephraCore, ZephraSnapshot,
                                                           ZephraQuantization, <Family>Kit
                                                           [imported in ZephraApp.swift ONLY]
+                             ─→ ZephraUpscale<Network> ─→ ZephraCore, ZephraMLX
+                                                          [imported in ZephraApp.swift ONLY]
 Sources/ZephraBench (tool)   ─→ ZephraCore, every ZephraBackend<Family>
 Sources/ZephraQuantize (tool)─→ ZephraCore, ZephraQuantization, every ZephraBackend<Family>
 
@@ -75,9 +77,13 @@ Shared, by what a file actually touches:
   the reference says so. Never from GPL code, and never from
   `xocialize/flux2-vae-mlx-swift`, which has no license. `PROVENANCE.md` lists
   the deliberate departures; keep it true.
+- `ZephraUpscaleRealESRGAN` (its own local package): the Real-ESRGAN upscaler,
+  a post-process beside the backends rather than one of them. It conforms to
+  `ZephraCore`'s `ImageUpscaler`, takes `ZephraMLX` for the tiler, and imports
+  no family kit; no backend imports it. See "Upscaling" below.
 - Nothing in the app target may import a model package or `MLX`. Only
   `Sources/Zephra/ZephraApp.swift` (the composition root) may import a
-  `ZephraBackend*` package, to register the backend. Everywhere else in the
+  `ZephraBackend*` or `ZephraUpscale*` package, to register it. Everywhere else in the
   app target goes through `ZephraEngine` and `ZephraCore`.
 - No backend package may import another backend package, or a build for one
   family drags in every other family's pipeline.
@@ -441,6 +447,41 @@ Each backend package decodes the bytes to a `CGImage` in its own
 package may import another. Backends decode; the kits are handed decoded images
 and never touch the filesystem.
 
+## Upscaling
+
+Upscale 2x / 4x is Real-ESRGAN's compact network (`realesr-general-x4v3`,
+SRVGGNetCompact: 34 convolutions at 64 channels with per-channel PReLU, a pixel
+shuffle, and a nearest-neighbour residual), 1.2M parameters, BSD-3-Clause. It is
+the first non-diffusion step in the app, and the seam it sits behind is the one a
+later post-process should copy:
+
+- `ImageUpscaler` in `ZephraCore/Upscale/` is the whole protocol: PNG bytes in,
+  PNG bytes out at `UpscaleRequest.factor` times each edge, progress by tile,
+  cancellation between tiles. It is deliberately not `ImageGenerationBackend`:
+  that protocol is about one model family resident at a time, and an upscaler
+  needs no model loaded and holds five megabytes.
+- `InferenceActor` owns the one upscaler, built lazily from the injected
+  `UpscalerFactory` and kept resident across model switches; it runs on the same
+  serial queue as a generation, so two Metal jobs never overlap. The store's
+  `GenerationStore+Upscale.swift` drives it through `EngineState.upscaling`,
+  restores whatever state it started from, and refuses to start unless the engine
+  is idle, ready, or failed; Generate greys out for the seconds it runs.
+- The result is a new PNG in the library root named `<parent stem>-x<factor>.png`,
+  carrying the parent's record with the new size, `upscaledFrom` and
+  `upscaleFactor` set, `batchID` cleared, and the parent's reference chunk copied
+  verbatim. An imported parent gets a minimal record so the result is indexed.
+  Nothing rewrites the parent.
+- The weights are bundled as a package resource, 2.4 MB of float16 safetensors
+  converted once by `Packages/ZephraUpscaleRealESRGAN/Tools/convert_weights.py`
+  from the v0.2.5.0 release asset; `PROVENANCE.md` there records the checksum.
+  2x is the 4x pass followed by an exact 2x2 box mean; the network is 4x only.
+  The picture runs through `TiledDecode` in 512-pixel input tiles at scale 4,
+  which is what keeps a 2048 input around 3 GB. Alpha is dropped; library PNGs
+  are opaque. The port is written from `srvgg_arch.py` and never from
+  `xocialize/realesrgan-mlx`, which has no license.
+
+Everything the upscaler leaves out on purpose is listed in `ROADMAP.md`.
+
 ## Tests
 
 Swift Testing (`import Testing`, `@Suite`/`@Test`), never XCTest. Suites and
@@ -656,6 +697,8 @@ the re-sync procedure, and the running patch log. Any change inside
   the port relies on its conditioning stream being float32 to stay clear of it.
 - No emojis in code or docs.
 - Keep files small; split before a file grows past its target size.
+- `ROADMAP.md` is where deferred work lives: an option considered and left out
+  goes there in the same change, not only in a session note.
 - Zephra may ship commercially. Every new dependency, vendored file, or model
   gets an entry in `THIRD_PARTY_NOTICES.md` (copyright line, license, and any
   NOTICE file) in the same commit. That file is bundled and shown in

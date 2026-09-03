@@ -96,6 +96,23 @@ the places it deliberately departs from them checkable (see `PROVENANCE.md`).
 carries no license file and was never opened. The autoencoder here was
 written from the second port and from `diffusers`.
 
+### Real-ESRGAN upscaler (`Packages/ZephraUpscaleRealESRGAN`)
+
+`Packages/ZephraUpscaleRealESRGAN` is Zephra's own code, an MLX Swift
+implementation of the compact Real-ESRGAN network (SRVGGNetCompact) written
+from the reference architecture file and covered by Zephra's own `LICENSE`.
+It is the app's Upscale 2x / 4x, a post-process beside the image models.
+
+- **Real-ESRGAN** — https://github.com/xinntao/Real-ESRGAN — Copyright (c)
+  2021, Xintao Wang — BSD 3-Clause License — the network's shape
+  (`realesrgan/archs/srvgg_arch.py`): the convolution and PReLU stack, the
+  pixel shuffle, and the nearest-neighbour residual. No code was copied; the
+  Swift is written from that file and pinned by fixtures dumped from a plain
+  PyTorch re-statement of it (see `Packages/ZephraUpscaleRealESRGAN/Tools`).
+
+`xocialize/realesrgan-mlx`, the Python MLX port a Hugging Face mirror points
+at, carries no license file and was never opened.
+
 ### swift-transformers
 
 - **Source:** https://github.com/huggingface/swift-transformers
@@ -174,6 +191,18 @@ transformer; the app itself derives the FLUX.2 klein variants from
 written to `~/Library/Application Support/Zephra/Models`. Each is a modified
 form of Apache-2.0 weights — for the Qwen build, of two sets of them — so the
 Apache License 2.0 that covers those covers the result too.
+
+One set of weights is redistributed with the app, because it is 2.4 MB and an
+upscaler that needs a download is not worth having:
+
+- **realesr-general-x4v3** — https://github.com/xinntao/Real-ESRGAN/releases/tag/v0.2.5.0
+  — Copyright (c) 2021, Xintao Wang — BSD 3-Clause License — the compact
+  Real-ESRGAN checkpoint, converted once to float16 safetensors by
+  `Packages/ZephraUpscaleRealESRGAN/Tools/convert_weights.py` and bundled as a
+  package resource. The release publishes the weights as assets of a
+  BSD-3-Clause repository with no separate license of their own; the BSD terms
+  are taken to cover them on that basis, and `PROVENANCE.md` in the package
+  records that reading and the conversion's checksum.
 
 ---
 
@@ -438,4 +467,39 @@ model weights.
       of your accepting any such warranty or additional liability.
 
    END OF TERMS AND CONDITIONS
+```
+
+### BSD 3-Clause License
+
+Applies to: Real-ESRGAN (the network's architecture and the
+`realesr-general-x4v3` weights).
+
+```
+Copyright (c) 2021, Xintao Wang
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```

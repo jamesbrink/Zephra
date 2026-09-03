@@ -45,7 +45,7 @@ XCB      := xcodebuild -project $(PROJECT) -destination '$(DEST)' SYMROOT=$(BUIL
 # more than one library product, when the aggregate that covers every test target is
 # <name>-Package. Only ZephraMLXKit does, because a model package takes ZephraMLX without
 # dragging in the quantizer.
-MLX_PACKAGES := ZephraMLXKit:ZephraMLXKit-Package QwenImageKit:QwenImageKit \
+MLX_PACKAGES := ZephraMLXKit:ZephraMLXKit-Package QwenImageKit:QwenImageKit ZephraUpscaleRealESRGAN:ZephraUpscaleRealESRGAN \
                 Flux2Kit:Flux2Kit \
                 ZephraBackendZImage:ZephraBackendZImage \
                 ZephraBackendQwenImage:ZephraBackendQwenImage \
@@ -171,12 +171,14 @@ screenshot:
 lint-layers:
 	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|MLX)' Sources/Zephra Sources/ZephraBench Sources/ZephraQuantize --include='*.swift' \
 	  || (echo "LAYER VIOLATION: app or tool target imports a model package or MLX directly"; exit 1)
-	@! grep -rlnE '^import ZephraBackend' Sources/Zephra --include='*.swift' | grep -v 'ZephraApp.swift' \
-	  || (echo "LAYER VIOLATION: a backend package is imported outside ZephraApp.swift"; exit 1)
+	@! grep -rlnE '^import (ZephraBackend|ZephraUpscale)' Sources/Zephra --include='*.swift' | grep -v 'ZephraApp.swift' \
+	  || (echo "LAYER VIOLATION: a backend or upscaler package is imported outside ZephraApp.swift"; exit 1)
 	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|MLX)' Packages/ZephraKit/Sources 2>/dev/null \
 	  || (echo "LAYER VIOLATION: ZephraKit imports a model package or MLX"; exit 1)
-	@! grep -rlnE '^import ZephraBackend' Packages/ZephraBackend*/Sources 2>/dev/null \
-	  || (echo "LAYER VIOLATION: one backend package imports another"; exit 1)
+	@! grep -rlnE '^import (ZephraBackend|ZephraUpscale)' Packages/ZephraBackend*/Sources 2>/dev/null \
+	  || (echo "LAYER VIOLATION: one backend package imports another, or the upscaler"; exit 1)
+	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|ZephraBackend)' Packages/ZephraUpscale*/Sources 2>/dev/null \
+	  || (echo "LAYER VIOLATION: an upscaler package imports a model family"; exit 1)
 	@for family in ZImage QwenImage Flux2; do \
 	  others=$$(echo "ZImage QwenImage Flux2" | tr ' ' '\n' | grep -v "^$$family$$" | paste -sd'|' -); \
 	  ! grep -rlnE "^import ($$others)$$" Packages/ZephraBackend$$family/Sources 2>/dev/null \
