@@ -6,7 +6,10 @@ import ZephraEngine
 /// Once the file has been indexed it is the library's own inspector, tags and albums included,
 /// so a picture reads the same way on both panes. For the second or so before the folder scan
 /// catches up — and for a picture that was never saved — it is the facts the session holds in
-/// memory, which are the same six lines with nothing to file under yet.
+/// memory, which are the same lines with nothing to file under yet.
+///
+/// The last branch is a fallback rather than a state anyone sees: `WorkspaceDetail` takes the
+/// column away when the canvas is empty.
 struct CanvasInspector: View {
     @Environment(GenerationStore.self) private var store
     @Environment(LibraryIndex.self) private var index
@@ -18,11 +21,7 @@ struct CanvasInspector: View {
             } else if let image = store.current {
                 FreshImageInspector(image: image)
             } else {
-                ContentUnavailableView(
-                    "Nothing on the canvas",
-                    systemImage: "photo",
-                    description: Text("Generate an image, or open one from the sidebar, to see how it was made.")
-                )
+                ContentUnavailableView("Nothing on the canvas", systemImage: "photo")
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

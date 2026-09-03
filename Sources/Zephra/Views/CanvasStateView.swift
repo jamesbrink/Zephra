@@ -14,16 +14,13 @@ struct CanvasStateView: View {
             if isGenerating || store.isSwappingModel {
                 EmptyView()
             } else if isEmptyAndReady {
-                Text("Describe an image to begin.")
-                    .font(.system(size: 22))
-                    .fontDesign(.serif)
-                    .foregroundStyle(.secondary)
+                CanvasEmptyState()
             } else {
                 messageBlock
             }
         }
         .multilineTextAlignment(.center)
-        .frame(maxWidth: 420)
+        .frame(maxWidth: 460)
         // Room for the floating capsule, or just the lip once the prompt has tucked away.
         .padding(.bottom, workspace.promptTucked ? 24 : 120)
     }

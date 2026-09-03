@@ -12,19 +12,31 @@ import ZephraEngine
 /// cramped into its width, the sort menu collapsed to an icon. Under the toolbar the whole
 /// title bar stays one strip. The column is a fixed width rather than a split: an `HSplitView`
 /// handed it its maximum and laid the canvas out for a width it did not have.
+///
+/// The column is there only when it has something to describe: always in the library, whose
+/// own empty state is worth reading, and on the canvas only while a picture is showing. Two
+/// empty states side by side read as something broken. It slides in from the trailing edge
+/// the moment the first picture lands.
 struct WorkspaceDetail: View {
     @Environment(WorkspaceSelection.self) private var workspace
+    @Environment(GenerationStore.self) private var store
 
     var body: some View {
         HStack(spacing: 0) {
             pane
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            if workspace.inspectorVisible {
+            if inspectorShown {
                 Divider()
                 WorkspaceInspector()
                     .frame(width: Self.inspectorWidth)
+                    .transition(.move(edge: .trailing))
             }
         }
+        .animation(.snappy, value: inspectorShown)
+    }
+
+    private var inspectorShown: Bool {
+        workspace.inspectorVisible && (workspace.pane == .library || store.hasPicture)
     }
 
     /// Wide enough for a 1024-wide picture's facts on one line each, and the same on both panes.
