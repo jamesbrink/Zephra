@@ -20,9 +20,9 @@ struct QueueVariationButton: View {
     /// The same test `queueVariation(of:)` makes before it does anything, said in public terms:
     /// a running generation is the one case where the engine is busy and will still take more.
     private var canQueue: Bool {
-        guard let record = item.provenance.record, record.settings.isReadyToGenerate else {
-            return false
-        }
+        guard let record = item.provenance.record,
+              record.settings().isReadyToGenerate
+        else { return false }
         return store.state.acceptsGeneration || store.running != nil
     }
 }
