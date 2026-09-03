@@ -6,7 +6,7 @@ import ZephraCore
 enum AppSettings {
     /// The prompt text, restored on the next launch.
     static let lastPrompt = "lastPrompt"
-    /// Whether the filmstrip of this session's images is showing.
+    /// Whether the strip of this run's images is showing under the capsule.
     static let filmstripVisible = "filmstripVisible"
     /// Whether every run picks a fresh seed instead of repeating the last one.
     static let randomizeSeedEachRun = "randomizeSeedEachRun"
@@ -19,6 +19,18 @@ enum AppSettings {
     static let cacheLimitMB = "cacheLimitMB"
     /// When the VAE decode runs in tiles, as a `VAETilingMode` raw value.
     static let vaeTiling = "vaeTiling"
+    /// Which pane the window was showing, as a `WorkspacePane` raw value.
+    static let workspacePane = "workspacePane"
+    /// The collection the library was showing, as a `LibraryScope` raw value.
+    static let libraryScope = "libraryScope"
+    /// The order it was listed in, as a `LibrarySort` raw value.
+    static let librarySort = "librarySort"
+    /// Whether the library's inspector is open.
+    static let inspectorVisible = "inspectorVisible"
+    /// The edge of one library thumbnail, in points.
+    static let libraryThumbnailEdge = "libraryThumbnailEdge"
+    /// How many seeds one press of Generate queues.
+    static let batchCount = "batchCount"
 
     /// Starting values, matching the defaults written at each `@AppStorage` site.
     static let initialFilmstripVisible = true
@@ -28,6 +40,12 @@ enum AppSettings {
     static let initialWarmUpOnLaunch = true
     /// Exactness wherever the Mac has the memory for it, tiling only where it does not.
     static let initialVAETiling = VAETilingMode.automatic
+    /// The library opens with its inspector out: the facts about an image are why it is there.
+    static let initialInspectorVisible = true
+    /// Big enough to judge an image by, small enough for a wall of them.
+    static let initialLibraryThumbnailEdge = 168.0
+    /// One image per press, until the user asks for more.
+    static let initialBatchCount = 1
 
     /// How the stored preference and this machine's memory decide the VAE tile, for the
     /// composition root, which has to answer the question outside a picker.
@@ -46,11 +64,19 @@ enum AppSettings {
         UserDefaults.standard.object(forKey: key) as? Bool ?? initialValue(of: key)
     }
 
+    /// Stores one preference from outside a view, for state an `@Observable` owns rather than
+    /// an `@AppStorage`. The reading half of the same pair is `flag(_:)` for a switch and
+    /// `UserDefaults` for a raw value that is parsed back into its own type.
+    static func write(_ value: some Sendable, to key: String) {
+        UserDefaults.standard.set(value, forKey: key)
+    }
+
     private static func initialValue(of key: String) -> Bool {
         switch key {
         case filmstripVisible: initialFilmstripVisible
         case randomizeSeedEachRun: initialRandomizeSeedEachRun
         case warmUpOnLaunch: initialWarmUpOnLaunch
+        case inspectorVisible: initialInspectorVisible
         default: false
         }
     }
