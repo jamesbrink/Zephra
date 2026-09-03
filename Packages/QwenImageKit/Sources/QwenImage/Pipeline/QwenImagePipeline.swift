@@ -89,8 +89,10 @@ public final class QwenImagePipeline {
         }
 
         onProgress(QwenImageGenerationProgress(stage: .encodingPrompt))
-        let tokens = MLXArray(model.tokenizer.encode(prompt: request.prompt).map(Int32.init))
-            .reshaped([1, -1])
+        let tokens = MLXArray(
+            model.tokenizer.encode(prompt: request.prompt, limit: request.maxPromptTokens)
+                .map(Int32.init)
+        ).reshaped([1, -1])
         let conditioning = model.textEncoder(
             tokens, dropping: QwenImagePromptTemplate.dropIndex)
         MLX.eval(conditioning)

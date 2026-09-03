@@ -38,6 +38,15 @@ public struct QwenImageTokenizer {
         encode(QwenImagePromptTemplate.wrapping(prompt))
     }
 
+    /// The same, keeping at most `limit` tokens of the prompt after the template's prefix.
+    ///
+    /// The reference encodes the whole wrapped prompt and then keeps the first `limit` hidden
+    /// states after the prefix. The encoder is causal, so cutting the tokens here gives the same
+    /// states for what is kept and skips the work for what is not.
+    public func encode(prompt: String, limit: Int) -> [Int] {
+        Array(encode(prompt: prompt).prefix(QwenImagePromptTemplate.dropIndex + limit))
+    }
+
     /// Builds the tokenizer data `AutoTokenizer` would have read from `tokenizer.json`.
     private static func bpe(in directory: URL) throws -> Config {
         let vocabURL = directory.appending(path: "vocab.json")

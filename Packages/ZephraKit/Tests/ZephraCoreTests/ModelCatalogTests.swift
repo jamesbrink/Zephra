@@ -121,6 +121,8 @@ struct ModelCatalogTests {
         #expect(descriptor.capabilities.defaultSteps == 4)
         #expect(descriptor.capabilities.guidanceBounds == 0...0)
         #expect(!descriptor.capabilities.supportsNegativePrompt)
+        // The reference pipeline's max_sequence_length, which the request mapper passes on.
+        #expect(descriptor.maxPromptTokens == 512)
     }
 
     @Test("the 4-bit variant is built locally, so it downloads nothing")

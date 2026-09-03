@@ -15,7 +15,8 @@ enum QwenImageRequestMapper {
             width: clamped.size.width,
             height: clamped.size.height,
             steps: clamped.steps,
-            seed: clamped.seed
+            seed: clamped.seed,
+            maxPromptTokens: descriptor.maxPromptTokens
         )
     }
 }

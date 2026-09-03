@@ -12,12 +12,17 @@ public struct QwenImageGenerationRequest: Hashable, Sendable {
     public var steps: Int
     /// The noise seed, so an image can be reproduced exactly.
     public var seed: UInt64
+    /// How many of the prompt's own tokens condition the image; the rest are dropped.
+    public var maxPromptTokens: Int
 
-    public init(prompt: String, width: Int, height: Int, steps: Int, seed: UInt64) {
+    public init(
+        prompt: String, width: Int, height: Int, steps: Int, seed: UInt64, maxPromptTokens: Int
+    ) {
         self.prompt = prompt
         self.width = width
         self.height = height
         self.steps = steps
         self.seed = seed
+        self.maxPromptTokens = maxPromptTokens
     }
 }

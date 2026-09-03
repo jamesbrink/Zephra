@@ -33,6 +33,21 @@ struct TokenizerTests {
             "after the prefix is dropped the prompt's own tokens should come first")
     }
 
+    @Test("a long prompt is cut after the limit, and what is kept is unchanged by the cut")
+    func longPromptsAreCutAtTheLimit() throws {
+        guard let snapshot = SnapshotUnderTest.directory else { return }
+        let tokenizer = try QwenImageTokenizer(snapshot: snapshot)
+        let prompt = Array(repeating: "a red cube beside a blue sphere", count: 40).joined(separator: ", ")
+
+        let whole = tokenizer.encode(prompt: prompt)
+        let cut = tokenizer.encode(prompt: prompt, limit: 16)
+        #expect(whole.count > QwenImagePromptTemplate.dropIndex + 16)
+        #expect(cut.count == QwenImagePromptTemplate.dropIndex + 16)
+        #expect(whole.starts(with: cut))
+        // A prompt inside the limit is not touched, closing markers and all.
+        #expect(tokenizer.encode(prompt: "a red cube", limit: 512) == tokenizer.encode(prompt: "a red cube"))
+    }
+
     @Test("the template markers survive as single special tokens")
     func specialTokensAreWhole() throws {
         guard let snapshot = SnapshotUnderTest.directory else { return }

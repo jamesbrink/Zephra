@@ -65,8 +65,8 @@ public enum ModelCatalog {
     /// `make quantize-qwen`.
     ///
     /// A twenty-billion-parameter dual-stream MMDiT against Z-Image Turbo's six billion, which
-    /// buys prompt adherence and text rendering in a different class and costs about eight times
-    /// the seconds per step. Nothing publishes it in a form Zephra can load: the release is 57.7
+    /// buys prompt adherence and text rendering in a different class for a step about a third
+    /// longer (8.2 s against 6.3 s at 1024 on the same machine). Nothing publishes it in a form Zephra can load: the release is 57.7
     /// GB of bfloat16, and the four-step Lightning distillation ships separately as an adapter,
     /// so the local build is where the two are put together.
     ///
@@ -90,8 +90,10 @@ public enum ModelCatalog {
         // 26088 MB at 1328. The tiled peak barely moves with the image because the tile, not the
         // image, sets the decode's transient — what is left is the transformer.
         tiledPeakBytes: 26_070_000_000,
-        // Qwen-Image conditions on 1024 tokens of Qwen2.5-VL hidden states, against Z-Image's 512.
-        maxPromptTokens: 1024,
+        // diffusers' QwenImagePipeline keeps the first 512 hidden states of the prompt
+        // (`max_sequence_length`, its default); the tokenizer would allow 1024, but nothing
+        // past 512 ever reaches the transformer there, so nothing past 512 does here.
+        maxPromptTokens: 512,
         capabilities: qwenImage2512Capabilities
     )
 
