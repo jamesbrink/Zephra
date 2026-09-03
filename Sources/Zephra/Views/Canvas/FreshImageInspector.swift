@@ -21,7 +21,7 @@ struct FreshImageInspector: View {
                 if !image.settings.prompt.isEmpty {
                     Text(image.settings.prompt)
                         .font(.callout)
-                        .fontDesign(.serif)
+                        .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
                 }

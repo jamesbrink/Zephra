@@ -5,8 +5,9 @@ import ZephraEngine
 /// One image, at length: the picture, what it was asked for, how it was made, and what has
 /// been said about it.
 ///
-/// The prompt is set in a serif face and at reading size, because it is the one thing in this
-/// column that is prose rather than data. Everything below it is a table, and looks like one.
+/// The prompt is the one thing in this column that is prose rather than data, and it is set
+/// as secondary text in the system face so the column reads as one thing; the serif is kept for
+/// the canvas's invitation. Everything below the prompt is a table, and looks like one.
 struct SingleImageInspector: View {
     /// The image being looked at.
     let item: LibraryItem
@@ -21,7 +22,7 @@ struct SingleImageInspector: View {
                 if !item.prompt.isEmpty {
                     Text(item.prompt)
                         .font(.callout)
-                        .fontDesign(.serif)
+                        .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
                 }

@@ -2,10 +2,11 @@ import SwiftUI
 import ZephraCore
 import ZephraEngine
 
-/// The six things worth knowing about an image, one to a line, and a seventh when it was made
-/// from a picture rather than from noise.
+/// The five things worth knowing about an image, one to a line, and a sixth when it was made
+/// from a picture rather than from noise. The file's name is not one of them: it is the tooltip
+/// on Reveal in Finder, which is the only place anyone needs it.
 ///
-/// The values are formatted by `ImageFacts` in the engine, not here, because the same six lines
+/// The values are formatted by `ImageFacts` in the engine, not here, because the same lines
 /// describe an image on the canvas and an image in the library, and "how long it took" has
 /// enough rules to be worth testing. This view's only opinions are which face each value is set
 /// in and where the lines fall — which is why it takes the facts rather than either kind of
@@ -31,7 +32,6 @@ struct ImageFactsView: View {
             if edited {
                 row("Reference", "Edited from a picture")
             }
-            row("File", facts.file, style: .monospaced)
             Divider()
         }
         .font(.callout)

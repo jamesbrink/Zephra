@@ -3,7 +3,8 @@ import ZephraCore
 import ZephraEngine
 
 /// The things to do with a picture the session holds in memory, at the foot of the inspector:
-/// the same four the picture's own context menu offers, as buttons.
+/// the same four the picture's own context menu offers, as buttons of one width on a grid of
+/// two columns, the way `InspectorActions` lays out the library's.
 struct FreshImageActions: View {
     /// The picture the buttons act on.
     let image: GeneratedImage
@@ -11,24 +12,27 @@ struct FreshImageActions: View {
     @Environment(GenerationStore.self) private var store
 
     var body: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 8) {
-                Button("Save as…") { ImageExport.saveAs(image) }
-                    .frame(maxWidth: .infinity)
-                Button("Copy") { ImageExport.copyToPasteboard(image) }
-                    .frame(maxWidth: .infinity)
+        Grid(horizontalSpacing: 8, verticalSpacing: 8) {
+            GridRow {
+                button("Save as…") { ImageExport.saveAs(image) }
+                button("Copy") { ImageExport.copyToPasteboard(image) }
             }
-            HStack(spacing: 8) {
-                Button("Reveal in Finder") { ImageExport.revealInFinder(image) }
-                    .frame(maxWidth: .infinity)
+            GridRow {
+                button("Reveal in Finder") { ImageExport.revealInFinder(image) }
                     .disabled(image.fileURL == nil)
+                    .help(image.fileURL?.lastPathComponent ?? ImageFacts.notSaved)
                 if store.descriptor.capabilities.supportsReferenceImage {
-                    Button("Use as reference") { store.useAsReference(image.pngData) }
-                        .frame(maxWidth: .infinity)
+                    button("Use as reference") { store.useAsReference(image.pngData) }
                 }
             }
         }
         .lineLimit(1)
+    }
+
+    private func button(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title).frame(maxWidth: .infinity)
+        }
     }
 }
 
