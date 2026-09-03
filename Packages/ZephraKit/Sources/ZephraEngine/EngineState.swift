@@ -8,6 +8,11 @@ public enum EngineState: Hashable, Sendable {
     case checkingModel
     /// Fetching weights from the network.
     case downloading(DownloadProgressEvent)
+    /// Packing a downloaded release into the variant this Mac loads. Its own state rather than
+    /// a phase of downloading because the wording has to be true at the one moment a first-time
+    /// user is most likely to think the app has hung: a minute of disk and Metal work at several
+    /// gigabytes resident, with nothing moving over the network.
+    case building(BuildProgressEvent)
     /// Reading weights into memory.
     case loading(GenerationPhase)
     /// Running a throwaway generation so the first real one is not slow.

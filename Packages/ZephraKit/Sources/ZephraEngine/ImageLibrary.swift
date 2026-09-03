@@ -32,27 +32,6 @@ public struct ImageLibrary: Sendable {
         return url
     }
 
-    /// The most recently written image files, newest first. An unreadable folder reads as empty,
-    /// because a missing library is a normal state rather than a failure.
-    ///
-    /// This is the file-system half of `restore(limit:)`, which is what the filmstrip is
-    /// refilled from at launch.
-    public func recent(limit: Int) -> [URL] {
-        guard limit > 0 else { return [] }
-        let keys: [URLResourceKey] = [.creationDateKey]
-        let contents = (try? FileManager.default.contentsOfDirectory(
-            at: root,
-            includingPropertiesForKeys: keys,
-            options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants]
-        )) ?? []
-        return contents
-            .filter { $0.pathExtension.lowercased() == "png" }
-            .map { (url: $0, created: Self.creationDate(of: $0)) }
-            .sorted { $0.created > $1.created }
-            .prefix(limit)
-            .map(\.url)
-    }
-
     /// The bytes to write: the image with its record embedded, or the plain pixels when that
     /// could not be done. A picture on disk without its provenance beats no picture at all.
     private static func annotated(_ image: GeneratedImage) -> Data {
@@ -63,25 +42,27 @@ public struct ImageLibrary: Sendable {
         "zephra-\(Self.stamp(image.createdAt))-s\(image.settings.seed).png"
     }
 
-    /// A name nothing is using yet: the plain one, then `-2` through `-99`, then a UUID. The
-    /// last step exists so a full run of suffixes can never make the write clobber an image.
-    private func availableURL(named name: String) -> URL {
-        let first = root.appending(path: name)
+    /// A name nothing in the library root is using yet.
+    func availableURL(named name: String) -> URL {
+        availableURL(named: name, in: root)
+    }
+
+    /// A name nothing in `directory` is using yet: the plain one, then `-2` through `-99`, then
+    /// a UUID. The last step exists so a full run of suffixes can never make a write clobber an
+    /// image. Moving an image to Recently Deleted and back needs the same rule as writing one.
+    func availableURL(named name: String, in directory: URL) -> URL {
+        let first = directory.appending(path: name)
         guard Self.exists(first) else { return first }
         let stem = first.deletingPathExtension().lastPathComponent
         for suffix in 2...99 {
-            let candidate = root.appending(path: "\(stem)-\(suffix).png")
+            let candidate = directory.appending(path: "\(stem)-\(suffix).png")
             if !Self.exists(candidate) { return candidate }
         }
-        return root.appending(path: "\(stem)-\(UUID().uuidString.lowercased()).png")
+        return directory.appending(path: "\(stem)-\(UUID().uuidString.lowercased()).png")
     }
 
     private static func exists(_ url: URL) -> Bool {
         FileManager.default.fileExists(atPath: url.path(percentEncoded: false))
-    }
-
-    private static func creationDate(of url: URL) -> Date {
-        (try? url.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
     }
 
     private static func stamp(_ date: Date) -> String {

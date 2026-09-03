@@ -20,12 +20,22 @@ final class MockBackendControl: Sendable {
         var loadDelay: Duration = .zero
         /// Overrides the step count in the request, for a mock that ignores what it is asked.
         var stepOverride: Int?
+        /// How many build progress events `build` reports. Zero means the download is what
+        /// gets loaded, which is what every family but one does.
+        var buildEvents = 0
+        /// How long each build event pretends to take, so a test can cancel during a build.
+        var buildDelay: Duration = .zero
+        /// The settings of the last generation the backend was asked for, so a test can assert
+        /// what actually reached it rather than what the store thinks it sent.
+        var lastSettings: GenerationSettings?
         /// What `availability(of:)` answers per descriptor id. Anything absent is `.available`.
         var availability: [String: ModelAvailability] = [:]
         /// How many times `load` was called.
         var loads = 0
         /// How many times `unload` was called.
         var unloads = 0
+        /// How many times `build` was asked to do something.
+        var builds = 0
         /// How many times `availability(of:)` was asked.
         var availabilityChecks = 0
         /// How many times `generate` was called, warm-up included.

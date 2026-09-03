@@ -7,28 +7,25 @@ extension GenerationRecord {
     ///
     /// Three chunks go in: the JSON under Zephra's own keyword, a standard `Software` line, and
     /// a `Description` holding the prompt, so the Finder's inspector, Preview, and exiftool all
-    /// show something worth reading without knowing anything about Zephra.
+    /// show something worth reading without knowing anything about Zephra. An edited image
+    /// carries a fourth, the reference it was edited from, so that selecting it later puts the
+    /// picture back and an exported edit can reproduce itself.
     ///
     /// Idempotent: bytes that already carry a record come back untouched, so exporting an image
     /// that was itself restored from disk never doubles the chunk up.
-    ///
-    /// `referenceDigest` is the SHA-256 of the source file this generation started from, which
-    /// only the caller can supply: hashing it is I/O, and the writer is already off the main
-    /// actor. Leave it nil and the record still names the file, just not its exact bytes.
-    public static func embedded(
-        in image: GeneratedImage,
-        referenceDigest: String? = nil
-    ) throws -> Data {
+    public static func embedded(in image: GeneratedImage) throws -> Data {
         let existing = try PNGTextChunks.read(from: image.pngData)
         guard existing[keyword] == nil else { return image.pngData }
-        let record = GenerationRecord(image, referenceDigest: referenceDigest)
         var entries: [PNGTextChunks.Entry] = [
-            (keyword: keyword, text: try json(for: record)),
+            (keyword: keyword, text: try json(for: GenerationRecord(image))),
             (keyword: "Software", text: software),
         ]
         let prompt = image.settings.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         if !prompt.isEmpty {
             entries.append((keyword: "Description", text: prompt))
+        }
+        if let reference = image.settings.referenceImage {
+            entries.append((keyword: referenceKeyword, text: reference.base64EncodedString()))
         }
         return try PNGTextChunks.inserting(entries, into: image.pngData)
     }
@@ -37,12 +34,31 @@ extension GenerationRecord {
     /// claims a version this build was not written to read. A foreign PNG dropped into the
     /// library reads as nil, which is how the library comes to ignore it.
     public static func read(from data: Data) -> GenerationRecord? {
-        guard let text = try? PNGTextChunks.read(from: data),
-              let json = text[keyword],
+        guard let text = try? PNGTextChunks.read(from: data) else { return nil }
+        return decode(from: text)
+    }
+
+    /// The record in a PNG's text chunks, which a scan already has in hand: it reads every
+    /// keyword out of the header in one pass and asks each type to pick out its own.
+    public static func decode(from text: [String: String]) -> GenerationRecord? {
+        guard let json = text[keyword],
               let record = try? decoder().decode(Self.self, from: Data(json.utf8)),
               record.version <= currentVersion
         else { return nil }
         return record
+    }
+
+    /// The reference image filed beside the record in `data`, or nil when the file carries
+    /// none, the chunk does not decode, or its length disagrees with the record: a chunk some
+    /// other tool rewrote is dropped rather than trusted.
+    public static func reference(in data: Data) -> Data? {
+        guard let record = read(from: data), let expected = record.referenceBytes,
+              let text = try? PNGTextChunks.read(from: data),
+              let encoded = text[referenceKeyword],
+              let reference = Data(base64Encoded: encoded),
+              reference.count == expected
+        else { return nil }
+        return reference
     }
 
     /// The JSON one record is stored as: sorted keys and ISO 8601 dates, so a file written

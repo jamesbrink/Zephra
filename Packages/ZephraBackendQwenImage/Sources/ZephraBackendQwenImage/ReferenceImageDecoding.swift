@@ -1,32 +1,33 @@
 import CoreGraphics
 import Foundation
 import ImageIO
-import ZephraCore
 
-/// Reading a reference picture off disk as something the pipeline can encode.
+/// Reading a reference picture as something the pipeline can encode.
 nonisolated enum ReferenceImageDecoding {
-    /// What went wrong reading a reference, worded for someone looking at their own file.
+    /// What went wrong reading a reference, worded for someone who chose the picture.
     enum Failure: Error, LocalizedError {
-        case unreadable(URL)
+        case undecodable
 
         var errorDescription: String? {
             switch self {
-            case .unreadable(let url):
-                "Could not read the reference image at \(url.path(percentEncoded: false))."
+            case .undecodable: "The reference image could not be read."
             }
         }
     }
 
-    /// The first image in the file at `url`.
+    /// The first image in `data`.
     ///
     /// ImageIO, not AppKit, because this runs on the inference queue rather than the main
-    /// actor, and because the backend package may not import a UI framework. Whatever ImageIO
-    /// reads is accepted — the library writes PNG, but a JPEG dropped in by hand works too.
+    /// actor, and because a backend package may not import a UI framework. Whatever ImageIO
+    /// reads is accepted — the interface hands over PNG, but the decode does not insist on it.
     /// Resizing to the generation's size is the pipeline's job, so nothing is scaled here.
-    static func cgImage(at url: URL) throws -> CGImage {
-        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+    ///
+    /// Bytes, not a URL: settings carry the picture itself, so that a queued edit still means
+    /// the same picture twenty minutes later whatever has happened to the file it came from.
+    static func cgImage(from data: Data) throws -> CGImage {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
-        else { throw Failure.unreadable(url) }
+        else { throw Failure.undecodable }
         return image
     }
 }

@@ -42,25 +42,22 @@ struct ImageLibraryTests {
         #expect(try Self.pngCount(in: library.root) == 101)
     }
 
-    @Test("recent lists the newest images first and honours the limit")
-    func recentOrdering() throws {
-        let library = ImageLibrary(root: Self.scratchDirectory())
-        defer { try? FileManager.default.removeItem(at: library.root) }
-        let older = try library.write(Self.image(seed: 1, createdAt: Date(timeIntervalSince1970: 0)))
-        Thread.sleep(forTimeInterval: 0.02)
-        let newer = try library.write(Self.image(seed: 2, createdAt: Date(timeIntervalSince1970: 1)))
-
-        // Names, not URLs: the enumerator resolves /var to /private/var but `write` does not.
-        let names = { (urls: [URL]) in urls.map(\.lastPathComponent) }
-        #expect(names(library.recent(limit: 5)) == names([newer, older]))
-        #expect(names(library.recent(limit: 1)) == names([newer]))
-        #expect(library.recent(limit: 0).isEmpty)
-    }
-
-    @Test("a library whose folder was never created reads as empty")
+    @Test("a library whose folder was never created scans as empty")
     func missingFolderIsEmpty() {
         let library = ImageLibrary(root: Self.scratchDirectory())
-        #expect(library.recent(limit: 10).isEmpty)
+        #expect(LibraryScan(library: library).rescan().isEmpty)
+        #expect(LibraryScan(library: library).fingerprint() == 0)
+    }
+
+    @Test("a discarded file leaves the folder")
+    func discardRemovesTheFile() throws {
+        let library = ImageLibrary(root: Self.scratchDirectory())
+        defer { try? FileManager.default.removeItem(at: library.root) }
+        let url = try library.write(Self.image(seed: 1, createdAt: Date(timeIntervalSince1970: 1)))
+
+        try library.discard(url)
+        #expect(!FileManager.default.fileExists(atPath: url.path(percentEncoded: false)))
+        #expect(LibraryScan(library: library).rescan().isEmpty)
     }
 
     private static func scratchDirectory() -> URL {

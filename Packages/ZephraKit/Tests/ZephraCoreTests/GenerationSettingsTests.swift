@@ -42,42 +42,59 @@ struct GenerationSettingsTests {
         #expect(settings.isReadyToGenerate)
     }
 
-    @Test("settings survive a round trip through JSON")
+    @Test("settings survive a round trip through JSON, reference image included")
     func codableRoundTrip() throws {
         var settings = GenerationSettings.defaults(for: descriptor)
         settings.prompt = "a lighthouse at dusk"
+        settings.referenceImage = Data([1, 2, 3, 4])
 
         let data = try JSONEncoder().encode(settings)
         let decoded = try JSONDecoder().decode(GenerationSettings.self, from: data)
         #expect(decoded == settings)
     }
-
-    @Test("defaults start with no reference image")
-    func defaultsCarryNoReference() {
-        #expect(GenerationSettings.defaults(for: descriptor).reference == nil)
+    @Test("moving to another model's schedule keeps the reference image, as it keeps the size")
+    func scheduleKeepsTheReference() {
+        var settings = GenerationSettings.defaults(for: descriptor)
+        settings.referenceImage = Data([9, 9])
+        let moved = settings.onSchedule(of: ModelCatalog.qwenImage2512_4bit)
+        #expect(moved.referenceImage == settings.referenceImage)
+        #expect(moved.size == settings.size)
     }
 
-    @Test("a reference survives the round trip, and settings written without one still decode")
-    func referenceRoundTrip() throws {
+    @Test("a reference image alone is not enough to generate; the prompt still is what is required")
+    func referenceDoesNotMakeReady() {
+        var settings = GenerationSettings.defaults(for: descriptor)
+        settings.referenceImage = Data([9, 9])
+        #expect(!settings.isReadyToGenerate)
+    }
+
+    @Test("defaults carry a strength that changes nothing")
+    func defaultsCarryANeutralStrength() {
+        #expect(GenerationSettings.defaults(for: descriptor).referenceImage == nil)
+        #expect(GenerationSettings.defaults(for: descriptor).referenceStrength == 1)
+    }
+
+    @Test("a strength survives the round trip, and settings written without one still decode")
+    func strengthRoundTrip() throws {
         var settings = GenerationSettings.defaults(for: descriptor)
         settings.prompt = "a lighthouse at dusk"
-        settings.reference = ReferenceImage(
-            url: URL(fileURLWithPath: "/tmp/sources/harbour.png"), strength: 0.45
-        )
+        settings.referenceImage = Data([9, 9])
+        settings.referenceStrength = 0.45
 
         let data = try JSONEncoder().encode(settings)
         let decoded = try JSONDecoder().decode(GenerationSettings.self, from: data)
         #expect(decoded == settings)
-        #expect(decoded.reference?.strength == 0.45)
+        #expect(decoded.referenceStrength == 0.45)
 
-        // What a build that predates references wrote: the key is simply absent.
-        var older = try #require(
-            try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        )
-        older.removeValue(forKey: "reference")
+        // What a build that predates strength wrote: the key is simply absent. A synthesised
+        // decoder would throw here, because a non-optional property does not fall back to its
+        // initializer's default; the hand-written one reads the absence as "changes nothing".
+        var older = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        older.removeValue(forKey: "referenceStrength")
         let olderData = try JSONSerialization.data(withJSONObject: older)
         let fromOlder = try JSONDecoder().decode(GenerationSettings.self, from: olderData)
-        #expect(fromOlder.reference == nil)
+        #expect(fromOlder.referenceStrength == 1)
         #expect(fromOlder.prompt == settings.prompt)
+        #expect(fromOlder.referenceImage == settings.referenceImage)
     }
 }

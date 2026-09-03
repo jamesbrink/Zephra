@@ -21,10 +21,12 @@ enum QwenImageRequestMapper {
             steps: clamped.steps,
             seed: clamped.seed,
             maxPromptTokens: descriptor.maxPromptTokens,
-            referenceImage: try clamped.reference.map {
-                try ReferenceImageDecoding.cgImage(at: $0.url)
+            referenceImage: try clamped.referenceImage.map {
+                try ReferenceImageDecoding.cgImage(from: $0)
             },
-            referenceStrength: clamped.reference?.strength ?? 1
+            // No picture, no distance from one: the strength a settings value happens to be
+            // carrying is not a request to enter the loop late when nothing was handed in.
+            referenceStrength: clamped.referenceImage == nil ? 1 : clamped.referenceStrength
         )
     }
 }

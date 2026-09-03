@@ -34,4 +34,33 @@ enum PreviewModel {
             supportsSeed: true
         )
     )
+
+    /// A model that edits a picture handed in beside the prompt, the way FLUX.2 klein does, with
+    /// none of the controls it does not read.
+    static let editing = ModelDescriptor(
+        id: "preview-editing",
+        displayName: "Preview Model",
+        variantName: "editing",
+        backend: "preview",
+        source: .localDirectory(URL(filePath: "/tmp/preview-model")),
+        quantization: .int4,
+        downloadBytes: 0,
+        residentBytes: 5_000_000_000,
+        peakBytes: 10_000_000_000,
+        tiledPeakBytes: 7_000_000_000,
+        maxPromptTokens: 512,
+        capabilities: ModelCapabilities(
+            sizeAlignment: 16,
+            sizePresets: [ImageSize(width: 1024, height: 1024)],
+            sizeBounds: 512...1536,
+            defaultSize: ImageSize(width: 1024, height: 1024),
+            stepBounds: 1...8,
+            defaultSteps: 4,
+            guidanceBounds: 0...0,
+            defaultGuidance: 0,
+            supportsNegativePrompt: false,
+            supportsSeed: true,
+            supportsReferenceImage: true
+        )
+    )
 }

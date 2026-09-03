@@ -41,6 +41,30 @@ public protocol ImageGenerationBackend: AnyObject {
         onProgress: @escaping (GenerationProgressEvent) -> Void
     ) async throws -> Data
 
+    /// Packs whatever `ensureAvailable` left on disk into the form `load` reads, when the two
+    /// are not the same thing, and returns the directory to load from. A family whose download
+    /// is already loadable, which is most of them, takes the default and does nothing.
+    ///
+    /// Runs on the inference executor like every other backend call: it is MLX work holding
+    /// gigabytes, and a second large allocator elsewhere in the process is not survivable. It
+    /// must check cancellation often enough that a person can stop it.
+    nonisolated(nonsending) func build(
+        _ descriptor: ModelDescriptor,
+        at localPath: URL,
+        onProgress: @escaping @Sendable (BuildProgressEvent) -> Void
+    ) async throws -> URL
+
     /// Releases the loaded weights and any scratch memory.
     func unload()
+}
+
+extension ImageGenerationBackend {
+    /// The download is what gets loaded.
+    public nonisolated(nonsending) func build(
+        _ descriptor: ModelDescriptor,
+        at localPath: URL,
+        onProgress: @escaping @Sendable (BuildProgressEvent) -> Void
+    ) async throws -> URL {
+        localPath
+    }
 }

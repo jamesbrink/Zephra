@@ -32,6 +32,13 @@ struct ZephraCommands: Commands {
             Button("Copy Image") { if let image = store.current { ImageExport.copyToPasteboard(image) } }
                 .keyboardShortcut("c", modifiers: [.command, .shift])
                 .disabled(store.current == nil)
+            Divider()
+            Button("Use as Reference") { if let image = store.current { store.useAsReference(image.pngData) } }
+                .keyboardShortcut("r", modifiers: [.command, .option])
+                .disabled(store.current == nil || !store.descriptor.capabilities.supportsReferenceImage)
+            Button("Clear Reference") { store.useAsReference(nil) }
+                .keyboardShortcut("r", modifiers: [.command, .option, .shift])
+                .disabled(store.settings.referenceImage == nil)
         }
     }
 }

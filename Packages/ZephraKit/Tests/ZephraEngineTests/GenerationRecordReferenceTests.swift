@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 import Testing
 import ZephraCore
@@ -7,97 +6,85 @@ import ZephraCore
 
 @Suite("GenerationRecord, reference provenance")
 struct GenerationRecordReferenceTests {
-    @Test("a generation with no reference writes no reference fields and reads back none")
+    /// A second PNG, distinguishable from the image's own bytes, standing in for the picture an
+    /// edit started from.
+    private static let picture = Data([0x89, 0x50, 0x4E, 0x47] + Array(repeating: 0x2A, count: 40))
+
+    @Test("a generation with no reference records no strength, and reads back none")
     func noReference() throws {
         let data = try GenerationRecord.embedded(in: Self.image())
         let record = try #require(GenerationRecord.read(from: data))
-        #expect(record.referenceFileName == nil)
-        #expect(record.referenceDigest == nil)
-        #expect(record.referenceStrength == nil)
-        #expect(record.image(pngData: data, fileURL: nil).settings.reference == nil)
+        #expect(record.referenceBytes == nil)
+        #expect(record.referenceStrength == nil, "no picture, so no distance from one")
+        #expect(GenerationRecord.reference(in: data) == nil)
+        #expect(record.image(pngData: data, fileURL: nil).settings.referenceImage == nil)
+        #expect(
+            record.image(pngData: data, fileURL: nil).settings.referenceStrength == 1,
+            "the value that changes nothing")
     }
 
-    @Test("a reference is recorded by name, digest and strength, and found again by the file")
+    @Test("an edit records its picture's size and the strength it ran at")
     func referenceRoundTrip() throws {
-        let library = Self.scratchDirectory()
-        defer { try? FileManager.default.removeItem(at: library) }
-        let source = try Self.writeSource(named: "harbour.png", in: library)
-        let reference = ReferenceImage(url: source, strength: 0.45)
-        let digest = try reference.digest()
-
-        let data = try GenerationRecord.embedded(
-            in: Self.image(reference: reference), referenceDigest: digest
-        )
+        let image = Self.image(reference: Self.picture, strength: 0.45)
+        let data = try GenerationRecord.embedded(in: image)
         let record = try #require(GenerationRecord.read(from: data))
 
         #expect(record.version == GenerationRecord.currentVersion, "still version 1")
-        #expect(record.referenceFileName == "harbour.png")
+        #expect(record.referenceBytes == Self.picture.count)
         #expect(record.referenceStrength == 0.45)
-        #expect(record.referenceDigest?.count == 64, "SHA-256 as lowercase hex")
-        let expected = SHA256.hash(data: MockBackend.pngData)
-            .map { String(format: "%02x", $0) }.joined()
-        #expect(record.referenceDigest == expected, "the source file's bytes, not the image's")
 
-        let restored = record.image(
-            pngData: data, fileURL: library.appending(path: "generated.png")
-        )
-        #expect(restored.settings.reference == reference)
+        let recovered = try #require(GenerationRecord.reference(in: data))
+        #expect(recovered == Self.picture, "the picture itself, out of its own chunk")
+
+        let restored = record.image(pngData: data, fileURL: nil, referenceImage: recovered)
+        #expect(restored.settings.referenceImage == Self.picture)
+        #expect(restored.settings.referenceStrength == 0.45, "a variation repeats the same edit")
     }
 
-    @Test("a reference is found from a sub-folder in the library's own Sources folder")
-    func referenceResolvesFromASubfolder() throws {
-        let library = Self.scratchDirectory()
-        defer { try? FileManager.default.removeItem(at: library) }
-        let source = try Self.writeSource(named: "harbour.png", in: library)
-        let deleted = library.appending(path: "Recently Deleted", directoryHint: .isDirectory)
-        try FileManager.default.createDirectory(at: deleted, withIntermediateDirectories: true)
+    @Test("a record read without its picture still says what the strength was")
+    func strengthSurvivesWithoutThePicture() throws {
+        let data = try GenerationRecord.embedded(
+            in: Self.image(reference: Self.picture, strength: 0.7))
+        let record = try #require(GenerationRecord.read(from: data))
 
-        var record = GenerationRecord(Self.image())
-        record.referenceFileName = "harbour.png"
-        record.referenceStrength = 0.7
-
-        let found = record.reference(nextTo: deleted.appending(path: "old.png"))
-        #expect(found == ReferenceImage(url: source, strength: 0.7))
+        // `image(pngData:fileURL:)` with no reference passed: the caller did not read the
+        // second chunk, or it did not survive. The strength is still the record's to report.
+        let restored = record.image(pngData: data, fileURL: nil)
+        #expect(restored.settings.referenceImage == nil)
+        #expect(restored.settings.referenceStrength == 0.7)
+        #expect(record.referenceBytes == Self.picture.count, "and the provenance still stands")
     }
 
-    @Test("a reference whose file has gone comes back as no reference, provenance intact")
-    func missingReferenceFileIsDropped() {
-        let library = Self.scratchDirectory()
-        var record = GenerationRecord(Self.image())
-        record.referenceFileName = "harbour.png"
-        record.referenceDigest = String(repeating: "a", count: 64)
-        record.referenceStrength = 0.5
+    @Test("a model that conditions on the picture directly records a strength of one")
+    func directConditioningRecordsANeutralStrength() throws {
+        // What klein writes: `clamp` pins the strength at 1, so the record says the edit had no
+        // distance to travel rather than implying a partial start that never happened.
+        let clamped = ModelCatalog.flux2Klein4bit.capabilities.clamp(
+            Self.settings(reference: Self.picture, strength: 0.3))
+        let image = GeneratedImage(
+            pngData: MockBackend.pngData, settings: clamped,
+            modelID: ModelCatalog.flux2Klein4bit.id, duration: .seconds(2))
 
-        #expect(record.reference(nextTo: library.appending(path: "generated.png")) == nil)
-        #expect(record.referenceFileName == "harbour.png", "the record still says what it was")
+        let record = GenerationRecord(image)
+        #expect(record.referenceBytes == Self.picture.count)
+        #expect(record.referenceStrength == 1)
     }
 
-    private static func image(reference: ReferenceImage? = nil) -> GeneratedImage {
+    private static func settings(reference: Data?, strength: Double) -> GenerationSettings {
         var settings = GenerationSettings.defaults(for: ModelCatalog.default)
         settings.prompt = "a lighthouse"
         settings.seed = 99
-        settings.reference = reference
-        return GeneratedImage(
+        settings.referenceImage = reference
+        settings.referenceStrength = strength
+        return settings
+    }
+
+    private static func image(reference: Data? = nil, strength: Double = 1) -> GeneratedImage {
+        GeneratedImage(
             pngData: MockBackend.pngData,
-            settings: settings,
+            settings: settings(reference: reference, strength: strength),
             modelID: ModelCatalog.default.id,
             duration: .seconds(2)
         )
-    }
-
-    /// A file in the library's `Sources/` folder, with bytes worth hashing.
-    private static func writeSource(named name: String, in library: URL) throws -> URL {
-        let sources = library.appending(
-            path: GenerationRecord.sourcesFolderName, directoryHint: .isDirectory
-        )
-        try FileManager.default.createDirectory(at: sources, withIntermediateDirectories: true)
-        let url = sources.appending(path: name)
-        try MockBackend.pngData.write(to: url)
-        return url
-    }
-
-    private static func scratchDirectory() -> URL {
-        URL(filePath: NSTemporaryDirectory())
-            .appending(path: "ZephraReferenceTests-\(UUID().uuidString)", directoryHint: .isDirectory)
     }
 }

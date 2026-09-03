@@ -14,7 +14,8 @@ nonisolated enum ZImageRequestMapper {
     /// A reference image survives that clamp only on a model that can start from one, and it is
     /// decoded here rather than inside the pipeline, so a picture that will not open fails
     /// before any weights are asked for. That is the only thing this can throw; everything else
-    /// it does is arithmetic.
+    /// it does is arithmetic. The strength comes through clamped too, so what reaches the
+    /// pipeline is always inside the bounds the descriptor advertises.
     static func request(
         for settings: GenerationSettings,
         descriptor: ModelDescriptor,
@@ -34,9 +35,9 @@ nonisolated enum ZImageRequestMapper {
             model: snapshot.path,
             maxSequenceLength: descriptor.maxPromptTokens
         )
-        if let reference = clamped.reference {
-            request.referenceImage = try ReferenceImageDecoding.cgImage(at: reference.url)
-            request.referenceStrength = Float(reference.strength)
+        if let reference = clamped.referenceImage {
+            request.referenceImage = try ReferenceImageDecoding.cgImage(from: reference)
+            request.referenceStrength = Float(clamped.referenceStrength)
         }
         return request
     }

@@ -16,9 +16,8 @@ struct BenchReport: Codable, Sendable {
     /// down, so `steps - firstStep + 1` steps ran and the wall-clock time is against that,
     /// not against `steps`.
     let firstStep: Int
-    /// The picture the runs started from, when there was one and the model could use it.
-    let referencePath: String?
-    /// How far they were allowed to travel from it.
+    /// How far from the picture the runs started, when the model reads a strength at all.
+    /// Nil for a plain run, and for a model that conditions on the picture directly.
     let referenceStrength: Double?
     /// Seconds spent reading weights into memory, excluding any download.
     let loadSeconds: Double
@@ -34,6 +33,9 @@ struct BenchReport: Codable, Sendable {
     let peakMemoryMB: Double
     /// Where the last run's image was written.
     let outputPath: String
+    /// The picture the runs edited, when they edited one. A path, not a flag: it is what makes
+    /// a recorded run reproducible.
+    let referencePath: String?
 
     /// Mean wall-clock seconds across the timed runs.
     var meanRunSeconds: Double {
@@ -64,14 +66,17 @@ struct BenchReport: Codable, Sendable {
             row("image", "\(size) x \(size), \(steps) steps"),
             row("load", seconds(loadSeconds)),
         ]
-        if let referencePath, let referenceStrength {
-            lines.append(row("reference", referencePath))
-            lines.append(
+        if let referencePath {
+            lines.insert(row("reference", referencePath), at: 3)
+        }
+        if let referenceStrength {
+            lines.insert(
                 row(
                     "strength",
                     String(
                         format: "%.2f, from step %d of %d (%d steps ran)",
-                        referenceStrength, firstStep, steps, effectiveSteps)))
+                        referenceStrength, firstStep, steps, effectiveSteps)),
+                at: 4)
         }
         for (index, value) in runSeconds.enumerated() {
             lines.append(row("run \(index + 1)", seconds(value)))

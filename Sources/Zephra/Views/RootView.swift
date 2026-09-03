@@ -2,120 +2,73 @@ import SwiftUI
 import ZephraCore
 import ZephraEngine
 
-/// The window: canvas everywhere, one floating capsule over the bottom of it, the session's
-/// images under that, and the engine's status as the window's subtitle.
+/// The window: a full-height sidebar, one of two panes beside it, and the engine's status as
+/// the window's subtitle.
+///
+/// The title and the subtitle go on the split view rather than on the detail, so they stay put
+/// when the pane changes and the unified toolbar draws them once, beside the sidebar's edge
+/// rather than over it.
+///
+/// Loading the model is asked for here, not in either pane, because a pane is torn down when
+/// the other one shows. A window left on the Library would otherwise come back after a
+/// relaunch with nothing ever asking for the weights.
 struct RootView: View {
     @Environment(GenerationStore.self) private var store
-    @AppStorage(AppSettings.lastPrompt) private var lastPrompt = ""
-    @AppStorage(AppSettings.filmstripVisible) private var filmstripVisible = AppSettings.initialFilmstripVisible
 
     var body: some View {
-        CanvasView()
-            .overlay(alignment: .bottom) { controls }
-            .toolbar { toolbarContent }
-            .navigationTitle("Zephra")
-            .navigationSubtitle(subtitle)
-            .task {
-                let saved = lastPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
-                if store.settings.prompt.isEmpty, !saved.isEmpty {
-                    store.settings.prompt = lastPrompt
-                }
-                await store.bootstrapFromInterface()
-            }
-            .onChange(of: store.settings.prompt) { _, prompt in
-                // An empty field is a draft in progress, not a decision to forget the last prompt.
-                guard !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-                lastPrompt = prompt
-            }
-    }
-
-    private var subtitle: String {
-        let state = store.isSwappingModel && store.state == .idle
-            ? "Switching to \(store.descriptor.fullName)…"
-            : store.state.subtitle(for: store.descriptor)
-        let count = store.queue.count
-        guard count > 0 else { return state }
-        return "\(state) · \(count) queued"
-    }
-
-    private var controls: some View {
-        VStack(spacing: 14) {
-            saveNotice
-            caption
-            PromptCapsule()
-            if filmstripVisible { Filmstrip() }
+        NavigationSplitView {
+            SidebarView()
+                .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 360)
+        } detail: {
+            WorkspaceDetail()
         }
-        .padding(.horizontal, 28)
-        .padding(.bottom, 18)
-        .frame(maxWidth: 736)
-    }
-
-    /// A write that failed is said once, quietly, over the capsule. It is not a failure of the
-    /// engine: the image is still on the canvas, the queue is still running, and the notice
-    /// goes away by itself as soon as an image saves.
-    @ViewBuilder
-    private var saveNotice: some View {
-        if let failure = store.lastSaveFailure {
-            Label(failure.message, systemImage: "exclamationmark.triangle.fill")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
-                .background(.thinMaterial, in: Capsule())
-                .accessibilityLabel(failure.message)
-        }
-    }
-
-    @ViewBuilder
-    private var caption: some View {
-        if let image = store.current, !store.state.isBusy,
-           image.settings.prompt != store.settings.prompt {
-            Text(image.settings.prompt)
-                .font(.callout)
-                .fontDesign(.serif)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
-                .shadow(color: .black.opacity(0.55), radius: 6)
-                .padding(.horizontal, 24)
-        }
-    }
-
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        ToolbarItemGroup(placement: .primaryAction) {
-            ModelMenu()
-            Button {
-                filmstripVisible.toggle()
-            } label: {
-                Label("Images", systemImage: "film")
-                    .symbolVariant(filmstripVisible ? .fill : .none)
-            }
-            .help("Show the filmstrip")
-        }
+        .navigationTitle("Zephra")
+        .navigationSubtitle(store.windowSubtitle)
+        .toolbar { WorkspaceToolbar() }
+        .task { await store.bootstrapFromInterface() }
     }
 }
 
 #Preview("Ready") {
     RootView()
-        .frame(width: 1100, height: 760)
+        .frame(width: 1180, height: 800)
         .environment(ImageCache())
-        .environment(GenerationStore.preview(state: .ready))
+        .environment(WorkspaceSelection(pane: .canvas))
+        .environment(GenerationStore.preview(state: .ready, image: PreviewImages.sample()))
+}
+
+#Preview("Generating, with a queue") {
+    let run = InterfacePreview.queuedRun(of: 3)
+    RootView()
+        .frame(width: 1180, height: 800)
+        .environment(ImageCache())
+        .environment(WorkspaceSelection(pane: .canvas))
+        .environment(GenerationStore.preview(
+            state: .generating(GenerationProgressEvent(
+                phase: .denoising(step: 3, of: 4),
+                fraction: 0.75,
+                secondsPerStep: 8.2
+            )),
+            image: PreviewImages.sample(),
+            running: run[0],
+            queue: Array(run.dropFirst())
+        ))
 }
 
 #Preview("Downloading") {
     RootView()
-        .frame(width: 1100, height: 760)
+        .frame(width: 1180, height: 800)
         .environment(ImageCache())
+        .environment(WorkspaceSelection(pane: .canvas))
         .environment(GenerationStore.preview(state: .downloading(
             DownloadProgressEvent(completedFiles: 3, totalFiles: 11, fraction: 0.34, bytesPerSecond: 46_000_000)
         )))
 }
 
-#Preview("Failed") {
+#Preview("Library") {
     RootView()
-        .frame(width: 1100, height: 760)
+        .frame(width: 1180, height: 800)
         .environment(ImageCache())
-        .environment(GenerationStore.preview(state: .failed(.backend(.loadFailed("not enough free memory")))))
+        .environment(WorkspaceSelection(pane: .library))
+        .environment(GenerationStore.preview(state: .ready))
 }

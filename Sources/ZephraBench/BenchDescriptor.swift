@@ -14,7 +14,8 @@ enum BenchDescriptor {
         _ directory: URL,
         backend: BackendID,
         size: Int,
-        steps: Int
+        steps: Int,
+        supportsReferenceImage: Bool = false
     ) -> ModelDescriptor {
         ModelDescriptor(
             id: directory.lastPathComponent,
@@ -40,7 +41,8 @@ enum BenchDescriptor {
                 guidanceBounds: 0...0,
                 defaultGuidance: 0,
                 supportsNegativePrompt: false,
-                supportsSeed: true
+                supportsSeed: true,
+                supportsReferenceImage: supportsReferenceImage
             )
         )
     }

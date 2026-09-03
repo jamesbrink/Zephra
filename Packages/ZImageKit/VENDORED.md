@@ -83,8 +83,8 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
 
   `ZImageGenerationRequest` gains `referenceImage: CGImage?` and `referenceStrength: Float`,
   both defaulted to the old behaviour, so every existing caller compiles and behaves unchanged.
-  When a reference is present, `generateCore` encodes it to a latent, enters the denoise loop at
-  the first step whose sigma is at or below the strength, and starts that step from
+  When a reference is present, `generateCore` encodes it to a latent, enters the denoise loop
+  `steps * strength` steps from the end, and starts that step from
   `(1 - sigma) * reference + sigma * noise` — the same interpolation the flow-matching scheduler
   walks back down, using the run's own seeded noise, so a fixed seed still reproduces exactly.
   The loop's range starts at that index; the progress reports still count against the full
@@ -92,11 +92,13 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
   finished rather than showing a shorter run.
 
   The two decisions — where to enter and what to enter with — live in `ReferenceLatents` as pure
-  functions of the sigma ladder, so `ZImageScheduleTests` pins them without loading weights.
-  A strength of 1 lands on step 0, where the mix is pure noise and the picture contributes
-  nothing, which is why the unpatched path is a special case of the patched one rather than a
-  branch beside it. A strength below the last sigma still runs the last step: running none would
-  hand the reference straight back.
+  functions, so `ZImageScheduleTests` pins them without loading weights. Strength buys a share
+  of the steps rather than naming a noise level, which is diffusers' `get_timesteps` mapping;
+  entering at the first sigma at or below the strength looks equivalent and is not, because a
+  distilled ladder is not evenly spaced. A strength of 1 lands on step 0, where the mix is pure
+  noise and the picture contributes nothing, which is why the unpatched path is a special case
+  of the patched one rather than a branch beside it. A strength too small to buy a whole step
+  still buys one: running none would hand the reference straight back.
 
   `encodeImageToLatents` moved from `ZImageControlPipeline`, where it was private to the
   ControlNet path and so never reached from Zephra, which does not run that pipeline — it was

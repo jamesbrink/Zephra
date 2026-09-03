@@ -37,7 +37,7 @@ struct ModelSwapEdgeTests {
         await store.bootstrap()
         store.settings.prompt = "a"
         store.generate()
-        try await bed.waitForFirstStep()
+        try await bed.waitForStep()
         store.switchModel(to: ModelSwitchingTests.smaller)
         store.settings.prompt = "b"
         store.generate()
@@ -64,7 +64,7 @@ struct ModelSwapEdgeTests {
         await store.bootstrap()
         store.settings.prompt = "a"
         store.generate()
-        try await bed.waitForFirstStep()
+        try await bed.waitForStep()
         store.switchModel(to: ModelSwitchingTests.smaller)
         store.settings.prompt = "b"
         store.generate()
@@ -105,7 +105,7 @@ struct ModelSwapEdgeTests {
         await store.bootstrap()
         store.settings.prompt = "a"
         store.generate()
-        try await bed.waitForFirstStep()
+        try await bed.waitForStep()
         bed.control.update { $0.loadError = .loadFailed("no weights") }
         store.switchModel(to: ModelSwitchingTests.smaller)
         store.settings.prompt = "b"

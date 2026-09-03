@@ -14,6 +14,7 @@ extension GenerationStore {
     /// Returns to `.ready`, then works on down the queue. Every way a run can end goes through
     /// here so the queue never stalls.
     private func finish() {
+        running = nil
         transition(to: .ready)
         drain()
     }
@@ -40,9 +41,11 @@ extension GenerationStore {
             finish()
         } catch let error as BackendError {
             queue.removeAll()
+            running = nil
             transition(to: .failed(.backend(error)))
         } catch {
             queue.removeAll()
+            running = nil
             transition(to: .failed(.backend(.generationFailed(error.localizedDescription))))
         }
     }
@@ -54,7 +57,8 @@ extension GenerationStore {
             pngData: data,
             settings: request,
             modelID: loadedDescriptor?.id ?? descriptor.id,
-            duration: duration
+            duration: duration,
+            batchID: running?.batchID
         )
         current = image
         history.insert(image, at: 0)
@@ -87,6 +91,7 @@ extension GenerationStore {
         if let index = history.firstIndex(where: { $0.id == id }) {
             history[index] = history[index].withFileURL(url)
         }
+        onImageSaved?(url)
     }
 
     /// A failed write is worth showing, but the pixels are still in memory and still on the
@@ -104,6 +109,7 @@ extension GenerationStore {
     func applyLoadEvent(_ event: EngineEvent) {
         switch event {
         case .download(let progress): state = .downloading(progress)
+        case .build(let progress): state = .building(progress)
         case .progress(let progress): state = .loading(progress.phase)
         }
     }

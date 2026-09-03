@@ -21,6 +21,12 @@ do {
     let destination =
         options.output
         ?? ModelCatalog.localModelsDirectory.appending(path: family.defaultOutputName)
+    // A directory named for one precision must not receive another: the app would load it
+    // under a catalog entry that describes it wrongly, an hour after the mistake was made.
+    if let named = QuantizeUsageError.bitsNamed(by: destination), named != options.bits {
+        throw QuantizeUsageError.precisionDisagreesWithName(
+            bits: options.bits, directory: destination.lastPathComponent)
+    }
     let clock = ContinuousClock()
     let elapsed = try clock.measure {
         try SnapshotQuantizer.quantize(

@@ -23,9 +23,10 @@ struct BenchOptions: Sendable {
     var snapshot: URL?
     /// The catalog identifier of the model to load, defaulting to the app's own default.
     var model = ModelCatalog.default.id
-    /// A picture every timed run starts from instead of pure noise, SDEdit-style.
+    /// A picture to edit, so the editing path is what gets measured.
     var reference: URL?
-    /// How far those runs may travel from it. Only read when there is a reference.
+    /// How far from it the timed runs start, on a model that starts from a noised copy. Only
+    /// read when there is a reference, and clamped to the model's own bounds after that.
     var referenceStrength = 0.6
 
     /// Reads options from the command line, exiting with usage text on anything unrecognised.
@@ -68,7 +69,7 @@ struct BenchOptions: Sendable {
         case "--model": options.model = resolvedModel(value)
         case "--backend": options.backend = BackendID(value)
         case "--snapshot": options.snapshot = URL(fileURLWithPath: value)
-        case "--reference": options.reference = URL(fileURLWithPath: value)
+        case "--reference": options.reference = readableFile(value, flag)
         case "--strength": options.referenceStrength = fraction(value, flag)
         default: fail("unknown option \(flag)")
         }
@@ -81,6 +82,16 @@ struct BenchOptions: Sendable {
             fail("unknown model \(value); try one of \(ModelCatalog.all.map(\.id).joined(separator: ", "))")
         }
         return value
+    }
+
+    /// Checks that a file is there before anything is loaded: a benchmark run by hand should
+    /// stop on a typo rather than quietly measure text-to-image and report it as an edit.
+    private static func readableFile(_ value: String, _ flag: String) -> URL {
+        let url = URL(fileURLWithPath: value)
+        guard FileManager.default.isReadableFile(atPath: url.path(percentEncoded: false)) else {
+            fail("\(flag) needs a readable file, and \(value) is not one")
+        }
+        return url
     }
 
     /// A strength between zero and one. Out of range is a typo worth stopping for: the model
@@ -106,17 +117,21 @@ struct BenchOptions: Sendable {
 
     private static let usage = """
         usage: ZephraBench [--model ID] [--size N] [--steps N] [--runs N] [--prompt TEXT] \
-        [--out PATH] [--reference PATH --strength S] [--json] [--micro] \
-        [--backend NAME --snapshot DIR]
+        [--out PATH] [--json] [--micro] [--backend NAME --snapshot DIR] \
+        [--reference IMAGE --strength S]
 
         --model names a catalog entry, so variants can be compared at a fixed seed.
-        --reference starts every timed run from that picture instead of from pure noise, and
-        --strength (0 to 1, default 0.6) says how far it may travel from it: it buys that share
-        of the steps, so 1 runs them all and ignores the picture while small values keep most of
-        it. The model's own bounds still apply — both shipped families clamp to 0.1 to 0.9 — so
-        the report, not this flag, is what says the strength and the step the run began at.
         --backend and --snapshot together run a model the catalog does not carry yet, which
         is how a new family is measured before its entry can be written.
+        --reference takes any picture macOS can read and measures the editing path on a
+        model that has one; the picture's own pixels add tokens, so its size is part of what
+        is being measured.
+        --strength (0 to 1, default 0.6) says how far from that picture to start, on a model
+        that starts from a noised copy of it: it buys that share of the steps, so 1 runs them
+        all and ignores the picture while small values keep most of it. A model that conditions
+        on the picture directly, as FLUX.2 klein does, clamps this to 1 and ignores it. The
+        model's own bounds always apply, so the report rather than this flag is what says the
+        strength that ran and the step it began at.
         --micro times the DiT's individual MLX kernels at --size worth of tokens and
         exits, without loading any weights.
         """

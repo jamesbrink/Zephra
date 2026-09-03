@@ -51,9 +51,17 @@ else
 fi
 
 if command -v hf >/dev/null 2>&1; then
-    ok "hf CLI on PATH (optional, for make prefetch)"
+    ok "hf CLI on PATH (optional, for make prefetch and make prefetch-flux2)"
 else
-    printf 'note  hf CLI not on PATH; only make prefetch and make quantize need it: pip install -U huggingface_hub\n'
+    printf 'note  hf CLI not on PATH; only make prefetch, make prefetch-flux2, and make quantize need it: pip install -U huggingface_hub\n'
+fi
+
+# Not a failure: a model can live on another volume. But FLUX.2 klein is built by the app on
+# first load from a 16 GB release in the hub cache, plus 4.5 GB of packed variant beside it, and
+# running out of disk half-way through the build is the bad outcome worth a line here.
+free_gb=$(df -g "$HOME" | awk 'NR == 2 { print $4 }')
+if [ -n "$free_gb" ] && [ "$free_gb" -lt 40 ]; then
+    printf 'note  %s GB free on the home volume; FLUX.2 klein wants about 21 GB (16 GB release plus the packed variant), and hf cache delete frees the release again\n' "$free_gb"
 fi
 
 if [ "$failures" -eq 0 ]; then

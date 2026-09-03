@@ -56,34 +56,46 @@ struct ModelCapabilitiesTests {
         #expect(supporting.clamp(settings).negativePrompt == "blurry")
     }
 
-    @Test("clamp drops a reference the model cannot start from")
-    func dropsUnsupportedReference() {
-        let settings = makeSettings(reference: Self.reference)
-        #expect(withoutReferences.clamp(settings).reference == nil)
+    @Test("clamp drops a reference image the model cannot read, and keeps one where it can")
+    func referenceImageFollowsTheCapability() {
+        let picture = Data([0x89, 0x50, 0x4E, 0x47])
+        let settings = makeSettings(referenceImage: picture)
+        #expect(capabilities.supportsReferenceImage, "Z-Image starts from a noised copy")
+        #expect(capabilities.clamp(settings).referenceImage == picture)
+        #expect(withoutReferences.clamp(settings).referenceImage == nil)
     }
 
     @Test("clamp holds the reference strength inside the model's bounds")
     func clampsReferenceStrength() {
-        #expect(capabilities.supportsReferenceImage)
-        let strong = makeSettings(reference: Self.reference.withStrength(4))
-        #expect(capabilities.clamp(strong).reference?.strength == 0.9)
-
-        let weak = makeSettings(reference: Self.reference.withStrength(-1))
-        #expect(capabilities.clamp(weak).reference?.strength == 0.1)
+        #expect(capabilities.referenceStrengthBounds == 0.1...0.9)
+        var settings = makeSettings()
+        settings.referenceStrength = 4
+        #expect(capabilities.clamp(settings).referenceStrength == 0.9)
+        settings.referenceStrength = -1
+        #expect(capabilities.clamp(settings).referenceStrength == 0.1)
+        settings.referenceStrength = 0.45
+        #expect(capabilities.clamp(settings).referenceStrength == 0.45, "already inside")
     }
 
-    @Test("clamp leaves a reference already inside the bounds exactly as it is")
-    func keepsAcceptableReference() {
-        let settings = makeSettings(reference: Self.reference)
-        #expect(capabilities.clamp(settings).reference == Self.reference)
+    @Test("a model that conditions on the picture directly pins the strength at 1")
+    func degenerateBoundsMeanStrengthDoesNotApply() {
+        // What FLUX.2 klein declares: it attends to the reference as extra tokens and still
+        // walks the whole schedule, so there is no distance to travel and no slider to show.
+        // Expressed the way `guidanceBounds: 0...0` expresses "guidance does not apply".
+        let klein = ModelCatalog.flux2Klein4bit.capabilities
+        #expect(klein.supportsReferenceImage)
+        #expect(klein.referenceStrengthBounds == 1...1)
+        var settings = makeSettings()
+        settings.referenceStrength = 0.3
+        #expect(klein.clamp(settings).referenceStrength == 1)
     }
 
     private func makeSettings(
+        referenceImage: Data? = nil,
         negativePrompt: String? = nil,
         size: ImageSize = ImageSize(width: 1024, height: 1024),
         steps: Int = 9,
-        guidance: Double = 0,
-        reference: ReferenceImage? = nil
+        guidance: Double = 0
     ) -> GenerationSettings {
         GenerationSettings(
             prompt: "a lighthouse",
@@ -92,12 +104,12 @@ struct ModelCapabilitiesTests {
             steps: steps,
             guidance: guidance,
             seed: 42,
-            reference: reference
+            referenceImage: referenceImage
         )
     }
 
     /// The same capabilities with references turned off, so the drop is exercised rather than
-    /// assumed: both shipped families support them.
+    /// assumed: every model the catalog ships can read one.
     private var withoutReferences: ModelCapabilities {
         ModelCapabilities(
             sizeAlignment: capabilities.sizeAlignment,
@@ -113,8 +125,4 @@ struct ModelCapabilitiesTests {
             supportsReferenceImage: false
         )
     }
-
-    private static let reference = ReferenceImage(
-        url: URL(fileURLWithPath: "/tmp/sources/harbour.png"), strength: 0.6
-    )
 }

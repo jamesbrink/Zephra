@@ -20,26 +20,24 @@ public struct ModelCapabilities: Hashable, Sendable {
     public let supportsNegativePrompt: Bool
     /// Whether a fixed seed reproduces an earlier image.
     public let supportsSeed: Bool
-    /// Whether the model can start from a picture instead of from pure noise.
-    ///
-    /// This asks only whether the family has an image encoder Zephra can reach and a schedule
-    /// that interpolates linearly, which is what SDEdit needs. It is not a claim about edit
-    /// conditioning: a model that takes a reference image as a *prompt* is a different model,
-    /// not this flag turned on.
+    /// Whether a picture can be handed in to be edited rather than started from noise.
     public let supportsReferenceImage: Bool
-    /// How far a reference may be taken from, when one is supported.
+    /// How far from that picture a generation may start, on models that begin from a noised
+    /// copy of it.
     ///
-    /// Neither end is offered: 1 is text-to-image with extra steps, and 0 hands the picture
-    /// back unchanged.
+    /// A single point at 1 means strength does not apply, the way `guidanceBounds` of `0...0`
+    /// means guidance does not — which is the honest answer for a model that conditions on the
+    /// picture directly rather than starting from it. The interface reads the range: a
+    /// degenerate one hides the control instead of offering a slider that does nothing.
     public let referenceStrengthBounds: ClosedRange<Double>
     /// The strength to start from, which should keep composition while redrawing detail.
     public let defaultReferenceStrength: Double
 
     /// Creates a capability set describing one model's accepted inputs.
     ///
-    /// The reference-image parameters carry defaults — no reference, and the usual bounds — so
-    /// that a descriptor written before references existed still compiles and still means what
-    /// it meant. Everything else is spelled out at every site on purpose.
+    /// The reference parameters carry defaults — no reference, and a strength that does
+    /// nothing — so a descriptor written before either existed still compiles and still means
+    /// what it meant. Everything else is spelled out at every site on purpose.
     public init(
         sizeAlignment: Int,
         sizePresets: [ImageSize],
@@ -52,8 +50,8 @@ public struct ModelCapabilities: Hashable, Sendable {
         supportsNegativePrompt: Bool,
         supportsSeed: Bool,
         supportsReferenceImage: Bool = false,
-        referenceStrengthBounds: ClosedRange<Double> = 0.1...0.9,
-        defaultReferenceStrength: Double = 0.6
+        referenceStrengthBounds: ClosedRange<Double> = 1...1,
+        defaultReferenceStrength: Double = 1
     ) {
         self.sizeAlignment = sizeAlignment
         self.sizePresets = sizePresets
@@ -82,19 +80,14 @@ public struct ModelCapabilities: Hashable, Sendable {
         if !supportsNegativePrompt {
             result.negativePrompt = nil
         }
-        result.reference = constrain(settings.reference)
-        return result
-    }
-
-    /// The reference this model will actually honour: none at all when it cannot encode one,
-    /// and otherwise the same picture at a strength inside the bounds.
-    private func constrain(_ reference: ReferenceImage?) -> ReferenceImage? {
-        guard supportsReferenceImage, let reference else { return nil }
-        let strength = min(
-            max(reference.strength, referenceStrengthBounds.lowerBound),
+        if !supportsReferenceImage {
+            result.referenceImage = nil
+        }
+        result.referenceStrength = min(
+            max(settings.referenceStrength, referenceStrengthBounds.lowerBound),
             referenceStrengthBounds.upperBound
         )
-        return reference.withStrength(strength)
+        return result
     }
 
     private func constrain(_ size: ImageSize) -> ImageSize {

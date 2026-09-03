@@ -13,6 +13,19 @@ struct ModelAvailabilityLabelTests {
     func plainLabels() {
         #expect(ModelAvailability.available.label == "Downloaded")
         #expect(ModelAvailability.missing(reason: "no such folder").label == "Not built yet")
+        #expect(ModelAvailability.needsBuild.label == "Builds on first load")
+        #expect(
+            ModelAvailability.needsDownloadAndBuild(bytes: 15_980_000_000).label
+                == "16 GB download, then built")
+    }
+
+    @Test("a model built on first load says so, whether or not it is downloaded yet")
+    func buildFlags() {
+        #expect(ModelAvailability.needsDownloadAndBuild(bytes: 1).needsNetwork)
+        #expect(ModelAvailability.needsBuild.needsNetwork == false)
+        #expect(ModelAvailability.needsBuild.isObtainable)
+        #expect(ModelAvailability.needsDownloadAndBuild(bytes: 1).isObtainable)
+        #expect(ModelAvailability.needsBuild.reason?.contains("first time") == true)
     }
 
     @Test("the reason behind a missing model survives for a tooltip")
