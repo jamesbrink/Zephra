@@ -257,10 +257,10 @@ explain the 5× gap. The microbench was applying the VAE's divisor twice and so 
 tokens rather than 4,160; at the true length the projections cost about 3.8× and attention about
 14× more, which is where the gap went.
 
-Both figures above want redoing. Every number in this section was taken on a machine running
+**To do: rerun the Z-Image benchmarks on an idle machine.** Every number in this section was taken on a machine running
 other builds (load average 10 to 70), where a re-measured 1024² step came out at 10 s rather than
 6.3 s and individual microbench rows varied by 2× between two runs an hour apart. The table is
-the last set taken under lighter load; treat it as provisional. Text encoding is ~40 ms and the
+the last set taken under lighter load; treat it as provisional. The steps: pick a quiet hour, run `make bench ARGS="--size 1024 --steps 9 --runs 3"` and `make bench ARGS="--micro --size 1024"` from a Release build, and replace the table, the kernel sum, and the catalog comments with what they say. Text encoding is ~40 ms and the
 VAE decode ~4 s at 1024².
 
 Two experiments, both measured at a fixed seed. **Step caching does not work here**: reusing the
