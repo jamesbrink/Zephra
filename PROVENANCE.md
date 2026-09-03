@@ -37,9 +37,21 @@ another Swift port. `Packages/QwenImageKit/Tools/dump_reference.py` runs the
 Python reference and writes tensors to
 `Packages/QwenImageKit/Tests/QwenImageTests/Fixtures`; the Swift suites assert
 against those. Every component has such a fixture — rope, scheduler, latent
-packing, text encoder, one MMDiT block, the whole transformer, VAE decode — so
-"does this match the reference" is a question the test suite answers rather
-than a claim in a commit message.
+packing, text encoder, one MMDiT block, the whole transformer, VAE decode, VAE
+encode — so "does this match the reference" is a question the test suite
+answers rather than a claim in a commit message.
+
+`QwenImageVAEEncoder` and `QwenImageVAEDownsample` were written from
+`diffusers`' `QwenImageEncoder3d` and `QwenImageResample` in
+`models/autoencoders/autoencoder_kl_qwenimage.py`, and from the shipped
+`vae/config.json`, the same way the decoder was. Their fixture is
+`vae.in.pixels` / `vae.out.latent` in `vae.safetensors`, dumped by
+`dump_vae` from `vae.encode(picture).latent_dist.mode()`, and
+`VAEEncoderParityTests` asserts against it. Two behaviours of the reference are
+pinned there because both fail quietly: `quant_conv` is applied inside
+`_encode`, before the diagonal Gaussian is formed; and a downsampler's
+`time_conv` is skipped for the first chunk of a sequence, which a still image
+always is.
 
 The structural differences from a port that had been derived are visible in
 the source and are the natural consequence of writing from `diffusers`:
@@ -47,8 +59,11 @@ the source and are the natural consequence of writing from `diffusers`:
 - The 3-D causal autoencoder is implemented in two dimensions. A single frame
   makes the other two temporal kernel slices multiply nothing but zero
   padding, so dropping them is exact, and it removes `Conv3d` and every 5-D
-  tensor from the decode. `QwenImageVAEWeights` slices the checkpoint
-  accordingly.
+  tensor from both halves. `QwenImageVAEWeights` slices the checkpoint
+  accordingly. The encoder's `down_blocks` is a flat, heterogeneous list
+  because the checkpoint's keys are one, while the decoder's `up_blocks` are
+  nested because its keys are; a port that had been derived from another would
+  not have both shapes side by side.
 - The transformer's module tree does not mirror the checkpoint's `Sequential`
   numbering. MLX unflattens a numeric path segment into an array position when
   loading parameters but into a dictionary key when replacing modules during

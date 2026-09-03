@@ -116,28 +116,26 @@ public final class QwenImagePipeline {
             textLength: conditioning.shape[1]
         )
 
-        var latents = QwenImageLatentPacking.pack(
+        let noise = QwenImageLatentPacking.pack(
             MLXRandom.normal(
                 [1, model.configuration.vae.zDim, latentHeight, latentWidth],
                 key: MLXRandom.key(request.seed)
             ))
 
-        // The model is conditioned on the noise level itself, on its zero-to-one scale; the
-        // reference multiplies by a thousand and divides it back out before the embedding.
-        let sigmas = scheduler.sigmas.dropLast()
-        for (index, sigma) in sigmas.enumerated() {
-            try Task.checkCancellation()
-            onProgress(
-                QwenImageGenerationProgress(stage: .denoising(step: index, of: sigmas.count)))
-            let prediction = model.transformer(
-                latents: latents,
-                text: conditioning,
-                timestep: MLXArray([Float(sigma)]),
-                frequencies: frequencies
-            )
-            latents = scheduler.step(modelOutput: prediction, index: index, sample: latents)
-            MLX.eval(latents)
-        }
+        let latents = try QwenImageDenoiseLoop.run(
+            noise: noise,
+            reference: request.referenceImage.map {
+                QwenImageDenoiseLoop.Reference(
+                    image: $0, strength: request.referenceStrength,
+                    width: request.width, height: request.height)
+            },
+            scheduler: scheduler,
+            transformer: model.transformer,
+            autoencoder: model.autoencoder,
+            conditioning: conditioning,
+            frequencies: frequencies,
+            onProgress: onProgress
+        )
 
         onProgress(QwenImageGenerationProgress(stage: .decoding))
         let unpacked = QwenImageLatentPacking.unpack(

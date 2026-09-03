@@ -8,6 +8,8 @@ public enum QwenImagePipelineError: Error, LocalizedError, Equatable {
     case unalignedSize(width: Int, height: Int, alignment: Int)
     /// The decoded image could not be turned into PNG bytes.
     case encodingFailed
+    /// A reference image was named that nothing could open.
+    case referenceUnreadable(URL)
 
     public var errorDescription: String? {
         switch self {
@@ -17,6 +19,8 @@ public enum QwenImagePipelineError: Error, LocalizedError, Equatable {
             "\(width)x\(height) is not a multiple of \(alignment)."
         case .encodingFailed:
             "The image could not be encoded."
+        case .referenceUnreadable(let url):
+            "Could not read the reference image at \(url.path(percentEncoded: false))."
         }
     }
 }
