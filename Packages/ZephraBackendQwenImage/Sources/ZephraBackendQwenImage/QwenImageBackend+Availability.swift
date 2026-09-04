@@ -24,7 +24,7 @@ extension QwenImageBackend {
             return .missing(
                 reason: "Not built yet: \(missing) is missing. Run `make quantize-qwen`.")
         case .huggingFace:
-            if LocalSnapshot.qwenImage.missingEntry(in: locations.built(descriptor)) == nil {
+            if LocalSnapshot.qwenImage.packedVariant(of: descriptor, in: locations) != nil {
                 return .available
             }
             let release = LocalSnapshot.qwenImageRelease.downloadedRelease(

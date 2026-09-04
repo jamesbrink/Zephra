@@ -17,8 +17,10 @@ extension QwenImageBackend {
         onProgress: @escaping @Sendable (BuildProgressEvent) -> Void
     ) async throws -> URL {
         guard descriptor.isBuiltLocally else { return localPath }
+        if let packed = LocalSnapshot.qwenImage.packedVariant(of: descriptor, in: locations) {
+            return packed
+        }
         let packed = locations.built(descriptor)
-        if LocalSnapshot.qwenImage.missingEntry(in: packed) == nil { return packed }
         do {
             return try QwenImageSnapshotBuild.pack(
                 release: localPath,

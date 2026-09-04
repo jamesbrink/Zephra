@@ -17,8 +17,10 @@ extension ZImageBackend {
         onProgress: @escaping @Sendable (BuildProgressEvent) -> Void
     ) async throws -> URL {
         guard descriptor.isBuiltLocally else { return localPath }
+        if let packed = LocalSnapshot.zImage.packedVariant(of: descriptor, in: locations) {
+            return packed
+        }
         let packed = locations.built(descriptor)
-        if LocalSnapshot.zImage.missingEntry(in: packed) == nil { return packed }
         do {
             return try ZImageSnapshotBuild.pack(
                 release: localPath, into: packed, descriptor: descriptor, onProgress: onProgress)

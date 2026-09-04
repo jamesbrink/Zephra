@@ -45,8 +45,9 @@ public nonisolated final class QwenImageBackend: ImageGenerationBackend {
             return try LocalSnapshot.qwenImage.verified(
                 candidates.first ?? locations.built(descriptor), descriptor: descriptor)
         case .huggingFace:
-            let packed = locations.built(descriptor)
-            if LocalSnapshot.qwenImage.missingEntry(in: packed) == nil { return packed }
+            if let packed = LocalSnapshot.qwenImage.packedVariant(of: descriptor, in: locations) {
+                return packed
+            }
             let here = LocalSnapshot.qwenImageRelease.downloadedRelease(of: descriptor, in: locations)
             if let here, locations.missingAdapters(of: descriptor).isEmpty { return here }
             let fetched = try await ModelDownloader().fetch(

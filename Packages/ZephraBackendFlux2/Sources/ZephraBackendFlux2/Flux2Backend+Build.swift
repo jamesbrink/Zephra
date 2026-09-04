@@ -26,8 +26,9 @@ extension Flux2Backend {
             return try LocalSnapshot.flux2.verified(
                 candidates.first ?? locations.built(descriptor), descriptor: descriptor)
         case .huggingFace:
-            let packed = locations.built(descriptor)
-            if LocalSnapshot.flux2.missingEntry(in: packed) == nil { return packed }
+            if let packed = LocalSnapshot.flux2.packedVariant(of: descriptor, in: locations) {
+                return packed
+            }
             let here = LocalSnapshot.flux2Release.downloadedRelease(of: descriptor, in: locations)
             if let here, locations.missingAdapters(of: descriptor).isEmpty { return here }
             let fetched = try await ModelDownloader().fetch(
@@ -45,8 +46,10 @@ extension Flux2Backend {
         onProgress: @escaping @Sendable (BuildProgressEvent) -> Void
     ) async throws -> URL {
         guard descriptor.isBuiltLocally else { return localPath }
+        if let packed = LocalSnapshot.flux2.packedVariant(of: descriptor, in: locations) {
+            return packed
+        }
         let packed = locations.built(descriptor)
-        if LocalSnapshot.flux2.missingEntry(in: packed) == nil { return packed }
         do {
             return try Flux2SnapshotBuild.pack(
                 release: localPath,

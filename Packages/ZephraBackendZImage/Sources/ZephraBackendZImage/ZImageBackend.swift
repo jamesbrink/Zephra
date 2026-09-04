@@ -53,8 +53,9 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
             return try LocalSnapshot.zImage.verified(
                 candidates.first ?? locations.built(descriptor), descriptor: descriptor)
         case .huggingFace:
-            let packed = locations.built(descriptor)
-            if descriptor.isBuiltLocally, LocalSnapshot.zImage.missingEntry(in: packed) == nil {
+            if descriptor.isBuiltLocally,
+               let packed = LocalSnapshot.zImage.packedVariant(of: descriptor, in: locations)
+            {
                 return packed
             }
             let check = LocalSnapshot.zImage(for: descriptor)

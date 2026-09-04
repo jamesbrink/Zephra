@@ -62,10 +62,14 @@ struct ReferencePickerGrid: View {
             .accessibilityAddTraits(.isButton)
     }
 
-    /// `.all`, unfiltered by scope or model or tag: a picture is picked here by what it looks
-    /// like, not by which collection the sidebar happens to be narrowed to.
+    /// Everything made here and everything imported to start from, newest first, matched on
+    /// the text alone: a picture is picked here by what it looks like, not by which collection
+    /// the sidebar happens to be narrowed to. Only Recently Deleted is left out.
     private var matches: [LibraryItem] {
-        LibraryQuery(text: selection.text, sort: .newestFirst).matching(index.items)
+        let made = LibraryQuery(text: selection.text, sort: .newestFirst).matching(index.items)
+        let imported = LibraryQuery(scope: .sources, text: selection.text, sort: .newestFirst)
+            .matching(index.items)
+        return (made + imported).sorted { $0.createdAt > $1.createdAt }
     }
 }
 

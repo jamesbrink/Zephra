@@ -20,7 +20,7 @@ extension Flux2Backend {
             let missing = LocalSnapshot.flux2.missingEntry(in: candidates[0]) ?? "its weights"
             return .missing(reason: "Not built yet: \(missing) is missing. Run `make quantize-flux2`.")
         case .huggingFace:
-            if LocalSnapshot.flux2.missingEntry(in: locations.built(descriptor)) == nil {
+            if LocalSnapshot.flux2.packedVariant(of: descriptor, in: locations) != nil {
                 return .available
             }
             let release = LocalSnapshot.flux2Release.downloadedRelease(of: descriptor, in: locations)

@@ -31,7 +31,7 @@ extension ZImageBackend {
             )
         case .huggingFace:
             if descriptor.isBuiltLocally,
-               LocalSnapshot.zImage.missingEntry(in: locations.built(descriptor)) == nil
+               LocalSnapshot.zImage.packedVariant(of: descriptor, in: locations) != nil
             {
                 return .available
             }

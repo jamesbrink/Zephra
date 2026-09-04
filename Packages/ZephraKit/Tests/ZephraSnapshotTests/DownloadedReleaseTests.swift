@@ -77,6 +77,21 @@ struct DownloadedReleaseTests {
             "the packed variant is looked for under both roots, the current one first")
     }
 
+    @Test("a variant packed under a folder the setting used to point at is not built again")
+    func aPackedVariantUnderAPreviousRootIsFound() throws {
+        let scratch = Scratch("Downloaded")
+        let locations = ModelLocations(
+            root: scratch.url("new"), previous: [scratch.url("old")])
+        let descriptor = Self.model()
+        try Self.snapshot(scratch, at: "old/\(descriptor.id)")
+
+        #expect(check.packedVariant(of: descriptor, in: locations)?.path(percentEncoded: false)
+            .contains("/old/\(descriptor.id)") == true)
+        #expect(
+            locations.built(descriptor).path(percentEncoded: false).contains("/new/"),
+            "a build that does happen still lands under the current root")
+    }
+
     @Test("a model that is a directory rather than a repository has no download to find")
     func aLocalDirectoryHasNoDownload() {
         let scratch = Scratch("Downloaded")

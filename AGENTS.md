@@ -525,7 +525,8 @@ The well offers three doors to a picture, and `ReferenceAdoption` in
 library image hands back what it was itself edited from, when it was one,
 rather than itself. Empty, the well is a `Menu` whose primary action opens
 `Views/ReferencePicker/ReferencePickerSheet`, a sheet over the window with a
-search field and a grid of the whole library, newest first; filled, the same
+search field and a grid of the whole library — what was made here and what was
+imported to start from, everything but Recently Deleted — newest first; filled, the same
 two choices — "From Library…" and "Choose File…" — sit in a context menu
 beside Clear. Both states also take a drop of a `LibraryItemReference`, the
 same in-app drag type an album row accepts, so dragging a picture from the
