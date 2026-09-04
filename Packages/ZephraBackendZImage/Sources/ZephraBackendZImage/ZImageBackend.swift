@@ -35,6 +35,7 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
     /// The download is `ZImageBackend+Download.swift`, the only step that can report progress.
     nonisolated(nonsending) public func ensureAvailable(
         _ descriptor: ModelDescriptor,
+        locations: ModelLocations,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws -> URL {
         switch descriptor.source {

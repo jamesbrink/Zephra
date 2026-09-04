@@ -27,6 +27,7 @@ public nonisolated final class QwenImageBackend: ImageGenerationBackend {
     /// and this reports clearly when it is not there yet.
     nonisolated(nonsending) public func ensureAvailable(
         _ descriptor: ModelDescriptor,
+        locations: ModelLocations,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws -> URL {
         switch descriptor.source {
@@ -39,7 +40,8 @@ public nonisolated final class QwenImageBackend: ImageGenerationBackend {
 
     /// Whether the weights are on this Mac, read from the disk alone.
     nonisolated(nonsending) public func availability(
-        of descriptor: ModelDescriptor
+        of descriptor: ModelDescriptor,
+        locations: ModelLocations
     ) async -> ModelAvailability {
         switch descriptor.source {
         case .localDirectory(let directory):

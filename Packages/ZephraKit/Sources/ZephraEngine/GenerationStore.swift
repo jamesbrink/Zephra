@@ -70,6 +70,9 @@ public final class GenerationStore {
     let upscalerFactory: UpscalerFactory?
     let library: ImageLibrary
     let logger = Logger(subsystem: "io.zephra", category: "engine")
+    /// The folder models are downloaded and built in, forwarded to the inference actor as it
+    /// is made and whenever it changes.
+    var locations: ModelLocations
 
     @ObservationIgnored var inference: InferenceActor?
     @ObservationIgnored var bootstrapTask: Task<Void, Never>?
@@ -86,22 +89,24 @@ public final class GenerationStore {
         descriptor: ModelDescriptor = ModelCatalog.default,
         registry: BackendRegistry,
         outputDirectory: URL? = nil,
+        locations: ModelLocations = .default,
         upscaler: UpscalerFactory? = nil
     ) {
         self.init(
             descriptor: descriptor, registry: registry, output: outputDirectory,
-            upscaler: upscaler)
+            locations: locations, upscaler: upscaler)
     }
 
     /// The one designated initializer. A nil `registry` makes a preview store: see
     /// `GenerationStore+Preview.swift`.
     init(
         descriptor: ModelDescriptor, registry: BackendRegistry?, output: URL?,
-        upscaler: UpscalerFactory? = nil
+        locations: ModelLocations = .default, upscaler: UpscalerFactory? = nil
     ) {
         self.descriptor = descriptor
         self.settings = GenerationSettings.defaults(for: descriptor)
         self.registry = registry
+        self.locations = locations
         self.upscalerFactory = upscaler
         self.library = output.map { ImageLibrary(root: $0) } ?? .pictures()
     }

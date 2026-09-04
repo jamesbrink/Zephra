@@ -9,7 +9,8 @@ extension Flux2Backend {
     /// there, so it loads. The release is in the hub cache but the variant is not, so loading
     /// means a build and no network. Or neither is there, and loading means both.
     nonisolated(nonsending) public func availability(
-        of descriptor: ModelDescriptor
+        of descriptor: ModelDescriptor,
+        locations: ModelLocations
     ) async -> ModelAvailability {
         switch descriptor.source {
         case .localDirectory(let directory):

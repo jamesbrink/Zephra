@@ -12,6 +12,7 @@ extension Flux2Backend {
     /// `Flux2Backend+Download.swift`.
     nonisolated(nonsending) public func ensureAvailable(
         _ descriptor: ModelDescriptor,
+        locations: ModelLocations,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws -> URL {
         switch descriptor.source {
@@ -37,6 +38,7 @@ extension Flux2Backend {
     nonisolated(nonsending) public func build(
         _ descriptor: ModelDescriptor,
         at localPath: URL,
+        locations: ModelLocations,
         onProgress: @escaping @Sendable (BuildProgressEvent) -> Void
     ) async throws -> URL {
         guard descriptor.isBuiltLocally else { return localPath }

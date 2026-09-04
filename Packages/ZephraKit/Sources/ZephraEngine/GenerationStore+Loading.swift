@@ -9,10 +9,25 @@ extension GenerationStore {
     func inferenceActor() -> InferenceActor? {
         guard let registry else { return nil }
         if let inference { return inference }
-        let made = InferenceActor(registry: registry, upscaler: upscalerFactory)
+        let made = InferenceActor(
+            registry: registry, locations: locations, upscaler: upscalerFactory)
         inference = made
         return made
     }
+
+    /// Keeps models in `locations` from the next load onwards, and says whether that is a
+    /// change. The composition root calls it when the preference changes; a download already
+    /// running is left where it started, and what is already on disk stays where it is.
+    @discardableResult
+    public func setModelLocations(_ locations: ModelLocations) -> Bool {
+        guard locations != self.locations else { return false }
+        self.locations = locations
+        if let inference { Task { await inference.setLocations(locations) } }
+        return true
+    }
+
+    /// Where models are downloaded and built, for a settings window to show.
+    public var modelLocations: ModelLocations { locations }
 
     /// Finds or downloads the model, loads it, and warms up. Call once from the root view.
     /// Calling it again once the engine is running is a no-op, so a re-rendered root is free.

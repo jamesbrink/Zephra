@@ -2,11 +2,11 @@ import Foundation
 
 /// The models Zephra ships knowledge of, hand-written because each one needs verified numbers.
 public enum ModelCatalog {
-    /// Where variants built on this Mac are kept. Nothing downloads into it; `make quantize`
-    /// writes here, and a descriptor pointing at a directory that is not there yet fails with a
-    /// message naming the missing folder rather than trying to fetch it.
-    public static let localModelsDirectory = URL.applicationSupportDirectory
-        .appending(path: "Zephra/Models", directoryHint: .isDirectory)
+    /// Where models are kept when the user has not chosen a folder: the root of
+    /// `ModelLocations.default`, which is what a catalog entry naming a directory absolutely
+    /// is written against. Everywhere that can be given a folder takes a `ModelLocations`
+    /// instead; this is only for the entries here and for a tool with no preferences to read.
+    public static var localModelsDirectory: URL { ModelLocations.default.root }
 
     /// Z-Image Turbo at eight-bit precision: the downloadable variant. Its untiled peak needs
     /// a 32 GB Mac; between 24 and 32 GB `fitting` offers it only because the decode can tile.

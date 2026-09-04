@@ -19,6 +19,10 @@ actor InferenceActor {
     private var backendID: BackendID?
     private let upscalerFactory: UpscalerFactory?
     private var upscaler: (any ImageUpscaler)?
+    /// The folder models are kept in, as the last `setLocations` left it. Read at the top of
+    /// each operation rather than held by the backend, so a folder chosen while a download is
+    /// running applies to the next one and never to the one in flight.
+    private var locations: ModelLocations
 
     /// Pins every method of this actor to the inference queue instead of the cooperative pool.
     nonisolated var unownedExecutor: UnownedSerialExecutor {
@@ -28,9 +32,21 @@ actor InferenceActor {
     /// Creates an actor that will build backends out of `registry` as descriptors arrive, and
     /// the one upscaler `upscaler` makes the first time a picture is made larger. A nil factory
     /// is a build with no upscaler in it, which every upscale then fails as weights missing.
-    init(registry: BackendRegistry, upscaler: UpscalerFactory? = nil) {
+    init(
+        registry: BackendRegistry,
+        locations: ModelLocations = .default,
+        upscaler: UpscalerFactory? = nil
+    ) {
         self.registry = registry
+        self.locations = locations
         self.upscalerFactory = upscaler
+    }
+
+    /// Keeps models in `locations` from the next `prepare` onwards. A transfer already running
+    /// finishes where it started: moving a download half-way through would leave two partial
+    /// copies and finish neither.
+    func setLocations(_ locations: ModelLocations) {
+        self.locations = locations
     }
 
     /// Fetches the weights if they are missing, packs them if the family loads something other
@@ -38,10 +54,11 @@ actor InferenceActor {
     func prepare(_ descriptor: ModelDescriptor, events: EngineEventSink) async throws {
         let live = try backend(for: descriptor)
         guard live.loadedModelID != descriptor.id else { return }
-        let downloaded = try await live.ensureAvailable(descriptor) { event in
+        let downloaded = try await live.ensureAvailable(descriptor, locations: locations) { event in
             events.send(.download(event))
         }
-        let localPath = try await live.build(descriptor, at: downloaded) { event in
+        let localPath = try await live.build(descriptor, at: downloaded, locations: locations) {
+            event in
             events.send(.build(event))
         }
         try await live.load(descriptor, at: localPath) { event in
@@ -53,12 +70,12 @@ actor InferenceActor {
     /// disturbs what is loaded: a backend built only to answer this is thrown away afterwards.
     func availability(of descriptor: ModelDescriptor) async -> ModelAvailability {
         if let backend, backendID == descriptor.backend {
-            return await backend.availability(of: descriptor)
+            return await backend.availability(of: descriptor, locations: locations)
         }
         guard let probe = try? registry.make(descriptor) else {
             return .missing(reason: "No engine in this build can run \(descriptor.backend.rawValue) models.")
         }
-        return await probe.availability(of: descriptor)
+        return await probe.availability(of: descriptor, locations: locations)
     }
 
     /// Runs one tiny generation and throws the result away, so the first image the user asks

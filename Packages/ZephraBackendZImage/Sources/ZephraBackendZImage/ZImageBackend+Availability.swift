@@ -11,7 +11,8 @@ extension ZImageBackend {
     /// directory is checked for the entries the pipeline will open. Neither path downloads, and
     /// neither disturbs whatever is loaded, so a picker can label the whole catalog for free.
     nonisolated(nonsending) public func availability(
-        of descriptor: ModelDescriptor
+        of descriptor: ModelDescriptor,
+        locations: ModelLocations
     ) async -> ModelAvailability {
         switch descriptor.source {
         case .localDirectory(let directory):

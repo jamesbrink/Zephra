@@ -22,23 +22,28 @@ final class MockBackend: ImageGenerationBackend {
         self.control = control
     }
 
-    func availability(of descriptor: ModelDescriptor) async -> ModelAvailability {
+    func availability(
+        of descriptor: ModelDescriptor, locations: ModelLocations
+    ) async -> ModelAvailability {
         control.update { $0.availabilityChecks += 1 }
         return control.settings.availability[descriptor.id] ?? .available
     }
 
     func ensureAvailable(
         _ descriptor: ModelDescriptor,
+        locations: ModelLocations,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws -> URL {
+        control.update { $0.lastLocations = locations }
         onProgress(DownloadProgressEvent(completedFiles: 0, totalFiles: 2, fraction: 0))
         onProgress(DownloadProgressEvent(completedFiles: 2, totalFiles: 2, fraction: 1))
-        return URL(filePath: NSTemporaryDirectory()).appending(path: descriptor.id)
+        return locations.downloads(repoID: descriptor.id)
     }
 
     func build(
         _ descriptor: ModelDescriptor,
         at localPath: URL,
+        locations: ModelLocations,
         onProgress: @escaping @Sendable (BuildProgressEvent) -> Void
     ) async throws -> URL {
         let dials = control.settings
