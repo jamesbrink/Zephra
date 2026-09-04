@@ -140,18 +140,6 @@ extension ModelDownloader {
     }
 
     /// Puts the finished file in place, over whatever was there.
-    /// Whether `path` stays inside `destination`: no empty or `..` component, no leading
-    /// slash, and the standardized target under the standardized folder.
-    static func isContained(_ path: String, target: URL, in destination: URL) -> Bool {
-        let components = path.split(separator: "/", omittingEmptySubsequences: false)
-        guard !path.hasPrefix("/"), !components.isEmpty,
-              components.allSatisfy({ !$0.isEmpty && $0 != ".." && $0 != "." })
-        else { return false }
-        let root = destination.standardizedFileURL.path(percentEncoded: false)
-        let folder = root.hasSuffix("/") ? root : root + "/"
-        return target.standardizedFileURL.path(percentEncoded: false).hasPrefix(folder)
-    }
-
     private func replace(_ partial: URL, with target: URL) throws {
         let files = FileManager.default
         try? files.removeItem(at: Self.validator(of: partial))

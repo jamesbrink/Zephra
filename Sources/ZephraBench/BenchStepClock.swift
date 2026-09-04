@@ -26,7 +26,8 @@ final class BenchStepClock {
     ///
     /// An update carrying a frame is not one of those. A frame is reported after its step has
     /// finished rather than before the next one starts, so counting it as a step boundary would
-    /// split one step into two and halve the reported pace. Its own cost is tallied instead.
+    /// split one step into two and halve the reported pace. Its decode stays inside the step
+    /// it follows, which is what `--preview` measures, and its own cost is tallied beside.
     func record(_ event: GenerationProgressEvent) {
         if let preview = event.preview {
             previewSeconds.append(preview.duration.seconds)

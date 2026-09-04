@@ -66,10 +66,13 @@ Shared, by what a file actually touches:
     file lands and `.zephra-commit` records what the folder holds, so a later
     transfer at another commit empties it first rather than keeping a shard of
     the same size from the wrong one; a path in the listing that would leave
-    the folder is refused before anything is written. The transfer is paused above 64 MiB of body not yet written and
-    resumed under 16 MiB (`ChunkedDownload`, told of each drain by
-    `ChunkedBody`), so a fast connection cannot pile a shard up in memory ahead
-    of a slow disk. Cancellation is checked between chunks. **No
+    the folder is refused before anything is written, with links followed, so a
+    component that already points out of the folder is refused too. The transfer
+    is paused above 64 MiB of body not yet written and resumed under 16 MiB
+    (`ChunkedDownload`, told of each drain by `ChunkedBody`; the task's pause and
+    the count saying it is paused change under one lock, so a drain can never
+    resume a task a moment before it is suspended for good), so a fast
+    connection cannot pile a shard up in memory ahead of a slow disk. Cancellation is checked between chunks. **No
     `Authorization` header is ever sent** — every repository the catalog names
     is public — so no token, in the environment or in a file, can turn a
     public model into a login wall.
@@ -207,9 +210,14 @@ for the same reason it keeps its own `VAETiledDecode`. Each loop calls an option
 the step index and a *closure* that makes the frame rather than a frame: the
 backend owns a `PreviewThrottle` (0.75 s, `ZephraCore`) and never pays for the
 frames it drops. The existing before-step `onProgress` is untouched, so
-`BenchStepClock`'s timing is unaffected — it ignores any update carrying a frame,
-because a frame is reported after its step rather than before the next one. A
-family that never calls `onPreview` simply shows no frames.
+a frame never splits a step: `BenchStepClock` and `StepTimer` ignore any update
+carrying a frame, because a frame is reported after its step rather than before
+the next one. A frame's decode does land inside the step it follows, and both
+leave it there on purpose. On screen the pace is what the remaining steps will
+really take, frames included; in the benchmark `--preview` is for finding out
+what turning frames on costs, and it reports the frame's own mean beside the
+step time so the two can be told apart. A family that never calls `onPreview`
+simply shows no frames.
 
 What each loop passes is the run's estimate of the **finished** latent,
 `x - sigma * v`, and not the latent it is holding. This is the whole feature

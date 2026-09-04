@@ -249,6 +249,22 @@ struct ModelDownloaderTests {
         #expect(!scratch.hasFile("escape.json"))
     }
 
+    @Test("a folder component that is already a link out of the folder is refused too")
+    func aLinkedComponentIsRefused() async throws {
+        let scratch = Scratch("Download")
+        try scratch.make("elsewhere", isDirectory: true)
+        _ = try scratch.link("models/vae", to: scratch.url("elsewhere").path(percentEncoded: false))
+        StubHub.reset(
+            StubHub.Behaviour(
+                pages: [page([("vae/config.json", 2)])], files: ["vae/config.json": Data("{}".utf8)]))
+
+        await #expect(throws: (any Error).self) {
+            _ = try await downloader().download(
+                repoID: "org/repo", patterns: ["*"], into: scratch.url("models"), onProgress: { _ in })
+        }
+        #expect(!scratch.hasFile("elsewhere/config.json"))
+    }
+
     @Test("a file left by an earlier commit is not taken for part of a newer one")
     func anEarlierCommitsFilesAreNotReused() async throws {
         let scratch = Scratch("Download")

@@ -62,15 +62,16 @@ final class ChunkedDownload: NSObject, URLSessionDataDelegate, @unchecked Sendab
     /// Notes that the writer has taken `bytes` of the body, resuming a transfer paused for
     /// want of room.
     func drained(_ bytes: Int, task identifier: Int) {
-        let resume = pending.withLock { state -> URLSessionDataTask? in
-            guard var entry = state[identifier] else { return nil }
+        pending.withLock { state in
+            guard var entry = state[identifier] else { return }
             entry.buffered = max(0, entry.buffered - bytes)
-            let resume = entry.suspended && entry.buffered < Self.lowWater
-            if resume { entry.suspended = false }
+            if entry.suspended && entry.buffered < Self.lowWater {
+                // Resumed inside the lock, with the books: see `didReceive`.
+                entry.suspended = false
+                entry.task.resume()
+            }
             state[identifier] = entry
-            return resume ? entry.task : nil
         }
-        resume?.resume()
     }
 
     nonisolated func urlSession(
@@ -96,18 +97,22 @@ final class ChunkedDownload: NSObject, URLSessionDataDelegate, @unchecked Sendab
     nonisolated func urlSession(
         _ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data
     ) {
-        let (chunks, pause) = pending.withLock { state -> (AsyncThrowingStream<Data, any Error>.Continuation?, URLSessionDataTask?) in
-            guard var entry = state[dataTask.taskIdentifier] else { return (nil, nil) }
+        let chunks = pending.withLock { state -> AsyncThrowingStream<Data, any Error>.Continuation? in
+            guard var entry = state[dataTask.taskIdentifier] else { return nil }
             entry.buffered += data.count
-            let pause = !entry.suspended && entry.buffered > Self.highWater
-            if pause { entry.suspended = true }
+            if !entry.suspended && entry.buffered > Self.highWater {
+                // Suspended inside the lock, and before the chunk is handed over. The task's
+                // pause and the books saying it is paused have to change together: a writer
+                // draining between the two could resume the task and then watch this suspend
+                // it, with `suspended` false and so nothing left to ever resume it. `suspend`
+                // and `resume` are counted and thread-safe and call nothing back, so the lock
+                // is the right place for them.
+                entry.suspended = true
+                entry.task.suspend()
+            }
             state[dataTask.taskIdentifier] = entry
-            return (entry.chunks, pause ? entry.task : nil)
+            return entry.chunks
         }
-        // Paused before the chunk is handed over: a writer already waiting could otherwise
-        // take it and resume the task before this suspend, leaving the transfer stopped with
-        // the books saying it is running.
-        pause?.suspend()
         chunks?.yield(data)
     }
 

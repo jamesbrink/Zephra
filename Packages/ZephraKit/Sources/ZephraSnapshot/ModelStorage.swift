@@ -25,14 +25,17 @@ public nonisolated enum ModelStorage {
             // Every root the folder has been, the current one first: what was downloaded or
             // built under an earlier choice still loads, so it is still the person's to see
             // and to delete. A row under a root other than the current one says its whole path.
+            guard case .huggingFace(let repoID, _, _) = descriptor.source else {
+                // A model named by its directory: that directory, and its name under each
+                // root, which is where a backend looks for it once the named one is gone.
+                for directory in locations.builtCandidates(for: descriptor) {
+                    add(built(descriptor, at: directory, in: locations), to: &items)
+                }
+                continue
+            }
             for root in locations.roots {
                 let folder = ModelLocations(root: root)
-                switch descriptor.source {
-                case .localDirectory:
-                    if let directory = folder.builtCandidates(for: descriptor).first {
-                        add(built(descriptor, at: directory, in: locations), to: &items)
-                    }
-                case .huggingFace(let repoID, _, _):
+                do {
                     let downloads = folder.downloads(repoID: repoID)
                     if HubCache.isDirectory(downloads) {
                         add(
@@ -49,14 +52,12 @@ public nonisolated enum ModelStorage {
                     }
                 }
             }
-            if case .huggingFace(let repoID, _, _) = descriptor.source {
-                for repository in HubCache.repositories(of: repoID, in: cache) {
-                    add(
-                        download(
-                            descriptor, at: repository.url, isComplete: repository.isComplete,
-                            in: locations),
-                        to: &items)
-                }
+            for repository in HubCache.repositories(of: repoID, in: cache) {
+                add(
+                    download(
+                        descriptor, at: repository.url, isComplete: repository.isComplete,
+                        in: locations),
+                    to: &items)
             }
         }
         return items
