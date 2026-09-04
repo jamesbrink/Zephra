@@ -20,7 +20,7 @@ public enum BackendError: Error, Sendable, Hashable, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case let .modelNotAvailable(name):
-            "\(name) isn't available yet. Download it before generating."
+            "\(name) isn't on this Mac. Choose another model from the menu."
         case let .downloadFailed(reason):
             "Couldn't download the model. \(reason)"
         case .loadFailed:

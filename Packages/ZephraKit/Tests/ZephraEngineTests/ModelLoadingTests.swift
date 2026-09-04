@@ -62,3 +62,45 @@ struct ModelLoadingTests {
         #expect(store.state == .ready)
     }
 }
+
+@MainActor
+@Suite("A saved model that is gone from the disk")
+struct MissingSavedModelTests {
+    @Test("bootstrap steps onto a model this Mac has instead of failing at launch")
+    func bootstrapFallsBackFromAMissingBuild() async throws {
+        let bed = EngineTestBed()
+        bed.control.update {
+            $0.availability[ModelCatalog.zImageTurbo4bit.id] = .missing(reason: "never built")
+        }
+        let store = bed.store(descriptor: ModelCatalog.zImageTurbo4bit)
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+
+        #expect(store.descriptor.id != ModelCatalog.zImageTurbo4bit.id)
+        #expect(store.state == .ready)
+        #expect(store.loadedDescriptor?.id == store.descriptor.id)
+    }
+
+    @Test("a model that is merely not downloaded yet is kept, since choosing it chose the download")
+    func notDownloadedIsNotMissing() async throws {
+        let bed = EngineTestBed()
+        bed.control.update {
+            $0.availability[ModelCatalog.zImageTurbo8bit.id] = .needsDownload(bytes: 1)
+        }
+        let store = bed.store(descriptor: ModelCatalog.zImageTurbo8bit)
+        await store.refreshAvailability()
+        #expect(!store.fallBackIfUnobtainable())
+        #expect(store.descriptor.id == ModelCatalog.zImageTurbo8bit.id)
+    }
+
+    @Test("with nothing obtainable at all the choice stands, and the failure says so")
+    func nothingObtainableKeepsTheChoice() async throws {
+        let bed = EngineTestBed()
+        bed.control.update {
+            for model in ModelCatalog.all { $0.availability[model.id] = .missing(reason: "gone") }
+        }
+        let store = bed.store(descriptor: ModelCatalog.zImageTurbo4bit)
+        await store.refreshAvailability()
+        #expect(!store.fallBackIfUnobtainable())
+    }
+}

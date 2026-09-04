@@ -311,6 +311,15 @@ the package and target dependencies in `project.yml`, `MLX_PACKAGES` in the
 `Sources/ZephraQuantize` if the family has a packing plan, and `BenchBackends`
 in `Sources/ZephraBench` so `--model` can name it.
 
+A saved choice that is no longer on the disk — a local build deleted from
+Settings > Models, or a preference carried to a Mac that never made it — is not
+loaded into a failure: `bootstrap` reads availability first and
+`GenerationStore.fallBackIfUnobtainable()` steps onto the first model this Mac
+can run and does have. A model that merely needs a download is kept, since
+choosing it chose the download. The chosen model is persisted from the
+composition root's `onChange` of `store.descriptor`, not by the menu, so the
+model the engine stepped onto is the one the next launch opens on.
+
 `InferenceActor` keeps one backend at a time and rebuilds it whenever a
 descriptor names a different family, so the old weights are always released
 before the new ones are asked for. A descriptor whose family was never

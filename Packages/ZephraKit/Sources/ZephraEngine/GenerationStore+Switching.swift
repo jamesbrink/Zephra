@@ -14,12 +14,19 @@ extension GenerationStore {
     public func switchModel(to descriptor: ModelDescriptor) {
         guard descriptor.id != self.descriptor.id else { return }
         logger.info("model chosen: \(descriptor.id, privacy: .public)")
+        adopt(descriptor)
+        guard !isDraining, !isUpscaling, queue.isEmpty else { return }
+        reload(descriptor, thenDrain: false)
+    }
+
+    /// Makes `descriptor` the model the next generation uses, without loading it: the prompt,
+    /// the size and the seed survive, everything else is clamped to what it accepts, and a
+    /// move to another family takes that family's own schedule.
+    func adopt(_ descriptor: ModelDescriptor) {
         let family = self.descriptor.backend
         self.descriptor = descriptor
         settings = descriptor.capabilities.clamp(
             descriptor.backend == family ? settings : settings.onSchedule(of: descriptor))
-        guard !isDraining, !isUpscaling, queue.isEmpty else { return }
-        reload(descriptor, thenDrain: false)
     }
 
     /// Releases whatever is loaded and loads `model` instead, then, if asked, carries on down
