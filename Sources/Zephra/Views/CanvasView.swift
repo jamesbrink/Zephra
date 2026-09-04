@@ -6,9 +6,15 @@ import ZephraEngine
 /// it, and the engine's words over the top.
 ///
 /// The picture runs under the prompt capsule on purpose, so its colours tint the controls.
-/// It dims to 60 % while a new one is being made; progress lives in the subtitle and the capsule.
-/// A single click on a finished picture toggles `WorkspaceSelection.promptTucked`, which is
-/// `PromptTuckHost`'s cue to slide the floating controls out of the way.
+/// A single click on it toggles `WorkspaceSelection.promptTucked`, which is `PromptTuckHost`'s
+/// cue to slide the floating controls out of the way.
+///
+/// What is on the canvas depends on whether the canvas is following the run: while it is, the
+/// run's own frames are, and there is nothing to right-click or drag because there is no file
+/// yet. While it is not — the user went off to look at a picture, or nothing is running — the
+/// picture is, at full strength even with the model working. The old dim to 60 % went with the
+/// live preview: it existed to say "this is the last one, not the new one", which the frames
+/// now say properly, and it made a picture you had deliberately opened look broken.
 ///
 /// It no longer ignores the vertical safe areas: on Liquid Glass the toolbar is an opaque strip
 /// (`RootView`'s `.toolbarBackgroundVisibility`), so the picture starts below it like every
@@ -21,7 +27,11 @@ struct CanvasView: View {
     var body: some View {
         ZStack {
             Color.canvasBackground
-            currentImage
+            if store.isShowingRun {
+                runInFlight
+            } else {
+                currentImage
+            }
             CanvasStateView()
         }
         // Dropping a picture on the canvas is what people will try first; it lands in the
@@ -36,7 +46,6 @@ struct CanvasView: View {
         if let image = store.current, let bitmap = cache.fullSizeImage(for: image) {
             GeneratedImageView(bitmap: bitmap)
                 .id(image.id)
-                .opacity(store.state.isBusy ? 0.6 : 1)
                 // Tucks the floating prompt away so the picture is the only thing on screen;
                 // clicking again, or any of the ways `PromptTuckHost` listens for, brings it back.
                 .onTapGesture(count: 1) { workspace.promptTucked.toggle() }
@@ -44,9 +53,31 @@ struct CanvasView: View {
                 .contextMenu { CanvasImageMenu(image: image) }
         }
     }
+
+    /// The run being watched. Until its first frame arrives there is only the shape it will
+    /// fill, so the steps ride across it in safelight: something is happening, and this much of
+    /// it has happened. They go the moment there is a picture to look at instead.
+    private var runInFlight: some View {
+        LivePreviewView(preview: store.livePreview, size: runSize)
+            .overlay {
+                if store.livePreview == nil {
+                    StepSegments(
+                        total: store.running?.settings.steps ?? 0,
+                        completed: store.state.denoisingProgress?.step ?? 0,
+                        isRunning: true
+                    )
+                    .frame(width: 200)
+                }
+            }
+            .onTapGesture(count: 1) { workspace.promptTucked.toggle() }
+    }
+
+    /// The shape the run is making. `settings` stands in for the moment between the queue
+    /// handing a run over and the store publishing it, when both say the same thing anyway.
+    private var runSize: ImageSize { store.running?.settings.size ?? store.settings.size }
 }
 
-#Preview("Generating") {
+#Preview("Following the run") {
     CanvasView()
         .frame(width: 900, height: 620)
         .environment(ImageCache())
@@ -57,6 +88,25 @@ struct CanvasView: View {
                 fraction: 0.44,
                 secondsPerStep: 2.1
             )),
-            image: PreviewImages.sample()
+            running: InterfacePreview.queuedRun(of: 1).first,
+            livePreview: PreviewImages.frame()
+        ))
+}
+
+#Preview("Watching something else while it runs") {
+    CanvasView()
+        .frame(width: 900, height: 620)
+        .environment(ImageCache())
+        .environment(WorkspaceSelection(pane: .canvas))
+        .environment(GenerationStore.preview(
+            state: .generating(GenerationProgressEvent(
+                phase: .denoising(step: 4, of: 9),
+                fraction: 0.44,
+                secondsPerStep: 2.1
+            )),
+            image: PreviewImages.sample(),
+            running: InterfacePreview.queuedRun(of: 1).first,
+            livePreview: PreviewImages.frame(),
+            following: false
         ))
 }

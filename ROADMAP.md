@@ -98,6 +98,16 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
 - **A frame during the real decode.** The last step is deliberately not previewed: the
   full decode follows immediately, and a pooled one in front of it would be a second
   pass through the autoencoder for a picture the user is about to see properly.
+- **A wall clock on the running run.** `RunningRunInspector`'s Elapsed is the steps
+  that have finished at the pace they took, so it counts the loop and not the text
+  encode before it, and it says nothing until the first step lands. A real clock means
+  a start `Date` somewhere it survives a view being rebuilt — the store, most likely,
+  which would be the first piece of interface bookkeeping in it. Not worth that for a
+  line that is already right to within a step.
+- **Keeping a run's frames.** Only the newest is held, and it is put down the moment
+  the run ends. Scrubbing back through a run's frames, or leaving the last one up
+  under the finished picture as it fades in, would mean the store keeping a strip of
+  them: a quarter of a megabyte each, for something nobody has asked to look at twice.
 
 ## Upscaler follow-ups
 
