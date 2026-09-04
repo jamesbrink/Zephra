@@ -28,19 +28,17 @@ extension GenerationStore {
     public func watchRun() { followsRun = true }
 
     /// Starts following, which is what every explicit "make me an image now" does.
-    func startFollowingRun() {
-        followsRun = true
-        // The previous run's last frame is not this run's first: it would sit on the canvas
-        // through the text encode and the first steps, looking like progress that had stalled.
-        livePreview = nil
-    }
+    ///
+    /// Only attention changes here. The frame is the run's, not the canvas's: `start(_:)` puts
+    /// the previous run's last frame down when the next one begins, so it never sits on the
+    /// canvas through the text encode looking like progress that had stalled, and a press of
+    /// Generate that only queues behind the run in flight leaves that run's frame where it is.
+    func startFollowingRun() { followsRun = true }
 
-    /// Stops following and drops the frame with it, which is what opening any other picture
-    /// does. The run itself carries on; only the canvas has looked away.
-    func stopFollowingRun() {
-        followsRun = false
-        livePreview = nil
-    }
+    /// Stops following, which is what opening any other picture does. The run itself carries
+    /// on, frame and all — the running card in the sidebar is still showing it, and watching
+    /// again finds it there — only the canvas has looked away.
+    func stopFollowingRun() { followsRun = false }
 
     /// Forgets the frame a run left behind, on every way a run can end. The finished image, or
     /// the absence of one, is what the canvas shows from here.

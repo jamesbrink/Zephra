@@ -197,7 +197,8 @@ which is why that type hand-writes `==` and `hash(into:)` to ignore it:
 `EngineState` is `Hashable` and compared on every transition, and hashing a
 quarter of a megabyte per step to answer a question nobody asks is not worth it.
 The store keeps the frame outside the state and puts it down on every way a run
-can end. `StepTimer.annotated` rebuilds the event field by field, so a new field
+can end, and only then: looking away keeps it for the running card, and a press
+of Generate that queues behind the run in flight leaves it on the canvas. `StepTimer.annotated` rebuilds the event field by field, so a new field
 there has to be forwarded by name or it never reaches the canvas.
 
 Where a frame comes from: each kit has a `<Family>LatentPreview` that takes a

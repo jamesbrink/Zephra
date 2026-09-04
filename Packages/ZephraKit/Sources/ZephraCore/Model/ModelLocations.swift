@@ -97,21 +97,17 @@ public struct ModelLocations: Hashable, Sendable {
 
     /// Every directory a built variant of `descriptor` could be in, best answer first.
     ///
-    /// A descriptor whose source is a directory names it absolutely. No catalog entry does any
-    /// more, but a descriptor is not only the catalog — `ZephraBench` points one at a folder to
-    /// measure, and a variant built by hand elsewhere is still loadable — and such a folder may
-    /// be outside the root. The folder the descriptor names comes first: it is explicit, and
-    /// `ZephraBench --snapshot /external/foo` must not quietly measure a `foo` that happens to
-    /// sit under the app's own root. Each root, the current one first, is looked in after it,
-    /// for a copy left where the folder used to be.
+    /// A descriptor whose source is a directory names it absolutely, and that is the only
+    /// place it is. No catalog entry does any more, but a descriptor is not only the catalog —
+    /// `ZephraBench` points one at a folder to measure, and a variant built by hand elsewhere
+    /// is still loadable — and the folder named is the one meant: `ZephraBench --snapshot
+    /// /external/foo` with nothing at that path must fail, not quietly measure a `foo` that
+    /// happens to sit under the app's own root.
     public func builtCandidates(for descriptor: ModelDescriptor) -> [URL] {
         guard case .localDirectory(let named) = descriptor.source else {
             return roots.map { $0.appending(path: descriptor.id, directoryHint: .isDirectory) }
         }
-        let relocated = roots.map {
-            $0.appending(path: named.lastPathComponent, directoryHint: .isDirectory)
-        }.filter { Self.folder($0) != Self.folder(named) }
-        return [named] + relocated
+        return [named]
     }
 
     /// A directory's path with the trailing slash off, so two URLs naming one folder compare

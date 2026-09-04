@@ -26,8 +26,7 @@ public nonisolated enum ModelStorage {
             // built under an earlier choice still loads, so it is still the person's to see
             // and to delete. A row under a root other than the current one says its whole path.
             guard case .huggingFace(let repoID, _, _) = descriptor.source else {
-                // A model named by its directory: that directory, and its name under each
-                // root, which is where a backend looks for it once the named one is gone.
+                // A model named by its directory is listed there, wherever that is.
                 for directory in locations.builtCandidates(for: descriptor) {
                     add(built(descriptor, at: directory, in: locations), to: &items)
                 }

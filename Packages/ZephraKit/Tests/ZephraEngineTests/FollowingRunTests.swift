@@ -88,8 +88,27 @@ struct FollowingRunTests {
         store.stopFollowingRun()
 
         #expect(!store.followsRun)
-        #expect(store.livePreview == nil)
+        #expect(store.livePreview != nil, "the run's frame is still the card's to show")
         #expect(!store.isShowingRun)
+        await store.settle()
+    }
+
+    @Test("queueing another run behind the one in flight keeps its frame on the canvas")
+    func queueingKeepsTheFrame() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        bed.control.update { $0.previewsEveryStep = true; $0.stepDelay = .milliseconds(5) }
+        await store.bootstrap()
+        store.settings.prompt = "a lighthouse"
+
+        store.generate()
+        try await bed.waitForStep()
+        try await waitForPreview(on: store)
+        store.generate()
+
+        #expect(store.queue.count == 1)
+        #expect(store.livePreview != nil, "the frame belongs to the run, not to the press")
+        #expect(store.isShowingRun)
         await store.settle()
     }
 

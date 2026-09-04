@@ -47,15 +47,15 @@ struct ModelStorageTests {
         #expect(items.last?.location.hasPrefix("/") == true)
     }
 
-    @Test("a model named by a directory that is gone is listed where its name is found under an earlier root")
-    func aRelocatedLocalDirectoryIsListed() throws {
+    @Test("a model named by a directory outside every root is listed there, by its whole path")
+    func aDirectoryNamedModelIsListedWhereItIs() throws {
         let scratch = Scratch("ModelStorage")
         let locations = ModelLocations(root: scratch.url("models"), previous: [scratch.url("old")])
-        try scratch.make("old/z-image-turbo-4bit/quantization.json")
+        try scratch.make("elsewhere/z-image-turbo-4bit/quantization.json")
         let base = ModelCatalog.zImageTurbo4bit
         let descriptor = ModelDescriptor(
             id: base.id, displayName: base.displayName, variantName: base.variantName,
-            backend: base.backend, source: .localDirectory(scratch.url("gone/z-image-turbo-4bit")),
+            backend: base.backend, source: .localDirectory(scratch.url("elsewhere/z-image-turbo-4bit")),
             quantization: base.quantization, downloadBytes: 0,
             residentBytes: base.residentBytes, peakBytes: base.peakBytes,
             tiledPeakBytes: base.tiledPeakBytes, maxPromptTokens: base.maxPromptTokens,
@@ -64,7 +64,8 @@ struct ModelStorageTests {
         let items = ModelStorage.items(for: [descriptor], cache: scratch.url("hub"), locations: locations)
         #expect(items.count == 1)
         #expect(items.first?.kind == .built)
-        #expect(items.first?.location.hasSuffix("old/z-image-turbo-4bit") == true)
+        #expect(items.first?.location.hasSuffix("elsewhere/z-image-turbo-4bit") == true)
+        #expect(items.first?.location.hasPrefix("/") == true)
     }
 
     @Test("a download the app stopped part-way is listed as incomplete, under the model's name")

@@ -33,10 +33,7 @@ struct ModelLocationsTests {
         // ahead of any same-named copy under the app's root.
         let named = URL(filePath: "/tmp/somewhere-else/z-image-turbo-4bit")
         let candidates = scratch.builtCandidates(for: Self.local(at: named))
-        #expect(candidates.count == 2)
-        #expect(candidates.first == named, "the folder the descriptor names is what it means")
-        #expect(candidates.last?.path(percentEncoded: false)
-            == "/tmp/zephra-models/z-image-turbo-4bit/")
+        #expect(candidates == [named], "the folder the descriptor names is what it means, and all it means")
     }
 
     @Test("a model that is downloaded rather than built has only this root to be in")
