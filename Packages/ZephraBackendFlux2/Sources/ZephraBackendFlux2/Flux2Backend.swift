@@ -71,11 +71,4 @@ public nonisolated final class Flux2Backend: ImageGenerationBackend {
         loadedModelID = nil
         loadedDescriptor = nil
     }
-
-    /// Where the packed variant for `descriptor` lives, built or not: the catalog's local models
-    /// directory, named after the descriptor, which is the convention every locally built
-    /// variant follows.
-    static func packedDirectory(for descriptor: ModelDescriptor) -> URL {
-        ModelCatalog.localModelsDirectory.appending(path: descriptor.id, directoryHint: .isDirectory)
-    }
 }

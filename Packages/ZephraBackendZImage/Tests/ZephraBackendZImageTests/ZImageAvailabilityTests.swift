@@ -1,7 +1,7 @@
 import Foundation
 import Testing
-import ZephraTestSupport
 import ZephraCore
+import ZephraTestSupport
 
 @testable import ZephraBackendZImage
 
@@ -11,7 +11,8 @@ struct ZImageAvailabilityTests {
     func localDirectoryThatIsNotThere() async throws {
         let scratch = Scratch("ZImageAvailability")
         let descriptor = Self.local(at: scratch.url("never-built"))
-        let availability = await ZImageBackend().availability(of: descriptor)
+        let availability = await ZImageBackend().availability(
+            of: descriptor, locations: ModelLocations(root: scratch.url("models")))
         #expect(availability.isObtainable == false)
         #expect(availability.label == "Not built yet")
         #expect(availability.reason?.contains("model_index.json") == true)
@@ -20,12 +21,66 @@ struct ZImageAvailabilityTests {
     @Test("a local directory with every entry the loader opens is available")
     func localDirectoryThatIsComplete() async throws {
         let scratch = Scratch("ZImageAvailability")
-        try scratch.make("built/model_index.json")
-        for part in ["transformer", "text_encoder", "vae"] {
-            try scratch.make("built/\(part)", isDirectory: true)
-        }
+        try Self.snapshot(scratch, at: "built")
         let descriptor = Self.local(at: scratch.url("built"))
-        #expect(await ZImageBackend().availability(of: descriptor) == .available)
+        #expect(
+            await ZImageBackend().availability(
+                of: descriptor, locations: ModelLocations(root: scratch.url("models")))
+                == .available)
+    }
+
+    @Test("a model downloaded into the folder models are kept in needs no download")
+    func aDownloadInTheModelsFolderIsAvailable() async throws {
+        let scratch = Scratch("ZImageAvailability")
+        let locations = ModelLocations(root: scratch.url("models"))
+        let descriptor = Self.hub()
+        let backend = ZImageBackend()
+        #expect(
+            await backend.availability(of: descriptor, locations: locations)
+                == .needsDownload(bytes: descriptor.downloadBytes),
+            "nothing is there yet, and the hub cache is not written to any more")
+
+        try Self.snapshot(scratch, at: "models/Downloads/zephra-test--z-image")
+        #expect(await backend.availability(of: descriptor, locations: locations) == .available)
+    }
+
+    @Test("a download stopped part-way still needs a download, so choosing the model resumes it")
+    func aPartialDownloadIsNotAvailable() async throws {
+        let scratch = Scratch("ZImageAvailability")
+        let locations = ModelLocations(root: scratch.url("models"))
+        let flat = "models/Downloads/zephra-test--z-image"
+        try Self.snapshot(scratch, at: flat)
+        try scratch.make("\(flat)/vae/model.safetensors.incomplete")
+
+        #expect(await ZImageBackend().availability(of: Self.hub(), locations: locations).needsNetwork)
+    }
+
+    /// A model that is downloaded rather than built, from a repository no cache can hold.
+    private static func hub() -> ModelDescriptor {
+        let base = ModelCatalog.default
+        return ModelDescriptor(
+            id: "hub-test", displayName: base.displayName, variantName: base.variantName,
+            backend: base.backend,
+            source: .huggingFace(
+                repoID: "zephra-test/z-image", revision: "main",
+                filePatterns: ["*.safetensors", "*.json"]),
+            quantization: base.quantization, downloadBytes: 13, residentBytes: base.residentBytes,
+            peakBytes: base.peakBytes, tiledPeakBytes: base.tiledPeakBytes,
+            maxPromptTokens: base.maxPromptTokens, capabilities: base.capabilities)
+    }
+
+    /// A directory holding what the vendored loader opens, with an index naming its components
+    /// the way a real snapshot's does — which is what a completeness check holds it to.
+    private static func snapshot(_ scratch: Scratch, at path: String) throws {
+        let index = """
+            {"transformer": ["zimage", "Transformer"], \
+            "text_encoder": ["transformers", "Encoder"], "vae": ["zimage", "AutoencoderKL"]}
+            """
+        try scratch.write(index, to: "\(path)/model_index.json")
+        for part in ["transformer", "text_encoder", "vae"] {
+            try scratch.write("{}", to: "\(path)/\(part)/config.json")
+            try scratch.write("x", to: "\(path)/\(part)/model.safetensors")
+        }
     }
 
     /// The catalog's default model, pointed at a local directory instead of the hub.
