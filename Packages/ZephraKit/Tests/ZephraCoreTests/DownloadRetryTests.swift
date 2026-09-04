@@ -79,8 +79,9 @@ struct DownloadRetryTests {
 
     @Test("the pause doubles from two seconds and stops growing at sixteen")
     func pauseGrowsThenHolds() {
-        #expect(DownloadRetry.pause(before: 2) == .seconds(4))
-        #expect(DownloadRetry.pause(before: 3) == .seconds(8))
+        #expect(DownloadRetry.pause(before: 2) == .seconds(2))
+        #expect(DownloadRetry.pause(before: 3) == .seconds(4))
+        #expect(DownloadRetry.pause(before: 4) == .seconds(8))
         #expect(DownloadRetry.pause(before: 5) == .seconds(16))
         #expect(DownloadRetry.pause(before: 9) == .seconds(16))
     }

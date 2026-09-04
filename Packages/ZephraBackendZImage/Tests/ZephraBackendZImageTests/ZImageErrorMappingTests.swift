@@ -34,13 +34,6 @@ struct ZImageErrorMappingTests {
 
     @Test("a transfer that broke keeps the library's reason and says a retry resumes")
     func brokenTransfersAreDownloadFailures() {
-        let offline = ZImageErrorMapping.downloadError(.networkUnavailable, descriptor: descriptor)
-        #expect(
-            offline
-                == .downloadFailed(
-                    DownloadRetry.givingUpMessage(ModelResolutionError.networkUnavailable.readableMessage))
-        )
-
         let underlying = CocoaError(.fileNoSuchFile)
         let broken = ModelResolutionError.downloadFailed("mzbac/Z-Image-Turbo-8bit", underlying)
         guard
@@ -50,7 +43,7 @@ struct ZImageErrorMappingTests {
             Issue.record("expected downloadFailed")
             return
         }
-        #expect(message.contains("mzbac/Z-Image-Turbo-8bit"))
+        #expect(message.hasPrefix(underlying.localizedDescription), "the system's sentence, not its domain and code")
         #expect(message.hasSuffix("Try again to pick up where it left off."))
     }
 
@@ -111,5 +104,27 @@ struct ZImageErrorMappingTests {
         // The backend passes CancellationError through untouched rather than mapping it, so this
         // only guards against an empty string if that path ever changes.
         #expect(!(CancellationError()).readableMessage.isEmpty)
+    }
+}
+
+@Suite("ZImageErrorMapping speaks for the library")
+struct ZImageErrorReasonTests {
+    @Test("the library's offline wording is replaced with the app's, and a URL error keeps the system's")
+    func offlineAndURLErrorsReadWell() {
+        let descriptor = ModelCatalog.zImageTurbo8bit
+        guard
+            case let .downloadFailed(offline) = ZImageErrorMapping.downloadError(
+                .networkUnavailable, descriptor: descriptor)
+        else {
+            Issue.record("expected downloadFailed")
+            return
+        }
+        #expect(offline.hasPrefix("This Mac is offline"))
+        #expect(!offline.contains("Please"))
+        let lost = ZImageErrorMapping.reason(for: URLError(.networkConnectionLost))
+        #expect(lost == URLError(.networkConnectionLost).localizedDescription)
+        let metered = ZImageErrorMapping.reason(
+            for: HubApi.EnvironmentError.offlineModeError("Repository not available locally"))
+        #expect(metered.hasPrefix("This Mac is offline"))
     }
 }

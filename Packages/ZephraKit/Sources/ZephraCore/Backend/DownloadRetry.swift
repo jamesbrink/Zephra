@@ -22,9 +22,10 @@ public enum DownloadRetry {
         return "\(sentence) Try again to pick up where it left off."
     }
 
-    /// The pause before try `attempt` (counting from 1): 2, 4, 8, then 16 seconds.
+    /// The pause before try `attempt` (counting from 1, so the first pause is before the
+    /// second try): 2, 4, 8, then 16 seconds, held there.
     public static func pause(before attempt: Int) -> Duration {
-        .seconds(1 << min(attempt, 4))
+        .seconds(1 << min(max(attempt - 1, 1), 4))
     }
 
     /// Runs `body` until it returns, up to `attempts` times, pausing `pause(before:)` between

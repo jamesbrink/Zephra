@@ -66,6 +66,22 @@ public enum Flux2SnapshotDownload {
         }
     }
 
+    /// Why a transfer stopped, in words a person can act on: the client's offline verdict is
+    /// named as such, a URL error carries the system's own sentence, and anything else keeps
+    /// the message it came with.
+    public static func reason(for error: any Error) -> String {
+        switch error {
+        case HubApi.EnvironmentError.offlineModeError:
+            "This Mac is offline, or on a connection the downloader treats as metered."
+        case let error as URLError:
+            error.localizedDescription
+        case let error as any LocalizedError:
+            error.errorDescription ?? String(describing: error)
+        default:
+            String(describing: error)
+        }
+    }
+
     /// Where the hub cache lives, honouring the same variables the `hf` tool honours.
     static func cacheDirectory(
         environment: [String: String] = ProcessInfo.processInfo.environment

@@ -45,10 +45,11 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   source on the 4-bit entry with `builtBytes` set, and `ZImageBackend.build` packing
   it. What stops it today is disk, not code: the source is 33 GB and the packer
   spills at 4 GB resident, so it would run on a 16 GB Mac but needs 40 GB free.
-- **The hub client refuses to download on an expensive or constrained network path**
-  (a hotspot, some VPN configurations) and reports the repository as unavailable
-  offline. That check is inside swift-transformers and has no switch. Vendoring the
-  forty lines of `snapshot` that Zephra uses would remove it.
+- **The hub client's metered-network refusal is switched off with an environment
+  variable**, `CI_DISABLE_NETWORK_MONITOR=1`, set by `HubNetworkPolicy` before the
+  first request, because that is the only switch swift-transformers offers. A
+  process-wide variable is a blunt tool; vendoring the forty lines of `snapshot`
+  that Zephra uses would let the choice be a parameter.
 - **A stale token cannot be left out of the request.** The hub client reads the
   token from the environment and the token files itself, and an empty string is sent
   as an empty bearer. The failure names the token's source instead. Same fix as above.

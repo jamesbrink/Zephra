@@ -18,6 +18,7 @@ extension ZImageBackend {
         descriptor: ModelDescriptor,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws -> URL {
+        HubNetworkPolicy.allowMeteredDownloads()
         do {
             return try await DownloadRetry.run(
                 isPermanent: ZImageErrorMapping.isPermanent,

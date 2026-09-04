@@ -25,10 +25,23 @@ nonisolated enum ZImageErrorMapping {
             .modelNotAvailable(descriptor.fullName)
         case .authorizationRequired:
             .downloadFailed(HubToken.refusalMessage())
-        case .networkUnavailable, .downloadFailed:
-            .downloadFailed(DownloadRetry.givingUpMessage(error.readableMessage))
+        case .networkUnavailable:
+            .downloadFailed(DownloadRetry.givingUpMessage(offlineReason))
+        case .downloadFailed(_, let underlying):
+            .downloadFailed(DownloadRetry.givingUpMessage(reason(for: underlying)))
         }
     }
+
+    /// Why a transfer stopped, in the app's words where the library's would not do: the
+    /// library says "please check your network or use a local model path", and the person
+    /// reading it has neither a path nor a way to give one.
+    static func reason(for error: any Error) -> String {
+        if case HubApi.EnvironmentError.offlineModeError = error { return offlineReason }
+        return error.readableMessage
+    }
+
+    private static let offlineReason =
+        "This Mac is offline, or on a connection the downloader treats as metered."
 
     /// Whether another try could end differently. No such repository and a refused token are
     /// answers, not accidents; so is any client-side status other than a timeout or a

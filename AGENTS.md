@@ -557,18 +557,22 @@ decode at 1024 pixels, so 32 GB of RAM is the practical floor. Weights are cache
 
 Every repository the catalog names is public and ungated, so no download needs a
 Hugging Face token, and the app never asks for one. The hub client does send
-whatever token it finds in `HF_TOKEN`, `HF_TOKEN_PATH`, or
-`~/.cache/huggingface/token`, and a stale one turns every request into a 401 for
-a public model too; `HubToken` in `ZephraSnapshot` is what names the token's
+whatever token it finds in the same six places the `hf` tool looks (`HF_TOKEN`,
+`HUGGING_FACE_HUB_TOKEN`, `HF_TOKEN_PATH`, `HF_HOME/token`,
+`~/.cache/huggingface/token`, `~/.huggingface/token`), and a stale one turns
+every request into a 401 for a public model too; `HubToken` in `ZephraSnapshot` is what names the token's
 source in the failure message when that happens. A download that breaks is tried
 again by `DownloadRetry` in `ZephraCore`, five times with a doubling pause, and
 the hub client resumes each file from its `.incomplete` bytes, so a retry and a
 later Try again both continue rather than start over. Only a refused token, a
 missing repository, or a 4xx that is not a timeout or a rate limit stops the
-retrying early. One thing the vendored client does that cannot be overridden:
-it refuses to download at all on a network path it deems expensive or
-constrained, such as a hotspot, and reports the repository as unavailable
-offline.
+retrying early. The hub client refuses to download at all on a network path it
+deems expensive or constrained, such as a hotspot, and reports the repository as
+unavailable offline; its one switch is the `CI_DISABLE_NETWORK_MONITOR=1`
+environment variable, which `HubNetworkPolicy.allowMeteredDownloads()` in
+`ZephraSnapshot` sets before either backend's first request. The size is on the
+screen before the download starts, so whether to spend it on a hotspot is the
+user's call, not the client's.
 
 Settings > Models lists every directory the catalog's models have on this Mac,
 in either hub layout and under `localModelsDirectory`, with its size and a
@@ -762,6 +766,8 @@ the re-sync procedure, and the running patch log. Any change inside
 - `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|queued|batch|library|downloading|building|failed`
   launches a Debug build frozen in that state with no model, for screenshots (`make screenshot`).
   `tucked` is `image` with the canvas's floating prompt slid down to its lip.
+  `downloading` and `failed` sit over a picture, since that is where they must stay
+  legible, and `failed` is a download that gave up.
 - `make logs` streams `os.Logger` output for subsystem `io.zephra`.
 - `make screenshot` photographs the app's window by its CoreGraphics id, so it captures the
   window rather than the rectangle of screen it sits in, and it fails rather than falling back

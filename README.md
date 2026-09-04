@@ -505,7 +505,8 @@ Zephra/
   `make open` opens the generated project in Xcode; `make clean` removes build output.
 - `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|queued|batch|library|downloading|building|failed`
   launches a Debug build frozen in that state with no model, for screenshots; `tucked` is
-  `image` with the floating prompt slid down to its lip.
+  `image` with the floating prompt slid down to its lip, and `downloading` and `failed` sit
+  over a picture, since that is where they must stay legible.
 
 ### Releasing
 

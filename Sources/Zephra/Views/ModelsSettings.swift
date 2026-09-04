@@ -40,7 +40,7 @@ struct ModelsSettings: View {
         .formStyle(.grouped)
         .task { await inventory.refresh() }
         .confirmationDialog(
-            "Move to the Trash?", isPresented: isConfirming, presenting: pendingDeletion
+            "Move to Trash?", isPresented: isConfirming, presenting: pendingDeletion
         ) { item in
             Button("Move to Trash", role: .destructive) { delete(item) }
         } message: { item in
@@ -63,13 +63,14 @@ struct ModelsSettings: View {
 
     /// What deleting this directory costs, so the dialog says it before the click.
     private func consequence(of item: ModelStorageItem) -> String {
-        let size = item.bytes.map { $0.formatted(.byteCount(style: .file)) } ?? "its"
+        let frees = item.bytes.map { "frees \($0.formatted(.byteCount(style: .file)))" }
+            ?? "frees the space it takes"
         let cost = switch item.kind {
         case .download: "downloads it again"
         case .built: "builds it again"
         }
-        return "\(item.name) frees \(size). It can be put back from the Finder; choosing a model "
-            + "that needs it \(cost)."
+        return "Deleting \(item.name) \(frees). It can be put back from the Finder; choosing a "
+            + "model that needs it \(cost)."
     }
 
     private func delete(_ item: ModelStorageItem) {

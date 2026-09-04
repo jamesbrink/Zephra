@@ -35,7 +35,7 @@ struct ModelStorageRow: View {
         case .download where !item.isComplete:
             "Partial download. Choosing the model resumes it."
         case .download where item.modelIDs.count > 1:
-            "Downloaded. \(item.modelIDs.count) variants are built from it."
+            "Downloaded. \(item.modelIDs.count) variants pack from it."
         case .download:
             "Downloaded"
         case .built:

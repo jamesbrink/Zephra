@@ -18,6 +18,7 @@ extension Flux2Backend {
         patterns: [String],
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws -> URL {
+        HubNetworkPolicy.allowMeteredDownloads()
         do {
             return try await DownloadRetry.run(
                 isPermanent: Flux2SnapshotDownload.isPermanent,
@@ -43,7 +44,8 @@ extension Flux2Backend {
         } catch where Flux2SnapshotDownload.isRefusal(error) {
             throw BackendError.downloadFailed(HubToken.refusalMessage())
         } catch {
-            throw BackendError.downloadFailed(DownloadRetry.givingUpMessage(error.readableMessage))
+            throw BackendError.downloadFailed(
+                DownloadRetry.givingUpMessage(Flux2SnapshotDownload.reason(for: error)))
         }
     }
 }
