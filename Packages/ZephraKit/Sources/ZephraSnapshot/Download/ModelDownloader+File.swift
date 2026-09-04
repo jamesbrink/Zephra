@@ -33,6 +33,11 @@ extension ModelDownloader {
         let partial = Self.partial(of: target)
         try FileManager.default.createDirectory(
             at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+        // A partial that is a link is not one this downloader left: appending through it would
+        // write wherever it points, so it goes, validator and all, and the file starts over.
+        if Self.isLink(partial) {
+            for stale in [partial, Self.validator(of: partial)] { try? FileManager.default.removeItem(at: stale) }
+        }
 
         var have = Self.size(of: partial) ?? 0
         if file.bytes > 0, have > file.bytes {

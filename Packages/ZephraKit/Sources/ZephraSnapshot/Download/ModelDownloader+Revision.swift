@@ -25,6 +25,10 @@ extension ModelDownloader {
         guard let before = try? String(contentsOf: record, encoding: .utf8)
             .trimmingCharacters(in: .whitespacesAndNewlines), before != sha
         else { return }
+        // A folder that is a link is not emptied: that would empty whatever it points at.
+        guard !isLink(destination) else {
+            throw ModelDownloadError.unsafePath(path: destination.path(percentEncoded: false))
+        }
         // The record goes last. Emptied in any other order, a process that dies part-way
         // leaves a folder with no record and a same-sized shard from the other commit still
         // in it, which the next try would trust on size.

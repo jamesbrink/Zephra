@@ -36,6 +36,14 @@ extension ModelDownloader {
         return ([String(cString: real)] + tail).joined(separator: "/")
     }
 
+    /// Whether `url` is itself a link, looked at without following it. A folder that is one
+    /// is not cleared, and a partial that is one is not appended to: either would reach
+    /// wherever the link points.
+    static func isLink(_ url: URL) -> Bool {
+        let attributes = try? FileManager.default.attributesOfItem(atPath: trimmed(url))
+        return attributes?[.type] as? FileAttributeType == .typeSymbolicLink
+    }
+
     private static func trimmed(_ url: URL) -> String {
         let path = url.path(percentEncoded: false)
         return path.count > 1 && path.hasSuffix("/") ? String(path.dropLast()) : path

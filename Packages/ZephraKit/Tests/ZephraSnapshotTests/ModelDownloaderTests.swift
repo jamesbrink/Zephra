@@ -286,6 +286,40 @@ struct ModelDownloaderTests {
         #expect(HubSnapshotCheck.incompleteFiles(in: scratch.url("models")).isEmpty)
     }
 
+    @Test("a partial that is a link is replaced, not appended to")
+    func aLinkedPartialIsReplaced() async throws {
+        let scratch = Scratch("Download")
+        let outside = try scratch.write("x", to: "elsewhere/victim")
+        _ = try scratch.link("models/model_index.json.incomplete", to: outside.path(percentEncoded: false))
+        StubHub.reset(
+            StubHub.Behaviour(
+                pages: [page([("model_index.json", 3)])], files: ["model_index.json": Data("{ }".utf8)]))
+
+        _ = try await downloader().download(
+            repoID: "org/repo", patterns: ["*"], into: scratch.url("models"), onProgress: { _ in })
+
+        #expect(try String(contentsOf: outside, encoding: .utf8) == "x", "nothing went through the link")
+        #expect(try String(contentsOf: scratch.url("models/model_index.json"), encoding: .utf8) == "{ }")
+    }
+
+    @Test("a folder that is a link is not emptied for a newer commit")
+    func aLinkedFolderIsNotCleared() async throws {
+        let scratch = Scratch("Download")
+        try scratch.make("elsewhere/keep.json")
+        try scratch.write("old", to: "elsewhere/.zephra-commit")
+        _ = try scratch.link("models", to: scratch.url("elsewhere").path(percentEncoded: false))
+        StubHub.reset(
+            StubHub.Behaviour(
+                pages: [page([("model_index.json", 3)])], files: ["model_index.json": Data("{ }".utf8)],
+                sha: "new"))
+
+        await #expect(throws: (any Error).self) {
+            _ = try await downloader().download(
+                repoID: "org/repo", patterns: ["*"], into: scratch.url("models"), onProgress: { _ in })
+        }
+        #expect(scratch.hasFile("elsewhere/keep.json"))
+    }
+
     @Test("a folder component that is already a link out of the folder is refused too")
     func aLinkedComponentIsRefused() async throws {
         let scratch = Scratch("Download")

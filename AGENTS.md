@@ -67,7 +67,10 @@ Shared, by what a file actually touches:
     transfer at another commit empties it first rather than keeping a shard of
     the same size from the wrong one; a path in the listing that would leave
     the folder is refused before anything is written, with links followed, so a
-    component that already points out of the folder is refused too. The transfer
+    component that already points out of the folder is refused too; a partial
+    that is a link is replaced rather than appended to, and a folder that is a
+    link is never emptied for a newer commit, since either would reach wherever
+    the link points. The transfer
     is paused above 64 MiB of body not yet written and resumed under 16 MiB
     (`ChunkedDownload`, told of each drain by `ChunkedBody`; the task's pause and
     the count saying it is paused change under one lock, so a drain can never

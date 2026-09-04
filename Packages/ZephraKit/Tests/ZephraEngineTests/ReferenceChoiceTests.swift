@@ -37,6 +37,25 @@ struct ReferenceChoiceTests {
         #expect(store.referenceChoice == ticket, "the slow read took no number of its own after")
     }
 
+    @Test("Generate waits for the picture on its way into the well")
+    func generationWaitsForTheRead() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        await store.bootstrap()
+        store.settings.prompt = "a lighthouse"
+        try #require(store.canGenerate)
+
+        store.adoptReference { Thread.sleep(forTimeInterval: 0.2); return Data([1]) }
+        #expect(store.isAdoptingReference)
+        #expect(!store.canGenerate)
+        #expect(!store.canQueue)
+        try await Task.sleep(for: .milliseconds(400))
+
+        #expect(!store.isAdoptingReference)
+        #expect(store.canGenerate)
+        #expect(store.settings.referenceImage == Data([1]))
+    }
+
     @Test("a stale ticket lands nothing")
     func aStaleTicketIsIgnored() async {
         let bed = EngineTestBed()

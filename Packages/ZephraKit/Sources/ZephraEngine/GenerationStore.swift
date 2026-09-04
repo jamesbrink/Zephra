@@ -132,15 +132,22 @@ public final class GenerationStore {
     public var outputDirectory: URL { library.root }
 
     /// True when a generation can start right now: the engine is ready and there is a prompt.
-    public var canGenerate: Bool { state.acceptsGeneration && settings.isReadyToGenerate }
+    public var canGenerate: Bool {
+        state.acceptsGeneration && settings.isReadyToGenerate && !isAdoptingReference
+    }
 
     /// True when `generate()` will do something: start now, or queue behind the running one.
-    public var canQueue: Bool { settings.isReadyToGenerate && (state.acceptsGeneration || isDraining) }
+    public var canQueue: Bool {
+        settings.isReadyToGenerate && (state.acceptsGeneration || isDraining) && !isAdoptingReference
+    }
 
     /// Shows an earlier image on the canvas and adopts its settings, so the obvious next move
     /// is to tweak one thing and generate a variation.
     public func select(_ image: GeneratedImage) {
         stopFollowingRun()
+        // The settings about to be adopted include the picture's own reference, or none; a
+        // library read still on its way was for the settings being replaced.
+        _ = claimReference()
         current = image
         settings = image.settings
         // Everything else carries over whichever model made it; a picture to edit does not,

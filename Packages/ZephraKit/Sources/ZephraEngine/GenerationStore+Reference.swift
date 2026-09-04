@@ -25,13 +25,19 @@ extension GenerationStore {
         useAsReference(pngData)
     }
 
+    /// Whether a picture is still on its way into the well. Generate waits for it: a request
+    /// snapshotted a moment before the read landed would carry the picture before, or none.
+    public var isAdoptingReference: Bool { referenceRead != nil }
+
     /// Runs `read` off the main actor and puts what it returns in, unless a newer choice has
     /// been made in the meantime. Nil from the read leaves whatever was there alone.
     public func adoptReference(_ read: @escaping @Sendable () -> Data?) {
         let ticket = claimReference()
-        referenceRead = Task {
+        referenceRead = Task { [weak self] in
             let png = await Task.detached(priority: .userInitiated, operation: read).value
-            guard !Task.isCancelled, let png else { return }
+            guard let self, !Task.isCancelled else { return }
+            defer { if referenceChoice == ticket { referenceRead = nil } }
+            guard let png else { return }
             useAsReference(png, ticket: ticket)
         }
     }
