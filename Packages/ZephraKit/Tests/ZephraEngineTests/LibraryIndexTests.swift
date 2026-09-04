@@ -51,7 +51,9 @@ struct LibraryIndexTests {
     func unchangedFingerprintShortCircuits() async throws {
         let bed = EngineTestBed()
         try bed.library.write(LibraryAnnotationTests.image(seed: 4))
-        let index = bed.index()
+        // The watch is held off for the whole test: it would notice the second write on its
+        // own and scan beside the one asked for here, which is a scan more than the count expects.
+        let index = bed.index(settleFor: .seconds(30))
         index.start()
         await index.settle()
         let scans = index.scanCount
@@ -149,6 +151,27 @@ struct LibraryIndexTests {
         #expect(index.albums.isEmpty)
         #expect(index.items.first?.annotation.albums.isEmpty == true)
         #expect(bed.library.albums(reconciledWith: index.items).isEmpty, "and it stays gone")
+    }
+
+    @Test("a rescan queued behind an album rename does not put the old name back")
+    func aRescanDoesNotUndoARename() async throws {
+        let bed = EngineTestBed()
+        try bed.library.write(LibraryAnnotationTests.image(seed: 8))
+        let index = bed.index()
+        index.start()
+        await index.settle()
+        let album = index.createAlbum(named: "Harbours")
+        await index.settle()
+
+        // The scan is queued first, so it runs ahead of the rename's own write and reads a
+        // manifest that still says Harbours, which is what the folder watch does after the
+        // write that created the album.
+        index.enqueue { await index.rescanNow() }
+        index.renameAlbum(album, to: "Ports")
+        await index.settle()
+
+        #expect(index.name(of: album.id) == "Ports")
+        #expect(bed.library.albumManifest().albums.first?.name == "Ports", "and the disk agrees")
     }
 
     @Test("a file written by something else shows up on its own, without a rescan being asked for")

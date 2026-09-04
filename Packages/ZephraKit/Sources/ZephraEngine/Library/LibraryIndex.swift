@@ -55,6 +55,9 @@ public final class LibraryIndex {
     /// Annotations written optimistically and not yet on disk, coalesced by file: a favourite
     /// toggled five times before the first write lands is one write.
     @ObservationIgnored var pending: [LibraryItem.ID: LibraryAnnotation] = [:]
+    /// Album manifests queued and not yet on disk. While one is, a scan keeps the albums as
+    /// they are here rather than taking the older list still on the disk.
+    @ObservationIgnored var pendingAlbumWrites = 0
     @ObservationIgnored var watches: [LibraryCollection: LibraryFolderWatch] = [:]
     @ObservationIgnored var debounce: Task<Void, Never>?
     @ObservationIgnored var fingerprint = 0

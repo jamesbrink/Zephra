@@ -13,7 +13,7 @@ extension LibraryIndex {
         let album = Album(name: name.trimmingCharacters(in: .whitespacesAndNewlines))
         albums = sorted(albums + [album])
         reproject()
-        enqueue { await self.writeAlbums() }
+        writeAlbumsBehindTheQueue()
         return album
     }
 
@@ -26,7 +26,7 @@ extension LibraryIndex {
         albums[index].name = trimmed
         albums = sorted(albums)
         reproject()
-        enqueue { await self.writeAlbums() }
+        writeAlbumsBehindTheQueue()
     }
 
     /// Removes an album and takes its images out of it. The images themselves are untouched
@@ -37,7 +37,7 @@ extension LibraryIndex {
             items.filter { item in item.annotation.albums.contains { $0.id == album.id } }.map(\.id))
         annotate(members) { $0.albums.removeAll { $0.id == album.id } }
         reproject()
-        enqueue { await self.writeAlbums() }
+        writeAlbumsBehindTheQueue()
     }
 
     /// Puts every image in `ids` into an album, if it is not in it already.
@@ -60,9 +60,22 @@ extension LibraryIndex {
         albums.first { $0.id == id }?.name
     }
 
-    private func writeAlbums() async {
+    /// Queues the manifest write with the list as it is now, and counts it as pending until it
+    /// lands. The list is captured here rather than read when the write runs: a rescan the
+    /// folder watch queued in between reads the manifest still on disk, and `adopt` must not
+    /// let that older list stand in for an edit that has not been written yet — or the write
+    /// would put the old name back and the rename would be lost for good.
+    private func writeAlbumsBehindTheQueue() {
+        let snapshot = albums
+        pendingAlbumWrites += 1
+        enqueue {
+            await self.writeAlbums(snapshot)
+            self.pendingAlbumWrites -= 1
+        }
+    }
+
+    private func writeAlbums(_ albums: [Album]) async {
         let library = library
-        let albums = albums
         let reason = await Task.detached(priority: .utility) { () -> String? in
             do {
                 try library.writeAlbums(albums)

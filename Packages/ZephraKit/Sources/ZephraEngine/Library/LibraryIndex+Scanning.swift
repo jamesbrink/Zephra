@@ -109,7 +109,10 @@ extension LibraryIndex {
         items = scanned.items.sorted {
             $0.createdAt == $1.createdAt ? $0.id < $1.id : $0.createdAt > $1.createdAt
         }
-        albums = scanned.albums
+        // An album edit still in the queue is ahead of the manifest this scan read.
+        albums = pendingAlbumWrites > 0
+            ? AlbumManifest(albums: albums).reconciled(with: items)
+            : scanned.albums
         fingerprint = scanned.fingerprint
         reproject()
     }
