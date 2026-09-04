@@ -17,7 +17,7 @@ struct ZephraApp: App {
     @State private var thumbnails = ThumbnailCache()
     /// What the models occupy on disk, for Settings > Models. Built here with the store so the
     /// two windows observe the one list.
-    @State private var inventory = ModelInventory()
+    @State private var inventory = ModelInventory(locations: AppSettings.modelLocations())
     /// The GPU runtime the Performance tab reads and tunes, over every backend at once. Built
     /// here because this is the only file allowed to name a backend.
     private static let runtime = CombinedInferenceRuntime([
@@ -56,7 +56,7 @@ struct ZephraApp: App {
         .commands {
             ZephraCommands(store: store)
             WorkspaceCommands(workspace: workspace, store: store)
-            LibraryCommands()
+            LibraryCommands(workspace: workspace)
             ThumbnailSizeCommands()
         }
 
@@ -77,9 +77,18 @@ struct ZephraApp: App {
     /// watch would notice in its own time — this is only so the grid moves at once.
     private func openLibrary() {
         index.start()
+        // Only the `viewer` screenshot build has an answer here; a second window opening on
+        // a normal launch must not close a viewer the first one has up.
+        if let viewing = InterfacePreview.viewing(in: index) { workspace.viewing = viewing }
         thumbnails.sweep()
         store.onImageSaved = { url in index.insert(fileAt: url) }
         store.onImageDeleted = { _ in Task { await index.rescanNow() } }
+        // The reverse direction: a delete made through the index — the grid, the viewer, the
+        // sidebar wall, or the canvas's own menu — never goes through the store, so the store
+        // is told separately when one of the files it might be showing is gone.
+        index.onRecentlyDeleted = { urls in
+            for url in urls { store.forget(fileAt: url) }
+        }
     }
 
     /// Builds the one store the window observes.
@@ -99,6 +108,7 @@ struct ZephraApp: App {
         return GenerationStore(
             descriptor: ZephraApp.savedModel(),
             registry: registry,
+            locations: AppSettings.modelLocations(),
             upscaler: RealESRGANUpscaler.make
         )
     }

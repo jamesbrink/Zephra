@@ -38,28 +38,96 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
 
 ## Downloads and model storage: left out on purpose
 
-- **The 4-bit Z-Image and Qwen-Image variants are greyed out on any Mac that has
-  not run `make quantize` or `make quantize-qwen`.** A 16 GB Mac is exactly the one
-  that wants the 4-bit Z-Image, and it cannot have it without the 33 GB bf16 release
-  and the command line. The fix is the build step klein already has: a `.huggingFace`
-  source on the 4-bit entry with `builtBytes` set, and `ZImageBackend.build` packing
-  it. What stops it today is disk, not code: the source is 33 GB and the packer
-  spills at 4 GB resident, so it would run on a 16 GB Mac but needs 40 GB free.
-- **The hub client's metered-network refusal is switched off with an environment
-  variable**, `CI_DISABLE_NETWORK_MONITOR=1`, set by `HubNetworkPolicy` before the
-  first request, because that is the only switch swift-transformers offers. A
-  process-wide variable is a blunt tool; vendoring the forty lines of `snapshot`
-  that Zephra uses would let the choice be a parameter.
-- **A stale token cannot be left out of the request.** The hub client reads the
-  token from the environment and the token files itself when none is passed, and
-  offers no way to say "send none". The failure names the token's source instead.
-  Same fix as above.
+- **The 4-bit Z-Image variant is derived from the 32.9 GB bf16 release, not from the
+  13.3 GB 8-bit download.** Both entries are the same weights at different
+  precisions, and a Mac that already has the 8-bit model has to fetch two and a half
+  times as much again to get the smaller one. Repacking 8-bit to 4-bit would need a
+  quantized-source reader in the packer: dequantize each `.scales`/`.biases` group
+  back to float, repack at the new width, and carry the manifest across. It also
+  compounds the error of two quantizations, which is worth measuring against a
+  straight 4-bit build before shipping. The bf16 source is the honest input, and
+  disk is the cost: 32.9 GB in, 6.7 GB out, and the packer spills at 4 GB resident, so
+  it runs on a 16 GB Mac but wants 40 GB free.
+- **A build cannot be resumed.** `SnapshotBuild` writes into a `.partial` directory
+  and removes it when the build is stopped, so a Qwen-Image build interrupted at
+  nineteen of its twenty-one gigabytes starts over. Keeping it and skipping the
+  components already written would need the manifest to be written per component
+  rather than at the end, which is also what makes a half-built directory
+  unmistakably incomplete today.
+- **A download is one file at a time.** `ModelDownloader` walks the listing in
+  order, so a fast connection is not saturated the way two or three concurrent
+  transfers would saturate it. Sixteen gigabytes from the hub already runs near
+  the line's limit here; the fix, if a slow link ever argues for it, is a task
+  group with a small concurrency and one shared byte tally.
+- **Only sizes are checked, not hashes.** The tree endpoint carries each LFS
+  file's sha256 in `lfs.oid`, and a finished file is compared against the listed
+  length and nothing else. A file that arrives complete but corrupt therefore
+  loads and fails at the loader. Hashing sixteen gigabytes costs seconds, not
+  minutes, so this is worth doing; it wants a streaming digest as the bytes are
+  written rather than a second pass.
+- **Changing the models folder moves nothing**, by design — a sixty-gigabyte
+  copy is not something to start from a settings row. The last few folders the
+  setting pointed at are remembered (`ModelLocations.previous`), so what was
+  downloaded or built under them is still found, listed and loaded; only new
+  downloads and builds go to the new folder. What is left out is the honest
+  version of moving: a "move my models" button that copies, verifies, and only
+  then forgets the old root.
 - **Deleting a model never asks the engine to unload it first.** The row is disabled
   while the model is loaded; choosing another model frees it. A Delete that unloads
   and then trashes would be a `GenerationStore` concern, and the engine would need to
   know that a deletion is the reason it went idle.
 - **Sizes are measured by walking, every time the tab opens.** Twenty files per
   model makes that instant; a cache of a thousand small repositories would not be.
+
+## Library viewer: left out on purpose
+
+- **Zoom and pan.** The viewer fits the whole picture to the pane, the way the canvas
+  does; there is no way to look closer at one part of it. A pinch or scroll-to-zoom
+  gesture, with the fitted view as the reset, is the natural next step once someone
+  asks for it.
+- **A filmstrip of thumbnails along the bottom**, the way Photos and Preview both
+  offer, instead of only the bar's "n of N" and the prev/next buttons.
+
+## Reference picker: left out on purpose
+
+- **Choosing more than one picture at once.** The sheet is single-selection, and
+  the well takes one reference; this waits on "several reference pictures at
+  once" above, which is what would give a second picture somewhere to go.
+- **Scoping the grid to an album, favourites, or a model**, the way the library
+  grid's own sidebar does. The sheet always searches `.all`: a picture is picked
+  here by what it looks like, and the free-text search already narrows a library
+  of any size well enough to be worth the simplicity of skipping the rest of
+  `LibraryQuery` for now.
+
+## Live preview: left out on purpose
+
+- **Latent-to-RGB factor tables.** The cheap way to show a run in progress is a 16x3
+  (or 128x3) matrix that turns a latent cell straight into a pixel — no autoencoder,
+  microseconds a frame, and blurry. It was not taken because the published tables are
+  in GPL code (ComfyUI's `latent_preview`) and cannot be copied, so ours would have to
+  be fitted: decode a few hundred latents through each family's own VAE and
+  least-squares the mapping, once per family, checked in as numbers with a script
+  beside them. Worth doing if the pooled decode ever proves too dear on a smaller Mac,
+  or if a frame per step rather than one every 0.75 s is wanted.
+- **A frame every step.** The throttle is what keeps the preview at a few percent of a
+  run. Per-step frames would need the factor tables above, not a faster decode.
+- **Previewing the reference-image path's first frames.** A run that starts from a
+  noised copy of a picture skips the steps before its entry point, so its first frame
+  is already most of the way there. Nothing is wrong with that; it is just not the
+  progress bar a person expects.
+- **A frame during the real decode.** The last step is deliberately not previewed: the
+  full decode follows immediately, and a pooled one in front of it would be a second
+  pass through the autoencoder for a picture the user is about to see properly.
+- **A wall clock on the running run.** `RunningRunInspector`'s Elapsed is the steps
+  that have finished at the pace they took, so it counts the loop and not the text
+  encode before it, and it says nothing until the first step lands. A real clock means
+  a start `Date` somewhere it survives a view being rebuilt — the store, most likely,
+  which would be the first piece of interface bookkeeping in it. Not worth that for a
+  line that is already right to within a step.
+- **Keeping a run's frames.** Only the newest is held, and it is put down the moment
+  the run ends. Scrubbing back through a run's frames, or leaving the last one up
+  under the finished picture as it fades in, would mean the store keeping a strip of
+  them: a quarter of a megabyte each, for something nobody has asked to look at twice.
 
 ## Upscaler follow-ups
 

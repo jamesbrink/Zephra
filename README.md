@@ -33,12 +33,19 @@ picture with any of them, and upscales with Real-ESRGAN.
   | FLUX.2 klein 4B, 4-bit | 16 GB | 5.4 GB | 4.9 GB | 12.1 GB (7.7 GB) | 16 GB |
   | FLUX.2 klein 4B, 8-bit | same 16 GB | 8.6 GB | 8.1 GB | 15.3 GB (10.9 GB) | 16 GB, tiled |
   | Z-Image-Turbo, 8-bit | 13.3 GB | — | 12.2 GB | 23.5 GB (17.7 GB) | 24 GB, tiled |
-  | Z-Image-Turbo, 4-bit | 33 GB source | 6.7 GB | 6.6 GB | 17.8 GB (12.0 GB) | 16 GB, tiled |
-  | Qwen-Image-2512, 4-bit | 58 GB source | 21.6 GB | 21.5 GB | 30.4 GB (26.1 GB) | 32 GB, tiled |
+  | Z-Image-Turbo, 4-bit | 32.9 GB source | 6.7 GB | 6.6 GB | 17.8 GB (12.0 GB) | 16 GB, tiled |
+  | Qwen-Image-2512, 4-bit | 59.4 GB source | 21.6 GB | 21.5 GB | 30.4 GB (26.1 GB) | 32 GB, tiled |
 
-  A built variant is packed from its download on this Mac (klein does that on
-  first load, the other two through `make quantize*`), and the download is kept
-  afterwards: the hub cache is `hf`'s to prune (`hf cache delete`), not Zephra's.
+  A "source" download is not what gets loaded: the app packs it into the variant
+  this Mac runs, on first load, and the picker says so ("32.9 GB download, then
+  built"). Qwen-Image's figure is its 57.7 GB release plus the 1.7 GB four-step
+  adapter merged into it. The download is kept afterwards, because the variant is
+  packed from it. Everything lives in one
+  folder — `~/Library/Application Support/Zephra/Models` unless you change it in
+  Settings > Models — and Settings lists every directory with its size and a
+  Delete that moves it to the Trash. `make quantize*` does the same builds from
+  the command line, which is worth doing only to keep a source that large off the
+  boot volume.
 
 ## Quick start
 
@@ -59,9 +66,7 @@ several minutes with no output; it has not hung.
 ```sh
 make prefetch-flux2  # optional: download the FLUX.2 klein release ahead of time
 make prefetch        # optional: download the 8-bit Z-Image weights
-make quantize        # optional: build the smaller 4-bit Z-Image variant (see below)
-make prefetch-qwen   # optional: download Qwen-Image-2512 and its 4-step adapter
-make quantize-qwen   # optional: build the 4-bit Qwen-Image variant
+                     #           both land in the folder the app downloads into
 make build
 make run
 ```
@@ -123,14 +128,16 @@ with a progress readout while that happens.
   download resumes from what it already fetched.
 - The model menu in the toolbar names the model that is running and lists the rest, each
   with what choosing it would cost: "Downloaded", "13.3 GB download", "16 GB download, then
-  built" for FLUX.2 klein on a Mac that has never fetched it, "Builds on first load" once
-  the release is cached, "Not built yet" for a local variant that has not been quantized,
+  built" for a variant packed on this Mac from a release it has never fetched, "Builds on
+  first load" once that release is there,
   "Tiles the decode" for one this Mac reaches only with the tiled VAE decode, or "Needs N
   GB" for one whose peak is over this Mac's budget even tiled. Picking a model that has not
-  been downloaded starts the download; klein then packs the release into the variant this
-  Mac runs, once, showing "Building" while it does. Memory never disables a row — a model
-  that would page at 1024² still runs at 768², and the tooltip says so; only "Not built yet"
-  is out of reach. Switching releases the old weights before it asks for the new ones.
+  been downloaded starts the download; if what was downloaded is not what gets loaded — both
+  klein variants, the 4-bit Z-Image and the 4-bit Qwen-Image — the release is then packed
+  into the variant this Mac runs, once, showing "Building" while it does. Memory never
+  disables a row: a model
+  that would page at 1024² still runs at 768², and the tooltip says so. Switching releases
+  the old weights before it asks for the new ones.
   Choosing a model while an image is running interrupts nothing: the running image finishes
   on its model, anything already queued keeps the model it was queued for, and the new
   choice applies to whatever you queue next, with the engine swapping weights between queue
@@ -138,8 +145,11 @@ with a progress readout while that happens.
 - Size, steps, and seed sit under the prompt. A model that reads a negative prompt gets a
   second field for it, and one that responds to guidance gets a guidance slider; no model
   shipped today does either, so neither shows. Every model can start from a picture, so each
-  gets a well beside the prompt: drop a picture on it or on the canvas, click it to choose
-  one, or use the image on the canvas as the reference (⌥⌘R; ⇧⌥⌘R clears it). What a picture
+  gets a well beside the prompt: drop a picture on it, on the canvas, or from the library
+  grid or the sidebar's wall; click it to open a picker over the whole library; choose a
+  file from a menu beside that; or use the image on the canvas as the reference (⌥⌘R;
+  ⇧⌥⌘R clears it). A picture already in the well offers the same two choices, plus Clear,
+  from its own right-click menu. What a picture
   means differs by model. FLUX.2 klein attends to it as extra tokens and still renders the
   whole schedule, so the picture guides the image without a strength to set. Z-Image and
   Qwen-Image start from a noised copy of it instead, so a strength decides how much of it
@@ -153,9 +163,9 @@ with a progress readout while that happens.
   fresh one. Images save to `~/Pictures/Zephra` with the seed in the file name; if a write
   fails, a notice sits over the prompt until an image saves, and the picture stays on the
   canvas either way.
-- The sidebar's wall is today's work: a batch of seeds sits in a block of its own, single
-  pictures pack together, a dashed square stands for each seed still to come, and "Today in
-  Library" at the foot counts them. Everything ever made is in `~/Pictures/Zephra`, and the
+- The sidebar's wall is today's work in one flow, newest run first: a batch's seeds sit
+  together, a dashed square stands for each seed still to come, and "Today in Library" at
+  the foot counts them. Everything ever made is in `~/Pictures/Zephra`, and the
   Library reads that folder rather than the app keeping a list of its own. The record of
   what made an image — prompt, size, steps, seed, model, and how long it took — lives inside
   the PNG itself, so moving, renaming, or copying a file to another Mac keeps it, and
@@ -172,16 +182,24 @@ with a progress readout while that happens.
   between generations — with the figure recommended for your Mac, and a reset back to it —
   whether the VAE decode is tiled (Automatic, Always, Never), and a live readout of active,
   cached and peak GPU memory plus which way the decode is currently set. Every change
-  applies immediately. Models shows where downloads and built variants are kept, what each
-  one occupies, and a Delete that moves it to the Trash; a release both klein variants pack
-  from is one row, a download that stopped part-way says so, and the model that is loaded
-  cannot be deleted from under itself. About shows the version and the third-party license
-  notices.
-- Downloads need no Hugging Face account: every model comes from a public, ungated
-  repository. A transfer that breaks is tried again, five times with a growing pause, and
-  resumes from the bytes already on disk; so does Try again after the tries run out, and the
-  message says why it stopped rather than only that it did. A model the app downloaded is
-  recognised on the next launch without a request.
+  applies immediately. Models is the folder models are kept in — with Open, Change… and
+  Use Default — and then every directory the catalog's models have on this Mac: where it is,
+  what it occupies, and a Delete that moves it to the Trash. A release both klein variants
+  pack from is one row, an adapter is a row named for the model it serves, a download that
+  stopped part-way says so, and the model that is
+  loaded cannot be deleted from under itself. Changing the folder moves nothing: what is
+  there keeps working where it is, still listed with its whole path, and the next download
+  and build go to the new folder.
+  About shows the version and the third-party license notices.
+- Downloads need no Hugging Face account, and Zephra never sends a token: every model comes
+  from a public, ungated repository, and no `Authorization` header goes out whatever is in
+  `HF_TOKEN`, so a stale token cannot turn a public model into a login wall. Weights land in
+  `<models folder>/Downloads/<org>--<repo>`, flat, exactly as the repository names them —
+  nothing depends on a Hugging Face cache layout or on the `hf` tool, though a release
+  already in that cache is read rather than fetched again. A transfer that breaks is tried
+  again, five times with a growing pause, and resumes from the bytes already on disk; so
+  does Try again after the tries run out, and Stop leaves those bytes for the next attempt.
+  The message says why it stopped rather than only that it did.
 - Shortcuts: Generate ⌘↩, Stop ⌘., New Album ⌘N, Canvas ⌘1, Library ⌘2, Find ⌘F, Show
   Inspector ⌥⌘I, Hide Prompt ⌥⌘P, Select All Images ⌘A, Favourite ⌘⇧D, thumbnail size ⌘+ and
   ⌘−, Save As ⌘S, Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C, Use as Reference ⌥⌘R, Clear
@@ -313,11 +331,16 @@ Resident does not move with resolution because the weights are all of it. The
 tiled peak barely moves either: the tile, not the image, sets the decode's
 transient, and what is left is the transformer.
 
-`make quantize-qwen` builds the four-bit copy, because nothing publishes one in a
-form Zephra can load. It reads the 57.7 GB bfloat16 release, merges the Apache-2.0
+The app builds the four-bit copy on first load, because nothing publishes one in a
+form Zephra can load. It downloads the 57.7 GB bfloat16 release and, beside it, the
+1.7 GB Apache-2.0
 [four-step Lightning adapter](https://huggingface.co/lightx2v/Qwen-Image-2512-Lightning)
-into the transformer as it packs, holds the modulation layers at eight bits while
-everything else goes to four, and takes about a minute. The result is 21.6 GB.
+— one named file out of a repository that also ships whole merged checkpoints of
+twenty gigabytes each — merges the adapter into the transformer as it packs, holds
+the modulation layers at eight bits while everything else goes to four, and takes
+about a minute. The result is 21.6 GB. `make quantize-qwen` is the same build by
+hand, from `QWEN_SOURCE` and `QWEN_LORA`, which is how a 58 GB source is kept off
+the boot volume.
 
 The adapter is not optional. The base model wants fifty steps and real
 classifier-free guidance — two passes through twenty billion parameters per step —
@@ -338,11 +361,12 @@ derived from the existing Swift port.
 
 ### The 4-bit Z-Image variant
 
-`make quantize` builds a four-bit copy of the weights on the machine itself, because no
+The app builds a four-bit copy of the weights on the machine itself, on first load, because no
 repository publishes Z-Image-Turbo in four bits in the format the loader reads. It downloads
-the 33 GB bfloat16 release once, packs the transformer's 270 and the text encoder's 252 linear
+the 32.9 GB bfloat16 release once, packs the transformer's 270 and the text encoder's 252 linear
 weights at four bits with a group size of 64, leaves the VAE alone, and takes about a minute
 after the download. The result is 6.7 GB on disk against 13.3 GB for the 8-bit model.
+`make quantize` is the same build by hand.
 
 Measured on an M4 Max at seed 42, 9 steps, arms interleaved within each repetition because the
 machine was busy. Memory was identical to the megabyte across repetitions; the times were not,
@@ -449,7 +473,7 @@ Zephra/
 │   │   │   ├── Library/                 # the image folder as an index: scan, query, annotate
 │   │   │   ├── Timeline/                # the canvas sidebar: queue cards, then today's pictures as one wall
 │   │   │   └── Upscale/                 # the record an upscale carries and where it is filed
-│   │   ├── Sources/ZephraSnapshot/      # hub cache and local snapshot checks, Foundation only
+│   │   ├── Sources/ZephraSnapshot/      # the model downloader, snapshot checks, what is on disk
 │   │   └── Tests/ZephraCoreTests, ZephraEngineTests, ZephraSnapshotTests
 │   ├── ZephraMLXKit/              # ours — MLX work no family owns
 │   │   ├── Sources/ZephraQuantization/  # the streaming weight packer every family drives
@@ -490,23 +514,30 @@ Zephra/
   them loads model weights, though the tensors they run do go through Metal.
   `make test-backend` is an alias.
 - `make icon` — re-render `AppIcon.appiconset` from `scripts/make-icon.swift`.
-- `make prefetch` / `make prefetch-qwen` / `make prefetch-flux2` — download a
-  release ahead of a first launch, with `hf`. Qwen's goes to `QWEN_MODELS` rather
-  than the hub cache, because 58 GB does not belong on a boot volume.
-- `make quantize` / `make quantize-qwen` / `make quantize-flux2` — build a 4-bit
-  variant. `BITS` and `GROUP_SIZE` override the 4-bit, group-64 default; `QUANT_OUT`,
-  `QWEN_OUT` and `FLUX2_OUT` override where it lands, and `QWEN_SOURCE` / `QWEN_LORA`
-  / `FLUX2_SOURCE` say what it is built from.
+- `make prefetch` / `make prefetch-flux2` — download a release ahead of a first
+  launch, with `hf`, into `$(MODELS_DIR)/Downloads/<org>--<repo>`, which is what
+  the app itself would have written; set `MODELS_DIR` if Settings names another
+  folder. `make prefetch-qwen` goes to `QWEN_MODELS` instead, because 58 GB does
+  not belong on a boot volume and that release is a build source rather than
+  something the app loads.
+- `make quantize` / `make quantize-qwen` / `make quantize-flux2` — the builds the app
+  does on first load, by hand. `BITS` and `GROUP_SIZE` override the 4-bit, group-64
+  default; `QUANT_OUT`, `QWEN_OUT` and `FLUX2_OUT` override where it lands, and
+  `QWEN_SOURCE` / `QWEN_LORA` / `FLUX2_SOURCE` say what it is built from. Worth using
+  for benchmarking, or to build from a source kept off the boot volume.
 - `make lint-layers` — check the module boundaries above. Run it before every commit.
 - `make bench ARGS="..."` — headless timing (`--size`, `--steps`, `--runs`, `--model`,
   `--prompt`, `--json`, `--out`, `--micro` for the DiT's kernels alone, `--reference`
   to time the editing path, `--strength`). Benchmark on an idle machine, Release only.
 - `make logs` streams the app's log; `make screenshot` captures the window;
   `make open` opens the generated project in Xcode; `make clean` removes build output.
-- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|queued|batch|library|downloading|building|failed`
+- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|queued|watching|batch|library|viewer|downloading|building|failed`
   launches a Debug build frozen in that state with no model, for screenshots; `tucked` is
-  `image` with the floating prompt slid down to its lip, and `downloading` and `failed` sit
-  over a picture, since that is where they must stay legible.
+  `image` with the floating prompt slid down to its lip, `viewer` is the library with a
+  picture open full size, `generating`, `queued` and `watching` show a run in flight with a
+  frame from it (`watching` is the one where the canvas has been left on an earlier picture),
+  and `downloading` and `failed` sit over a picture, since that is where they must stay
+  legible.
 
 ### Releasing
 

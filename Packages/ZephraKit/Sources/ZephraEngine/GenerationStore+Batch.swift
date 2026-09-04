@@ -15,6 +15,9 @@ extension GenerationStore {
     /// single image the same press would otherwise have made.
     public func generate(count: Int) {
         guard canQueue else { return }
+        // Asking for an image is asking to watch it being made, whatever the canvas had been
+        // showing until now. Every other route into the queue leaves the canvas where it is.
+        startFollowingRun()
         let seeds = min(max(count, 1), Self.batchLimit)
         let request = descriptor.capabilities.clamp(settings)
         let batch = UUID()

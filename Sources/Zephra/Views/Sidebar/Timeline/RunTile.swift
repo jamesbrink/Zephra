@@ -9,9 +9,9 @@ import ZephraEngine
 /// square at a time as the seeds land.
 ///
 /// An indexed picture opens on the canvas without adopting its settings, through the same
-/// `openLibraryItem` action the library grid and the inspector use. It carries no context menu:
-/// every item in that menu acts on a `LibrarySelection`, which belongs to the library pane, and
-/// the sidebar has none to move. The library is one press away and has all of it.
+/// `openLibraryItem` action the library grid and the inspector use, and wears the same
+/// `LibraryItemMenu` the grid does — every image in the app is meant to, and `LibraryItemMenu`
+/// takes no selection to move when there is none, which is the sidebar's case.
 struct RunTile: View {
     /// What this square stands for.
     let tile: TimelineTile
@@ -30,6 +30,7 @@ struct RunTile: View {
             .buttonStyle(.plain)
             .help(item.prompt.isEmpty ? item.fileName : item.prompt)
             .accessibilityLabel(item.prompt.isEmpty ? item.fileName : item.prompt)
+            .contextMenu { LibraryItemMenu(items: [item]) }
         case .fresh(let image):
             FilmstripThumbnail(image: image)
         case .pending:

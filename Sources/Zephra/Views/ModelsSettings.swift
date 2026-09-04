@@ -6,9 +6,10 @@ import ZephraSnapshot
 /// Where the models live on this Mac, what each occupies, and a way to send one to the Trash.
 ///
 /// The list is the disk's, read afresh each time the tab opens and after every deletion, so a
-/// model fetched by `make prefetch` or removed in the Finder shows up as it is. A directory the
-/// loaded model is using cannot be deleted from under it: its row says so, and choosing another
-/// model first frees it.
+/// model fetched by `make prefetch` or removed in the Finder shows up as it is. Each row says
+/// where it is, which is what tells the app's own download of a release from a copy in the hub
+/// cache. A directory the loaded model is using cannot be deleted from under it: its row says
+/// so, and choosing another model first frees it.
 struct ModelsSettings: View {
     @Environment(GenerationStore.self) private var store
     @Environment(ModelInventory.self) private var inventory
@@ -16,9 +17,15 @@ struct ModelsSettings: View {
 
     var body: some View {
         Form {
-            Section("Kept in") {
-                DirectoryRow("Downloads", inventory.downloadsDirectory)
-                DirectoryRow("Built variants", inventory.builtDirectory)
+            Section {
+                ModelsDirectoryRow()
+            } footer: {
+                Text(
+                    "Changing the folder moves nothing. What is already downloaded or built "
+                        + "stays where it is and keeps working; new downloads and builds go to "
+                        + "the folder you choose.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
             Section {
                 if inventory.items.isEmpty {
@@ -50,8 +57,18 @@ struct ModelsSettings: View {
 
     /// Whether the engine is holding, loading, or queued to load weights from this directory.
     private func isInUse(_ item: ModelStorageItem) -> Bool {
+        // The loaded model is protected by the directory its weights came from, not by its
+        // name: the same model can sit in the models folder, a folder it used to be, and the
+        // hub cache at once, and only the one copy the engine holds is off limits.
+        // Containment, not equality: a model loaded from the hub cache came from
+        // `models--<repo>/snapshots/<commit>`, and the row is the repository around it.
+        if let loaded = store.loadedDirectory {
+            let row = item.url.standardizedFileURL.path(percentEncoded: false)
+            let folder = row.hasSuffix("/") ? row : row + "/"
+            let weights = loaded.standardizedFileURL.path(percentEncoded: false)
+            if weights == row || weights.hasPrefix(folder) || (weights + "/") == folder { return true }
+        }
         var wanted = store.queue.map(\.model.id)
-        if let loaded = store.loadedDescriptor { wanted.append(loaded.id) }
         if let running = store.running { wanted.append(running.model.id) }
         if store.state.isBusy { wanted.append(store.descriptor.id) }
         return wanted.contains { item.modelIDs.contains($0) }

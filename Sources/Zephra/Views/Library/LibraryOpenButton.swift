@@ -1,4 +1,5 @@
 import SwiftUI
+import ZephraEngine
 
 /// "Open in canvas", wherever it is offered: the cell's menu, the inspector, the menu bar.
 ///
@@ -12,10 +13,19 @@ struct LibraryOpenButton: View {
     let item: LibraryItem
 
     @Environment(\.openLibraryItem) private var openLibraryItem
+    @Environment(GenerationStore.self) private var store
 
     var body: some View {
-        Button { openLibraryItem(item) } label: {
-            Text("Open in canvas").frame(maxWidth: .infinity)
+        // Absent when the picture is on the canvas already: the offer means nothing there,
+        // and the canvas's own menu is one of the places this button is drawn. While the
+        // canvas is following a run it shows the run, whatever `current` still names, and
+        // opening is exactly how a person gets the picture back.
+        if store.isShowingRun
+            || store.current?.fileURL?.standardizedFileURL != item.url.standardizedFileURL
+        {
+            Button { openLibraryItem(item) } label: {
+                Text("Open in canvas").frame(maxWidth: .infinity)
+            }
         }
     }
 }

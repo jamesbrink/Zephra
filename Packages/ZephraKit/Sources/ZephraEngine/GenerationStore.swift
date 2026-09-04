@@ -32,9 +32,25 @@ public final class GenerationStore {
     /// The generation being rendered right now, or nil when none is. It is not in `queue`: the
     /// queue is what is still waiting, and a list showing both reads it straight off.
     public internal(set) var running: QueuedGeneration?
+    /// Whether the canvas is following the generation in flight rather than showing a picture
+    /// the user chose. See `GenerationStore+FollowingRun.swift`, which is where every rule
+    /// about it lives; it is stored here only because Swift keeps stored properties on the
+    /// type. `internal(set)` for the same reason: the extension has to be able to set it.
+    public internal(set) var followsRun = false
+    /// The newest frame of the generation in flight, or nil when there is none to show — before
+    /// the first frame of a run, and from the moment any run ends.
+    public internal(set) var livePreview: GenerationPreview?
     /// The model whose weights are resident right now, or nil while none are. It trails
     /// `descriptor` whenever a switch is waiting for the queue to drain.
     public internal(set) var loadedDescriptor: ModelDescriptor?
+    /// The directory those weights were read from, so a settings row can tell the one copy
+    /// that is in use from a duplicate of the same model elsewhere. Nil while none are.
+    public internal(set) var loadedDirectory: URL?
+    /// Which choice of reference picture is the latest, and the read still fetching one. See
+    /// `GenerationStore+Reference.swift`; stored here only because Swift keeps stored
+    /// properties on the type.
+    var referenceChoice = 0
+    var referenceRead: Task<Void, Never>?
     /// True while the engine is between queued generations, swapping to the model the next one
     /// needs. The queue accepts more work throughout.
     public internal(set) var isSwitchingForQueue = false
@@ -70,6 +86,9 @@ public final class GenerationStore {
     let upscalerFactory: UpscalerFactory?
     let library: ImageLibrary
     let logger = Logger(subsystem: "io.zephra", category: "engine")
+    /// The folder models are downloaded and built in, forwarded to the inference actor as it
+    /// is made and whenever it changes.
+    var locations: ModelLocations
 
     @ObservationIgnored var inference: InferenceActor?
     @ObservationIgnored var bootstrapTask: Task<Void, Never>?
@@ -86,22 +105,24 @@ public final class GenerationStore {
         descriptor: ModelDescriptor = ModelCatalog.default,
         registry: BackendRegistry,
         outputDirectory: URL? = nil,
+        locations: ModelLocations = .default,
         upscaler: UpscalerFactory? = nil
     ) {
         self.init(
             descriptor: descriptor, registry: registry, output: outputDirectory,
-            upscaler: upscaler)
+            locations: locations, upscaler: upscaler)
     }
 
     /// The one designated initializer. A nil `registry` makes a preview store: see
     /// `GenerationStore+Preview.swift`.
     init(
         descriptor: ModelDescriptor, registry: BackendRegistry?, output: URL?,
-        upscaler: UpscalerFactory? = nil
+        locations: ModelLocations = .default, upscaler: UpscalerFactory? = nil
     ) {
         self.descriptor = descriptor
         self.settings = GenerationSettings.defaults(for: descriptor)
         self.registry = registry
+        self.locations = locations
         self.upscalerFactory = upscaler
         self.library = output.map { ImageLibrary(root: $0) } ?? .pictures()
     }
@@ -111,14 +132,22 @@ public final class GenerationStore {
     public var outputDirectory: URL { library.root }
 
     /// True when a generation can start right now: the engine is ready and there is a prompt.
-    public var canGenerate: Bool { state.acceptsGeneration && settings.isReadyToGenerate }
+    public var canGenerate: Bool {
+        state.acceptsGeneration && settings.isReadyToGenerate && !isAdoptingReference
+    }
 
     /// True when `generate()` will do something: start now, or queue behind the running one.
-    public var canQueue: Bool { settings.isReadyToGenerate && (state.acceptsGeneration || isDraining) }
+    public var canQueue: Bool {
+        settings.isReadyToGenerate && (state.acceptsGeneration || isDraining) && !isAdoptingReference
+    }
 
     /// Shows an earlier image on the canvas and adopts its settings, so the obvious next move
     /// is to tweak one thing and generate a variation.
     public func select(_ image: GeneratedImage) {
+        stopFollowingRun()
+        // The settings about to be adopted include the picture's own reference, or none; a
+        // library read still on its way was for the settings being replaced.
+        _ = claimReference()
         current = image
         settings = image.settings
         // Everything else carries over whichever model made it; a picture to edit does not,

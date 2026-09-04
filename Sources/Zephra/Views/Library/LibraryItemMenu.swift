@@ -3,24 +3,33 @@ import ZephraEngine
 
 /// What can be done to the images a menu was opened over.
 ///
+/// The one menu every image in the app wears: the grid, the library viewer, the canvas once
+/// its picture is indexed, and the sidebar wall's tiles all show this rather than each keeping
+/// its own list of the same handful of actions.
+///
 /// `items` is already the right set: the whole selection when the image pressed is part of it,
 /// and only that image when it is not. Working that out is the grid's job, because the grid is
 /// what knows both; the menu's job is to make the selection agree with what is about to happen,
-/// so nothing changes anywhere the ring is not.
+/// so nothing changes anywhere the ring is not. Callers with no selection to move — the canvas,
+/// the sidebar wall — pass nil, and choosing something acts on `items` alone.
 ///
 /// The wording counts. "Delete 4 Images" and "Delete Image" are the same menu item, and a menu
 /// that said "Delete Images" over one of them would be lying about what it is about to do.
 struct LibraryItemMenu: View {
     /// The images the menu acts on.
     let items: [LibraryItem]
-    /// The grid's selection, made to agree with `items` the moment something is chosen.
-    let selection: LibrarySelection
+    /// The grid's selection, made to agree with `items` the moment something is chosen, or nil
+    /// where there is no selection to move.
+    var selection: LibrarySelection? = nil
 
     @Environment(LibraryIndex.self) private var index
 
     var body: some View {
         if let first = items.first {
-            if index.query.scope == .recentlyDeleted {
+            // Decided by where the file is, not by what the grid is showing: the canvas offers
+            // this menu whatever scope the library was left on, and "Delete Immediately" over
+            // a live picture would unlink it rather than move it to Recently Deleted.
+            if first.collection == .recentlyDeleted {
                 Button("Put Back\(suffix)") { act { index.restore($0) } }
                 Divider()
                 Button("Delete \(noun) Immediately", role: .destructive) { act { index.purge($0) } }
@@ -49,11 +58,13 @@ struct LibraryItemMenu: View {
 
     /// Moves the ring onto what is about to change, then changes it. Choosing something from a
     /// menu opened over an unselected image should leave that image selected, the way the
-    /// Finder does.
+    /// Finder does. Where there is no selection to move, only the change happens.
     private func act(_ change: (Set<LibraryItem.ID>) -> Void) {
         let ids = Set(items.map(\.id))
-        selection.ids = ids
-        selection.anchor = items.first?.id
+        if let selection {
+            selection.ids = ids
+            selection.anchor = items.first?.id
+        }
         change(ids)
     }
 

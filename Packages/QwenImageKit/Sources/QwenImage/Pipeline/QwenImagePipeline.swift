@@ -76,10 +76,21 @@ public final class QwenImagePipeline {
         Memory.clearCache()
     }
 
+    /// Called after a denoising step has been evaluated, with the step it just finished
+    /// (counting from zero), how many there are, and a way to decode the latent as it stands.
+    ///
+    /// The frame is a closure rather than a value because making one is a pass through the
+    /// autoencoder: a host that shows frames only every so often never pays for the ones it
+    /// would have thrown away. How often that is belongs to the host, not to this package.
+    public typealias PreviewHandler = (
+        _ step: Int, _ totalSteps: Int, _ frame: () -> QwenImageLatentPreview
+    ) -> Void
+
     /// Generates one image and returns PNG bytes.
     public func generate(
         _ request: QwenImageGenerationRequest,
-        onProgress: (QwenImageGenerationProgress) -> Void = { _ in }
+        onProgress: (QwenImageGenerationProgress) -> Void = { _ in },
+        onPreview: PreviewHandler? = nil
     ) throws -> Data {
         guard let model = loaded else { throw QwenImagePipelineError.notLoaded }
         let alignment = Self.sizeAlignment
@@ -124,6 +135,7 @@ public final class QwenImagePipeline {
 
         let latents = try QwenImageDenoiseLoop.run(
             noise: noise,
+            latentSize: (height: latentHeight, width: latentWidth),
             reference: request.referenceImage.map {
                 QwenImageDenoiseLoop.Reference(
                     image: $0, strength: request.referenceStrength,
@@ -134,7 +146,8 @@ public final class QwenImagePipeline {
             autoencoder: model.autoencoder,
             conditioning: conditioning,
             frequencies: frequencies,
-            onProgress: onProgress
+            onProgress: onProgress,
+            onPreview: onPreview
         )
 
         onProgress(QwenImageGenerationProgress(stage: .decoding))

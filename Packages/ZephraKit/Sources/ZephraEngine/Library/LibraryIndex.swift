@@ -28,6 +28,12 @@ public final class LibraryIndex {
     public internal(set) var isScanning = false
     /// The most recent thing the library could not do, or nil when the last one worked.
     public internal(set) var lastFailure: LibraryFailure?
+    /// Called with the files just moved to Recently Deleted, before the move is confirmed on
+    /// disk. `GenerationStore` has no idea the library index exists, so this is how the
+    /// composition root tells the canvas to let go of a picture the grid, the viewer, or the
+    /// wall deleted out from under it — a delete made through here rather than through the
+    /// store's own `delete(_:)`, which tells the store directly.
+    public var onRecentlyDeleted: (@MainActor (Set<URL>) -> Void)?
     /// What the library is showing. Setting it reprojects; it never rescans.
     public var query: LibraryQuery {
         didSet {
@@ -49,6 +55,9 @@ public final class LibraryIndex {
     /// Annotations written optimistically and not yet on disk, coalesced by file: a favourite
     /// toggled five times before the first write lands is one write.
     @ObservationIgnored var pending: [LibraryItem.ID: LibraryAnnotation] = [:]
+    /// Album manifests queued and not yet on disk. While one is, a scan keeps the albums as
+    /// they are here rather than taking the older list still on the disk.
+    @ObservationIgnored var pendingAlbumWrites = 0
     @ObservationIgnored var watches: [LibraryCollection: LibraryFolderWatch] = [:]
     @ObservationIgnored var debounce: Task<Void, Never>?
     @ObservationIgnored var fingerprint = 0

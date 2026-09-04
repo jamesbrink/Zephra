@@ -14,7 +14,8 @@ struct ModelInventoryTests {
         let scratch = Scratch("ModelInventory")
         try scratch.write(String(repeating: "x", count: 4096), to: "models/z-image-turbo-4bit/model_index.json")
         let inventory = ModelInventory(
-            cache: scratch.url("hub"), builtIn: scratch.url("models"), remove: { _ in })
+            cache: scratch.url("hub"), locations: ModelLocations(root: scratch.url("models")),
+            remove: { _ in })
 
         await inventory.refresh()
         let item = try #require(inventory.items.first)
@@ -31,7 +32,7 @@ struct ModelInventoryTests {
         let scratch = Scratch("ModelInventory")
         try scratch.make("models/z-image-turbo-4bit/model_index.json")
         let inventory = ModelInventory(
-            cache: scratch.url("hub"), builtIn: scratch.url("models"),
+            cache: scratch.url("hub"), locations: ModelLocations(root: scratch.url("models")),
             remove: { try FileManager.default.removeItem(at: $0.url) })
         await inventory.refresh()
         let item = try #require(inventory.items.first)
@@ -48,7 +49,8 @@ struct ModelInventoryTests {
         let scratch = Scratch("ModelInventory")
         try scratch.make("models/z-image-turbo-4bit/model_index.json")
         let inventory = ModelInventory(
-            cache: scratch.url("hub"), builtIn: scratch.url("models"), remove: { _ in throw Refused() })
+            cache: scratch.url("hub"), locations: ModelLocations(root: scratch.url("models")),
+            remove: { _ in throw Refused() })
         await inventory.refresh()
         let item = try #require(inventory.items.first)
 

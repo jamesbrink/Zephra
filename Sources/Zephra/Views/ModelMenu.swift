@@ -5,6 +5,10 @@ import ZephraEngine
 /// Picks which model the engine runs, and says what choosing one would cost: already on disk,
 /// a download away, never built, tiled to fit, or more memory than this Mac has.
 ///
+/// Shown only on the canvas, the same way `LibrarySortMenu` shows only in the library: the
+/// model does not change what the library is listing, so a chip naming it there would be
+/// something to look at rather than something to act on.
+///
 /// Memory is a note, not a gate. A model whose peak is over this Mac's budget still runs at a
 /// smaller size than its default, so the row says what it would take and lets it be chosen.
 /// Only a model that cannot be had at all — never built, no backend for it — is disabled.
@@ -12,27 +16,30 @@ import ZephraEngine
 /// the new one takes over for whatever is queued next.
 struct ModelMenu: View {
     @Environment(GenerationStore.self) private var store
+    @Environment(WorkspaceSelection.self) private var workspace
 
     var body: some View {
-        Menu {
-            ForEach(ModelCatalog.all) { model in
-                Button {
-                    store.switchModelFromInterface(to: model)
-                } label: {
-                    label(for: model)
+        if workspace.pane == .canvas {
+            Menu {
+                ForEach(ModelCatalog.all) { model in
+                    Button {
+                        store.switchModelFromInterface(to: model)
+                    } label: {
+                        label(for: model)
+                    }
+                    .disabled(!canChoose(model))
+                    .help(obstacle(model) ?? model.fullName)
                 }
-                .disabled(!canChoose(model))
-                .help(obstacle(model) ?? model.fullName)
+            } label: {
+                Text(store.descriptor.fullName)
+                    .font(.callout)
             }
-        } label: {
-            Text(store.descriptor.fullName)
-                .font(.callout)
+            .menuStyle(.button)
+            .buttonStyle(.accessoryBar)
+            .fixedSize()
+            .help("Model for the next generation")
+            .accessibilityLabel("Model")
         }
-        .menuStyle(.button)
-        .buttonStyle(.accessoryBar)
-        .fixedSize()
-        .help("Model for the next generation")
-        .accessibilityLabel("Model")
     }
 
     @ViewBuilder
@@ -48,10 +55,13 @@ struct ModelMenu: View {
     /// The secondary half of a row: what it would take to run this model, or nil when there is
     /// nothing worth saying. A model that cannot be had at all says so before anything about
     /// memory: "Tiles the decode" beside a greyed-out row explains nothing, and a disabled menu
-    /// item shows no tooltip to explain it either.
+    /// item shows no tooltip to explain it either. A download comes before memory too — its
+    /// size has to be on screen before choosing the row starts it — and the memory note then
+    /// lives in the tooltip.
     private func note(for model: ModelDescriptor) -> String? {
         let availability = store.availability[model.id]
         if availability?.isObtainable == false { return availability?.label }
+        if availability?.needsNetwork == true { return availability?.label }
         if let memory = memoryNote(model) { return memory }
         return availability?.label
     }
@@ -113,4 +123,5 @@ struct ModelMenu: View {
     ModelMenu()
         .padding()
         .environment(GenerationStore.preview(state: .ready))
+        .environment(WorkspaceSelection(pane: .canvas))
 }

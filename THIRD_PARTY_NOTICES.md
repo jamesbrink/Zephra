@@ -119,9 +119,10 @@ at, carries no license file and was never opened.
 - **Source:** https://github.com/huggingface/swift-transformers
 - **Copyright:** Copyright 2022 Hugging Face SAS
 - **License:** Apache License 2.0
-- **Used as:** tokenizer and Hugging Face Hub model resolution, a dependency
-  of `ZImageKit`, of `QwenImageKit`, and of `Flux2Kit`, which also downloads
-  through it.
+- **Used as:** tokenizers, a dependency of `ZImageKit`, of `QwenImageKit`, and
+  of `Flux2Kit`. Zephra downloads model weights with its own client in
+  `ZephraSnapshot` and no longer resolves or fetches anything through this
+  package; `ZImageKit`'s vendored resolver still links it.
 
 ### swift-log
 
@@ -161,10 +162,11 @@ at, carries no license file and was never opened.
 
 ## Model weights
 
-Not redistributed with the app. The default model is downloaded on first run
-from Hugging Face into `~/.cache/huggingface/hub`; the others are fetched by
-`make quantize` and `make prefetch-qwen` and built into a local variant on the
-user's own machine.
+Not redistributed with the app. Every one of them is downloaded from Hugging
+Face, on first use of the model that needs it, into the folder Settings > Models
+names — `~/Library/Application Support/Zephra/Models` unless the user changes
+it. Some are loaded as they are; the rest are built into a local variant on the
+user's own machine, which the `make quantize*` targets also do by hand.
 
 - **Tongyi-MAI/Z-Image-Turbo** — https://huggingface.co/Tongyi-MAI/Z-Image-Turbo
   — License: Apache License 2.0
@@ -183,13 +185,14 @@ user's own machine.
   only from the klein-4B repository, which Black Forest Labs publishes whole
   under Apache 2.0, and never resolves FLUX.2-dev.
 
-None of the locally built variants is downloaded and none is redistributed.
-`make quantize` derives the Z-Image one on the user's own Mac from
-**Tongyi-MAI/Z-Image-Turbo** above; `make quantize-qwen` derives the Qwen-Image
-one from **Qwen/Qwen-Image-2512** with the **Lightning** adapter merged into its
-transformer; the app itself derives the FLUX.2 klein variants from
-**black-forest-labs/FLUX.2-klein-4B** the first time one is loaded. All are
-written to `~/Library/Application Support/Zephra/Models`. Each is a modified
+None of the locally built variants is downloaded and none is redistributed. The
+app derives each of them on the user's own Mac, the first time one is loaded:
+the 4-bit Z-Image variant from **Tongyi-MAI/Z-Image-Turbo** above, the
+Qwen-Image variant from **Qwen/Qwen-Image-2512** with the **Lightning** adapter
+merged into its transformer, and the two FLUX.2 klein variants from
+**black-forest-labs/FLUX.2-klein-4B**. The `make quantize`, `make quantize-qwen`
+and `make quantize-flux2` targets do the same builds by hand. All are written to
+the folder Settings > Models names. Each is a modified
 form of Apache-2.0 weights — for the Qwen build, of two sets of them — so the
 Apache License 2.0 that covers those covers the result too.
 

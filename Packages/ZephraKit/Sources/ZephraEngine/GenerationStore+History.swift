@@ -36,6 +36,23 @@ extension GenerationStore {
         }
     }
 
+    /// Lets go of an image the library moved out from under the canvas — deleted from the grid,
+    /// the viewer, the sidebar wall, or the canvas's own menu, every one of which acts on
+    /// `LibraryIndex` rather than through `delete(_:)` above. The file is already gone by the
+    /// time this is called, so there is no move to make; this only stops the canvas showing it
+    /// and drops it from history, stepping to the next image exactly as `delete(_:)` does for
+    /// its own deletes.
+    ///
+    /// A picture opened from the library rather than made this session is `current` without
+    /// being in `history` at all — see `open(_:)` — so the index lookup that finds it there
+    /// comes back nil and `next(after:)` falls back to the newest thing history does hold.
+    public func forget(fileAt url: URL) {
+        let index = history.firstIndex { $0.fileURL == url }
+        if let index { history.remove(at: index) }
+        guard current?.fileURL == url else { return }
+        current = next(after: index)
+    }
+
     /// What to show after the image at `index` is gone: the one that took its place, or the
     /// oldest left, or nothing at all.
     private func next(after index: Int?) -> GeneratedImage? {

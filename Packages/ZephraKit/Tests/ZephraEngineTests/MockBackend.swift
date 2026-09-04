@@ -14,6 +14,14 @@ final class MockBackend: ImageGenerationBackend {
             """
     )!
 
+    /// A 2x2 frame whose red channel counts the step, so a test can tell one frame from the
+    /// next without decoding anything.
+    static func preview(step: Int) -> GenerationPreview {
+        GenerationPreview(
+            width: 2, height: 2,
+            pixels: Data((0..<4).flatMap { _ in [UInt8(step % 256), 0, 0, 255] }))
+    }
+
     private(set) var loadedModelID: String?
 
     private let control: MockBackendControl
@@ -22,23 +30,28 @@ final class MockBackend: ImageGenerationBackend {
         self.control = control
     }
 
-    func availability(of descriptor: ModelDescriptor) async -> ModelAvailability {
+    func availability(
+        of descriptor: ModelDescriptor, locations: ModelLocations
+    ) async -> ModelAvailability {
         control.update { $0.availabilityChecks += 1 }
         return control.settings.availability[descriptor.id] ?? .available
     }
 
     func ensureAvailable(
         _ descriptor: ModelDescriptor,
+        locations: ModelLocations,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws -> URL {
+        control.update { $0.lastLocations = locations }
         onProgress(DownloadProgressEvent(completedFiles: 0, totalFiles: 2, fraction: 0))
         onProgress(DownloadProgressEvent(completedFiles: 2, totalFiles: 2, fraction: 1))
-        return URL(filePath: NSTemporaryDirectory()).appending(path: descriptor.id)
+        return locations.downloads(repoID: descriptor.id)
     }
 
     func build(
         _ descriptor: ModelDescriptor,
         at localPath: URL,
+        locations: ModelLocations,
         onProgress: @escaping @Sendable (BuildProgressEvent) -> Void
     ) async throws -> URL {
         let dials = control.settings
@@ -88,11 +101,17 @@ final class MockBackend: ImageGenerationBackend {
             if dials.stepDelay > .zero {
                 try await Task.sleep(for: dials.stepDelay)
             }
+            var preview: GenerationPreview?
+            if dials.previewsEveryStep {
+                preview = Self.preview(step: step)
+                control.update { $0.previewsEmitted += 1 }
+            }
             control.update { $0.stepsEmitted += 1 }
             onProgress(
                 GenerationProgressEvent(
                     phase: .denoising(step: step, of: total),
-                    fraction: Double(step) / Double(total)
+                    fraction: Double(step) / Double(total),
+                    preview: preview
                 )
             )
         }

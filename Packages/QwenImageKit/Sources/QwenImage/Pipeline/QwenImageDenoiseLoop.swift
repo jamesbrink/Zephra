@@ -23,15 +23,20 @@ enum QwenImageDenoiseLoop {
     /// from the end, from that picture's latent carrying that step's share of `noise`. Progress is
     /// reported against the full step count either way, so a host drawing one segment per step
     /// shows the skipped ones as finished rather than showing a shorter run.
+    ///
+    /// `latentSize` is the latent's own height and width in cells, which the loop needs only to
+    /// hand a frame back the shape it was packed from; `onPreview` is that hook.
     static func run(
         noise: MLXArray,
+        latentSize: (height: Int, width: Int),
         reference: Reference?,
         scheduler: FlowMatchEulerScheduler,
         transformer: QwenImageTransformer,
         autoencoder: QwenImageAutoencoder,
         conditioning: MLXArray,
         frequencies: (image: RotaryFrequencies, text: RotaryFrequencies),
-        onProgress: (QwenImageGenerationProgress) -> Void
+        onProgress: (QwenImageGenerationProgress) -> Void,
+        onPreview: QwenImagePipeline.PreviewHandler? = nil
     ) throws -> MLXArray {
         let sigmas = scheduler.sigmas.dropLast()
         var latents = noise
@@ -65,6 +70,27 @@ enum QwenImageDenoiseLoop {
             )
             latents = scheduler.step(modelOutput: prediction, index: index, sample: latents)
             MLX.eval(latents)
+            // After the evaluation, so the frame shows the step that has just finished rather
+            // than the one about to run, and never on the last: the real decode follows it
+            // immediately, and a pooled one in front of that is a second pass through the
+            // autoencoder for a picture the caller is a moment from seeing properly.
+            //
+            // What is decoded is the run's estimate of the *finished* latent, not the latent it
+            // is holding. One more Euler step of this prediction, all the way to zero noise, is
+            // `x - sigma * v`, and that is what a person means by "how is it coming along". On
+            // a four-step ladder the latent itself is still mostly noise until the last rung,
+            // and decoding it gives mush.
+            if let onPreview, index < sigmas.count - 1 {
+                let target = latents
+                let prediction = prediction
+                let sigmaNext = Float(scheduler.sigmas[index + 1])
+                onPreview(index, sigmas.count) {
+                    QwenImageLatentPreview.make(
+                        tokens: target - prediction * sigmaNext,
+                        latentHeight: latentSize.height,
+                        latentWidth: latentSize.width, autoencoder: autoencoder)
+                }
+            }
         }
         return latents
     }

@@ -3,37 +3,64 @@ import ZephraCore
 
 /// What the catalog's models occupy on this Mac, found from the disk alone.
 ///
-/// Two places are looked at, the ones the catalog and the hub client already agree on: the hub
-/// cache, in either of its layouts, for anything downloaded, and `localModelsDirectory` for
-/// anything packed here. Nothing else is measured or offered for deletion, so a folder of the
-/// user's own beside them is never touched.
+/// Two places are looked at. The folder the user keeps models in — downloads under
+/// `Downloads/<org>--<repo>`, variants packed here beside them — and the hub cache, in either of
+/// its layouts, for anything `hf` or an older Zephra left there. Nothing else is measured or
+/// offered for deletion, so a folder of the user's own beside them is never touched.
 public nonisolated enum ModelStorage {
-    /// Every directory the catalog's models have on this Mac, unmeasured, in catalog order.
+    /// Every directory the catalog's models have on this Mac, unmeasured, in catalog order and
+    /// with the app's own folder before the hub cache.
     ///
     /// A release several models pack from is listed once, naming all of them. A model whose
     /// download is what loads is the download's name; a release only ever packed from is
-    /// called the family's release, so a row reads as what deleting it would cost.
+    /// called the family's release, so a row reads as what deleting it would cost. Each row
+    /// also says where it is, which is what tells two copies of one release apart.
     public static func items(
         for catalog: [ModelDescriptor],
         cache: URL = HubCache.directory(),
-        builtIn models: URL = ModelCatalog.localModelsDirectory
+        locations: ModelLocations = .default
     ) -> [ModelStorageItem] {
         var items: [ModelStorageItem] = []
         for descriptor in catalog {
-            switch descriptor.source {
-            case .localDirectory(let directory):
-                items.append(contentsOf: built(descriptor, at: relocated(directory, into: models)))
-            case .huggingFace(let repoID, _, _):
-                for repository in HubCache.repositories(of: repoID, in: cache) {
-                    if let index = items.firstIndex(where: { $0.url == repository.url }) {
-                        items[index] = items[index].alsoUsed(by: descriptor)
-                    } else {
-                        items.append(download(descriptor, from: repository))
+            // Every root the folder has been, the current one first: what was downloaded or
+            // built under an earlier choice still loads, so it is still the person's to see
+            // and to delete. A row under a root other than the current one says its whole path.
+            guard case .huggingFace(let repoID, _, _) = descriptor.source else {
+                // A model named by its directory is listed there, wherever that is.
+                for directory in locations.builtCandidates(for: descriptor) {
+                    add(built(descriptor, at: directory, in: locations), to: &items)
+                }
+                continue
+            }
+            for root in locations.roots {
+                let folder = ModelLocations(root: root)
+                do {
+                    let downloads = folder.downloads(repoID: repoID)
+                    if HubCache.isDirectory(downloads) {
+                        add(
+                            download(
+                                descriptor, at: downloads,
+                                isComplete: HubSnapshotCheck.isComplete(downloads), in: locations),
+                            to: &items)
+                    }
+                    for item in descriptor.adapters {
+                        add(adapter(item, of: descriptor, in: folder, captioned: locations), to: &items)
+                    }
+                    if descriptor.isBuiltLocally {
+                        add(built(descriptor, at: folder.built(descriptor), in: locations), to: &items)
                     }
                 }
-                if descriptor.isBuiltLocally {
-                    let packed = models.appending(path: descriptor.id, directoryHint: .isDirectory)
-                    items.append(contentsOf: built(descriptor, at: packed))
+            }
+            for repository in HubCache.repositories(of: repoID, in: cache) {
+                add(
+                    download(
+                        descriptor, at: repository.url, isComplete: repository.isComplete,
+                        in: locations),
+                    to: &items)
+            }
+            for item in descriptor.adapters {
+                for repository in HubCache.repositories(of: item.repoID, in: cache) {
+                    add(adapter(item, of: descriptor, at: repository, captioned: locations), to: &items)
                 }
             }
         }
@@ -62,43 +89,5 @@ public nonisolated enum ModelStorage {
     /// on the user's behalf: a mistaken click on twenty gigabytes is undone from the Finder.
     public static func remove(_ item: ModelStorageItem) throws {
         try FileManager.default.trashItem(at: item.url, resultingItemURL: nil)
-    }
-
-    private static func download(
-        _ descriptor: ModelDescriptor, from repository: HubRepository
-    ) -> ModelStorageItem {
-        let name = descriptor.isBuiltLocally ? "\(descriptor.displayName) release" : descriptor.fullName
-        return ModelStorageItem(
-            name: name, kind: .download, url: repository.url, modelIDs: [descriptor.id],
-            isComplete: repository.isComplete)
-    }
-
-    /// A catalog entry names its directory absolutely, under the real `localModelsDirectory`.
-    /// Read against another root — a test's scratch folder — the same entry means the same
-    /// folder name under that root, so the whole catalog can be listed against any directory.
-    private static func relocated(_ directory: URL, into models: URL) -> URL {
-        let parent = directory.deletingLastPathComponent().standardizedFileURL.path(percentEncoded: false)
-        let real = ModelCatalog.localModelsDirectory.standardizedFileURL.path(percentEncoded: false)
-        guard parent == real else { return directory }
-        return models.appending(path: directory.lastPathComponent, directoryHint: .isDirectory)
-    }
-
-    private static func built(_ descriptor: ModelDescriptor, at directory: URL) -> [ModelStorageItem] {
-        guard HubCache.isDirectory(directory) else { return [] }
-        return [
-            ModelStorageItem(
-                name: descriptor.fullName, kind: .built, url: directory,
-                modelIDs: [descriptor.id], isComplete: true)
-        ]
-    }
-}
-
-extension ModelStorageItem {
-    /// The same directory, now also claimed by `descriptor`. A release the download's own
-    /// model loads keeps that model's name; one only packed from takes the family's.
-    fileprivate func alsoUsed(by descriptor: ModelDescriptor) -> ModelStorageItem {
-        ModelStorageItem(
-            name: name, kind: kind, url: url, modelIDs: modelIDs + [descriptor.id],
-            isComplete: isComplete, bytes: bytes)
     }
 }

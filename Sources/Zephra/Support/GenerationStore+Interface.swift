@@ -6,9 +6,10 @@ import ZephraEngine
 /// on the way in, because `ZephraEngine` knows nothing about `UserDefaults`, and the one or two
 /// questions the interface asks in its own terms are answered here too.
 extension GenerationStore {
-    /// Whether the canvas has a picture on it, which is what decides whether there is an
-    /// inspector to show beside it.
-    var hasPicture: Bool { current != nil }
+    /// Whether the canvas has something to describe, which is what decides whether there is an
+    /// inspector to show beside it: a picture, or a run it is following, which has a prompt and
+    /// a size to show from the moment it starts.
+    var hasPicture: Bool { current != nil || isShowingRun }
 
     /// Applies the launch preferences, then loads the model. The root view's only entry point.
     func bootstrapFromInterface() async {

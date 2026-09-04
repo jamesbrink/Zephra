@@ -13,16 +13,12 @@ struct PromptCapsule: View {
                 completed: store.state.denoisingProgress?.step ?? 0,
                 isRunning: store.state.denoisingProgress != nil
             )
-            VStack(alignment: .leading, spacing: 12) {
+            // One width for the prompt, the divider and the settings, so the reference well
+            // lines up with the Generate button even when the settings row is the widest.
+            SharedWidthRows(spacing: 12) {
                 PromptRow()
                 Divider()
-                HStack(alignment: .bottom, spacing: 12) {
-                    ControlsRow()
-                    Spacer(minLength: 12)
-                    BatchCountControl()
-                    StopButton()
-                    GenerateButton()
-                }
+                controls
             }
             .padding(.horizontal, 16)
             .padding(.top, 13)
@@ -31,8 +27,18 @@ struct PromptCapsule: View {
         .chromePanel(.floating)
         // Wide enough for the settings, the batch count, and a Generate button that spells out
         // its shortcut, without the row overflowing the panel it is drawn in. The overlay above
-        // allows 736.
+        // allows 736; a settings row that needs more widens the whole capsule, prompt included.
         .frame(maxWidth: 736)
+    }
+
+    private var controls: some View {
+        HStack(alignment: .bottom, spacing: 12) {
+            ControlsRow()
+            Spacer(minLength: 12)
+            BatchCountControl()
+            StopButton()
+            GenerateButton()
+        }
     }
 }
 

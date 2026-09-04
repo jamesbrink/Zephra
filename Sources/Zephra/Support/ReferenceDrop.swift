@@ -21,15 +21,22 @@ enum ReferenceDrop {
                   || $0.hasItemConformingToTypeIdentifier(UTType.image.identifier) })
         else { return false }
         let type = provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) ? UTType.fileURL : .image
-        provider.loadDataRepresentation(forTypeIdentifier: type.identifier) { data, _ in
-            guard let data else { return }
+        // The drop is a choice like any other, made now rather than when its bytes arrive: a
+        // slow provider must not overtake a picture chosen from the library after it was
+        // accepted, and Generate waits for it the way it waits for a library read.
+        // `NSItemProvider` is documented thread-safe, which the compiler cannot see.
+        nonisolated(unsafe) let dropped = provider
+        store.adoptReference {
+            let data = await withCheckedContinuation { continuation in
+                dropped.loadDataRepresentation(forTypeIdentifier: type.identifier) { data, _ in
+                    continuation.resume(returning: data)
+                }
+            }
+            guard let data else { return nil }
             // A file macOS cannot read leaves whatever was there alone.
-            let png: Data? =
-                type == .fileURL
+            return type == .fileURL
                 ? URL(dataRepresentation: data, relativeTo: nil).flatMap(ReferenceImageEncoder.pngData(contentsOf:))
                 : ReferenceImageEncoder.pngData(from: data)
-            guard let png else { return }
-            Task { @MainActor in store.useAsReference(png) }
         }
         return true
     }

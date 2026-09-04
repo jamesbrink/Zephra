@@ -23,6 +23,9 @@ public enum QuantizationError: Error, LocalizedError, Equatable {
     /// An adapter names weights the component being packed does not have, so the distillation
     /// it encodes would be silently half-applied.
     case unmatchedAdapterLayers(component: String, keys: [String])
+    /// The volume the build would be written to cannot hold it. Checked before anything is
+    /// read, because a component that ran out of disk half way reads as a snapshot to a loader.
+    case notEnoughSpace(needed: Int64, free: Int64)
 
     public var errorDescription: String? {
         switch self {
@@ -50,6 +53,19 @@ public enum QuantizationError: Error, LocalizedError, Equatable {
             \(keys.prefix(3).joined(separator: ", ")). Merging it would apply part of the \
             distillation and not the rest.
             """
+        case .notEnoughSpace(let needed, let free):
+            """
+            Building this model needs about \(Self.gigabytes(needed)) free and the disk has \
+            \(Self.gigabytes(free)).
+            """
         }
+    }
+
+    /// Bytes as gigabytes to one decimal place. A copy of `ZephraCore.ByteCount` on purpose:
+    /// the packer is deliberately free of every Zephra dependency, and one line of arithmetic
+    /// is a smaller price than a layer crossing.
+    private static func gigabytes(_ bytes: Int64) -> String {
+        let tenths = Int((Double(bytes) / 100_000_000).rounded())
+        return tenths % 10 == 0 ? "\(tenths / 10) GB" : "\(tenths / 10).\(tenths % 10) GB"
     }
 }

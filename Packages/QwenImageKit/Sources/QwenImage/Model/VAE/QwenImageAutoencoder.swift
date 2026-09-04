@@ -60,11 +60,7 @@ public final class QwenImageAutoencoder: Module {
     ///   them — still on the normalised scale the transformer works in.
     /// - Returns: `[batch, height, width, 3]`.
     public func decode(_ latents: MLXArray) -> MLXArray {
-        // Undo the per-channel normalisation the latent space is expressed in. Getting this
-        // wrong washes the image out or oversaturates it rather than failing.
-        let channelsLast = latents.transposed(0, 2, 3, 1)
-        let denormalized =
-            channelsLast * MLXArray(latentsStandardDeviation) + MLXArray(latentsMean)
+        let denormalized = denormalized(latents)
         // Tiling is applied around the whole decode, `post_quant_conv` included: it is a 1x1
         // convolution, so it commutes with taking a tile and there is nothing to be gained by
         // holding the full-resolution result of it live.
@@ -77,6 +73,23 @@ public final class QwenImageAutoencoder: Module {
                 decoder(postQuantization(denormalized))
             }
         return MLX.clip(pixels, min: MLXArray(Float(-1)), max: MLXArray(Float(1)))
+    }
+
+    /// The same decode with the tiling never applied: what a preview frame takes, a latent
+    /// pooled to 32 cells an edge being smaller than any tile worth cutting.
+    func decodeUntiled(_ latents: MLXArray) -> MLXArray {
+        MLX.clip(
+            decoder(postQuantization(denormalized(latents))),
+            min: MLXArray(Float(-1)), max: MLXArray(Float(1)))
+    }
+
+    /// The latent on the autoencoder's own scale, channels last.
+    ///
+    /// Undoing the per-channel normalisation the latent space is expressed in is what this is:
+    /// getting it wrong washes the image out or oversaturates it rather than failing.
+    private func denormalized(_ latents: MLXArray) -> MLXArray {
+        latents.transposed(0, 2, 3, 1) * MLXArray(latentsStandardDeviation)
+            + MLXArray(latentsMean)
     }
 
     /// Turns an image into latents on the scale the denoising loop works in.

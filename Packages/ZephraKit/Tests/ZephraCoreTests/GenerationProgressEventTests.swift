@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 import ZephraCore
 
@@ -33,5 +34,16 @@ struct GenerationProgressEventTests {
     func otherPhases() {
         let event = GenerationProgressEvent(phase: .decoding, fraction: 1, secondsPerStep: 0.5)
         #expect(event.estimatedSecondsRemaining == nil)
+    }
+
+    @Test("the frame an update carries is not part of what makes it that update")
+    func theFrameIsNotIdentity() {
+        let bare = GenerationProgressEvent(phase: .denoising(step: 2, of: 4), fraction: 0.5)
+        let framed = GenerationProgressEvent(
+            phase: .denoising(step: 2, of: 4), fraction: 0.5,
+            preview: GenerationPreview(
+                width: 1, height: 1, pixels: Data([1, 2, 3, 255])))
+        #expect(bare == framed)
+        #expect(bare.hashValue == framed.hashValue)
     }
 }

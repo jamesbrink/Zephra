@@ -52,12 +52,32 @@ public nonisolated final class Flux2Backend: ImageGenerationBackend {
         guard let descriptor = loadedDescriptor else {
             throw BackendError.loadFailed("No model is loaded.")
         }
+        // One throttle per run, so a frame is made at most every three quarters of a second
+        // however fast the steps go by, and none at all when the environment has switched them
+        // off. Nil rather than an always-refusing throttle: the loop then skips the check.
+        var throttle = PreviewThrottle.environmentInterval.map(PreviewThrottle.init(interval:))
+        let onPreview: Flux2Pipeline.PreviewHandler? =
+            throttle == nil
+            ? nil
+            : { step, total, frame in
+                guard throttle?.shouldMakeFrame() == true else { return }
+                let started = ContinuousClock.now
+                let made = frame()
+                onProgress(
+                    .frame(
+                        after: step, of: total,
+                        preview: GenerationPreview(
+                            width: made.width, height: made.height, pixels: made.pixels,
+                            duration: ContinuousClock.now - started)))
+            }
         do {
             return try pipeline.generate(
-                Flux2RequestMapper.request(for: settings, descriptor: descriptor)
-            ) { progress in
-                onProgress(Flux2ProgressMapper.event(from: progress))
-            }
+                Flux2RequestMapper.request(for: settings, descriptor: descriptor),
+                onProgress: { progress in
+                    onProgress(Flux2ProgressMapper.event(from: progress))
+                },
+                onPreview: onPreview
+            )
         } catch let error as CancellationError {
             throw error
         } catch {
@@ -70,12 +90,5 @@ public nonisolated final class Flux2Backend: ImageGenerationBackend {
         pipeline.unloadModel()
         loadedModelID = nil
         loadedDescriptor = nil
-    }
-
-    /// Where the packed variant for `descriptor` lives, built or not: the catalog's local models
-    /// directory, named after the descriptor, which is the convention every locally built
-    /// variant follows.
-    static func packedDirectory(for descriptor: ModelDescriptor) -> URL {
-        ModelCatalog.localModelsDirectory.appending(path: descriptor.id, directoryHint: .isDirectory)
     }
 }

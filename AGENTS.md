@@ -28,7 +28,8 @@ Sources/ZephraBench (tool)   ─→ ZephraCore, every ZephraBackend<Family>
 Sources/ZephraQuantize (tool)─→ ZephraCore, ZephraQuantization, every ZephraBackend<Family>
 
 Shared, by what a file actually touches:
-  ZephraKit/ZephraSnapshot     Foundation only  — hub cache, local snapshot checks,
+  ZephraKit/ZephraSnapshot     Foundation only  — the model downloader, local snapshot
+                                                  checks, the hub cache read as a fallback,
                                                   what the models occupy on disk
   ZephraKit/ZephraTestSupport  Foundation only  — Scratch, the filesystem test fixture
   ZephraMLXKit/ZephraQuantization  MLX          — the streaming weight packer
@@ -38,33 +39,74 @@ Shared, by what a file actually touches:
 
 - `ZephraCore` (in `Packages/ZephraKit`): Sendable value types + protocols.
   Zero dependencies — no model package, no MLX, no SwiftUI.
-- `ZephraSnapshot` (in `Packages/ZephraKit`): finding a cached Hugging Face
-  snapshot, checking a local model directory, and listing what the catalog's
-  models occupy on disk. Foundation only, which is the point: `make test`
-  covers it, so these suites need no Metal. The hub cache holds two layouts
-  and `HubRepository` reads both: `hf download` writes
-  `models--<org>--<repo>/snapshots/<commit>/`, and the hub client the app
-  downloads with writes `models/<org>/<repo>/` flat, with its `.incomplete`
-  files under `.cache/huggingface/download/`. `HubSnapshotCheck` is what says
-  a snapshot is finished: a config, some weights, every shard a
-  `*.safetensors.index.json` names, and nothing still `.incomplete`. A backend
-  asks `HubCache` before its own resolver, because the vendored resolver knows
-  only the first layout and would fetch a model the app itself downloaded again
-  on every launch.
+- `ZephraSnapshot` (in `Packages/ZephraKit`): downloading a model, checking a
+  local model directory, reading the Hugging Face cache as a fallback, and
+  listing what the catalog's models occupy on disk. Foundation only, which is
+  the point: `make test` covers all of it, so these suites need no Metal and
+  the downloader is driven through a `URLProtocol` stub.
+  - `Download/` is the downloader. `ModelDownloader` first asks
+    `/api/models/{repo}/revision/{revision}` which commit the catalog's branch
+    names and pins the transfer to it in `.zephra-revision` beside the files —
+    a download of hours, or one resumed a week later, must list and fetch one
+    commit, not a mix of two — then lists that commit from
+    `/api/models/{repo}/tree/{commit}?recursive=true` (paged by the `Link`
+    header, decoded by `RepositoryListing`), filters it with the descriptor's
+    globs (`FilePattern`, fnmatch rules, so `*` crosses directories the way
+    the hub's own matching does), and fetches each file from
+    `/{repo}/resolve/{commit}/{path}` into
+    `<models>/Downloads/<org>--<repo>/`, flat, as the repository names them.
+    A file in flight is `<name>.incomplete` beside where it will live and is
+    renamed only when its size matches the listing, so a stop or a broken
+    connection resumes with a `Range` — and an `If-Range` naming the `ETag` the
+    first answer carried, kept in `<name>.incomplete.etag` — and a truncated
+    file is never taken for a finished one; a 200 answer to a `Range` request
+    means the server ignored it or the file changed, and a 206 that does not
+    begin where the file ends is refused, so in both cases the file starts over
+    rather than being spliced onto another. The pin goes when the part's last
+    file lands and `.zephra-commit` records what the folder holds, so a later
+    transfer at another commit empties it first rather than keeping a shard of
+    the same size from the wrong one; a path in the listing that would leave
+    the folder is refused before anything is written, with links followed, so a
+    component that already points out of the folder is refused too; a partial
+    that is a link is replaced rather than appended to, and a folder that is a
+    link is never emptied for a newer commit, since either would reach wherever
+    the link points. The transfer
+    is paused above 64 MiB of body not yet written and resumed under 16 MiB
+    (`ChunkedDownload`, told of each drain by `ChunkedBody`; the task's pause and
+    the count saying it is paused change under one lock, so a drain can never
+    resume a task a moment before it is suspended for good), so a fast
+    connection cannot pile a shard up in memory ahead of a slow disk. Cancellation is checked between chunks. **No
+    `Authorization` header is ever sent** — every repository the catalog names
+    is public — so no token, in the environment or in a file, can turn a
+    public model into a login wall.
+  - `HubSnapshotCheck` is what says a directory is a finished download: a
+    config, some weights, every shard a `*.safetensors.index.json` names, and
+    nothing still `.incomplete` — or a `.zephra-revision` — anywhere under it.
+  - `HubCache` and `HubRepository` read the two layouts in
+    `~/.cache/huggingface/hub` — `hf download`'s
+    `models--<org>--<repo>/snapshots/<commit>/` and the flat
+    `models/<org>/<repo>/` an older Zephra wrote. That cache is a **read-only
+    fallback**: a Mac that has a release there does not fetch it again, and
+    nothing is ever written to it.
 - `ZephraQuantization` (in `Packages/ZephraMLXKit`): the streaming weight
   packer, shared by every family. It knows nothing about any model — a family
   hands it a `QuantizationPlan` saying which directories hold weights, which
   tensors to leave alone, how finely to squeeze the rest, and which low-rank
-  adapters to merge on the way past.
+  adapters to merge on the way past. `SnapshotBuild` beside it is the safe way
+  to run that from the app: a `.partial` directory renamed on success, removed
+  on failure, and a free-space refusal before anything is read.
 - `ZephraMLX` (in `Packages/ZephraMLXKit`): MLX work that is the same job for
-  every family. Two things are there. `TiledDecode`: an autoencoder's decode
+  every family. Three things are there. `TiledDecode`: an autoencoder's decode
   allocates in proportion to the image, so decoding overlapping latent tiles
   bounds the peak by the tile. `MLXRuntime`: the process-wide allocator's
   limits and readings, which each family's `InferenceRuntime` forwards to,
-  adding only its own VAE tile. A model package may depend on this; nothing in
-  it may depend on a model package. The vendored `ZImageKit` keeps its own
-  copy as a `ZEPHRA-PATCH`, because pointing vendored code at ours would
-  complicate every re-sync.
+  adding only its own VAE tile. `LatentPreview`: how far to pool a latent for a
+  preview frame, and how to turn the decoded pixels into RGBA8 bytes — the two
+  halves of a frame that are not a family's own decoder. A model package may
+  depend on this; nothing in it may depend on a model package. The vendored
+  `ZImageKit` keeps its own copy of the first and the third as a
+  `ZEPHRA-PATCH`, because pointing vendored code at ours would complicate every
+  re-sync.
 - `ZephraEngine` (in `Packages/ZephraKit`): concurrency + state. Depends on
   `ZephraCore` and `ZephraSnapshot`, nothing else. Backends arrive as an
   injected `BackendRegistry` of `@Sendable` factories; this layer never names
@@ -75,9 +117,9 @@ Shared, by what a file actually touches:
   (their own local packages): translate `ZephraCore` types to and from one
   family's types. No state, no UI. Each depends on `ZephraKit`'s `ZephraCore`
   and `ZephraSnapshot` products, on `ZephraQuantization` for its packing plan,
-  and on its own family's kit. `ZephraBackendFlux2` is also the one that packs
-  its download into the variant it loads, on first load, through the
-  protocol's `build` step. This split keeps `Packages/ZephraKit` free of MLX
+  and on its own family's kit. All three also pack a download into the variant
+  they load, on first load, through the protocol's `build` step — every model in
+  the catalog but the 8-bit Z-Image is built here. This split keeps `Packages/ZephraKit` free of MLX
   dependencies, so `make test` (`swift test` there) stays fast and doesn't
   touch Metal.
 - `Packages/ZImageKit`: vendored. Edit only with a `// ZEPHRA-PATCH: <reason>`
@@ -126,9 +168,9 @@ engine be tested in seconds without Metal.
   observes, and it is split across `GenerationStore+*.swift` by concern —
   loading, generation, the queue, batches (several seeds of one prompt from
   one press of Generate), model switching, history, availability, preview,
-  the reference picture, the library, upscaling and filing the upscaled result.
-  Add a new concern as another extension file, not as more lines in
-  `GenerationStore.swift`.
+  the reference picture, the library, following the run, upscaling and filing
+  the upscaled result. Add a new concern as another extension file, not as more
+  lines in `GenerationStore.swift`.
 - `InferenceActor` is the only place backend code runs. It overrides
   `unownedExecutor` with a serial `DispatchQueue`: a generation is tens of
   seconds of synchronous Metal work, and on the cooperative pool that would
@@ -138,6 +180,57 @@ engine be tested in seconds without Metal.
   `AsyncStream` buffers the newest four events and drops the rest — progress is
   a snapshot, not a log — and `run` drains before returning, so the state a
   caller sets after an operation is never clobbered by an event still in flight.
+
+`current` is what the canvas is showing, and only that.
+`GenerationStore+FollowingRun.swift` is the other half of that sentence: pressing
+Generate — or asking for a variation — starts *following the run*, and opening or
+selecting any other picture stops. A result is published to `current` only while
+`followsRun`; one that lands while the user is looking elsewhere still enters
+history, the wall and the library, and leaves the canvas where it is.
+`watchRun()` follows again, `isShowingRun` is "following, and something is
+running", and `hasPicture` in the app target is `current != nil || isShowingRun`,
+so the inspector has something to describe from the moment a run starts. The
+upscale result follows the same rule by the one test it can apply: it takes the
+canvas only when the canvas was showing its parent, or was showing nothing.
+
+`livePreview` is the newest frame of the run in flight — `GenerationPreview`,
+RGBA8 pixels of at most 256 pixels an edge, decoded by the family's own VAE from
+a pooled copy of the latent. It rides in on `GenerationProgressEvent.preview`,
+which is why that type hand-writes `==` and `hash(into:)` to ignore it:
+`EngineState` is `Hashable` and compared on every transition, and hashing a
+quarter of a megabyte per step to answer a question nobody asks is not worth it.
+The store keeps the frame outside the state and puts it down on every way a run
+can end, and only then: looking away keeps it for the running card, and a press
+of Generate that queues behind the run in flight leaves it on the canvas. `StepTimer.annotated` rebuilds the event field by field, so a new field
+there has to be forwarded by name or it never reaches the canvas.
+
+Where a frame comes from: each kit has a `<Family>LatentPreview` that takes a
+latent in its loop's own packed space, unpacks it, pools it so its long edge is at
+most 32 cells, and decodes that through the family's own autoencoder with the
+tiling skipped — `LatentPreview` in `ZephraMLX` holds the pooling and the byte
+packing for Qwen-Image and klein, and the vendored `ZImageKit` keeps its own copy
+for the same reason it keeps its own `VAETiledDecode`. Each loop calls an optional
+`onPreview` **after** the step's `MLX.eval`, never on the last step, handing over
+the step index and a *closure* that makes the frame rather than a frame: the
+backend owns a `PreviewThrottle` (0.75 s, `ZephraCore`) and never pays for the
+frames it drops. The existing before-step `onProgress` is untouched, so
+a frame never splits a step: `BenchStepClock` and `StepTimer` ignore any update
+carrying a frame, because a frame is reported after its step rather than before
+the next one. A frame's decode does land inside the step it follows, and both
+leave it there on purpose. On screen the pace is what the remaining steps will
+really take, frames included; in the benchmark `--preview` is for finding out
+what turning frames on costs, and it reports the frame's own mean beside the
+step time so the two can be told apart. A family that never calls `onPreview`
+simply shows no frames.
+
+What each loop passes is the run's estimate of the **finished** latent,
+`x - sigma * v`, and not the latent it is holding. This is the whole feature
+working or not: all three schedules are bent towards their noisy end, and klein's
+four-step ladder at 1024 pixels is still at sigma 0.77 on its third rung, which
+decodes to flat brown mush. One more Euler step of the velocity already in hand,
+all the way to zero noise, is what a person means by "how is it coming along".
+It costs one elementwise operation, and it is computed inside the frame closure,
+so a dropped frame does not pay for it.
 
 ## The library
 
@@ -200,23 +293,26 @@ Four directories, by what a file is rather than what screen it is on:
   on the main actor. `AppSettings` is the one list of preference keys and
   starting values; a preference is bound with `@AppStorage` at its picker and
   read outside a view through `AppSettings`'s helpers. `DirectoryRow` is the
-  labelled path with an Open button that General and Models both show. The appearance
+  labelled path with an Open button that General and Models both show, plus
+  whatever else that folder can be done to — which in Models is `Change…` and
+  `Use Default`, in `ModelsDirectoryRow`. The appearance
   preference is applied by `AppearanceApplier`, set on `NSApp` from the
   composition root rather than as a colour scheme on a scene, so the Settings
   window, the menus, and the alerts change with the main window.
 - `Views/` — one subfolder per surface (`Canvas/`, `Library/`,
-  `Library/Inspector/`, `Sidebar/`, `Sidebar/Timeline/`, `Toolbar/`); the
-  prompt capsule, its controls, the commands, and Settings sit at the top of
-  `Views/` because they belong to no one surface. The
+  `Library/Inspector/`, `Library/Viewer/`, `ReferencePicker/`, `Sidebar/`,
+  `Sidebar/Timeline/`, `Toolbar/`); the prompt capsule, its controls, the
+  commands, and Settings
+  sit at the top of `Views/` because they belong to no one surface. The
   three-stored-property rule is what keeps them small; a view that needs a
   fourth wants a subview. `Sidebar/CanvasSidebar` is the canvas sidebar,
   which builds today's runs once and hands them to `Sidebar/Timeline/` — a
   card per run still waiting, the running run's card in amber, and under those
   the wall of today's pictures in small squares — and to the "Today in
   Library" bar pinned at its foot. `SessionTimeline` in `ZephraEngine` works
-  out the runs and cuts the wall into blocks (the running run and any run of
-  several squares on their own, consecutive singles packed together); nothing
-  here filters, groups, or sorts. The inspector is `WorkspaceInspector`, a
+  out the runs and lays the wall as one flow, newest run first with the
+  running run's dashed places at its head (a block per run ended every batch's
+  row early and made the wall ragged); nothing here filters, groups, or sorts. The inspector is `WorkspaceInspector`, a
   fixed column `WorkspaceDetail` puts beside whichever pane is up, under the
   toolbar rather than splitting it, and only when it has something to
   describe: always in the library, on the canvas only while a picture is
@@ -225,9 +321,65 @@ Four directories, by what a file is rather than what screen it is on:
   `Canvas/CanvasInspector` the picture on the canvas, which is the library's
   own inspector once the file is indexed and `FreshImageInspector` until then.
   An empty canvas shows `CanvasEmptyState`, with the last three prompts from
-  the index (`RecentPrompts`, nothing persisted) as chips. `CanvasView`
-  ignores only the vertical safe areas: under the sidebar's it would centre
-  the picture on a width that includes the column.
+  the index (`RecentPrompts`, nothing persisted) as chips. On Liquid Glass
+  the window toolbar floats over content by default, so `RootView` forces
+  its background visible (`.toolbarBackgroundVisibility(.visible, for:
+  .windowToolbar)`), making it an opaque full-width strip with a hairline
+  under it; `CanvasView` no longer ignores the vertical safe areas, and
+  `WorkspaceDetail`'s `HStack` (the pane, its `Divider`, and the inspector)
+  stays inside the top one too, so the sidebar, the pane, and the inspector
+  all start below the strip rather than the divider cutting through it.
+
+  Every picture in the app wears the same right-click menu: `LibraryItemMenu`
+  for anything indexed — the grid, the sidebar wall, the library viewer, and
+  the canvas once the file has been indexed — and `FreshImageMenu` for a
+  session's own picture before that indexing has caught up, both in
+  `Views/Canvas/` beside `CanvasImageMenu`, which picks between them for
+  whatever the canvas is showing. `LibraryItemMenu`'s `selection` is optional,
+  taken only where there is a `LibrarySelection` to keep in step with the
+  choice; the sidebar wall and the canvas have none and pass nil.
+  `LibraryIndex.canvasItem(for:)` is the one lookup behind that choice and
+  behind `CanvasInspector`, so the two never disagree about what the picture
+  on the canvas is; deleting it from either fires
+  `LibraryIndex.onRecentlyDeleted`, which `GenerationStore.forget(fileAt:)`
+  answers by stepping the canvas to the next image in history.
+
+  A double-click in the grid, or Return on the selection, no longer opens the
+  canvas — it opens `Library/Viewer/LibraryViewer`, the picture full size in
+  the library pane itself, with `LibraryViewerBar` over the top ("Library"
+  back, "n of N", previous/next) and `LibraryViewerNavigation` underneath
+  (Escape or a second double-click closes it; the arrow keys step, crossing
+  day headings the way the grid's own do, through the pure arithmetic in
+  `ZephraEngine`'s `LibraryViewerStep`). `WorkspaceSelection.viewing` names
+  the one item shown, cleared whenever the pane changes; `LibraryPane` is the
+  one place that keeps the grid's selection in step with it, so the inspector
+  beside the viewer always describes what is on screen and closing scrolls
+  the grid back to it. "Open in canvas" — the `\.openLibraryItem` action, on
+  the cell's menu, the sidebar wall, and the inspector's own button — is
+  unchanged; the viewer answers to the twin `\.viewLibraryItem` instead.
+
+  What the canvas shows while the model works is decided by one question,
+  `GenerationStore.isShowingRun`. While it is following, `CanvasView` draws
+  `Canvas/LivePreviewView` — the run's own frames, a `CGImage` over the RGBA8
+  bytes, `.medium` interpolation because a frame is an estimate, letterboxed
+  into the run's own aspect so the finished picture lands in the rectangle its
+  frames were filling. Before the first frame that rectangle is empty and the
+  step segments ride across it. There is no context menu and nothing to drag,
+  because there is no file yet; a click still tucks the prompt away.
+  `Canvas/RunningRunInspector` is the column beside it: prompt, model, size,
+  the step of how many, seed, elapsed and left — the last two from the pace
+  `store.state` already measures rather than a clock of the view's own — and
+  Stop. When it is *not* following, the picture is on the canvas at full
+  strength even with the model running; the dim to 60 % went with the frames,
+  which say "this is not the new one" properly.
+  `Sidebar/Timeline/RunningRunCard` is the way back: a button calling
+  `watchRun()`, still amber, wearing the accent ring the wall's squares wear
+  when the canvas is showing the run — and no square wears it meanwhile —
+  with `RunPreviewThumbnail`, the newest frame at 36 pt, at its leading edge,
+  so a run is worth glancing at while you are looking at something else.
+  `GenerationPreview.makeImage()` in `Support/` is the one place bytes become
+  an image, and each view keeps the result until the bytes change: `body` runs
+  on every progress update and frames arrive far more rarely.
 
 The prompt is `PromptTextView`, an `NSTextView` of our own on TextKit 1 rather
 than `TextEditor`, for one reason: a text view paints a selected line break out
@@ -325,23 +477,69 @@ descriptor names a different family, so the old weights are always released
 before the new ones are asked for. A descriptor whose family was never
 registered surfaces as `EngineError.noBackend`, not as a crash.
 
-`ImageGenerationBackend.availability(of:)` must answer from the disk alone —
-never download, never disturb what is loaded. It is what lets the picker say
-"13.3 GB download" without starting one.
+`ImageGenerationBackend.availability(of:locations:)` must answer from the disk
+alone — never download, never disturb what is loaded. It is what lets the picker
+say "13.3 GB download" without starting one.
 
-**A model whose download is not what gets loaded** is the third case, and
-FLUX.2 klein is the one that has it: the release is 16 GB of bfloat16 and the
-loader reads a packed variant. Such a family implements
-`ImageGenerationBackend.build(_:at:onProgress:)`, which the engine calls
+Every disk-touching call takes a `ModelLocations`: one root, with
+`Downloads/<org>--<repo>` for what was fetched and `<descriptor id>` for what
+was packed here, plus `previous`, the last few roots the folder was set to
+before, which are read but never written — changing the folder moves nothing,
+and a model a person already has is never fetched again because a setting
+moved. It is passed down rather than read from a preference at the bottom —
+`InferenceActor` reads it once per `prepare` and applies a change on the next,
+`GenerationStore.setModelLocations(_:)` is the way to change it, and
+`Sources/Zephra/ZephraApp.swift` is the only place that knows the preferences
+`AppSettings.modelsDirectory` and `previousModelsDirectories` decided it. A
+backend looks in the built variant, then `locations.downloads` under every
+root, then the hub cache, and only then downloads.
+
+**A model whose download is not what gets loaded** is the third case, and all
+three families now have one: FLUX.2 klein's two variants, the 4-bit Z-Image
+Turbo, and the 4-bit Qwen-Image. In each the release is bfloat16 and the loader
+reads a packed variant. Such a family implements
+`ImageGenerationBackend.build(_:at:locations:onProgress:)`, which the engine calls
 between `ensureAvailable` and `load` and shows as `EngineState.building`; every
-other family takes the protocol's default, which returns the download
+other model takes the protocol's default, which returns the download
 untouched. `ModelDescriptor.builtBytes` says what the packed variant costs on
-disk, and non-zero is what tells the engine a build is involved. Availability
+disk, and non-zero (with a repository source) is `isBuiltLocally` — what tells
+the engine a build is involved. Availability
 then has two more answers, `.needsDownloadAndBuild(bytes:)` and `.needsBuild`,
 so the picker says what choosing the model will cost. The packed variant lives
-at `ModelCatalog.localModelsDirectory/<descriptor.id>`, which is the naming
-every locally built variant already follows. The packer's `shouldContinue`
+at `locations.built(descriptor)`, which is `<models>/<descriptor.id>` — the
+naming every locally built variant already follows. The packer's `shouldContinue`
 hook is what makes a build stoppable between tensors.
+
+Three pieces of that job are written once, because they are the same job
+whatever is being packed. `SnapshotBuild` in `ZephraQuantization` writes into a
+sibling `.partial` directory and renames on success, removes it when the build
+fails, and refuses before reading anything when the volume cannot take
+`builtBytes` — a component that ran out of disk half way reads as a snapshot to
+a loader, which is the one failure that produces a model that loads and is
+wrong. `BuildTally` in `ZephraCore` turns the packer's log lines into a bar
+weighted by what each component holds, so a family supplies a dictionary of
+gigabytes and nothing else. And `LocalSnapshot.downloadedRelease(of:in:)` in
+`ZephraSnapshot` is the "is the download here" question: the app's own folder,
+then the hub cache, with the descriptor's adapters counted. A family's own
+`<Family>SnapshotBuild` is then the plan, the weights, and nothing else.
+
+**A model whose build needs more than the release** is the fourth case, and
+Qwen-Image is the one that has it. `ModelDescriptor.adapters` is a list of
+`ModelAdapter` — a repository, a revision, one file name, and its size — fetched
+into `locations.adapter(_:)` (`Downloads/<org>--<repo>`, beside the releases) by
+the same `ModelDownloader.fetch` call, in one transfer with one progress bar,
+because `ModelDownloader.download` takes a list of `RepositoryDownload`s and
+lists and tallies them together. `transferBytes` is the release plus the
+adapters, what a Mac with nothing cached is told; a release already here — in
+the models folder or the hub cache — is never fetched again for want of its
+adapter, so availability charges only what `ModelLocations.bytesToFetch` says
+is still missing, and `fetch` moves only that. An adapter counts as here under
+any root the folder has been or in the hub cache, where `hf download` puts it
+(`ModelLocations+Adapters` in `ZephraSnapshot`, since `ZephraCore` knows no
+cache), so one fetched by hand beside its release is not fetched twice. The
+adapter is a build input, not a runtime one: `QwenImageBackend.build` hands
+`locations.adapterFileOnDisk(_:)` to the plan, the packer merges the low-rank update as it goes, and nothing downstream
+ever sees an adapter.
 
 **A model that edits** reads `GenerationSettings.referenceImage`, PNG bytes the
 interface caps at 1024 pixels an edge before they land there.
@@ -350,6 +548,23 @@ picture for any model without it, and the well beside the prompt shows only for
 a model that has it. The picture is persisted in a second PNG chunk beside the
 record and comes back when the image is selected. Every model the catalog ships
 reads one, in one of the two ways the next section describes.
+
+The well offers three doors to a picture, and `ReferenceAdoption` in
+`Sources/Zephra/Support/` is the one place all three read the file through: a
+library image hands back what it was itself edited from, when it was one,
+rather than itself. It holds no state: which choice is current is the store's
+own bookkeeping (`GenerationStore.claimReference`, `adoptReference`), numbered
+when the choice is made rather than when its bytes arrive, so a slow library
+read or a drop's provider can never land on top of a choice that came after
+it. Empty, the well is a `Menu` whose primary action opens
+`Views/ReferencePicker/ReferencePickerSheet`, a sheet over the window with a
+search field and a grid of the whole library — what was made here and what was
+imported to start from, everything but Recently Deleted — newest first; filled, the same
+two choices — "From Library…" and "Choose File…" — sit in a context menu
+beside Clear. Both states also take a drop of a `LibraryItemReference`, the
+same in-app drag type an album row accepts, so dragging a picture from the
+grid or the sidebar's wall onto the well works the way dropping a Finder file
+already did.
 
 ## Build & run
 
@@ -395,28 +610,35 @@ Makefile targets:
   App Store Connect API-key variables from the signing config, or falls back to
   the keychain profile named by `NOTARY_PROFILE`.
 - `make notarized-release` — run the signed release and notarization steps together.
-- `make prefetch` — download the default model weights via `hf download`.
-- `make prefetch-flux2` — download the FLUX.2 klein 4B release into the hub
-  cache, without the 7.75 GB single-file checkpoint the loader never reads, so
-  a first launch skips the download and goes straight to the build.
+- `make prefetch` — download the default model weights with `hf download`
+  into `$(MODELS_DIR)/Downloads/mzbac--Z-Image-Turbo-8bit`, which is where the
+  app itself would have written them, so a first launch finds them. Set
+  `MODELS_DIR` when Settings names another folder.
+- `make prefetch-flux2` — the same for the FLUX.2 klein 4B release, without the
+  7.75 GB single-file checkpoint the loader never reads, so a first launch skips
+  the download and goes straight to the build.
 - `make prefetch-qwen` — download Qwen-Image-2512 and its four-step Lightning
   adapter into `QWEN_MODELS` (external storage by default; 57.7 GB does not
-  belong on a boot volume). Name the adapter file explicitly: the repository
+  belong on a boot volume, and this release is a build source rather than
+  something the app loads). Name the adapter file explicitly: the repository
   also ships whole merged checkpoints of twenty gigabytes each, and pulling it
   whole costs 101 GB.
-- `make quantize` — download the bf16 release and build the 4-bit variant into
+- `make quantize` — the build the app does on first load, by hand: download the
+  bf16 release into the app's own folder and pack the 4-bit variant into
   `~/Library/Application Support/Zephra/Models/z-image-turbo-4bit`. `BITS`,
   `GROUP_SIZE`, and `QUANT_OUT` override the defaults (4 bits, group 64).
   `ZephraQuantize` takes a required `--family`; there is deliberately no
   default, because the wrong one silently produces the wrong artifact an hour
   later. For the same reason it refuses any `BITS` other than 4 unless the
   output directory is given explicitly: every default output name says `4bit`.
-- `make quantize-qwen` — build the 4-bit Qwen-Image variant from `QWEN_SOURCE`
-  with `QWEN_LORA` merged into its transformer, into
+- `make quantize-qwen` — likewise for Qwen-Image, from `QWEN_SOURCE` with
+  `QWEN_LORA` merged into its transformer, into
   `~/Library/Application Support/Zephra/Models/qwen-image-2512-4bit`
-  (`QWEN_OUT` overrides). About a minute with the source local.
+  (`QWEN_OUT` overrides). About a minute with the source local. The app fetches
+  the same two things itself and does the same build; this is for keeping the
+  57.7 GB source off the boot volume.
 - `make quantize-flux2` — the build the app does on first load, by hand: pack
-  the klein release from the hub cache (or `FLUX2_SOURCE`) into
+  the klein release from the app's own folder (or `FLUX2_SOURCE`) into
   `~/Library/Application Support/Zephra/Models/flux2-klein-4b-4bit`
   (`FLUX2_OUT` overrides; `BITS=8` needs one, as above). About a minute.
 - `make lint-layers` — enforce the layering rules above.
@@ -563,47 +785,54 @@ throwaway output folder. `ZephraCoreTests` uses the smaller `StubBackend`.
 
 Default model: `mzbac/Z-Image-Turbo-8bit` — 13.3 GB download (excluding
 `assets/`), 12236 MB resident once loaded and peaking at 23501 MB during the VAE
-decode at 1024 pixels, so 32 GB of RAM is the practical floor. Weights are cached in
-`~/.cache/huggingface/hub`, honoring `HF_HOME` / `HF_HUB_CACHE` if set.
-`make prefetch` seeds the cache ahead of first run.
+decode at 1024 pixels, so 32 GB of RAM is the practical floor.
+
+Weights live in the folder Settings > Models names, which is
+`~/Library/Application Support/Zephra/Models` until the user changes it:
+`Downloads/<org>--<repo>` for a release, `<descriptor id>` for a variant packed
+here. `make prefetch` writes exactly what the app would have written, so it
+seeds a first launch; and a prefetch that was interrupted is finished by the
+app, which then removes the `.incomplete` partials `hf` left under the folder's
+`.cache/huggingface/download`, since a partial nothing will finish would
+otherwise hold the folder incomplete for good. The hub cache is still read if it holds a release — a Mac
+that ran `hf download`, or an older Zephra — but nothing is written there any
+more, and neither `HF_HOME` nor `HF_HUB_CACHE` decides where a download goes.
 
 Every repository the catalog names is public and ungated, so no download needs a
-Hugging Face token, and the app never asks for one. The hub client does send
-whatever token it finds in the same six places the `hf` tool looks (`HF_TOKEN`,
-`HUGGING_FACE_HUB_TOKEN`, `HF_TOKEN_PATH`, `HF_HOME/token`,
-`~/.cache/huggingface/token`, `~/.huggingface/token`), and a stale one turns
-every request into a 401 for a public model too; `HubToken` in `ZephraSnapshot` is what names the token's
-source in the failure message when that happens. A download that breaks is tried
-again by `DownloadRetry` in `ZephraCore`, five times with a doubling pause, and
-the hub client resumes each file from its `.incomplete` bytes, so a retry and a
-later Try again both continue rather than start over. Only a refused token, a
-missing repository, or a 4xx that is not a timeout or a rate limit stops the
-retrying early. The hub client refuses to download at all on a network path it
-deems expensive or constrained, such as a hotspot, and reports the repository as
-unavailable offline; its one switch is the `CI_DISABLE_NETWORK_MONITOR=1`
-environment variable, which `HubNetworkPolicy.allowMeteredDownloads()` in
-`ZephraSnapshot` sets before either backend's first request. The size is on the
-screen before the download starts, so whether to spend it on a hotspot is the
-user's call, not the client's.
+Hugging Face token — and Zephra sends none: `ModelDownloader` never sets an
+`Authorization` header, whatever is in `HF_TOKEN` or in the token files the `hf`
+tool reads, which is one whole class of "authentication required" for a public
+model that cannot happen. There is no metered-network refusal either: the size
+is on the screen before the download starts, so whether to spend it on a hotspot
+is the user's call. A download that breaks is tried again by `DownloadRetry` in
+`ZephraCore`, five times with a doubling pause, and each file resumes from its
+`.incomplete` bytes, so a retry and a later Try again both continue rather than
+start over. Only a missing repository, a missing file, or a 4xx that is not a
+timeout or a rate limit stops the retrying early.
 
-Settings > Models lists every directory the catalog's models have on this Mac,
-in either hub layout and under `localModelsDirectory`, with its size and a
-Delete that moves it to the Trash. `ModelStorage` in `ZephraSnapshot` is the
-listing and the measuring; `ModelInventory` in `ZephraEngine` is what the tab
-observes. A release two variants pack from is one row naming both, a download
-stopped part-way is a row saying so, and a directory the loaded model is using
-cannot be deleted from under it.
+Settings > Models lists every directory the catalog's models have on this Mac —
+the app's own folder first, then either hub layout — with where it is, its size,
+and a Delete that moves it to the Trash. `ModelStorage` in `ZephraSnapshot` is
+the listing and the measuring; `ModelInventory` in `ZephraEngine` is what the
+tab observes. A release two variants pack from is one row naming both, a
+download stopped part-way is a row saying so, an adapter is a row of its own
+named for the model it serves ("Qwen-Image 2512 adapter"), and a directory the
+loaded model is using cannot be deleted from under it. Changing the folder moves
+nothing:
+what is already there keeps working where it is, and the next download and the
+next build go to the new folder.
 
 Always pass the model explicitly when calling into the vendored pipeline —
-its own default is the 33 GB bf16 repo, not the 8-bit one Zephra uses.
+its own default is the 32.9 GB bf16 repo, which Zephra reads only as a build
+source and never loads.
 
-Second model: `z-image-turbo-4bit`, built on the user's own Mac by `make quantize`,
-because no repository publishes four-bit Z-Image-Turbo in the manifest format the
-vendored loader reads. It is a `.localDirectory` source under
-`~/Library/Application Support/Zephra/Models`, so it downloads nothing and the
-backend reports a clear error when it is missing rather than trying to fetch it.
-6.7 GB on disk and 6575 MB resident, against 13.3 GB and 12236 MB for the 8-bit
-model. Peak follows the image size — 10693 MB at 512 pixels, 14599 MB at 768,
+Second model: `z-image-turbo-4bit`, packed on the user's own Mac from the bf16
+release (`Tongyi-MAI/Z-Image-Turbo`, 32.9 GB excluding `assets/`), because no
+repository publishes four-bit Z-Image-Turbo in the manifest format the vendored
+loader reads. The app does that itself on first load, the way klein does;
+`make quantize` is the same build by hand. 6.7 GB on disk (`builtBytes`) and
+6575 MB resident, against 13.3 GB and 12236 MB for the 8-bit model. Peak follows
+the image size — 10693 MB at 512 pixels, 14599 MB at 768,
 17839 MB at 1024 — because peak is resident plus the unquantized VAE decode's
 scratch. So a 16 GB Mac is offered this variant and can run it at 512 and 768, but
 1024 will page. Four bits is not faster: MLX's quantized matmul costs the same at
@@ -614,16 +843,27 @@ quality gain.
 
 Third model: `qwen-image-2512-4bit` — **Qwen-Image-2512**
 (`Qwen/Qwen-Image-2512`, Apache 2.0), a 60-layer dual-stream MMDiT of about 20B
-parameters, conditioned on Qwen2.5-VL-7B and decoded by a 3-D causal VAE. Built
-on the user's own Mac by `make quantize-qwen`, because the release is 57.7 GB of
-bf16 and the four-step distillation ships separately as an adapter, so the local
-build is where the two are put together. 21.6 GB on disk.
+parameters, conditioned on Qwen2.5-VL-7B and decoded by a 3-D causal VAE. Packed
+on the user's own Mac, because the release is 57.7 GB of bf16 and the four-step
+distillation ships separately as an adapter, so the local build is where the two
+are put together. 21.6 GB on disk. The app fetches both and packs them on first
+load; `make quantize-qwen` is the same build by hand.
 
-The full-precision source is too large for the boot volume here, so it lives at
-`/Volumes/ExternalStorage/Models/Qwen-Image-2512` with the adapter beside it in
-`Qwen-Image-2512-Lightning/`; only the configuration files stay in the Hugging
-Face cache. Point `QWEN_SOURCE` and `QWEN_LORA` there, and `QWEN_IMAGE_SNAPSHOT`
-there for any test that wants real weights.
+Choosing it therefore costs 59.4 GB of download — the release and the 1.7 GB
+adapter, which is what `ModelDescriptor.transferBytes` adds up and what the
+picker states on a Mac that has neither; one that has the release is told the
+adapter's 1.7 GB alone — and then a build. The adapter is a `ModelAdapter` on the
+descriptor rather than a second catalog entry: it is one named file in a
+repository of its own (that repository also ships whole merged checkpoints of
+twenty gigabytes each, so it is never taken by pattern), it is not optional, and
+nothing downstream of the packer ever sees one.
+
+The full-precision source is too large for the boot volume here, so a copy of it
+lives at `/Volumes/ExternalStorage/Models/Qwen-Image-2512` with the adapter
+beside it in `Qwen-Image-2512-Lightning/`. Point `QWEN_SOURCE` and `QWEN_LORA`
+there for `make quantize-qwen`, and `QWEN_IMAGE_SNAPSHOT` there for any test that
+wants real weights. Point `MODELS_DIR` at that volume instead and the app's own
+download lands there and this copy is unnecessary.
 
 Measured on an M4 Max, four steps, seed 42: 21532 MB resident at every size,
 because the weights are the whole of it. 512 pixels takes 6.9 s (1.57 s/step)
@@ -638,8 +878,9 @@ and the entry's `peakBytes` is measured there.
 **The Lightning adapter is not optional.** The base model wants fifty steps and
 real classifier-free guidance, which is two forward passes through twenty
 billion parameters per step. `lightx2v/Qwen-Image-2512-Lightning` (Apache 2.0)
-distils that to four steps and no guidance, and `make quantize-qwen` merges it
-into the transformer as it packs, so the runtime never sees an adapter. Run the
+distils that to four steps and no guidance, and the build — the app's own, or
+`make quantize-qwen` — merges it into the transformer as it packs, so the
+runtime never sees an adapter. Run the
 same seed and prompt against a build without it and the difference is not
 subtle: soft, hazy, mesh-textured surfaces against sharp ones. That is also why
 the catalog entry reads `guidanceBounds: 0...0` and
@@ -669,8 +910,8 @@ four steps with no guidance. The one download is the bf16 release without the
 root single-file checkpoint, 16 GB; the app packs it into the chosen variant on
 first load (`builtBytes` says what that writes), and `make quantize-flux2` is the
 same build by hand. Both variants share the download. The release is kept
-afterwards: the other variant packs from it, and the hub cache is `hf`'s to
-prune, not Zephra's.
+afterwards, because the other variant packs from it; deleting it is a row in
+Settings > Models.
 
 The text encoder is Qwen3-4B, bit for bit, and the transformer conditions on
 the hidden state after its 9th, 18th and 27th layers laid side by side, padded
@@ -775,9 +1016,18 @@ the re-sync procedure, and the running patch log. Any change inside
 
 ## Debugging hooks
 
-- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|queued|batch|library|downloading|building|failed`
+- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|queued|watching|batch|library|viewer|picker|downloading|building|failed`
   launches a Debug build frozen in that state with no model, for screenshots (`make screenshot`).
   `tucked` is `image` with the canvas's floating prompt slid down to its lip.
+  `viewer` opens the library pane on its first image full size; `picker` runs the
+  `editing` build with the reference picker sheet forced open, through
+  `InterfacePreview.wantsReferencePicker` — the one flag the well reads on its own,
+  since a `@State` local to a view cannot be set from the composition root the way
+  `workspace.viewing` can.
+  `generating`, `queued` and `watching` all stand a run up with a made-up frame from it, so
+  the live preview is on screen without a model: the first two are following the run, and
+  `watching` is the one that is not — the model working while an earlier picture stays on the
+  canvas, which is what the running card's ring being off says.
   `downloading` and `failed` sit over a picture, since that is where they must stay
   legible, and `failed` is a download that gave up.
 - `make logs` streams `os.Logger` output for subsystem `io.zephra`.
@@ -795,8 +1045,18 @@ the re-sync procedure, and the running patch log. Any change inside
 - `make bench ARGS="--micro --size 1024"` times the DiT's individual MLX kernels at that size's
   token count without loading any weights, so a slow generation can be attributed to a primitive
   rather than guessed at.
+- `make bench ARGS="--preview --size 1024"` turns the live preview frames on for the run and
+  reports how many were made and the mean milliseconds one took, and writes the last frame
+  beside the image as `<stem>.preview.png` — a frame unpacked on the wrong axis is noise of
+  exactly the right size, so it wants looking at and not only timing. Frames are off in the
+  benchmark otherwise, so a step time measured without the flag is the model's own and stays
+  comparable with the figures already recorded here. `ZEPHRA_PREVIEW_INTERVAL_MS` is the switch
+  underneath: milliseconds between frames, and 0 switches them off, which is what the benchmark
+  sets. Measured at 1024 pixels on an M4 Max, mean over the frames of one run: 43 ms for klein
+  4-bit, 130 ms for Qwen-Image 4-bit, 192 ms for Z-Image 8-bit, against 0.5 to 8 s for the same
+  models' full decodes. The machine was not idle for the last two, so those are ceilings.
 - `ZEPHRA_PROFILE_STEP=1` prints per-phase timings (text encode, per-step graph build, per-step
-  eval, VAE decode) and MLX's active and peak allocation to stderr.
+  eval, VAE decode, and Z-Image's preview decode) and MLX's active and peak allocation to stderr.
 - Precision and padding switches, for bisecting a suspected regression without a rebuild:
   `ZEPHRA_DIT_DTYPE=f32` runs the transformer in float32, `ZEPHRA_PAD_PROMPT=full` pads prompts to
   the 512-token limit, `ZEPHRA_KEEP_CACHE=1` stops handing MLX's scratch back after a generation,

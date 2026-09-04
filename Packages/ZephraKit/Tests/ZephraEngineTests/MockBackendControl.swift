@@ -28,6 +28,9 @@ final class MockBackendControl: Sendable {
         /// The settings of the last generation the backend was asked for, so a test can assert
         /// what actually reached it rather than what the store thinks it sent.
         var lastSettings: GenerationSettings?
+        /// The folder the last `ensureAvailable` was told to keep models in, so a test can
+        /// assert that a chosen folder actually reached the backend.
+        var lastLocations: ModelLocations?
         /// What `availability(of:)` answers per descriptor id. Anything absent is `.available`.
         var availability: [String: ModelAvailability] = [:]
         /// How many times `load` was called.
@@ -42,6 +45,12 @@ final class MockBackendControl: Sendable {
         var generations = 0
         /// How many denoising steps have been reported since the last reset.
         var stepsEmitted = 0
+        /// Whether every denoising step carries a preview frame. The real backends throttle
+        /// theirs to one every three quarters of a second; a mock that has to be waited for
+        /// would make every test that touches a frame a slow one.
+        var previewsEveryStep = false
+        /// How many preview frames have been reported.
+        var previewsEmitted = 0
     }
 
     private let storage = Mutex(Settings())

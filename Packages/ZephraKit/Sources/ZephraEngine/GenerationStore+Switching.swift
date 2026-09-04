@@ -49,6 +49,7 @@ extension GenerationStore {
             guard !Task.isCancelled else { return }
             await self.inference?.unload()
             self.loadedDescriptor = nil
+            self.loadedDirectory = nil
             self.transition(to: .idle)
             guard !Task.isCancelled else { return }
             await self.load(model, asSwap: true)

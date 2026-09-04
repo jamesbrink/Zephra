@@ -137,22 +137,32 @@ struct ModelCatalogTests {
         #expect(patterns.contains("vae/*") && patterns.contains("transformer/*"))
     }
 
-    @Test("the Qwen-Image entry is a local build of a distilled model")
-    func qwenImageIsALocalDistilledBuild() {
+    @Test("the Qwen-Image entry downloads a release and an adapter, and builds from both")
+    func qwenImageIsBuiltFromAReleaseAndAnAdapter() throws {
         let descriptor = ModelCatalog.qwenImage2512_4bit
         #expect(descriptor.backend == .qwenImage)
-        #expect(!descriptor.source.requiresDownload)
-        #expect(descriptor.downloadBytes == 0)
+        #expect(descriptor.source.requiresDownload)
+        #expect(descriptor.isBuiltLocally)
+        #expect(descriptor.downloadBytes == 57_700_000_000)
         #expect(descriptor.builtBytes == 21_600_000_000)
-        #expect(!descriptor.isBuiltLocally, "built by make, not by the app: there is no download")
         #expect(descriptor.fullName == "Qwen-Image 2512 · 4-bit")
-        #expect(
-            descriptor.source
-                == .localDirectory(
-                    ModelCatalog.localModelsDirectory.appending(path: "qwen-image-2512-4bit")))
-        // The four-step Lightning adapter is merged into these weights, and it was distilled
-        // without classifier-free guidance. Offering a guidance slider or a negative prompt
-        // would show a control the merged weights cannot answer to.
+        guard case .huggingFace(let repoID, _, let patterns) = descriptor.source else {
+            Issue.record("Qwen-Image downloads from the hub")
+            return
+        }
+        #expect(repoID == "Qwen/Qwen-Image-2512")
+        #expect(patterns.contains("transformer/*") && patterns.contains("tokenizer/*"))
+        #expect(!patterns.contains("*"), "the README and .gitattributes are left out by omission")
+        // The four-step distillation ships apart from the weights it distils, so choosing this
+        // model costs both, and the picker's figure has to say so.
+        #expect(descriptor.adapters.count == 1)
+        let adapter = try #require(descriptor.adapters.first)
+        #expect(adapter.repoID == "lightx2v/Qwen-Image-2512-Lightning")
+        #expect(adapter.file == "Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors")
+        #expect(descriptor.transferBytes == 57_700_000_000 + 1_698_951_104)
+        // The adapter was distilled without classifier-free guidance, and it is merged into
+        // these weights, so a guidance slider or a negative prompt would be a control nothing
+        // answers to.
         #expect(descriptor.capabilities.defaultSteps == 4)
         #expect(descriptor.capabilities.guidanceBounds == 0...0)
         #expect(!descriptor.capabilities.supportsNegativePrompt)
@@ -160,19 +170,36 @@ struct ModelCatalogTests {
         #expect(descriptor.maxPromptTokens == 512)
     }
 
-    @Test("the 4-bit variant is built locally, so it downloads nothing")
-    func fourBitIsLocal() {
+    @Test("the 4-bit Z-Image variant is packed here from the bf16 release, not from nothing")
+    func fourBitIsBuiltFromTheRelease() {
         let descriptor = ModelCatalog.zImageTurbo4bit
-        #expect(!descriptor.source.requiresDownload)
-        #expect(descriptor.downloadBytes == 0)
+        #expect(descriptor.source.requiresDownload)
+        #expect(descriptor.isBuiltLocally)
+        #expect(descriptor.builtBytes == 6_700_000_000)
         #expect(descriptor.quantization == .int4)
         #expect(descriptor.fullName == "Z-Image Turbo · 4-bit")
+        #expect(descriptor.adapters.isEmpty)
+        #expect(descriptor.transferBytes == descriptor.downloadBytes)
         #expect(descriptor.maxPromptTokens == ModelCatalog.zImageTurbo8bit.maxPromptTokens)
         #expect(descriptor.capabilities == ModelCatalog.zImageTurbo8bit.capabilities)
-        #expect(
-            descriptor.source
-                == .localDirectory(
-                    ModelCatalog.localModelsDirectory.appending(path: "z-image-turbo-4bit")))
+        guard case .huggingFace(let repoID, _, let patterns) = descriptor.source else {
+            Issue.record("the 4-bit variant downloads its source from the hub")
+            return
+        }
+        #expect(repoID == "Tongyi-MAI/Z-Image-Turbo")
+        // `assets/` is 51 MB of sample pictures and a gallery PDF, left out by omission.
+        #expect(!patterns.contains { $0.hasPrefix("assets") })
+        #expect(!patterns.contains("*"))
+        #expect(patterns.contains("*.safetensors") && patterns.contains("tokenizer/*"))
+    }
+
+    @Test("no catalog entry names an absolute directory any more")
+    func nothingIsALocalDirectory() {
+        for descriptor in ModelCatalog.all {
+            #expect(
+                descriptor.source.requiresDownload,
+                "\(descriptor.id) would be unreachable on a Mac that never ran make quantize")
+        }
     }
 
     @Test("every model can be looked up by its own identifier")

@@ -362,7 +362,9 @@ private final class VAEDecoder: Module {
     return untiled(latents)
   }
 
-  private func untiled(_ latents: MLXArray) -> MLXArray {
+  // ZEPHRA-PATCH: internal rather than private, so `AutoencoderKL.decodeUntiled` can reach the
+  // exact decode for a preview frame's already-tiny latent.
+  func untiled(_ latents: MLXArray) -> MLXArray {
     var hidden = convIn(latents)
     hidden = midBlock(hidden)
     // ZEPHRA-PATCH: evaluate after each up block. Left as one lazy graph the decoder holds
@@ -464,6 +466,20 @@ public final class AutoencoderKL: Module {
     x = decoder(x)
     x = x.transposed(0, 3, 1, 2)
     return (x, [:] as [String: Int])
+  }
+
+  // ZEPHRA-PATCH: the decode a preview frame takes. Two differences from `decode`, both
+  // deliberate: the tiling is never applied, because a latent pooled to 32 cells an edge is
+  // smaller than any tile worth cutting and a tile would only add seams; and the result is left
+  // channels-last in the range -1 to 1, which is the shape `ZImageLatentPreview` packs bytes
+  // from, rather than being transposed back for the image writer.
+  ///
+  /// - Parameter latents: `[batch, 16, height, width]` NCHW, as the denoising loop holds them.
+  /// - Returns: `[batch, height * 8, width * 8, 3]` NHWC in the range -1 to 1.
+  public func decodeUntiled(_ latents: MLXArray) -> MLXArray {
+    var x = latents.transposed(0, 2, 3, 1)
+    x = (x / MLXArray(configuration.scalingFactor)) + MLXArray(configuration.shiftFactor)
+    return MLX.clip(decoder.untiled(x), min: MLXArray(Float(-1)), max: MLXArray(Float(1)))
   }
 
   public func encode(_ images: MLXArray) -> MLXArray {

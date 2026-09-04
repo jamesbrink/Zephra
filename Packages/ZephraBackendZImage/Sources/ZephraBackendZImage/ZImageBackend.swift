@@ -26,28 +26,44 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
     /// Creates an idle backend. No weights are touched until `ensureAvailable` is called.
     public init() {}
 
-    /// Resolves the descriptor's weights, downloading them if the cache does not already
-    /// hold them, and returns the local snapshot directory.
+    /// Resolves the descriptor's weights, downloading them if they are not on this Mac, and
+    /// returns the directory to load from — or, for the four-bit variant, the release `build`
+    /// packs next.
     ///
-    /// What the cache holds is looked up here rather than left to the vendored resolver, which
-    /// knows only the layout `hf download` writes: a model the app itself downloaded sits in
-    /// the hub client's flat layout, and the resolver would fetch it again on every launch.
-    /// The download is `ZImageBackend+Download.swift`, the only step that can report progress.
+    /// What is already here is looked up rather than left to the vendored resolver, which knows
+    /// only the layout `hf download` writes and would fetch a model Zephra itself downloaded
+    /// again on every launch. Three places are looked at before anything is fetched: the packed
+    /// variant, which makes the release unnecessary and may even have been deleted; the folder
+    /// the user keeps models in; and the hub cache in either layout, read as a fallback and
+    /// never written. `ZephraSnapshot`'s downloader does the fetching, and it is the only step
+    /// that can report progress.
     nonisolated(nonsending) public func ensureAvailable(
         _ descriptor: ModelDescriptor,
+        locations: ModelLocations,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws -> URL {
         switch descriptor.source {
-        case .localDirectory(let directory):
-            return try LocalSnapshot.zImage.verified(directory, descriptor: descriptor)
-        case .huggingFace(let repoID, let revision, let filePatterns):
-            if let cached = HubCache.snapshot(of: repoID, revision: revision),
-               LocalSnapshot.zImage.missingEntry(in: cached) == nil
-            {
-                return cached
+        case .localDirectory:
+            let candidates = locations.builtCandidates(for: descriptor)
+            if let built = candidates.first(where: {
+                LocalSnapshot.zImage.missingEntry(in: $0) == nil
+            }) {
+                return built
             }
-            return try await download(repoID, revision: revision, filePatterns: filePatterns,
-                                      descriptor: descriptor, onProgress: onProgress)
+            return try LocalSnapshot.zImage.verified(
+                candidates.first ?? locations.built(descriptor), descriptor: descriptor)
+        case .huggingFace:
+            if descriptor.isBuiltLocally,
+               let packed = LocalSnapshot.zImage.packedVariant(of: descriptor, in: locations)
+            {
+                return packed
+            }
+            let check = LocalSnapshot.zImage(for: descriptor)
+            let here = check.downloadedRelease(of: descriptor, in: locations)
+            if let here, locations.missingAdapters(of: descriptor).isEmpty { return here }
+            let fetched = try await ModelDownloader().fetch(
+                descriptor, into: locations, release: here, onProgress: onProgress)
+            return try check.verified(fetched, descriptor: descriptor)
         }
     }
 
@@ -103,10 +119,32 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
             // failure rather than a load one: the model is loaded and fine, the request is not.
             throw BackendError.generationFailed(error.readableMessage)
         }
-        do {
-            return try await pipeline.generateToMemory(request) { progress in
-                onProgress(ZImageProgressMapper.event(from: progress))
+        // One throttle per run, so a frame is made at most every three quarters of a second
+        // however fast the steps go by, and none at all when the environment has switched them
+        // off. Nil rather than an always-refusing throttle: the loop then skips the check.
+        var throttle = PreviewThrottle.environmentInterval.map(PreviewThrottle.init(interval:))
+        let previewHandler: ZImagePipeline.PreviewHandler? =
+            throttle == nil
+            ? nil
+            : { step, total, frame in
+                guard throttle?.shouldMakeFrame() == true else { return }
+                let started = ContinuousClock.now
+                let made = frame()
+                onProgress(
+                    .frame(
+                        after: step, of: total,
+                        preview: GenerationPreview(
+                            width: made.width, height: made.height, pixels: made.pixels,
+                            duration: ContinuousClock.now - started)))
             }
+        do {
+            return try await pipeline.generateToMemory(
+                request,
+                progressHandler: { progress in
+                    onProgress(ZImageProgressMapper.event(from: progress))
+                },
+                previewHandler: previewHandler
+            )
         } catch let error as CancellationError {
             throw error
         } catch {

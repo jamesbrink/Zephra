@@ -18,7 +18,9 @@ struct GuidanceControl: View {
             HStack(spacing: 10) {
                 Slider(value: $store.settings.guidance, in: capabilities.guidanceBounds, step: 0.5)
                     .controlSize(.small)
-                    .frame(width: 110)
+                    // Flexible for the same reason the steps slider is: the row must never
+                    // grow past the prompt above it.
+                    .frame(minWidth: 70, maxWidth: 110)
                 Text(store.settings.guidance, format: .number.precision(.fractionLength(1)))
                     .font(.callout)
                     .monospacedDigit()

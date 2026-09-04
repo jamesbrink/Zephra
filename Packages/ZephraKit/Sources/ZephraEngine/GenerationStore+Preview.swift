@@ -12,13 +12,19 @@ extension GenerationStore {
     /// `images`, `running`, and `queue` stand a whole run up at once, which is the only way to
     /// see the sidebar's queue and the strip under the capsule without a backend: both are
     /// `internal(set)` on the real store, and rightly so.
+    ///
+    /// `livePreview` is the frame the canvas would be showing. `following` overrides the rule
+    /// below it, and `false` with a run standing up is the one state that cannot be reached any
+    /// other way: the model working while the user looks at an earlier picture.
     public static func preview(
         state: EngineState,
         image: GeneratedImage? = nil,
         descriptor: ModelDescriptor = ModelCatalog.default,
         images: [GeneratedImage] = [],
         running: QueuedGeneration? = nil,
-        queue: [QueuedGeneration] = []
+        queue: [QueuedGeneration] = [],
+        livePreview: GenerationPreview? = nil,
+        following: Bool? = nil
     ) -> GenerationStore {
         let store = GenerationStore(descriptor: descriptor, registry: nil, output: nil)
         store.state = state
@@ -26,6 +32,11 @@ extension GenerationStore {
         store.current = image ?? store.history.first
         store.running = running
         store.queue = queue
+        // A store standing a run up is a store that pressed Generate, so it is following it:
+        // without this the canvas would draw the finished picture over a running generation and
+        // the screenshot would show a state the app never reaches.
+        store.followsRun = following ?? (running != nil)
+        store.livePreview = livePreview
         store.settings.prompt = "A lighthouse at dusk, fog rolling in over black rocks"
         store.settings.referenceImage = image?.settings.referenceImage
         store.availability = previewAvailability(current: descriptor)

@@ -91,6 +91,50 @@ struct SessionHistoryTests {
         #expect(try bed.writtenFiles().filter { $0.hasSuffix(".png") }.isEmpty)
     }
 
+    @Test("forgetting the picture on the canvas, deleted through the library rather than here, moves to the next newest")
+    func forgetCurrent() async throws {
+        let bed = EngineTestBed()
+        let store = try await Self.storeWithTwoImages(bed)
+        let newest = try #require(store.current)
+        let file = try #require(newest.fileURL)
+
+        store.forget(fileAt: file)
+
+        #expect(store.history.map(\.settings.prompt) == ["older"])
+        #expect(store.current?.settings.prompt == "older")
+    }
+
+    @Test("forgetting a file that is not on the canvas only drops it from history")
+    func forgetOthers() async throws {
+        let bed = EngineTestBed()
+        let store = try await Self.storeWithTwoImages(bed)
+        let oldest = try #require(store.history.last)
+        let file = try #require(oldest.fileURL)
+
+        store.forget(fileAt: file)
+
+        #expect(store.history.map(\.settings.prompt) == ["newer"])
+        #expect(store.current?.settings.prompt == "newer", "the canvas did not move")
+    }
+
+    @Test("forgetting the file behind a picture opened from the library, never in history, clears the canvas")
+    func forgetOpenedFromLibrary() async throws {
+        let bed = EngineTestBed()
+        let file = try bed.library.write(Self.image(prompt: "from the library", seed: 1, at: 1_772_000_000))
+        let item = try #require(LibraryScan(library: bed.library).rescan().first { $0.url == file })
+
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        await store.open(item)
+        #expect(store.current?.settings.prompt == "from the library")
+        #expect(store.history.isEmpty, "opening does not add to history")
+
+        store.forget(fileAt: file)
+
+        #expect(store.current == nil)
+    }
+
     /// A store that has generated two images, oldest first, which is the state the deletion
     /// tests used to get by reading the folder.
     private static func storeWithTwoImages(_ bed: EngineTestBed) async throws -> GenerationStore {

@@ -9,10 +9,29 @@ extension GenerationStore {
     func inferenceActor() -> InferenceActor? {
         guard let registry else { return nil }
         if let inference { return inference }
-        let made = InferenceActor(registry: registry, upscaler: upscalerFactory)
+        let made = InferenceActor(
+            registry: registry, locations: locations, upscaler: upscalerFactory)
         inference = made
         return made
     }
+
+    /// Keeps models in `locations` from the next load onwards, and says whether that is a
+    /// change. The settings row awaits it before anything else happens; a download already
+    /// running is left where it started, and what is already on disk stays where it is.
+    ///
+    /// Awaited rather than fired off, so the engine holds the new folder before this returns:
+    /// a load started straight after would otherwise race the handoff and could still fetch
+    /// or build under the folder just left.
+    @discardableResult
+    public func setModelLocations(_ locations: ModelLocations) async -> Bool {
+        guard locations != self.locations else { return false }
+        self.locations = locations
+        if let inference { await inference.setLocations(locations) }
+        return true
+    }
+
+    /// Where models are downloaded and built, for a settings window to show.
+    public var modelLocations: ModelLocations { locations }
 
     /// Finds or downloads the model, loads it, and warms up. Call once from the root view.
     /// Calling it again once the engine is running is a no-op, so a re-rendered root is free.
@@ -61,7 +80,13 @@ extension GenerationStore {
     private func load(_ model: ModelDescriptor, on inference: InferenceActor) async {
         let pump = EngineEventPump { [weak self] event in self?.applyLoadEvent(event) }
         do {
-            try await pump.run { sink in try await inference.prepare(model, events: sink) }
+            let directory = try await pump.run { sink in
+                try await inference.prepare(model, events: sink)
+            }
+            // Recorded the moment the weights are resident, before the warm-up: a warm-up
+            // that is stopped or fails leaves them resident, and the folder they came from
+            // must be off limits to Settings from then on, not only once everything went well.
+            loadedDirectory = directory
             try Task.checkCancellation()
             if warmsUpAfterLoad {
                 transition(to: .warmingUp)
