@@ -21,6 +21,9 @@ enum ReferenceDrop {
                   || $0.hasItemConformingToTypeIdentifier(UTType.image.identifier) })
         else { return false }
         let type = provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) ? UTType.fileURL : .image
+        // The drop's place in line is taken now, not when its bytes arrive: a slow provider
+        // must not overtake a picture chosen from the library after it was accepted.
+        let ticket = ReferenceAdoption.claim()
         provider.loadDataRepresentation(forTypeIdentifier: type.identifier) { data, _ in
             guard let data else { return }
             // A file macOS cannot read leaves whatever was there alone.
@@ -29,7 +32,7 @@ enum ReferenceDrop {
                 ? URL(dataRepresentation: data, relativeTo: nil).flatMap(ReferenceImageEncoder.pngData(contentsOf:))
                 : ReferenceImageEncoder.pngData(from: data)
             guard let png else { return }
-            Task { @MainActor in ReferenceAdoption.use(png, into: store) }
+            Task { @MainActor in ReferenceAdoption.use(png, into: store, ticket: ticket) }
         }
         return true
     }

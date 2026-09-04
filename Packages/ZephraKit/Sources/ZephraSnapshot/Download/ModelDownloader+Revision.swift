@@ -8,6 +8,27 @@ extension ModelDownloader {
         destination.appending(path: ".zephra-revision")
     }
 
+    /// The file a finished download keeps its commit in, so a later transfer into the same
+    /// folder knows whether what is there is the commit it wants.
+    static func completed(in destination: URL) -> URL {
+        destination.appending(path: ".zephra-commit")
+    }
+
+    /// Makes `destination` safe to fill at `sha`: a folder finished at another commit is
+    /// emptied first. A shard whose tensors changed shape-for-shape keeps its size, and the
+    /// size is all a file is otherwise trusted on, so nothing from another commit may stay to
+    /// be taken for part of this one. A folder with no record — `hf download`'s, or an older
+    /// Zephra's — is trusted on size, as it always was.
+    static func prepare(_ destination: URL, for sha: String) throws {
+        let files = FileManager.default
+        guard let before = try? String(contentsOf: completed(in: destination), encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines), before != sha
+        else { return }
+        for entry in (try? files.contentsOfDirectory(atPath: destination.path(percentEncoded: false))) ?? [] {
+            try files.removeItem(at: destination.appending(path: entry))
+        }
+    }
+
     /// The commit this transfer is pinned to: the one it started at, when it is resuming, or
     /// what the repository's `revision` names right now, written down for next time.
     ///
@@ -28,6 +49,7 @@ extension ModelDownloader {
         let sha = try await commit(of: part.repoID, revision: part.revision, on: session)
         try FileManager.default.createDirectory(
             at: part.destination, withIntermediateDirectories: true)
+        try Self.prepare(part.destination, for: sha)
         try sha.write(to: pin, atomically: true, encoding: .utf8)
         return sha
     }

@@ -17,6 +17,28 @@ enum ReferenceAdoption {
     /// The read in flight. A second choice cancels the first, so a slow picture chosen before
     /// a quick one cannot land after it and take the well back.
     @MainActor private static var inFlight: Task<Void, Never>?
+    /// Which choice is the latest. Every way of choosing takes a number when it is made — not
+    /// when its bytes arrive — and only the latest number is allowed to land.
+    @MainActor private static var latest = 0
+
+    /// The number a choice made right now gets, cancelling whatever was in flight. A drop
+    /// takes one as it is accepted, before its provider has delivered a byte, so a slower
+    /// drop accepted earlier cannot land after a library picture chosen later.
+    @MainActor
+    static func claim() -> Int {
+        inFlight?.cancel()
+        inFlight = nil
+        latest += 1
+        return latest
+    }
+
+    /// Puts `png` in the well on behalf of the choice numbered `ticket`, unless a newer choice
+    /// has been made since it was taken.
+    @MainActor
+    static func use(_ png: Data?, into store: GenerationStore, ticket: Int) {
+        guard ticket == latest else { return }
+        store.useAsReference(png)
+    }
 
     /// Adopts a picture the caller already has as a `LibraryItem` — the menu button and the
     /// picker sheet's own selection, which both came from the index and so already know
@@ -62,9 +84,7 @@ enum ReferenceAdoption {
     /// picture can never land on top of a file, a drop, or a Clear that came after it.
     @MainActor
     static func use(_ png: Data?, into store: GenerationStore) {
-        inFlight?.cancel()
-        inFlight = nil
-        store.useAsReference(png)
+        use(png, into: store, ticket: claim())
     }
 
     /// Runs `read` off the main actor and puts what it returns in the well, unless a newer
@@ -73,11 +93,11 @@ enum ReferenceAdoption {
     private static func begin(
         into store: GenerationStore, _ read: @escaping @Sendable () -> Data?
     ) {
-        inFlight?.cancel()
+        let ticket = claim()
         inFlight = Task {
             let png = await Task.detached(priority: .userInitiated, operation: read).value
             guard !Task.isCancelled, let png else { return }
-            store.useAsReference(png)
+            use(png, into: store, ticket: ticket)
         }
     }
 }

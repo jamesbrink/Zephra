@@ -235,6 +235,39 @@ struct ModelDownloaderTests {
             "a fresh transfer asks the branch and pins what it answers")
     }
 
+    @Test("a path that would leave the folder is refused before anything is written")
+    func aTraversingPathIsRefused() async throws {
+        let scratch = Scratch("Download")
+        StubHub.reset(
+            StubHub.Behaviour(
+                pages: [page([("../escape.json", 2)])], files: ["../escape.json": Data("{}".utf8)]))
+
+        await #expect(throws: (any Error).self) {
+            _ = try await downloader().download(
+                repoID: "org/repo", patterns: ["*"], into: scratch.url("models"), onProgress: { _ in })
+        }
+        #expect(!scratch.hasFile("escape.json"))
+    }
+
+    @Test("a file left by an earlier commit is not taken for part of a newer one")
+    func anEarlierCommitsFilesAreNotReused() async throws {
+        let scratch = Scratch("Download")
+        try scratch.write("{}", to: "models/model_index.json")
+        try scratch.write("old", to: "models/.zephra-commit")
+        StubHub.reset(
+            StubHub.Behaviour(
+                pages: [page([("model_index.json", 2)])], files: ["model_index.json": Data("[]".utf8)],
+                sha: "new"))
+
+        _ = try await downloader().download(
+            repoID: "org/repo", patterns: ["*"], into: scratch.url("models"), onProgress: { _ in })
+
+        #expect(
+            try String(contentsOf: scratch.url("models/model_index.json"), encoding: .utf8) == "[]",
+            "same size, other commit: fetched again rather than kept")
+        #expect(try String(contentsOf: scratch.url("models/.zephra-commit"), encoding: .utf8) == "new")
+    }
+
     @Test("a server that ignores the range is not spliced onto: the file starts over")
     func anIgnoredRangeStartsOver() async throws {
         let scratch = Scratch("Download")

@@ -37,8 +37,11 @@ extension ModelDownloader {
                 tally.finishFile()
                 if let event = tally.report(force: true) { onProgress(event) }
             }
-            // Every file of this part is down at the commit it was pinned to; the pin goes,
-            // and the directory is a finished download from here on.
+            // Every file of this part is down at the commit it was pinned to: the pin goes,
+            // the commit is written down for the next transfer into this folder to compare
+            // against, and the directory is a finished download from here on.
+            try part.revision.write(
+                to: Self.completed(in: part.destination), atomically: true, encoding: .utf8)
             try? FileManager.default.removeItem(at: Self.pin(in: part.destination))
         }
     }

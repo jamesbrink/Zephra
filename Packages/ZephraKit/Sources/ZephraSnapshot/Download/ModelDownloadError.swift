@@ -23,12 +23,14 @@ public enum ModelDownloadError: Error, Hashable, Sendable {
     /// The transfer broke: the connection went, the server had a moment, the file ended early.
     /// The bytes already written stay on disk, so trying again continues from them.
     case interrupted(reason: String)
+    /// The listing named a path that would land outside the download's own folder.
+    case unsafePath(path: String)
 
     /// Whether another try could end differently. A missing repository or file and a refusal
     /// are answers; anything else is an accident worth a pause and another go.
     public var isPermanent: Bool {
         switch self {
-        case .repositoryNotFound, .fileNotFound, .unreadableListing, .nothingMatched: true
+        case .repositoryNotFound, .fileNotFound, .unreadableListing, .nothingMatched, .unsafePath: true
         case .refused(let status, _): DownloadRetry.isPermanentStatus(status)
         case .interrupted: false
         }
@@ -49,6 +51,8 @@ public enum ModelDownloadError: Error, Hashable, Sendable {
             "Hugging Face refused to serve \(path) (HTTP \(status))."
         case .interrupted(let reason):
             reason
+        case .unsafePath(let path):
+            "The repository names a file outside its own folder (\(path)), which Zephra will not write."
         }
     }
 }

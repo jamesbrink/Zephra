@@ -54,12 +54,17 @@ public enum SnapshotBuild {
                 note: note,
                 shouldContinue: shouldContinue
             )
+            // The replacement is inside the same cleanup: a destination that will not go, or
+            // a move that fails, must not leave gigabytes of finished partial behind either.
+            let files = FileManager.default
+            if files.fileExists(atPath: destination.path(percentEncoded: false)) {
+                try files.removeItem(at: destination)
+            }
+            try files.moveItem(at: partial, to: destination)
         } catch {
             try? FileManager.default.removeItem(at: partial)
             throw error
         }
-        try? FileManager.default.removeItem(at: destination)
-        try FileManager.default.moveItem(at: partial, to: destination)
         return destination
     }
 

@@ -63,7 +63,10 @@ Shared, by what a file actually touches:
     means the server ignored it or the file changed, and a 206 that does not
     begin where the file ends is refused, so in both cases the file starts over
     rather than being spliced onto another. The pin goes when the part's last
-    file lands. The transfer is paused above 64 MiB of body not yet written and
+    file lands and `.zephra-commit` records what the folder holds, so a later
+    transfer at another commit empties it first rather than keeping a shard of
+    the same size from the wrong one; a path in the listing that would leave
+    the folder is refused before anything is written. The transfer is paused above 64 MiB of body not yet written and
     resumed under 16 MiB (`ChunkedDownload`, told of each drain by
     `ChunkedBody`), so a fast connection cannot pile a shard up in memory ahead
     of a slow disk. Cancellation is checked between chunks. **No
