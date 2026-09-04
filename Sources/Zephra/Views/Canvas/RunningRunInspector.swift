@@ -54,11 +54,15 @@ struct RunningRunInspector: View {
         .font(.callout)
     }
 
+    /// Full width, the way the inspector's other actions are: the label carries the width, not
+    /// the button, or the chrome hugs the word and the one thing to do here reads as an aside.
     private var stopButton: some View {
-        Button(store.state == .cancelling ? "Stopping…" : "Stop") { store.cancel() }
-            .frame(maxWidth: .infinity)
-            .disabled(store.state == .cancelling)
-            .help("Stop after this step and clear the queue")
+        Button { store.cancel() } label: {
+            Text(store.state == .cancelling ? "Stopping…" : "Stop")
+                .frame(maxWidth: .infinity)
+        }
+        .disabled(store.state == .cancelling)
+        .help("Stop after this step and clear the queue")
     }
 
     private func row(_ key: String, _ value: String, style: KeyValueStyle = .plain) -> some View {
