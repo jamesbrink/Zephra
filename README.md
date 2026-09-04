@@ -541,37 +541,44 @@ Zephra/
 
 ### Releasing
 
-`make release` regenerates the project, builds Release, signs the app and the
-resource bundles inside it with a Developer ID Application certificate (hardened
+`make signed-build` regenerates the project, builds Release, and signs the app and
+the resource bundles inside it with a Developer ID Application certificate (hardened
 runtime, secure timestamp), verifies with `codesign --verify --deep --strict` and
-`spctl -a -t exec -vv`, and packages `build/Zephra.zip` with `ditto`. It needs no
-network. Ordinary `make build` is unaffected and still signs ad-hoc, so a machine
-with no certificate can build and run the app.
+`spctl -a -t exec -vv`. `make release` does that and packages `build/Zephra.zip`
+with `ditto`. Both need no network. Ordinary `make build` is unaffected and still
+signs ad-hoc, so a machine with no certificate can build and run the app.
 
 `SIGN_IDENTITY` picks the certificate; left empty, the first "Developer ID
-Application" identity in the keychain is used.
+Application" identity in the keychain is used. Both signing and notarization source
+`~/Documents/Zephra Signing/signing.env` when it exists; override its location with
+`SIGNING_CONFIG=/path/to/signing.env`.
 
-Notarization is a separate step, because it is the only one that talks to Apple.
-Store the credentials once — the password is an app-specific password from
-[appleid.apple.com](https://appleid.apple.com), not the Apple account password:
+Notarization is a separate step, because it is the only one that talks to Apple. A
+team App Store Connect API key is the same credential locally and in CI:
 
 ```sh
-xcrun notarytool store-credentials zephra-notary \
-    --apple-id you@example.com \
-    --team-id ABCDE12345 \
-    --password abcd-efgh-ijkl-mnop
+NOTARY_KEY="$HOME/Documents/Zephra Signing/AuthKey_XXXXXXXXXX.p8"
+NOTARY_KEY_ID=XXXXXXXXXX
+NOTARY_ISSUER_ID=00000000-0000-0000-0000-000000000000
 ```
 
 Then:
 
 ```sh
-make release
-make notarize
+make notarized-release
 ```
 
 `make notarize` submits the zip, waits for the verdict, staples the ticket to the
 app, rebuilds the zip from the stapled bundle so it passes Gatekeeper offline, and
-re-checks with `spctl`. `NOTARY_PROFILE=...` selects a differently named profile.
+re-checks with `spctl`. As a fallback it uses the keychain profile selected by
+`NOTARY_PROFILE` when the three API-key variables are unset.
+
+`.github/workflows/notarized-release.yml` provides the same flow on an Apple Silicon
+GitHub-hosted runner. It has only a manual trigger and uploads the notarized zip as a
+workflow artifact; it never publishes a GitHub release. The repository needs these
+Actions secrets: `DEVELOPER_ID_APPLICATION_P12_BASE64`,
+`DEVELOPER_ID_APPLICATION_P12_PASSWORD`, `APPLE_API_KEY_P8_BASE64`,
+`APPLE_API_KEY_ID`, and `APPLE_API_ISSUER_ID`.
 
 ## Roadmap
 

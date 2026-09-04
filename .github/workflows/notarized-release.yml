@@ -1,0 +1,71 @@
+name: Notarized Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-sign-notarize:
+    name: Build, sign, and notarize
+    runs-on: macos-26
+    timeout-minutes: 90
+
+    env:
+      DEVELOPER_ID_APPLICATION_P12_BASE64: ${{ secrets.DEVELOPER_ID_APPLICATION_P12_BASE64 }}
+      DEVELOPER_ID_APPLICATION_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_APPLICATION_P12_PASSWORD }}
+      APPLE_API_KEY_P8_BASE64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
+      NOTARY_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      NOTARY_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Import signing credentials
+        env:
+          KEYCHAIN_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          certificate="$RUNNER_TEMP/developer-id-application.p12"
+          keychain="$RUNNER_TEMP/zephra-signing.keychain-db"
+          api_key_dir="$RUNNER_TEMP/app-store-connect-private-keys"
+          api_key="$api_key_dir/AuthKey_${NOTARY_KEY_ID}.p8"
+
+          /usr/bin/base64 -D <<<"$DEVELOPER_ID_APPLICATION_P12_BASE64" >"$certificate"
+          mkdir -p "$api_key_dir"
+          /usr/bin/base64 -D <<<"$APPLE_API_KEY_P8_BASE64" >"$api_key"
+          chmod 600 "$certificate" "$api_key"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security set-keychain-settings -lut 7200 "$keychain"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security import "$certificate" -k "$keychain" \
+            -P "$DEVELOPER_ID_APPLICATION_P12_PASSWORD" -A -t agg -f pkcs12
+          security set-key-partition-list -S apple-tool:,apple: -s \
+            -k "$KEYCHAIN_PASSWORD" "$keychain"
+          security list-keychains -d user -s "$keychain"
+
+          echo "NOTARY_KEY=$api_key" >>"$GITHUB_ENV"
+
+      - name: Build signed archive
+        run: make release SIGNING_CONFIG=/dev/null
+
+      - name: Notarize and staple
+        run: make notarize SIGNING_CONFIG=/dev/null
+
+      - name: Upload notarized app
+        uses: actions/upload-artifact@v4
+        with:
+          name: Zephra-${{ github.sha }}
+          path: build/Zephra.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Remove signing keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/zephra-signing.keychain-db" || true

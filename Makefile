@@ -70,10 +70,11 @@ MLX_PACKAGES := ZephraMLXKit:ZephraMLXKit-Package QwenImageKit:QwenImageKit Zeph
 # take the first "Developer ID Application" identity in the keychain.
 SIGN_IDENTITY  ?=
 NOTARY_PROFILE ?= zephra-notary
+SIGNING_CONFIG ?= $(HOME)/Documents/Zephra Signing/signing.env
 RELEASE_APP    := $(BUILD)/Release/Zephra.app
 RELEASE_ZIP    := $(BUILD)/Zephra.zip
 
-.PHONY: doctor gen build run bench quantize quantize-qwen quantize-flux2 prefetch prefetch-qwen prefetch-flux2 open clean lint-layers logs screenshot test test-mlx test-backend icon release notarize
+.PHONY: doctor gen build run bench quantize quantize-qwen quantize-flux2 prefetch prefetch-qwen prefetch-flux2 open clean lint-layers logs screenshot test test-mlx test-backend icon signed-build release notarize notarized-release
 
 # What a fresh Mac needs before `make build` can work, each with its fix printed.
 doctor:
@@ -139,11 +140,20 @@ test-backend: test-mlx
 icon:
 	swift scripts/make-icon.swift
 
-# Build, sign for distribution, verify, and package. No network: notarization is
-# a separate step so this one works offline.
-release:
+# Build and sign the app for distribution. If present, SIGNING_CONFIG is sourced
+# before signing so a local machine can keep its identity selection in Documents.
+signed-build:
 	$(MAKE) CONFIG=Release build
-	SIGN_IDENTITY='$(SIGN_IDENTITY)' ./scripts/sign-release.sh $(RELEASE_APP)
+	@set -a; \
+	if [ -f "$(SIGNING_CONFIG)" ]; then . "$(SIGNING_CONFIG)"; fi; \
+	set +a; \
+	if [ -n "$(SIGN_IDENTITY)" ]; then SIGN_IDENTITY="$(SIGN_IDENTITY)"; fi; \
+	export SIGN_IDENTITY; \
+	./scripts/sign-release.sh $(RELEASE_APP)
+
+# Package the signed app. No network: notarization is a separate step so this
+# target works offline.
+release: signed-build
 	rm -f $(RELEASE_ZIP)
 	ditto -c -k --keepParent $(RELEASE_APP) $(RELEASE_ZIP)
 	@echo "release: $(RELEASE_ZIP) is signed and ready for 'make notarize'"
@@ -152,7 +162,14 @@ release:
 #   xcrun notarytool store-credentials $(NOTARY_PROFILE) \
 #       --apple-id <apple id> --team-id <team id> --password <app-specific password>
 notarize:
-	NOTARY_PROFILE='$(NOTARY_PROFILE)' ./scripts/notarize-release.sh $(RELEASE_APP) $(RELEASE_ZIP)
+	@set -a; \
+	if [ -f "$(SIGNING_CONFIG)" ]; then . "$(SIGNING_CONFIG)"; fi; \
+	set +a; \
+	if [ -n "$(NOTARY_PROFILE)" ]; then NOTARY_PROFILE="$(NOTARY_PROFILE)"; fi; \
+	export NOTARY_PROFILE; \
+	./scripts/notarize-release.sh $(RELEASE_APP) $(RELEASE_ZIP)
+
+notarized-release: release notarize
 
 # Into the app's own folder, under the name the app would have given it, so a first launch
 # finds the download rather than fetching it again.
