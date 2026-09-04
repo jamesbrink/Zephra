@@ -74,14 +74,17 @@ Shared, by what a file actually touches:
   tensors to leave alone, how finely to squeeze the rest, and which low-rank
   adapters to merge on the way past.
 - `ZephraMLX` (in `Packages/ZephraMLXKit`): MLX work that is the same job for
-  every family. Two things are there. `TiledDecode`: an autoencoder's decode
+  every family. Three things are there. `TiledDecode`: an autoencoder's decode
   allocates in proportion to the image, so decoding overlapping latent tiles
   bounds the peak by the tile. `MLXRuntime`: the process-wide allocator's
   limits and readings, which each family's `InferenceRuntime` forwards to,
-  adding only its own VAE tile. A model package may depend on this; nothing in
-  it may depend on a model package. The vendored `ZImageKit` keeps its own
-  copy as a `ZEPHRA-PATCH`, because pointing vendored code at ours would
-  complicate every re-sync.
+  adding only its own VAE tile. `LatentPreview`: how far to pool a latent for a
+  preview frame, and how to turn the decoded pixels into RGBA8 bytes — the two
+  halves of a frame that are not a family's own decoder. A model package may
+  depend on this; nothing in it may depend on a model package. The vendored
+  `ZImageKit` keeps its own copy of the first and the third as a
+  `ZEPHRA-PATCH`, because pointing vendored code at ours would complicate every
+  re-sync.
 - `ZephraEngine` (in `Packages/ZephraKit`): concurrency + state. Depends on
   `ZephraCore` and `ZephraSnapshot`, nothing else. Backends arrive as an
   injected `BackendRegistry` of `@Sendable` factories; this layer never names
@@ -143,9 +146,9 @@ engine be tested in seconds without Metal.
   observes, and it is split across `GenerationStore+*.swift` by concern —
   loading, generation, the queue, batches (several seeds of one prompt from
   one press of Generate), model switching, history, availability, preview,
-  the reference picture, the library, upscaling and filing the upscaled result.
-  Add a new concern as another extension file, not as more lines in
-  `GenerationStore.swift`.
+  the reference picture, the library, following the run, upscaling and filing
+  the upscaled result. Add a new concern as another extension file, not as more
+  lines in `GenerationStore.swift`.
 - `InferenceActor` is the only place backend code runs. It overrides
   `unownedExecutor` with a serial `DispatchQueue`: a generation is tens of
   seconds of synchronous Metal work, and on the cooperative pool that would
@@ -155,6 +158,51 @@ engine be tested in seconds without Metal.
   `AsyncStream` buffers the newest four events and drops the rest — progress is
   a snapshot, not a log — and `run` drains before returning, so the state a
   caller sets after an operation is never clobbered by an event still in flight.
+
+`current` is what the canvas is showing, and only that.
+`GenerationStore+FollowingRun.swift` is the other half of that sentence: pressing
+Generate — or asking for a variation — starts *following the run*, and opening or
+selecting any other picture stops. A result is published to `current` only while
+`followsRun`; one that lands while the user is looking elsewhere still enters
+history, the wall and the library, and leaves the canvas where it is.
+`watchRun()` follows again, `isShowingRun` is "following, and something is
+running", and `hasPicture` in the app target is `current != nil || isShowingRun`,
+so the inspector has something to describe from the moment a run starts. The
+upscale result follows the same rule by the one test it can apply: it takes the
+canvas only when the canvas was showing its parent, or was showing nothing.
+
+`livePreview` is the newest frame of the run in flight — `GenerationPreview`,
+RGBA8 pixels of at most 256 pixels an edge, decoded by the family's own VAE from
+a pooled copy of the latent. It rides in on `GenerationProgressEvent.preview`,
+which is why that type hand-writes `==` and `hash(into:)` to ignore it:
+`EngineState` is `Hashable` and compared on every transition, and hashing a
+quarter of a megabyte per step to answer a question nobody asks is not worth it.
+The store keeps the frame outside the state and puts it down on every way a run
+can end. `StepTimer.annotated` rebuilds the event field by field, so a new field
+there has to be forwarded by name or it never reaches the canvas.
+
+Where a frame comes from: each kit has a `<Family>LatentPreview` that takes a
+latent in its loop's own packed space, unpacks it, pools it so its long edge is at
+most 32 cells, and decodes that through the family's own autoencoder with the
+tiling skipped — `LatentPreview` in `ZephraMLX` holds the pooling and the byte
+packing for Qwen-Image and klein, and the vendored `ZImageKit` keeps its own copy
+for the same reason it keeps its own `VAETiledDecode`. Each loop calls an optional
+`onPreview` **after** the step's `MLX.eval`, never on the last step, handing over
+the step index and a *closure* that makes the frame rather than a frame: the
+backend owns a `PreviewThrottle` (0.75 s, `ZephraCore`) and never pays for the
+frames it drops. The existing before-step `onProgress` is untouched, so
+`BenchStepClock`'s timing is unaffected — it ignores any update carrying a frame,
+because a frame is reported after its step rather than before the next one. A
+family that never calls `onPreview` simply shows no frames.
+
+What each loop passes is the run's estimate of the **finished** latent,
+`x - sigma * v`, and not the latent it is holding. This is the whole feature
+working or not: all three schedules are bent towards their noisy end, and klein's
+four-step ladder at 1024 pixels is still at sigma 0.77 on its third rung, which
+decodes to flat brown mush. One more Euler step of the velocity already in hand,
+all the way to zero noise, is what a person means by "how is it coming along".
+It costs one elementwise operation, and it is computed inside the frame closure,
+so a dropped frame does not pay for it.
 
 ## The library
 
@@ -858,8 +906,18 @@ the re-sync procedure, and the running patch log. Any change inside
 - `make bench ARGS="--micro --size 1024"` times the DiT's individual MLX kernels at that size's
   token count without loading any weights, so a slow generation can be attributed to a primitive
   rather than guessed at.
+- `make bench ARGS="--preview --size 1024"` turns the live preview frames on for the run and
+  reports how many were made and the mean milliseconds one took, and writes the last frame
+  beside the image as `<stem>.preview.png` — a frame unpacked on the wrong axis is noise of
+  exactly the right size, so it wants looking at and not only timing. Frames are off in the
+  benchmark otherwise, so a step time measured without the flag is the model's own and stays
+  comparable with the figures already recorded here. `ZEPHRA_PREVIEW_INTERVAL_MS` is the switch
+  underneath: milliseconds between frames, and 0 switches them off, which is what the benchmark
+  sets. Measured at 1024 pixels on an M4 Max, mean over the frames of one run: 43 ms for klein
+  4-bit, 130 ms for Qwen-Image 4-bit, 192 ms for Z-Image 8-bit, against 0.5 to 8 s for the same
+  models' full decodes. The machine was not idle for the last two, so those are ceilings.
 - `ZEPHRA_PROFILE_STEP=1` prints per-phase timings (text encode, per-step graph build, per-step
-  eval, VAE decode) and MLX's active and peak allocation to stderr.
+  eval, VAE decode, and Z-Image's preview decode) and MLX's active and peak allocation to stderr.
 - Precision and padding switches, for bisecting a suspected regression without a rebuild:
   `ZEPHRA_DIT_DTYPE=f32` runs the transformer in float32, `ZEPHRA_PAD_PROMPT=full` pads prompts to
   the 512-token limit, `ZEPHRA_KEEP_CACHE=1` stops handing MLX's scratch back after a generation,

@@ -77,9 +77,20 @@ public final class Flux2Pipeline {
     }
 
     /// Makes one image and returns it as PNG bytes.
+    /// Called after a denoising step has been evaluated, with the step it just finished
+    /// (counting from zero), how many there are, and a way to decode the latent as it stands.
+    ///
+    /// The frame is a closure rather than a value because making one is a whole pass through
+    /// the autoencoder: a host that shows frames only every so often never pays for the ones it
+    /// would have thrown away. How often that is belongs to the host, not to this package.
+    public typealias PreviewHandler = (
+        _ step: Int, _ totalSteps: Int, _ frame: () -> Flux2LatentPreview
+    ) -> Void
+
     public func generate(
         _ request: Flux2GenerationRequest,
-        onProgress: (Flux2GenerationProgress) -> Void = { _ in }
+        onProgress: (Flux2GenerationProgress) -> Void = { _ in },
+        onPreview: PreviewHandler? = nil
     ) throws -> Data {
         guard let model = loaded else { throw Flux2PipelineError.notLoaded }
         let alignment = Self.sizeAlignment
@@ -97,6 +108,6 @@ public final class Flux2Pipeline {
 
         let references = try encodeReferences(request, with: model, onProgress: onProgress)
         return try denoise(request, text: text, references: references, with: model,
-                           onProgress: onProgress)
+                           onProgress: onProgress, onPreview: onPreview)
     }
 }

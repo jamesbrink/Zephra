@@ -55,6 +55,10 @@ extension GenerationStore {
             // in the sidebar empties at once rather than a step later, when the backend
             // notices. The image itself finishes its current step and is then thrown away.
             running = nil
+            // The frame goes with it: the picture on the canvas is being abandoned, and
+            // leaving it up through the step it takes the backend to notice reads as a run
+            // still going.
+            clearLivePreview()
             transition(to: .cancelling)
             generationTask?.cancel()
         case .upscaling:

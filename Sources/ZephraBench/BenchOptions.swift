@@ -17,6 +17,9 @@ struct BenchOptions: Sendable {
     var json = false
     /// Whether to skip the pipeline entirely and time individual MLX kernels instead.
     var micro = false
+    /// Whether the run makes preview frames, and reports what they cost. Off by default, so a
+    /// timing taken today is comparable with one taken before frames existed.
+    var preview = false
     /// A backend to run a snapshot with directly, for a model the catalog does not carry yet.
     var backend: BackendID?
     /// The snapshot directory that backend should load.
@@ -43,6 +46,8 @@ struct BenchOptions: Sendable {
                 options.json = true
             case "--micro":
                 options.micro = true
+            case "--preview":
+                options.preview = true
             case "--help", "-h":
                 print(usage)
                 exit(0)
@@ -117,7 +122,7 @@ struct BenchOptions: Sendable {
 
     private static let usage = """
         usage: ZephraBench [--model ID] [--size N] [--steps N] [--runs N] [--prompt TEXT] \
-        [--out PATH] [--json] [--micro] [--backend NAME --snapshot DIR] \
+        [--out PATH] [--json] [--micro] [--preview] [--backend NAME --snapshot DIR] \
         [--reference IMAGE --strength S]
 
         --model names a catalog entry, so variants can be compared at a fixed seed.
@@ -132,6 +137,11 @@ struct BenchOptions: Sendable {
         on the picture directly, as FLUX.2 klein does, clamps this to 1 and ignores it. The
         model's own bounds always apply, so the report rather than this flag is what says the
         strength that ran and the step it began at.
+        --preview turns on the live preview frames the app shows while a run is going and
+        reports what they cost: how many were made and the mean milliseconds one took. The
+        last frame is written beside --out as <stem>.preview.png, because a frame unpacked on
+        the wrong axis is noise of exactly the right size. Frames are off without this flag,
+        so a step time measured without it is the model's own.
         --micro times the DiT's individual MLX kernels at --size worth of tokens and
         exits, without loading any weights.
         """

@@ -14,6 +14,14 @@ final class MockBackend: ImageGenerationBackend {
             """
     )!
 
+    /// A 2x2 frame whose red channel counts the step, so a test can tell one frame from the
+    /// next without decoding anything.
+    static func preview(step: Int) -> GenerationPreview {
+        GenerationPreview(
+            width: 2, height: 2,
+            pixels: Data((0..<4).flatMap { _ in [UInt8(step % 256), 0, 0, 255] }))
+    }
+
     private(set) var loadedModelID: String?
 
     private let control: MockBackendControl
@@ -93,11 +101,17 @@ final class MockBackend: ImageGenerationBackend {
             if dials.stepDelay > .zero {
                 try await Task.sleep(for: dials.stepDelay)
             }
+            var preview: GenerationPreview?
+            if dials.previewsEveryStep {
+                preview = Self.preview(step: step)
+                control.update { $0.previewsEmitted += 1 }
+            }
             control.update { $0.stepsEmitted += 1 }
             onProgress(
                 GenerationProgressEvent(
                     phase: .denoising(step: step, of: total),
-                    fraction: Double(step) / Double(total)
+                    fraction: Double(step) / Double(total),
+                    preview: preview
                 )
             )
         }

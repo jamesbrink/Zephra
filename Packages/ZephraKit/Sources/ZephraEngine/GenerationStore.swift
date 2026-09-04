@@ -32,6 +32,14 @@ public final class GenerationStore {
     /// The generation being rendered right now, or nil when none is. It is not in `queue`: the
     /// queue is what is still waiting, and a list showing both reads it straight off.
     public internal(set) var running: QueuedGeneration?
+    /// Whether the canvas is following the generation in flight rather than showing a picture
+    /// the user chose. See `GenerationStore+FollowingRun.swift`, which is where every rule
+    /// about it lives; it is stored here only because Swift keeps stored properties on the
+    /// type. `internal(set)` for the same reason: the extension has to be able to set it.
+    public internal(set) var followsRun = false
+    /// The newest frame of the generation in flight, or nil when there is none to show — before
+    /// the first frame of a run, and from the moment any run ends.
+    public internal(set) var livePreview: GenerationPreview?
     /// The model whose weights are resident right now, or nil while none are. It trails
     /// `descriptor` whenever a switch is waiting for the queue to drain.
     public internal(set) var loadedDescriptor: ModelDescriptor?
@@ -124,6 +132,7 @@ public final class GenerationStore {
     /// Shows an earlier image on the canvas and adopts its settings, so the obvious next move
     /// is to tweak one thing and generate a variation.
     public func select(_ image: GeneratedImage) {
+        stopFollowingRun()
         current = image
         settings = image.settings
         // Everything else carries over whichever model made it; a picture to edit does not,

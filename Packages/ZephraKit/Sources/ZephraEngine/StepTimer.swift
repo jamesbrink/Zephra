@@ -44,7 +44,10 @@ struct StepTimer {
         return GenerationProgressEvent(
             phase: event.phase,
             fraction: event.fraction,
-            secondsPerStep: secondsPerStep
+            secondsPerStep: secondsPerStep,
+            // Rebuilt field by field, so anything the backend attached has to be carried
+            // across by name. A frame dropped here would never reach the canvas.
+            preview: event.preview
         )
     }
 }

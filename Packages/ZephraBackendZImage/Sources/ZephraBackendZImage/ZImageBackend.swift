@@ -112,10 +112,32 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
             // failure rather than a load one: the model is loaded and fine, the request is not.
             throw BackendError.generationFailed(error.readableMessage)
         }
-        do {
-            return try await pipeline.generateToMemory(request) { progress in
-                onProgress(ZImageProgressMapper.event(from: progress))
+        // One throttle per run, so a frame is made at most every three quarters of a second
+        // however fast the steps go by, and none at all when the environment has switched them
+        // off. Nil rather than an always-refusing throttle: the loop then skips the check.
+        var throttle = PreviewThrottle.environmentInterval.map(PreviewThrottle.init(interval:))
+        let previewHandler: ZImagePipeline.PreviewHandler? =
+            throttle == nil
+            ? nil
+            : { step, total, frame in
+                guard throttle?.shouldMakeFrame() == true else { return }
+                let started = ContinuousClock.now
+                let made = frame()
+                onProgress(
+                    .frame(
+                        after: step, of: total,
+                        preview: GenerationPreview(
+                            width: made.width, height: made.height, pixels: made.pixels,
+                            duration: ContinuousClock.now - started)))
             }
+        do {
+            return try await pipeline.generateToMemory(
+                request,
+                progressHandler: { progress in
+                    onProgress(ZImageProgressMapper.event(from: progress))
+                },
+                previewHandler: previewHandler
+            )
         } catch let error as CancellationError {
             throw error
         } catch {

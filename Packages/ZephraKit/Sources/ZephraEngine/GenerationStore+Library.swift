@@ -11,6 +11,10 @@ extension GenerationStore {
     /// when a variation is asked for, which is an explicit act. A second open supersedes the
     /// first, so clicking down a row of thumbnails does not queue up a row of reads.
     public func open(_ item: LibraryItem) async {
+        // Looking at something else is what stops the canvas following the run. Said here
+        // rather than when the bytes arrive, so a slow read does not leave the run's frames
+        // playing under a picture that is on its way.
+        stopFollowingRun()
         openTask?.cancel()
         let task = Task { [weak self] in
             let opened = await Self.read(item)
@@ -51,6 +55,10 @@ extension GenerationStore {
         var request = record.settings(referenceImage: item.referenceImage).withRandomSeed()
         if known == nil { request = request.onSchedule(of: model) }
         request = model.capabilities.clamp(request)
+        // A variation is a request for an image, the same as pressing Generate, so the canvas
+        // follows it: without this an image asked for while an older picture was open would
+        // finish invisibly.
+        startFollowingRun()
         descriptor = model
         settings = request
         queue.append(QueuedGeneration(model: model, settings: request))

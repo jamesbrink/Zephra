@@ -25,6 +25,13 @@ struct BenchReport: Codable, Sendable {
     let runSeconds: [Double]
     /// Mean seconds per denoising step, measured between progress callbacks.
     let meanSecondsPerStep: Double
+    /// How many preview frames the runs made, or nil when frames were off. Far fewer than the
+    /// steps: the backends throttle them to one every three quarters of a second.
+    let previewFrames: Int?
+    /// Mean seconds one preview frame took to decode, or nil when frames were off.
+    let meanPreviewSeconds: Double?
+    /// Where the last preview frame was written, or nil when there was none to write.
+    let previewPath: String?
     /// GPU memory still live after the last run, in megabytes. This is what the app will hold
     /// steadily while a model stays loaded.
     let activeMemoryMB: Double
@@ -83,6 +90,17 @@ struct BenchReport: Codable, Sendable {
         }
         lines.append(row("mean run", seconds(meanRunSeconds)))
         lines.append(row("mean step", seconds(meanSecondsPerStep)))
+        if let previewFrames, let meanPreviewSeconds {
+            lines.append(
+                row(
+                    "preview",
+                    String(
+                        format: "%d frames, %.0f ms each",
+                        previewFrames, meanPreviewSeconds * 1000)))
+        }
+        if let previewPath {
+            lines.append(row("frame written", previewPath))
+        }
         lines.append(row("live memory", String(format: "%.0f MB", activeMemoryMB)))
         lines.append(row("peak memory", String(format: "%.0f MB", peakMemoryMB)))
         lines.append(row("image written", outputPath))
