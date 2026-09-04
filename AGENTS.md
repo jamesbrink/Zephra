@@ -386,12 +386,15 @@ Makefile targets:
   `xcodebuild`. `make test-backend` is kept as an alias. Keep `make test`
   MLX-free.
 - `make icon` — re-render `AppIcon.appiconset` from `scripts/make-icon.swift`.
+- `make signed-build` — build Release and sign the app with a Developer ID
+  Application identity. Sources `~/Documents/Zephra Signing/signing.env` when present.
 - `make release` — build Release, sign with a Developer ID Application identity
   (hardened runtime, secure timestamp), verify, and zip to `build/Zephra.zip`.
   Needs no network. `SIGN_IDENTITY` overrides the auto-detected certificate.
-- `make notarize` — submit that zip, staple the ticket, and repackage. Needs
-  `xcrun notarytool store-credentials zephra-notary` run once; `NOTARY_PROFILE`
-  names the profile.
+- `make notarize` — submit that zip, staple the ticket, and repackage. It reads
+  App Store Connect API-key variables from the signing config, or falls back to
+  the keychain profile named by `NOTARY_PROFILE`.
+- `make notarized-release` — run the signed release and notarization steps together.
 - `make prefetch` — download the default model weights via `hf download`.
 - `make prefetch-flux2` — download the FLUX.2 klein 4B release into the hub
   cache, without the 7.75 GB single-file checkpoint the loader never reads, so
