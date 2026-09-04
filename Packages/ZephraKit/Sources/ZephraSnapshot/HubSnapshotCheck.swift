@@ -44,7 +44,11 @@ public nonisolated enum HubSnapshotCheck {
         guard let walk = FileManager.default.enumerator(
             at: snapshot, includingPropertiesForKeys: [.isRegularFileKey])
         else { return [] }
-        return walk.compactMap { $0 as? URL }.filter { $0.pathExtension == "incomplete" }
+        // A `.zephra-revision` beside the files is Zephra's own download still in flight,
+        // pinned to the commit it started at; it goes when the last file lands.
+        return walk.compactMap { $0 as? URL }.filter {
+            $0.pathExtension == "incomplete" || $0.lastPathComponent == ".zephra-revision"
+        }
     }
 
     /// The component directories a diffusers `model_index.json` names: every key whose value

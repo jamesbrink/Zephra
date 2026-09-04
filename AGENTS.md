@@ -44,24 +44,35 @@ Shared, by what a file actually touches:
   listing what the catalog's models occupy on disk. Foundation only, which is
   the point: `make test` covers all of it, so these suites need no Metal and
   the downloader is driven through a `URLProtocol` stub.
-  - `Download/` is the downloader. `ModelDownloader` lists a repository from
-    `/api/models/{repo}/tree/{revision}?recursive=true` (paged by the `Link`
+  - `Download/` is the downloader. `ModelDownloader` first asks
+    `/api/models/{repo}/revision/{revision}` which commit the catalog's branch
+    names and pins the transfer to it in `.zephra-revision` beside the files —
+    a download of hours, or one resumed a week later, must list and fetch one
+    commit, not a mix of two — then lists that commit from
+    `/api/models/{repo}/tree/{commit}?recursive=true` (paged by the `Link`
     header, decoded by `RepositoryListing`), filters it with the descriptor's
     globs (`FilePattern`, fnmatch rules, so `*` crosses directories the way
     the hub's own matching does), and fetches each file from
-    `/{repo}/resolve/{revision}/{path}` into
+    `/{repo}/resolve/{commit}/{path}` into
     `<models>/Downloads/<org>--<repo>/`, flat, as the repository names them.
     A file in flight is `<name>.incomplete` beside where it will live and is
     renamed only when its size matches the listing, so a stop or a broken
-    connection resumes with a `Range` and a truncated file is never taken for a
-    finished one; a 200 answer to a `Range` request means the server ignored it,
-    and the file starts over rather than being spliced at the wrong offset.
-    Cancellation is checked between chunks. **No `Authorization` header is ever
-    sent** — every repository the catalog names is public — so no token, in the
-    environment or in a file, can turn a public model into a login wall.
+    connection resumes with a `Range` — and an `If-Range` naming the `ETag` the
+    first answer carried, kept in `<name>.incomplete.etag` — and a truncated
+    file is never taken for a finished one; a 200 answer to a `Range` request
+    means the server ignored it or the file changed, and a 206 that does not
+    begin where the file ends is refused, so in both cases the file starts over
+    rather than being spliced onto another. The pin goes when the part's last
+    file lands. The transfer is paused above 64 MiB of body not yet written and
+    resumed under 16 MiB (`ChunkedDownload`, told of each drain by
+    `ChunkedBody`), so a fast connection cannot pile a shard up in memory ahead
+    of a slow disk. Cancellation is checked between chunks. **No
+    `Authorization` header is ever sent** — every repository the catalog names
+    is public — so no token, in the environment or in a file, can turn a
+    public model into a login wall.
   - `HubSnapshotCheck` is what says a directory is a finished download: a
     config, some weights, every shard a `*.safetensors.index.json` names, and
-    nothing still `.incomplete` anywhere under it.
+    nothing still `.incomplete` — or a `.zephra-revision` — anywhere under it.
   - `HubCache` and `HubRepository` read the two layouts in
     `~/.cache/huggingface/hub` — `hf download`'s
     `models--<org>--<repo>/snapshots/<commit>/` and the flat

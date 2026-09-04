@@ -206,6 +206,35 @@ struct ModelDownloaderTests {
         #expect(!scratch.hasFile("models/big.bin.incomplete.etag"), "gone with the partial")
     }
 
+    @Test("a download is pinned to one commit, and a resumed one keeps the commit it started at")
+    func aTransferIsPinnedToACommit() async throws {
+        let scratch = Scratch("Download")
+        StubHub.reset(
+            StubHub.Behaviour(
+                pages: [page([("model_index.json", 2)])], files: ["model_index.json": Data("{}".utf8)],
+                sha: "second"))
+        try scratch.write("first", to: "models/.zephra-revision")
+
+        _ = try await downloader().download(
+            repoID: "org/repo", patterns: ["*"], into: scratch.url("models"), onProgress: { _ in })
+
+        let paths = StubHub.records.map(\.path)
+        #expect(paths.contains("/api/models/org/repo/tree/first"), "listed at the pinned commit")
+        #expect(paths.contains("/org/repo/resolve/first/model_index.json"), "fetched at it too")
+        #expect(!paths.contains { $0.contains("/revision/") }, "the branch was not asked again")
+        #expect(!scratch.hasFile("models/.zephra-revision"), "the pin goes with the last file")
+
+        StubHub.reset(
+            StubHub.Behaviour(
+                pages: [page([("model_index.json", 3)])], files: ["model_index.json": Data("{ }".utf8)],
+                sha: "third"))
+        _ = try await downloader().download(
+            repoID: "org/repo", patterns: ["*"], into: scratch.url("models"), onProgress: { _ in })
+        #expect(
+            StubHub.records.map(\.path).contains("/org/repo/resolve/third/model_index.json"),
+            "a fresh transfer asks the branch and pins what it answers")
+    }
+
     @Test("a server that ignores the range is not spliced onto: the file starts over")
     func anIgnoredRangeStartsOver() async throws {
         let scratch = Scratch("Download")

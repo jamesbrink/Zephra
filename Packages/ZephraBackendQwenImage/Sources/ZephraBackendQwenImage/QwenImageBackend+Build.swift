@@ -21,12 +21,21 @@ extension QwenImageBackend {
             return packed
         }
         let packed = locations.built(descriptor)
+        // Every adapter, or no build: a base model packed without its four-step distillation
+        // would load under this descriptor and be wrong in a way that does not announce
+        // itself. An adapter that was here at `ensureAvailable` and is not now — deleted, or
+        // on a volume that has gone — is a model to choose again, which fetches it.
+        let adapters = descriptor.adapters.compactMap(locations.adapterFileOnDisk)
+        guard adapters.count == descriptor.adapters.count else {
+            throw BackendError.loadFailed(
+                "\(descriptor.fullName)'s adapter is no longer on this Mac. Choose the model again to fetch it.")
+        }
         do {
             return try QwenImageSnapshotBuild.pack(
                 release: localPath,
                 into: packed,
                 descriptor: descriptor,
-                adapters: descriptor.adapters.compactMap(locations.adapterFileOnDisk),
+                adapters: adapters,
                 onProgress: onProgress
             )
         } catch let error as CancellationError {

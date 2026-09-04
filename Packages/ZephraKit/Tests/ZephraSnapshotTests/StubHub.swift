@@ -31,6 +31,8 @@ final class StubHub: URLProtocol, @unchecked Sendable {
         /// The `ETag` every file answer carries; a resume whose `If-Range` names another is
         /// answered with the whole file, the way a file that changed would be.
         var etag: String?
+        /// The commit the repository's branch names right now.
+        var sha = "stub-sha"
     }
 
     /// One request as the stub saw it.
@@ -83,11 +85,22 @@ final class StubHub: URLProtocol, @unchecked Sendable {
                     ifRange: request.value(forHTTPHeaderField: "If-Range")))
             return state.behaviour
         }
-        if url.path(percentEncoded: false).contains("/api/models/") {
+        if url.path(percentEncoded: false).contains("/revision/") {
+            serveRevision(url, behaviour)
+        } else if url.path(percentEncoded: false).contains("/api/models/") {
             serveListing(url, behaviour)
         } else {
             serveFile(url, behaviour)
         }
+    }
+
+    /// `/api/models/<repo>/revision/<name>`: what commit the name stands for.
+    private func serveRevision(_ url: URL, _ behaviour: Behaviour) {
+        if let status = behaviour.listingStatus, status != 200 {
+            return finish(url, status: status, headers: [:], body: Data())
+        }
+        let body = try! JSONSerialization.data(withJSONObject: ["sha": behaviour.sha])
+        finish(url, status: 200, headers: ["Content-Type": "application/json"], body: body)
     }
 
     private func serveListing(_ url: URL, _ behaviour: Behaviour) {

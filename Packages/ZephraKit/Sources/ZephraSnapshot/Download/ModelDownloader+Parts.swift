@@ -37,18 +37,22 @@ extension ModelDownloader {
                 tally.finishFile()
                 if let event = tally.report(force: true) { onProgress(event) }
             }
+            // Every file of this part is down at the commit it was pinned to; the pin goes,
+            // and the directory is a finished download from here on.
+            try? FileManager.default.removeItem(at: Self.pin(in: part.destination))
         }
     }
 
-    /// What each part actually holds: its repository listed, then filtered by its globs. A part
-    /// that names a repository the hub has not got, or whose globs match nothing in it, stops
-    /// the whole download — a catalog written against a repository that has been rearranged is
-    /// not something to half-fetch.
+    /// What each part actually holds: its revision pinned to a commit, its repository listed
+    /// at that commit, then filtered by its globs. A part that names a repository the hub has
+    /// not got, or whose globs match nothing in it, stops the whole download — a catalog
+    /// written against a repository that has been rearranged is not something to half-fetch.
     private func listing(
         of parts: [RepositoryDownload], on session: URLSession
     ) async throws -> [(part: RepositoryDownload, files: [RepositoryFile])] {
         var work: [(part: RepositoryDownload, files: [RepositoryFile])] = []
-        for part in parts {
+        for named in parts {
+            let part = named.pinned(to: try await pinnedRevision(for: named, on: session))
             let listed = try await listing(of: part.repoID, revision: part.revision, on: session)
             guard !listed.isEmpty else {
                 throw ModelDownloadError.repositoryNotFound(repoID: part.repoID)

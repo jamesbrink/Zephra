@@ -23,4 +23,11 @@ public struct RepositoryDownload: Hashable, Sendable {
         self.patterns = patterns
         self.destination = destination
     }
+
+    /// The same download at the commit `revision` names now, so every listing and every file
+    /// request of one transfer speaks of the same files.
+    public func pinned(to revision: String) -> RepositoryDownload {
+        RepositoryDownload(
+            repoID: repoID, revision: revision, patterns: patterns, destination: destination)
+    }
 }

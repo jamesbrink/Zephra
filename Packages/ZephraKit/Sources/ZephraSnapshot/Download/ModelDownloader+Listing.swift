@@ -24,7 +24,7 @@ extension ModelDownloader {
     /// One page, with the hub's answer read as a status rather than as bytes: no such
     /// repository is a permanent answer, another 4xx is a refusal, and anything else is a
     /// transfer worth trying again.
-    private func load(_ url: URL, on session: URLSession, repoID: String) async throws -> (
+    func load(_ url: URL, on session: URLSession, repoID: String) async throws -> (
         Data, HTTPURLResponse
     ) {
         let (data, response): (Data, URLResponse)
