@@ -9,7 +9,8 @@ public struct HubRepository: Hashable, Sendable {
         /// commit and every file a link into `blobs/`. What `hf download` writes.
         case hub
         /// `models/<org>/<repo>/`, the directory itself the snapshot, with the transfer's
-        /// bookkeeping under `.cache/huggingface/download/`. What the app's hub client writes.
+        /// bookkeeping under `.cache/huggingface/download/`. What an older Zephra's hub client
+        /// wrote; nothing writes it now.
         case flat
     }
 

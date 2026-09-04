@@ -2,15 +2,15 @@ import Foundation
 
 /// Finds what the Hugging Face hub cache already holds, without opening a connection.
 ///
-/// This is what lets a model picker say "13.3 GB download" without starting one, so it reads the
-/// disk and nothing else. It is model-agnostic: every answer comes from the repository id and
-/// the revision it is given.
+/// Zephra downloads into its own folder now (`ModelLocations`), and this cache is read as a
+/// fallback and never written: a Mac that ran `hf download`, or that fetched a release with an
+/// older Zephra, should not be asked for sixteen gigabytes it already has. So this reads the
+/// disk and nothing else, and it is model-agnostic: every answer comes from the repository id
+/// and the revision it is given.
 ///
 /// Two layouts live in the one cache directory, and `HubRepository` describes each: the one
-/// `hf download` writes and the one the app's own hub client writes. Both are looked at, the
-/// `hf` layout first, because a Mac can have either — this one was seeded by `make prefetch`,
-/// that one downloaded in the app — and a model downloaded in the app that the next launch did
-/// not recognise would be downloaded again.
+/// `hf download` writes and the flat one an older Zephra's hub client wrote. Both are looked
+/// at, the `hf` layout first, because a Mac can have either.
 ///
 /// A pipeline's own resolver usually performs the same lookup on its way to a download, but as a
 /// private step that cannot be asked about, and often without regard for the revision — so a
