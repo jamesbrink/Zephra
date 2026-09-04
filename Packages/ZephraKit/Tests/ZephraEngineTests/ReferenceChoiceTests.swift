@@ -14,7 +14,7 @@ struct ReferenceChoiceTests {
         try #require(store.descriptor.capabilities.supportsReferenceImage)
         let slow = Data([1]), quick = Data([2])
 
-        store.adoptReference { Thread.sleep(forTimeInterval: 0.2); return slow }
+        store.adoptReference { try? await Task.sleep(for: .milliseconds(200)); return slow }
         store.adoptReference { quick }
         try await Task.sleep(for: .milliseconds(400))
 
@@ -28,7 +28,7 @@ struct ReferenceChoiceTests {
         await store.bootstrap()
         try #require(store.descriptor.capabilities.supportsReferenceImage)
 
-        store.adoptReference { Thread.sleep(forTimeInterval: 0.2); return Data([1]) }
+        store.adoptReference { try? await Task.sleep(for: .milliseconds(200)); return Data([1]) }
         let ticket = store.claimReference()
         store.useAsReference(nil, ticket: ticket)
         try await Task.sleep(for: .milliseconds(400))
@@ -45,7 +45,7 @@ struct ReferenceChoiceTests {
         store.settings.prompt = "a lighthouse"
         try #require(store.canGenerate)
 
-        store.adoptReference { Thread.sleep(forTimeInterval: 0.2); return Data([1]) }
+        store.adoptReference { try? await Task.sleep(for: .milliseconds(200)); return Data([1]) }
         #expect(store.isAdoptingReference)
         #expect(!store.canGenerate)
         #expect(!store.canQueue)

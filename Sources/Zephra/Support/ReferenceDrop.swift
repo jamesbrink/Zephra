@@ -25,10 +25,10 @@ enum ReferenceDrop {
         // slow provider must not overtake a picture chosen from the library after it was
         // accepted, and Generate waits for it the way it waits for a library read.
         // `NSItemProvider` is documented thread-safe, which the compiler cannot see.
-        nonisolated(unsafe) let provider = provider
+        nonisolated(unsafe) let dropped = provider
         store.adoptReference {
             let data = await withCheckedContinuation { continuation in
-                provider.loadDataRepresentation(forTypeIdentifier: type.identifier) { data, _ in
+                dropped.loadDataRepresentation(forTypeIdentifier: type.identifier) { data, _ in
                     continuation.resume(returning: data)
                 }
             }
