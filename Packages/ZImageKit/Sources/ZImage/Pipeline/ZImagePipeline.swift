@@ -246,6 +246,17 @@ public final class ZImagePipeline {
   }
 
   public typealias ProgressHandler = (GenerationProgress) -> Void
+
+  // ZEPHRA-PATCH: a second, optional hook for a host that shows a run as it happens.
+  /// Called after a denoising step has been evaluated, with the step it just finished
+  /// (counting from zero), how many there are, and a way to decode the latent as it stands.
+  ///
+  /// The frame is a closure rather than a value because making one is a pass through the
+  /// autoencoder: a host that shows frames only every so often never pays for the ones it would
+  /// have thrown away. How often that is belongs to the host, not to this package.
+  public typealias PreviewHandler = (
+    _ step: Int, _ totalSteps: Int, _ frame: () -> ZImageLatentPreview
+  ) -> Void
   public func loadModel(modelSpec: String? = nil, progressHandler: ProgressHandler? = nil) async throws {
     let modelId = modelSpec ?? ZImageRepository.id
     if isModelLoaded && loadedModelId == modelId {
@@ -379,10 +390,11 @@ public final class ZImagePipeline {
 
     return request.outputPath
   }
-  public func generateToMemory(_ request: ZImageGenerationRequest, progressHandler: ProgressHandler? = nil) async throws -> Data {
+  // ZEPHRA-PATCH: `previewHandler` added, defaulted so every existing caller is unchanged.
+  public func generateToMemory(_ request: ZImageGenerationRequest, progressHandler: ProgressHandler? = nil, previewHandler: PreviewHandler? = nil) async throws -> Data {
     logger.info("Requested Z-Image generation (to memory)")
 
-    let decoded = try await generateCore(request, progressHandler: progressHandler)
+    let decoded = try await generateCore(request, progressHandler: progressHandler, previewHandler: previewHandler)
 
     progressHandler?(GenerationProgress(stage: .saving, stepIndex: request.steps, totalSteps: request.steps))
     let imageData = try QwenImageIO.imageData(from: decoded)
@@ -390,7 +402,7 @@ public final class ZImagePipeline {
 
     return imageData
   }
-  private func generateCore(_ request: ZImageGenerationRequest, progressHandler: ProgressHandler? = nil) async throws -> MLXArray {
+  private func generateCore(_ request: ZImageGenerationRequest, progressHandler: ProgressHandler? = nil, previewHandler: PreviewHandler? = nil) async throws -> MLXArray {
 
     let vaeScale = 16
     if request.width % vaeScale != 0 {
@@ -564,6 +576,18 @@ public final class ZImagePipeline {
       guidedNoise = -guidedNoise
       latents = scheduler.step(modelOutput: guidedNoise, timestepIndex: stepIndex, sample: latents)
       ZImageStepProfile.measure("step eval") { MLX.eval(latents) }
+      // ZEPHRA-PATCH: a frame of the run, after the evaluation so it shows the step that has
+      // just finished, and never on the last step: the real decode follows it immediately, and
+      // a pooled one in front of that is a second pass through the autoencoder for a picture
+      // the caller is a moment from seeing properly.
+      if let previewHandler, stepIndex < request.steps - 1 {
+        let target = latents
+        previewHandler(stepIndex, request.steps) {
+          ZImageStepProfile.measure("preview decode") {
+            ZImageLatentPreview.make(latents: target, vae: vae)
+          }
+        }
+      }
     }
 
     ZImageStepProfile.noteMemory("mem: denoise done")

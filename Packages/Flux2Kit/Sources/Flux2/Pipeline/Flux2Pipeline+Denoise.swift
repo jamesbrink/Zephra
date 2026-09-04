@@ -23,7 +23,8 @@ extension Flux2Pipeline {
         text: MLXArray,
         references: [Flux2ReferenceConditioning.Reference],
         with model: Loaded,
-        onProgress: (Flux2GenerationProgress) -> Void
+        onProgress: (Flux2GenerationProgress) -> Void,
+        onPreview: PreviewHandler? = nil
     ) throws -> Data {
         let configuration = model.configuration
         let packedHeight = request.height / Self.sizeAlignment
@@ -64,6 +65,19 @@ extension Flux2Pipeline {
             )[0..., 0..<targetTokens]
             latents = scheduler.step(modelOutput: velocity, index: index, sample: latents)
             MLX.eval(latents)
+            // After the evaluation, so the frame shows the step that has just finished rather
+            // than the one about to run, and never on the last: the real decode follows it
+            // immediately, and a pooled one in front of that is a pass through the autoencoder
+            // for a picture the caller is a second from seeing properly.
+            if let onPreview, index < scheduler.timesteps.count - 1 {
+                let target = latents
+                let autoencoder = model.autoencoder
+                onPreview(index, request.steps) {
+                    Flux2LatentPreview.make(
+                        tokens: target, packedHeight: packedHeight, packedWidth: packedWidth,
+                        autoencoder: autoencoder)
+                }
+            }
         }
 
         onProgress(Flux2GenerationProgress(stage: .decoding))

@@ -74,9 +74,7 @@ public final class Flux2Autoencoder: Module {
     /// - Parameter packed: `[batch, 128, height, width]`, as the denoising loop leaves it.
     /// - Returns: `[batch, height * 16, width * 16, 3]` NHWC in the range -1 to 1.
     public func decodePacked(_ packed: MLXArray) -> MLXArray {
-        let latents = Flux2LatentPacking
-            .unpatchify(statistics.denormalize(packed))
-            .transposed(0, 2, 3, 1)
+        let latents = unpacked(packed).transposed(0, 2, 3, 1)
         // Tiling wraps `post_quant_conv` as well: it is a 1x1 convolution, so it commutes with
         // taking a tile, and holding its full-resolution result live would waste the point.
         // The tile is measured on the unpacked latent, so a 64-cell tile still means 512 pixels.
@@ -91,6 +89,26 @@ public final class Flux2Autoencoder: Module {
                 decoder(postQuantization(latents))
             }
         return MLX.clip(pixels, min: MLXArray(Float(-1)), max: MLXArray(Float(1)))
+    }
+
+    /// The packed latent denormalised and unpacked, which is the halfway house `decodePacked`
+    /// passes through. Its own name because a preview frame pools it there, between the two.
+    ///
+    /// - Parameter packed: `[batch, 128, height, width]`.
+    /// - Returns: `[batch, 32, height * 2, width * 2]` NCHW.
+    func unpacked(_ packed: MLXArray) -> MLXArray {
+        Flux2LatentPacking.unpatchify(statistics.denormalize(packed))
+    }
+
+    /// The second half of `decodePacked`, never tiled: what a preview frame takes, a latent of
+    /// at most 32 cells an edge being smaller than any tile worth cutting.
+    ///
+    /// - Parameter latents: `[batch, 32, height, width]` NCHW, as `unpacked` returns them.
+    /// - Returns: `[batch, height * 8, width * 8, 3]` NHWC in the range -1 to 1.
+    func decodeUntiled(_ latents: MLXArray) -> MLXArray {
+        MLX.clip(
+            decoder(postQuantization(latents.transposed(0, 2, 3, 1))),
+            min: MLXArray(Float(-1)), max: MLXArray(Float(1)))
     }
 
     /// Loads the published weights, transposed and renamed for this tree.

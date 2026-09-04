@@ -24,6 +24,23 @@ public struct GenerationProgressEvent: Hashable, Sendable {
         self.preview = preview
     }
 
+    /// The update a backend sends when it has just decoded a frame of the run in flight.
+    ///
+    /// `step` counts from zero and names the step that has *finished*, which is how the
+    /// pipelines report themselves; the phase counts from one, the way a person does, so the
+    /// frame from the first step reads as "step 1 of 4" and the fraction is the honest
+    /// completed share. `secondsPerStep` is left to the engine's own timer, as it is for every
+    /// other update: only the engine sees the whole run.
+    public static func frame(
+        after step: Int, of total: Int, preview: GenerationPreview
+    ) -> Self {
+        let completed = step + 1
+        return GenerationProgressEvent(
+            phase: .denoising(step: completed, of: total),
+            fraction: total > 0 ? Double(completed) / Double(total) : 0,
+            preview: preview)
+    }
+
     /// A countdown for the diffusion loop, which is the only phase whose pace is predictable.
     public var estimatedSecondsRemaining: Double? {
         guard case let .denoising(step, total) = phase, let secondsPerStep else { return nil }

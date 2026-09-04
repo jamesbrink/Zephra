@@ -9,6 +9,10 @@ enum BenchRunner {
     /// family the chosen model belongs to and never names one itself.
     static func run(_ options: BenchOptions, registry: BackendRegistry) async throws -> BenchReport {
         BenchBackends.runtime().setCacheLimit(bytes: cacheLimit())
+        // The backends read this when they build their throttle, so it has to be set before the
+        // first generation and not after. Zero switches the frames off, which is the default
+        // here: a benchmark measures the model, unless it was asked to measure the frames too.
+        setenv("ZEPHRA_PREVIEW_INTERVAL_MS", options.preview ? "750" : "0", 1)
         // Either a catalogued model, or a snapshot named on the command line for a family whose
         // catalog entry does not exist yet. The flag was checked when it was parsed, so an
         // unknown identifier cannot reach here.
@@ -46,6 +50,7 @@ enum BenchRunner {
         let settings = timedSettings(descriptor, options: options, reference: reference)
         var runSeconds: [Double] = []
         var stepIntervals: [Double] = []
+        var previewSeconds: [Double] = []
         var firstStep = 1
         var image = Data()
         for index in 1...options.runs {
@@ -53,10 +58,11 @@ enum BenchRunner {
             let stepClock = BenchStepClock()
             let start = clock.now
             image = try await backend.generate(settings) { event in
-                stepClock.record(event.phase)
+                stepClock.record(event)
             }
             runSeconds.append((clock.now - start).seconds)
             stepIntervals += stepClock.intervals
+            previewSeconds += stepClock.previewSeconds
             firstStep = stepClock.firstStep ?? 1
         }
         try write(image, to: options.output)
@@ -74,6 +80,8 @@ enum BenchRunner {
             loadSeconds: loadDuration.seconds,
             runSeconds: runSeconds,
             meanSecondsPerStep: mean(stepIntervals),
+            previewFrames: options.preview ? previewSeconds.count : nil,
+            meanPreviewSeconds: options.preview ? mean(previewSeconds) : nil,
             activeMemoryMB: Double(memory.activeBytes) / 1_000_000,
             peakMemoryMB: Double(memory.peakBytes) / 1_000_000,
             outputPath: options.output.path,

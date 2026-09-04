@@ -17,9 +17,20 @@ final class BenchStepClock {
     /// ladder that decides it belongs to the family, not to the benchmark.
     private(set) var firstStep: Int?
 
-    /// Notes the time if this phase bounds a denoising step.
-    func record(_ phase: GenerationPhase) {
-        switch phase {
+    /// Seconds each preview frame took to decode, in the order they were made.
+    private(set) var previewSeconds: [Double] = []
+
+    /// Notes the time if this update bounds a denoising step.
+    ///
+    /// An update carrying a frame is not one of those. A frame is reported after its step has
+    /// finished rather than before the next one starts, so counting it as a step boundary would
+    /// split one step into two and halve the reported pace. Its own cost is tallied instead.
+    func record(_ event: GenerationProgressEvent) {
+        if let preview = event.preview {
+            previewSeconds.append(preview.duration.seconds)
+            return
+        }
+        switch event.phase {
         case .denoising(let step, _):
             if firstStep == nil { firstStep = step }
             marks.append(ContinuousClock.now)

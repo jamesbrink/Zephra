@@ -137,6 +137,27 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
   families. This copy is kept on purpose: pointing vendored code at a Zephra package would
   complicate every re-sync, so the two are expected to drift only when one of them is fixed.
 
+- `Pipeline/ZImageLatentPreview.swift` (new), `Pipeline/ZImagePipeline.swift`,
+  `Model/VAE/AutoencoderKL.swift`: preview frames of a run in flight. `generateToMemory` and
+  `generateCore` take a second, defaulted `previewHandler`, and the denoise loop calls it after
+  each step's `MLX.eval` — never on the last step, where the real decode follows immediately —
+  with the step index, the step count, and a closure that makes the frame. A closure rather than
+  a frame because the decode is a whole pass through the autoencoder: the host throttles to one
+  frame every three quarters of a second and never pays for the ones it drops. The frame is made
+  inside `ZImageStepProfile.measure("preview decode")`, so `ZEPHRA_PROFILE_STEP=1` reports it
+  beside the step and VAE lines.
+
+  `ZImageLatentPreview` pools the 16-channel latent so its long edge is at most 32 cells (a
+  quarter at 1024 pixels, so a sixteenth of the decode's work) and decodes it through
+  `AutoencoderKL.decodeUntiled`, a second ZEPHRA-PATCH entry point that skips the tiling — a
+  latent that small is smaller than any tile worth cutting — and leaves the pixels channels-last
+  in the range -1 to 1, which is what the byte packing wants. `VAEDecoder.untiled` widened from
+  private to internal for it.
+
+  `ZephraMLX.LatentPreview` in `Packages/ZephraMLXKit` holds the same pooling and byte packing
+  for the other two families. This copy is kept on purpose, for the same reason `VAETiledDecode`
+  is a copy: a Zephra dependency in this package's manifest would complicate every re-sync.
+
 ## Known upstream behaviour (not patched)
 
 - A denoise step is dominated by the 8-bit quantized matmuls, and those already run near the rate

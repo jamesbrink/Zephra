@@ -57,14 +57,17 @@ Shared, by what a file actually touches:
   tensors to leave alone, how finely to squeeze the rest, and which low-rank
   adapters to merge on the way past.
 - `ZephraMLX` (in `Packages/ZephraMLXKit`): MLX work that is the same job for
-  every family. Two things are there. `TiledDecode`: an autoencoder's decode
+  every family. Three things are there. `TiledDecode`: an autoencoder's decode
   allocates in proportion to the image, so decoding overlapping latent tiles
   bounds the peak by the tile. `MLXRuntime`: the process-wide allocator's
   limits and readings, which each family's `InferenceRuntime` forwards to,
-  adding only its own VAE tile. A model package may depend on this; nothing in
-  it may depend on a model package. The vendored `ZImageKit` keeps its own
-  copy as a `ZEPHRA-PATCH`, because pointing vendored code at ours would
-  complicate every re-sync.
+  adding only its own VAE tile. `LatentPreview`: how far to pool a latent for a
+  preview frame, and how to turn the decoded pixels into RGBA8 bytes — the two
+  halves of a frame that are not a family's own decoder. A model package may
+  depend on this; nothing in it may depend on a model package. The vendored
+  `ZImageKit` keeps its own copy of the first and the third as a
+  `ZEPHRA-PATCH`, because pointing vendored code at ours would complicate every
+  re-sync.
 - `ZephraEngine` (in `Packages/ZephraKit`): concurrency + state. Depends on
   `ZephraCore` and `ZephraSnapshot`, nothing else. Backends arrive as an
   injected `BackendRegistry` of `@Sendable` factories; this layer never names
@@ -160,6 +163,20 @@ quarter of a megabyte per step to answer a question nobody asks is not worth it.
 The store keeps the frame outside the state and puts it down on every way a run
 can end. `StepTimer.annotated` rebuilds the event field by field, so a new field
 there has to be forwarded by name or it never reaches the canvas.
+
+Where a frame comes from: each kit has a `<Family>LatentPreview` that takes the
+latent exactly as its loop holds it, unpacks it, pools it so its long edge is at
+most 32 cells, and decodes that through the family's own autoencoder with the
+tiling skipped — `LatentPreview` in `ZephraMLX` holds the pooling and the byte
+packing for Qwen-Image and klein, and the vendored `ZImageKit` keeps its own copy
+for the same reason it keeps its own `VAETiledDecode`. Each loop calls an optional
+`onPreview` **after** the step's `MLX.eval`, never on the last step, handing over
+the step index and a *closure* that makes the frame rather than a frame: the
+backend owns a `PreviewThrottle` (0.75 s, `ZephraCore`) and never pays for the
+frames it drops. The existing before-step `onProgress` is untouched, so
+`BenchStepClock`'s timing is unaffected — it ignores any update carrying a frame,
+because a frame is reported after its step rather than before the next one. A
+family that never calls `onPreview` simply shows no frames.
 
 ## The library
 
@@ -814,8 +831,13 @@ the re-sync procedure, and the running patch log. Any change inside
 - `make bench ARGS="--micro --size 1024"` times the DiT's individual MLX kernels at that size's
   token count without loading any weights, so a slow generation can be attributed to a primitive
   rather than guessed at.
+- `make bench ARGS="--preview --size 1024"` turns the live preview frames on for the run and
+  reports how many were made and the mean milliseconds one took. They are off in the benchmark
+  otherwise, so a step time measured without the flag is the model's own and stays comparable
+  with the figures already recorded here. `ZEPHRA_PREVIEW_INTERVAL_MS` is the switch underneath:
+  milliseconds between frames, and 0 switches them off, which is what the benchmark sets.
 - `ZEPHRA_PROFILE_STEP=1` prints per-phase timings (text encode, per-step graph build, per-step
-  eval, VAE decode) and MLX's active and peak allocation to stderr.
+  eval, VAE decode, and Z-Image's preview decode) and MLX's active and peak allocation to stderr.
 - Precision and padding switches, for bisecting a suspected regression without a rebuild:
   `ZEPHRA_DIT_DTYPE=f32` runs the transformer in float32, `ZEPHRA_PAD_PROMPT=full` pads prompts to
   the 512-token limit, `ZEPHRA_KEEP_CACHE=1` stops handing MLX's scratch back after a generation,
