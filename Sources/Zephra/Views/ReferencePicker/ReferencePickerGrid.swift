@@ -35,9 +35,10 @@ struct ReferencePickerGrid: View {
             }
         }
         .modifier(ReferencePickerThumbnails())
-        // A pick the search has since hidden is no pick: Use would otherwise adopt a picture
-        // that is not on screen.
-        .onChange(of: selection.text) {
+        // A pick that is no longer on screen is no pick — hidden by the search, or gone from
+        // the folder while the sheet was up: Use would otherwise adopt a picture that is not
+        // there. Keyed on the ids shown, so either way of losing it is noticed.
+        .onChange(of: matches.map(\.id)) {
             guard let picked = selection.item, !matches.contains(where: { $0.id == picked.id })
             else { return }
             selection.item = nil

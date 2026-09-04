@@ -30,8 +30,10 @@ extension GenerationStore {
     public var isAdoptingReference: Bool { referenceRead != nil }
 
     /// Runs `read` off the main actor and puts what it returns in, unless a newer choice has
-    /// been made in the meantime. Nil from the read leaves whatever was there alone.
-    public func adoptReference(_ read: @escaping @Sendable () -> Data?) {
+    /// been made in the meantime. Nil from the read leaves whatever was there alone. The read
+    /// may await — a drop's provider delivers when it likes — and Generate waits on it either
+    /// way, through `isAdoptingReference`.
+    public func adoptReference(_ read: @escaping @Sendable () async -> Data?) {
         let ticket = claimReference()
         referenceRead = Task { [weak self] in
             let png = await Task.detached(priority: .userInitiated, operation: read).value
