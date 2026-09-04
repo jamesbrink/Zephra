@@ -7,6 +7,7 @@ extension GenerationStore {
     /// Kicks off `request` on the inference actor. Only `generate()` and the queue call this.
     func start(_ request: GenerationSettings) {
         guard let inference else { return }
+        clearLivePreview()
         transition(to: .generating(GenerationProgressEvent(phase: .preparing, fraction: 0)))
         generationTask = Task { await self.run(request, on: inference) }
     }
@@ -15,6 +16,7 @@ extension GenerationStore {
     /// here so the queue never stalls.
     private func finish() {
         running = nil
+        clearLivePreview()
         transition(to: .ready)
         drain()
     }
@@ -40,18 +42,28 @@ extension GenerationStore {
         } catch BackendError.cancelled {
             finish()
         } catch let error as BackendError {
-            queue.removeAll()
-            running = nil
-            transition(to: .failed(.backend(error)))
+            fail(with: .backend(error))
         } catch {
-            queue.removeAll()
-            running = nil
-            transition(to: .failed(.backend(.generationFailed(error.localizedDescription))))
+            fail(with: .backend(.generationFailed(error.localizedDescription)))
         }
+    }
+
+    /// Everything a failed generation puts down: the queue, the run, and the frame it was last
+    /// showing. One place rather than two, because the two `catch` clauses differ only in how
+    /// they name the error.
+    private func fail(with error: EngineError) {
+        queue.removeAll()
+        running = nil
+        clearLivePreview()
+        transition(to: .failed(error))
     }
 
     /// Publishes a finished image straight away and only then starts writing it, so the canvas
     /// never waits on the file system.
+    ///
+    /// It reaches the canvas only while the canvas is following the run. A result that lands
+    /// while the user is looking at something else still enters history, the wall, and the
+    /// library; what it does not do is yank the picture out from under them.
     private func complete(_ data: Data, request: GenerationSettings, duration: Duration) {
         let image = GeneratedImage(
             pngData: data,
@@ -60,7 +72,7 @@ extension GenerationStore {
             duration: duration,
             batchID: running?.batchID
         )
-        current = image
+        if followsRun { current = image }
         history.insert(image, at: 0)
         if history.count > Self.historyLimit {
             history.removeLast(history.count - Self.historyLimit)
@@ -121,6 +133,9 @@ extension GenerationStore {
     private func applyGenerationEvent(_ event: EngineEvent) {
         guard case .generating = state, case .progress(let progress) = event else { return }
         state = .generating(progress)
+        // Kept out of the state, which is compared and hashed on every transition, and which a
+        // late event would otherwise be able to put a stale frame back into.
+        if let preview = progress.preview { livePreview = preview }
     }
 
     /// The one place `state` changes for a reason worth a log line. Progress updates go through

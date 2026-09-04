@@ -126,9 +126,9 @@ engine be tested in seconds without Metal.
   observes, and it is split across `GenerationStore+*.swift` by concern —
   loading, generation, the queue, batches (several seeds of one prompt from
   one press of Generate), model switching, history, availability, preview,
-  the reference picture, the library, upscaling and filing the upscaled result.
-  Add a new concern as another extension file, not as more lines in
-  `GenerationStore.swift`.
+  the reference picture, the library, following the run, upscaling and filing
+  the upscaled result. Add a new concern as another extension file, not as more
+  lines in `GenerationStore.swift`.
 - `InferenceActor` is the only place backend code runs. It overrides
   `unownedExecutor` with a serial `DispatchQueue`: a generation is tens of
   seconds of synchronous Metal work, and on the cooperative pool that would
@@ -138,6 +138,28 @@ engine be tested in seconds without Metal.
   `AsyncStream` buffers the newest four events and drops the rest — progress is
   a snapshot, not a log — and `run` drains before returning, so the state a
   caller sets after an operation is never clobbered by an event still in flight.
+
+`current` is what the canvas is showing, and only that.
+`GenerationStore+FollowingRun.swift` is the other half of that sentence: pressing
+Generate — or asking for a variation — starts *following the run*, and opening or
+selecting any other picture stops. A result is published to `current` only while
+`followsRun`; one that lands while the user is looking elsewhere still enters
+history, the wall and the library, and leaves the canvas where it is.
+`watchRun()` follows again, `isShowingRun` is "following, and something is
+running", and `hasPicture` in the app target is `current != nil || isShowingRun`,
+so the inspector has something to describe from the moment a run starts. The
+upscale result follows the same rule by the one test it can apply: it takes the
+canvas only when the canvas was showing its parent, or was showing nothing.
+
+`livePreview` is the newest frame of the run in flight — `GenerationPreview`,
+RGBA8 pixels of at most 256 pixels an edge, decoded by the family's own VAE from
+a pooled copy of the latent. It rides in on `GenerationProgressEvent.preview`,
+which is why that type hand-writes `==` and `hash(into:)` to ignore it:
+`EngineState` is `Hashable` and compared on every transition, and hashing a
+quarter of a megabyte per step to answer a question nobody asks is not worth it.
+The store keeps the frame outside the state and puts it down on every way a run
+can end. `StepTimer.annotated` rebuilds the event field by field, so a new field
+there has to be forwarded by name or it never reaches the canvas.
 
 ## The library
 

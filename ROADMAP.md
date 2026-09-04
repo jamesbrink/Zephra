@@ -61,6 +61,26 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
 - **Sizes are measured by walking, every time the tab opens.** Twenty files per
   model makes that instant; a cache of a thousand small repositories would not be.
 
+## Live preview: left out on purpose
+
+- **Latent-to-RGB factor tables.** The cheap way to show a run in progress is a 16x3
+  (or 128x3) matrix that turns a latent cell straight into a pixel — no autoencoder,
+  microseconds a frame, and blurry. It was not taken because the published tables are
+  in GPL code (ComfyUI's `latent_preview`) and cannot be copied, so ours would have to
+  be fitted: decode a few hundred latents through each family's own VAE and
+  least-squares the mapping, once per family, checked in as numbers with a script
+  beside them. Worth doing if the pooled decode ever proves too dear on a smaller Mac,
+  or if a frame per step rather than one every 0.75 s is wanted.
+- **A frame every step.** The throttle is what keeps the preview at a few percent of a
+  run. Per-step frames would need the factor tables above, not a faster decode.
+- **Previewing the reference-image path's first frames.** A run that starts from a
+  noised copy of a picture skips the steps before its entry point, so its first frame
+  is already most of the way there. Nothing is wrong with that; it is just not the
+  progress bar a person expects.
+- **A frame during the real decode.** The last step is deliberately not previewed: the
+  full decode follows immediately, and a pooled one in front of it would be a second
+  pass through the autoencoder for a picture the user is about to see properly.
+
 ## Upscaler follow-ups
 
 Left out of the first pass on purpose, each a small change to one file unless noted:

@@ -6,6 +6,11 @@ import ZephraCore
 extension GenerationStore {
     /// Publishes the larger picture straight away and only then starts writing it, so the canvas
     /// never waits on the file system — the same order a finished generation follows.
+    ///
+    /// It reaches the canvas only when the canvas was showing the picture it was made from, or
+    /// was showing nothing at all. An upscale started from the library grid, of some picture
+    /// other than the one on the canvas, lands in history and in the library without moving what
+    /// the user is looking at — the rule a finished generation follows through `followsRun`.
     func completeUpscale(
         _ data: Data, parent: UpscaleParent, factor: Int, duration: Duration
     ) {
@@ -21,7 +26,7 @@ extension GenerationStore {
             modelID: record.modelID,
             createdAt: record.createdAt,
             duration: duration)
-        current = image
+        if current == nil || current?.fileURL == parent.url { current = image }
         history.insert(image, at: 0)
         if history.count > Self.historyLimit {
             history.removeLast(history.count - Self.historyLimit)
