@@ -26,9 +26,13 @@ struct RootView: View {
     @Environment(GenerationStore.self) private var store
     @Environment(WorkspaceSelection.self) private var workspace
     @Environment(LibraryIndex.self) private var index
+    // Never persisted: the sidebar should be visible whenever the app opens, so a returning
+    // user sees it exists, but the system's own toggle (⌃⌘S) is free to hide it for the rest
+    // of the run without that choice following the user to the next launch.
+    @State private var columns: NavigationSplitViewVisibility = .all
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columns) {
             SidebarView()
                 .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 360)
         } detail: {
