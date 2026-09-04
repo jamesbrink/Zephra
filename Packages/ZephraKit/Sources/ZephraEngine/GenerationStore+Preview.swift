@@ -26,6 +26,10 @@ extension GenerationStore {
         store.current = image ?? store.history.first
         store.running = running
         store.queue = queue
+        // A store standing a run up is a store that pressed Generate, so it is following it:
+        // without this the canvas would draw the finished picture over a running generation and
+        // the screenshot would show a state the app never reaches.
+        store.followsRun = running != nil
         store.settings.prompt = "A lighthouse at dusk, fog rolling in over black rocks"
         store.settings.referenceImage = image?.settings.referenceImage
         store.availability = previewAvailability(current: descriptor)
