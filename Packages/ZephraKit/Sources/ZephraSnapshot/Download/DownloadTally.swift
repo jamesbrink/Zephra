@@ -27,6 +27,10 @@ struct DownloadTally {
     private static let window = Duration.seconds(5)
     /// The shortest gap between two events.
     private static let interval = Duration.milliseconds(200)
+    /// The shortest gap between two readings kept for the rate. Without it the window would
+    /// hold a reading per chunk — tens of thousands a second on a fast line — and pruning it
+    /// would cost more than the transfer.
+    private static let sampleInterval = Duration.milliseconds(100)
 
     init(totalFiles: Int, totalBytes: Int64) {
         self.totalFiles = totalFiles
@@ -54,8 +58,10 @@ struct DownloadTally {
     mutating func report(force: Bool = false, now: ContinuousClock.Instant = .now)
         -> DownloadProgressEvent?
     {
-        samples.append((now, completedBytes))
-        samples.removeAll { now - $0.at > Self.window }
+        if samples.last.map({ now - $0.at >= Self.sampleInterval }) ?? true {
+            samples.append((now, completedBytes))
+            samples.removeAll { now - $0.at > Self.window }
+        }
         if !force, let lastReport, now - lastReport < Self.interval { return nil }
         lastReport = now
         return DownloadProgressEvent(

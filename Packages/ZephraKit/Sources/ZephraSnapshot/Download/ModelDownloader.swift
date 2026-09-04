@@ -51,9 +51,10 @@ public struct ModelDownloader: Sendable {
     ) async throws -> URL {
         let session = makeSession()
         defer { session.finishTasksAndInvalidate() }
-        let files = try await listing(of: repoID, revision: revision, on: session)
-            .filter { FilePattern.matchesAny($0.path, patterns: patterns) }
-        guard !files.isEmpty else { throw ModelDownloadError.repositoryNotFound(repoID: repoID) }
+        let listed = try await listing(of: repoID, revision: revision, on: session)
+        guard !listed.isEmpty else { throw ModelDownloadError.repositoryNotFound(repoID: repoID) }
+        let files = listed.filter { FilePattern.matchesAny($0.path, patterns: patterns) }
+        guard !files.isEmpty else { throw ModelDownloadError.nothingMatched(repoID: repoID) }
 
         try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
         var tally = DownloadTally(

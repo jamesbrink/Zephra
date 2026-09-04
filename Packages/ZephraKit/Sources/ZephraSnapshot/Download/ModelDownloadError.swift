@@ -11,6 +11,9 @@ public enum ModelDownloadError: Error, Hashable, Sendable {
     case repositoryNotFound(repoID: String)
     /// The listing arrived but was not the array of entries the endpoint documents.
     case unreadableListing
+    /// The repository is there, and nothing in it matches the files the descriptor asks for.
+    /// A catalog written against a repository that has since been rearranged, in practice.
+    case nothingMatched(repoID: String)
     /// The repository is there but the file the listing named is not, which means the listing
     /// and the download disagree — a revision that moved under the transfer, in practice.
     case fileNotFound(path: String)
@@ -25,7 +28,7 @@ public enum ModelDownloadError: Error, Hashable, Sendable {
     /// are answers; anything else is an accident worth a pause and another go.
     public var isPermanent: Bool {
         switch self {
-        case .repositoryNotFound, .fileNotFound, .unreadableListing: true
+        case .repositoryNotFound, .fileNotFound, .unreadableListing, .nothingMatched: true
         case .refused(let status, _): DownloadRetry.isPermanentStatus(status)
         case .interrupted: false
         }
@@ -38,6 +41,8 @@ public enum ModelDownloadError: Error, Hashable, Sendable {
             "Hugging Face has no repository called \(repoID), or not at that revision."
         case .unreadableListing:
             "Hugging Face answered with something this version of Zephra cannot read."
+        case .nothingMatched(let repoID):
+            "Nothing in \(repoID) matches the files this version of Zephra asks for."
         case .fileNotFound(let path):
             "\(path) is listed in the repository but could not be fetched."
         case .refused(let status, let path):
