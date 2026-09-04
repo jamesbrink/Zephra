@@ -284,9 +284,9 @@ Four directories, by what a file is rather than what screen it is on:
   card per run still waiting, the running run's card in amber, and under those
   the wall of today's pictures in small squares — and to the "Today in
   Library" bar pinned at its foot. `SessionTimeline` in `ZephraEngine` works
-  out the runs and cuts the wall into blocks (the running run and any run of
-  several squares on their own, consecutive singles packed together); nothing
-  here filters, groups, or sorts. The inspector is `WorkspaceInspector`, a
+  out the runs and lays the wall as one flow, newest run first with the
+  running run's dashed places at its head (a block per run ended every batch's
+  row early and made the wall ragged); nothing here filters, groups, or sorts. The inspector is `WorkspaceInspector`, a
   fixed column `WorkspaceDetail` puts beside whichever pane is up, under the
   toolbar rather than splitting it, and only when it has something to
   describe: always in the library, on the canvas only while a picture is

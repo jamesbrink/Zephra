@@ -4,18 +4,18 @@ import ZephraEngine
 /// Today's pictures as a wall of small squares, newest run first, with a dashed place for each
 /// seed still to come at the top of it.
 ///
-/// One wall for the whole day rather than a grid per run. A run of one picture in a grid of its
-/// own left two thirds of the row empty and put a caption over every single square; here the
-/// singles pack three across, and what any of them was asked for is in the inspector or under
-/// the pointer as a tooltip. A batch still reads as a batch: `SessionTimeline.blocks(of:)`
-/// gives the running run and any run of several squares a block of its own, and the blocks
-/// stack with a gutter and nothing else between them.
+/// One wall for the whole day rather than a grid per run, and one flow rather than a block per
+/// run. A run of one picture in a grid of its own left two thirds of the row empty and put a
+/// caption over every single square, and a batch in a block of its own ended its row early, so
+/// a wall of batches and singles read as ragged. Here everything packs three across in run
+/// order (`SessionTimeline.wall(of:)`); a run still reads as a run because its squares sit
+/// together, and what any square was asked for is in the inspector or under the pointer.
 ///
 /// One list row rather than a row per tile, because the wall is a single object to scroll past
 /// and a `List` that thought it held forty rows would put separators through it.
 struct TimelineTileGrid: View {
-    /// The wall, cut into blocks.
-    let blocks: [TimelineBlock]
+    /// The wall's squares, in the order they are laid.
+    let tiles: [TimelineTile]
 
     @Environment(GenerationStore.self) private var store
     @Environment(ThumbnailCache.self) private var thumbnails
@@ -24,13 +24,9 @@ struct TimelineTileGrid: View {
     private static let columns = [GridItem(.adaptive(minimum: 72), spacing: 4)]
 
     var body: some View {
-        VStack(spacing: 10) {
-            ForEach(blocks) { block in
-                LazyVGrid(columns: Self.columns, spacing: 4) {
-                    ForEach(block.tiles) { tile in
-                        WallSquare(tile: tile, isShowing: isShowing(tile))
-                    }
-                }
+        LazyVGrid(columns: Self.columns, spacing: 4) {
+            ForEach(tiles) { tile in
+                WallSquare(tile: tile, isShowing: isShowing(tile))
             }
         }
         .environment(\.libraryThumbnails, LibraryThumbnails(cache: thumbnails, size: .small))
@@ -55,10 +51,8 @@ struct TimelineTileGrid: View {
     let run = PreviewImages.run(of: 2)
     let singles = PreviewImages.library(count: 5).items
     List {
-        TimelineTileGrid(blocks: [
-            TimelineBlock(id: UUID(), tiles: run.map { .fresh($0) } + [.pending(2), .pending(3)]),
-            TimelineBlock(id: UUID(), tiles: singles.map { .item($0) }),
-        ])
+        TimelineTileGrid(
+            tiles: run.map { .fresh($0) } + [.pending(2), .pending(3)] + singles.map { .item($0) })
         .listRowBackground(Color.clear)
     }
     .listStyle(.sidebar)

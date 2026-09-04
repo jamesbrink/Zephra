@@ -19,7 +19,7 @@ struct SessionTimelineList: View {
     @Environment(GenerationStore.self) private var store
 
     var body: some View {
-        let blocks = SessionTimeline.blocks(of: runs)
+        let wall = SessionTimeline.wall(of: runs)
         List {
             Section {
                 ForEach(runs.filter(\.isWaiting)) { run in
@@ -32,8 +32,8 @@ struct SessionTimelineList: View {
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                 }
-                if !blocks.isEmpty {
-                    TimelineTileGrid(blocks: blocks)
+                if !wall.isEmpty {
+                    TimelineTileGrid(tiles: wall)
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                 }

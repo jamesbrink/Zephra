@@ -163,9 +163,9 @@ with a progress readout while that happens.
   fresh one. Images save to `~/Pictures/Zephra` with the seed in the file name; if a write
   fails, a notice sits over the prompt until an image saves, and the picture stays on the
   canvas either way.
-- The sidebar's wall is today's work: a batch of seeds sits in a block of its own, single
-  pictures pack together, a dashed square stands for each seed still to come, and "Today in
-  Library" at the foot counts them. Everything ever made is in `~/Pictures/Zephra`, and the
+- The sidebar's wall is today's work in one flow, newest run first: a batch's seeds sit
+  together, a dashed square stands for each seed still to come, and "Today in Library" at
+  the foot counts them. Everything ever made is in `~/Pictures/Zephra`, and the
   Library reads that folder rather than the app keeping a list of its own. The record of
   what made an image — prompt, size, steps, seed, model, and how long it took — lives inside
   the PNG itself, so moving, renaming, or copying a file to another Mac keeps it, and
