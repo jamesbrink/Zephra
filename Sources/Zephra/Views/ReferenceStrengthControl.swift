@@ -28,7 +28,9 @@ struct ReferenceStrengthControl: View {
                     in: capabilities.referenceStrengthBounds, step: 0.05
                 )
                 .controlSize(.small)
-                .frame(width: 110)
+                // Flexible, like the steps slider: with strength showing the row is at the
+                // capsule's width, and a fixed slider would push it past the prompt above.
+                .frame(minWidth: 70, maxWidth: 110)
                 Text(store.settings.referenceStrength, format: .number.precision(.fractionLength(2)))
                     .font(.callout)
                     .monospacedDigit()
