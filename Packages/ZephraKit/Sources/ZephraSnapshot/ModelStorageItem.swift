@@ -24,6 +24,10 @@ public struct ModelStorageItem: Identifiable, Hashable, Sendable {
     public let kind: Kind
     /// The directory itself, the thing a size is measured over and a deletion removes.
     public let url: URL
+    /// Where it is, as a row should say it: a path under the folder models are kept in, or the
+    /// whole path when it is elsewhere. Two copies of one release — the app's folder and the
+    /// hub cache — are the same name, and this is what tells them apart.
+    public let location: String
     /// The catalog models that depend on this directory.
     public let modelIDs: [ModelDescriptor.ID]
     /// Whether what is there would load. False for a download that was stopped part-way,
@@ -33,12 +37,13 @@ public struct ModelStorageItem: Identifiable, Hashable, Sendable {
     public var bytes: Int64?
 
     public init(
-        name: String, kind: Kind, url: URL, modelIDs: [ModelDescriptor.ID], isComplete: Bool,
-        bytes: Int64? = nil
+        name: String, kind: Kind, url: URL, location: String,
+        modelIDs: [ModelDescriptor.ID], isComplete: Bool, bytes: Int64? = nil
     ) {
         self.name = name
         self.kind = kind
         self.url = url
+        self.location = location
         self.modelIDs = modelIDs
         self.isComplete = isComplete
         self.bytes = bytes

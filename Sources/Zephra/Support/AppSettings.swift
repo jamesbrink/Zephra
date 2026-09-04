@@ -32,6 +32,10 @@ enum AppSettings {
     /// Whether the app follows the Mac's appearance or fixes its own, as an `AppearanceMode`
     /// raw value.
     static let appearance = "appearance"
+    /// The folder models are downloaded and built in, as a plain path. Empty means the app's
+    /// own folder under Application Support. The app is not sandboxed, so a path is enough:
+    /// no security-scoped bookmark is needed to read a folder the user pointed at.
+    static let modelsDirectory = "modelsDirectory"
 
     // Starting values, matching the defaults written at each `@AppStorage` site.
 
@@ -62,6 +66,14 @@ enum AppSettings {
             mode: stored.flatMap(VAETilingMode.init(rawValue:)) ?? initialVAETiling,
             physicalMemory: ProcessInfo.processInfo.physicalMemory
         )
+    }
+
+    /// Where models are kept right now, for the composition root, which has to answer the
+    /// question before any view exists. An unset or empty path is the app's own folder.
+    static func modelLocations() -> ModelLocations {
+        let stored = UserDefaults.standard.string(forKey: modelsDirectory) ?? ""
+        guard !stored.isEmpty else { return .default }
+        return ModelLocations(root: URL(filePath: stored, directoryHint: .isDirectory))
     }
 
     /// A stored flag as it stands right now, for the code that has to read one outside a view

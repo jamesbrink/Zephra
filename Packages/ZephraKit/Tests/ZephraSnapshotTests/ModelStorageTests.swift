@@ -10,35 +10,58 @@ struct ModelStorageTests {
     func sharedReleaseListedOnce() throws {
         let scratch = Scratch("ModelStorage")
         let cache = scratch.url("hub")
-        let models = scratch.url("models")
+        let locations = ModelLocations(root: scratch.url("models"))
         try scratch.make("hub/models/black-forest-labs/FLUX.2-klein-4B/model_index.json")
         try scratch.make("hub/models/black-forest-labs/FLUX.2-klein-4B/vae/model.safetensors")
         try scratch.make("models/flux2-klein-4b-4bit/quantization.json")
 
-        let items = ModelStorage.items(for: ModelCatalog.all, cache: cache, builtIn: models)
+        let items = ModelStorage.items(for: ModelCatalog.all, cache: cache, locations: locations)
         #expect(items.count == 2)
         let release = try #require(items.first { $0.kind == .download })
         #expect(release.name == "FLUX.2 klein 4B release")
         #expect(release.modelIDs == ["flux2-klein-4b-4bit", "flux2-klein-4b-8bit"])
         #expect(release.isComplete)
+        #expect(
+            release.location.hasSuffix("hub/models/black-forest-labs/FLUX.2-klein-4B"),
+            "a directory outside the models folder says where it really is")
         let built = try #require(items.first { $0.kind == .built })
         #expect(built.name == "FLUX.2 klein 4B · 4-bit")
         #expect(built.modelIDs == ["flux2-klein-4b-4bit"])
+        #expect(built.location == "flux2-klein-4b-4bit")
+    }
+
+    @Test("the app's own download and a hub-cache copy of one release are told apart by where they are")
+    func twoCopiesOfOneReleaseAreDistinguishable() throws {
+        let scratch = Scratch("ModelStorage")
+        let locations = ModelLocations(root: scratch.url("models"))
+        try scratch.make("hub/models/black-forest-labs/FLUX.2-klein-4B/model_index.json")
+        try scratch.make(
+            "models/Downloads/black-forest-labs--FLUX.2-klein-4B/model_index.json")
+
+        let items = ModelStorage.items(
+            for: [ModelCatalog.flux2Klein4bit], cache: scratch.url("hub"), locations: locations)
+        #expect(items.count == 2)
+        #expect(
+            items.first?.location == "Downloads/black-forest-labs--FLUX.2-klein-4B",
+            "the app's own folder is listed first, by its short path")
+        #expect(items.last?.location.hasPrefix("/") == true)
     }
 
     @Test("a download the app stopped part-way is listed as incomplete, under the model's name")
     func partialDownloadIsListed() throws {
         let scratch = Scratch("ModelStorage")
-        let flat = "hub/models/mzbac/Z-Image-Turbo-8bit"
+        let flat = "models/Downloads/mzbac--Z-Image-Turbo-8bit"
         try scratch.make("\(flat)/model_index.json")
-        try scratch.make("\(flat)/.cache/huggingface/download/vae/x.safetensors.abc.incomplete")
+        try scratch.make("\(flat)/vae/model.safetensors.incomplete")
 
         let items = ModelStorage.items(
-            for: ModelCatalog.all, cache: scratch.url("hub"), builtIn: scratch.url("models"))
+            for: [ModelCatalog.zImageTurbo8bit], cache: scratch.url("hub"),
+            locations: ModelLocations(root: scratch.url("models")))
         let partial = try #require(items.first)
         #expect(items.count == 1)
         #expect(partial.name == "Z-Image Turbo · 8-bit")
         #expect(!partial.isComplete)
+        #expect(partial.location == "Downloads/mzbac--Z-Image-Turbo-8bit")
     }
 
     @Test("nothing on disk lists nothing, and never a directory that does not exist")
@@ -46,7 +69,8 @@ struct ModelStorageTests {
         let scratch = Scratch("ModelStorage")
         try FileManager.default.createDirectory(at: scratch.root, withIntermediateDirectories: true)
         let items = ModelStorage.items(
-            for: ModelCatalog.all, cache: scratch.url("hub"), builtIn: scratch.url("models"))
+            for: ModelCatalog.all, cache: scratch.url("hub"),
+            locations: ModelLocations(root: scratch.url("models")))
         #expect(items.isEmpty)
     }
 
