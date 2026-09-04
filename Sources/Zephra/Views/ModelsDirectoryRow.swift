@@ -38,11 +38,12 @@ struct ModelsDirectoryRow: View {
         apply(chosen)
     }
 
-    /// Stores the choice and hands it to the engine and the list. A nil folder is the default
-    /// one, which is stored as an empty path so that a later change of default is picked up.
+    /// Stores the choice, remembering the folder it replaces so what is there stays findable,
+    /// and hands it to the engine and the list. A nil folder is the default one.
     private func apply(_ folder: URL?) {
+        AppSettings.recordModelsDirectory(folder, leaving: inventory.modelsDirectory)
         path = folder?.path(percentEncoded: false) ?? ""
-        let locations = folder.map { ModelLocations(root: $0) } ?? .default
+        let locations = AppSettings.modelLocations()
         store.setModelLocations(locations)
         inventory.setLocations(locations)
         Task {

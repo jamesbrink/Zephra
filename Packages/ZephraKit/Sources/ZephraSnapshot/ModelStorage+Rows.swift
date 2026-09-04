@@ -28,11 +28,12 @@ extension ModelStorage {
     /// An adapter's download, listed with the model it serves rather than on its own: it is one
     /// file in a repository of its own, and deleting it costs that model its distillation.
     static func adapter(
-        _ adapter: ModelAdapter, of descriptor: ModelDescriptor, in locations: ModelLocations
+        _ adapter: ModelAdapter, of descriptor: ModelDescriptor, in folder: ModelLocations,
+        captioned locations: ModelLocations
     ) -> ModelStorageItem? {
-        let directory = locations.adapter(adapter)
+        let directory = folder.adapter(adapter)
         guard HubCache.isDirectory(directory) else { return nil }
-        let file = locations.adapterFile(adapter)
+        let file = folder.adapterFile(adapter)
         return ModelStorageItem(
             name: "\(descriptor.displayName) adapter", kind: .download, url: directory,
             location: place(of: directory, in: locations), modelIDs: [descriptor.id],

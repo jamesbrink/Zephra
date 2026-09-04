@@ -186,6 +186,26 @@ struct ModelDownloaderTests {
         #expect(fetch.range == "bytes=5-")
     }
 
+    @Test("a resume names the file it started, and a file that changed comes back whole")
+    func aChangedFileIsNotSplicedOnto() async throws {
+        let scratch = Scratch("Download")
+        let whole = Data("0123456789".utf8)
+        try scratch.write("XXXXX", to: "models/big.bin.incomplete")
+        try scratch.write("v1", to: "models/big.bin.incomplete.etag")
+        StubHub.reset(
+            StubHub.Behaviour(
+                pages: [page([("big.bin", 10)])], files: ["big.bin": whole], etag: "v2"))
+
+        _ = try await downloader().download(
+            repoID: "org/repo", patterns: ["*"], into: scratch.url("models"), onProgress: { _ in })
+
+        let fetch = try #require(StubHub.records.last)
+        #expect(fetch.range == "bytes=5-")
+        #expect(fetch.ifRange == "v1", "the resume asks for the representation it started")
+        #expect(try Data(contentsOf: scratch.url("models/big.bin")) == whole)
+        #expect(!scratch.hasFile("models/big.bin.incomplete.etag"), "gone with the partial")
+    }
+
     @Test("a server that ignores the range is not spliced onto: the file starts over")
     func anIgnoredRangeStartsOver() async throws {
         let scratch = Scratch("Download")

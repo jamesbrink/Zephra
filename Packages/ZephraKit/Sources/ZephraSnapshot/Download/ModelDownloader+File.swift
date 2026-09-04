@@ -6,10 +6,13 @@ extension ModelDownloader {
     ///
     /// The order of the checks is the whole of it. A file already in place at the listed size
     /// is left alone. Otherwise the `.incomplete` beside it says where to resume from, sent as
-    /// a `Range`; a server that answers 200 to that has ignored it, so what is there is thrown
-    /// away and the file starts over rather than being spliced onto the wrong offset. The
-    /// rename happens only once the size matches, so a transfer that ends early stays an
-    /// `.incomplete` and the next try picks it up.
+    /// a `Range` with the `ETag` the first answer carried as `If-Range`, so a file that changed
+    /// under a mutable revision comes back whole rather than as a tail spliced onto another
+    /// file's head; a server that answers 200 has either ignored the range or said the file
+    /// changed, and in both cases what is there is thrown away and the file starts over. A
+    /// 206 whose `Content-Range` does not begin where the file ends is refused for the same
+    /// reason. The rename happens only once the size matches, so a transfer that ends early
+    /// stays an `.incomplete` and the next try picks it up.
     func fetch(
         _ file: RepositoryFile,
         from repoID: String,
@@ -40,7 +43,13 @@ extension ModelDownloader {
 
         let url = host.appending(path: "\(repoID)/resolve/\(revision)/\(file.path)")
         var request = request(url)
-        if have > 0 { request.setValue("bytes=\(have)-", forHTTPHeaderField: "Range") }
+        let validator = Self.validator(of: partial)
+        if have > 0 {
+            request.setValue("bytes=\(have)-", forHTTPHeaderField: "Range")
+            if let etag = try? String(contentsOf: validator, encoding: .utf8) {
+                request.setValue(etag, forHTTPHeaderField: "If-Range")
+            }
+        }
         let delegate = session.delegate as? ChunkedDownload
         guard let delegate else {
             throw ModelDownloadError.interrupted(reason: "The download session was not set up.")
@@ -56,7 +65,14 @@ extension ModelDownloader {
             throw ModelDownloadError.interrupted(reason: error.localizedDescription)
         }
         switch response.statusCode {
-        case 206: break
+        case 206:
+            let range = response.value(forHTTPHeaderField: "Content-Range") ?? ""
+            guard range.hasPrefix("bytes \(have)-") else {
+                try? FileManager.default.removeItem(at: partial)
+                tally.discard(have)
+                throw ModelDownloadError.interrupted(
+                    reason: "\(file.path) resumed at the wrong offset; starting it over.")
+            }
         case 200:
             // The server sent the file whole. Anything already written is at the wrong offset.
             if have > 0 {
@@ -72,6 +88,9 @@ extension ModelDownloader {
                 reason: "Hugging Face answered HTTP \(response.statusCode) for \(file.path).")
         }
 
+        if let etag = response.value(forHTTPHeaderField: "ETag") {
+            try? etag.write(to: validator, atomically: true, encoding: .utf8)
+        }
         try await write(chunks, to: partial, tally: &tally, onProgress: onProgress)
         let written = Self.size(of: partial) ?? 0
         guard file.bytes == 0 || written == file.bytes else {
@@ -117,6 +136,7 @@ extension ModelDownloader {
     /// Puts the finished file in place, over whatever was there.
     private func replace(_ partial: URL, with target: URL) throws {
         let files = FileManager.default
+        try? files.removeItem(at: Self.validator(of: partial))
         if files.fileExists(atPath: target.path(percentEncoded: false)) {
             try files.removeItem(at: target)
         }

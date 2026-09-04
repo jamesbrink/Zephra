@@ -24,7 +24,7 @@ extension QwenImageBackend {
                 release: localPath,
                 into: packed,
                 descriptor: descriptor,
-                adapters: descriptor.adapters.map(locations.adapterFile),
+                adapters: descriptor.adapters.compactMap(locations.adapterFileOnDisk),
                 onProgress: onProgress
             )
         } catch let error as CancellationError {

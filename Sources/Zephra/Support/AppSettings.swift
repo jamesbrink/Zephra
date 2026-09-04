@@ -36,6 +36,9 @@ enum AppSettings {
     /// own folder under Application Support. The app is not sandboxed, so a path is enough:
     /// no security-scoped bookmark is needed to read a folder the user pointed at.
     static let modelsDirectory = "modelsDirectory"
+    /// The folders `modelsDirectory` was set to before, newest first, so what was put there
+    /// is still found. Never more than a handful.
+    static let previousModelsDirectories = "previousModelsDirectories"
 
     // Starting values, matching the defaults written at each `@AppStorage` site.
 
@@ -71,9 +74,28 @@ enum AppSettings {
     /// Where models are kept right now, for the composition root, which has to answer the
     /// question before any view exists. An unset or empty path is the app's own folder.
     static func modelLocations() -> ModelLocations {
-        let stored = UserDefaults.standard.string(forKey: modelsDirectory) ?? ""
-        guard !stored.isEmpty else { return .default }
-        return ModelLocations(root: URL(filePath: stored, directoryHint: .isDirectory))
+        let defaults = UserDefaults.standard
+        let stored = defaults.string(forKey: modelsDirectory) ?? ""
+        let previous = (defaults.stringArray(forKey: previousModelsDirectories) ?? [])
+            .map { URL(filePath: $0, directoryHint: .isDirectory) }
+        let root = stored.isEmpty
+            ? ModelLocations.default.root : URL(filePath: stored, directoryHint: .isDirectory)
+        return ModelLocations(root: root, previous: previous)
+    }
+
+    /// Records that the models folder moved from `old` to `new`, keeping the last few roots
+    /// so nothing under them is lost to the lookup. The default folder is stored as an empty
+    /// path so that a later change of default is picked up.
+    static func recordModelsDirectory(_ new: URL?, leaving old: URL) {
+        let defaults = UserDefaults.standard
+        let current = (new ?? ModelLocations.default.root).path(percentEncoded: false)
+        var seen: Set<String> = [current]
+        let kept = ([old.path(percentEncoded: false)]
+            + (defaults.stringArray(forKey: previousModelsDirectories) ?? []))
+            .filter { seen.insert($0).inserted }
+            .prefix(5)
+        defaults.set(Array(kept), forKey: previousModelsDirectories)
+        defaults.set(new?.path(percentEncoded: false) ?? "", forKey: modelsDirectory)
     }
 
     /// A stored flag as it stands right now, for the code that has to read one outside a view

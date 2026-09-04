@@ -66,14 +66,12 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   minutes, so this is worth doing; it wants a streaming digest as the bytes are
   written rather than a second pass.
 - **Changing the models folder moves nothing**, by design — a sixty-gigabyte
-  copy is not something to start from a settings row. What is already downloaded
-  keeps working where it is, if the folder is changed back. What it does not do is
-  follow: a variant packed under the old root is not looked for under the new one,
-  so choosing that model downloads and builds it again where the setting now
-  points. That was already true of klein and is now true of every variant, since
-  none of them names an absolute directory. Offering to move — or even to look in
-  the folder last used — wants a list of roots rather than one, and the honest
-  version of it is a "move my models" button that copies and verifies.
+  copy is not something to start from a settings row. The last few folders the
+  setting pointed at are remembered (`ModelLocations.previous`), so what was
+  downloaded or built under them is still found, listed and loaded; only new
+  downloads and builds go to the new folder. What is left out is the honest
+  version of moving: a "move my models" button that copies, verifies, and only
+  then forgets the old root.
 - **Deleting a model never asks the engine to unload it first.** The row is disabled
   while the model is loaded; choosing another model frees it. A Delete that unloads
   and then trashes would be a `GenerationStore` concern, and the engine would need to

@@ -28,6 +28,9 @@ final class StubHub: URLProtocol, @unchecked Sendable {
         var listingStatus: Int?
         /// Take this long before answering, so a test can stop a transfer that is in flight.
         var pause: TimeInterval = 0
+        /// The `ETag` every file answer carries; a resume whose `If-Range` names another is
+        /// answered with the whole file, the way a file that changed would be.
+        var etag: String?
     }
 
     /// One request as the stub saw it.
@@ -35,6 +38,7 @@ final class StubHub: URLProtocol, @unchecked Sendable {
         var path: String
         var range: String?
         var authorization: String?
+        var ifRange: String?
     }
 
     private struct State: Sendable {
@@ -75,7 +79,8 @@ final class StubHub: URLProtocol, @unchecked Sendable {
                 Record(
                     path: url.path(percentEncoded: false),
                     range: request.value(forHTTPHeaderField: "Range"),
-                    authorization: request.value(forHTTPHeaderField: "Authorization")))
+                    authorization: request.value(forHTTPHeaderField: "Authorization"),
+                    ifRange: request.value(forHTTPHeaderField: "If-Range")))
             return state.behaviour
         }
         if url.path(percentEncoded: false).contains("/api/models/") {
@@ -121,19 +126,23 @@ final class StubHub: URLProtocol, @unchecked Sendable {
         }
         let requested = request.value(forHTTPHeaderField: "Range")
         let offset = requested.flatMap(Self.offset(of:)) ?? 0
-        if requested != nil, !behaviour.ignoresRange, offset > 0, offset < body.count {
+        let ifRange = request.value(forHTTPHeaderField: "If-Range")
+        let unchanged = ifRange == nil || ifRange == behaviour.etag
+        var tag: [String: String] = [:]
+        if let etag = behaviour.etag { tag["ETag"] = etag }
+        if requested != nil, !behaviour.ignoresRange, unchanged, offset > 0, offset < body.count {
             let rest = body.suffix(from: offset)
             finish(
                 url, status: 206,
-                headers: [
+                headers: tag.merging([
                     "Content-Length": String(rest.count),
                     "Content-Range": "bytes \(offset)-\(body.count - 1)/\(body.count)",
-                ],
+                ]) { $1 },
                 body: Data(rest), behaviour: behaviour)
         } else {
             finish(
-                url, status: 200, headers: ["Content-Length": String(body.count)], body: body,
-                behaviour: behaviour)
+                url, status: 200, headers: tag.merging(["Content-Length": String(body.count)]) { $1 },
+                body: body, behaviour: behaviour)
         }
     }
 

@@ -22,36 +22,39 @@ public nonisolated enum ModelStorage {
     ) -> [ModelStorageItem] {
         var items: [ModelStorageItem] = []
         for descriptor in catalog {
-            switch descriptor.source {
-            case .localDirectory:
-                // The folder this root says the variant is in, and only that one. A copy left
-                // behind in a folder the user has since changed away from still loads — the
-                // backends look there too — but it is not this folder's business to list.
-                if let directory = locations.builtCandidates(for: descriptor).first {
-                    add(built(descriptor, at: directory, in: locations), to: &items)
+            // Every root the folder has been, the current one first: what was downloaded or
+            // built under an earlier choice still loads, so it is still the person's to see
+            // and to delete. A row under a root other than the current one says its whole path.
+            for root in locations.roots {
+                let folder = ModelLocations(root: root)
+                switch descriptor.source {
+                case .localDirectory:
+                    if let directory = folder.builtCandidates(for: descriptor).first {
+                        add(built(descriptor, at: directory, in: locations), to: &items)
+                    }
+                case .huggingFace(let repoID, _, _):
+                    let downloads = folder.downloads(repoID: repoID)
+                    if HubCache.isDirectory(downloads) {
+                        add(
+                            download(
+                                descriptor, at: downloads,
+                                isComplete: HubSnapshotCheck.isComplete(downloads), in: locations),
+                            to: &items)
+                    }
+                    for item in descriptor.adapters {
+                        add(adapter(item, of: descriptor, in: folder, captioned: locations), to: &items)
+                    }
+                    if descriptor.isBuiltLocally {
+                        add(built(descriptor, at: folder.built(descriptor), in: locations), to: &items)
+                    }
                 }
-            case .huggingFace(let repoID, _, _):
-                let downloads = locations.downloads(repoID: repoID)
-                if HubCache.isDirectory(downloads) {
-                    add(
-                        download(
-                            descriptor, at: downloads,
-                            isComplete: HubSnapshotCheck.isComplete(downloads), in: locations),
-                        to: &items)
-                }
+            }
+            if case .huggingFace(let repoID, _, _) = descriptor.source {
                 for repository in HubCache.repositories(of: repoID, in: cache) {
                     add(
                         download(
                             descriptor, at: repository.url, isComplete: repository.isComplete,
                             in: locations),
-                        to: &items)
-                }
-                for item in descriptor.adapters {
-                    add(adapter(item, of: descriptor, in: locations), to: &items)
-                }
-                if descriptor.isBuiltLocally {
-                    add(
-                        built(descriptor, at: locations.built(descriptor), in: locations),
                         to: &items)
                 }
             }

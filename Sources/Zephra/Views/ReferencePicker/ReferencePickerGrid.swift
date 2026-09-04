@@ -35,6 +35,13 @@ struct ReferencePickerGrid: View {
             }
         }
         .modifier(ReferencePickerThumbnails())
+        // A pick the search has since hidden is no pick: Use would otherwise adopt a picture
+        // that is not on screen.
+        .onChange(of: selection.text) {
+            guard let picked = selection.item, !matches.contains(where: { $0.id == picked.id })
+            else { return }
+            selection.item = nil
+        }
     }
 
     private func cell(_ item: LibraryItem) -> some View {

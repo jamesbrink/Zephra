@@ -56,6 +56,27 @@ struct DownloadedReleaseTests {
         #expect(locations.missingAdapters(of: descriptor).isEmpty)
     }
 
+    @Test("a release and an adapter under a folder the setting used to point at are still found")
+    func aPreviousRootStillCounts() throws {
+        let scratch = Scratch("Downloaded")
+        let locations = ModelLocations(
+            root: scratch.url("new"), previous: [scratch.url("old")])
+        let adapter = ModelAdapter(repoID: "org/lora", file: "lightning.safetensors", bytes: 8)
+        let descriptor = Self.model(adapters: [adapter])
+        try Self.snapshot(scratch, at: "old/Downloads/org--repo")
+        try scratch.make("old/Downloads/org--lora/lightning.safetensors")
+
+        #expect(
+            check.downloadedRelease(of: descriptor, in: locations)?.lastPathComponent == "org--repo"
+                && check.downloadedRelease(of: descriptor, in: locations)?.path(percentEncoded: false)
+                    .contains("/old/Downloads/") == true)
+        #expect(locations.missingAdapters(of: descriptor).isEmpty)
+        #expect(locations.adapterFileOnDisk(adapter) == scratch.url("old/Downloads/org--lora/lightning.safetensors"))
+        #expect(
+            locations.builtCandidates(for: descriptor).map(\.lastPathComponent) == [descriptor.id, descriptor.id],
+            "the packed variant is looked for under both roots, the current one first")
+    }
+
     @Test("a model that is a directory rather than a repository has no download to find")
     func aLocalDirectoryHasNoDownload() {
         let scratch = Scratch("Downloaded")

@@ -106,6 +106,12 @@ public struct ModelDownloader: Sendable {
         target.appendingPathExtension("incomplete")
     }
 
+    /// Where the `ETag` of a partial file's first answer is kept, so a resume can ask for the
+    /// same representation: `<name>.incomplete.etag`, removed with the partial.
+    static func validator(of partial: URL) -> URL {
+        partial.appendingPathExtension("etag")
+    }
+
     /// A file's size, or nil when it is not there.
     ///
     /// Asked of the file system rather than through `URL.resourceValues`, which caches what it

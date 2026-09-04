@@ -77,9 +77,9 @@ struct ZephraApp: App {
     /// watch would notice in its own time — this is only so the grid moves at once.
     private func openLibrary() {
         index.start()
-        // A no-op outside the `viewer` screenshot build: `viewing(in:)` answers nil for every
-        // other launch, preview or real.
-        workspace.viewing = InterfacePreview.viewing(in: index)
+        // Only the `viewer` screenshot build has an answer here; a second window opening on
+        // a normal launch must not close a viewer the first one has up.
+        if let viewing = InterfacePreview.viewing(in: index) { workspace.viewing = viewing }
         thumbnails.sweep()
         store.onImageSaved = { url in index.insert(fileAt: url) }
         store.onImageDeleted = { _ in Task { await index.rescanNow() } }

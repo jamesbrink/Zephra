@@ -14,11 +14,20 @@ import Foundation
 public struct ModelLocations: Hashable, Sendable {
     /// The folder everything Zephra downloads or builds is kept under.
     public let root: URL
+    /// Roots the folder was set to before, newest first. Nothing is written under them any
+    /// more, but what was downloaded or built there is still found: changing the folder moves
+    /// nothing, and a model a person already has must never be fetched again because a
+    /// setting moved.
+    public let previous: [URL]
 
-    /// Keeps models under `root`.
-    public init(root: URL) {
+    /// Keeps models under `root`, still looking under `previous` for what is already there.
+    public init(root: URL, previous: [URL] = []) {
         self.root = root
+        self.previous = previous.filter { Self.folder($0) != Self.folder(root) }
     }
+
+    /// Every root, the current one first.
+    public var roots: [URL] { [root] + previous }
 
     /// Where models are kept until the user says otherwise.
     public static let `default` = ModelLocations(
@@ -50,16 +59,26 @@ public struct ModelLocations: Hashable, Sendable {
         downloads(repoID: adapter.repoID)
     }
 
-    /// The adapter file itself, which is what the packer is handed.
+    /// The adapter file itself, under this root.
     public func adapterFile(_ adapter: ModelAdapter) -> URL {
         self.adapter(adapter).appending(path: adapter.file)
     }
 
+    /// Where `repoID`'s download would be under each root, the current one first.
+    public func downloadsCandidates(repoID: String) -> [URL] {
+        roots.map { ModelLocations(root: $0).downloads(repoID: repoID) }
+    }
+
+    /// The adapter file wherever it is, under this root or one the folder used to be, or nil
+    /// when it is nowhere: what a build is handed, and what says an adapter is not missing.
+    public func adapterFileOnDisk(_ adapter: ModelAdapter) -> URL? {
+        roots.map { ModelLocations(root: $0).adapterFile(adapter) }
+            .first { FileManager.default.fileExists(atPath: $0.path(percentEncoded: false)) }
+    }
+
     /// The descriptor's adapters whose file is not here yet, and so still have to be fetched.
     public func missingAdapters(of descriptor: ModelDescriptor) -> [ModelAdapter] {
-        descriptor.adapters.filter {
-            !FileManager.default.fileExists(atPath: adapterFile($0).path(percentEncoded: false))
-        }
+        descriptor.adapters.filter { adapterFileOnDisk($0) == nil }
     }
 
     /// What choosing `descriptor` would still transfer: the release unless it is already here,
@@ -82,14 +101,19 @@ public struct ModelLocations: Hashable, Sendable {
     /// more, but a descriptor is not only the catalog — `ZephraBench` points one at a folder to
     /// measure, and a variant built by hand elsewhere is still loadable — and such a folder may
     /// be outside the root. So both are offered: this root first, because a folder the user
-    /// chose is the one they meant, and the folder the descriptor names after it.
+    /// chose is the one they meant, then each root the folder used to be, and the folder the
+    /// descriptor names after them.
     public func builtCandidates(for descriptor: ModelDescriptor) -> [URL] {
-        let mine = built(descriptor)
-        guard case .localDirectory(let named) = descriptor.source else { return [mine] }
-        let relocated = root.appending(
-            path: named.lastPathComponent, directoryHint: .isDirectory)
-        guard Self.folder(relocated) != Self.folder(named) else { return [relocated] }
-        return [relocated, named]
+        guard case .localDirectory(let named) = descriptor.source else {
+            return roots.map { $0.appending(path: descriptor.id, directoryHint: .isDirectory) }
+        }
+        let relocated = roots.map {
+            $0.appending(path: named.lastPathComponent, directoryHint: .isDirectory)
+        }
+        guard !relocated.contains(where: { Self.folder($0) == Self.folder(named) }) else {
+            return relocated
+        }
+        return relocated + [named]
     }
 
     /// A directory's path with the trailing slash off, so two URLs naming one folder compare
