@@ -272,8 +272,9 @@ Four directories, by what a file is rather than what screen it is on:
   composition root rather than as a colour scheme on a scene, so the Settings
   window, the menus, and the alerts change with the main window.
 - `Views/` — one subfolder per surface (`Canvas/`, `Library/`,
-  `Library/Inspector/`, `Library/Viewer/`, `Sidebar/`, `Sidebar/Timeline/`,
-  `Toolbar/`); the prompt capsule, its controls, the commands, and Settings
+  `Library/Inspector/`, `Library/Viewer/`, `ReferencePicker/`, `Sidebar/`,
+  `Sidebar/Timeline/`, `Toolbar/`); the prompt capsule, its controls, the
+  commands, and Settings
   sit at the top of `Views/` because they belong to no one surface. The
   three-stored-property rule is what keeps them small; a view that needs a
   fourth wants a subview. `Sidebar/CanvasSidebar` is the canvas sidebar,
@@ -459,6 +460,18 @@ picture for any model without it, and the well beside the prompt shows only for
 a model that has it. The picture is persisted in a second PNG chunk beside the
 record and comes back when the image is selected. Every model the catalog ships
 reads one, in one of the two ways the next section describes.
+
+The well offers three doors to a picture, and `ReferenceAdoption` in
+`Sources/Zephra/Support/` is the one place all three read the file through: a
+library image hands back what it was itself edited from, when it was one,
+rather than itself. Empty, the well is a `Menu` whose primary action opens
+`Views/ReferencePicker/ReferencePickerSheet`, a sheet over the window with a
+search field and a grid of the whole library, newest first; filled, the same
+two choices — "From Library…" and "Choose File…" — sit in a context menu
+beside Clear. Both states also take a drop of a `LibraryItemReference`, the
+same in-app drag type an album row accepts, so dragging a picture from the
+grid or the sidebar's wall onto the well works the way dropping a Finder file
+already did.
 
 ## Build & run
 
@@ -886,11 +899,15 @@ the re-sync procedure, and the running patch log. Any change inside
 
 ## Debugging hooks
 
-- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|queued|batch|library|downloading|building|failed`
+- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|queued|batch|library|viewer|picker|downloading|building|failed`
   launches a Debug build frozen in that state with no model, for screenshots (`make screenshot`).
   `tucked` is `image` with the canvas's floating prompt slid down to its lip.
-  `downloading` and `failed` sit over a picture, since that is where they must stay
-  legible, and `failed` is a download that gave up.
+  `viewer` opens the library pane on its first image full size; `picker` runs the
+  `editing` build with the reference picker sheet forced open, through
+  `InterfacePreview.wantsReferencePicker` — the one flag the well reads on its own,
+  since a `@State` local to a view cannot be set from the composition root the way
+  `workspace.viewing` can. `downloading` and `failed` sit over a picture, since that
+  is where they must stay legible, and `failed` is a download that gave up.
 - `make logs` streams `os.Logger` output for subsystem `io.zephra`.
 - `make screenshot` photographs the app's window by its CoreGraphics id, so it captures the
   window rather than the rectangle of screen it sits in, and it fails rather than falling back

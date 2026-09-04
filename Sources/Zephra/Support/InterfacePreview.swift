@@ -6,8 +6,8 @@ import ZephraEngine
 /// interface can be screenshotted and inspected on its own.
 ///
 /// Set `ZEPHRA_PREVIEW_STATE` to `ready`, `image`, `editing`, `tucked`, `generating`, `queued`,
-/// `batch`, `library`, `viewer`, `downloading`, `building`, or `failed` before launching. Debug
-/// builds only; in Release this is inert.
+/// `batch`, `library`, `viewer`, `picker`, `downloading`, `building`, or `failed` before
+/// launching. Debug builds only; in Release this is inert.
 enum InterfacePreview {
     /// A store frozen in the requested state, or nil for a normal launch. The frozen store has
     /// no backend, so `bootstrap()` on it does nothing and no model is ever looked for.
@@ -31,18 +31,33 @@ enum InterfacePreview {
             store.settings = waiting[0].settings
             return store
         default:
-            // The editing preview runs against an invented model that reads a reference, so the
-            // well beside the prompt is there to be screenshotted.
-            let descriptor = name == "editing" ? PreviewModel.editing : ModelCatalog.default
+            // The editing and picker previews run against an invented model that reads a
+            // reference, so the well beside the prompt is there to be screenshotted.
+            let descriptor = isEditingBuild ? PreviewModel.editing : ModelCatalog.default
             let store = GenerationStore.preview(
                 state: state, image: frozenImage(for: state), descriptor: descriptor)
-            if name == "editing" {
+            if isEditingBuild {
                 // Through the same door the interface uses, so the frozen window shows the
                 // strength a dropped picture really gets rather than the 1 that means none.
                 store.useAsReference(PreviewImages.referencePNG())
             }
             return store
         }
+    }
+
+    /// Whether this build wants a reference-capable model standing up: `editing`, to
+    /// screenshot the filled well, and `picker`, which forces its sheet open over the same well.
+    private static var isEditingBuild: Bool { name == "editing" || name == "picker" }
+
+    /// Whether the frozen window should force its reference picker sheet open. The well's own
+    /// `@State` cannot be reached from the composition root the way `workspace.viewing` can, so
+    /// the well reads this itself on appear rather than being handed a value from above.
+    static var wantsReferencePicker: Bool {
+        #if DEBUG
+        name == "picker"
+        #else
+        false
+        #endif
     }
 
     /// Where the frozen window is looking. Stated rather than restored, so a screenshot build
@@ -106,7 +121,7 @@ enum InterfacePreview {
         case .generating, .cancelling: PreviewImages.sample()
         case .ready where name == "image": PreviewImages.sample()
         case .ready where name == "tucked": PreviewImages.sample()
-        case .ready where name == "editing":
+        case .ready where isEditingBuild:
             PreviewImages.sample(reference: PreviewImages.referencePNG())
         // Over a picture, because that is where these two have to stay legible: a model
         // chosen from the menu downloads, or fails to, with the last image still up.
@@ -122,7 +137,7 @@ enum InterfacePreview {
     private static var requestedState: EngineState? {
         #if DEBUG
         switch name {
-        case "ready", "image", "editing", "tucked", "batch", "library", "viewer":
+        case "ready", "image", "editing", "tucked", "batch", "library", "viewer", "picker":
             return .ready
         case "generating":
             return .generating(GenerationProgressEvent(
