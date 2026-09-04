@@ -142,8 +142,11 @@ with a progress readout while that happens.
 - Size, steps, and seed sit under the prompt. A model that reads a negative prompt gets a
   second field for it, and one that responds to guidance gets a guidance slider; no model
   shipped today does either, so neither shows. Every model can start from a picture, so each
-  gets a well beside the prompt: drop a picture on it or on the canvas, click it to choose
-  one, or use the image on the canvas as the reference (⌥⌘R; ⇧⌥⌘R clears it). What a picture
+  gets a well beside the prompt: drop a picture on it, on the canvas, or from the library
+  grid or the sidebar's wall; click it to open a picker over the whole library; choose a
+  file from a menu beside that; or use the image on the canvas as the reference (⌥⌘R;
+  ⇧⌥⌘R clears it). A picture already in the well offers the same two choices, plus Clear,
+  from its own right-click menu. What a picture
   means differs by model. FLUX.2 klein attends to it as extra tokens and still renders the
   whole schedule, so the picture guides the image without a strength to set. Z-Image and
   Qwen-Image start from a noised copy of it instead, so a strength decides how much of it

@@ -79,6 +79,17 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
 - **A filmstrip of thumbnails along the bottom**, the way Photos and Preview both
   offer, instead of only the bar's "n of N" and the prev/next buttons.
 
+## Reference picker: left out on purpose
+
+- **Choosing more than one picture at once.** The sheet is single-selection, and
+  the well takes one reference; this waits on "several reference pictures at
+  once" above, which is what would give a second picture somewhere to go.
+- **Scoping the grid to an album, favourites, or a model**, the way the library
+  grid's own sidebar does. The sheet always searches `.all`: a picture is picked
+  here by what it looks like, and the free-text search already narrows a library
+  of any size well enough to be worth the simplicity of skipping the rest of
+  `LibraryQuery` for now.
+
 ## Live preview: left out on purpose
 
 - **Latent-to-RGB factor tables.** The cheap way to show a run in progress is a 16x3
