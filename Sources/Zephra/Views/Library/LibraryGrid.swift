@@ -50,7 +50,6 @@ struct LibraryGrid: View {
         .modifier(LibraryOpenCommand(selection: selection))
         .modifier(LibraryQuickLook(selection: selection))
         .modifier(LibraryDeleteCommand(selection: selection))
-        .focusedSceneValue(\.libraryIndex, index)
         .onChange(of: index.sections) { selection.keeping(shown) }
     }
 

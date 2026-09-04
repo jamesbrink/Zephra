@@ -42,9 +42,19 @@ struct LibraryPane: View {
             }
             .overlay(alignment: .top) { LibraryFailureNotice() }
             .focusedSceneValue(\.librarySelection, selection)
+            // The index is published from here rather than from the grid, so Save as, Copy,
+            // Reveal and Delete still know which files they are about while the viewer is up.
+            .focusedSceneValue(\.libraryIndex, index)
             .onChange(of: workspace.viewing) { _, id in
                 guard let id else { return }
                 selection.apply(LibraryCursor.Outcome(ids: [id], anchor: id))
+            }
+            // A query that no longer lists the picture closes the viewer: left open it would
+            // show something the grid behind it cannot, with nowhere to step to.
+            .onChange(of: index.sections) {
+                guard let id = workspace.viewing, viewingItem == nil else { return }
+                _ = id
+                workspace.viewing = nil
             }
     }
 
@@ -52,16 +62,21 @@ struct LibraryPane: View {
     private var content: some View {
         if let item = viewingItem {
             LibraryViewer(item: item)
+                // The viewer is the grid's stand-in for the keyboard, so the menu bar's file
+                // commands act on what it shows rather than falling back to the canvas.
+                .focusedValue(\.focusedLibraryGrid, selection)
         } else {
             LibraryGrid(selection: selection)
         }
     }
 
-    /// The image `workspace.viewing` names, or nil when there is none — either the grid is
-    /// showing, or the item it named has gone (deleted, or filtered out from under it), in
-    /// which case falling back to the grid is the only sensible thing left to do.
+    /// The image `workspace.viewing` names, looked up in what the query is showing rather than
+    /// in the whole index, or nil when there is none — either the grid is showing, or the item
+    /// it named has gone (deleted, or filtered out from under it), in which case falling back
+    /// to the grid is the only sensible thing left to do.
     private var viewingItem: LibraryItem? {
-        workspace.viewing.flatMap(index.item(for:))
+        guard let id = workspace.viewing else { return nil }
+        return index.sections.lazy.flatMap(\.items).first { $0.id == id }
     }
 }
 

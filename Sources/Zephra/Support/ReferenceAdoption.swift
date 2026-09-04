@@ -13,20 +13,20 @@ import ZephraEngine
 /// reference goes on to make. The one place that rule lives, so the menu button, the well's own
 /// menu, and the picker sheet cannot drift apart on what "use as reference" means.
 enum ReferenceAdoption {
+    /// The read in flight. A second choice cancels the first, so a slow picture chosen before
+    /// a quick one cannot land after it and take the well back.
+    @MainActor private static var inFlight: Task<Void, Never>?
+
     /// Adopts a picture the caller already has as a `LibraryItem` — the menu button and the
     /// picker sheet's own selection, which both came from the index and so already know
     /// whether it carries a reference of its own.
     @MainActor
     static func adopt(_ item: LibraryItem, into store: GenerationStore) {
-        Task {
-            let png = await Task.detached(priority: .userInitiated) { () -> Data? in
-                if let source = item.referenceImage {
-                    return ReferenceImageEncoder.pngData(from: source)
-                }
-                return ReferenceImageEncoder.pngData(contentsOf: item.url)
-            }.value
-            guard let png else { return }
-            store.useAsReference(png)
+        begin(into: store) {
+            if let source = item.referenceImage {
+                return ReferenceImageEncoder.pngData(from: source)
+            }
+            return ReferenceImageEncoder.pngData(contentsOf: item.url)
         }
     }
 
@@ -37,15 +37,25 @@ enum ReferenceAdoption {
     @MainActor
     static func adopt(id: LibraryItem.ID, into store: GenerationStore) {
         let url = URL(fileURLWithPath: id)
-        Task {
-            let png = await Task.detached(priority: .userInitiated) { () -> Data? in
-                guard let data = try? Data(contentsOf: url) else { return nil }
-                if let reference = GenerationRecord.reference(in: data) {
-                    return ReferenceImageEncoder.pngData(from: reference)
-                }
-                return ReferenceImageEncoder.pngData(from: data)
-            }.value
-            guard let png else { return }
+        begin(into: store) {
+            guard let data = try? Data(contentsOf: url) else { return nil }
+            if let reference = GenerationRecord.reference(in: data) {
+                return ReferenceImageEncoder.pngData(from: reference)
+            }
+            return ReferenceImageEncoder.pngData(from: data)
+        }
+    }
+
+    /// Runs `read` off the main actor and puts what it returns in the well, unless a newer
+    /// choice has been made in the meantime.
+    @MainActor
+    private static func begin(
+        into store: GenerationStore, _ read: @escaping @Sendable () -> Data?
+    ) {
+        inFlight?.cancel()
+        inFlight = Task {
+            let png = await Task.detached(priority: .userInitiated, operation: read).value
+            guard !Task.isCancelled, let png else { return }
             store.useAsReference(png)
         }
     }

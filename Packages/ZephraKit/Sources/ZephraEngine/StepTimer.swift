@@ -33,13 +33,15 @@ struct StepTimer {
     }
 
     /// The event as the interface should see it: the backend's own pace when it reports one,
-    /// ours when it does not. Only denoising steps are timed; the other phases are not periodic.
+    /// ours when it does not. Only denoising steps are timed; the other phases are not periodic,
+    /// and a frame is not a step boundary either — it arrives after its step, moments before
+    /// the next step's own report, and counting that gap would halve the pace on screen.
     mutating func annotated(
         _ event: GenerationProgressEvent,
         at instant: ContinuousClock.Instant = ContinuousClock.now
     ) -> GenerationProgressEvent {
         guard case .denoising = event.phase else { return event }
-        tick(at: instant)
+        if event.preview == nil { tick(at: instant) }
         guard event.secondsPerStep == nil, let secondsPerStep else { return event }
         return GenerationProgressEvent(
             phase: event.phase,

@@ -29,7 +29,10 @@ struct LibraryItemMenu: View {
 
     var body: some View {
         if let first = items.first {
-            if index.query.scope == .recentlyDeleted {
+            // Decided by where the file is, not by what the grid is showing: the canvas offers
+            // this menu whatever scope the library was left on, and "Delete Immediately" over
+            // a live picture would unlink it rather than move it to Recently Deleted.
+            if first.collection == .recentlyDeleted {
                 Button("Put Back\(suffix)") { act { index.restore($0) } }
                 Divider()
                 Button("Delete \(noun) Immediately", role: .destructive) { act { index.purge($0) } }

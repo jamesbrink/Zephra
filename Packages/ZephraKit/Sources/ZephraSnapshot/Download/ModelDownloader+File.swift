@@ -46,7 +46,7 @@ extension ModelDownloader {
             throw ModelDownloadError.interrupted(reason: "The download session was not set up.")
         }
         let response: HTTPURLResponse
-        let chunks: AsyncThrowingStream<Data, any Error>
+        let chunks: ChunkedBody
         do {
             (response, chunks) = try await delegate.start(request, on: session)
         } catch {
@@ -84,7 +84,7 @@ extension ModelDownloader {
     /// Appends the body to `partial` as it arrives, checking between chunks so a person who
     /// pressed Stop is not waiting on the rest of a twelve-gigabyte shard.
     private func write(
-        _ chunks: AsyncThrowingStream<Data, any Error>,
+        _ chunks: ChunkedBody,
         to partial: URL,
         tally: inout DownloadTally,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void

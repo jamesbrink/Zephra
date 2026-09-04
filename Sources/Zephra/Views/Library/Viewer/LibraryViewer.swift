@@ -55,9 +55,13 @@ struct LibraryViewer: View {
     private func decode() async {
         image = nil
         let url = item.url
-        image = await Task.detached(priority: .userInitiated) {
+        let decoded = await Task.detached(priority: .userInitiated) {
             NSImage(contentsOf: url)
         }.value
+        // Stepping on cancels this task but not the detached decode; a slow picture that
+        // finishes after a newer one must not paint over it.
+        guard !Task.isCancelled else { return }
+        image = decoded
     }
 }
 

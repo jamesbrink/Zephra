@@ -9,24 +9,39 @@ import Synchronization
 /// there. So the body is delivered chunk by chunk through the data delegate, which is also
 /// where cancellation gets its chance: the reader checks between chunks.
 ///
+/// The delegate is called as fast as the network delivers and the stream it feeds has no
+/// bound of its own, so a fast connection writing to a slow disk would pile the difference up
+/// in memory. The transfer is suspended once `highWater` bytes are waiting to be written and
+/// resumed when the writer has drained it below `lowWater`; `ChunkedBody` is what tells this
+/// object a chunk has been taken. Nothing is dropped, because no model byte may be.
+///
 /// One of these serves a whole session; the task identifier is what tells its transfers apart.
 /// `@unchecked Sendable` because `URLSession` calls the delegate on its own queue: every stored
 /// thing is inside the mutex, which is the checking the compiler cannot do for us.
 final class ChunkedDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable {
-    /// What one transfer is waiting on: the headers, then the body.
+    /// Bytes waiting to be written above which the transfer is paused.
+    static let highWater = 64 << 20
+    /// Bytes waiting below which a paused transfer is resumed.
+    static let lowWater = 16 << 20
+
+    /// What one transfer is waiting on: the headers, then the body, and how much of the body
+    /// the writer has not taken yet.
     private struct Pending {
+        var task: URLSessionDataTask
         var response: CheckedContinuation<HTTPURLResponse, any Error>?
         var chunks: AsyncThrowingStream<Data, any Error>.Continuation?
+        var buffered = 0
+        var suspended = false
     }
 
     private let pending = Mutex<[Int: Pending]>([:])
 
     /// Starts `request` and returns the response headers with the body still arriving.
     ///
-    /// The caller must consume or drop the stream; dropping it cancels the transfer, which is
+    /// The caller must consume or drop the body; dropping it cancels the transfer, which is
     /// what makes an abandoned download stop moving bytes rather than run to the end unread.
     func start(_ request: URLRequest, on session: URLSession) async throws -> (
-        HTTPURLResponse, AsyncThrowingStream<Data, any Error>
+        HTTPURLResponse, ChunkedBody
     ) {
         let task = session.dataTask(with: request)
         let (stream, chunks) = AsyncThrowingStream<Data, any Error>.makeStream()
@@ -34,14 +49,28 @@ final class ChunkedDownload: NSObject, URLSessionDataDelegate, @unchecked Sendab
         let response = try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
                 pending.withLock {
-                    $0[task.taskIdentifier] = Pending(response: continuation, chunks: chunks)
+                    $0[task.taskIdentifier] = Pending(task: task, response: continuation, chunks: chunks)
                 }
                 task.resume()
             }
         } onCancel: {
             task.cancel()
         }
-        return (response, stream)
+        return (response, ChunkedBody(stream: stream, download: self, task: task.taskIdentifier))
+    }
+
+    /// Notes that the writer has taken `bytes` of the body, resuming a transfer paused for
+    /// want of room.
+    func drained(_ bytes: Int, task identifier: Int) {
+        let resume = pending.withLock { state -> URLSessionDataTask? in
+            guard var entry = state[identifier] else { return nil }
+            entry.buffered = max(0, entry.buffered - bytes)
+            let resume = entry.suspended && entry.buffered < Self.lowWater
+            if resume { entry.suspended = false }
+            state[identifier] = entry
+            return resume ? entry.task : nil
+        }
+        resume?.resume()
     }
 
     nonisolated func urlSession(
@@ -67,7 +96,16 @@ final class ChunkedDownload: NSObject, URLSessionDataDelegate, @unchecked Sendab
     nonisolated func urlSession(
         _ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data
     ) {
-        pending.withLock { $0[dataTask.taskIdentifier]?.chunks }?.yield(data)
+        let (chunks, pause) = pending.withLock { state -> (AsyncThrowingStream<Data, any Error>.Continuation?, URLSessionDataTask?) in
+            guard var entry = state[dataTask.taskIdentifier] else { return (nil, nil) }
+            entry.buffered += data.count
+            let pause = !entry.suspended && entry.buffered > Self.highWater
+            if pause { entry.suspended = true }
+            state[dataTask.taskIdentifier] = entry
+            return (entry.chunks, pause ? entry.task : nil)
+        }
+        chunks?.yield(data)
+        pause?.suspend()
     }
 
     nonisolated func urlSession(

@@ -1,8 +1,9 @@
 import Foundation
 import Testing
 import ZephraCore
-import ZephraSnapshot
 import ZephraTestSupport
+
+@testable import ZephraSnapshot
 
 @Suite("Downloading a model repository", .serialized)
 struct ModelDownloaderTests {
@@ -40,6 +41,21 @@ struct ModelDownloaderTests {
         #expect(progress.last?.fraction == 1)
         #expect(progress.last?.completedFiles == 2)
         #expect(progress.last?.totalFiles == 2)
+    }
+
+    @Test("a body larger than the high-water mark still arrives whole, paused and resumed")
+    func aLargeBodyIsPausedAndResumedRatherThanPiledUp() async throws {
+        let scratch = Scratch("Download")
+        let size = ChunkedDownload.highWater + ChunkedDownload.lowWater
+        StubHub.reset(
+            StubHub.Behaviour(
+                pages: [page([("big.safetensors", size)])],
+                files: ["big.safetensors": Data(repeating: 9, count: size)]))
+
+        _ = try await downloader().download(
+            repoID: "org/repo", patterns: ["*"], into: scratch.url("models"), onProgress: { _ in })
+
+        #expect(try Data(contentsOf: scratch.url("models/big.safetensors")).count == size)
     }
 
     @Test("a release and the adapter merged into it are one download, and one bar")

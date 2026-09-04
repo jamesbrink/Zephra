@@ -51,6 +51,24 @@ struct StepTimerTests {
         #expect(annotated.secondsPerStep == 42)
     }
 
+    @Test("a frame carries the pace along without counting as a step")
+    func framesDoNotTick() {
+        var timer = StepTimer()
+        _ = timer.annotated(event(step: 1), at: start)
+        let second = timer.annotated(event(step: 2), at: start.advanced(by: .milliseconds(400)))
+        #expect(isClose(second.secondsPerStep, 0.4))
+        // The frame lands moments before the next step's own report; a timer that counted it
+        // would average in a near-zero interval and halve the pace on screen.
+        let frame = GenerationProgressEvent(
+            phase: .denoising(step: 2, of: 4), fraction: 0.5,
+            preview: MockBackend.preview(step: 2))
+        let annotatedFrame = timer.annotated(frame, at: start.advanced(by: .milliseconds(790)))
+        #expect(isClose(annotatedFrame.secondsPerStep, 0.4))
+        #expect(annotatedFrame.preview != nil)
+        let third = timer.annotated(event(step: 3), at: start.advanced(by: .milliseconds(800)))
+        #expect(isClose(third.secondsPerStep, 0.4))
+    }
+
     @Test("phases other than denoising are passed through untouched")
     func nonDenoisingPhasesAreUntouched() {
         var timer = StepTimer()
