@@ -2,9 +2,13 @@ import ZephraSnapshot
 
 extension LocalSnapshot {
     /// What a Qwen-Image snapshot must contain to be loadable.
+    ///
+    /// `quantization.json` is listed first on purpose: the packer writes it last, after every
+    /// component, so a build stopped or crashed half-way is named by the thing it is missing
+    /// rather than by whichever entry happens to come first in the list.
     static let qwenImage = LocalSnapshot(
         requiredEntries: [
-            "model_index.json", "quantization.json", "transformer", "text_encoder", "vae",
+            "quantization.json", "model_index.json", "transformer", "text_encoder", "vae",
             "tokenizer", "scheduler",
         ]
     )

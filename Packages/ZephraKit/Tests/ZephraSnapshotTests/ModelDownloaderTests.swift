@@ -42,6 +42,64 @@ struct ModelDownloaderTests {
         #expect(progress.last?.totalFiles == 2)
     }
 
+    @Test("a release and the adapter merged into it are one download, and one bar")
+    func aModelWithAnAdapterFetchesBothAsOne() async throws {
+        let scratch = Scratch("Download")
+        StubHub.reset(
+            StubHub.Behaviour(
+                pages: [page([("model_index.json", 2), ("lightning.safetensors", 8)])],
+                files: [
+                    "model_index.json": Data("{}".utf8),
+                    "lightning.safetensors": Data(repeating: 3, count: 8),
+                ]))
+
+        let progress = ProgressLog()
+        let locations = ModelLocations(root: scratch.url("models"))
+        let release = try await downloader().fetch(
+            Self.withAdapter(), into: locations, onProgress: { progress.record($0) })
+
+        #expect(release == locations.downloads(repoID: "org/repo"))
+        #expect(scratch.hasFile("models/Downloads/org--repo/model_index.json"))
+        #expect(scratch.hasFile("models/Downloads/org--lora/lightning.safetensors"))
+        #expect(
+            progress.first?.totalFiles == 2,
+            "both repositories are listed before a byte moves, so the bar knows its length")
+        #expect(progress.last?.fraction == 1)
+        #expect(progress.last?.completedFiles == 2)
+    }
+
+    @Test("an adapter repository that is not there stops the download before the release moves")
+    func aMissingAdapterFailsBeforeAnythingIsFetched() async throws {
+        let scratch = Scratch("Download")
+        StubHub.reset(StubHub.Behaviour(pages: [page([("model_index.json", 2)])], files: [:]))
+
+        await #expect(throws: (any Error).self) {
+            _ = try await downloader().fetch(
+                Self.withAdapter(), into: ModelLocations(root: scratch.url("models")),
+                onProgress: { _ in })
+        }
+        #expect(
+            !scratch.hasFile("models/Downloads/org--repo/model_index.json"),
+            "nothing in the adapter's repository matches, so the release is never started")
+    }
+
+    /// A model whose release is one repository and whose distillation is another.
+    private static func withAdapter() -> ModelDescriptor {
+        let base = ModelCatalog.default
+        return ModelDescriptor(
+            id: "adapter-test", displayName: base.displayName, variantName: base.variantName,
+            backend: base.backend,
+            source: .huggingFace(
+                repoID: "org/repo", revision: "main", filePatterns: ["model_index.json"]),
+            quantization: base.quantization, downloadBytes: 2,
+            residentBytes: base.residentBytes, peakBytes: base.peakBytes,
+            tiledPeakBytes: base.tiledPeakBytes, maxPromptTokens: base.maxPromptTokens,
+            capabilities: base.capabilities, builtBytes: 4,
+            adapters: [
+                ModelAdapter(repoID: "org/lora", file: "lightning.safetensors", bytes: 8)
+            ])
+    }
+
     @Test("a repository listed over two pages is fetched whole")
     func pagesAreFollowed() async throws {
         let scratch = Scratch("Download")
@@ -204,6 +262,8 @@ private final class ProgressLog: @unchecked Sendable {
     func record(_ event: DownloadProgressEvent) {
         lock.withLock { events.append(event) }
     }
+
+    var first: DownloadProgressEvent? { lock.withLock { events.first } }
 
     var last: DownloadProgressEvent? { lock.withLock { events.last } }
 }

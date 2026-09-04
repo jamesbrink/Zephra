@@ -38,13 +38,22 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
 
 ## Downloads and model storage: left out on purpose
 
-- **The 4-bit Z-Image and Qwen-Image variants are greyed out on any Mac that has
-  not run `make quantize` or `make quantize-qwen`.** A 16 GB Mac is exactly the one
-  that wants the 4-bit Z-Image, and it cannot have it without the 33 GB bf16 release
-  and the command line. The fix is the build step klein already has: a `.huggingFace`
-  source on the 4-bit entry with `builtBytes` set, and `ZImageBackend.build` packing
-  it. What stops it today is disk, not code: the source is 33 GB and the packer
-  spills at 4 GB resident, so it would run on a 16 GB Mac but needs 40 GB free.
+- **The 4-bit Z-Image variant is derived from the 33 GB bf16 release, not from the
+  13.3 GB 8-bit download.** Both entries are the same weights at different
+  precisions, and a Mac that already has the 8-bit model has to fetch two and a half
+  times as much again to get the smaller one. Repacking 8-bit to 4-bit would need a
+  quantized-source reader in the packer: dequantize each `.scales`/`.biases` group
+  back to float, repack at the new width, and carry the manifest across. It also
+  compounds the error of two quantizations, which is worth measuring against a
+  straight 4-bit build before shipping. The bf16 source is the honest input, and
+  disk is the cost: 33 GB in, 6.7 GB out, and the packer spills at 4 GB resident, so
+  it runs on a 16 GB Mac but wants 40 GB free.
+- **A build cannot be resumed.** `SnapshotBuild` writes into a `.partial` directory
+  and removes it when the build is stopped, so a Qwen-Image build interrupted at
+  nineteen of its twenty-one gigabytes starts over. Keeping it and skipping the
+  components already written would need the manifest to be written per component
+  rather than at the end, which is also what makes a half-built directory
+  unmistakably incomplete today.
 - **A download is one file at a time.** `ModelDownloader` walks the listing in
   order, so a fast connection is not saturated the way two or three concurrent
   transfers would saturate it. Sixteen gigabytes from the hub already runs near
@@ -58,11 +67,13 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   written rather than a second pass.
 - **Changing the models folder moves nothing**, by design — a sixty-gigabyte
   copy is not something to start from a settings row. What is already downloaded
-  or built keeps working where it is. The one rough edge: a variant built under
-  the old folder still loads, because the backends look in both places, but
-  Settings > Models lists what the chosen folder holds, so that copy has to be
-  deleted from the Finder. It goes away once the 4-bit entries stop naming an
-  absolute directory (see the bullet above).
+  keeps working where it is, if the folder is changed back. What it does not do is
+  follow: a variant packed under the old root is not looked for under the new one,
+  so choosing that model downloads and builds it again where the setting now
+  points. That was already true of klein and is now true of every variant, since
+  none of them names an absolute directory. Offering to move — or even to look in
+  the folder last used — wants a list of roots rather than one, and the honest
+  version of it is a "move my models" button that copies and verifies.
 - **Deleting a model never asks the engine to unload it first.** The row is disabled
   while the model is loaded; choosing another model frees it. A Delete that unloads
   and then trashes would be a `GenerationStore` concern, and the engine would need to

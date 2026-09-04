@@ -3,9 +3,9 @@ import Foundation
 /// The models Zephra ships knowledge of, hand-written because each one needs verified numbers.
 public enum ModelCatalog {
     /// Where models are kept when the user has not chosen a folder: the root of
-    /// `ModelLocations.default`, which is what a catalog entry naming a directory absolutely
-    /// is written against. Everywhere that can be given a folder takes a `ModelLocations`
-    /// instead; this is only for the entries here and for a tool with no preferences to read.
+    /// `ModelLocations.default`. Everywhere that can be given a folder takes a `ModelLocations`
+    /// instead; this is only for a tool with no preferences to read, such as `ZephraQuantize`
+    /// deciding where its output goes.
     public static var localModelsDirectory: URL { ModelLocations.default.root }
 
     /// Z-Image Turbo at eight-bit precision: the downloadable variant. Its untiled peak needs
@@ -39,8 +39,8 @@ public enum ModelCatalog {
     ///
     /// No published repository carries four-bit Z-Image weights in the manifest format the
     /// vendored loader reads, so what is downloaded is not what is loaded: the release is
-    /// `Tongyi-MAI/Z-Image-Turbo`, 33 GB of bfloat16, and the packer writes the variant beside
-    /// it. `make quantize` is the same build by hand.
+    /// `Tongyi-MAI/Z-Image-Turbo`, 32.9 GB of bfloat16, and the packer writes the variant
+    /// beside it. `make quantize` is the same build by hand.
     ///
     /// This is the variant a 16 GB Mac wants, which is the whole reason it downloads rather
     /// than waiting to be built from the command line.

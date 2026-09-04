@@ -25,33 +25,18 @@ extension Flux2Backend {
             }
             return try LocalSnapshot.flux2.verified(
                 candidates.first ?? locations.built(descriptor), descriptor: descriptor)
-        case .huggingFace(let repoID, let revision, _):
+        case .huggingFace:
             let packed = locations.built(descriptor)
             if LocalSnapshot.flux2.missingEntry(in: packed) == nil { return packed }
-            if let release = Self.release(repoID: repoID, revision: revision, in: locations) {
+            if let release = LocalSnapshot.flux2Release.downloadedRelease(
+                of: descriptor, in: locations)
+            {
                 return release
             }
             let fetched = try await ModelDownloader().fetch(
                 descriptor, into: locations, onProgress: onProgress)
             return try LocalSnapshot.flux2Release.verified(fetched, descriptor: descriptor)
         }
-    }
-
-    /// The klein release as it sits on this Mac, or nil when it is not here: the app's own
-    /// downloads folder first, then the hub cache.
-    static func release(repoID: String, revision: String, in locations: ModelLocations) -> URL? {
-        let downloads = locations.downloads(repoID: repoID)
-        if LocalSnapshot.flux2Release.missingEntry(in: downloads) == nil,
-           HubSnapshotCheck.incompleteFiles(in: downloads).isEmpty
-        {
-            return downloads
-        }
-        if let cached = HubCache.snapshot(of: repoID, revision: revision),
-           LocalSnapshot.flux2Release.missingEntry(in: cached) == nil
-        {
-            return cached
-        }
-        return nil
     }
 
     /// Packs the release at `localPath` into the variant `descriptor` names, unless it is the

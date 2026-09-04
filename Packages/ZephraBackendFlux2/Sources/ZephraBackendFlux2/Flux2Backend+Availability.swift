@@ -19,13 +19,13 @@ extension Flux2Backend {
             else { return .available }
             let missing = LocalSnapshot.flux2.missingEntry(in: candidates[0]) ?? "its weights"
             return .missing(reason: "Not built yet: \(missing) is missing. Run `make quantize-flux2`.")
-        case .huggingFace(let repoID, let revision, _):
+        case .huggingFace:
             if LocalSnapshot.flux2.missingEntry(in: locations.built(descriptor)) == nil {
                 return .available
             }
-            guard Self.release(repoID: repoID, revision: revision, in: locations) != nil else {
-                return .needsDownloadAndBuild(bytes: descriptor.transferBytes)
-            }
+            guard LocalSnapshot.flux2Release.downloadedRelease(of: descriptor, in: locations)
+                != nil
+            else { return .needsDownloadAndBuild(bytes: descriptor.transferBytes) }
             return .needsBuild
         }
     }

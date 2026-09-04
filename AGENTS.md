@@ -72,7 +72,9 @@ Shared, by what a file actually touches:
   packer, shared by every family. It knows nothing about any model — a family
   hands it a `QuantizationPlan` saying which directories hold weights, which
   tensors to leave alone, how finely to squeeze the rest, and which low-rank
-  adapters to merge on the way past.
+  adapters to merge on the way past. `SnapshotBuild` beside it is the safe way
+  to run that from the app: a `.partial` directory renamed on success, removed
+  on failure, and a free-space refusal before anything is read.
 - `ZephraMLX` (in `Packages/ZephraMLXKit`): MLX work that is the same job for
   every family. Three things are there. `TiledDecode`: an autoencoder's decode
   allocates in proportion to the image, so decoding overlapping latent tiles
@@ -95,9 +97,9 @@ Shared, by what a file actually touches:
   (their own local packages): translate `ZephraCore` types to and from one
   family's types. No state, no UI. Each depends on `ZephraKit`'s `ZephraCore`
   and `ZephraSnapshot` products, on `ZephraQuantization` for its packing plan,
-  and on its own family's kit. `ZephraBackendFlux2` is also the one that packs
-  its download into the variant it loads, on first load, through the
-  protocol's `build` step. This split keeps `Packages/ZephraKit` free of MLX
+  and on its own family's kit. All three also pack a download into the variant
+  they load, on first load, through the protocol's `build` step — every model in
+  the catalog but the 8-bit Z-Image is built here. This split keeps `Packages/ZephraKit` free of MLX
   dependencies, so `make test` (`swift test` there) stays fast and doesn't
   touch Metal.
 - `Packages/ZImageKit`: vendored. Edit only with a `// ZEPHRA-PATCH: <reason>`
@@ -439,19 +441,46 @@ bottom — `InferenceActor` holds the current one and applies a change on the ne
 `AppSettings.modelsDirectory` decided it. A backend looks in the built variant,
 then `locations.downloads`, then the hub cache, and only then downloads.
 
-**A model whose download is not what gets loaded** is the third case, and
-FLUX.2 klein is the one that has it: the release is 16 GB of bfloat16 and the
-loader reads a packed variant. Such a family implements
+**A model whose download is not what gets loaded** is the third case, and all
+three families now have one: FLUX.2 klein's two variants, the 4-bit Z-Image
+Turbo, and the 4-bit Qwen-Image. In each the release is bfloat16 and the loader
+reads a packed variant. Such a family implements
 `ImageGenerationBackend.build(_:at:locations:onProgress:)`, which the engine calls
 between `ensureAvailable` and `load` and shows as `EngineState.building`; every
-other family takes the protocol's default, which returns the download
+other model takes the protocol's default, which returns the download
 untouched. `ModelDescriptor.builtBytes` says what the packed variant costs on
-disk, and non-zero is what tells the engine a build is involved. Availability
+disk, and non-zero (with a repository source) is `isBuiltLocally` — what tells
+the engine a build is involved. Availability
 then has two more answers, `.needsDownloadAndBuild(bytes:)` and `.needsBuild`,
 so the picker says what choosing the model will cost. The packed variant lives
 at `locations.built(descriptor)`, which is `<models>/<descriptor.id>` — the
 naming every locally built variant already follows. The packer's `shouldContinue`
 hook is what makes a build stoppable between tensors.
+
+Three pieces of that job are written once, because they are the same job
+whatever is being packed. `SnapshotBuild` in `ZephraQuantization` writes into a
+sibling `.partial` directory and renames on success, removes it when the build
+fails, and refuses before reading anything when the volume cannot take
+`builtBytes` — a component that ran out of disk half way reads as a snapshot to
+a loader, which is the one failure that produces a model that loads and is
+wrong. `BuildTally` in `ZephraCore` turns the packer's log lines into a bar
+weighted by what each component holds, so a family supplies a dictionary of
+gigabytes and nothing else. And `LocalSnapshot.downloadedRelease(of:in:)` in
+`ZephraSnapshot` is the "is the download here" question: the app's own folder,
+then the hub cache, with the descriptor's adapters counted. A family's own
+`<Family>SnapshotBuild` is then the plan, the weights, and nothing else.
+
+**A model whose build needs more than the release** is the fourth case, and
+Qwen-Image is the one that has it. `ModelDescriptor.adapters` is a list of
+`ModelAdapter` — a repository, a revision, one file name, and its size — fetched
+into `locations.adapter(_:)` (`Downloads/<org>--<repo>`, beside the releases) by
+the same `ModelDownloader.fetch` call, in one transfer with one progress bar,
+because `ModelDownloader.download` takes a list of `RepositoryDownload`s and
+lists and tallies them together. `transferBytes` is the release plus the
+adapters and is what availability reports. The adapter is a build input, not a
+runtime one: `QwenImageBackend.build` hands `locations.adapterFile(_:)` to the
+plan, the packer merges the low-rank update as it goes, and nothing downstream
+ever sees an adapter.
 
 **A model that edits** reads `GenerationSettings.referenceImage`, PNG bytes the
 interface caps at 1024 pixels an edge before they land there.
@@ -527,17 +556,20 @@ Makefile targets:
   something the app loads). Name the adapter file explicitly: the repository
   also ships whole merged checkpoints of twenty gigabytes each, and pulling it
   whole costs 101 GB.
-- `make quantize` — download the bf16 release and build the 4-bit variant into
+- `make quantize` — the build the app does on first load, by hand: download the
+  bf16 release into the app's own folder and pack the 4-bit variant into
   `~/Library/Application Support/Zephra/Models/z-image-turbo-4bit`. `BITS`,
   `GROUP_SIZE`, and `QUANT_OUT` override the defaults (4 bits, group 64).
   `ZephraQuantize` takes a required `--family`; there is deliberately no
   default, because the wrong one silently produces the wrong artifact an hour
   later. For the same reason it refuses any `BITS` other than 4 unless the
   output directory is given explicitly: every default output name says `4bit`.
-- `make quantize-qwen` — build the 4-bit Qwen-Image variant from `QWEN_SOURCE`
-  with `QWEN_LORA` merged into its transformer, into
+- `make quantize-qwen` — likewise for Qwen-Image, from `QWEN_SOURCE` with
+  `QWEN_LORA` merged into its transformer, into
   `~/Library/Application Support/Zephra/Models/qwen-image-2512-4bit`
-  (`QWEN_OUT` overrides). About a minute with the source local.
+  (`QWEN_OUT` overrides). About a minute with the source local. The app fetches
+  the same two things itself and does the same build; this is for keeping the
+  57.7 GB source off the boot volume.
 - `make quantize-flux2` — the build the app does on first load, by hand: pack
   the klein release from the app's own folder (or `FLUX2_SOURCE`) into
   `~/Library/Application Support/Zephra/Models/flux2-klein-4b-4bit`
@@ -713,21 +745,24 @@ the app's own folder first, then either hub layout — with where it is, its siz
 and a Delete that moves it to the Trash. `ModelStorage` in `ZephraSnapshot` is
 the listing and the measuring; `ModelInventory` in `ZephraEngine` is what the
 tab observes. A release two variants pack from is one row naming both, a
-download stopped part-way is a row saying so, and a directory the loaded model
-is using cannot be deleted from under it. Changing the folder moves nothing:
+download stopped part-way is a row saying so, an adapter is a row of its own
+named for the model it serves ("Qwen-Image 2512 adapter"), and a directory the
+loaded model is using cannot be deleted from under it. Changing the folder moves
+nothing:
 what is already there keeps working where it is, and the next download and the
 next build go to the new folder.
 
 Always pass the model explicitly when calling into the vendored pipeline —
-its own default is the 33 GB bf16 repo, not the 8-bit one Zephra uses.
+its own default is the 32.9 GB bf16 repo, which Zephra reads only as a build
+source and never loads.
 
-Second model: `z-image-turbo-4bit`, built on the user's own Mac by `make quantize`,
-because no repository publishes four-bit Z-Image-Turbo in the manifest format the
-vendored loader reads. It is a `.localDirectory` source under
-`~/Library/Application Support/Zephra/Models`, so it downloads nothing and the
-backend reports a clear error when it is missing rather than trying to fetch it.
-6.7 GB on disk and 6575 MB resident, against 13.3 GB and 12236 MB for the 8-bit
-model. Peak follows the image size — 10693 MB at 512 pixels, 14599 MB at 768,
+Second model: `z-image-turbo-4bit`, packed on the user's own Mac from the bf16
+release (`Tongyi-MAI/Z-Image-Turbo`, 32.9 GB excluding `assets/`), because no
+repository publishes four-bit Z-Image-Turbo in the manifest format the vendored
+loader reads. The app does that itself on first load, the way klein does;
+`make quantize` is the same build by hand. 6.7 GB on disk (`builtBytes`) and
+6575 MB resident, against 13.3 GB and 12236 MB for the 8-bit model. Peak follows
+the image size — 10693 MB at 512 pixels, 14599 MB at 768,
 17839 MB at 1024 — because peak is resident plus the unquantized VAE decode's
 scratch. So a 16 GB Mac is offered this variant and can run it at 512 and 768, but
 1024 will page. Four bits is not faster: MLX's quantized matmul costs the same at
@@ -738,16 +773,26 @@ quality gain.
 
 Third model: `qwen-image-2512-4bit` — **Qwen-Image-2512**
 (`Qwen/Qwen-Image-2512`, Apache 2.0), a 60-layer dual-stream MMDiT of about 20B
-parameters, conditioned on Qwen2.5-VL-7B and decoded by a 3-D causal VAE. Built
-on the user's own Mac by `make quantize-qwen`, because the release is 57.7 GB of
-bf16 and the four-step distillation ships separately as an adapter, so the local
-build is where the two are put together. 21.6 GB on disk.
+parameters, conditioned on Qwen2.5-VL-7B and decoded by a 3-D causal VAE. Packed
+on the user's own Mac, because the release is 57.7 GB of bf16 and the four-step
+distillation ships separately as an adapter, so the local build is where the two
+are put together. 21.6 GB on disk. The app fetches both and packs them on first
+load; `make quantize-qwen` is the same build by hand.
 
-The full-precision source is too large for the boot volume here, so it lives at
-`/Volumes/ExternalStorage/Models/Qwen-Image-2512` with the adapter beside it in
-`Qwen-Image-2512-Lightning/`; only the configuration files stay in the Hugging
-Face cache. Point `QWEN_SOURCE` and `QWEN_LORA` there, and `QWEN_IMAGE_SNAPSHOT`
-there for any test that wants real weights.
+Choosing it therefore costs 59.4 GB of download — the release and the 1.7 GB
+adapter, which is what `ModelDescriptor.transferBytes` adds up and what the
+picker states — and then a build. The adapter is a `ModelAdapter` on the
+descriptor rather than a second catalog entry: it is one named file in a
+repository of its own (that repository also ships whole merged checkpoints of
+twenty gigabytes each, so it is never taken by pattern), it is not optional, and
+nothing downstream of the packer ever sees one.
+
+The full-precision source is too large for the boot volume here, so a copy of it
+lives at `/Volumes/ExternalStorage/Models/Qwen-Image-2512` with the adapter
+beside it in `Qwen-Image-2512-Lightning/`. Point `QWEN_SOURCE` and `QWEN_LORA`
+there for `make quantize-qwen`, and `QWEN_IMAGE_SNAPSHOT` there for any test that
+wants real weights. Point `MODELS_DIR` at that volume instead and the app's own
+download lands there and this copy is unnecessary.
 
 Measured on an M4 Max, four steps, seed 42: 21532 MB resident at every size,
 because the weights are the whole of it. 512 pixels takes 6.9 s (1.57 s/step)
@@ -762,8 +807,9 @@ and the entry's `peakBytes` is measured there.
 **The Lightning adapter is not optional.** The base model wants fifty steps and
 real classifier-free guidance, which is two forward passes through twenty
 billion parameters per step. `lightx2v/Qwen-Image-2512-Lightning` (Apache 2.0)
-distils that to four steps and no guidance, and `make quantize-qwen` merges it
-into the transformer as it packs, so the runtime never sees an adapter. Run the
+distils that to four steps and no guidance, and the build — the app's own, or
+`make quantize-qwen` — merges it into the transformer as it packs, so the
+runtime never sees an adapter. Run the
 same seed and prompt against a build without it and the difference is not
 subtle: soft, hazy, mesh-textured surfaces against sharp ones. That is also why
 the catalog entry reads `guidanceBounds: 0...0` and
