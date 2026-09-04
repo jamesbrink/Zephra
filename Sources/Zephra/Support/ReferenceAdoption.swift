@@ -1,4 +1,5 @@
 import Foundation
+import ZephraCore
 import ZephraEngine
 
 /// Turning a library picture into reference bytes and putting it in the well.
@@ -28,6 +29,16 @@ enum ReferenceAdoption {
             }
             return ReferenceImageEncoder.pngData(contentsOf: item.url)
         }
+    }
+
+    /// Adopts a picture this session made and the index may not have seen yet, by the same
+    /// rule as a library item: one that was itself edited from a picture hands back that
+    /// picture, and the bytes are re-encoded to the reference's own cap either way, so the
+    /// canvas's menu means the same thing before and after the folder scan catches up.
+    @MainActor
+    static func adopt(_ image: GeneratedImage, into store: GenerationStore) {
+        let source = image.settings.referenceImage ?? image.pngData
+        begin(into: store) { ReferenceImageEncoder.pngData(from: source) }
     }
 
     /// Adopts a picture named only by its id — a drop of a `LibraryItemReference`, which

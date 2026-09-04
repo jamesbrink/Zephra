@@ -13,11 +13,22 @@ import ZephraEngine
 struct LibraryViewerNavigation: ViewModifier {
     @Environment(WorkspaceSelection.self) private var workspace
     @Environment(LibraryIndex.self) private var index
+    @FocusState private var isFocused: Bool
 
     func body(content: Content) -> some View {
         content
             .focusable()
             .focusEffectDisabled()
+            .focused($isFocused)
+            // `focusable()` only makes the viewer eligible; the keyboard stays wherever it
+            // was — the search field, the grid that has just gone — unless it is asked for.
+            // Without it Escape and the arrows do nothing and the file commands fall back to
+            // the canvas. After one yield, as `AlbumNameField` does: focus set on the first
+            // pass, before the view is in a window, is dropped.
+            .task {
+                await Task.yield()
+                isFocused = true
+            }
             .contentShape(Rectangle())
             .onTapGesture(count: 2) { close() }
             .onKeyPress(.escape) { close(); return .handled }
