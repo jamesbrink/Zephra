@@ -30,12 +30,18 @@ struct ModelStorageRow: View {
         }
     }
 
+    /// What it is and where it is: the second half is what tells two copies of one release
+    /// apart, which is otherwise two identical rows.
     private var caption: String {
+        item.location.isEmpty ? state : "\(state) · \(item.location)"
+    }
+
+    private var state: String {
         switch item.kind {
         case .download where !item.isComplete:
-            "Partial download. Choosing the model resumes it."
+            "Partial download, resumed when the model is chosen"
         case .download where item.modelIDs.count > 1:
-            "Downloaded. \(item.modelIDs.count) variants pack from it."
+            "Downloaded, \(item.modelIDs.count) variants pack from it"
         case .download:
             "Downloaded"
         case .built:
@@ -53,14 +59,16 @@ struct ModelStorageRow: View {
         ModelStorageRow(
             item: ModelStorageItem(
                 name: "FLUX.2 klein 4B release", kind: .download,
-                url: URL(filePath: "/tmp/klein"), modelIDs: ["a", "b"], isComplete: true,
-                bytes: 16_000_000_000),
+                url: URL(filePath: "/tmp/klein"),
+                location: "Downloads/black-forest-labs--FLUX.2-klein-4B",
+                modelIDs: ["a", "b"], isComplete: true, bytes: 16_000_000_000),
             inUse: false
         ) {}
         ModelStorageRow(
             item: ModelStorageItem(
                 name: "Z-Image Turbo · 8-bit", kind: .download,
-                url: URL(filePath: "/tmp/z"), modelIDs: ["z"], isComplete: false),
+                url: URL(filePath: "/tmp/z"), location: "Downloads/mzbac--Z-Image-Turbo-8bit",
+                modelIDs: ["z"], isComplete: false),
             inUse: true
         ) {}
     }

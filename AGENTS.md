@@ -28,7 +28,8 @@ Sources/ZephraBench (tool)   ─→ ZephraCore, every ZephraBackend<Family>
 Sources/ZephraQuantize (tool)─→ ZephraCore, ZephraQuantization, every ZephraBackend<Family>
 
 Shared, by what a file actually touches:
-  ZephraKit/ZephraSnapshot     Foundation only  — hub cache, local snapshot checks,
+  ZephraKit/ZephraSnapshot     Foundation only  — the model downloader, local snapshot
+                                                  checks, the hub cache read as a fallback,
                                                   what the models occupy on disk
   ZephraKit/ZephraTestSupport  Foundation only  — Scratch, the filesystem test fixture
   ZephraMLXKit/ZephraQuantization  MLX          — the streaming weight packer
@@ -38,19 +39,35 @@ Shared, by what a file actually touches:
 
 - `ZephraCore` (in `Packages/ZephraKit`): Sendable value types + protocols.
   Zero dependencies — no model package, no MLX, no SwiftUI.
-- `ZephraSnapshot` (in `Packages/ZephraKit`): finding a cached Hugging Face
-  snapshot, checking a local model directory, and listing what the catalog's
-  models occupy on disk. Foundation only, which is the point: `make test`
-  covers it, so these suites need no Metal. The hub cache holds two layouts
-  and `HubRepository` reads both: `hf download` writes
-  `models--<org>--<repo>/snapshots/<commit>/`, and the hub client the app
-  downloads with writes `models/<org>/<repo>/` flat, with its `.incomplete`
-  files under `.cache/huggingface/download/`. `HubSnapshotCheck` is what says
-  a snapshot is finished: a config, some weights, every shard a
-  `*.safetensors.index.json` names, and nothing still `.incomplete`. A backend
-  asks `HubCache` before its own resolver, because the vendored resolver knows
-  only the first layout and would fetch a model the app itself downloaded again
-  on every launch.
+- `ZephraSnapshot` (in `Packages/ZephraKit`): downloading a model, checking a
+  local model directory, reading the Hugging Face cache as a fallback, and
+  listing what the catalog's models occupy on disk. Foundation only, which is
+  the point: `make test` covers all of it, so these suites need no Metal and
+  the downloader is driven through a `URLProtocol` stub.
+  - `Download/` is the downloader. `ModelDownloader` lists a repository from
+    `/api/models/{repo}/tree/{revision}?recursive=true` (paged by the `Link`
+    header, decoded by `RepositoryListing`), filters it with the descriptor's
+    globs (`FilePattern`, fnmatch rules, so `*` crosses directories the way
+    the hub's own matching does), and fetches each file from
+    `/{repo}/resolve/{revision}/{path}` into
+    `<models>/Downloads/<org>--<repo>/`, flat, as the repository names them.
+    A file in flight is `<name>.incomplete` beside where it will live and is
+    renamed only when its size matches the listing, so a stop or a broken
+    connection resumes with a `Range` and a truncated file is never taken for a
+    finished one; a 200 answer to a `Range` request means the server ignored it,
+    and the file starts over rather than being spliced at the wrong offset.
+    Cancellation is checked between chunks. **No `Authorization` header is ever
+    sent** — every repository the catalog names is public — so no token, in the
+    environment or in a file, can turn a public model into a login wall.
+  - `HubSnapshotCheck` is what says a directory is a finished download: a
+    config, some weights, every shard a `*.safetensors.index.json` names, and
+    nothing still `.incomplete` anywhere under it.
+  - `HubCache` and `HubRepository` read the two layouts in
+    `~/.cache/huggingface/hub` — `hf download`'s
+    `models--<org>--<repo>/snapshots/<commit>/` and the flat
+    `models/<org>/<repo>/` an older Zephra wrote. That cache is a **read-only
+    fallback**: a Mac that has a release there does not fetch it again, and
+    nothing is ever written to it.
 - `ZephraQuantization` (in `Packages/ZephraMLXKit`): the streaming weight
   packer, shared by every family. It knows nothing about any model — a family
   hands it a `QuantizationPlan` saying which directories hold weights, which
@@ -200,7 +217,9 @@ Four directories, by what a file is rather than what screen it is on:
   on the main actor. `AppSettings` is the one list of preference keys and
   starting values; a preference is bound with `@AppStorage` at its picker and
   read outside a view through `AppSettings`'s helpers. `DirectoryRow` is the
-  labelled path with an Open button that General and Models both show. The appearance
+  labelled path with an Open button that General and Models both show, plus
+  whatever else that folder can be done to — which in Models is `Change…` and
+  `Use Default`, in `ModelsDirectoryRow`. The appearance
   preference is applied by `AppearanceApplier`, set on `NSApp` from the
   composition root rather than as a colour scheme on a scene, so the Settings
   window, the menus, and the alerts change with the main window.
@@ -358,22 +377,31 @@ descriptor names a different family, so the old weights are always released
 before the new ones are asked for. A descriptor whose family was never
 registered surfaces as `EngineError.noBackend`, not as a crash.
 
-`ImageGenerationBackend.availability(of:)` must answer from the disk alone —
-never download, never disturb what is loaded. It is what lets the picker say
-"13.3 GB download" without starting one.
+`ImageGenerationBackend.availability(of:locations:)` must answer from the disk
+alone — never download, never disturb what is loaded. It is what lets the picker
+say "13.3 GB download" without starting one.
+
+Every disk-touching call takes a `ModelLocations`: one root, with
+`Downloads/<org>--<repo>` for what was fetched and `<descriptor id>` for what
+was packed here. It is passed down rather than read from a preference at the
+bottom — `InferenceActor` holds the current one and applies a change on the next
+`prepare`, `GenerationStore.setModelLocations(_:)` is the way to change it, and
+`Sources/Zephra/ZephraApp.swift` is the only place that knows the preference
+`AppSettings.modelsDirectory` decided it. A backend looks in the built variant,
+then `locations.downloads`, then the hub cache, and only then downloads.
 
 **A model whose download is not what gets loaded** is the third case, and
 FLUX.2 klein is the one that has it: the release is 16 GB of bfloat16 and the
 loader reads a packed variant. Such a family implements
-`ImageGenerationBackend.build(_:at:onProgress:)`, which the engine calls
+`ImageGenerationBackend.build(_:at:locations:onProgress:)`, which the engine calls
 between `ensureAvailable` and `load` and shows as `EngineState.building`; every
 other family takes the protocol's default, which returns the download
 untouched. `ModelDescriptor.builtBytes` says what the packed variant costs on
 disk, and non-zero is what tells the engine a build is involved. Availability
 then has two more answers, `.needsDownloadAndBuild(bytes:)` and `.needsBuild`,
 so the picker says what choosing the model will cost. The packed variant lives
-at `ModelCatalog.localModelsDirectory/<descriptor.id>`, which is the naming
-every locally built variant already follows. The packer's `shouldContinue`
+at `locations.built(descriptor)`, which is `<models>/<descriptor.id>` — the
+naming every locally built variant already follows. The packer's `shouldContinue`
 hook is what makes a build stoppable between tensors.
 
 **A model that edits** reads `GenerationSettings.referenceImage`, PNG bytes the
@@ -425,13 +453,17 @@ Makefile targets:
 - `make notarize` — submit that zip, staple the ticket, and repackage. Needs
   `xcrun notarytool store-credentials zephra-notary` run once; `NOTARY_PROFILE`
   names the profile.
-- `make prefetch` — download the default model weights via `hf download`.
-- `make prefetch-flux2` — download the FLUX.2 klein 4B release into the hub
-  cache, without the 7.75 GB single-file checkpoint the loader never reads, so
-  a first launch skips the download and goes straight to the build.
+- `make prefetch` — download the default model weights with `hf download`
+  into `$(MODELS_DIR)/Downloads/mzbac--Z-Image-Turbo-8bit`, which is where the
+  app itself would have written them, so a first launch finds them. Set
+  `MODELS_DIR` when Settings names another folder.
+- `make prefetch-flux2` — the same for the FLUX.2 klein 4B release, without the
+  7.75 GB single-file checkpoint the loader never reads, so a first launch skips
+  the download and goes straight to the build.
 - `make prefetch-qwen` — download Qwen-Image-2512 and its four-step Lightning
   adapter into `QWEN_MODELS` (external storage by default; 57.7 GB does not
-  belong on a boot volume). Name the adapter file explicitly: the repository
+  belong on a boot volume, and this release is a build source rather than
+  something the app loads). Name the adapter file explicitly: the repository
   also ships whole merged checkpoints of twenty gigabytes each, and pulling it
   whole costs 101 GB.
 - `make quantize` — download the bf16 release and build the 4-bit variant into
@@ -446,7 +478,7 @@ Makefile targets:
   `~/Library/Application Support/Zephra/Models/qwen-image-2512-4bit`
   (`QWEN_OUT` overrides). About a minute with the source local.
 - `make quantize-flux2` — the build the app does on first load, by hand: pack
-  the klein release from the hub cache (or `FLUX2_SOURCE`) into
+  the klein release from the app's own folder (or `FLUX2_SOURCE`) into
   `~/Library/Application Support/Zephra/Models/flux2-klein-4b-4bit`
   (`FLUX2_OUT` overrides; `BITS=8` needs one, as above). About a minute.
 - `make lint-layers` — enforce the layering rules above.
@@ -593,36 +625,37 @@ throwaway output folder. `ZephraCoreTests` uses the smaller `StubBackend`.
 
 Default model: `mzbac/Z-Image-Turbo-8bit` — 13.3 GB download (excluding
 `assets/`), 12236 MB resident once loaded and peaking at 23501 MB during the VAE
-decode at 1024 pixels, so 32 GB of RAM is the practical floor. Weights are cached in
-`~/.cache/huggingface/hub`, honoring `HF_HOME` / `HF_HUB_CACHE` if set.
-`make prefetch` seeds the cache ahead of first run.
+decode at 1024 pixels, so 32 GB of RAM is the practical floor.
+
+Weights live in the folder Settings > Models names, which is
+`~/Library/Application Support/Zephra/Models` until the user changes it:
+`Downloads/<org>--<repo>` for a release, `<descriptor id>` for a variant packed
+here. `make prefetch` writes exactly what the app would have written, so it
+seeds a first launch. The hub cache is still read if it holds a release — a Mac
+that ran `hf download`, or an older Zephra — but nothing is written there any
+more, and neither `HF_HOME` nor `HF_HUB_CACHE` decides where a download goes.
 
 Every repository the catalog names is public and ungated, so no download needs a
-Hugging Face token, and the app never asks for one. The hub client does send
-whatever token it finds in the same six places the `hf` tool looks (`HF_TOKEN`,
-`HUGGING_FACE_HUB_TOKEN`, `HF_TOKEN_PATH`, `HF_HOME/token`,
-`~/.cache/huggingface/token`, `~/.huggingface/token`), and a stale one turns
-every request into a 401 for a public model too; `HubToken` in `ZephraSnapshot` is what names the token's
-source in the failure message when that happens. A download that breaks is tried
-again by `DownloadRetry` in `ZephraCore`, five times with a doubling pause, and
-the hub client resumes each file from its `.incomplete` bytes, so a retry and a
-later Try again both continue rather than start over. Only a refused token, a
-missing repository, or a 4xx that is not a timeout or a rate limit stops the
-retrying early. The hub client refuses to download at all on a network path it
-deems expensive or constrained, such as a hotspot, and reports the repository as
-unavailable offline; its one switch is the `CI_DISABLE_NETWORK_MONITOR=1`
-environment variable, which `HubNetworkPolicy.allowMeteredDownloads()` in
-`ZephraSnapshot` sets before either backend's first request. The size is on the
-screen before the download starts, so whether to spend it on a hotspot is the
-user's call, not the client's.
+Hugging Face token — and Zephra sends none: `ModelDownloader` never sets an
+`Authorization` header, whatever is in `HF_TOKEN` or in the token files the `hf`
+tool reads, which is one whole class of "authentication required" for a public
+model that cannot happen. There is no metered-network refusal either: the size
+is on the screen before the download starts, so whether to spend it on a hotspot
+is the user's call. A download that breaks is tried again by `DownloadRetry` in
+`ZephraCore`, five times with a doubling pause, and each file resumes from its
+`.incomplete` bytes, so a retry and a later Try again both continue rather than
+start over. Only a missing repository, a missing file, or a 4xx that is not a
+timeout or a rate limit stops the retrying early.
 
-Settings > Models lists every directory the catalog's models have on this Mac,
-in either hub layout and under `localModelsDirectory`, with its size and a
-Delete that moves it to the Trash. `ModelStorage` in `ZephraSnapshot` is the
-listing and the measuring; `ModelInventory` in `ZephraEngine` is what the tab
-observes. A release two variants pack from is one row naming both, a download
-stopped part-way is a row saying so, and a directory the loaded model is using
-cannot be deleted from under it.
+Settings > Models lists every directory the catalog's models have on this Mac —
+the app's own folder first, then either hub layout — with where it is, its size,
+and a Delete that moves it to the Trash. `ModelStorage` in `ZephraSnapshot` is
+the listing and the measuring; `ModelInventory` in `ZephraEngine` is what the
+tab observes. A release two variants pack from is one row naming both, a
+download stopped part-way is a row saying so, and a directory the loaded model
+is using cannot be deleted from under it. Changing the folder moves nothing:
+what is already there keeps working where it is, and the next download and the
+next build go to the new folder.
 
 Always pass the model explicitly when calling into the vendored pipeline —
 its own default is the 33 GB bf16 repo, not the 8-bit one Zephra uses.
@@ -699,8 +732,8 @@ four steps with no guidance. The one download is the bf16 release without the
 root single-file checkpoint, 16 GB; the app packs it into the chosen variant on
 first load (`builtBytes` says what that writes), and `make quantize-flux2` is the
 same build by hand. Both variants share the download. The release is kept
-afterwards: the other variant packs from it, and the hub cache is `hf`'s to
-prune, not Zephra's.
+afterwards, because the other variant packs from it; deleting it is a row in
+Settings > Models.
 
 The text encoder is Qwen3-4B, bit for bit, and the transformer conditions on
 the hidden state after its 9th, 18th and 27th layers laid side by side, padded

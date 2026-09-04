@@ -27,11 +27,19 @@ public nonisolated final class QwenImageBackend: ImageGenerationBackend {
     /// and this reports clearly when it is not there yet.
     nonisolated(nonsending) public func ensureAvailable(
         _ descriptor: ModelDescriptor,
+        locations: ModelLocations,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws -> URL {
         switch descriptor.source {
-        case .localDirectory(let directory):
-            return try LocalSnapshot.qwenImage.verified(directory, descriptor: descriptor)
+        case .localDirectory:
+            let candidates = locations.builtCandidates(for: descriptor)
+            if let built = candidates.first(where: {
+                LocalSnapshot.qwenImage.missingEntry(in: $0) == nil
+            }) {
+                return built
+            }
+            return try LocalSnapshot.qwenImage.verified(
+                candidates.first ?? locations.built(descriptor), descriptor: descriptor)
         case .huggingFace:
             throw BackendError.modelNotAvailable(descriptor.fullName)
         }
@@ -39,13 +47,15 @@ public nonisolated final class QwenImageBackend: ImageGenerationBackend {
 
     /// Whether the weights are on this Mac, read from the disk alone.
     nonisolated(nonsending) public func availability(
-        of descriptor: ModelDescriptor
+        of descriptor: ModelDescriptor,
+        locations: ModelLocations
     ) async -> ModelAvailability {
         switch descriptor.source {
-        case .localDirectory(let directory):
-            guard let missing = LocalSnapshot.qwenImage.missingEntry(in: directory) else {
-                return .available
-            }
+        case .localDirectory:
+            let candidates = locations.builtCandidates(for: descriptor)
+            guard candidates.allSatisfy({ LocalSnapshot.qwenImage.missingEntry(in: $0) != nil })
+            else { return .available }
+            let missing = LocalSnapshot.qwenImage.missingEntry(in: candidates[0]) ?? "its weights"
             return .missing(reason: "Not built yet: \(missing) is missing. Run `make quantize-qwen`.")
         case .huggingFace:
             return .missing(reason: "Qwen-Image is built locally, not downloaded.")

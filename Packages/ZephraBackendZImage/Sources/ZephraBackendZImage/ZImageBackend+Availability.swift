@@ -7,17 +7,21 @@ import ZephraSnapshot
 extension ZImageBackend {
     /// Says whether the weights are already on this Mac, reading the disk and nothing else.
     ///
-    /// A Hugging Face model is looked up in the hub cache the loader itself would use; a local
-    /// directory is checked for the entries the pipeline will open. Neither path downloads, and
-    /// neither disturbs whatever is loaded, so a picker can label the whole catalog for free.
+    /// Three places are looked at, in the order `ensureAvailable` looks at them: the folder the
+    /// user keeps models in, the hub cache for a release `hf` or an older Zephra put there, and
+    /// for a local model the directory the catalog names. Nothing downloads, and nothing
+    /// disturbs what is loaded, so a picker can label the whole catalog for free.
     nonisolated(nonsending) public func availability(
-        of descriptor: ModelDescriptor
+        of descriptor: ModelDescriptor,
+        locations: ModelLocations
     ) async -> ModelAvailability {
         switch descriptor.source {
-        case .localDirectory(let directory):
-            guard let missing = LocalSnapshot.zImage.missingEntry(in: directory) else {
-                return .available
-            }
+        case .localDirectory:
+            let candidates = locations.builtCandidates(for: descriptor)
+            guard candidates.allSatisfy({ LocalSnapshot.zImage.missingEntry(in: $0) != nil })
+            else { return .available }
+            let directory = candidates[0]
+            let missing = LocalSnapshot.zImage.missingEntry(in: directory) ?? "its weights"
             return .missing(
                 reason: """
                     \(descriptor.fullName) is not at \
@@ -25,10 +29,33 @@ extension ZImageBackend {
                     """
             )
         case .huggingFace(let repoID, let revision, _):
-            guard HubCache.snapshot(of: repoID, revision: revision) != nil else {
-                return .needsDownload(bytes: descriptor.downloadBytes)
-            }
-            return .available
+            guard Self.downloaded(descriptor, repoID: repoID, revision: revision, in: locations)
+                == nil
+            else { return .available }
+            return .needsDownload(bytes: descriptor.downloadBytes)
         }
+    }
+
+    /// The finished download for `descriptor`, or nil when there is not one.
+    ///
+    /// The app's own folder first, then the hub cache in either layout. The cache is a
+    /// fallback and is only ever read: a Mac that ran `make prefetch`, or that downloaded with
+    /// an older Zephra, should not fetch thirteen gigabytes it already has, but nothing is
+    /// written there any more.
+    static func downloaded(
+        _ descriptor: ModelDescriptor, repoID: String, revision: String, in locations: ModelLocations
+    ) -> URL? {
+        let downloads = locations.downloads(repoID: repoID)
+        if LocalSnapshot.zImage.missingEntry(in: downloads) == nil,
+           HubSnapshotCheck.isComplete(downloads)
+        {
+            return downloads
+        }
+        if let cached = HubCache.snapshot(of: repoID, revision: revision),
+           LocalSnapshot.zImage.missingEntry(in: cached) == nil
+        {
+            return cached
+        }
+        return nil
     }
 }

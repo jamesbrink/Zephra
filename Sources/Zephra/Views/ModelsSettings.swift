@@ -6,9 +6,10 @@ import ZephraSnapshot
 /// Where the models live on this Mac, what each occupies, and a way to send one to the Trash.
 ///
 /// The list is the disk's, read afresh each time the tab opens and after every deletion, so a
-/// model fetched by `make prefetch` or removed in the Finder shows up as it is. A directory the
-/// loaded model is using cannot be deleted from under it: its row says so, and choosing another
-/// model first frees it.
+/// model fetched by `make prefetch` or removed in the Finder shows up as it is. Each row says
+/// where it is, which is what tells the app's own download of a release from a copy in the hub
+/// cache. A directory the loaded model is using cannot be deleted from under it: its row says
+/// so, and choosing another model first frees it.
 struct ModelsSettings: View {
     @Environment(GenerationStore.self) private var store
     @Environment(ModelInventory.self) private var inventory
@@ -16,9 +17,15 @@ struct ModelsSettings: View {
 
     var body: some View {
         Form {
-            Section("Kept in") {
-                DirectoryRow("Downloads", inventory.downloadsDirectory)
-                DirectoryRow("Built variants", inventory.builtDirectory)
+            Section {
+                ModelsDirectoryRow()
+            } footer: {
+                Text(
+                    "Changing the folder moves nothing. What is already downloaded or built "
+                        + "stays where it is and keeps working; new downloads and builds go to "
+                        + "the folder you choose.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
             Section {
                 if inventory.items.isEmpty {

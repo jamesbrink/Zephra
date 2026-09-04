@@ -36,13 +36,13 @@ public nonisolated enum HubSnapshotCheck {
         return modules.contains(where: hasWeights) && modules.allSatisfy(shardsAreComplete)
     }
 
-    /// The files a transfer left unfinished under `snapshot`, in the flat layout's bookkeeping
-    /// directory. Empty for the `hf` layout, which keeps its partial blobs elsewhere.
+    /// The files a transfer left unfinished under `snapshot`, wherever it left them: beside the
+    /// file they will become, which is where Zephra's own downloader writes them, and under
+    /// `.cache/huggingface/download`, which is where the hub client used to. Empty for the `hf`
+    /// layout, which keeps its partial blobs outside the snapshot entirely.
     public static func incompleteFiles(in snapshot: URL) -> [URL] {
-        let bookkeeping = snapshot.appending(path: ".cache/huggingface/download")
-        guard HubCache.isDirectory(bookkeeping),
-              let walk = FileManager.default.enumerator(
-                at: bookkeeping, includingPropertiesForKeys: [.isRegularFileKey])
+        guard let walk = FileManager.default.enumerator(
+            at: snapshot, includingPropertiesForKeys: [.isRegularFileKey])
         else { return [] }
         return walk.compactMap { $0 as? URL }.filter { $0.pathExtension == "incomplete" }
     }

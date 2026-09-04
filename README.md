@@ -38,7 +38,10 @@ picture with any of them, and upscales with Real-ESRGAN.
 
   A built variant is packed from its download on this Mac (klein does that on
   first load, the other two through `make quantize*`), and the download is kept
-  afterwards: the hub cache is `hf`'s to prune (`hf cache delete`), not Zephra's.
+  afterwards, because the variant is packed from it. Everything lives in one
+  folder — `~/Library/Application Support/Zephra/Models` unless you change it in
+  Settings > Models — and Settings lists every directory with its size and a
+  Delete that moves it to the Trash.
 
 ## Quick start
 
@@ -59,6 +62,7 @@ several minutes with no output; it has not hung.
 ```sh
 make prefetch-flux2  # optional: download the FLUX.2 klein release ahead of time
 make prefetch        # optional: download the 8-bit Z-Image weights
+                     #           both land in the folder the app downloads into
 make quantize        # optional: build the smaller 4-bit Z-Image variant (see below)
 make prefetch-qwen   # optional: download Qwen-Image-2512 and its 4-step adapter
 make quantize-qwen   # optional: build the 4-bit Qwen-Image variant
@@ -172,16 +176,22 @@ with a progress readout while that happens.
   between generations — with the figure recommended for your Mac, and a reset back to it —
   whether the VAE decode is tiled (Automatic, Always, Never), and a live readout of active,
   cached and peak GPU memory plus which way the decode is currently set. Every change
-  applies immediately. Models shows where downloads and built variants are kept, what each
-  one occupies, and a Delete that moves it to the Trash; a release both klein variants pack
-  from is one row, a download that stopped part-way says so, and the model that is loaded
-  cannot be deleted from under itself. About shows the version and the third-party license
-  notices.
-- Downloads need no Hugging Face account: every model comes from a public, ungated
-  repository. A transfer that breaks is tried again, five times with a growing pause, and
-  resumes from the bytes already on disk; so does Try again after the tries run out, and the
-  message says why it stopped rather than only that it did. A model the app downloaded is
-  recognised on the next launch without a request.
+  applies immediately. Models is the folder models are kept in — with Open, Change… and
+  Use Default — and then every directory the catalog's models have on this Mac: where it is,
+  what it occupies, and a Delete that moves it to the Trash. A release both klein variants
+  pack from is one row, a download that stopped part-way says so, and the model that is
+  loaded cannot be deleted from under itself. Changing the folder moves nothing: what is
+  there keeps working where it is, and the next download and build go to the new folder.
+  About shows the version and the third-party license notices.
+- Downloads need no Hugging Face account, and Zephra never sends a token: every model comes
+  from a public, ungated repository, and no `Authorization` header goes out whatever is in
+  `HF_TOKEN`, so a stale token cannot turn a public model into a login wall. Weights land in
+  `<models folder>/Downloads/<org>--<repo>`, flat, exactly as the repository names them —
+  nothing depends on a Hugging Face cache layout or on the `hf` tool, though a release
+  already in that cache is read rather than fetched again. A transfer that breaks is tried
+  again, five times with a growing pause, and resumes from the bytes already on disk; so
+  does Try again after the tries run out, and Stop leaves those bytes for the next attempt.
+  The message says why it stopped rather than only that it did.
 - Shortcuts: Generate ⌘↩, Stop ⌘., New Album ⌘N, Canvas ⌘1, Library ⌘2, Find ⌘F, Show
   Inspector ⌥⌘I, Hide Prompt ⌥⌘P, Select All Images ⌘A, Favourite ⌘⇧D, thumbnail size ⌘+ and
   ⌘−, Save As ⌘S, Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C, Use as Reference ⌥⌘R, Clear
@@ -449,7 +459,7 @@ Zephra/
 │   │   │   ├── Library/                 # the image folder as an index: scan, query, annotate
 │   │   │   ├── Timeline/                # the canvas sidebar: queue cards, then today's pictures as one wall
 │   │   │   └── Upscale/                 # the record an upscale carries and where it is filed
-│   │   ├── Sources/ZephraSnapshot/      # hub cache and local snapshot checks, Foundation only
+│   │   ├── Sources/ZephraSnapshot/      # the model downloader, snapshot checks, what is on disk
 │   │   └── Tests/ZephraCoreTests, ZephraEngineTests, ZephraSnapshotTests
 │   ├── ZephraMLXKit/              # ours — MLX work no family owns
 │   │   ├── Sources/ZephraQuantization/  # the streaming weight packer every family drives
@@ -490,9 +500,12 @@ Zephra/
   them loads model weights, though the tensors they run do go through Metal.
   `make test-backend` is an alias.
 - `make icon` — re-render `AppIcon.appiconset` from `scripts/make-icon.swift`.
-- `make prefetch` / `make prefetch-qwen` / `make prefetch-flux2` — download a
-  release ahead of a first launch, with `hf`. Qwen's goes to `QWEN_MODELS` rather
-  than the hub cache, because 58 GB does not belong on a boot volume.
+- `make prefetch` / `make prefetch-flux2` — download a release ahead of a first
+  launch, with `hf`, into `$(MODELS_DIR)/Downloads/<org>--<repo>`, which is what
+  the app itself would have written; set `MODELS_DIR` if Settings names another
+  folder. `make prefetch-qwen` goes to `QWEN_MODELS` instead, because 58 GB does
+  not belong on a boot volume and that release is a build source rather than
+  something the app loads.
 - `make quantize` / `make quantize-qwen` / `make quantize-flux2` — build a 4-bit
   variant. `BITS` and `GROUP_SIZE` override the 4-bit, group-64 default; `QUANT_OUT`,
   `QWEN_OUT` and `FLUX2_OUT` override where it lands, and `QWEN_SOURCE` / `QWEN_LORA`

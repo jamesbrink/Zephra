@@ -119,9 +119,10 @@ at, carries no license file and was never opened.
 - **Source:** https://github.com/huggingface/swift-transformers
 - **Copyright:** Copyright 2022 Hugging Face SAS
 - **License:** Apache License 2.0
-- **Used as:** tokenizer and Hugging Face Hub model resolution, a dependency
-  of `ZImageKit`, of `QwenImageKit`, and of `Flux2Kit`, which also downloads
-  through it.
+- **Used as:** tokenizers, a dependency of `ZImageKit`, of `QwenImageKit`, and
+  of `Flux2Kit`. Zephra downloads model weights with its own client in
+  `ZephraSnapshot` and no longer resolves or fetches anything through this
+  package; `ZImageKit`'s vendored resolver still links it.
 
 ### swift-log
 

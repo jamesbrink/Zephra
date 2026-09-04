@@ -13,10 +13,15 @@ final class StubBackend: ImageGenerationBackend {
         self.loadedModelID = loadedModelID
     }
 
-    func availability(of descriptor: ModelDescriptor) async -> ModelAvailability { .available }
+    func availability(
+        of descriptor: ModelDescriptor, locations: ModelLocations
+    ) async -> ModelAvailability {
+        .available
+    }
 
     func ensureAvailable(
         _ descriptor: ModelDescriptor,
+        locations: ModelLocations,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws -> URL {
         URL(filePath: NSTemporaryDirectory())

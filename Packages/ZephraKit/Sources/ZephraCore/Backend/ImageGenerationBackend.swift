@@ -14,16 +14,20 @@ public protocol ImageGenerationBackend: AnyObject {
     /// The descriptor identifier currently held in memory, or nil when nothing is loaded.
     var loadedModelID: String? { get }
 
-    /// Whether the weights for `descriptor` are already on this Mac. Reads the disk and nothing
-    /// else: it must never download, and it must leave whatever is loaded exactly as it was, so
-    /// a picker can label every model in the catalog without committing to any of them.
+    /// Whether the weights for `descriptor` are already on this Mac, looking in `locations` and
+    /// nowhere the user did not ask for. Reads the disk and nothing else: it must never
+    /// download, and it must leave whatever is loaded exactly as it was, so a picker can label
+    /// every model in the catalog without committing to any of them.
     nonisolated(nonsending) func availability(
-        of descriptor: ModelDescriptor
+        of descriptor: ModelDescriptor,
+        locations: ModelLocations
     ) async -> ModelAvailability
 
-    /// Ensures weights are on disk, downloading if needed. Returns the local snapshot directory.
+    /// Ensures weights are on disk, downloading them into `locations` if needed. Returns the
+    /// directory they are in.
     nonisolated(nonsending) func ensureAvailable(
         _ descriptor: ModelDescriptor,
+        locations: ModelLocations,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws -> URL
 
@@ -51,6 +55,7 @@ public protocol ImageGenerationBackend: AnyObject {
     nonisolated(nonsending) func build(
         _ descriptor: ModelDescriptor,
         at localPath: URL,
+        locations: ModelLocations,
         onProgress: @escaping @Sendable (BuildProgressEvent) -> Void
     ) async throws -> URL
 
@@ -63,6 +68,7 @@ extension ImageGenerationBackend {
     public nonisolated(nonsending) func build(
         _ descriptor: ModelDescriptor,
         at localPath: URL,
+        locations: ModelLocations,
         onProgress: @escaping @Sendable (BuildProgressEvent) -> Void
     ) async throws -> URL {
         localPath

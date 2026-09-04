@@ -45,15 +45,24 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   source on the 4-bit entry with `builtBytes` set, and `ZImageBackend.build` packing
   it. What stops it today is disk, not code: the source is 33 GB and the packer
   spills at 4 GB resident, so it would run on a 16 GB Mac but needs 40 GB free.
-- **The hub client's metered-network refusal is switched off with an environment
-  variable**, `CI_DISABLE_NETWORK_MONITOR=1`, set by `HubNetworkPolicy` before the
-  first request, because that is the only switch swift-transformers offers. A
-  process-wide variable is a blunt tool; vendoring the forty lines of `snapshot`
-  that Zephra uses would let the choice be a parameter.
-- **A stale token cannot be left out of the request.** The hub client reads the
-  token from the environment and the token files itself when none is passed, and
-  offers no way to say "send none". The failure names the token's source instead.
-  Same fix as above.
+- **A download is one file at a time.** `ModelDownloader` walks the listing in
+  order, so a fast connection is not saturated the way two or three concurrent
+  transfers would saturate it. Sixteen gigabytes from the hub already runs near
+  the line's limit here; the fix, if a slow link ever argues for it, is a task
+  group with a small concurrency and one shared byte tally.
+- **Only sizes are checked, not hashes.** The tree endpoint carries each LFS
+  file's sha256 in `lfs.oid`, and a finished file is compared against the listed
+  length and nothing else. A file that arrives complete but corrupt therefore
+  loads and fails at the loader. Hashing sixteen gigabytes costs seconds, not
+  minutes, so this is worth doing; it wants a streaming digest as the bytes are
+  written rather than a second pass.
+- **Changing the models folder moves nothing**, by design — a sixty-gigabyte
+  copy is not something to start from a settings row. What is already downloaded
+  or built keeps working where it is. The one rough edge: a variant built under
+  the old folder still loads, because the backends look in both places, but
+  Settings > Models lists what the chosen folder holds, so that copy has to be
+  deleted from the Finder. It goes away once the 4-bit entries stop naming an
+  absolute directory (see the bullet above).
 - **Deleting a model never asks the engine to unload it first.** The row is disabled
   while the model is loaded; choosing another model frees it. A Delete that unloads
   and then trashes would be a `GenerationStore` concern, and the engine would need to

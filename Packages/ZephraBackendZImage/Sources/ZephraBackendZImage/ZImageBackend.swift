@@ -26,28 +26,37 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
     /// Creates an idle backend. No weights are touched until `ensureAvailable` is called.
     public init() {}
 
-    /// Resolves the descriptor's weights, downloading them if the cache does not already
-    /// hold them, and returns the local snapshot directory.
+    /// Resolves the descriptor's weights, downloading them if they are not on this Mac, and
+    /// returns the directory to load from.
     ///
-    /// What the cache holds is looked up here rather than left to the vendored resolver, which
-    /// knows only the layout `hf download` writes: a model the app itself downloaded sits in
-    /// the hub client's flat layout, and the resolver would fetch it again on every launch.
-    /// The download is `ZImageBackend+Download.swift`, the only step that can report progress.
+    /// What is already here is looked up rather than left to the vendored resolver, which knows
+    /// only the layout `hf download` writes and would fetch a model Zephra itself downloaded
+    /// again on every launch. `ZephraSnapshot`'s downloader does the fetching, into the folder
+    /// the user keeps models in; it is the only step that can report progress.
     nonisolated(nonsending) public func ensureAvailable(
         _ descriptor: ModelDescriptor,
+        locations: ModelLocations,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws -> URL {
         switch descriptor.source {
-        case .localDirectory(let directory):
-            return try LocalSnapshot.zImage.verified(directory, descriptor: descriptor)
-        case .huggingFace(let repoID, let revision, let filePatterns):
-            if let cached = HubCache.snapshot(of: repoID, revision: revision),
-               LocalSnapshot.zImage.missingEntry(in: cached) == nil
-            {
-                return cached
+        case .localDirectory:
+            let candidates = locations.builtCandidates(for: descriptor)
+            if let built = candidates.first(where: {
+                LocalSnapshot.zImage.missingEntry(in: $0) == nil
+            }) {
+                return built
             }
-            return try await download(repoID, revision: revision, filePatterns: filePatterns,
-                                      descriptor: descriptor, onProgress: onProgress)
+            return try LocalSnapshot.zImage.verified(
+                candidates.first ?? locations.built(descriptor), descriptor: descriptor)
+        case .huggingFace(let repoID, let revision, _):
+            if let here = Self.downloaded(
+                descriptor, repoID: repoID, revision: revision, in: locations)
+            {
+                return here
+            }
+            let fetched = try await ModelDownloader().fetch(
+                descriptor, into: locations, onProgress: onProgress)
+            return try LocalSnapshot.zImage.verified(fetched, descriptor: descriptor)
         }
     }
 

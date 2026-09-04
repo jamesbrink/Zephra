@@ -14,9 +14,6 @@ let package = Package(
         // For the runtime's cache and memory limits, the quantizer, and the microbench.
         // ZImageKit pins the same exact version, so this adds no new package to the graph.
         .package(url: "https://github.com/ml-explore/mlx-swift", exact: "0.31.3"),
-        // For naming the hub client's own errors when deciding whether a failed download is
-        // worth retrying. ZImageKit pins the same range, so this adds no new package either.
-        .package(url: "https://github.com/huggingface/swift-transformers", .upToNextMinor(from: "0.1.24")),
     ],
     targets: [
         .target(
@@ -29,7 +26,6 @@ let package = Package(
                 .product(name: "ZImage", package: "ZImageKit"),
                 .product(name: "MLX", package: "mlx-swift"),
                 .product(name: "MLXFast", package: "mlx-swift"),
-                .product(name: "Transformers", package: "swift-transformers"),
             ]
         ),
         // Covers the pure mapping layer only: nothing here loads weights or touches
@@ -46,7 +42,6 @@ let package = Package(
                 .product(name: "ZImage", package: "ZImageKit"),
                 // Only to build the handful of small arrays the quantizer tests feed in.
                 .product(name: "MLX", package: "mlx-swift"),
-                .product(name: "Transformers", package: "swift-transformers"),
             ]
         ),
     ]

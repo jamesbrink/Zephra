@@ -26,10 +26,14 @@ enum BenchRunner {
         let backend = try registry.make(descriptor)
         let verbose = !options.json
 
-        let downloaded = try await backend.ensureAvailable(descriptor) { event in
+        // The tool has no preferences to read, so models are where the app puts them by default.
+        let locations = ModelLocations.default
+        let downloaded = try await backend.ensureAvailable(descriptor, locations: locations) {
+            event in
             note("downloading \(event.completedFiles)/\(event.totalFiles) files", verbose)
         }
-        let snapshot = try await backend.build(descriptor, at: downloaded) { event in
+        let snapshot = try await backend.build(descriptor, at: downloaded, locations: locations) {
+            event in
             note("building: \(event.component) \(Int((event.fraction * 100).rounded()))%", verbose)
         }
         note("loading \(descriptor.fullName)", verbose)

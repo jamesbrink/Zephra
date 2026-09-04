@@ -49,8 +49,11 @@ final class EngineTestBed {
     }
 
     /// A store wired to the mock backend, the mock upscaler, and this bed's output folder.
-    func store(descriptor: ModelDescriptor = ModelCatalog.default) -> GenerationStore {
-        store(descriptor: descriptor, upscaler: upscalerFactory())
+    func store(
+        descriptor: ModelDescriptor = ModelCatalog.default,
+        locations: ModelLocations = .default
+    ) -> GenerationStore {
+        store(descriptor: descriptor, locations: locations, upscaler: upscalerFactory())
     }
 
     /// A store with no upscaler in it, which is what a build carrying none looks like.
@@ -62,12 +65,15 @@ final class EngineTestBed {
 
     /// A store wired to whichever upscaler is asked for.
     func store(
-        descriptor: ModelDescriptor = ModelCatalog.default, upscaler: UpscalerFactory?
+        descriptor: ModelDescriptor = ModelCatalog.default,
+        locations: ModelLocations = .default,
+        upscaler: UpscalerFactory?
     ) -> GenerationStore {
         GenerationStore(
             descriptor: descriptor,
             registry: registry(),
             outputDirectory: directory,
+            locations: locations,
             upscaler: upscaler
         )
     }

@@ -9,12 +9,19 @@ BENCH    := $(BUILD)/Release/ZephraBench
 QUANTIZE := $(BUILD)/Release/ZephraQuantize
 MODEL    := mzbac/Z-Image-Turbo-8bit
 
+# Where the app keeps model weights: the folder Settings > Models names, with a directory per
+# repository under Downloads and a directory per locally built variant beside them. Every
+# prefetch writes there, so a seeded download is what the app itself would have written. Set
+# MODELS_DIR to whatever the folder has been changed to in Settings.
+MODELS_DIR ?= $(HOME)/Library/Application Support/Zephra/Models
+DOWNLOADS  := $(MODELS_DIR)/Downloads
+
 # `make quantize` builds the 4-bit variant from the full-precision release. BITS and GROUP_SIZE
 # pick the trade-off; QUANT_OUT must match ModelCatalog.zImageTurbo4bit's local directory.
 BASE_MODEL := Tongyi-MAI/Z-Image-Turbo
 BITS       ?= 4
 GROUP_SIZE ?= 64
-QUANT_OUT  ?= $(HOME)/Library/Application Support/Zephra/Models/z-image-turbo-4bit
+QUANT_OUT  ?= $(MODELS_DIR)/z-image-turbo-4bit
 
 # Qwen-Image-2512 is 57.7 GB in bf16, too large for the boot volume here, so its full-precision
 # source and its distillation adapter live on external storage. Point QWEN_SOURCE and QWEN_LORA
@@ -27,7 +34,7 @@ QWEN_LORA_FILE := Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors
 QWEN_MODELS ?= /Volumes/ExternalStorage/Models
 QWEN_SOURCE ?= $(QWEN_MODELS)/Qwen-Image-2512
 QWEN_LORA   ?= $(QWEN_MODELS)/Qwen-Image-2512-Lightning/$(QWEN_LORA_FILE)
-QWEN_OUT    ?= $(HOME)/Library/Application Support/Zephra/Models/qwen-image-2512-4bit
+QWEN_OUT    ?= $(MODELS_DIR)/qwen-image-2512-4bit
 
 # FLUX.2 klein 4B is built by the app on first load, from the bf16 release in the hub cache.
 # `make quantize-flux2` is the same build by hand, for benchmarking and for a machine whose copy
@@ -37,7 +44,12 @@ QWEN_OUT    ?= $(HOME)/Library/Application Support/Zephra/Models/qwen-image-2512
 FLUX2_MODEL   := black-forest-labs/FLUX.2-klein-4B
 FLUX2_EXCLUDE := --exclude "flux-2-klein-4b.safetensors" --exclude "*.jpg"
 FLUX2_SOURCE  ?=
-FLUX2_OUT     ?= $(HOME)/Library/Application Support/Zephra/Models/flux2-klein-4b-$(BITS)bit
+FLUX2_OUT     ?= $(MODELS_DIR)/flux2-klein-4b-$(BITS)bit
+# One download directory per repository, named as the app names it: <org>--<repo>.
+ZIMAGE_8BIT_DIR := $(DOWNLOADS)/$(subst /,--,$(MODEL))
+ZIMAGE_BASE_DIR := $(DOWNLOADS)/$(subst /,--,$(BASE_MODEL))
+FLUX2_DIR       := $(DOWNLOADS)/$(subst /,--,$(FLUX2_MODEL))
+
 DEST     := platform=macOS,arch=arm64
 XCB      := xcodebuild -project $(PROJECT) -destination '$(DEST)' SYMROOT=$(BUILD) -derivedDataPath $(DERIVED)
 # Every package that links MLX, and so needs xcodebuild rather than `swift test`, written as
@@ -83,7 +95,7 @@ bench: gen
 quantize: gen
 	$(XCB) -scheme ZephraQuantize -configuration Release build >/dev/null
 	"$(QUANTIZE)" --family z-image \
-	  --source "$$(hf download $(BASE_MODEL) --exclude 'assets/*')" \
+	  --source "$$(hf download $(BASE_MODEL) --exclude 'assets/*' --local-dir "$(ZIMAGE_BASE_DIR)")" \
 	  --source-name $(BASE_MODEL) --bits $(BITS) --group-size $(GROUP_SIZE) \
 	  --out "$(QUANT_OUT)" $(ARGS)
 
@@ -101,7 +113,7 @@ quantize-qwen: gen
 quantize-flux2: gen
 	$(XCB) -scheme ZephraQuantize -configuration Release build >/dev/null
 	"$(QUANTIZE)" --family flux2 \
-	  --source "$${FLUX2_SOURCE:-$$(hf download $(FLUX2_MODEL) $(FLUX2_EXCLUDE))}" \
+	  --source "$${FLUX2_SOURCE:-$$(hf download $(FLUX2_MODEL) $(FLUX2_EXCLUDE) --local-dir "$(FLUX2_DIR)")}" \
 	  --source-name $(FLUX2_MODEL) --bits $(BITS) --group-size $(GROUP_SIZE) \
 	  --out "$(FLUX2_OUT)" $(ARGS)
 
@@ -140,19 +152,23 @@ release:
 notarize:
 	NOTARY_PROFILE='$(NOTARY_PROFILE)' ./scripts/notarize-release.sh $(RELEASE_APP) $(RELEASE_ZIP)
 
+# Into the app's own folder, under the name the app would have given it, so a first launch
+# finds the download rather than fetching it again.
 prefetch:
-	hf download $(MODEL) --exclude "assets/*"
+	hf download $(MODEL) --exclude "assets/*" --local-dir "$(ZIMAGE_8BIT_DIR)"
 
-# Qwen-Image-2512 and its four-step adapter, onto QWEN_MODELS rather than into the hub cache:
-# 57.7 GB does not belong on a boot volume, and the loader reads a plain directory anyway.
+# Qwen-Image-2512 and its four-step adapter, onto QWEN_MODELS rather than into MODELS_DIR:
+# 57.7 GB does not belong on a boot volume, and this release is a build source rather than
+# something the app loads. Point MODELS_DIR at the same volume and this can be the app's own
+# Downloads folder instead.
 prefetch-qwen:
 	hf download $(QWEN_MODEL) --local-dir "$(QWEN_SOURCE)"
 	hf download $(QWEN_LORA_REPO) $(QWEN_LORA_FILE) \
 	  --local-dir "$(QWEN_MODELS)/Qwen-Image-2512-Lightning"
 
-# The klein release into the hub cache, which is where the app looks for it on first load.
+# The klein release into the app's own folder, which is where it looks before it downloads.
 prefetch-flux2:
-	hf download $(FLUX2_MODEL) $(FLUX2_EXCLUDE)
+	hf download $(FLUX2_MODEL) $(FLUX2_EXCLUDE) --local-dir "$(FLUX2_DIR)"
 
 open: gen
 	open $(PROJECT)

@@ -28,6 +28,9 @@ final class MockBackendControl: Sendable {
         /// The settings of the last generation the backend was asked for, so a test can assert
         /// what actually reached it rather than what the store thinks it sent.
         var lastSettings: GenerationSettings?
+        /// The folder the last `ensureAvailable` was told to keep models in, so a test can
+        /// assert that a chosen folder actually reached the backend.
+        var lastLocations: ModelLocations?
         /// What `availability(of:)` answers per descriptor id. Anything absent is `.available`.
         var availability: [String: ModelAvailability] = [:]
         /// How many times `load` was called.
