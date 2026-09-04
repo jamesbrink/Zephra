@@ -1,12 +1,19 @@
 import SwiftUI
 import ZephraEngine
 
-/// The menu bar's half of the library: choosing everything, and marking favourites.
+/// The menu bar's half of the library: choosing everything, marking favourites, and stepping
+/// back out of the viewer.
 ///
 /// Select All is bound to the grid's own focus rather than to the pane, so ⌘A in the sidebar's
 /// search field still means the text. The favourite reads the pane instead, because it does not
-/// collide with anything and should keep working while the inspector has the keyboard.
+/// collide with anything and should keep working while the inspector has the keyboard. Back to
+/// Grid reads `workspace` directly, handed over by the composition root the way
+/// `WorkspaceCommands` already takes it, rather than through a focused value: it needs to work
+/// the moment the viewer is up, before anything inside it has taken the keyboard.
 struct LibraryCommands: Commands {
+    /// The window's selection, handed over by the composition root.
+    let workspace: WorkspaceSelection
+
     @FocusedValue(\.focusedLibraryGrid) private var grid
     @FocusedValue(\.librarySelection) private var selection
     @FocusedValue(\.libraryIndex) private var index
@@ -20,6 +27,9 @@ struct LibraryCommands: Commands {
             Button(favouriteTitle) { index?.toggleFavourite(chosen) }
                 .keyboardShortcut("d", modifiers: [.command, .shift])
                 .disabled(chosen.isEmpty)
+            Button("Back to Grid") { workspace.viewing = nil }
+                .keyboardShortcut(.upArrow, modifiers: .command)
+                .disabled(workspace.viewing == nil)
         }
     }
 

@@ -20,8 +20,9 @@ import ZephraEngine
 /// a sibling of the pane inside `WorkspaceDetail`, not a view inside the pane, so an action
 /// handed down from the pane never reaches the inspector's own "Open in canvas" — it silently
 /// took the environment's default and did nothing. Handed down from here, every place that
-/// asks (the grid's double-click, the cell's menu, Return, the sidebar's wall, and the
-/// inspector) gets the same one.
+/// asks for it — the cell's menu, the sidebar's wall, and the inspector's own button — gets the
+/// same one. The grid's double-click and Return ask for the other thing a picture can mean:
+/// `\.viewLibraryItem`, the full-size viewer, provided beside it for the same reason.
 struct RootView: View {
     @Environment(GenerationStore.self) private var store
     @Environment(WorkspaceSelection.self) private var workspace
@@ -38,6 +39,7 @@ struct RootView: View {
         .navigationSubtitle(store.windowSubtitle)
         .toolbar { WorkspaceToolbar() }
         .environment(\.openLibraryItem, open)
+        .environment(\.viewLibraryItem, view)
         .onChange(of: workspace.query, initial: true) { index.query = $1 }
         .task { await store.bootstrapFromInterface() }
     }
@@ -48,6 +50,14 @@ struct RootView: View {
     private func open(_ item: LibraryItem) {
         Task { await store.open(item) }
         workspace.pane = .canvas
+    }
+
+    /// Shows a library image full size without leaving the library. Unlike `open(_:)` this
+    /// touches no engine state at all — the picture never goes near the canvas — it only names
+    /// which item the library pane's viewer should show.
+    private func view(_ item: LibraryItem) {
+        workspace.pane = .library
+        workspace.viewing = item.id
     }
 }
 

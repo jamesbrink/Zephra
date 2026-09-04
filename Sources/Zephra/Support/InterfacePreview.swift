@@ -6,8 +6,8 @@ import ZephraEngine
 /// interface can be screenshotted and inspected on its own.
 ///
 /// Set `ZEPHRA_PREVIEW_STATE` to `ready`, `image`, `editing`, `tucked`, `generating`, `queued`,
-/// `batch`, `library`, `downloading`, `building`, or `failed` before launching. Debug builds
-/// only; in Release this is inert.
+/// `batch`, `library`, `viewer`, `downloading`, `building`, or `failed` before launching. Debug
+/// builds only; in Release this is inert.
 enum InterfacePreview {
     /// A store frozen in the requested state, or nil for a normal launch. The frozen store has
     /// no backend, so `bootstrap()` on it does nothing and no model is ever looked for.
@@ -49,11 +49,22 @@ enum InterfacePreview {
     /// shows the same thing on every machine.
     static func workspace() -> WorkspaceSelection? {
         guard requestedState != nil else { return nil }
-        let workspace = WorkspaceSelection(pane: name == "library" ? .library : .canvas)
+        let workspace = WorkspaceSelection(pane: name == "library" || name == "viewer" ? .library : .canvas)
         // `tucked` exists to photograph the lip, so the window has to actually be tucked when
         // the screenshot is taken rather than reaching that state through a simulated click.
         if name == "tucked" { workspace.promptTucked = true }
         return workspace
+    }
+
+    /// The one item the frozen `viewer` window shows full size, or nil otherwise.
+    ///
+    /// `workspace()` cannot answer this itself: it and `index()` are called independently and
+    /// each builds its own `LibraryIndex.preview`, over its own temporary files, so only the
+    /// index that actually ends up in the window knows which id its first item got. The
+    /// composition root calls this once both exist, after `index.start()`.
+    static func viewing(in index: LibraryIndex) -> LibraryItem.ID? {
+        guard requestedState != nil, name == "viewer" else { return nil }
+        return index.sections.first?.items.first?.id
     }
 
     /// A library with no folder behind it, or nil for a normal launch. Nothing in it is read
@@ -111,7 +122,7 @@ enum InterfacePreview {
     private static var requestedState: EngineState? {
         #if DEBUG
         switch name {
-        case "ready", "image", "editing", "tucked", "batch", "library":
+        case "ready", "image", "editing", "tucked", "batch", "library", "viewer":
             return .ready
         case "generating":
             return .generating(GenerationProgressEvent(

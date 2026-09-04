@@ -42,6 +42,10 @@ struct LibraryGrid: View {
             // Focus-scoped on purpose: it is what tells the menu bar that ⌘A means these
             // images rather than the text in the sidebar's search field.
             .focusedValue(\.focusedLibraryGrid, selection)
+            // The grid is torn down while the viewer is up and rebuilt fresh the moment it
+            // closes, so a selection left over from stepping through the viewer would
+            // otherwise land off screen with nothing to bring it back into view.
+            .onAppear { if let id = selection.single { proxy.scrollTo(id, anchor: .center) } }
         }
         .modifier(LibraryOpenCommand(selection: selection))
         .modifier(LibraryQuickLook(selection: selection))

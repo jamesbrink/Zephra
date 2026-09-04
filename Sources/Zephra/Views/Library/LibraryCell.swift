@@ -17,7 +17,7 @@ struct LibraryCell: View {
     /// What to do about a plain press, with whatever was held down while it happened.
     let onPress: (LibraryCursor.ClickModifiers) -> Void
 
-    @Environment(\.openLibraryItem) private var openLibraryItem
+    @Environment(\.viewLibraryItem) private var viewLibraryItem
 
     var body: some View {
         LibraryThumbnail(item: item)
@@ -25,7 +25,7 @@ struct LibraryCell: View {
             .overlay(alignment: .bottomTrailing) { favourite }
             .overlay(alignment: .topLeading) { upscaled }
             .contentShape(Rectangle())
-            .onTapGesture(count: 2) { openLibraryItem(item) }
+            .onTapGesture(count: 2) { viewLibraryItem(item) }
             .onTapGesture(count: 1) { onPress(.current) }
             .draggable(item)
             .accessibilityElement(children: .ignore)
