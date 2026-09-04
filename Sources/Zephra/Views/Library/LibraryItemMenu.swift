@@ -21,6 +21,9 @@ struct LibraryItemMenu: View {
     /// The grid's selection, made to agree with `items` the moment something is chosen, or nil
     /// where there is no selection to move.
     var selection: LibrarySelection? = nil
+    /// Whether "Open in canvas" is offered. The canvas's own picture passes false: the one
+    /// place the item is already open is the one place the offer means nothing.
+    var offersOpen = true
 
     @Environment(LibraryIndex.self) private var index
 
@@ -31,8 +34,10 @@ struct LibraryItemMenu: View {
                 Divider()
                 Button("Delete \(noun) Immediately", role: .destructive) { act { index.purge($0) } }
             } else {
-                LibraryOpenButton(item: first)
-                    .disabled(items.count > 1)
+                if offersOpen {
+                    LibraryOpenButton(item: first)
+                        .disabled(items.count > 1)
+                }
                 QueueVariationButton(item: first)
                     .disabled(items.count > 1)
                 UseAsReferenceButton(item: first)
