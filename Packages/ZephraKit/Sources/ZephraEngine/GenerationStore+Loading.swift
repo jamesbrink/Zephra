@@ -16,15 +16,16 @@ extension GenerationStore {
     }
 
     /// Keeps models in `locations` from the next load onwards, and says whether that is a
-    /// change. The settings row awaits it before anything else happens; a download already
-    /// running is left where it started, and what is already on disk stays where it is.
+    /// change. This low-level handoff applies startup preferences without interrupting work.
+    /// Settings uses `changeModelDirectory(to:moving:)` to stop preparation and optionally
+    /// migrate files before committing a new destination.
     ///
     /// Awaited rather than fired off, so the engine holds the new folder before this returns:
     /// a load started straight after would otherwise race the handoff and could still fetch
     /// or build under the folder just left.
     @discardableResult
     public func setModelLocations(_ locations: ModelLocations) async -> Bool {
-        guard locations != self.locations else { return false }
+        guard !isChangingModelDirectory, locations != self.locations else { return false }
         self.locations = locations
         if let inference { await inference.setLocations(locations) }
         return true
@@ -63,7 +64,7 @@ extension GenerationStore {
     /// A preview store has no backend to build, so it never starts anything.
     @discardableResult
     private func startLoading(_ model: ModelDescriptor, asSwap: Bool) -> Task<Void, Never>? {
-        guard let inference = inferenceActor() else { return nil }
+        guard !isChangingModelDirectory, let inference = inferenceActor() else { return nil }
         switch state {
         case .idle, .failed: break
         default: return nil

@@ -20,6 +20,7 @@ extension QwenImageBackend {
         if let packed = LocalSnapshot.qwenImage.packedVariant(of: descriptor, in: locations) {
             return packed
         }
+        try ModelDirectoryAccess.prepare(locations.root)
         let packed = locations.built(descriptor)
         // Every adapter, or no build: a base model packed without its four-step distillation
         // would load under this descriptor and be wrong in a way that does not announce

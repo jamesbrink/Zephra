@@ -14,6 +14,7 @@ extension GenerationStore {
     /// Applies the launch preferences, then loads the model. The root view's only entry point.
     func bootstrapFromInterface() async {
         warmsUpAfterLoad = AppSettings.flag(AppSettings.warmUpOnLaunch)
+        await setModelLocations(AppSettings.modelLocations())
         await bootstrap()
     }
 

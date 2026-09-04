@@ -484,11 +484,13 @@ say "13.3 GB download" without starting one.
 Every disk-touching call takes a `ModelLocations`: one root, with
 `Downloads/<org>--<repo>` for what was fetched and `<descriptor id>` for what
 was packed here, plus `previous`, the last few roots the folder was set to
-before, which are read but never written — changing the folder moves nothing,
+before, which are read-only fallbacks unless an explicit migration is requested,
 and a model a person already has is never fetched again because a setting
 moved. It is passed down rather than read from a preference at the bottom —
-`InferenceActor` reads it once per `prepare` and applies a change on the next,
-`GenerationStore.setModelLocations(_:)` is the way to change it, and
+`InferenceActor` pins it per `prepare`. Settings uses
+`GenerationStore.changeModelDirectory(to:moving:)`, which gates new work and cancels
+and awaits pending preparation before switching destinations. The low-level
+`setModelLocations(_:)` applies startup preferences without interrupting work, and
 `Sources/Zephra/ZephraApp.swift` is the only place that knows the preferences
 `AppSettings.modelsDirectory` and `previousModelsDirectories` decided it. A
 backend looks in the built variant, then `locations.downloads` under every
@@ -817,10 +819,15 @@ the listing and the measuring; `ModelInventory` in `ZephraEngine` is what the
 tab observes. A release two variants pack from is one row naming both, a
 download stopped part-way is a row saying so, an adapter is a row of its own
 named for the model it serves ("Qwen-Image 2512 adapter"), and a directory the
-loaded model is using cannot be deleted from under it. Changing the folder moves
-nothing:
-what is already there keeps working where it is, and the next download and the
-next build go to the new folder.
+loaded model is using cannot be deleted from under it. Changing the folder offers
+Move Models, Keep in Place, or Cancel. Keep retains previous roots as read-only
+fallbacks. Move unloads the model, copies catalog-owned downloads and builds into
+staging, verifies bytes, then publishes them before removing originals. A collision
+refuses the move without overwriting either copy. Cleanup failure keeps the new
+location and reports leftover originals. Move Models Here chooses one previous root
+explicitly. Neither migration path touches the image library or the hub cache.
+Preparation is stopped by a folder change and resumes only when requested from the
+canvas; generation, queued work, upscaling, and deletion cannot race migration.
 
 Always pass the model explicitly when calling into the vendored pipeline —
 its own default is the 32.9 GB bf16 repo, which Zephra reads only as a build

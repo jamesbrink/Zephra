@@ -46,7 +46,7 @@ extension GenerationStore {
     /// models under the load that is already running and cancel it. The prompt tested is the
     /// record's rather than the one in the field, because that is the one about to run.
     public func queueVariation(of item: LibraryItem) {
-        guard let record = item.provenance.record,
+        guard !isChangingModelDirectory, let record = item.provenance.record,
               record.settings().isReadyToGenerate,
               state.acceptsGeneration || isDraining
         else { return }

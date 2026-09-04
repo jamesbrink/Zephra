@@ -87,15 +87,20 @@ enum AppSettings {
     /// so nothing under them is lost to the lookup. The default folder is stored as an empty
     /// path so that a later change of default is picked up.
     static func recordModelsDirectory(_ new: URL?, leaving old: URL) {
+        let locations = proposedModelLocations(new, leaving: old)
         let defaults = UserDefaults.standard
-        let current = (new ?? ModelLocations.default.root).path(percentEncoded: false)
-        var seen: Set<String> = [current]
-        let kept = ([old.path(percentEncoded: false)]
-            + (defaults.stringArray(forKey: previousModelsDirectories) ?? []))
-            .filter { seen.insert($0).inserted }
-            .prefix(5)
-        defaults.set(Array(kept), forKey: previousModelsDirectories)
+        defaults.set(locations.previous.map { $0.path(percentEncoded: false) }, forKey: previousModelsDirectories)
         defaults.set(new?.path(percentEncoded: false) ?? "", forKey: modelsDirectory)
+    }
+
+    /// The exact settings to apply, without persisting a choice that may still fail.
+    static func proposedModelLocations(_ new: URL?, leaving old: URL) -> ModelLocations {
+        let root = new ?? ModelLocations.default.root
+        var seen: Set<String> = [root.standardizedFileURL.path]
+        let previous = ([old] + modelLocations().previous)
+            .filter { seen.insert($0.standardizedFileURL.path).inserted }
+            .prefix(5)
+        return ModelLocations(root: root, previous: Array(previous))
     }
 
     /// A stored flag as it stands right now, for the code that has to read one outside a view

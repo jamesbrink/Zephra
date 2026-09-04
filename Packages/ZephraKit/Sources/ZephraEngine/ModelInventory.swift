@@ -22,7 +22,7 @@ public final class ModelInventory {
 
     @ObservationIgnored private let catalog: [ModelDescriptor]
     @ObservationIgnored private let cache: URL
-    @ObservationIgnored private var locations: ModelLocations
+    private var locations: ModelLocations
     @ObservationIgnored private let remove: @Sendable (ModelStorageItem) throws -> Void
     @ObservationIgnored private var generation = 0
 

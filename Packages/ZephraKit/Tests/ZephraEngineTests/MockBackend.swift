@@ -44,6 +44,10 @@ final class MockBackend: ImageGenerationBackend {
     ) async throws -> URL {
         control.update { $0.lastLocations = locations }
         onProgress(DownloadProgressEvent(completedFiles: 0, totalFiles: 2, fraction: 0))
+        if control.settings.downloadDelay > .zero {
+            try await Task.sleep(for: control.settings.downloadDelay)
+        }
+        try Task.checkCancellation()
         onProgress(DownloadProgressEvent(completedFiles: 2, totalFiles: 2, fraction: 1))
         return locations.downloads(repoID: descriptor.id)
     }

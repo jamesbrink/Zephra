@@ -37,6 +37,7 @@ extension ModelDownloader {
                     destination: locations.adapter($0))
             }
         if parts.isEmpty { return release }
+        try ModelDirectoryAccess.prepare(locations.root)
         do {
             try await DownloadRetry.run(
                 isPermanent: { ($0 as? ModelDownloadError)?.isPermanent ?? false },

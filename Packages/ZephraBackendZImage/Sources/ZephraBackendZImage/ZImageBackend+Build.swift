@@ -20,6 +20,7 @@ extension ZImageBackend {
         if let packed = LocalSnapshot.zImage.packedVariant(of: descriptor, in: locations) {
             return packed
         }
+        try ModelDirectoryAccess.prepare(locations.root)
         let packed = locations.built(descriptor)
         do {
             return try ZImageSnapshotBuild.pack(

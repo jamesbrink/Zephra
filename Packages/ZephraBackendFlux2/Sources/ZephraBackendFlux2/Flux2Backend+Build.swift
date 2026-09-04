@@ -49,6 +49,7 @@ extension Flux2Backend {
         if let packed = LocalSnapshot.flux2.packedVariant(of: descriptor, in: locations) {
             return packed
         }
+        try ModelDirectoryAccess.prepare(locations.root)
         let packed = locations.built(descriptor)
         do {
             return try Flux2SnapshotBuild.pack(

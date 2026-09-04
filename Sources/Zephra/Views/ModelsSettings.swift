@@ -21,9 +21,9 @@ struct ModelsSettings: View {
                 ModelsDirectoryRow()
             } footer: {
                 Text(
-                    "Changing the folder moves nothing. What is already downloaded or built "
-                        + "stays where it is and keeps working; new downloads and builds go to "
-                        + "the folder you choose.")
+                    "When changing folders, choose whether to move existing models or keep them "
+                        + "where they are. New downloads and builds use the selected folder. "
+                        + "Move Models Here brings models from a previous folder. The image library is unchanged.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }
@@ -57,6 +57,7 @@ struct ModelsSettings: View {
 
     /// Whether the engine is holding, loading, or queued to load weights from this directory.
     private func isInUse(_ item: ModelStorageItem) -> Bool {
+        if store.isChangingModelDirectory { return true }
         // The loaded model is protected by the directory its weights came from, not by its
         // name: the same model can sit in the models folder, a folder it used to be, and the
         // hub cache at once, and only the one copy the engine holds is off limits.

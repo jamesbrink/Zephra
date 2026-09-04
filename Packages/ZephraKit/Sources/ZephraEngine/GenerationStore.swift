@@ -72,6 +72,8 @@ public final class GenerationStore {
     /// up front. The engine has no idea where the answer comes from; the app sets it from the
     /// user's preference before it calls `bootstrap()`.
     public var warmsUpAfterLoad = true
+    /// Progress while model files and their destination are being changed.
+    public internal(set) var modelDirectoryProgress: String?
 
     /// How many images stay in memory before the oldest is dropped.
     static let historyLimit = 24
@@ -133,12 +135,12 @@ public final class GenerationStore {
 
     /// True when a generation can start right now: the engine is ready and there is a prompt.
     public var canGenerate: Bool {
-        state.acceptsGeneration && settings.isReadyToGenerate && !isAdoptingReference
+        !isChangingModelDirectory && state.acceptsGeneration && settings.isReadyToGenerate && !isAdoptingReference
     }
 
     /// True when `generate()` will do something: start now, or queue behind the running one.
     public var canQueue: Bool {
-        settings.isReadyToGenerate && (state.acceptsGeneration || isDraining) && !isAdoptingReference
+        !isChangingModelDirectory && settings.isReadyToGenerate && (state.acceptsGeneration || isDraining) && !isAdoptingReference
     }
 
     /// Shows an earlier image on the canvas and adopts its settings, so the obvious next move
