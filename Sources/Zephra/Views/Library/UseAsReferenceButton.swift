@@ -1,7 +1,7 @@
 import SwiftUI
 import ZephraEngine
 
-/// Puts a library image into the reference well beside the prompt.
+/// Puts a library image into the reference well and returns to the canvas.
 ///
 /// "An edit hands back its source, not itself" and the off-main-actor read live in
 /// `ReferenceAdoption`, the one door every source that offers a library picture as a reference
@@ -11,9 +11,13 @@ struct UseAsReferenceButton: View {
     let item: LibraryItem
 
     @Environment(GenerationStore.self) private var store
+    @Environment(WorkspaceSelection.self) private var workspace
 
     var body: some View {
-        Button { ReferenceAdoption.adopt(item, into: store) } label: {
+        Button {
+            ReferenceAdoption.adopt(item, into: store)
+            workspace.pane = .canvas
+        } label: {
             Text("Use as reference").frame(maxWidth: .infinity)
         }
         .disabled(!store.descriptor.capabilities.supportsReferenceImage)

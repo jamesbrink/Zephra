@@ -62,4 +62,5 @@ struct InspectorActions: View {
         .padding(18)
         .frame(width: 320)
         .environment(GenerationStore.preview(state: .ready))
+        .environment(WorkspaceSelection(pane: .library))
 }

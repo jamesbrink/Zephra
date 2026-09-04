@@ -76,4 +76,5 @@ struct SingleImageInspector: View {
         .environment(ThumbnailCache())
         .environment(index)
         .environment(GenerationStore.preview(state: .ready))
+        .environment(WorkspaceSelection(pane: .library))
 }
