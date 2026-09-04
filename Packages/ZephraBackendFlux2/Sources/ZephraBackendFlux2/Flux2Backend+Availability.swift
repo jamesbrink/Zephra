@@ -23,10 +23,12 @@ extension Flux2Backend {
             if LocalSnapshot.flux2.missingEntry(in: locations.built(descriptor)) == nil {
                 return .available
             }
-            guard LocalSnapshot.flux2Release.downloadedRelease(of: descriptor, in: locations)
-                != nil
-            else { return .needsDownloadAndBuild(bytes: descriptor.transferBytes) }
-            return .needsBuild
+            let release = LocalSnapshot.flux2Release.downloadedRelease(of: descriptor, in: locations)
+            if release != nil, locations.missingAdapters(of: descriptor).isEmpty {
+                return .needsBuild
+            }
+            return .needsDownloadAndBuild(
+                bytes: locations.bytesToFetch(for: descriptor, releasePresent: release != nil))
         }
     }
 }

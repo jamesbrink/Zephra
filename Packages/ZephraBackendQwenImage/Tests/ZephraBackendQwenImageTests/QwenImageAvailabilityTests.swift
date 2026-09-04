@@ -18,15 +18,16 @@ struct QwenImageAvailabilityTests {
         #expect(descriptor.transferBytes == 66, "the release and the adapter, not just the release")
     }
 
-    @Test("the release without its adapter is still a download: there is nothing to build from")
-    func aReleaseWithoutItsAdapterIsNotEnough() async throws {
+    @Test("the release without its adapter is still a download, of the adapter alone")
+    func aReleaseWithoutItsAdapterFetchesOnlyTheAdapter() async throws {
         let scratch = Scratch("QwenAvailability")
         try Self.release(scratch, at: "models/Downloads/nobody--no-such-model")
 
         #expect(
             await QwenImageBackend().availability(
                 of: Self.hub(), locations: ModelLocations(root: scratch.url("models")))
-                == .needsDownloadAndBuild(bytes: 66))
+                == .needsDownloadAndBuild(bytes: 22),
+            "the release is here, so only the 22 bytes of distillation are still to come")
     }
 
     @Test("the release with its adapter beside it means a build and no network")

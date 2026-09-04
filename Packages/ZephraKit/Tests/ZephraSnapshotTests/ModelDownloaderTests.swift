@@ -84,6 +84,27 @@ struct ModelDownloaderTests {
         #expect(progress.last?.completedFiles == 2)
     }
 
+    @Test("a release already on this Mac is kept, and only the missing adapter is fetched")
+    func anExistingReleaseFetchesOnlyItsAdapter() async throws {
+        let scratch = Scratch("Download")
+        StubHub.reset(
+            StubHub.Behaviour(
+                pages: [page([("lightning.safetensors", 8)])],
+                files: ["lightning.safetensors": Data(repeating: 3, count: 8)]))
+
+        let locations = ModelLocations(root: scratch.url("models"))
+        let cached = scratch.url("cache/models--org--repo/snapshots/abc")
+        try scratch.make("cache/models--org--repo/snapshots/abc/model_index.json")
+        let release = try await downloader().fetch(
+            Self.withAdapter(), into: locations, release: cached, onProgress: { _ in })
+
+        #expect(release == cached)
+        #expect(scratch.hasFile("models/Downloads/org--lora/lightning.safetensors"))
+        #expect(
+            !scratch.hasFile("models/Downloads/org--repo/model_index.json"),
+            "nothing of the release moved; the one page the stub served was the adapter's")
+    }
+
     @Test("an adapter repository that is not there stops the download before the release moves")
     func aMissingAdapterFailsBeforeAnythingIsFetched() async throws {
         let scratch = Scratch("Download")

@@ -54,6 +54,9 @@ actor InferenceActor {
     func prepare(_ descriptor: ModelDescriptor, events: EngineEventSink) async throws {
         let live = try backend(for: descriptor)
         guard live.loadedModelID != descriptor.id else { return }
+        // Read once: a folder changed during the download must not have the build looking
+        // for what was fetched, or writing, under a root the download never used.
+        let locations = self.locations
         let downloaded = try await live.ensureAvailable(descriptor, locations: locations) { event in
             events.send(.download(event))
         }

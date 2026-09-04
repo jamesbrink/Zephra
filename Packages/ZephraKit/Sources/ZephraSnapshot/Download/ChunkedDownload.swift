@@ -104,8 +104,11 @@ final class ChunkedDownload: NSObject, URLSessionDataDelegate, @unchecked Sendab
             state[dataTask.taskIdentifier] = entry
             return (entry.chunks, pause ? entry.task : nil)
         }
-        chunks?.yield(data)
+        // Paused before the chunk is handed over: a writer already waiting could otherwise
+        // take it and resume the task before this suspend, leaving the transfer stopped with
+        // the books saying it is running.
         pause?.suspend()
+        chunks?.yield(data)
     }
 
     nonisolated func urlSession(

@@ -27,10 +27,13 @@ extension QwenImageBackend {
             if LocalSnapshot.qwenImage.missingEntry(in: locations.built(descriptor)) == nil {
                 return .available
             }
-            guard LocalSnapshot.qwenImageRelease.downloadedRelease(of: descriptor, in: locations)
-                == nil
-            else { return .needsBuild }
-            return .needsDownloadAndBuild(bytes: descriptor.transferBytes)
+            let release = LocalSnapshot.qwenImageRelease.downloadedRelease(
+                of: descriptor, in: locations)
+            if release != nil, locations.missingAdapters(of: descriptor).isEmpty {
+                return .needsBuild
+            }
+            return .needsDownloadAndBuild(
+                bytes: locations.bytesToFetch(for: descriptor, releasePresent: release != nil))
         }
     }
 }

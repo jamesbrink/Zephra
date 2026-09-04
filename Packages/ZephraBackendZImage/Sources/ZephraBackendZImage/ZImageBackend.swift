@@ -58,9 +58,10 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
                 return packed
             }
             let check = LocalSnapshot.zImage(for: descriptor)
-            if let here = check.downloadedRelease(of: descriptor, in: locations) { return here }
+            let here = check.downloadedRelease(of: descriptor, in: locations)
+            if let here, locations.missingAdapters(of: descriptor).isEmpty { return here }
             let fetched = try await ModelDownloader().fetch(
-                descriptor, into: locations, onProgress: onProgress)
+                descriptor, into: locations, release: here, onProgress: onProgress)
             return try check.verified(fetched, descriptor: descriptor)
         }
     }

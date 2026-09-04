@@ -35,12 +35,15 @@ extension ZImageBackend {
             {
                 return .available
             }
-            guard LocalSnapshot.zImage(for: descriptor)
-                .downloadedRelease(of: descriptor, in: locations) == nil
-            else { return descriptor.isBuiltLocally ? .needsBuild : .available }
+            let release = LocalSnapshot.zImage(for: descriptor)
+                .downloadedRelease(of: descriptor, in: locations)
+            if release != nil, locations.missingAdapters(of: descriptor).isEmpty {
+                return descriptor.isBuiltLocally ? .needsBuild : .available
+            }
+            let bytes = locations.bytesToFetch(for: descriptor, releasePresent: release != nil)
             return descriptor.isBuiltLocally
-                ? .needsDownloadAndBuild(bytes: descriptor.transferBytes)
-                : .needsDownload(bytes: descriptor.transferBytes)
+                ? .needsDownloadAndBuild(bytes: bytes)
+                : .needsDownload(bytes: bytes)
         }
     }
 }

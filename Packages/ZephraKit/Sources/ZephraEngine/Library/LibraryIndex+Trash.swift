@@ -8,11 +8,9 @@ import Foundation
 extension LibraryIndex {
     /// Moves images into Recently Deleted, where they wait thirty days.
     public func moveToRecentlyDeleted(_ ids: Set<LibraryItem.ID>) {
-        let urls = Set(items.filter { ids.contains($0.id) }.map(\.url))
-        move(ids, action: .delete) { library, url in
+        move(ids, action: .delete, report: onRecentlyDeleted) { library, url in
             try library.moveToRecentlyDeleted(url)
         }
-        onRecentlyDeleted?(urls)
     }
 
     /// Moves images back out of Recently Deleted, into the library.
@@ -46,9 +44,13 @@ extension LibraryIndex {
 
     /// The shape all three share: take the images out of the index, do the file work in order,
     /// then read the folders back so they reappear wherever they now are.
+    /// `report` is told which files actually moved, once they have: a file that would not move
+    /// comes back on the rescan, and anything told about it beforehand — the canvas, say —
+    /// would have let go of a picture that is still there.
     private func move(
         _ ids: Set<LibraryItem.ID>,
         action: LibraryFailure.Action,
+        report: ((Set<URL>) -> Void)? = nil,
         _ operation: @escaping @Sendable (ImageLibrary, URL) throws -> URL
     ) {
         let moving = items.filter { ids.contains($0.id) }.map(\.url)
@@ -57,22 +59,30 @@ extension LibraryIndex {
         reproject()
         let library = library
         enqueue {
-            let failures = await Task.detached(priority: .utility) { () -> [(String, String)] in
-                var failures: [(String, String)] = []
+            let outcome = await Task.detached(priority: .utility) { () -> MoveOutcome in
+                var outcome = MoveOutcome()
                 for url in moving {
                     do {
                         _ = try operation(library, url)
+                        outcome.moved.insert(url)
                     } catch {
-                        failures.append((url.path(percentEncoded: false), error.localizedDescription))
+                        outcome.failures.append((url.path(percentEncoded: false), error.localizedDescription))
                     }
                 }
-                return failures
+                return outcome
             }.value
-            if let failure = failures.first {
+            if let failure = outcome.failures.first {
                 self.lastFailure = LibraryFailure(
                     itemID: failure.0, action: action, reason: failure.1)
             }
+            if !outcome.moved.isEmpty { report?(outcome.moved) }
             await self.rescanNow()
         }
+    }
+
+    /// What one batch of moves came to, off the main actor.
+    private struct MoveOutcome: Sendable {
+        var moved: Set<URL> = []
+        var failures: [(String, String)] = []
     }
 }

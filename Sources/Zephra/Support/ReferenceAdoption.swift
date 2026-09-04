@@ -46,6 +46,16 @@ enum ReferenceAdoption {
         }
     }
 
+    /// Puts `png` in the well, or clears it with nil, after cancelling any library read still
+    /// in flight — the one door every other source of a reference uses, so a slow library
+    /// picture can never land on top of a file, a drop, or a Clear that came after it.
+    @MainActor
+    static func use(_ png: Data?, into store: GenerationStore) {
+        inFlight?.cancel()
+        inFlight = nil
+        store.useAsReference(png)
+    }
+
     /// Runs `read` off the main actor and puts what it returns in the well, unless a newer
     /// choice has been made in the meantime.
     @MainActor

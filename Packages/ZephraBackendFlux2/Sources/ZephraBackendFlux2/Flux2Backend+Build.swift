@@ -28,13 +28,10 @@ extension Flux2Backend {
         case .huggingFace:
             let packed = locations.built(descriptor)
             if LocalSnapshot.flux2.missingEntry(in: packed) == nil { return packed }
-            if let release = LocalSnapshot.flux2Release.downloadedRelease(
-                of: descriptor, in: locations)
-            {
-                return release
-            }
+            let here = LocalSnapshot.flux2Release.downloadedRelease(of: descriptor, in: locations)
+            if let here, locations.missingAdapters(of: descriptor).isEmpty { return here }
             let fetched = try await ModelDownloader().fetch(
-                descriptor, into: locations, onProgress: onProgress)
+                descriptor, into: locations, release: here, onProgress: onProgress)
             return try LocalSnapshot.flux2Release.verified(fetched, descriptor: descriptor)
         }
     }

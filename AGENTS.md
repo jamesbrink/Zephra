@@ -500,7 +500,10 @@ into `locations.adapter(_:)` (`Downloads/<org>--<repo>`, beside the releases) by
 the same `ModelDownloader.fetch` call, in one transfer with one progress bar,
 because `ModelDownloader.download` takes a list of `RepositoryDownload`s and
 lists and tallies them together. `transferBytes` is the release plus the
-adapters and is what availability reports. The adapter is a build input, not a
+adapters, what a Mac with nothing cached is told; a release already here — in
+the models folder or the hub cache — is never fetched again for want of its
+adapter, so availability charges only what `ModelLocations.bytesToFetch` says
+is still missing, and `fetch` moves only that. The adapter is a build input, not a
 runtime one: `QwenImageBackend.build` hands `locations.adapterFile(_:)` to the
 plan, the packer merges the low-rank update as it goes, and nothing downstream
 ever sees an adapter.
@@ -804,7 +807,8 @@ load; `make quantize-qwen` is the same build by hand.
 
 Choosing it therefore costs 59.4 GB of download — the release and the 1.7 GB
 adapter, which is what `ModelDescriptor.transferBytes` adds up and what the
-picker states — and then a build. The adapter is a `ModelAdapter` on the
+picker states on a Mac that has neither; one that has the release is told the
+adapter's 1.7 GB alone — and then a build. The adapter is a `ModelAdapter` on the
 descriptor rather than a second catalog entry: it is one named file in a
 repository of its own (that repository also ships whole merged checkpoints of
 twenty gigabytes each, so it is never taken by pattern), it is not optional, and

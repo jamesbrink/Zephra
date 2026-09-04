@@ -92,12 +92,14 @@ struct RunningRunInspector: View {
     }
 
     /// How long the loop has been running, as the steps that have finished at the pace they
-    /// took. The text encode before them is not counted, because it is not measured.
+    /// took. A step is reported as it begins, so the one named is not finished yet; the text
+    /// encode before them is not counted either, because it is not measured.
     private var elapsed: String {
         guard let progress = store.state.denoisingProgress, let pace = secondsPerStep else {
             return ImageFacts.unknown
         }
-        return ImageFacts.tookLabel(seconds: Double(progress.step) * pace, steps: progress.step)
+        let finished = max(0, progress.step - 1)
+        return ImageFacts.tookLabel(seconds: Double(finished) * pace, steps: finished)
     }
 
     /// The engine's own countdown, never rounded down to nothing: a run with a second left has

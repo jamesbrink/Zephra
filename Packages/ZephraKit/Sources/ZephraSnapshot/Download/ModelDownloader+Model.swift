@@ -16,22 +16,27 @@ extension ModelDownloader {
     public func fetch(
         _ descriptor: ModelDescriptor,
         into locations: ModelLocations,
+        release existing: URL? = nil,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws -> URL {
         guard case .huggingFace(let repoID, let revision, let patterns) = descriptor.source else {
             throw BackendError.modelNotAvailable(descriptor.fullName)
         }
-        let release = locations.downloads(repoID: repoID)
-        let parts =
-            [
-                RepositoryDownload(
-                    repoID: repoID, revision: revision, patterns: patterns, destination: release)
-            ]
-            + descriptor.adapters.map {
+        // A release already on this Mac — in the models folder or the hub cache — is kept,
+        // and only what is missing moves: thirty gigabytes are never fetched for want of an
+        // adapter of two.
+        let release = existing ?? locations.downloads(repoID: repoID)
+        let releasePart = existing == nil
+            ? [RepositoryDownload(
+                repoID: repoID, revision: revision, patterns: patterns, destination: release)]
+            : []
+        let parts = releasePart
+            + locations.missingAdapters(of: descriptor).map {
                 RepositoryDownload(
                     repoID: $0.repoID, revision: $0.revision, patterns: [$0.file],
                     destination: locations.adapter($0))
             }
+        if parts.isEmpty { return release }
         do {
             try await DownloadRetry.run(
                 isPermanent: { ($0 as? ModelDownloadError)?.isPermanent ?? false },

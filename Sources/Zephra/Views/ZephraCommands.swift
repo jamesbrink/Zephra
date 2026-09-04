@@ -52,10 +52,10 @@ struct ZephraCommands: Commands {
                 .keyboardShortcut("c", modifiers: [.command, .shift])
                 .disabled(target.isEmpty)
             Divider()
-            Button("Use as Reference") { if let image = store.current { store.useAsReference(image.pngData) } }
+            Button("Use as Reference") { if let image = store.current { ReferenceAdoption.use(image.pngData, into: store) } }
                 .keyboardShortcut("r", modifiers: [.command, .option])
                 .disabled(store.current == nil || !store.descriptor.capabilities.supportsReferenceImage)
-            Button("Clear Reference") { store.useAsReference(nil) }
+            Button("Clear Reference") { ReferenceAdoption.use(nil, into: store) }
                 .keyboardShortcut("r", modifiers: [.command, .option, .shift])
                 .disabled(store.settings.referenceImage == nil)
             Divider()

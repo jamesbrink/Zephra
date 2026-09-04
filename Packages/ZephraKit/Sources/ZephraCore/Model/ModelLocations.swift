@@ -55,6 +55,21 @@ public struct ModelLocations: Hashable, Sendable {
         self.adapter(adapter).appending(path: adapter.file)
     }
 
+    /// The descriptor's adapters whose file is not here yet, and so still have to be fetched.
+    public func missingAdapters(of descriptor: ModelDescriptor) -> [ModelAdapter] {
+        descriptor.adapters.filter {
+            !FileManager.default.fileExists(atPath: adapterFile($0).path(percentEncoded: false))
+        }
+    }
+
+    /// What choosing `descriptor` would still transfer: the release unless it is already here,
+    /// and every adapter that is not. This is what a picker states, so a release found in the
+    /// cache with its distillation missing reads as the distillation's cost, not the release's.
+    public func bytesToFetch(for descriptor: ModelDescriptor, releasePresent: Bool) -> Int64 {
+        (releasePresent ? 0 : descriptor.downloadBytes)
+            + missingAdapters(of: descriptor).reduce(0) { $0 + $1.bytes }
+    }
+
     /// Where a variant packed on this Mac lives: `<root>/<descriptor id>`, the naming every
     /// locally built variant has followed since `make quantize` wrote the first one.
     public func built(_ descriptor: ModelDescriptor) -> URL {

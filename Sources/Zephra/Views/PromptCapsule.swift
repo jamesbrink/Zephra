@@ -5,12 +5,6 @@ import ZephraEngine
 /// every control on it. Step segments ride its top edge; the prompt and its settings sit inside.
 struct PromptCapsule: View {
     @Environment(GenerationStore.self) private var store
-    /// How wide the settings row laid itself out, so the rows above it can be held to the same
-    /// width. A stack proposes one width to every row and takes the widest as its own; a row
-    /// that refuses to shrink to the proposal — the settings with a strength slider showing —
-    /// then stands out past the prompt and the divider, and the reference well no longer lines
-    /// up with the Generate button under it.
-    @State private var controlsWidth: CGFloat = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -19,15 +13,13 @@ struct PromptCapsule: View {
                 completed: store.state.denoisingProgress?.step ?? 0,
                 isRunning: store.state.denoisingProgress != nil
             )
-            VStack(alignment: .leading, spacing: 12) {
+            // One width for the prompt, the divider and the settings, so the reference well
+            // lines up with the Generate button even when the settings row is the widest.
+            SharedWidthRows(spacing: 12) {
                 PromptRow()
                 Divider()
                 controls
-                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: {
-                        controlsWidth = $0
-                    }
             }
-            .frame(minWidth: controlsWidth)
             .padding(.horizontal, 16)
             .padding(.top, 13)
             .padding(.bottom, 12)

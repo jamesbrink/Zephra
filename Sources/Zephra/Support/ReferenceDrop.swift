@@ -29,7 +29,7 @@ enum ReferenceDrop {
                 ? URL(dataRepresentation: data, relativeTo: nil).flatMap(ReferenceImageEncoder.pngData(contentsOf:))
                 : ReferenceImageEncoder.pngData(from: data)
             guard let png else { return }
-            Task { @MainActor in store.useAsReference(png) }
+            Task { @MainActor in ReferenceAdoption.use(png, into: store) }
         }
         return true
     }

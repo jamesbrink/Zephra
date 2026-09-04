@@ -39,8 +39,8 @@ struct DownloadedReleaseTests {
                 of: Self.model(), in: ModelLocations(root: scratch.url("models"))) == nil)
     }
 
-    @Test("a release whose adapter never arrived is not something a build could be run from")
-    func anAdapterIsPartOfTheDownload() throws {
+    @Test("a release is a release without its adapter, and the adapter alone is what is missing")
+    func anAdapterIsAskedAboutSeparately() throws {
         let scratch = Scratch("Downloaded")
         let locations = ModelLocations(root: scratch.url("models"))
         let adapter = ModelAdapter(repoID: "org/lora", file: "lightning.safetensors", bytes: 8)
@@ -48,11 +48,12 @@ struct DownloadedReleaseTests {
         try Self.snapshot(scratch, at: "models/Downloads/org--repo")
 
         #expect(
-            check.downloadedRelease(of: descriptor, in: locations) == nil,
-            "the weights are here and the distillation is not, so there is nothing to build")
+            check.downloadedRelease(of: descriptor, in: locations) != nil,
+            "thirty gigabytes already here are not fetched again for want of the distillation")
+        #expect(locations.missingAdapters(of: descriptor) == [adapter])
 
         try scratch.make("models/Downloads/org--lora/lightning.safetensors")
-        #expect(check.downloadedRelease(of: descriptor, in: locations) != nil)
+        #expect(locations.missingAdapters(of: descriptor).isEmpty)
     }
 
     @Test("a model that is a directory rather than a repository has no download to find")

@@ -32,14 +32,14 @@ struct ReferenceImageWell: View {
                     guard let url = urls.first,
                           let png = ReferenceImageEncoder.pngData(contentsOf: url)
                     else { return false }
-                    store.useAsReference(png)
+                    ReferenceAdoption.use(png, into: store)
                     return true
                 }
                 .dropDestination(for: Data.self) { items, _ in
                     guard let data = items.first,
                           let png = ReferenceImageEncoder.pngData(from: data)
                     else { return false }
-                    store.useAsReference(png)
+                    ReferenceAdoption.use(png, into: store)
                     return true
                 }
                 .sheet(isPresented: $isPickerPresented) {
@@ -71,7 +71,7 @@ struct ReferenceImageWell: View {
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             .overlay(alignment: .topTrailing) {
                 Button {
-                    store.useAsReference(nil)
+                    ReferenceAdoption.use(nil, into: store)
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .symbolRenderingMode(.palette)
@@ -85,7 +85,7 @@ struct ReferenceImageWell: View {
                 Button("From Library…") { isPickerPresented = true }
                 Button("Choose File…") { chooseFile() }
                 Divider()
-                Button("Clear") { store.useAsReference(nil) }
+                Button("Clear") { ReferenceAdoption.use(nil, into: store) }
             }
             .accessibilityLabel("Reference image")
     }
@@ -111,7 +111,7 @@ struct ReferenceImageWell: View {
     }
 
     private func chooseFile() {
-        if let png = ReferenceImagePicker.choose() { store.useAsReference(png) }
+        if let png = ReferenceImagePicker.choose() { ReferenceAdoption.use(png, into: store) }
     }
 }
 

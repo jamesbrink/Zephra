@@ -22,7 +22,7 @@ struct FreshImageMenu: View {
         Button("Copy") { ImageExport.copyToPasteboard(image) }
         Button("Reveal in Finder") { ImageExport.revealInFinder(image) }
         if store.descriptor.capabilities.supportsReferenceImage {
-            Button("Use as Reference") { store.useAsReference(image.pngData) }
+            Button("Use as Reference") { ReferenceAdoption.use(image.pngData, into: store) }
         }
         Divider()
         // Nothing is asked first: the file goes to the Trash, so this is undoable in the

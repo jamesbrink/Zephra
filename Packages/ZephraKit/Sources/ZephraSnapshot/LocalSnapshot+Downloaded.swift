@@ -11,19 +11,13 @@ extension LocalSnapshot {
     ///
     /// The receiver says what the directory must hold, which is not the same question for every
     /// model: for one whose download is what loads, it is the loader's own list; for one packed
-    /// here, it is what the packer reads. And a descriptor's adapters count. A release whose
-    /// distillation never arrived is not something a variant can be built from, and reporting it
-    /// as a finished download would send the build off to fail instead of fetching the 1.7 GB
-    /// that is missing.
+    /// here, it is what the packer reads. The descriptor's adapters are a separate question,
+    /// `ModelLocations.missingAdapters(of:)`: a release in the cache with its distillation not
+    /// yet here is still a release, and only the 1.7 GB that is missing should be fetched.
     public func downloadedRelease(
         of descriptor: ModelDescriptor, in locations: ModelLocations
     ) -> URL? {
         guard case .huggingFace(let repoID, let revision, _) = descriptor.source else { return nil }
-        let files = FileManager.default
-        guard descriptor.adapters.allSatisfy({
-            files.fileExists(atPath: locations.adapterFile($0).path(percentEncoded: false))
-        }) else { return nil }
-
         let downloads = locations.downloads(repoID: repoID)
         if missingEntry(in: downloads) == nil, HubSnapshotCheck.isComplete(downloads) {
             return downloads

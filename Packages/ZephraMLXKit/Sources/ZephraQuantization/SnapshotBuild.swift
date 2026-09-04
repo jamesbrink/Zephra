@@ -37,11 +37,13 @@ public enum SnapshotBuild {
         note: @escaping (String) -> Void,
         shouldContinue: @escaping () throws -> Void
     ) throws -> URL {
-        try requireFreeSpace(near: destination, bytes: freeSpaceBytes)
         let partial = destination.deletingLastPathComponent()
             .appending(
                 path: destination.lastPathComponent + ".partial", directoryHint: .isDirectory)
+        // What a crashed build left behind is removed before the volume is measured: on a
+        // nearly full disk it is the very thing standing in the way.
         try? FileManager.default.removeItem(at: partial)
+        try requireFreeSpace(near: destination, bytes: freeSpaceBytes)
         do {
             try SnapshotQuantizer.quantize(
                 source: release,
