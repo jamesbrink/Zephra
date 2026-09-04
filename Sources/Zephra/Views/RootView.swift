@@ -37,6 +37,11 @@ struct RootView: View {
         .navigationTitle("Zephra")
         .navigationSubtitle(store.windowSubtitle)
         .toolbar { WorkspaceToolbar() }
+        // On Liquid Glass the toolbar floats over content by default, which let the inspector's
+        // divider cut through it and left it with no consistent background. Forcing it visible
+        // makes it an opaque full-width strip with a hairline under it, so the sidebar, the
+        // pane, and the inspector all read as starting below it rather than under it.
+        .toolbarBackgroundVisibility(.visible, for: .windowToolbar)
         .environment(\.openLibraryItem, open)
         .onChange(of: workspace.query, initial: true) { index.query = $1 }
         .task { await store.bootstrapFromInterface() }

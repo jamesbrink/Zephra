@@ -2,13 +2,17 @@ import SwiftUI
 import ZephraCore
 import ZephraEngine
 
-/// The window's whole surface: graphite ground, the picture letterboxed edge to edge on it,
-/// and the engine's words over the top.
+/// The pane below the toolbar strip: graphite ground, the picture letterboxed edge to edge on
+/// it, and the engine's words over the top.
 ///
 /// The picture runs under the prompt capsule on purpose, so its colours tint the controls.
 /// It dims to 60 % while a new one is being made; progress lives in the subtitle and the capsule.
 /// A single click on a finished picture toggles `WorkspaceSelection.promptTucked`, which is
 /// `PromptTuckHost`'s cue to slide the floating controls out of the way.
+///
+/// It no longer ignores the vertical safe areas: on Liquid Glass the toolbar is an opaque strip
+/// (`RootView`'s `.toolbarBackgroundVisibility`), so the picture starts below it like every
+/// other pane rather than running up under the title bar.
 struct CanvasView: View {
     @Environment(GenerationStore.self) private var store
     @Environment(ImageCache.self) private var cache
@@ -20,10 +24,6 @@ struct CanvasView: View {
             currentImage
             CanvasStateView()
         }
-        // Only the vertical edges: the picture runs up under the title bar on purpose. It must
-        // not run under the sidebar, which the split view lets content do, or the picture is
-        // centred on a width that includes the column hiding its left edge.
-        .ignoresSafeArea(edges: .vertical)
         // Dropping a picture on the canvas is what people will try first; it lands in the
         // same well as dropping it on the well, and does nothing for a model without one.
         .onDrop(of: ReferenceDrop.types, isTargeted: nil) { providers in

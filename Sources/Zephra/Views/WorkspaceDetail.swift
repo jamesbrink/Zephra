@@ -13,6 +13,11 @@ import ZephraEngine
 /// title bar stays one strip. The column is a fixed width rather than a split: an `HSplitView`
 /// handed it its maximum and laid the canvas out for a width it did not have.
 ///
+/// The `HStack` lies entirely inside the top safe area, so its `Divider` starts below the
+/// toolbar strip rather than running up through it — `RootView`'s
+/// `.toolbarBackgroundVisibility` makes the strip opaque, but only keeping content out of that
+/// region keeps the divider from drawing over it.
+///
 /// The column is there only when it has something to describe: always in the library, whose
 /// own empty state is worth reading, and on the canvas only while a picture is showing. Two
 /// empty states side by side read as something broken. It slides in from the trailing edge
