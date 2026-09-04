@@ -28,10 +28,7 @@ struct CanvasInspector: View {
     }
 
     /// The library's record of the picture on the canvas, by the file it was written to.
-    private var item: LibraryItem? {
-        guard let url = store.current?.fileURL else { return nil }
-        return index.item(for: url.standardizedFileURL.path(percentEncoded: false))
-    }
+    private var item: LibraryItem? { index.canvasItem(for: store) }
 }
 
 #Preview("Nothing on the canvas") {

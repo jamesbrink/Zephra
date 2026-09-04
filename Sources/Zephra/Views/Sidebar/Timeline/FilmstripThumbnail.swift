@@ -26,20 +26,7 @@ struct FilmstripThumbnail: View {
         .buttonStyle(.plain)
         .draggable(image)
         .help(image.settings.prompt)
-        .contextMenu {
-            CanvasFavouriteButton(image: image)
-            Divider()
-            Button("Save as…") { ImageExport.saveAs(image) }
-            Button("Copy") { ImageExport.copyToPasteboard(image) }
-            Button("Reveal in Finder") { ImageExport.revealInFinder(image) }
-            if store.descriptor.capabilities.supportsReferenceImage {
-                Button("Use as Reference") { store.useAsReference(image.pngData) }
-            }
-            Divider()
-            // Nothing is asked first: the file goes to the Trash, so this is undoable in the
-            // Finder, and a dialog on every discarded image would be in the way.
-            Button("Delete", role: .destructive) { store.delete(image.id) }
-        }
+        .contextMenu { FreshImageMenu(image: image) }
         .accessibilityLabel(image.settings.prompt)
     }
 

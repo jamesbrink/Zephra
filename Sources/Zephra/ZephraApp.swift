@@ -80,6 +80,12 @@ struct ZephraApp: App {
         thumbnails.sweep()
         store.onImageSaved = { url in index.insert(fileAt: url) }
         store.onImageDeleted = { _ in Task { await index.rescanNow() } }
+        // The reverse direction: a delete made through the index — the grid, the viewer, the
+        // sidebar wall, or the canvas's own menu — never goes through the store, so the store
+        // is told separately when one of the files it might be showing is gone.
+        index.onRecentlyDeleted = { urls in
+            for url in urls { store.forget(fileAt: url) }
+        }
     }
 
     /// Builds the one store the window observes.

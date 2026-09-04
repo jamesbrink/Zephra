@@ -8,9 +8,11 @@ import Foundation
 extension LibraryIndex {
     /// Moves images into Recently Deleted, where they wait thirty days.
     public func moveToRecentlyDeleted(_ ids: Set<LibraryItem.ID>) {
+        let urls = Set(items.filter { ids.contains($0.id) }.map(\.url))
         move(ids, action: .delete) { library, url in
             try library.moveToRecentlyDeleted(url)
         }
+        onRecentlyDeleted?(urls)
     }
 
     /// Moves images back out of Recently Deleted, into the library.
