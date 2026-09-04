@@ -225,9 +225,14 @@ Four directories, by what a file is rather than what screen it is on:
   `Canvas/CanvasInspector` the picture on the canvas, which is the library's
   own inspector once the file is indexed and `FreshImageInspector` until then.
   An empty canvas shows `CanvasEmptyState`, with the last three prompts from
-  the index (`RecentPrompts`, nothing persisted) as chips. `CanvasView`
-  ignores only the vertical safe areas: under the sidebar's it would centre
-  the picture on a width that includes the column.
+  the index (`RecentPrompts`, nothing persisted) as chips. On Liquid Glass
+  the window toolbar floats over content by default, so `RootView` forces
+  its background visible (`.toolbarBackgroundVisibility(.visible, for:
+  .windowToolbar)`), making it an opaque full-width strip with a hairline
+  under it; `CanvasView` no longer ignores the vertical safe areas, and
+  `WorkspaceDetail`'s `HStack` (the pane, its `Divider`, and the inspector)
+  stays inside the top one too, so the sidebar, the pane, and the inspector
+  all start below the strip rather than the divider cutting through it.
 
 The prompt is `PromptTextView`, an `NSTextView` of our own on TextKit 1 rather
 than `TextEditor`, for one reason: a text view paints a selected line break out
