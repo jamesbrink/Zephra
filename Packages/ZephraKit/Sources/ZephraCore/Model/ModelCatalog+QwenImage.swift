@@ -3,14 +3,28 @@ import Foundation
 /// The Qwen-Image family's entries. Its numbers are in `all` beside the Z-Image ones; they
 /// live here so the catalog file stays one screen of what every model has in common.
 extension ModelCatalog {
-    /// Qwen-Image-2512 at four-bit precision, distilled to four steps, built on this Mac by
-    /// `make quantize-qwen`.
+    /// The four-step Lightning distillation, downloaded beside the release and merged into the
+    /// transformer as it is packed.
+    ///
+    /// One file, named exactly. The repository also ships whole merged checkpoints of twenty
+    /// gigabytes each, so taking it by pattern would cost a hundred gigabytes to get 1.7.
+    static let qwenImage2512Lightning = ModelAdapter(
+        repoID: "lightx2v/Qwen-Image-2512-Lightning",
+        revision: "main",
+        file: "Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors",
+        // As the repository lists it.
+        bytes: 1_698_951_104
+    )
+
+    /// Qwen-Image-2512 at four-bit precision, distilled to four steps, built on this Mac from
+    /// the bf16 release and the adapter the first time it is loaded.
     ///
     /// A twenty-billion-parameter dual-stream MMDiT against Z-Image Turbo's six billion, which
     /// buys prompt adherence and text rendering in a different class for a step about a third
-    /// longer (8.2 s against 6.3 s at 1024 on the same machine). Nothing publishes it in a form Zephra can load: the release is 57.7
-    /// GB of bfloat16, and the four-step Lightning distillation ships separately as an adapter,
-    /// so the local build is where the two are put together.
+    /// longer (8.2 s against 6.3 s at 1024 on the same machine). Nothing publishes it in a form
+    /// Zephra can load: the release is 57.7 GB of bfloat16, and the four-step Lightning
+    /// distillation ships separately as an adapter, so the local build is where the two are put
+    /// together. `make quantize-qwen` is the same build by hand.
     ///
     /// The distillation is why this is usable at all. The base model wants fifty steps and real
     /// classifier-free guidance — two forward passes per step — so it presents here the way
@@ -20,9 +34,21 @@ extension ModelCatalog {
         displayName: "Qwen-Image 2512",
         variantName: "4-bit",
         backend: .qwenImage,
-        source: .localDirectory(localModelsDirectory.appending(path: "qwen-image-2512-4bit")),
+        source: .huggingFace(
+            repoID: "Qwen/Qwen-Image-2512",
+            revision: "main",
+            // The whole release but its README and `.gitattributes`: the two components the
+            // packer packs and the three it copies across whole.
+            filePatterns: [
+                "model_index.json", "scheduler/*", "text_encoder/*", "tokenizer/*",
+                "transformer/*", "vae/*",
+            ]
+        ),
         quantization: .int4,
-        downloadBytes: 0,
+        // As the repository lists it, with those patterns: transformer 40,861,027,880, text
+        // encoder 16,584,414,544, autoencoder 253,806,966, tokenizer 5,063,591, and the configs
+        // — 57,704,574,910 in all. The adapter's 1.7 GB is counted by `transferBytes` beside it.
+        downloadBytes: 57_700_000_000,
         // Measured on an M4 Max, deterministic across repetitions: 21532 MB live after a
         // generation at any size, because the weights are the whole of it — 21.6 GB on disk.
         // Peak follows the image: 26053 MB at 512, 30364 MB at 1024, 32520 MB at 1328.
@@ -42,7 +68,8 @@ extension ModelCatalog {
         maxPromptTokens: 512,
         capabilities: qwenImage2512Capabilities,
         // Measured: what `make quantize-qwen` writes, 16.2 GB of transformer and the rest.
-        builtBytes: 21_600_000_000
+        builtBytes: 21_600_000_000,
+        adapters: [qwenImage2512Lightning]
     )
 
     /// What the distilled Qwen-Image variant accepts.

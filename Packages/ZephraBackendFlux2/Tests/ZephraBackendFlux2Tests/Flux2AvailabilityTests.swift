@@ -73,8 +73,17 @@ struct Flux2AvailabilityTests {
 
     /// A directory holding every file the packer reads out of the klein release.
     private static func release(_ scratch: Scratch, at path: String) throws {
+        // A real index, not `{}`: the completeness check holds the directory to every component
+        // its index names, so an empty one would say the release is not there at all.
+        try scratch.write(
+            """
+            {"transformer": ["diffusers", "Flux2Transformer2DModel"], \
+            "text_encoder": ["transformers", "Qwen3ForCausalLM"], \
+            "vae": ["diffusers", "AutoencoderKLFlux2"], \
+            "tokenizer": ["transformers", "Qwen2TokenizerFast"], \
+            "scheduler": ["diffusers", "FlowMatchEulerDiscreteScheduler"]}
+            """, to: "\(path)/model_index.json")
         for entry in [
-            "model_index.json",
             "transformer/config.json", "transformer/diffusion_pytorch_model.safetensors",
             "text_encoder/config.json", "text_encoder/model.safetensors.index.json",
             "text_encoder/model-00001-of-00002.safetensors",

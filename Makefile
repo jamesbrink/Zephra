@@ -16,16 +16,18 @@ MODEL    := mzbac/Z-Image-Turbo-8bit
 MODELS_DIR ?= $(HOME)/Library/Application Support/Zephra/Models
 DOWNLOADS  := $(MODELS_DIR)/Downloads
 
-# `make quantize` builds the 4-bit variant from the full-precision release. BITS and GROUP_SIZE
-# pick the trade-off; QUANT_OUT must match ModelCatalog.zImageTurbo4bit's local directory.
+# `make quantize` is the build the app now does on first load, by hand: pack the bf16 release
+# into the 4-bit variant. BITS and GROUP_SIZE pick the trade-off; QUANT_OUT must match
+# locations.built(ModelCatalog.zImageTurbo4bit), or the app will build it again.
 BASE_MODEL := Tongyi-MAI/Z-Image-Turbo
 BITS       ?= 4
 GROUP_SIZE ?= 64
 QUANT_OUT  ?= $(MODELS_DIR)/z-image-turbo-4bit
 
-# Qwen-Image-2512 is 57.7 GB in bf16, too large for the boot volume here, so its full-precision
-# source and its distillation adapter live on external storage. Point QWEN_SOURCE and QWEN_LORA
-# wherever they are on this machine; `make prefetch-qwen` puts them there.
+# Qwen-Image-2512 is 57.7 GB in bf16, and the app downloads it into MODELS_DIR like any other
+# release. It is too large for the boot volume here, so QWEN_SOURCE and QWEN_LORA point at
+# external storage instead; set them to the app's own Downloads folders to build from what the
+# app fetched. `make prefetch-qwen` seeds whichever they name.
 QWEN_MODEL  := Qwen/Qwen-Image-2512
 QWEN_LORA_REPO := lightx2v/Qwen-Image-2512-Lightning
 # The four-step adapter in float32. The repository also ships whole merged checkpoints of twenty
@@ -36,7 +38,7 @@ QWEN_SOURCE ?= $(QWEN_MODELS)/Qwen-Image-2512
 QWEN_LORA   ?= $(QWEN_MODELS)/Qwen-Image-2512-Lightning/$(QWEN_LORA_FILE)
 QWEN_OUT    ?= $(MODELS_DIR)/qwen-image-2512-4bit
 
-# FLUX.2 klein 4B is built by the app on first load, from the bf16 release in the hub cache.
+# FLUX.2 klein 4B is built by the app on first load, from the bf16 release in the models folder.
 # `make quantize-flux2` is the same build by hand, for benchmarking and for a machine whose copy
 # of the release lives elsewhere (set FLUX2_SOURCE). The root `flux-2-klein-4b.safetensors` is
 # Black Forest Labs' own single-file format, 7.75 GB the loader never reads, so it is excluded.
@@ -158,9 +160,10 @@ prefetch:
 	hf download $(MODEL) --exclude "assets/*" --local-dir "$(ZIMAGE_8BIT_DIR)"
 
 # Qwen-Image-2512 and its four-step adapter, onto QWEN_MODELS rather than into MODELS_DIR:
-# 57.7 GB does not belong on a boot volume, and this release is a build source rather than
-# something the app loads. Point MODELS_DIR at the same volume and this can be the app's own
-# Downloads folder instead.
+# 57.7 GB does not belong on a boot volume. The app downloads the same two things itself, into
+# $(DOWNLOADS)/Qwen--Qwen-Image-2512 and $(DOWNLOADS)/lightx2v--Qwen-Image-2512-Lightning, so
+# point MODELS_DIR at a roomy volume and this target is unnecessary; it stays for keeping the
+# build source apart from the folder the app manages.
 prefetch-qwen:
 	hf download $(QWEN_MODEL) --local-dir "$(QWEN_SOURCE)"
 	hf download $(QWEN_LORA_REPO) $(QWEN_LORA_FILE) \

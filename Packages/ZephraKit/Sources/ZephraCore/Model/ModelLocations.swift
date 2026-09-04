@@ -42,6 +42,19 @@ public struct ModelLocations: Hashable, Sendable {
             path: repoID.replacingOccurrences(of: "/", with: "--"), directoryHint: .isDirectory)
     }
 
+    /// Where an adapter's repository is downloaded to. An adapter is a download like any other,
+    /// so it lands in `Downloads` beside the releases rather than in a folder of its own: one
+    /// listing of that directory is still one row per repository, and a Delete in Settings is
+    /// still a repository.
+    public func adapter(_ adapter: ModelAdapter) -> URL {
+        downloads(repoID: adapter.repoID)
+    }
+
+    /// The adapter file itself, which is what the packer is handed.
+    public func adapterFile(_ adapter: ModelAdapter) -> URL {
+        self.adapter(adapter).appending(path: adapter.file)
+    }
+
     /// Where a variant packed on this Mac lives: `<root>/<descriptor id>`, the naming every
     /// locally built variant has followed since `make quantize` wrote the first one.
     public func built(_ descriptor: ModelDescriptor) -> URL {
@@ -50,11 +63,11 @@ public struct ModelLocations: Hashable, Sendable {
 
     /// Every directory a built variant of `descriptor` could be in, best answer first.
     ///
-    /// A catalog entry whose source is a directory names it absolutely, under the default root.
-    /// Once the root has been moved that entry still points at the old folder, and a model
-    /// built before the move is still perfectly usable there — so both are offered: this root
-    /// first, because a folder the user chose is the one they meant, and the folder the catalog
-    /// names after it, so nothing already built stops working when the setting changes.
+    /// A descriptor whose source is a directory names it absolutely. No catalog entry does any
+    /// more, but a descriptor is not only the catalog — `ZephraBench` points one at a folder to
+    /// measure, and a variant built by hand elsewhere is still loadable — and such a folder may
+    /// be outside the root. So both are offered: this root first, because a folder the user
+    /// chose is the one they meant, and the folder the descriptor names after it.
     public func builtCandidates(for descriptor: ModelDescriptor) -> [URL] {
         let mine = built(descriptor)
         guard case .localDirectory(let named) = descriptor.source else { return [mine] }

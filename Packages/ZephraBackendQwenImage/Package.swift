@@ -30,6 +30,7 @@ let package = Package(
             dependencies: [
                 "ZephraBackendQwenImage",
                 .product(name: "ZephraQuantization", package: "ZephraMLXKit"),
+                .product(name: "ZephraTestSupport", package: "ZephraKit"),
             ]
         ),
     ]

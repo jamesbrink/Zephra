@@ -49,27 +49,13 @@ public struct ModelDownloader: Sendable {
         into destination: URL,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws -> URL {
-        let session = makeSession()
-        defer { session.finishTasksAndInvalidate() }
-        let listed = try await listing(of: repoID, revision: revision, on: session)
-        guard !listed.isEmpty else { throw ModelDownloadError.repositoryNotFound(repoID: repoID) }
-        let files = listed.filter { FilePattern.matchesAny($0.path, patterns: patterns) }
-        guard !files.isEmpty else { throw ModelDownloadError.nothingMatched(repoID: repoID) }
-
-        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
-        var tally = DownloadTally(
-            totalFiles: files.count, totalBytes: files.reduce(0) { $0 + $1.bytes })
-        for file in files { tally.advance(by: bytesOnDisk(of: file, in: destination)) }
-        if let event = tally.report(force: true) { onProgress(event) }
-
-        for file in files {
-            try Task.checkCancellation()
-            try await fetch(
-                file, from: repoID, revision: revision, into: destination, on: session,
-                tally: &tally, onProgress: onProgress)
-            tally.finishFile()
-            if let event = tally.report(force: true) { onProgress(event) }
-        }
+        try await download(
+            [
+                RepositoryDownload(
+                    repoID: repoID, revision: revision, patterns: patterns,
+                    destination: destination)
+            ],
+            onProgress: onProgress)
         return destination
     }
 
