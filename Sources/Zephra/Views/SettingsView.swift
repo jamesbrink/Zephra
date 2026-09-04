@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import ZephraEngine
 
@@ -13,6 +14,17 @@ struct SettingsView: View {
         }
         // Tall enough for Performance, the longest of the four; the others centre in it.
         .frame(width: 480, height: 620)
+        // A hidden default-action-shortcut button rather than `.onExitCommand`: the exit command
+        // only fires when the responder chain has nothing else to hand it to, and a `TabView`'s
+        // tab controls (and any focused field within a tab) intercept Escape well before it gets
+        // there. `.cancelAction` is AppKit's own Escape route — the same one `NSPanel`'s Cancel
+        // button uses — and reaches the window from any focus state because it does not depend
+        // on being first responder itself.
+        .background {
+            Button("") { NSApp.keyWindow?.close() }
+                .keyboardShortcut(.cancelAction)
+                .hidden()
+        }
     }
 }
 

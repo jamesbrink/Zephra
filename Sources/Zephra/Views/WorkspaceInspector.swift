@@ -8,6 +8,8 @@ import ZephraEngine
 /// In the library it describes the grid's selection; on the canvas, the picture on it. It sits
 /// under the toolbar rather than beside it, because a column that reached the title bar split
 /// the toolbar at its edge and squeezed the sort and model menus into whatever width it had.
+/// `WorkspaceDetail`'s `HStack` keeps the whole column, `Divider` included, inside the top safe
+/// area, so it starts below the toolbar's opaque strip rather than drawing through it.
 struct WorkspaceInspector: View {
     @Environment(WorkspaceSelection.self) private var workspace
 

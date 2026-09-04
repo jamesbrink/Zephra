@@ -26,9 +26,13 @@ struct RootView: View {
     @Environment(GenerationStore.self) private var store
     @Environment(WorkspaceSelection.self) private var workspace
     @Environment(LibraryIndex.self) private var index
+    // Never persisted: the sidebar should be visible whenever the app opens, so a returning
+    // user sees it exists, but the system's own toggle (⌃⌘S) is free to hide it for the rest
+    // of the run without that choice following the user to the next launch.
+    @State private var columns: NavigationSplitViewVisibility = .all
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columns) {
             SidebarView()
                 .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 360)
         } detail: {
@@ -37,6 +41,11 @@ struct RootView: View {
         .navigationTitle("Zephra")
         .navigationSubtitle(store.windowSubtitle)
         .toolbar { WorkspaceToolbar() }
+        // On Liquid Glass the toolbar floats over content by default, which let the inspector's
+        // divider cut through it and left it with no consistent background. Forcing it visible
+        // makes it an opaque full-width strip with a hairline under it, so the sidebar, the
+        // pane, and the inspector all read as starting below it rather than under it.
+        .toolbarBackgroundVisibility(.visible, for: .windowToolbar)
         .environment(\.openLibraryItem, open)
         .onChange(of: workspace.query, initial: true) { index.query = $1 }
         .task { await store.bootstrapFromInterface() }
