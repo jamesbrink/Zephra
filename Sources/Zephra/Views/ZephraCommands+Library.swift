@@ -75,7 +75,7 @@ extension ZephraCommands {
 
     func save() {
         switch target {
-        case .canvas(let image): image.map { ImageExport.saveAs($0) }
+        case .canvas(let image): if let image { ImageExport.saveAs(image) }
         case .library(let items): ImageExport.saveAs(files: items.map(\.url))
         }
     }
