@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 import ZephraEngine
 
@@ -13,17 +12,7 @@ struct GeneralSettings: View {
                 AppearanceControl()
             }
             Section("Images") {
-                LabeledContent("Images are saved to") {
-                    HStack {
-                        Text(store.outputDirectory.path(percentEncoded: false))
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                            .foregroundStyle(.secondary)
-                        Button("Open") {
-                            NSWorkspace.shared.open(store.outputDirectory)
-                        }
-                    }
-                }
+                DirectoryRow("Images are saved to", store.outputDirectory)
                 Toggle("Pick a new seed for every run", isOn: $randomizeSeed)
             }
         }

@@ -97,6 +97,9 @@ enum InterfacePreview {
         case .ready where name == "tucked": PreviewImages.sample()
         case .ready where name == "editing":
             PreviewImages.sample(reference: PreviewImages.referencePNG())
+        // Over a picture, because that is where these two have to stay legible: a model
+        // chosen from the menu downloads, or fails to, with the last image still up.
+        case .downloading, .failed: PreviewImages.sample()
         default: nil
         }
     }
@@ -137,7 +140,8 @@ enum InterfacePreview {
                 fraction: 0.41
             ))
         case "failed":
-            return .failed(.backend(.loadFailed("not enough free memory")))
+            return .failed(.backend(.downloadFailed(
+                DownloadRetry.givingUpMessage("The network connection was lost"))))
         default:
             return nil
         }

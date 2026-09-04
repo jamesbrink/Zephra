@@ -15,13 +15,16 @@ let package = Package(
     targets: [
         .target(name: "ZephraCore"),
         .target(name: "ZephraSnapshot", dependencies: ["ZephraCore"]),
-        .target(name: "ZephraEngine", dependencies: ["ZephraCore"]),
+        .target(name: "ZephraEngine", dependencies: ["ZephraCore", "ZephraSnapshot"]),
         .target(name: "ZephraTestSupport"),
         .testTarget(name: "ZephraCoreTests", dependencies: ["ZephraCore"]),
         .testTarget(
             name: "ZephraSnapshotTests",
             dependencies: ["ZephraSnapshot", "ZephraCore", "ZephraTestSupport"]
         ),
-        .testTarget(name: "ZephraEngineTests", dependencies: ["ZephraEngine", "ZephraCore"]),
+        .testTarget(
+            name: "ZephraEngineTests",
+            dependencies: ["ZephraEngine", "ZephraCore", "ZephraSnapshot", "ZephraTestSupport"]
+        ),
     ]
 )

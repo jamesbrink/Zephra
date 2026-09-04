@@ -36,6 +36,29 @@ Deferred: **ERNIE-Image-Turbo** (eight to twelve days for legible in-image text 
 Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
 **Z-Image-Edit** (unreleased; would share the Z-Image backend).
 
+## Downloads and model storage: left out on purpose
+
+- **The 4-bit Z-Image and Qwen-Image variants are greyed out on any Mac that has
+  not run `make quantize` or `make quantize-qwen`.** A 16 GB Mac is exactly the one
+  that wants the 4-bit Z-Image, and it cannot have it without the 33 GB bf16 release
+  and the command line. The fix is the build step klein already has: a `.huggingFace`
+  source on the 4-bit entry with `builtBytes` set, and `ZImageBackend.build` packing
+  it. What stops it today is disk, not code: the source is 33 GB and the packer
+  spills at 4 GB resident, so it would run on a 16 GB Mac but needs 40 GB free.
+- **The hub client refuses to download on an expensive or constrained network path**
+  (a hotspot, some VPN configurations) and reports the repository as unavailable
+  offline. That check is inside swift-transformers and has no switch. Vendoring the
+  forty lines of `snapshot` that Zephra uses would remove it.
+- **A stale token cannot be left out of the request.** The hub client reads the
+  token from the environment and the token files itself, and an empty string is sent
+  as an empty bearer. The failure names the token's source instead. Same fix as above.
+- **Deleting a model never asks the engine to unload it first.** The row is disabled
+  while the model is loaded; choosing another model frees it. A Delete that unloads
+  and then trashes would be a `GenerationStore` concern, and the engine would need to
+  know that a deletion is the reason it went idle.
+- **Sizes are measured by walking, every time the tab opens.** Twenty files per
+  model makes that instant; a cache of a thousand small repositories would not be.
+
 ## Upscaler follow-ups
 
 Left out of the first pass on purpose, each a small change to one file unless noted:

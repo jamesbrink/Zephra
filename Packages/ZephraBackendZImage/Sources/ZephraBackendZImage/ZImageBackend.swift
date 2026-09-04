@@ -29,9 +29,10 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
     /// Resolves the descriptor's weights, downloading them if the cache does not already
     /// hold them, and returns the local snapshot directory.
     ///
-    /// This is the only step that can report download progress: the pipeline's own loader
-    /// resolves the snapshot silently, so Zephra resolves it up front and then hands the
-    /// resulting path to `load` as a plain local directory.
+    /// What the cache holds is looked up here rather than left to the vendored resolver, which
+    /// knows only the layout `hf download` writes: a model the app itself downloaded sits in
+    /// the hub client's flat layout, and the resolver would fetch it again on every launch.
+    /// The download is `ZImageBackend+Download.swift`, the only step that can report progress.
     nonisolated(nonsending) public func ensureAvailable(
         _ descriptor: ModelDescriptor,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
@@ -40,40 +41,13 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
         case .localDirectory(let directory):
             return try LocalSnapshot.zImage.verified(directory, descriptor: descriptor)
         case .huggingFace(let repoID, let revision, let filePatterns):
+            if let cached = HubCache.snapshot(of: repoID, revision: revision),
+               LocalSnapshot.zImage.missingEntry(in: cached) == nil
+            {
+                return cached
+            }
             return try await download(repoID, revision: revision, filePatterns: filePatterns,
                                       descriptor: descriptor, onProgress: onProgress)
-        }
-    }
-
-    private nonisolated(nonsending) func download(
-        _ repoID: String,
-        revision: String,
-        filePatterns: [String],
-        descriptor: ModelDescriptor,
-        onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
-    ) async throws -> URL {
-        do {
-            return try await ModelResolution.resolve(
-                modelSpec: repoID,
-                defaultRevision: revision,
-                filePatterns: filePatterns,
-                progressHandler: { progress in
-                    onProgress(
-                        DownloadProgressEvent(
-                            completedFiles: Int(progress.completedUnitCount),
-                            totalFiles: Int(progress.totalUnitCount),
-                            fraction: progress.fractionCompleted,
-                            bytesPerSecond: nil
-                        )
-                    )
-                }
-            )
-        } catch let error as CancellationError {
-            throw error
-        } catch let error as ModelResolutionError {
-            throw ZImageErrorMapping.downloadError(error, descriptor: descriptor)
-        } catch {
-            throw BackendError.downloadFailed(error.readableMessage)
         }
     }
 

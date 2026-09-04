@@ -43,6 +43,29 @@ public enum Flux2SnapshotDownload {
         }
     }
 
+    /// Whether the hub refused the request for want of a valid token. Every model Zephra
+    /// ships is public, so this means a stale token on the Mac, not a login the model needs.
+    public static func isRefusal(_ error: any Error) -> Bool {
+        if case Hub.HubClientError.authorizationRequired = error { return true }
+        return false
+    }
+
+    /// Whether another try could end differently. A refusal and a missing file or repository
+    /// are answers, and so is any client-side status other than a timeout or a rate limit;
+    /// a dropped connection, a server error, or the client's own offline verdict are what a
+    /// pause and another try are for.
+    public static func isPermanent(_ error: any Error) -> Bool {
+        switch error {
+        case Hub.HubClientError.authorizationRequired, Hub.HubClientError.fileNotFound,
+             Hub.HubClientError.resourceNotFound:
+            return true
+        case Hub.HubClientError.httpStatusCode(let code):
+            return (400..<500).contains(code) && code != 408 && code != 429
+        default:
+            return false
+        }
+    }
+
     /// Where the hub cache lives, honouring the same variables the `hf` tool honours.
     static func cacheDirectory(
         environment: [String: String] = ProcessInfo.processInfo.environment

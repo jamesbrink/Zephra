@@ -15,6 +15,9 @@ struct ZephraApp: App {
     @State private var workspace = InterfacePreview.workspace() ?? WorkspaceSelection()
     @State private var index = InterfacePreview.index() ?? LibraryIndex(library: .pictures())
     @State private var thumbnails = ThumbnailCache()
+    /// What the models occupy on disk, for Settings > Models. Built here with the store so the
+    /// two windows observe the one list.
+    @State private var inventory = ModelInventory()
     /// The GPU runtime the Performance tab reads and tunes, over every backend at once. Built
     /// here because this is the only file allowed to name a backend.
     private static let runtime = CombinedInferenceRuntime([
@@ -56,6 +59,7 @@ struct ZephraApp: App {
         Settings {
             SettingsView()
                 .environment(store)
+                .environment(inventory)
                 .environment(\.inferenceRuntime, runtime)
         }
     }
