@@ -16,13 +16,17 @@ extension GenerationStore {
     }
 
     /// Keeps models in `locations` from the next load onwards, and says whether that is a
-    /// change. The composition root calls it when the preference changes; a download already
+    /// change. The settings row awaits it before anything else happens; a download already
     /// running is left where it started, and what is already on disk stays where it is.
+    ///
+    /// Awaited rather than fired off, so the engine holds the new folder before this returns:
+    /// a load started straight after would otherwise race the handoff and could still fetch
+    /// or build under the folder just left.
     @discardableResult
-    public func setModelLocations(_ locations: ModelLocations) -> Bool {
+    public func setModelLocations(_ locations: ModelLocations) async -> Bool {
         guard locations != self.locations else { return false }
         self.locations = locations
-        if let inference { Task { await inference.setLocations(locations) } }
+        if let inference { await inference.setLocations(locations) }
         return true
     }
 

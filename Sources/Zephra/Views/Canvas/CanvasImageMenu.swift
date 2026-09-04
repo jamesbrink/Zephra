@@ -16,7 +16,7 @@ struct CanvasImageMenu: View {
 
     var body: some View {
         if let item = index.canvasItem(for: store) {
-            LibraryItemMenu(items: [item], offersOpen: false)
+            LibraryItemMenu(items: [item])
         } else {
             FreshImageMenu(image: image)
         }

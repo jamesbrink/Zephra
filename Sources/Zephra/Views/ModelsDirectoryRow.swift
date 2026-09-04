@@ -44,9 +44,9 @@ struct ModelsDirectoryRow: View {
         AppSettings.recordModelsDirectory(folder, leaving: inventory.modelsDirectory)
         path = folder?.path(percentEncoded: false) ?? ""
         let locations = AppSettings.modelLocations()
-        store.setModelLocations(locations)
         inventory.setLocations(locations)
         Task {
+            await store.setModelLocations(locations)
             await inventory.refresh()
             await store.refreshAvailability()
         }

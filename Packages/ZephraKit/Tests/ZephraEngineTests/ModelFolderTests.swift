@@ -27,8 +27,8 @@ struct ModelFolderTests {
         let first = bed.control.settings.lastLocations
 
         let moved = ModelLocations(root: bed.directory.appending(path: "Elsewhere"))
-        #expect(store.setModelLocations(moved))
-        #expect(!store.setModelLocations(moved), "the same folder twice is not a change")
+        #expect(await store.setModelLocations(moved))
+        #expect(!(await store.setModelLocations(moved)), "the same folder twice is not a change")
         #expect(bed.control.settings.lastLocations == first, "nothing reloads on its own")
 
         await store.switchModel(to: ModelCatalog.flux2Klein4bit)
