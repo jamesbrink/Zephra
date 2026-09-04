@@ -55,10 +55,13 @@ struct ModelMenu: View {
     /// The secondary half of a row: what it would take to run this model, or nil when there is
     /// nothing worth saying. A model that cannot be had at all says so before anything about
     /// memory: "Tiles the decode" beside a greyed-out row explains nothing, and a disabled menu
-    /// item shows no tooltip to explain it either.
+    /// item shows no tooltip to explain it either. A download comes before memory too — its
+    /// size has to be on screen before choosing the row starts it — and the memory note then
+    /// lives in the tooltip.
     private func note(for model: ModelDescriptor) -> String? {
         let availability = store.availability[model.id]
         if availability?.isObtainable == false { return availability?.label }
+        if availability?.needsNetwork == true { return availability?.label }
         if let memory = memoryNote(model) { return memory }
         return availability?.label
     }

@@ -43,6 +43,9 @@ public final class GenerationStore {
     /// The model whose weights are resident right now, or nil while none are. It trails
     /// `descriptor` whenever a switch is waiting for the queue to drain.
     public internal(set) var loadedDescriptor: ModelDescriptor?
+    /// The directory those weights were read from, so a settings row can tell the one copy
+    /// that is in use from a duplicate of the same model elsewhere. Nil while none are.
+    public internal(set) var loadedDirectory: URL?
     /// True while the engine is between queued generations, swapping to the model the next one
     /// needs. The queue accepts more work throughout.
     public internal(set) var isSwitchingForQueue = false

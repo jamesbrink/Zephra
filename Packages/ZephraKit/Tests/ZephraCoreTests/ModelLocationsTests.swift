@@ -26,17 +26,17 @@ struct ModelLocationsTests {
         #expect(ModelLocations.default.root == ModelCatalog.localModelsDirectory)
     }
 
-    @Test("a moved root is looked in first, and a directory a descriptor names after it")
-    func aMovedRootStillFindsWhatWasBuiltBefore() {
+    @Test("a directory a descriptor names comes first, and the root's copy of it after")
+    func aNamedDirectoryIsWhatTheDescriptorMeans() {
         // No catalog entry names a directory any more, but a descriptor still can — one built
-        // by hand, or one `ZephraBench` was pointed at — and a copy under the old root has to
-        // keep working when the folder is changed.
+        // by hand, or one `ZephraBench` was pointed at — and that folder is the one meant,
+        // ahead of any same-named copy under the app's root.
         let named = URL(filePath: "/tmp/somewhere-else/z-image-turbo-4bit")
         let candidates = scratch.builtCandidates(for: Self.local(at: named))
         #expect(candidates.count == 2)
-        #expect(candidates.first?.path(percentEncoded: false)
+        #expect(candidates.first == named, "the folder the descriptor names is what it means")
+        #expect(candidates.last?.path(percentEncoded: false)
             == "/tmp/zephra-models/z-image-turbo-4bit/")
-        #expect(candidates.last == named, "the folder the descriptor names stays usable")
     }
 
     @Test("a model that is downloaded rather than built has only this root to be in")

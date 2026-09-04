@@ -80,13 +80,16 @@ extension GenerationStore {
     private func load(_ model: ModelDescriptor, on inference: InferenceActor) async {
         let pump = EngineEventPump { [weak self] event in self?.applyLoadEvent(event) }
         do {
-            try await pump.run { sink in try await inference.prepare(model, events: sink) }
+            let directory = try await pump.run { sink in
+                try await inference.prepare(model, events: sink)
+            }
             try Task.checkCancellation()
             if warmsUpAfterLoad {
                 transition(to: .warmingUp)
                 try await inference.warmUp(model)
             }
             loadedDescriptor = model
+            loadedDirectory = directory
             transition(to: .ready)
         } catch is CancellationError {
             transition(to: .idle)

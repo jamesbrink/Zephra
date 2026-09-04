@@ -30,7 +30,8 @@ enum BenchRunner {
         let backend = try registry.make(descriptor)
         let verbose = !options.json
 
-        // The tool has no preferences to read, so models are where the app puts them by default.
+        // The tool has no preferences to read, so models are where the app puts them by
+        // default; a `--snapshot` names its own directory and is looked for there first.
         let locations = ModelLocations.default
         let downloaded = try await backend.ensureAvailable(descriptor, locations: locations) {
             event in

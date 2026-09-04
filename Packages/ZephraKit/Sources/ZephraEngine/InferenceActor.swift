@@ -17,6 +17,9 @@ actor InferenceActor {
     private let registry: BackendRegistry
     private var backend: (any ImageGenerationBackend)?
     private var backendID: BackendID?
+    /// The directory the resident weights were read from, for `prepare` to hand back again
+    /// when asked for a model that is already up.
+    private var loadedPath: URL?
     private let upscalerFactory: UpscalerFactory?
     private var upscaler: (any ImageUpscaler)?
     /// The folder models are kept in, as the last `setLocations` left it. Read at the top of
@@ -50,10 +53,13 @@ actor InferenceActor {
     }
 
     /// Fetches the weights if they are missing, packs them if the family loads something other
-    /// than its download, then reads them into memory, reporting every stage through `events`. Doing nothing is the right answer if the model is already loaded.
-    func prepare(_ descriptor: ModelDescriptor, events: EngineEventSink) async throws {
+    /// than its download, then reads them into memory, reporting every stage through `events`,
+    /// and returns the directory the weights were read from. Doing nothing, and handing back
+    /// the same directory, is the right answer if the model is already loaded.
+    @discardableResult
+    func prepare(_ descriptor: ModelDescriptor, events: EngineEventSink) async throws -> URL {
         let live = try backend(for: descriptor)
-        guard live.loadedModelID != descriptor.id else { return }
+        if live.loadedModelID == descriptor.id, let loadedPath { return loadedPath }
         // Read once: a folder changed during the download must not have the build looking
         // for what was fetched, or writing, under a root the download never used.
         let locations = self.locations
@@ -67,6 +73,8 @@ actor InferenceActor {
         try await live.load(descriptor, at: localPath) { event in
             events.send(.progress(event))
         }
+        loadedPath = localPath
+        return localPath
     }
 
     /// Whether `descriptor`'s weights are already on this Mac. Never downloads, and never

@@ -57,8 +57,16 @@ struct ModelsSettings: View {
 
     /// Whether the engine is holding, loading, or queued to load weights from this directory.
     private func isInUse(_ item: ModelStorageItem) -> Bool {
+        // The loaded model is protected by the directory its weights came from, not by its
+        // name: the same model can sit in the models folder, a folder it used to be, and the
+        // hub cache at once, and only the one copy the engine holds is off limits.
+        if let loaded = store.loadedDirectory,
+           loaded.standardizedFileURL.path(percentEncoded: false)
+               == item.url.standardizedFileURL.path(percentEncoded: false)
+        {
+            return true
+        }
         var wanted = store.queue.map(\.model.id)
-        if let loaded = store.loadedDescriptor { wanted.append(loaded.id) }
         if let running = store.running { wanted.append(running.model.id) }
         if store.state.isBusy { wanted.append(store.descriptor.id) }
         return wanted.contains { item.modelIDs.contains($0) }
