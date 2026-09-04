@@ -32,7 +32,12 @@ struct LibraryViewer: View {
             .safeAreaInset(edge: .top, spacing: 0) { LibraryViewerBar() }
             .contextMenu { LibraryItemMenu(items: [item], selection: selection) }
             .draggable(item)
-            .task(id: item.id) { await decode() }
+            // Keyed by what the scan fingerprints the file by, not by its path alone: an id
+            // is a path, and a picture rewritten in place keeps its path while its pixels
+            // change, which the index notices and the viewer would otherwise not.
+            .task(id: "\(item.id)|\(item.fileSize)|\(item.contentModifiedAt.timeIntervalSince1970)") {
+                await decode()
+            }
     }
 
     @ViewBuilder

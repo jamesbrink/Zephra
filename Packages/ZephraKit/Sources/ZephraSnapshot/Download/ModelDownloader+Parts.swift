@@ -28,6 +28,12 @@ extension ModelDownloader {
         }
         if let event = tally.report(force: true) { onProgress(event) }
 
+        // Two parts may share a folder — two adapters out of one repository — and the folder
+        // is finished only when the last of them is, or a stop between the two would leave it
+        // recorded complete with the second still to come, and the next transfer at a newer
+        // commit would clear it under the one part it thought remained.
+        var partsLeft = Dictionary(grouping: work.map { $0.0 }, by: { Self.folder($0.destination) })
+            .mapValues(\.count)
         for (part, files) in work {
             for file in files {
                 try Task.checkCancellation()
@@ -37,7 +43,9 @@ extension ModelDownloader {
                 tally.finishFile()
                 if let event = tally.report(force: true) { onProgress(event) }
             }
-            // Every file of this part is down at the commit it was pinned to: the pin goes,
+            partsLeft[Self.folder(part.destination), default: 1] -= 1
+            guard partsLeft[Self.folder(part.destination)] == 0 else { continue }
+            // Every file of this folder is down at the commit it was pinned to: the pin goes,
             // the commit is written down for the next transfer into this folder to compare
             // against, and the directory is a finished download from here on.
             try part.revision.write(
@@ -45,6 +53,10 @@ extension ModelDownloader {
             try? FileManager.default.removeItem(at: Self.pin(in: part.destination))
             Self.dropHubPartials(in: part.destination)
         }
+    }
+
+    private static func folder(_ url: URL) -> String {
+        url.standardizedFileURL.path(percentEncoded: false)
     }
 
     /// Removes what an interrupted `hf download --local-dir` into this same folder left

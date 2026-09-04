@@ -249,6 +249,26 @@ struct ModelDownloaderTests {
         #expect(!scratch.hasFile("escape.json"))
     }
 
+    @Test("a folder two parts share is not recorded finished until the second part is")
+    func aSharedFolderFinishesWithItsLastPart() async throws {
+        let scratch = Scratch("Download")
+        StubHub.reset(
+            StubHub.Behaviour(
+                pages: [page([("a.safetensors", 2), ("b.safetensors", 2)])],
+                files: ["a.safetensors": Data("aa".utf8)]))
+        let folder = scratch.url("models")
+        let parts = ["a.safetensors", "b.safetensors"].map {
+            RepositoryDownload(repoID: "org/lora", revision: "main", patterns: [$0], destination: folder)
+        }
+
+        await #expect(throws: (any Error).self) {
+            try await downloader().download(parts, onProgress: { _ in })
+        }
+        #expect(scratch.hasFile("models/a.safetensors"), "the first part did land")
+        #expect(!scratch.hasFile("models/.zephra-commit"), "the folder is not finished")
+        #expect(scratch.hasFile("models/.zephra-revision"), "and is still pinned for the retry")
+    }
+
     @Test("a partial an interrupted `hf download` left in the folder goes once the transfer is whole")
     func hubPartialsAreDroppedOnCompletion() async throws {
         let scratch = Scratch("Download")

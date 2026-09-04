@@ -22,10 +22,9 @@ extension GenerationStore {
     /// Watches the generation in flight again, after the user had gone off to look at something
     /// else. What the running card in the sidebar does when it is clicked.
     ///
-    /// Setting the flag is the whole of it: the next frame lands in `livePreview` as it would
-    /// have anyway, and the run's result is published to the canvas because `followsRun` is true
-    /// by the time it arrives.
-    public func watchRun() { followsRun = true }
+    /// The next frame lands in `livePreview` as it would have anyway, and the run's result is
+    /// published to the canvas because `followsRun` is true by the time it arrives.
+    public func watchRun() { startFollowingRun() }
 
     /// Starts following, which is what every explicit "make me an image now" does.
     ///
@@ -33,7 +32,13 @@ extension GenerationStore {
     /// the previous run's last frame down when the next one begins, so it never sits on the
     /// canvas through the text encode looking like progress that had stalled, and a press of
     /// Generate that only queues behind the run in flight leaves that run's frame where it is.
-    func startFollowingRun() { followsRun = true }
+    func startFollowingRun() {
+        // A library picture still being read is abandoned: it was chosen before the run was,
+        // and landing after the run's own result would take the canvas back off it.
+        openTask?.cancel()
+        openTask = nil
+        followsRun = true
+    }
 
     /// Stops following, which is what opening any other picture does. The run itself carries
     /// on, frame and all — the running card in the sidebar is still showing it, and watching
