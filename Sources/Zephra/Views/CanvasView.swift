@@ -41,15 +41,7 @@ struct CanvasView: View {
                 // clicking again, or any of the ways `PromptTuckHost` listens for, brings it back.
                 .onTapGesture(count: 1) { workspace.promptTucked.toggle() }
                 .draggable(image)
-                .contextMenu {
-                    Button("Save as…") { ImageExport.saveAs(image) }
-                    Button("Copy") { ImageExport.copyToPasteboard(image) }
-                    Button("Reveal in Finder") { ImageExport.revealInFinder(image) }
-                    if store.descriptor.capabilities.supportsReferenceImage {
-                        Divider()
-                        Button("Use as Reference") { store.useAsReference(image.pngData) }
-                    }
-                }
+                .contextMenu { CanvasImageMenu(image: image) }
         }
     }
 }

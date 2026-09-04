@@ -61,6 +61,15 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
 - **Sizes are measured by walking, every time the tab opens.** Twenty files per
   model makes that instant; a cache of a thousand small repositories would not be.
 
+## Library viewer: left out on purpose
+
+- **Zoom and pan.** The viewer fits the whole picture to the pane, the way the canvas
+  does; there is no way to look closer at one part of it. A pinch or scroll-to-zoom
+  gesture, with the fitted view as the reset, is the natural next step once someone
+  asks for it.
+- **A filmstrip of thumbnails along the bottom**, the way Photos and Preview both
+  offer, instead of only the bar's "n of N" and the prev/next buttons.
+
 ## Upscaler follow-ups
 
 Left out of the first pass on purpose, each a small change to one file unless noted:

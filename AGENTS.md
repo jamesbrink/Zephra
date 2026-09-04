@@ -205,9 +205,9 @@ Four directories, by what a file is rather than what screen it is on:
   composition root rather than as a colour scheme on a scene, so the Settings
   window, the menus, and the alerts change with the main window.
 - `Views/` — one subfolder per surface (`Canvas/`, `Library/`,
-  `Library/Inspector/`, `Sidebar/`, `Sidebar/Timeline/`, `Toolbar/`); the
-  prompt capsule, its controls, the commands, and Settings sit at the top of
-  `Views/` because they belong to no one surface. The
+  `Library/Inspector/`, `Library/Viewer/`, `Sidebar/`, `Sidebar/Timeline/`,
+  `Toolbar/`); the prompt capsule, its controls, the commands, and Settings
+  sit at the top of `Views/` because they belong to no one surface. The
   three-stored-property rule is what keeps them small; a view that needs a
   fourth wants a subview. `Sidebar/CanvasSidebar` is the canvas sidebar,
   which builds today's runs once and hands them to `Sidebar/Timeline/` — a
@@ -233,6 +233,34 @@ Four directories, by what a file is rather than what screen it is on:
   `WorkspaceDetail`'s `HStack` (the pane, its `Divider`, and the inspector)
   stays inside the top one too, so the sidebar, the pane, and the inspector
   all start below the strip rather than the divider cutting through it.
+
+  Every picture in the app wears the same right-click menu: `LibraryItemMenu`
+  for anything indexed — the grid, the sidebar wall, the library viewer, and
+  the canvas once the file has been indexed — and `FreshImageMenu` for a
+  session's own picture before that indexing has caught up, both in
+  `Views/Canvas/` beside `CanvasImageMenu`, which picks between them for
+  whatever the canvas is showing. `LibraryItemMenu`'s `selection` is optional,
+  taken only where there is a `LibrarySelection` to keep in step with the
+  choice; the sidebar wall and the canvas have none and pass nil.
+  `LibraryIndex.canvasItem(for:)` is the one lookup behind that choice and
+  behind `CanvasInspector`, so the two never disagree about what the picture
+  on the canvas is; deleting it from either fires
+  `LibraryIndex.onRecentlyDeleted`, which `GenerationStore.forget(fileAt:)`
+  answers by stepping the canvas to the next image in history.
+
+  A double-click in the grid, or Return on the selection, no longer opens the
+  canvas — it opens `Library/Viewer/LibraryViewer`, the picture full size in
+  the library pane itself, with `LibraryViewerBar` over the top ("Library"
+  back, "n of N", previous/next) and `LibraryViewerNavigation` underneath
+  (Escape or a second double-click closes it; the arrow keys step, crossing
+  day headings the way the grid's own do, through the pure arithmetic in
+  `ZephraEngine`'s `LibraryViewerStep`). `WorkspaceSelection.viewing` names
+  the one item shown, cleared whenever the pane changes; `LibraryPane` is the
+  one place that keeps the grid's selection in step with it, so the inspector
+  beside the viewer always describes what is on screen and closing scrolls
+  the grid back to it. "Open in canvas" — the `\.openLibraryItem` action, on
+  the cell's menu, the sidebar wall, and the inspector's own button — is
+  unchanged; the viewer answers to the twin `\.viewLibraryItem` instead.
 
 The prompt is `PromptTextView`, an `NSTextView` of our own on TextKit 1 rather
 than `TextEditor`, for one reason: a text view paints a selected line break out

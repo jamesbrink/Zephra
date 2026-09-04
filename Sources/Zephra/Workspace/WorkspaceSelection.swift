@@ -22,6 +22,9 @@ final class WorkspaceSelection {
             // A tuck only means anything while looking at the canvas; moving anywhere at all
             // is reason enough to bring the prompt back for whoever returns to it.
             promptTucked = false
+            // The same reasoning as the tuck: leaving the library, even to come straight back,
+            // should find the grid rather than reopen whatever was last full size.
+            viewing = nil
             AppSettings.write(pane.rawValue, to: AppSettings.workspacePane)
         }
     }
@@ -49,6 +52,11 @@ final class WorkspaceSelection {
     /// Whether the canvas has tucked its floating prompt away, leaving only the lip at the
     /// bottom edge. Never persisted: a launch always finds the prompt where it was left showing.
     var promptTucked = false
+
+    /// The one library image the library pane is showing full size, or nil for the grid. Never
+    /// persisted, for the same reason as `promptTucked`, and lives here rather than in the
+    /// pane's own state so the menu bar's "Back to Grid" and `InterfacePreview` can reach it.
+    var viewing: LibraryItem.ID?
 
     /// Bumped whenever something asks for the search field. The field watches it and takes
     /// focus; a token rather than a flag, so asking twice in a row works the second time.

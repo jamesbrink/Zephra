@@ -56,7 +56,7 @@ struct ZephraApp: App {
         .commands {
             ZephraCommands(store: store)
             WorkspaceCommands(workspace: workspace, store: store)
-            LibraryCommands()
+            LibraryCommands(workspace: workspace)
             ThumbnailSizeCommands()
         }
 
@@ -77,9 +77,18 @@ struct ZephraApp: App {
     /// watch would notice in its own time — this is only so the grid moves at once.
     private func openLibrary() {
         index.start()
+        // A no-op outside the `viewer` screenshot build: `viewing(in:)` answers nil for every
+        // other launch, preview or real.
+        workspace.viewing = InterfacePreview.viewing(in: index)
         thumbnails.sweep()
         store.onImageSaved = { url in index.insert(fileAt: url) }
         store.onImageDeleted = { _ in Task { await index.rescanNow() } }
+        // The reverse direction: a delete made through the index — the grid, the viewer, the
+        // sidebar wall, or the canvas's own menu — never goes through the store, so the store
+        // is told separately when one of the files it might be showing is gone.
+        index.onRecentlyDeleted = { urls in
+            for url in urls { store.forget(fileAt: url) }
+        }
     }
 
     /// Builds the one store the window observes.
