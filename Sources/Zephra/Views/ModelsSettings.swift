@@ -60,11 +60,13 @@ struct ModelsSettings: View {
         // The loaded model is protected by the directory its weights came from, not by its
         // name: the same model can sit in the models folder, a folder it used to be, and the
         // hub cache at once, and only the one copy the engine holds is off limits.
-        if let loaded = store.loadedDirectory,
-           loaded.standardizedFileURL.path(percentEncoded: false)
-               == item.url.standardizedFileURL.path(percentEncoded: false)
-        {
-            return true
+        // Containment, not equality: a model loaded from the hub cache came from
+        // `models--<repo>/snapshots/<commit>`, and the row is the repository around it.
+        if let loaded = store.loadedDirectory {
+            let row = item.url.standardizedFileURL.path(percentEncoded: false)
+            let folder = row.hasSuffix("/") ? row : row + "/"
+            let weights = loaded.standardizedFileURL.path(percentEncoded: false)
+            if weights == row || weights.hasPrefix(folder) || (weights + "/") == folder { return true }
         }
         var wanted = store.queue.map(\.model.id)
         if let running = store.running { wanted.append(running.model.id) }
