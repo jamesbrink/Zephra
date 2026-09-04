@@ -69,26 +69,6 @@ public struct ModelLocations: Hashable, Sendable {
         roots.map { ModelLocations(root: $0).downloads(repoID: repoID) }
     }
 
-    /// The adapter file wherever it is, under this root or one the folder used to be, or nil
-    /// when it is nowhere: what a build is handed, and what says an adapter is not missing.
-    public func adapterFileOnDisk(_ adapter: ModelAdapter) -> URL? {
-        roots.map { ModelLocations(root: $0).adapterFile(adapter) }
-            .first { FileManager.default.fileExists(atPath: $0.path(percentEncoded: false)) }
-    }
-
-    /// The descriptor's adapters whose file is not here yet, and so still have to be fetched.
-    public func missingAdapters(of descriptor: ModelDescriptor) -> [ModelAdapter] {
-        descriptor.adapters.filter { adapterFileOnDisk($0) == nil }
-    }
-
-    /// What choosing `descriptor` would still transfer: the release unless it is already here,
-    /// and every adapter that is not. This is what a picker states, so a release found in the
-    /// cache with its distillation missing reads as the distillation's cost, not the release's.
-    public func bytesToFetch(for descriptor: ModelDescriptor, releasePresent: Bool) -> Int64 {
-        (releasePresent ? 0 : descriptor.downloadBytes)
-            + missingAdapters(of: descriptor).reduce(0) { $0 + $1.bytes }
-    }
-
     /// Where a variant packed on this Mac lives: `<root>/<descriptor id>`, the naming every
     /// locally built variant has followed since `make quantize` wrote the first one.
     public func built(_ descriptor: ModelDescriptor) -> URL {

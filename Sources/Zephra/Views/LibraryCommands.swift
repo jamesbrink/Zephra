@@ -23,7 +23,10 @@ struct LibraryCommands: Commands {
             Divider()
             Button("Select All Images") { selectAll() }
                 .keyboardShortcut("a", modifiers: .command)
-                .disabled(grid == nil || index == nil)
+                // The viewer publishes the grid's key so Save, Copy and Delete act on the
+                // picture it shows, but there is no grid to choose everything in: ⌘A there
+                // would select every image under a view of one, and the next ⌘⌫ take them all.
+                .disabled(grid == nil || index == nil || workspace.viewing != nil)
             Button(favouriteTitle) { index?.toggleFavourite(chosen) }
                 .keyboardShortcut("d", modifiers: [.command, .shift])
                 .disabled(chosen.isEmpty)

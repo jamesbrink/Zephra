@@ -26,7 +26,7 @@ struct ModelLocationsTests {
         #expect(ModelLocations.default.root == ModelCatalog.localModelsDirectory)
     }
 
-    @Test("a directory a descriptor names comes first, and the root's copy of it after")
+    @Test("a directory a descriptor names is the one place it is looked for")
     func aNamedDirectoryIsWhatTheDescriptorMeans() {
         // No catalog entry names a directory any more, but a descriptor still can — one built
         // by hand, or one `ZephraBench` was pointed at — and that folder is the one meant,

@@ -74,7 +74,7 @@ struct FollowingRunTests {
         #expect(store.current?.pngData == MockBackend.pngData)
     }
 
-    @Test("opening a library picture stops the canvas following, frame and all")
+    @Test("opening a library picture stops the canvas following, and the frame stays with the run")
     func openingStopsFollowing() async throws {
         let bed = EngineTestBed()
         let store = bed.store()

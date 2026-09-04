@@ -30,17 +30,31 @@ public struct HubRepository: Hashable, Sendable {
     /// Either way a snapshot counts only if `HubSnapshotCheck` says it is complete, which is
     /// what tells a finished download apart from an abandoned one.
     public func snapshot(revision: String = "main") -> URL? {
-        let candidate: URL?
+        guard let candidate = candidate(revision: revision), HubSnapshotCheck.isComplete(candidate)
+        else { return nil }
+        return candidate
+    }
+
+    /// One file of the snapshot for `revision`, or nil when it is not here. Asked about a file
+    /// rather than the snapshot because an adapter's repository holds no config to satisfy
+    /// `HubSnapshotCheck`, and one finished file is all that is wanted of it. Either tool
+    /// puts the file in place only once it is whole, so being there is being finished.
+    public func file(_ path: String, revision: String = "main") -> URL? {
+        guard let candidate = candidate(revision: revision) else { return nil }
+        let file = candidate.appending(path: path)
+        return FileManager.default.fileExists(atPath: file.path(percentEncoded: false)) ? file : nil
+    }
+
+    /// The directory the snapshot for `revision` would be, complete or not.
+    private func candidate(revision: String) -> URL? {
         switch layout {
         case .hub:
             let snapshots = url.appending(path: "snapshots")
-            candidate = commit(of: revision).map { snapshots.appending(path: $0) }
+            return commit(of: revision).map { snapshots.appending(path: $0) }
                 ?? Self.onlySnapshot(in: snapshots)
         case .flat:
-            candidate = url
+            return url
         }
-        guard let candidate, HubSnapshotCheck.isComplete(candidate) else { return nil }
-        return candidate
     }
 
     /// Whether a load could open what is here.

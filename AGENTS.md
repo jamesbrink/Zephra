@@ -530,9 +530,12 @@ lists and tallies them together. `transferBytes` is the release plus the
 adapters, what a Mac with nothing cached is told; a release already here — in
 the models folder or the hub cache — is never fetched again for want of its
 adapter, so availability charges only what `ModelLocations.bytesToFetch` says
-is still missing, and `fetch` moves only that. The adapter is a build input, not a
-runtime one: `QwenImageBackend.build` hands `locations.adapterFile(_:)` to the
-plan, the packer merges the low-rank update as it goes, and nothing downstream
+is still missing, and `fetch` moves only that. An adapter counts as here under
+any root the folder has been or in the hub cache, where `hf download` puts it
+(`ModelLocations+Adapters` in `ZephraSnapshot`, since `ZephraCore` knows no
+cache), so one fetched by hand beside its release is not fetched twice. The
+adapter is a build input, not a runtime one: `QwenImageBackend.build` hands
+`locations.adapterFileOnDisk(_:)` to the plan, the packer merges the low-rank update as it goes, and nothing downstream
 ever sees an adapter.
 
 **A model that edits** reads `GenerationSettings.referenceImage`, PNG bytes the

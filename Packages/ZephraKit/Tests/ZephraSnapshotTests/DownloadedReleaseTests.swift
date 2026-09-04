@@ -50,10 +50,30 @@ struct DownloadedReleaseTests {
         #expect(
             check.downloadedRelease(of: descriptor, in: locations) != nil,
             "thirty gigabytes already here are not fetched again for want of the distillation")
-        #expect(locations.missingAdapters(of: descriptor) == [adapter])
+        #expect(locations.missingAdapters(of: descriptor, cache: scratch.url("hub")) == [adapter])
 
         try scratch.make("models/Downloads/org--lora/lightning.safetensors")
-        #expect(locations.missingAdapters(of: descriptor).isEmpty)
+        #expect(locations.missingAdapters(of: descriptor, cache: scratch.url("hub")).isEmpty)
+    }
+
+    @Test("an adapter `hf download` put in the cache is used from there, not fetched again")
+    func aCachedAdapterIsNotMissing() throws {
+        let scratch = Scratch("Downloaded")
+        let locations = ModelLocations(root: scratch.url("models"))
+        let adapter = ModelAdapter(repoID: "org/lora", file: "lightning.safetensors", bytes: 8)
+        let descriptor = Self.model(adapters: [adapter])
+        let cache = scratch.url("hub")
+        try scratch.write("abc", to: "hub/models--org--lora/refs/main")
+        try scratch.make("hub/models--org--lora/snapshots/abc/lightning.safetensors")
+
+        #expect(locations.missingAdapters(of: descriptor, cache: cache).isEmpty)
+        #expect(
+            locations.adapterFileOnDisk(adapter, cache: cache)
+                == scratch.url("hub/models--org--lora/snapshots/abc/lightning.safetensors"))
+        #expect(
+            locations.bytesToFetch(for: descriptor, releasePresent: false, cache: cache)
+                == descriptor.downloadBytes,
+            "the release is the whole of what is left to fetch")
     }
 
     @Test("a release and an adapter under a folder the setting used to point at are still found")
@@ -70,8 +90,10 @@ struct DownloadedReleaseTests {
             check.downloadedRelease(of: descriptor, in: locations)?.lastPathComponent == "org--repo"
                 && check.downloadedRelease(of: descriptor, in: locations)?.path(percentEncoded: false)
                     .contains("/old/Downloads/") == true)
-        #expect(locations.missingAdapters(of: descriptor).isEmpty)
-        #expect(locations.adapterFileOnDisk(adapter) == scratch.url("old/Downloads/org--lora/lightning.safetensors"))
+        #expect(locations.missingAdapters(of: descriptor, cache: scratch.url("hub")).isEmpty)
+        #expect(
+            locations.adapterFileOnDisk(adapter, cache: scratch.url("hub"))
+                == scratch.url("old/Downloads/org--lora/lightning.safetensors"))
         #expect(
             locations.builtCandidates(for: descriptor).map(\.lastPathComponent) == [descriptor.id, descriptor.id],
             "the packed variant is looked for under both roots, the current one first")
