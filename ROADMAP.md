@@ -38,7 +38,7 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
 
 ## Downloads and model storage: left out on purpose
 
-- **The 4-bit Z-Image variant is derived from the 33 GB bf16 release, not from the
+- **The 4-bit Z-Image variant is derived from the 32.9 GB bf16 release, not from the
   13.3 GB 8-bit download.** Both entries are the same weights at different
   precisions, and a Mac that already has the 8-bit model has to fetch two and a half
   times as much again to get the smaller one. Repacking 8-bit to 4-bit would need a
@@ -46,7 +46,7 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   back to float, repack at the new width, and carry the manifest across. It also
   compounds the error of two quantizations, which is worth measuring against a
   straight 4-bit build before shipping. The bf16 source is the honest input, and
-  disk is the cost: 33 GB in, 6.7 GB out, and the packer spills at 4 GB resident, so
+  disk is the cost: 32.9 GB in, 6.7 GB out, and the packer spills at 4 GB resident, so
   it runs on a 16 GB Mac but wants 40 GB free.
 - **A build cannot be resumed.** `SnapshotBuild` writes into a `.partial` directory
   and removes it when the build is stopped, so a Qwen-Image build interrupted at

@@ -10,8 +10,8 @@ import ZephraQuantization
 /// with its own descriptor would be discovered an hour later.
 enum ZImageSnapshotBuild {
     /// Gigabytes of the release each component reads while packing, for weighting the bar. The
-    /// transformer is three times the text encoder, so without this the bar would sit at three
-    /// quarters for most of the build.
+    /// transformer is three times the text encoder, so unweighted the bar would reach a half
+    /// when three quarters of the bytes were done, and then crawl.
     private static let componentWeights = ["transformer": 24.6, "text_encoder": 8.05]
 
     /// Packs `release` into `destination` at `descriptor`'s precision, reporting one event per
