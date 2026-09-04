@@ -18,7 +18,7 @@ In order:
 ## Layering rules — non-negotiable
 
 ```
-Sources/Zephra (SwiftUI app) ─→ ZephraEngine ─→ ZephraCore
+Sources/Zephra (SwiftUI app) ─→ ZephraEngine ─→ ZephraCore, ZephraSnapshot
                              ─→ ZephraBackend<Family> ─→ ZephraCore, ZephraSnapshot,
                                                           ZephraQuantization, <Family>Kit
                                                           [imported in ZephraApp.swift ONLY]
@@ -28,7 +28,8 @@ Sources/ZephraBench (tool)   ─→ ZephraCore, every ZephraBackend<Family>
 Sources/ZephraQuantize (tool)─→ ZephraCore, ZephraQuantization, every ZephraBackend<Family>
 
 Shared, by what a file actually touches:
-  ZephraKit/ZephraSnapshot     Foundation only  — hub cache, local snapshot checks
+  ZephraKit/ZephraSnapshot     Foundation only  — hub cache, local snapshot checks,
+                                                  what the models occupy on disk
   ZephraKit/ZephraTestSupport  Foundation only  — Scratch, the filesystem test fixture
   ZephraMLXKit/ZephraQuantization  MLX          — the streaming weight packer
   ZephraMLXKit/ZephraMLX           MLX, ZephraCore — the tiled decode and the allocator's
@@ -38,8 +39,18 @@ Shared, by what a file actually touches:
 - `ZephraCore` (in `Packages/ZephraKit`): Sendable value types + protocols.
   Zero dependencies — no model package, no MLX, no SwiftUI.
 - `ZephraSnapshot` (in `Packages/ZephraKit`): finding a cached Hugging Face
-  snapshot and checking a local model directory. Foundation only, which is
-  the point: `make test` covers it, so these suites need no Metal.
+  snapshot, checking a local model directory, and listing what the catalog's
+  models occupy on disk. Foundation only, which is the point: `make test`
+  covers it, so these suites need no Metal. The hub cache holds two layouts
+  and `HubRepository` reads both: `hf download` writes
+  `models--<org>--<repo>/snapshots/<commit>/`, and the hub client the app
+  downloads with writes `models/<org>/<repo>/` flat, with its `.incomplete`
+  files under `.cache/huggingface/download/`. `HubSnapshotCheck` is what says
+  a snapshot is finished: a config, some weights, every shard a
+  `*.safetensors.index.json` names, and nothing still `.incomplete`. A backend
+  asks `HubCache` before its own resolver, because the vendored resolver knows
+  only the first layout and would fetch a model the app itself downloaded again
+  on every launch.
 - `ZephraQuantization` (in `Packages/ZephraMLXKit`): the streaming weight
   packer, shared by every family. It knows nothing about any model — a family
   hands it a `QuantizationPlan` saying which directories hold weights, which
@@ -55,8 +66,11 @@ Shared, by what a file actually touches:
   copy as a `ZEPHRA-PATCH`, because pointing vendored code at ours would
   complicate every re-sync.
 - `ZephraEngine` (in `Packages/ZephraKit`): concurrency + state. Depends on
-  `ZephraCore` only. Backends arrive as an injected `BackendRegistry` of
-  `@Sendable` factories; this layer never names a concrete backend.
+  `ZephraCore` and `ZephraSnapshot`, nothing else. Backends arrive as an
+  injected `BackendRegistry` of `@Sendable` factories; this layer never names
+  a concrete backend. `ModelInventory` is the one thing it takes
+  `ZephraSnapshot` for: the list Settings > Models observes, measured off the
+  main actor and re-read after every deletion.
 - `ZephraBackendZImage`, `ZephraBackendQwenImage`, and `ZephraBackendFlux2`
   (their own local packages): translate `ZephraCore` types to and from one
   family's types. No state, no UI. Each depends on `ZephraKit`'s `ZephraCore`
@@ -185,7 +199,8 @@ Four directories, by what a file is rather than what screen it is on:
   `ThumbnailCache` coalesces the in-flight requests. Nothing decodes an image
   on the main actor. `AppSettings` is the one list of preference keys and
   starting values; a preference is bound with `@AppStorage` at its picker and
-  read outside a view through `AppSettings`'s helpers. The appearance
+  read outside a view through `AppSettings`'s helpers. `DirectoryRow` is the
+  labelled path with an Open button that General and Models both show. The appearance
   preference is applied by `AppearanceApplier`, set on `NSApp` from the
   composition root rather than as a colour scheme on a scene, so the Settings
   window, the menus, and the alerts change with the main window.
@@ -540,6 +555,33 @@ decode at 1024 pixels, so 32 GB of RAM is the practical floor. Weights are cache
 `~/.cache/huggingface/hub`, honoring `HF_HOME` / `HF_HUB_CACHE` if set.
 `make prefetch` seeds the cache ahead of first run.
 
+Every repository the catalog names is public and ungated, so no download needs a
+Hugging Face token, and the app never asks for one. The hub client does send
+whatever token it finds in the same six places the `hf` tool looks (`HF_TOKEN`,
+`HUGGING_FACE_HUB_TOKEN`, `HF_TOKEN_PATH`, `HF_HOME/token`,
+`~/.cache/huggingface/token`, `~/.huggingface/token`), and a stale one turns
+every request into a 401 for a public model too; `HubToken` in `ZephraSnapshot` is what names the token's
+source in the failure message when that happens. A download that breaks is tried
+again by `DownloadRetry` in `ZephraCore`, five times with a doubling pause, and
+the hub client resumes each file from its `.incomplete` bytes, so a retry and a
+later Try again both continue rather than start over. Only a refused token, a
+missing repository, or a 4xx that is not a timeout or a rate limit stops the
+retrying early. The hub client refuses to download at all on a network path it
+deems expensive or constrained, such as a hotspot, and reports the repository as
+unavailable offline; its one switch is the `CI_DISABLE_NETWORK_MONITOR=1`
+environment variable, which `HubNetworkPolicy.allowMeteredDownloads()` in
+`ZephraSnapshot` sets before either backend's first request. The size is on the
+screen before the download starts, so whether to spend it on a hotspot is the
+user's call, not the client's.
+
+Settings > Models lists every directory the catalog's models have on this Mac,
+in either hub layout and under `localModelsDirectory`, with its size and a
+Delete that moves it to the Trash. `ModelStorage` in `ZephraSnapshot` is the
+listing and the measuring; `ModelInventory` in `ZephraEngine` is what the tab
+observes. A release two variants pack from is one row naming both, a download
+stopped part-way is a row saying so, and a directory the loaded model is using
+cannot be deleted from under it.
+
 Always pass the model explicitly when calling into the vendored pipeline —
 its own default is the 33 GB bf16 repo, not the 8-bit one Zephra uses.
 
@@ -724,6 +766,8 @@ the re-sync procedure, and the running patch log. Any change inside
 - `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|queued|batch|library|downloading|building|failed`
   launches a Debug build frozen in that state with no model, for screenshots (`make screenshot`).
   `tucked` is `image` with the canvas's floating prompt slid down to its lip.
+  `downloading` and `failed` sit over a picture, since that is where they must stay
+  legible, and `failed` is a download that gave up.
 - `make logs` streams `os.Logger` output for subsystem `io.zephra`.
 - `make screenshot` photographs the app's window by its CoreGraphics id, so it captures the
   window rather than the rectangle of screen it sits in, and it fails rather than falling back

@@ -172,7 +172,16 @@ with a progress readout while that happens.
   between generations — with the figure recommended for your Mac, and a reset back to it —
   whether the VAE decode is tiled (Automatic, Always, Never), and a live readout of active,
   cached and peak GPU memory plus which way the decode is currently set. Every change
-  applies immediately. About shows the version and the third-party license notices.
+  applies immediately. Models shows where downloads and built variants are kept, what each
+  one occupies, and a Delete that moves it to the Trash; a release both klein variants pack
+  from is one row, a download that stopped part-way says so, and the model that is loaded
+  cannot be deleted from under itself. About shows the version and the third-party license
+  notices.
+- Downloads need no Hugging Face account: every model comes from a public, ungated
+  repository. A transfer that breaks is tried again, five times with a growing pause, and
+  resumes from the bytes already on disk; so does Try again after the tries run out, and the
+  message says why it stopped rather than only that it did. A model the app downloaded is
+  recognised on the next launch without a request.
 - Shortcuts: Generate ⌘↩, Stop ⌘., New Album ⌘N, Canvas ⌘1, Library ⌘2, Find ⌘F, Show
   Inspector ⌥⌘I, Hide Prompt ⌥⌘P, Select All Images ⌘A, Favourite ⌘⇧D, thumbnail size ⌘+ and
   ⌘−, Save As ⌘S, Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C, Use as Reference ⌥⌘R, Clear
@@ -191,7 +200,7 @@ may now use: a build step between download and load, for a model whose release i
 not what gets loaded, and a reference picture on the request, for a model that edits.
 
 ```
-Sources/Zephra (SwiftUI app) ─→ ZephraEngine ─→ ZephraCore
+Sources/Zephra (SwiftUI app) ─→ ZephraEngine ─→ ZephraCore, ZephraSnapshot
                              ─→ ZephraBackend<Family> ─→ ZephraCore, ZephraSnapshot,
                                                           ZephraQuantization, <Family>Kit
                                                           [imported in ZephraApp.swift ONLY]
@@ -496,7 +505,8 @@ Zephra/
   `make open` opens the generated project in Xcode; `make clean` removes build output.
 - `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|queued|batch|library|downloading|building|failed`
   launches a Debug build frozen in that state with no model, for screenshots; `tucked` is
-  `image` with the floating prompt slid down to its lip.
+  `image` with the floating prompt slid down to its lip, and `downloading` and `failed` sit
+  over a picture, since that is where they must stay legible.
 
 ### Releasing
 

@@ -25,15 +25,14 @@ struct ControlsRow: View {
 
     /// A model with a single legal guidance value has nothing to offer here.
     private var showsGuidance: Bool {
-        let bounds = store.descriptor.capabilities.guidanceBounds
-        return bounds.lowerBound < bounds.upperBound
+        store.descriptor.capabilities.adjustsGuidance
     }
 
     /// Strength says how much of a picture survives, so it means nothing without one, and
     /// nothing on a model that conditions on the picture instead of starting from it.
     private var showsReferenceStrength: Bool {
-        let bounds = store.descriptor.capabilities.referenceStrengthBounds
-        return store.settings.referenceImage != nil && bounds.lowerBound < bounds.upperBound
+        store.settings.referenceImage != nil
+            && store.descriptor.capabilities.adjustsReferenceStrength
     }
 }
 

@@ -43,6 +43,51 @@ public enum Flux2SnapshotDownload {
         }
     }
 
+    /// Whether the hub refused the request for want of a valid token. Every model Zephra
+    /// ships is public, so this means a stale token on the Mac, not a login the model needs.
+    public static func isRefusal(_ error: any Error) -> Bool {
+        if case Hub.HubClientError.authorizationRequired = error { return true }
+        return false
+    }
+
+    /// Whether another try could end differently. A refusal and a missing file or repository
+    /// are answers, and so is any client-side status other than a timeout or a rate limit;
+    /// a dropped connection, a server error, or the client's own offline verdict are what a
+    /// pause and another try are for.
+    public static func isPermanent(_ error: any Error) -> Bool {
+        switch error {
+        case Hub.HubClientError.authorizationRequired, Hub.HubClientError.fileNotFound,
+             Hub.HubClientError.resourceNotFound:
+            return true
+        case Hub.HubClientError.httpStatusCode(let code):
+            return isPermanentStatus(code)
+        default:
+            return false
+        }
+    }
+
+    /// Any client-side status except a timeout or a rate limit. The same rule as
+    /// `DownloadRetry.isPermanentStatus`, which this kit cannot import.
+    static func isPermanentStatus(_ code: Int) -> Bool {
+        (400..<500).contains(code) && code != 408 && code != 429
+    }
+
+    /// Why a transfer stopped, in words a person can act on: the client's offline verdict is
+    /// named as such, a URL error carries the system's own sentence, and anything else keeps
+    /// the message it came with.
+    public static func reason(for error: any Error) -> String {
+        switch error {
+        case HubApi.EnvironmentError.offlineModeError:
+            "This Mac is offline, or on a connection the downloader treats as metered."
+        case let error as URLError:
+            error.localizedDescription
+        case let error as any LocalizedError:
+            error.errorDescription ?? String(describing: error)
+        default:
+            String(describing: error)
+        }
+    }
+
     /// Where the hub cache lives, honouring the same variables the `hf` tool honours.
     static func cacheDirectory(
         environment: [String: String] = ProcessInfo.processInfo.environment

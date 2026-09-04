@@ -68,6 +68,16 @@ public struct ModelCapabilities: Hashable, Sendable {
         self.defaultReferenceStrength = defaultReferenceStrength
     }
 
+    /// Whether guidance is a choice on this model. A distilled model declares a single legal
+    /// value, and a slider over a single value is not a slider: SwiftUI stops the app rather
+    /// than draw one, so every control reads this before it reads the bounds.
+    public var adjustsGuidance: Bool { guidanceBounds.lowerBound < guidanceBounds.upperBound }
+
+    /// Whether the reference strength is a choice on this model, by the same rule.
+    public var adjustsReferenceStrength: Bool {
+        referenceStrengthBounds.lowerBound < referenceStrengthBounds.upperBound
+    }
+
     /// Rewrites settings into the nearest form this model can run, rather than rejecting them.
     public func clamp(_ settings: GenerationSettings) -> GenerationSettings {
         var result = settings

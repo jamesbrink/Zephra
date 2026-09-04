@@ -48,10 +48,14 @@ struct ModelMenu: View {
     }
 
     /// The secondary half of a row: what it would take to run this model, or nil when there is
-    /// nothing worth saying.
+    /// nothing worth saying. A model that cannot be had at all says so before anything about
+    /// memory: "Tiles the decode" beside a greyed-out row explains nothing, and a disabled menu
+    /// item shows no tooltip to explain it either.
     private func note(for model: ModelDescriptor) -> String? {
+        let availability = store.availability[model.id]
+        if availability?.isObtainable == false { return availability?.label }
         if let memory = memoryNote(model) { return memory }
-        return store.availability[model.id]?.label
+        return availability?.label
     }
 
     /// The tooltip: how this model would run here, or why it cannot be had.

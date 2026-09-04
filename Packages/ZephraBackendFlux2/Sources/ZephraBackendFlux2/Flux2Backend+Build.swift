@@ -6,6 +6,10 @@ import ZephraSnapshot
 extension Flux2Backend {
     /// Resolves the release, downloading it into the hub cache if it is not there, and returns
     /// the snapshot directory. This is the release, not what gets loaded; `build` is next.
+    ///
+    /// The cache is asked first, in both of its layouts, so a release the app downloaded is
+    /// found on the next launch without a request; the download itself, with its retries, is
+    /// `Flux2Backend+Download.swift`.
     nonisolated(nonsending) public func ensureAvailable(
         _ descriptor: ModelDescriptor,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
@@ -17,22 +21,14 @@ extension Flux2Backend {
             // Already built: the release is not needed, and may even have been deleted.
             let packed = Self.packedDirectory(for: descriptor)
             if LocalSnapshot.flux2.missingEntry(in: packed) == nil { return packed }
-            do {
-                return try await Flux2SnapshotDownload.snapshot(
-                    repoID: repoID, revision: revision, patterns: patterns
-                ) { progress in
-                    onProgress(
-                        DownloadProgressEvent(
-                            completedFiles: progress.completedFiles,
-                            totalFiles: progress.totalFiles,
-                            fraction: progress.fraction,
-                            bytesPerSecond: progress.bytesPerSecond))
-                }
-            } catch let error as CancellationError {
-                throw error
-            } catch {
-                throw BackendError.downloadFailed(error.readableMessage)
+            if let cached = HubCache.snapshot(of: repoID, revision: revision),
+               LocalSnapshot.flux2Release.missingEntry(in: cached) == nil
+            {
+                return cached
             }
+            let release = try await download(
+                repoID, revision: revision, patterns: patterns, onProgress: onProgress)
+            return try LocalSnapshot.flux2Release.verified(release, descriptor: descriptor)
         }
     }
 

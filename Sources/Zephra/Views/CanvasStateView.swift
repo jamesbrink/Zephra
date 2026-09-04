@@ -5,6 +5,9 @@ import ZephraEngine
 /// the pace of a running generation, the empty invitation, the failure and its remedy.
 ///
 /// Every state lands in the same centred frame, so nothing jumps as the app moves through them.
+/// Over an empty canvas the words sit on the graphite; over a picture they get a floating
+/// panel, because a download's progress or a failure's remedy drawn straight onto a photograph
+/// cannot be read.
 struct CanvasStateView: View {
     @Environment(GenerationStore.self) private var store
     @Environment(WorkspaceSelection.self) private var workspace
@@ -15,6 +18,13 @@ struct CanvasStateView: View {
                 EmptyView()
             } else if isEmptyAndReady {
                 CanvasEmptyState()
+            } else if store.current != nil {
+                // One stack, so the panel is drawn once around the block rather than once
+                // around each of the builder's views.
+                VStack(spacing: 12) { messageBlock }
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 22)
+                    .chromePanel(.floating)
             } else {
                 messageBlock
             }

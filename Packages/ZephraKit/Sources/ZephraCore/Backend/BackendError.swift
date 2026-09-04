@@ -4,7 +4,8 @@ import Foundation
 public enum BackendError: Error, Sendable, Hashable, LocalizedError {
     /// The requested model has no implementation or no weights on disk.
     case modelNotAvailable(String)
-    /// The download did not finish.
+    /// The download did not finish. The string says why, in a sentence a person can act on,
+    /// because "check your connection" is the wrong advice for a rejected token or a full disk.
     case downloadFailed(String)
     /// The weights are present but could not be read into memory.
     case loadFailed(String)
@@ -20,8 +21,8 @@ public enum BackendError: Error, Sendable, Hashable, LocalizedError {
         switch self {
         case let .modelNotAvailable(name):
             "\(name) isn't available yet. Download it before generating."
-        case .downloadFailed:
-            "Couldn't download the model. Check your connection and try again."
+        case let .downloadFailed(reason):
+            "Couldn't download the model. \(reason)"
         case .loadFailed:
             "Couldn't load the model. Free up some memory and try again."
         case .generationFailed:

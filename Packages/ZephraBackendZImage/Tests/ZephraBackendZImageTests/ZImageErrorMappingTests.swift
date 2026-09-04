@@ -1,7 +1,9 @@
 import Foundation
+import Hub
 import Testing
 import ZImage
 import ZephraCore
+import ZephraSnapshot
 
 @testable import ZephraBackendZImage
 
@@ -15,25 +17,56 @@ struct ZImageErrorMappingTests {
             ZImageErrorMapping.downloadError(.modelNotFound("mzbac/nope"), descriptor: descriptor)
                 == .modelNotAvailable(descriptor.fullName)
         )
-        #expect(
-            ZImageErrorMapping.downloadError(
-                .authorizationRequired("mzbac/gated"), descriptor: descriptor
-            ) == .modelNotAvailable(descriptor.fullName)
-        )
     }
 
-    @Test("a transfer that broke stays a download failure and keeps the library's wording")
-    func brokenTransfersAreDownloadFailures() {
-        let offline = ZImageErrorMapping.downloadError(.networkUnavailable, descriptor: descriptor)
-        #expect(offline == .downloadFailed((ModelResolutionError.networkUnavailable).readableMessage))
+    @Test("a refused request is blamed on the token, because every catalog model is public")
+    func refusedRequestsNameTheToken() {
+        guard
+            case let .downloadFailed(message) = ZImageErrorMapping.downloadError(
+                .authorizationRequired("mzbac/public"), descriptor: descriptor)
+        else {
+            Issue.record("expected downloadFailed")
+            return
+        }
+        #expect(message == HubToken.refusalMessage())
+        #expect(message.contains("token") || message.contains("login"))
+    }
 
+    @Test("a transfer that broke keeps the library's reason and says a retry resumes")
+    func brokenTransfersAreDownloadFailures() {
         let underlying = CocoaError(.fileNoSuchFile)
         let broken = ModelResolutionError.downloadFailed("mzbac/Z-Image-Turbo-8bit", underlying)
+        guard
+            case let .downloadFailed(message) = ZImageErrorMapping.downloadError(
+                broken, descriptor: descriptor)
+        else {
+            Issue.record("expected downloadFailed")
+            return
+        }
+        #expect(message.hasPrefix(underlying.localizedDescription), "the system's sentence, not its domain and code")
+        #expect(message.hasSuffix("Try again to pick up where it left off."))
+    }
+
+    @Test("only answers that will not change stop the retrying")
+    func permanentErrorsAreTheAnswersNotTheAccidents() {
+        #expect(ZImageErrorMapping.isPermanent(ModelResolutionError.modelNotFound("x")))
+        #expect(ZImageErrorMapping.isPermanent(ModelResolutionError.authorizationRequired("x")))
+        #expect(!ZImageErrorMapping.isPermanent(ModelResolutionError.networkUnavailable))
         #expect(
-            ZImageErrorMapping.downloadError(broken, descriptor: descriptor)
-                == .downloadFailed((broken).readableMessage)
-        )
-        #expect((broken).readableMessage.contains("mzbac/Z-Image-Turbo-8bit"))
+            !ZImageErrorMapping.isPermanent(
+                ModelResolutionError.downloadFailed("x", URLError(.networkConnectionLost))))
+        #expect(
+            ZImageErrorMapping.isPermanent(
+                ModelResolutionError.downloadFailed("x", Hub.HubClientError.httpStatusCode(404))))
+        #expect(
+            !ZImageErrorMapping.isPermanent(
+                ModelResolutionError.downloadFailed("x", Hub.HubClientError.httpStatusCode(503))))
+        #expect(
+            !ZImageErrorMapping.isPermanent(
+                ModelResolutionError.downloadFailed("x", Hub.HubClientError.httpStatusCode(429))))
+        #expect(
+            ZImageErrorMapping.isPermanent(
+                ModelResolutionError.downloadFailed("x", Hub.HubClientError.authorizationRequired)))
     }
 
     @Test("the unavailable case names the model the way a picker labels it")
@@ -71,5 +104,27 @@ struct ZImageErrorMappingTests {
         // The backend passes CancellationError through untouched rather than mapping it, so this
         // only guards against an empty string if that path ever changes.
         #expect(!(CancellationError()).readableMessage.isEmpty)
+    }
+}
+
+@Suite("ZImageErrorMapping speaks for the library")
+struct ZImageErrorReasonTests {
+    @Test("the library's offline wording is replaced with the app's, and a URL error keeps the system's")
+    func offlineAndURLErrorsReadWell() {
+        let descriptor = ModelCatalog.zImageTurbo8bit
+        guard
+            case let .downloadFailed(offline) = ZImageErrorMapping.downloadError(
+                .networkUnavailable, descriptor: descriptor)
+        else {
+            Issue.record("expected downloadFailed")
+            return
+        }
+        #expect(offline.hasPrefix("This Mac is offline"))
+        #expect(!offline.contains("Please"))
+        let lost = ZImageErrorMapping.reason(for: URLError(.networkConnectionLost))
+        #expect(lost == URLError(.networkConnectionLost).localizedDescription)
+        let metered = ZImageErrorMapping.reason(
+            for: HubApi.EnvironmentError.offlineModeError("Repository not available locally"))
+        #expect(metered.hasPrefix("This Mac is offline"))
     }
 }

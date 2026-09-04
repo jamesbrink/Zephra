@@ -126,3 +126,16 @@ struct ModelCapabilitiesTests {
         )
     }
 }
+
+@Suite("ModelCapabilities says which sliders are real")
+struct ModelCapabilityAdjustabilityTests {
+    @Test("a single legal guidance or strength value means no slider")
+    func degenerateBoundsHideTheSlider() {
+        let turbo = ModelCatalog.zImageTurbo8bit.capabilities
+        #expect(!turbo.adjustsGuidance, "Z-Image Turbo is distilled to one guidance")
+        #expect(turbo.adjustsReferenceStrength, "and starts from a noised copy of a picture")
+        let klein = ModelCatalog.flux2Klein4bit.capabilities
+        #expect(!klein.adjustsGuidance)
+        #expect(!klein.adjustsReferenceStrength, "klein conditions on the picture instead")
+    }
+}
