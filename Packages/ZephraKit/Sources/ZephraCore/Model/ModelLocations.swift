@@ -42,6 +42,19 @@ public struct ModelLocations: Hashable, Sendable {
             path: repoID.replacingOccurrences(of: "/", with: "--"), directoryHint: .isDirectory)
     }
 
+    /// Where an adapter's repository is downloaded to. An adapter is a download like any other,
+    /// so it lands in `Downloads` beside the releases rather than in a folder of its own: one
+    /// listing of that directory is still one row per repository, and a Delete in Settings is
+    /// still a repository.
+    public func adapter(_ adapter: ModelAdapter) -> URL {
+        downloads(repoID: adapter.repoID)
+    }
+
+    /// The adapter file itself, which is what the packer is handed.
+    public func adapterFile(_ adapter: ModelAdapter) -> URL {
+        self.adapter(adapter).appending(path: adapter.file)
+    }
+
     /// Where a variant packed on this Mac lives: `<root>/<descriptor id>`, the naming every
     /// locally built variant has followed since `make quantize` wrote the first one.
     public func built(_ descriptor: ModelDescriptor) -> URL {

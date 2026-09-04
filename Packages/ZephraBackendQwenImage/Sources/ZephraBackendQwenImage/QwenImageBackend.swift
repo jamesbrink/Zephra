@@ -20,11 +20,15 @@ public nonisolated final class QwenImageBackend: ImageGenerationBackend {
     /// Creates an idle backend. No weights are touched until `ensureAvailable` is called.
     public init() {}
 
-    /// Resolves the descriptor's weights and returns the local snapshot directory.
+    /// Resolves the descriptor's weights, downloading them if they are not on this Mac, and
+    /// returns the release `build` packs next.
     ///
-    /// Qwen-Image ships only in full precision, at 57.7 GB, and Zephra runs a quantized build
-    /// made on this Mac. So there is nothing to download: the descriptor names a local directory
-    /// and this reports clearly when it is not there yet.
+    /// Nothing publishes Qwen-Image in a form this loader reads: the release is 57.7 GB of
+    /// bfloat16 and the four-step distillation ships apart from it, so what is fetched is both
+    /// of those and what is loaded is what the packer makes of them. Three places are looked at
+    /// first: the packed variant, which makes the release unnecessary and may even have been
+    /// deleted; the folder the user keeps models in; and the hub cache in either layout, read as
+    /// a fallback and never written.
     nonisolated(nonsending) public func ensureAvailable(
         _ descriptor: ModelDescriptor,
         locations: ModelLocations,
@@ -41,24 +45,16 @@ public nonisolated final class QwenImageBackend: ImageGenerationBackend {
             return try LocalSnapshot.qwenImage.verified(
                 candidates.first ?? locations.built(descriptor), descriptor: descriptor)
         case .huggingFace:
-            throw BackendError.modelNotAvailable(descriptor.fullName)
-        }
-    }
-
-    /// Whether the weights are on this Mac, read from the disk alone.
-    nonisolated(nonsending) public func availability(
-        of descriptor: ModelDescriptor,
-        locations: ModelLocations
-    ) async -> ModelAvailability {
-        switch descriptor.source {
-        case .localDirectory:
-            let candidates = locations.builtCandidates(for: descriptor)
-            guard candidates.allSatisfy({ LocalSnapshot.qwenImage.missingEntry(in: $0) != nil })
-            else { return .available }
-            let missing = LocalSnapshot.qwenImage.missingEntry(in: candidates[0]) ?? "its weights"
-            return .missing(reason: "Not built yet: \(missing) is missing. Run `make quantize-qwen`.")
-        case .huggingFace:
-            return .missing(reason: "Qwen-Image is built locally, not downloaded.")
+            let packed = locations.built(descriptor)
+            if LocalSnapshot.qwenImage.missingEntry(in: packed) == nil { return packed }
+            if let release = LocalSnapshot.qwenImageRelease.downloadedRelease(
+                of: descriptor, in: locations)
+            {
+                return release
+            }
+            let fetched = try await ModelDownloader().fetch(
+                descriptor, into: locations, onProgress: onProgress)
+            return try LocalSnapshot.qwenImageRelease.verified(fetched, descriptor: descriptor)
         }
     }
 

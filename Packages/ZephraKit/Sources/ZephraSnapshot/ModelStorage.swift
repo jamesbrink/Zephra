@@ -46,6 +46,9 @@ public nonisolated enum ModelStorage {
                             in: locations),
                         to: &items)
                 }
+                for item in descriptor.adapters {
+                    add(adapter(item, of: descriptor, in: locations), to: &items)
+                }
                 if descriptor.isBuiltLocally {
                     add(
                         built(descriptor, at: locations.built(descriptor), in: locations),
@@ -99,6 +102,20 @@ public nonisolated enum ModelStorage {
         return ModelStorageItem(
             name: name, kind: .download, url: url, location: place(of: url, in: locations),
             modelIDs: [descriptor.id], isComplete: isComplete)
+    }
+
+    /// An adapter's download, listed with the model it serves rather than on its own: it is one
+    /// file in a repository of its own, and deleting it costs that model its distillation.
+    private static func adapter(
+        _ adapter: ModelAdapter, of descriptor: ModelDescriptor, in locations: ModelLocations
+    ) -> ModelStorageItem? {
+        let directory = locations.adapter(adapter)
+        guard HubCache.isDirectory(directory) else { return nil }
+        let file = locations.adapterFile(adapter)
+        return ModelStorageItem(
+            name: "\(descriptor.displayName) adapter", kind: .download, url: directory,
+            location: place(of: directory, in: locations), modelIDs: [descriptor.id],
+            isComplete: FileManager.default.fileExists(atPath: file.path(percentEncoded: false)))
     }
 
     private static func built(

@@ -34,19 +34,34 @@ public enum ModelCatalog {
         capabilities: zImageTurboCapabilities
     )
 
-    /// Z-Image Turbo at four-bit precision, built on this Mac by `make quantize`.
+    /// Z-Image Turbo at four-bit precision, built on this Mac from the bf16 release the first
+    /// time it is loaded.
     ///
     /// No published repository carries four-bit Z-Image weights in the manifest format the
-    /// vendored loader reads, so this variant has no download: the descriptor points at the
-    /// directory the quantizer writes, and the backend reports a clear error until it is there.
+    /// vendored loader reads, so what is downloaded is not what is loaded: the release is
+    /// `Tongyi-MAI/Z-Image-Turbo`, 33 GB of bfloat16, and the packer writes the variant beside
+    /// it. `make quantize` is the same build by hand.
+    ///
+    /// This is the variant a 16 GB Mac wants, which is the whole reason it downloads rather
+    /// than waiting to be built from the command line.
     public static let zImageTurbo4bit = ModelDescriptor(
         id: "z-image-turbo-4bit",
         displayName: "Z-Image Turbo",
         variantName: "4-bit",
         backend: .zImage,
-        source: .localDirectory(localModelsDirectory.appending(path: "z-image-turbo-4bit")),
+        source: .huggingFace(
+            repoID: "Tongyi-MAI/Z-Image-Turbo",
+            revision: "main",
+            // `assets/` is 51 MB of sample pictures and a gallery PDF, left out by omission the
+            // way `make quantize` leaves it out by `--exclude`. The rest of the repository is
+            // what the packer reads: the two components it packs, and the three it copies whole.
+            filePatterns: ["*.safetensors", "*.json", "tokenizer/*"]
+        ),
         quantization: .int4,
-        downloadBytes: 0,
+        // As the repository lists it, with those patterns: transformer 24,619,690,888,
+        // text encoder 8,044,982,000, autoencoder 167,666,902, tokenizer 15,881,072, and the
+        // configs — 32,848,305,533 in all.
+        downloadBytes: 32_850_000_000,
         // Measured on an M4 Max, deterministic across repetitions: 6575 MB live after a
         // generation, and a peak that follows the image size — 10693 MB at 512 pixels,
         // 14599 MB at 768, 17839 MB at 1024. Peak is resident plus the VAE decode's scratch,
@@ -58,7 +73,10 @@ public enum ModelCatalog {
         // tile and so costs the same here.
         tiledPeakBytes: 12_010_000_000,
         maxPromptTokens: 512,
-        capabilities: zImageTurboCapabilities
+        capabilities: zImageTurboCapabilities,
+        // Measured: what `make quantize` writes at four bits, group 64 — 6.7 GB against the
+        // 13.3 GB of the published eight-bit build.
+        builtBytes: 6_700_000_000
     )
 
     /// Every known model, in the order a picker should list them.

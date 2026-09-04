@@ -31,6 +31,12 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
     public let maxPromptTokens: Int
     /// The settings this model will accept.
     public let capabilities: ModelCapabilities
+    /// Low-rank adapters fetched beside the release and merged in while the variant is packed.
+    ///
+    /// Empty for every model whose release is already the weights to load. A model that has one
+    /// cannot be run without it — Qwen-Image's four-step distillation is what makes the model
+    /// usable on a Mac at all — so it is part of the download, not an option beside it.
+    public let adapters: [ModelAdapter]
     /// Approximate bytes the packed variant occupies once built on this Mac, or 0 for a model
     /// whose download is what gets loaded.
     ///
@@ -53,7 +59,8 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
         tiledPeakBytes: Int64,
         maxPromptTokens: Int,
         capabilities: ModelCapabilities,
-        builtBytes: Int64 = 0
+        builtBytes: Int64 = 0,
+        adapters: [ModelAdapter] = []
     ) {
         self.id = id
         self.displayName = displayName
@@ -68,10 +75,25 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
         self.maxPromptTokens = maxPromptTokens
         self.capabilities = capabilities
         self.builtBytes = builtBytes
+        self.adapters = adapters
     }
 
     /// Whether loading this model means packing its download into a local variant first.
     public var isBuiltLocally: Bool { builtBytes > 0 && source.requiresDownload }
+
+    /// Every byte choosing this model would transfer: the release, and every adapter merged
+    /// into it. This, not `downloadBytes`, is what a picker states, because both are fetched
+    /// before anything can be built and a person deciding whether to spend it wants the total.
+    public var transferBytes: Int64 {
+        downloadBytes + adapters.reduce(0) { $0 + $1.bytes }
+    }
+
+    /// What a packed variant's manifest records as where the weights came from: the repository
+    /// when there is one, and the descriptor's own identifier when the source is a directory.
+    public var sourceName: String {
+        if case .huggingFace(let repoID, _, _) = source { return repoID }
+        return id
+    }
 
     /// Family and variant together, as a model picker should label the row.
     public var fullName: String {

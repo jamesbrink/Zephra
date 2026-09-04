@@ -49,28 +49,64 @@ public struct ModelDownloader: Sendable {
         into destination: URL,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws -> URL {
+        try await download(
+            [
+                RepositoryDownload(
+                    repoID: repoID, revision: revision, patterns: patterns,
+                    destination: destination)
+            ],
+            onProgress: onProgress)
+        return destination
+    }
+
+    /// Fetches every part of a download — the release, and any adapter merged into it — as one
+    /// transfer.
+    ///
+    /// Every part is listed before any byte is fetched, so an adapter repository that has moved
+    /// is a failure in a second rather than after fifty-seven gigabytes; and the listings feed
+    /// one tally, so the fraction and the file count are the whole download's rather than each
+    /// repository's in turn.
+    public func download(
+        _ parts: [RepositoryDownload],
+        onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
+    ) async throws {
         let session = makeSession()
         defer { session.finishTasksAndInvalidate() }
-        let listed = try await listing(of: repoID, revision: revision, on: session)
-        guard !listed.isEmpty else { throw ModelDownloadError.repositoryNotFound(repoID: repoID) }
-        let files = listed.filter { FilePattern.matchesAny($0.path, patterns: patterns) }
-        guard !files.isEmpty else { throw ModelDownloadError.nothingMatched(repoID: repoID) }
 
-        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+        var work: [(part: RepositoryDownload, files: [RepositoryFile])] = []
+        for part in parts {
+            let listed = try await listing(
+                of: part.repoID, revision: part.revision, on: session)
+            guard !listed.isEmpty else {
+                throw ModelDownloadError.repositoryNotFound(repoID: part.repoID)
+            }
+            let files = listed.filter { FilePattern.matchesAny($0.path, patterns: part.patterns) }
+            guard !files.isEmpty else {
+                throw ModelDownloadError.nothingMatched(repoID: part.repoID)
+            }
+            work.append((part, files))
+        }
+
         var tally = DownloadTally(
-            totalFiles: files.count, totalBytes: files.reduce(0) { $0 + $1.bytes })
-        for file in files { tally.advance(by: bytesOnDisk(of: file, in: destination)) }
+            totalFiles: work.reduce(0) { $0 + $1.files.count },
+            totalBytes: work.reduce(0) { $0 + $1.files.reduce(0) { $0 + $1.bytes } })
+        for (part, files) in work {
+            try FileManager.default.createDirectory(
+                at: part.destination, withIntermediateDirectories: true)
+            for file in files { tally.advance(by: bytesOnDisk(of: file, in: part.destination)) }
+        }
         if let event = tally.report(force: true) { onProgress(event) }
 
-        for file in files {
-            try Task.checkCancellation()
-            try await fetch(
-                file, from: repoID, revision: revision, into: destination, on: session,
-                tally: &tally, onProgress: onProgress)
-            tally.finishFile()
-            if let event = tally.report(force: true) { onProgress(event) }
+        for (part, files) in work {
+            for file in files {
+                try Task.checkCancellation()
+                try await fetch(
+                    file, from: part.repoID, revision: part.revision, into: part.destination,
+                    on: session, tally: &tally, onProgress: onProgress)
+                tally.finishFile()
+                if let event = tally.report(force: true) { onProgress(event) }
+            }
         }
-        return destination
     }
 
     /// What Zephra calls itself: the bundle's version when there is a bundle, and the bare name

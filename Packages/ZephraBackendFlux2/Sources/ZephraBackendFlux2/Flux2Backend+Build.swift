@@ -69,8 +69,8 @@ extension Flux2Backend {
             return try Flux2SnapshotBuild.pack(
                 release: localPath,
                 into: packed,
-                sourceName: Self.sourceName(of: descriptor),
-                quantization: descriptor.quantization,
+                descriptor: descriptor,
+                sourceName: descriptor.sourceName,
                 onProgress: onProgress
             )
         } catch let error as CancellationError {
@@ -78,10 +78,5 @@ extension Flux2Backend {
         } catch {
             throw BackendError.loadFailed(error.readableMessage)
         }
-    }
-
-    private static func sourceName(of descriptor: ModelDescriptor) -> String {
-        if case .huggingFace(let repoID, _, _) = descriptor.source { return repoID }
-        return descriptor.id
     }
 }

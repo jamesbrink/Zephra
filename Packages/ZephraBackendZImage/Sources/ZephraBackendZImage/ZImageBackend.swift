@@ -27,12 +27,16 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
     public init() {}
 
     /// Resolves the descriptor's weights, downloading them if they are not on this Mac, and
-    /// returns the directory to load from.
+    /// returns the directory to load from — or, for the four-bit variant, the release `build`
+    /// packs next.
     ///
     /// What is already here is looked up rather than left to the vendored resolver, which knows
     /// only the layout `hf download` writes and would fetch a model Zephra itself downloaded
-    /// again on every launch. `ZephraSnapshot`'s downloader does the fetching, into the folder
-    /// the user keeps models in; it is the only step that can report progress.
+    /// again on every launch. Three places are looked at before anything is fetched: the packed
+    /// variant, which makes the release unnecessary and may even have been deleted; the folder
+    /// the user keeps models in; and the hub cache in either layout, read as a fallback and
+    /// never written. `ZephraSnapshot`'s downloader does the fetching, and it is the only step
+    /// that can report progress.
     nonisolated(nonsending) public func ensureAvailable(
         _ descriptor: ModelDescriptor,
         locations: ModelLocations,
@@ -48,15 +52,16 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
             }
             return try LocalSnapshot.zImage.verified(
                 candidates.first ?? locations.built(descriptor), descriptor: descriptor)
-        case .huggingFace(let repoID, let revision, _):
-            if let here = Self.downloaded(
-                descriptor, repoID: repoID, revision: revision, in: locations)
-            {
-                return here
+        case .huggingFace:
+            let packed = locations.built(descriptor)
+            if descriptor.isBuiltLocally, LocalSnapshot.zImage.missingEntry(in: packed) == nil {
+                return packed
             }
+            let check = LocalSnapshot.zImage(for: descriptor)
+            if let here = check.downloadedRelease(of: descriptor, in: locations) { return here }
             let fetched = try await ModelDownloader().fetch(
                 descriptor, into: locations, onProgress: onProgress)
-            return try LocalSnapshot.zImage.verified(fetched, descriptor: descriptor)
+            return try check.verified(fetched, descriptor: descriptor)
         }
     }
 

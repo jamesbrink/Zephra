@@ -5,8 +5,9 @@ import os
 extension ModelDownloader {
     private static let logger = Logger(subsystem: "io.zephra", category: "download")
 
-    /// Fetches `descriptor`'s repository into `locations`, trying again when the transfer
-    /// breaks, and reports what stopped it in words a person can act on.
+    /// Fetches `descriptor`'s release, and every adapter merged into it, into `locations`,
+    /// trying again when the transfer breaks, and reports what stopped it in words a person can
+    /// act on. Returns the directory the release landed in.
     ///
     /// This is the one call each backend makes: every family downloads the same way, so the
     /// retry, the classification and the message are here rather than three times over. Only an
@@ -20,8 +21,19 @@ extension ModelDownloader {
         guard case .huggingFace(let repoID, let revision, let patterns) = descriptor.source else {
             throw BackendError.modelNotAvailable(descriptor.fullName)
         }
+        let release = locations.downloads(repoID: repoID)
+        let parts =
+            [
+                RepositoryDownload(
+                    repoID: repoID, revision: revision, patterns: patterns, destination: release)
+            ]
+            + descriptor.adapters.map {
+                RepositoryDownload(
+                    repoID: $0.repoID, revision: $0.revision, patterns: [$0.file],
+                    destination: locations.adapter($0))
+            }
         do {
-            return try await DownloadRetry.run(
+            try await DownloadRetry.run(
                 isPermanent: { ($0 as? ModelDownloadError)?.isPermanent ?? false },
                 onRetry: { attempt, error in
                     Self.logger.notice(
@@ -29,10 +41,9 @@ extension ModelDownloader {
                     )
                 }
             ) {
-                try await download(
-                    repoID: repoID, revision: revision, patterns: patterns,
-                    into: locations.downloads(repoID: repoID), onProgress: onProgress)
+                try await download(parts, onProgress: onProgress)
             }
+            return release
         } catch let error as CancellationError {
             throw error
         } catch let error as ModelDownloadError {

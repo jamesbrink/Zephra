@@ -21,22 +21,22 @@ struct ModelLocationsTests {
         #expect(built.path(percentEncoded: false) == "/tmp/zephra-models/z-image-turbo-4bit/")
     }
 
-    @Test("the default root is the folder the catalog's local entries are written against")
+    @Test("the default root is what a tool with no preference to read writes into")
     func defaultRootMatchesTheCatalog() {
         #expect(ModelLocations.default.root == ModelCatalog.localModelsDirectory)
-        let candidates = ModelLocations.default.builtCandidates(for: ModelCatalog.zImageTurbo4bit)
-        #expect(candidates.count == 1, "the catalog's own folder is this root's folder")
-        #expect(candidates.first == ModelLocations.default.built(ModelCatalog.zImageTurbo4bit))
     }
 
-    @Test("a moved root is looked in first, and the catalog's own folder after it")
+    @Test("a moved root is looked in first, and a directory a descriptor names after it")
     func aMovedRootStillFindsWhatWasBuiltBefore() {
-        let candidates = scratch.builtCandidates(for: ModelCatalog.zImageTurbo4bit)
+        // No catalog entry names a directory any more, but a descriptor still can — one built
+        // by hand, or one `ZephraBench` was pointed at — and a copy under the old root has to
+        // keep working when the folder is changed.
+        let named = URL(filePath: "/tmp/somewhere-else/z-image-turbo-4bit")
+        let candidates = scratch.builtCandidates(for: Self.local(at: named))
         #expect(candidates.count == 2)
-        #expect(candidates.first == scratch.built(ModelCatalog.zImageTurbo4bit))
-        if case .localDirectory(let named) = ModelCatalog.zImageTurbo4bit.source {
-            #expect(candidates.last == named, "the catalog's own folder stays usable")
-        }
+        #expect(candidates.first?.path(percentEncoded: false)
+            == "/tmp/zephra-models/z-image-turbo-4bit/")
+        #expect(candidates.last == named, "the folder the descriptor names stays usable")
     }
 
     @Test("a model that is downloaded rather than built has only this root to be in")
@@ -44,5 +44,26 @@ struct ModelLocationsTests {
         #expect(scratch.builtCandidates(for: ModelCatalog.flux2Klein4bit) == [
             scratch.built(ModelCatalog.flux2Klein4bit)
         ])
+    }
+
+    @Test("an adapter lands in Downloads beside the release it is merged into")
+    func anAdapterIsADownloadLikeAnyOther() throws {
+        let adapter = try #require(ModelCatalog.qwenImage2512_4bit.adapters.first)
+        #expect(
+            scratch.adapter(adapter).path(percentEncoded: false)
+                == "/tmp/zephra-models/Downloads/lightx2v--Qwen-Image-2512-Lightning/")
+        #expect(scratch.adapterFile(adapter).lastPathComponent == adapter.file)
+    }
+
+    /// A descriptor whose weights are a directory on this Mac rather than a repository.
+    private static func local(at directory: URL) -> ModelDescriptor {
+        let base = ModelCatalog.zImageTurbo4bit
+        return ModelDescriptor(
+            id: base.id, displayName: base.displayName, variantName: base.variantName,
+            backend: base.backend, source: .localDirectory(directory),
+            quantization: base.quantization, downloadBytes: 0,
+            residentBytes: base.residentBytes, peakBytes: base.peakBytes,
+            tiledPeakBytes: base.tiledPeakBytes, maxPromptTokens: base.maxPromptTokens,
+            capabilities: base.capabilities)
     }
 }

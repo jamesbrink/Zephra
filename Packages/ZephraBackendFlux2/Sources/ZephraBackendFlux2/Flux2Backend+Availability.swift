@@ -24,7 +24,7 @@ extension Flux2Backend {
                 return .available
             }
             guard Self.release(repoID: repoID, revision: revision, in: locations) != nil else {
-                return .needsDownloadAndBuild(bytes: descriptor.downloadBytes)
+                return .needsDownloadAndBuild(bytes: descriptor.transferBytes)
             }
             return .needsBuild
         }
