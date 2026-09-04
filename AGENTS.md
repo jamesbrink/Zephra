@@ -457,12 +457,16 @@ say "13.3 GB download" without starting one.
 
 Every disk-touching call takes a `ModelLocations`: one root, with
 `Downloads/<org>--<repo>` for what was fetched and `<descriptor id>` for what
-was packed here. It is passed down rather than read from a preference at the
-bottom — `InferenceActor` holds the current one and applies a change on the next
-`prepare`, `GenerationStore.setModelLocations(_:)` is the way to change it, and
-`Sources/Zephra/ZephraApp.swift` is the only place that knows the preference
-`AppSettings.modelsDirectory` decided it. A backend looks in the built variant,
-then `locations.downloads`, then the hub cache, and only then downloads.
+was packed here, plus `previous`, the last few roots the folder was set to
+before, which are read but never written — changing the folder moves nothing,
+and a model a person already has is never fetched again because a setting
+moved. It is passed down rather than read from a preference at the bottom —
+`InferenceActor` reads it once per `prepare` and applies a change on the next,
+`GenerationStore.setModelLocations(_:)` is the way to change it, and
+`Sources/Zephra/ZephraApp.swift` is the only place that knows the preferences
+`AppSettings.modelsDirectory` and `previousModelsDirectories` decided it. A
+backend looks in the built variant, then `locations.downloads` under every
+root, then the hub cache, and only then downloads.
 
 **A model whose download is not what gets loaded** is the third case, and all
 three families now have one: FLUX.2 klein's two variants, the 4-bit Z-Image

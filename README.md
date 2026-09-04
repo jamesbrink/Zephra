@@ -188,7 +188,8 @@ with a progress readout while that happens.
   pack from is one row, an adapter is a row named for the model it serves, a download that
   stopped part-way says so, and the model that is
   loaded cannot be deleted from under itself. Changing the folder moves nothing: what is
-  there keeps working where it is, and the next download and build go to the new folder.
+  there keeps working where it is, still listed with its whole path, and the next download
+  and build go to the new folder.
   About shows the version and the third-party license notices.
 - Downloads need no Hugging Face account, and Zephra never sends a token: every model comes
   from a public, ungated repository, and no `Authorization` header goes out whatever is in
