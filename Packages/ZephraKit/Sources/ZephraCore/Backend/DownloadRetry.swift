@@ -14,6 +14,12 @@ public enum DownloadRetry {
     /// How many times a download is tried before it is given up on.
     public static let attempts = 5
 
+    /// Whether an HTTP status is an answer rather than an accident: any client-side status
+    /// except a timeout or a rate limit. Both hub clients apply the same rule, so it is here.
+    public static func isPermanentStatus(_ code: Int) -> Bool {
+        (400..<500).contains(code) && code != 408 && code != 429
+    }
+
     /// What to tell someone once the tries are spent: the last reason, and that the next try
     /// resumes rather than starts over, which is the one thing worth knowing about a
     /// thirteen-gigabyte download that stopped at file three.
@@ -49,6 +55,9 @@ public enum DownloadRetry {
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
+                // A stopped transfer surfaces as a URL error the hub client wraps, not as
+                // `CancellationError`, and a retry announced for a press of Stop is a lie.
+                if Task.isCancelled { throw CancellationError() }
                 guard attempt < attempts, !isPermanent(error) else { throw error }
                 attempt += 1
                 onRetry(attempt, error)

@@ -21,8 +21,14 @@ extension Flux2Backend {
             // Already built: the release is not needed, and may even have been deleted.
             let packed = Self.packedDirectory(for: descriptor)
             if LocalSnapshot.flux2.missingEntry(in: packed) == nil { return packed }
-            if let cached = HubCache.snapshot(of: repoID, revision: revision) { return cached }
-            return try await download(repoID, revision: revision, patterns: patterns, onProgress: onProgress)
+            if let cached = HubCache.snapshot(of: repoID, revision: revision),
+               LocalSnapshot.flux2Release.missingEntry(in: cached) == nil
+            {
+                return cached
+            }
+            let release = try await download(
+                repoID, revision: revision, patterns: patterns, onProgress: onProgress)
+            return try LocalSnapshot.flux2Release.verified(release, descriptor: descriptor)
         }
     }
 

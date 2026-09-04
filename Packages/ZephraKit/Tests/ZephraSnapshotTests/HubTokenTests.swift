@@ -21,11 +21,16 @@ struct HubTokenTests {
         #expect(source == "the HF_TOKEN environment variable")
     }
 
-    @Test("a token file is named by its path, and an empty one does not count")
+    @Test("a token file is named by its path; an empty one does not count, a blank one does")
     func tokenFileIsNamed() throws {
         let scratch = Scratch("HubToken")
-        try scratch.write("  \n", to: ".cache/huggingface/token")
+        try scratch.make(".cache/huggingface/token")
         #expect(HubToken.source(environment: [:], home: scratch.root) == nil)
+        try scratch.write("  \n", to: ".cache/huggingface/token")
+        #expect(
+            HubToken.source(environment: [:], home: scratch.root) != nil,
+            "the client sends a blank file as the token, so the refusal is the file's doing")
+        try FileManager.default.removeItem(at: scratch.url(".cache/huggingface/token"))
 
         try scratch.write("hf_abc\n", to: ".huggingface/token")
         let message = HubToken.refusalMessage(environment: [:], home: scratch.root)

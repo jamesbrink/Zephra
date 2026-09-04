@@ -51,8 +51,9 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   process-wide variable is a blunt tool; vendoring the forty lines of `snapshot`
   that Zephra uses would let the choice be a parameter.
 - **A stale token cannot be left out of the request.** The hub client reads the
-  token from the environment and the token files itself, and an empty string is sent
-  as an empty bearer. The failure names the token's source instead. Same fix as above.
+  token from the environment and the token files itself when none is passed, and
+  offers no way to say "send none". The failure names the token's source instead.
+  Same fix as above.
 - **Deleting a model never asks the engine to unload it first.** The row is disabled
   while the model is loaded; choosing another model frees it. A Delete that unloads
   and then trashes would be a `GenerationStore` concern, and the engine would need to

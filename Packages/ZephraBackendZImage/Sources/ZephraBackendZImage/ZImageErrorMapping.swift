@@ -57,7 +57,7 @@ nonisolated enum ZImageErrorMapping {
              Hub.HubClientError.resourceNotFound:
             return true
         case Hub.HubClientError.httpStatusCode(let code):
-            return (400..<500).contains(code) && code != 408 && code != 429
+            return DownloadRetry.isPermanentStatus(code)
         default:
             return false
         }

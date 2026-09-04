@@ -60,10 +60,16 @@ public enum Flux2SnapshotDownload {
              Hub.HubClientError.resourceNotFound:
             return true
         case Hub.HubClientError.httpStatusCode(let code):
-            return (400..<500).contains(code) && code != 408 && code != 429
+            return isPermanentStatus(code)
         default:
             return false
         }
+    }
+
+    /// Any client-side status except a timeout or a rate limit. The same rule as
+    /// `DownloadRetry.isPermanentStatus`, which this kit cannot import.
+    static func isPermanentStatus(_ code: Int) -> Bool {
+        (400..<500).contains(code) && code != 408 && code != 429
     }
 
     /// Why a transfer stopped, in words a person can act on: the client's offline verdict is

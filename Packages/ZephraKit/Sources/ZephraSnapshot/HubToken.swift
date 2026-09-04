@@ -50,8 +50,10 @@ public nonisolated enum HubToken {
             + "support. Check the repository's page."
     }
 
+    /// The client's own rule, not a stricter one: a file with anything in it, a newline
+    /// included, is sent as the token, so it has to be named as the token that was sent.
     private static func holdsToken(_ file: URL) -> Bool {
         guard let contents = try? String(contentsOf: file, encoding: .utf8) else { return false }
-        return !contents.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return !contents.isEmpty
     }
 }

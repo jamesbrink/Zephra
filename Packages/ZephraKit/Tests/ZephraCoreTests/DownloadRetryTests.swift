@@ -86,3 +86,29 @@ struct DownloadRetryTests {
         #expect(DownloadRetry.pause(before: 9) == .seconds(16))
     }
 }
+
+@Suite("Download retry under a stop")
+struct DownloadRetryStopTests {
+    private struct Broken: Error {}
+
+    @Test("a transfer that broke because it was stopped is not announced as a retry")
+    func stopIsNotARetry() async {
+        let announced = Announcements()
+        let task = Task {
+            try await DownloadRetry.run(
+                pause: { _ in .zero }, isPermanent: { _ in false },
+                onRetry: { attempt, _ in announced.add(attempt) }
+            ) {
+                withUnsafeCurrentTask { $0?.cancel() }
+                throw Broken()
+            }
+        }
+        await #expect(throws: CancellationError.self) { try await task.value }
+        #expect(announced.attempts.isEmpty)
+    }
+
+    private final class Announcements: @unchecked Sendable {
+        private(set) var attempts: [Int] = []
+        func add(_ attempt: Int) { attempts.append(attempt) }
+    }
+}

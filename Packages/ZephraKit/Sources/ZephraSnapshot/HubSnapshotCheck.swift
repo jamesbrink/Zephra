@@ -3,22 +3,37 @@ import Foundation
 /// Whether a snapshot directory is a finished download, decided from the disk alone.
 ///
 /// A download that was stopped half-way looks a lot like one that finished: the small files
-/// arrive first, so the configs are there, and so is the autoencoder. Three things tell them
-/// apart. The hub client leaves an `.incomplete` file beside its bookkeeping for every file it
-/// is still transferring. A sharded component ships a `*.safetensors.index.json` naming every
-/// shard, so a shard that never started is a name with nothing beside it. And a snapshot with a
-/// config and no weights at all was never more than a listing.
+/// arrive first, so the configs are there, and so is the autoencoder. Four things tell them
+/// apart. `model_index.json` names every component the pipeline loads, so a component
+/// directory that never arrived is a name with nothing behind it. A component with a
+/// `config.json` is a module with weights, so it needs at least one safetensors file. A
+/// sharded module's files are numbered `-00001-of-00002`, and a `*.safetensors.index.json`
+/// names every shard, so a shard that never started is a number with nothing beside it. And
+/// the hub client leaves an `.incomplete` file for every file it is still transferring.
 public nonisolated enum HubSnapshotCheck {
-    /// Whether `snapshot` holds a config, some weights, every shard its indexes name, and no
-    /// transfer still in flight.
+    /// Whether `snapshot` holds every component its index names, weights for each module,
+    /// every shard those weights are cut into, and no transfer still in flight.
+    ///
+    /// Without a readable index there is no list of components to hold the snapshot to, so the
+    /// rule is what can still be checked: a config, weights somewhere at the top or one level
+    /// down, and every shard those weights count up to.
     public static func isComplete(_ snapshot: URL) -> Bool {
-        guard HubCache.isDirectory(snapshot), hasConfig(snapshot) else { return false }
-        let entries = contents(of: snapshot)
-        let components = [snapshot] + entries.filter(HubCache.isDirectory)
-        let weights = components.flatMap(contents).filter { $0.pathExtension == "safetensors" }
-        guard !weights.isEmpty else { return false }
-        guard components.allSatisfy(shardsArePresent) else { return false }
-        return incompleteFiles(in: snapshot).isEmpty
+        guard HubCache.isDirectory(snapshot), incompleteFiles(in: snapshot).isEmpty else {
+            return false
+        }
+        let index = snapshot.appending(path: "model_index.json")
+        if let components = components(namedIn: index) {
+            return !components.isEmpty && components.allSatisfy { name in
+                let directory = snapshot.appending(path: name, directoryHint: .isDirectory)
+                return HubCache.isDirectory(directory) && !contents(of: directory).isEmpty
+                    && (!hasConfig(directory) || hasWeights(directory))
+                    && shardsAreComplete(in: directory)
+            }
+        }
+        guard hasConfig(snapshot) || FileManager.default.fileExists(atPath: index.path(percentEncoded: false))
+        else { return false }
+        let modules = [snapshot] + contents(of: snapshot).filter(HubCache.isDirectory)
+        return modules.contains(where: hasWeights) && modules.allSatisfy(shardsAreComplete)
     }
 
     /// The files a transfer left unfinished under `snapshot`, in the flat layout's bookkeeping
@@ -32,25 +47,34 @@ public nonisolated enum HubSnapshotCheck {
         return walk.compactMap { $0 as? URL }.filter { $0.pathExtension == "incomplete" }
     }
 
-    private static func hasConfig(_ snapshot: URL) -> Bool {
-        ["model_index.json", "config.json"].contains {
-            FileManager.default.fileExists(
-                atPath: snapshot.appending(path: $0).path(percentEncoded: false))
-        }
+    /// The component directories a diffusers `model_index.json` names: every key whose value
+    /// is a `[library, class]` pair. Nil when there is no index, or it cannot be read.
+    private static func components(namedIn index: URL) -> [String]? {
+        guard let data = try? Data(contentsOf: index),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+        return json.compactMap { key, value in
+            (value as? [Any])?.count == 2 ? key : nil
+        }.sorted()
     }
 
-    /// Whether every shard the component's index names is beside it. A component with no
-    /// index has nothing to promise.
-    private static func shardsArePresent(in component: URL) -> Bool {
-        let indexes = contents(of: component).filter {
-            $0.lastPathComponent.hasSuffix(".safetensors.index.json")
-        }
-        return indexes.allSatisfy { index in
-            shards(named: index).allSatisfy { shard in
-                FileManager.default.fileExists(
-                    atPath: component.appending(path: shard).path(percentEncoded: false))
-            }
-        }
+    private static func hasConfig(_ directory: URL) -> Bool {
+        FileManager.default.fileExists(
+            atPath: directory.appending(path: "config.json").path(percentEncoded: false))
+    }
+
+    private static func hasWeights(_ module: URL) -> Bool {
+        contents(of: module).contains { $0.pathExtension == "safetensors" }
+    }
+
+    /// Whether every shard the module's index names, and every shard its file names count
+    /// up to, is there. Vacuously true for a module that is not sharded.
+    private static func shardsAreComplete(in module: URL) -> Bool {
+        let files = contents(of: module).map(\.lastPathComponent)
+        let indexed = files.filter { $0.hasSuffix(".safetensors.index.json") }
+            .flatMap { shards(named: module.appending(path: $0)) }
+        let numbered = ShardName.expected(among: files)
+        return Set(indexed).union(numbered).allSatisfy(files.contains)
     }
 
     /// The distinct file names an index's `weight_map` points at. An index that cannot be read

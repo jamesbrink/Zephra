@@ -48,10 +48,13 @@ struct ModelsSettings: View {
         }
     }
 
-    /// Whether the engine is holding, or about to hold, weights from this directory.
+    /// Whether the engine is holding, loading, or queued to load weights from this directory.
     private func isInUse(_ item: ModelStorageItem) -> Bool {
-        if let loaded = store.loadedDescriptor, item.modelIDs.contains(loaded.id) { return true }
-        return store.state.isBusy && item.modelIDs.contains(store.descriptor.id)
+        var wanted = store.queue.map(\.model.id)
+        if let loaded = store.loadedDescriptor { wanted.append(loaded.id) }
+        if let running = store.running { wanted.append(running.model.id) }
+        if store.state.isBusy { wanted.append(store.descriptor.id) }
+        return wanted.contains { item.modelIDs.contains($0) }
     }
 
     private var isConfirming: Binding<Bool> {
@@ -73,7 +76,10 @@ struct ModelsSettings: View {
             + "model that needs it \(cost)."
     }
 
+    /// Checked again here, not only when the row was drawn: a queued generation can start
+    /// loading this model while the dialog is up.
     private func delete(_ item: ModelStorageItem) {
+        guard !isInUse(item) else { return }
         Task {
             await inventory.delete(item)
             await store.refreshAvailability()

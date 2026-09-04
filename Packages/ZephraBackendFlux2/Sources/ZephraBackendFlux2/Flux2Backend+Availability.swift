@@ -21,7 +21,9 @@ extension Flux2Backend {
             if LocalSnapshot.flux2.missingEntry(in: Self.packedDirectory(for: descriptor)) == nil {
                 return .available
             }
-            guard HubCache.snapshot(of: repoID, revision: revision) != nil else {
+            guard let release = HubCache.snapshot(of: repoID, revision: revision),
+                  LocalSnapshot.flux2Release.missingEntry(in: release) == nil
+            else {
                 return .needsDownloadAndBuild(bytes: descriptor.downloadBytes)
             }
             return .needsBuild
