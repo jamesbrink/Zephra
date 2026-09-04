@@ -164,8 +164,8 @@ The store keeps the frame outside the state and puts it down on every way a run
 can end. `StepTimer.annotated` rebuilds the event field by field, so a new field
 there has to be forwarded by name or it never reaches the canvas.
 
-Where a frame comes from: each kit has a `<Family>LatentPreview` that takes the
-latent exactly as its loop holds it, unpacks it, pools it so its long edge is at
+Where a frame comes from: each kit has a `<Family>LatentPreview` that takes a
+latent in its loop's own packed space, unpacks it, pools it so its long edge is at
 most 32 cells, and decodes that through the family's own autoencoder with the
 tiling skipped — `LatentPreview` in `ZephraMLX` holds the pooling and the byte
 packing for Qwen-Image and klein, and the vendored `ZImageKit` keeps its own copy
@@ -177,6 +177,15 @@ frames it drops. The existing before-step `onProgress` is untouched, so
 `BenchStepClock`'s timing is unaffected — it ignores any update carrying a frame,
 because a frame is reported after its step rather than before the next one. A
 family that never calls `onPreview` simply shows no frames.
+
+What each loop passes is the run's estimate of the **finished** latent,
+`x - sigma * v`, and not the latent it is holding. This is the whole feature
+working or not: all three schedules are bent towards their noisy end, and klein's
+four-step ladder at 1024 pixels is still at sigma 0.77 on its third rung, which
+decodes to flat brown mush. One more Euler step of the velocity already in hand,
+all the way to zero noise, is what a person means by "how is it coming along".
+It costs one elementwise operation, and it is computed inside the frame closure,
+so a dropped frame does not pay for it.
 
 ## The library
 
@@ -832,10 +841,15 @@ the re-sync procedure, and the running patch log. Any change inside
   token count without loading any weights, so a slow generation can be attributed to a primitive
   rather than guessed at.
 - `make bench ARGS="--preview --size 1024"` turns the live preview frames on for the run and
-  reports how many were made and the mean milliseconds one took. They are off in the benchmark
-  otherwise, so a step time measured without the flag is the model's own and stays comparable
-  with the figures already recorded here. `ZEPHRA_PREVIEW_INTERVAL_MS` is the switch underneath:
-  milliseconds between frames, and 0 switches them off, which is what the benchmark sets.
+  reports how many were made and the mean milliseconds one took, and writes the last frame
+  beside the image as `<stem>.preview.png` — a frame unpacked on the wrong axis is noise of
+  exactly the right size, so it wants looking at and not only timing. Frames are off in the
+  benchmark otherwise, so a step time measured without the flag is the model's own and stays
+  comparable with the figures already recorded here. `ZEPHRA_PREVIEW_INTERVAL_MS` is the switch
+  underneath: milliseconds between frames, and 0 switches them off, which is what the benchmark
+  sets. Measured at 1024 pixels on an M4 Max, mean over the frames of one run: 43 ms for klein
+  4-bit, 130 ms for Qwen-Image 4-bit, 192 ms for Z-Image 8-bit, against 0.5 to 8 s for the same
+  models' full decodes. The machine was not idle for the last two, so those are ceilings.
 - `ZEPHRA_PROFILE_STEP=1` prints per-phase timings (text encode, per-step graph build, per-step
   eval, VAE decode, and Z-Image's preview decode) and MLX's active and peak allocation to stderr.
 - Precision and padding switches, for bisecting a suspected regression without a rebuild:

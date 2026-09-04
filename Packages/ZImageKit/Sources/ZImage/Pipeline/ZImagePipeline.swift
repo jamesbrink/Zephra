@@ -580,11 +580,18 @@ public final class ZImagePipeline {
       // just finished, and never on the last step: the real decode follows it immediately, and
       // a pooled one in front of that is a second pass through the autoencoder for a picture
       // the caller is a moment from seeing properly.
+      //
+      // What is decoded is the run's estimate of the *finished* latent, not the latent it is
+      // holding. One more Euler step of this prediction, all the way to zero noise, is
+      // `x - sigma * v`, and that is what a person means by "how is it coming along"; the
+      // latent itself is still part noise and decodes to mush on the early rungs.
       if let previewHandler, stepIndex < request.steps - 1 {
         let target = latents
+        let velocity = guidedNoise
+        let sigmaNext = scheduler.sigmas[stepIndex + 1].asType(latents.dtype)
         previewHandler(stepIndex, request.steps) {
           ZImageStepProfile.measure("preview decode") {
-            ZImageLatentPreview.make(latents: target, vae: vae)
+            ZImageLatentPreview.make(latents: target - velocity * sigmaNext, vae: vae)
           }
         }
       }

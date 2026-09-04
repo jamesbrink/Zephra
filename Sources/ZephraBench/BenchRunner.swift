@@ -51,6 +51,7 @@ enum BenchRunner {
         var runSeconds: [Double] = []
         var stepIntervals: [Double] = []
         var previewSeconds: [Double] = []
+        var lastPreview: GenerationPreview?
         var firstStep = 1
         var image = Data()
         for index in 1...options.runs {
@@ -63,9 +64,15 @@ enum BenchRunner {
             runSeconds.append((clock.now - start).seconds)
             stepIntervals += stepClock.intervals
             previewSeconds += stepClock.previewSeconds
+            lastPreview = stepClock.lastPreview ?? lastPreview
             firstStep = stepClock.firstStep ?? 1
         }
         try write(image, to: options.output)
+        // Written beside the image, and only when frames were asked for: a frame is the one part
+        // of a run whose correctness a number cannot show.
+        let previewPath = try lastPreview.map {
+            try BenchPreviewImage.write($0, beside: options.output).path
+        }
         let memory = BenchBackends.runtime().memorySnapshot()
 
         return BenchReport(
@@ -82,6 +89,7 @@ enum BenchRunner {
             meanSecondsPerStep: mean(stepIntervals),
             previewFrames: options.preview ? previewSeconds.count : nil,
             meanPreviewSeconds: options.preview ? mean(previewSeconds) : nil,
+            previewPath: previewPath,
             activeMemoryMB: Double(memory.activeBytes) / 1_000_000,
             peakMemoryMB: Double(memory.peakBytes) / 1_000_000,
             outputPath: options.output.path,

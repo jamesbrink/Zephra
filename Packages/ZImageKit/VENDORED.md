@@ -141,7 +141,10 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
   `Model/VAE/AutoencoderKL.swift`: preview frames of a run in flight. `generateToMemory` and
   `generateCore` take a second, defaulted `previewHandler`, and the denoise loop calls it after
   each step's `MLX.eval` — never on the last step, where the real decode follows immediately —
-  with the step index, the step count, and a closure that makes the frame. A closure rather than
+  with the step index, the step count, and a closure that makes the frame from the run's
+  estimate of the *finished* latent, `x - sigma * v`, rather than from the latent it holds: the
+  schedule is bent towards its noisy end, so the latent itself decodes to mush on the early
+  rungs. A closure rather than
   a frame because the decode is a whole pass through the autoencoder: the host throttles to one
   frame every three quarters of a second and never pays for the ones it drops. The frame is made
   inside `ZImageStepProfile.measure("preview decode")`, so `ZEPHRA_PROFILE_STEP=1` reports it

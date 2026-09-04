@@ -74,11 +74,20 @@ enum QwenImageDenoiseLoop {
             // than the one about to run, and never on the last: the real decode follows it
             // immediately, and a pooled one in front of that is a second pass through the
             // autoencoder for a picture the caller is a moment from seeing properly.
+            //
+            // What is decoded is the run's estimate of the *finished* latent, not the latent it
+            // is holding. One more Euler step of this prediction, all the way to zero noise, is
+            // `x - sigma * v`, and that is what a person means by "how is it coming along". On
+            // a four-step ladder the latent itself is still mostly noise until the last rung,
+            // and decoding it gives mush.
             if let onPreview, index < sigmas.count - 1 {
                 let target = latents
+                let prediction = prediction
+                let sigmaNext = Float(scheduler.sigmas[index + 1])
                 onPreview(index, sigmas.count) {
                     QwenImageLatentPreview.make(
-                        tokens: target, latentHeight: latentSize.height,
+                        tokens: target - prediction * sigmaNext,
+                        latentHeight: latentSize.height,
                         latentWidth: latentSize.width, autoencoder: autoencoder)
                 }
             }

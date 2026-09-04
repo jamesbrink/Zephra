@@ -30,6 +30,8 @@ struct BenchReport: Codable, Sendable {
     let previewFrames: Int?
     /// Mean seconds one preview frame took to decode, or nil when frames were off.
     let meanPreviewSeconds: Double?
+    /// Where the last preview frame was written, or nil when there was none to write.
+    let previewPath: String?
     /// GPU memory still live after the last run, in megabytes. This is what the app will hold
     /// steadily while a model stays loaded.
     let activeMemoryMB: Double
@@ -95,6 +97,9 @@ struct BenchReport: Codable, Sendable {
                     String(
                         format: "%d frames, %.0f ms each",
                         previewFrames, meanPreviewSeconds * 1000)))
+        }
+        if let previewPath {
+            lines.append(row("frame written", previewPath))
         }
         lines.append(row("live memory", String(format: "%.0f MB", activeMemoryMB)))
         lines.append(row("peak memory", String(format: "%.0f MB", peakMemoryMB)))

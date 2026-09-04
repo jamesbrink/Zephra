@@ -138,8 +138,10 @@ struct BenchOptions: Sendable {
         model's own bounds always apply, so the report rather than this flag is what says the
         strength that ran and the step it began at.
         --preview turns on the live preview frames the app shows while a run is going and
-        reports what they cost: how many were made and the mean milliseconds one took. They
-        are off otherwise, so a step time measured without this flag is the model's own.
+        reports what they cost: how many were made and the mean milliseconds one took. The
+        last frame is written beside --out as <stem>.preview.png, because a frame unpacked on
+        the wrong axis is noise of exactly the right size. Frames are off without this flag,
+        so a step time measured without it is the model's own.
         --micro times the DiT's individual MLX kernels at --size worth of tokens and
         exits, without loading any weights.
         """

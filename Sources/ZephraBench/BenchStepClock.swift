@@ -19,6 +19,8 @@ final class BenchStepClock {
 
     /// Seconds each preview frame took to decode, in the order they were made.
     private(set) var previewSeconds: [Double] = []
+    /// The last frame the run reported, kept so the benchmark can write it out and be looked at.
+    private(set) var lastPreview: GenerationPreview?
 
     /// Notes the time if this update bounds a denoising step.
     ///
@@ -28,6 +30,7 @@ final class BenchStepClock {
     func record(_ event: GenerationProgressEvent) {
         if let preview = event.preview {
             previewSeconds.append(preview.duration.seconds)
+            lastPreview = preview
             return
         }
         switch event.phase {

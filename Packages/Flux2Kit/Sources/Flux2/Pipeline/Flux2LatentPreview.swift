@@ -2,8 +2,8 @@ import Foundation
 import MLX
 import ZephraMLX
 
-/// One frame of a klein generation still in flight: the latent as the loop holds it, pooled and
-/// decoded small.
+/// One frame of a klein generation still in flight: the run's estimate of the finished latent,
+/// pooled and decoded small.
 ///
 /// The pooling happens between the two halves of `decodePacked`, on the unpacked latent rather
 /// than on the tokens: a token's 128 channels are four latent cells stacked, so averaging tokens
@@ -16,10 +16,12 @@ public struct Flux2LatentPreview: Sendable {
     /// `width * height * 4` bytes, RGBA8, row-major, opaque.
     public let pixels: Data
 
-    /// Decodes the latent the denoising loop is holding.
+    /// Decodes one estimate of the finished latent.
     ///
     /// - Parameters:
-    ///   - tokens: `[1, packedHeight * packedWidth, 128]`, the loop's own `latents`.
+    ///   - tokens: `[1, packedHeight * packedWidth, 128]`, in the loop's own packed space. The
+    ///     loop passes its estimate of the finished latent rather than the latent it holds; see
+    ///     `Flux2Pipeline+Denoise.swift` for why that difference is the whole feature.
     ///   - packedHeight: rows of the packed grid, which is the image's height over 16.
     ///   - packedWidth: columns of it.
     ///   - autoencoder: the loaded model's, which is the only decoder that means anything here.

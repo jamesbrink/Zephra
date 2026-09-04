@@ -8,8 +8,8 @@
 import Foundation
 import MLX
 
-/// One frame of a Z-Image generation still in flight: the latent as the loop holds it, pooled
-/// and decoded small.
+/// One frame of a Z-Image generation still in flight: the run's estimate of the finished
+/// latent, pooled and decoded small.
 public struct ZImageLatentPreview: Sendable {
   /// Pixels across.
   public let width: Int
@@ -23,10 +23,11 @@ public struct ZImageLatentPreview: Sendable {
   /// one at 1024 pixels.
   static let cellLimit = 32
 
-  /// Decodes the latent the denoising loop is holding.
+  /// Decodes one estimate of the finished latent.
   ///
   /// - Parameters:
-  ///   - latents: `[1, 16, height, width]` NCHW, the loop's own `latents`.
+  ///   - latents: `[1, 16, height, width]` NCHW. The loop passes its estimate of the finished
+  ///     latent rather than the latent it holds; see the denoise loop for why.
   ///   - vae: the loaded model's, which is the only decoder that means anything here.
   public static func make(latents: MLXArray, vae: AutoencoderKL) -> ZImageLatentPreview {
     let factor = poolingFactor(height: latents.dim(2), width: latents.dim(3))
