@@ -12,13 +12,11 @@ import ZephraEngine
 /// the new one takes over for whatever is queued next.
 struct ModelMenu: View {
     @Environment(GenerationStore.self) private var store
-    @AppStorage(AppSettings.selectedModelID) private var selectedModelID = ""
 
     var body: some View {
         Menu {
             ForEach(ModelCatalog.all) { model in
                 Button {
-                    selectedModelID = model.id
                     store.switchModelFromInterface(to: model)
                 } label: {
                     label(for: model)

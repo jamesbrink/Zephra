@@ -18,9 +18,11 @@ extension GenerationStore {
     /// Calling it again once the engine is running is a no-op, so a re-rendered root is free.
     ///
     /// What is on disk is checked first, so the picker can label every model before the long
-    /// load takes over the inference queue.
+    /// load takes over the inference queue, and so a saved choice that is no longer on the
+    /// disk gives way to one that is instead of failing at launch.
     public func bootstrap() async {
         await refreshAvailability()
+        fallBackIfUnobtainable()
         await load(descriptor, asSwap: false)
     }
 

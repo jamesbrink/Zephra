@@ -1,5 +1,6 @@
 import Foundation
 import ZephraCore
+import os
 
 /// Checks that a local model directory holds what a loader will look for before the loader is
 /// pointed at it, so a missing folder fails with a message instead of a crash.
@@ -15,16 +16,20 @@ public struct LocalSnapshot: Sendable {
         self.requiredEntries = requiredEntries
     }
 
-    /// Returns `directory` if it looks like a snapshot, or throws `BackendError.downloadFailed`
-    /// naming the first missing entry.
+    /// Returns `directory` if it looks like a snapshot, or throws `BackendError.modelNotAvailable`:
+    /// a folder that is not there is not a transfer that broke, and "check your connection"
+    /// would send someone looking in the wrong place. The missing entry goes to the log.
     public func verified(_ directory: URL, descriptor: ModelDescriptor) throws -> URL {
         if let missing = missingEntry(in: directory) {
-            throw BackendError.downloadFailed(
-                "\(descriptor.fullName) is not at \(directory.path(percentEncoded: false)): missing \(missing)."
+            Self.logger.error(
+                "\(descriptor.id, privacy: .public) is not at \(directory.path(percentEncoded: false), privacy: .public): missing \(missing, privacy: .public)"
             )
+            throw BackendError.modelNotAvailable(descriptor.fullName)
         }
         return directory
     }
+
+    private static let logger = Logger(subsystem: "io.zephra", category: "snapshot")
 
     /// The first thing a loadable snapshot needs that this directory does not have, or nil when
     /// it has them all. The non-throwing half of `verified`, for asking without committing.

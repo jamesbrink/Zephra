@@ -44,6 +44,10 @@ struct ZephraApp: App {
                 // the preference itself changes; see `VAETilingControl`.
                 .onChange(of: store.descriptor, initial: true) { _, model in
                     runtime.setVAETileSize(AppSettings.tilingPolicy().tileSize(for: model))
+                    // Remembered here rather than in the menu, so a model the engine stepped
+                    // onto by itself — the saved one having gone from the disk — is the one
+                    // the next launch opens on.
+                    AppSettings.write(model.id, to: AppSettings.selectedModelID)
                 }
                 .task { openLibrary() }
         }
@@ -103,7 +107,8 @@ struct ZephraApp: App {
     /// was chosen or the saved identifier belongs to a build that no longer ships that model.
     ///
     /// A saved choice is honoured whatever its size: a model that pages at its default size
-    /// still runs at a smaller one, and that is the user's call to make.
+    /// still runs at a smaller one, and that is the user's call to make. Whether it is still
+    /// on the disk is the store's to find out, at bootstrap, from the backend.
     private static func savedModel() -> ModelDescriptor {
         let saved = UserDefaults.standard.string(forKey: AppSettings.selectedModelID)
         return saved.flatMap(ModelCatalog.descriptor(id:))

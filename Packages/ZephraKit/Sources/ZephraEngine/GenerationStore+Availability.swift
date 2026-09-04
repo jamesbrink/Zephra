@@ -1,3 +1,4 @@
+import Foundation
 import ZephraCore
 
 /// Knowing what is on disk before anything is downloaded, so the interface can say "13.3 GB
@@ -14,5 +15,27 @@ extension GenerationStore {
             found[model.id] = await inference.availability(of: model)
         }
         availability = found
+    }
+
+    /// Steps off a chosen model that cannot be had at all — a local build that was deleted or
+    /// never made — onto the first model this Mac can run and does have, so a launch lands on
+    /// something that loads rather than on a failure naming a folder. A model that is merely
+    /// not downloaded yet is kept: choosing it was the decision to download it.
+    ///
+    /// Returns whether the model changed. Read `availability` first; an unknown model is
+    /// given the benefit of the doubt.
+    @discardableResult
+    public func fallBackIfUnobtainable(
+        physicalMemory: UInt64 = ProcessInfo.processInfo.physicalMemory
+    ) -> Bool {
+        guard availability[descriptor.id]?.isObtainable == false else { return false }
+        let candidates = ModelCatalog.fitting(physicalMemory: physicalMemory) + ModelCatalog.all
+        guard let fallback = candidates.first(where: { availability[$0.id]?.isObtainable != false })
+        else { return false }
+        logger.notice(
+            "\(self.descriptor.id, privacy: .public) is not on this Mac; using \(fallback.id, privacy: .public)"
+        )
+        adopt(fallback)
+        return true
     }
 }
