@@ -519,10 +519,13 @@ Zephra/
   to time the editing path, `--strength`). Benchmark on an idle machine, Release only.
 - `make logs` streams the app's log; `make screenshot` captures the window;
   `make open` opens the generated project in Xcode; `make clean` removes build output.
-- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|queued|batch|library|downloading|building|failed`
+- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|queued|watching|batch|library|viewer|downloading|building|failed`
   launches a Debug build frozen in that state with no model, for screenshots; `tucked` is
-  `image` with the floating prompt slid down to its lip, and `downloading` and `failed` sit
-  over a picture, since that is where they must stay legible.
+  `image` with the floating prompt slid down to its lip, `viewer` is the library with a
+  picture open full size, `generating`, `queued` and `watching` show a run in flight with a
+  frame from it (`watching` is the one where the canvas has been left on an earlier picture),
+  and `downloading` and `failed` sit over a picture, since that is where they must stay
+  legible.
 
 ### Releasing
 

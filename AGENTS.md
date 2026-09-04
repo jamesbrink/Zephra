@@ -330,6 +330,29 @@ Four directories, by what a file is rather than what screen it is on:
   the cell's menu, the sidebar wall, and the inspector's own button — is
   unchanged; the viewer answers to the twin `\.viewLibraryItem` instead.
 
+  What the canvas shows while the model works is decided by one question,
+  `GenerationStore.isShowingRun`. While it is following, `CanvasView` draws
+  `Canvas/LivePreviewView` — the run's own frames, a `CGImage` over the RGBA8
+  bytes, `.medium` interpolation because a frame is an estimate, letterboxed
+  into the run's own aspect so the finished picture lands in the rectangle its
+  frames were filling. Before the first frame that rectangle is empty and the
+  step segments ride across it. There is no context menu and nothing to drag,
+  because there is no file yet; a click still tucks the prompt away.
+  `Canvas/RunningRunInspector` is the column beside it: prompt, model, size,
+  the step of how many, seed, elapsed and left — the last two from the pace
+  `store.state` already measures rather than a clock of the view's own — and
+  Stop. When it is *not* following, the picture is on the canvas at full
+  strength even with the model running; the dim to 60 % went with the frames,
+  which say "this is not the new one" properly.
+  `Sidebar/Timeline/RunningRunCard` is the way back: a button calling
+  `watchRun()`, still amber, wearing the accent ring the wall's squares wear
+  when the canvas is showing the run — and no square wears it meanwhile —
+  with `RunPreviewThumbnail`, the newest frame at 36 pt, at its leading edge,
+  so a run is worth glancing at while you are looking at something else.
+  `GenerationPreview.makeImage()` in `Support/` is the one place bytes become
+  an image, and each view keeps the result until the bytes change: `body` runs
+  on every progress update and frames arrive far more rarely.
+
 The prompt is `PromptTextView`, an `NSTextView` of our own on TextKit 1 rather
 than `TextEditor`, for one reason: a text view paints a selected line break out
 to the trailing edge of its container, which in the capsule is the whole prompt
@@ -899,15 +922,20 @@ the re-sync procedure, and the running patch log. Any change inside
 
 ## Debugging hooks
 
-- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|queued|batch|library|viewer|picker|downloading|building|failed`
+- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|queued|watching|batch|library|viewer|picker|downloading|building|failed`
   launches a Debug build frozen in that state with no model, for screenshots (`make screenshot`).
   `tucked` is `image` with the canvas's floating prompt slid down to its lip.
   `viewer` opens the library pane on its first image full size; `picker` runs the
   `editing` build with the reference picker sheet forced open, through
   `InterfacePreview.wantsReferencePicker` — the one flag the well reads on its own,
   since a `@State` local to a view cannot be set from the composition root the way
-  `workspace.viewing` can. `downloading` and `failed` sit over a picture, since that
-  is where they must stay legible, and `failed` is a download that gave up.
+  `workspace.viewing` can.
+  `generating`, `queued` and `watching` all stand a run up with a made-up frame from it, so
+  the live preview is on screen without a model: the first two are following the run, and
+  `watching` is the one that is not — the model working while an earlier picture stays on the
+  canvas, which is what the running card's ring being off says.
+  `downloading` and `failed` sit over a picture, since that is where they must stay
+  legible, and `failed` is a download that gave up.
 - `make logs` streams `os.Logger` output for subsystem `io.zephra`.
 - `make screenshot` photographs the app's window by its CoreGraphics id, so it captures the
   window rather than the rectangle of screen it sits in, and it fails rather than falling back

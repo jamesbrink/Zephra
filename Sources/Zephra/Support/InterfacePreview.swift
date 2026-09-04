@@ -6,8 +6,11 @@ import ZephraEngine
 /// interface can be screenshotted and inspected on its own.
 ///
 /// Set `ZEPHRA_PREVIEW_STATE` to `ready`, `image`, `editing`, `tucked`, `generating`, `queued`,
-/// `batch`, `library`, `viewer`, `picker`, `downloading`, `building`, or `failed` before
-/// launching. Debug builds only; in Release this is inert.
+/// `watching`, `batch`, `library`, `viewer`, `picker`, `downloading`, `building`, or `failed`
+/// before launching. Debug builds only; in Release this is inert.
+///
+/// This half is what the composition root calls. `InterfacePreview+Frozen.swift` is how each
+/// state is stood up.
 enum InterfacePreview {
     /// A store frozen in the requested state, or nil for a normal launch. The frozen store has
     /// no backend, so `bootstrap()` on it does nothing and no model is ever looked for.
@@ -19,17 +22,8 @@ enum InterfacePreview {
             let store = GenerationStore.preview(state: state, images: run)
             store.settings = run[0].settings
             return store
-        case "queued":
-            let waiting = queuedRun()
-            let store = GenerationStore.preview(
-                state: state,
-                running: waiting.first,
-                queue: Array(waiting.dropFirst())
-            )
-            // The capsule draws its step segments from `settings`, so a frozen window whose
-            // prompt and step count did not match the run would contradict itself.
-            store.settings = waiting[0].settings
-            return store
+        case "generating", "queued", "watching":
+            return runningStore(state: state, seeds: name == "queued" ? 3 : 2)
         default:
             // The editing and picker previews run against an invented model that reads a
             // reference, so the well beside the prompt is there to be screenshotted.
@@ -47,7 +41,7 @@ enum InterfacePreview {
 
     /// Whether this build wants a reference-capable model standing up: `editing`, to
     /// screenshot the filled well, and `picker`, which forces its sheet open over the same well.
-    private static var isEditingBuild: Bool { name == "editing" || name == "picker" }
+    static var isEditingBuild: Bool { name == "editing" || name == "picker" }
 
     /// Whether the frozen window should force its reference picker sheet open. The well's own
     /// `@State` cannot be reached from the composition root the way `workspace.viewing` can, so
@@ -95,12 +89,12 @@ enum InterfacePreview {
     /// A run of `count` seeds of one prompt, the first of which is the one being rendered.
     /// Shared with the `#Preview`s of the queue, so the frozen window and the previews of its
     /// parts are showing the same thing.
-    static func queuedRun(of count: Int = 3) -> [QueuedGeneration] {
+    static func queuedRun(of count: Int = 3, steps: Int = 4) -> [QueuedGeneration] {
         let batch = UUID()
         let settings = GenerationSettings(
             prompt: "a red bicycle against a limestone wall",
             size: ImageSize(width: 1024, height: 1024),
-            steps: 4,
+            steps: steps,
             guidance: 0,
             seed: 8_123_447_209_115_662
         )
@@ -114,65 +108,5 @@ enum InterfacePreview {
                 batchIndex: index
             )
         }
-    }
-
-    private static func frozenImage(for state: EngineState) -> GeneratedImage? {
-        switch state {
-        case .generating, .cancelling: PreviewImages.sample()
-        case .ready where name == "image": PreviewImages.sample()
-        case .ready where name == "tucked": PreviewImages.sample()
-        case .ready where isEditingBuild:
-            PreviewImages.sample(reference: PreviewImages.referencePNG())
-        // Over a picture, because that is where these two have to stay legible: a model
-        // chosen from the menu downloads, or fails to, with the last image still up.
-        case .downloading, .failed: PreviewImages.sample()
-        default: nil
-        }
-    }
-
-    private static var name: String? {
-        ProcessInfo.processInfo.environment["ZEPHRA_PREVIEW_STATE"]
-    }
-
-    private static var requestedState: EngineState? {
-        #if DEBUG
-        switch name {
-        case "ready", "image", "editing", "tucked", "batch", "library", "viewer", "picker":
-            return .ready
-        case "generating":
-            return .generating(GenerationProgressEvent(
-                phase: .denoising(step: 4, of: 9),
-                fraction: 0.44,
-                secondsPerStep: 2.1
-            ))
-        case "queued":
-            return .generating(GenerationProgressEvent(
-                phase: .denoising(step: 3, of: 4),
-                fraction: 0.75,
-                secondsPerStep: 8.2
-            ))
-        case "downloading":
-            return .downloading(DownloadProgressEvent(
-                completedFiles: 3,
-                totalFiles: 11,
-                fraction: 0.34,
-                bytesPerSecond: 46_000_000
-            ))
-        case "building":
-            return .building(BuildProgressEvent(
-                component: "transformer",
-                completedComponents: 0,
-                totalComponents: 2,
-                fraction: 0.41
-            ))
-        case "failed":
-            return .failed(.backend(.downloadFailed(
-                DownloadRetry.givingUpMessage("The network connection was lost"))))
-        default:
-            return nil
-        }
-        #else
-        return nil
-        #endif
     }
 }

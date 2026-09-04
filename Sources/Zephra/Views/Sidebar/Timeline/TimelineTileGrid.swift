@@ -39,7 +39,13 @@ struct TimelineTileGrid: View {
 
     /// Whether this is the picture the canvas is showing, so the sidebar and the canvas agree
     /// about where you are.
+    ///
+    /// No square is, while the canvas is following the run: what is on the canvas then is the
+    /// run, not a file, and the ring belongs to the running card above the wall. `current` may
+    /// still name the picture the last run left behind, and ringing that one would point at the
+    /// wrong place.
     private func isShowing(_ tile: TimelineTile) -> Bool {
+        guard !store.isShowingRun else { return false }
         guard let file = tile.fileURL, let current = store.current?.fileURL else { return false }
         return current.standardizedFileURL == file.standardizedFileURL
     }
