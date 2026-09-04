@@ -83,13 +83,16 @@ extension GenerationStore {
             let directory = try await pump.run { sink in
                 try await inference.prepare(model, events: sink)
             }
+            // Recorded the moment the weights are resident, before the warm-up: a warm-up
+            // that is stopped or fails leaves them resident, and the folder they came from
+            // must be off limits to Settings from then on, not only once everything went well.
+            loadedDirectory = directory
             try Task.checkCancellation()
             if warmsUpAfterLoad {
                 transition(to: .warmingUp)
                 try await inference.warmUp(model)
             }
             loadedDescriptor = model
-            loadedDirectory = directory
             transition(to: .ready)
         } catch is CancellationError {
             transition(to: .idle)

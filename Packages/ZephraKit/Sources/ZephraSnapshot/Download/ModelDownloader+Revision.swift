@@ -21,12 +21,19 @@ extension ModelDownloader {
     /// Zephra's — is trusted on size, as it always was.
     static func prepare(_ destination: URL, for sha: String) throws {
         let files = FileManager.default
-        guard let before = try? String(contentsOf: completed(in: destination), encoding: .utf8)
+        let record = completed(in: destination)
+        guard let before = try? String(contentsOf: record, encoding: .utf8)
             .trimmingCharacters(in: .whitespacesAndNewlines), before != sha
         else { return }
-        for entry in (try? files.contentsOfDirectory(atPath: destination.path(percentEncoded: false))) ?? [] {
+        // The record goes last. Emptied in any other order, a process that dies part-way
+        // leaves a folder with no record and a same-sized shard from the other commit still
+        // in it, which the next try would trust on size.
+        let folder = destination.path(percentEncoded: false)
+        for entry in (try? files.contentsOfDirectory(atPath: folder)) ?? []
+        where entry != record.lastPathComponent {
             try files.removeItem(at: destination.appending(path: entry))
         }
+        try files.removeItem(at: record)
     }
 
     /// The commit this transfer is pinned to: the one it started at, when it is resuming, or
