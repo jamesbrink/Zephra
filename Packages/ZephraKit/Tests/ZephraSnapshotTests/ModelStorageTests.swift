@@ -47,6 +47,24 @@ struct ModelStorageTests {
         #expect(items.last?.location.hasPrefix("/") == true)
     }
 
+    @Test("an adapter `hf download` put in the cache is listed with its model, where it is")
+    func aCachedAdapterIsListed() throws {
+        let scratch = Scratch("ModelStorage")
+        let descriptor = ModelCatalog.qwenImage2512_4bit
+        let adapter = try #require(descriptor.adapters.first)
+        let repository = "hub/models--" + adapter.repoID.replacingOccurrences(of: "/", with: "--")
+        try scratch.write("abc", to: repository + "/refs/main")
+        try scratch.make(repository + "/snapshots/abc/" + adapter.file)
+
+        let items = ModelStorage.items(
+            for: [descriptor], cache: scratch.url("hub"),
+            locations: ModelLocations(root: scratch.url("models")))
+        #expect(items.count == 1)
+        #expect(items.first?.name == "\(descriptor.displayName) adapter")
+        #expect(items.first?.isComplete == true)
+        #expect(items.first?.location.hasPrefix("/") == true)
+    }
+
     @Test("a model named by a directory outside every root is listed there, by its whole path")
     func aDirectoryNamedModelIsListedWhereItIs() throws {
         let scratch = Scratch("ModelStorage")

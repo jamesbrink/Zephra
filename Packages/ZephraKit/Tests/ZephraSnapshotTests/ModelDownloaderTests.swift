@@ -249,6 +249,23 @@ struct ModelDownloaderTests {
         #expect(!scratch.hasFile("escape.json"))
     }
 
+    @Test("a partial an interrupted `hf download` left in the folder goes once the transfer is whole")
+    func hubPartialsAreDroppedOnCompletion() async throws {
+        let scratch = Scratch("Download")
+        try scratch.make("models/.cache/huggingface/download/assets/big.png.incomplete")
+        try scratch.make("models/.cache/huggingface/download/model_index.json.metadata")
+        StubHub.reset(
+            StubHub.Behaviour(
+                pages: [page([("model_index.json", 3)])], files: ["model_index.json": Data("{ }".utf8)]))
+
+        _ = try await downloader().download(
+            repoID: "org/repo", patterns: ["*"], into: scratch.url("models"), onProgress: { _ in })
+
+        #expect(!scratch.hasFile("models/.cache/huggingface/download/assets/big.png.incomplete"))
+        #expect(scratch.hasFile("models/.cache/huggingface/download/model_index.json.metadata"))
+        #expect(HubSnapshotCheck.incompleteFiles(in: scratch.url("models")).isEmpty)
+    }
+
     @Test("a folder component that is already a link out of the folder is refused too")
     func aLinkedComponentIsRefused() async throws {
         let scratch = Scratch("Download")

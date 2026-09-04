@@ -46,6 +46,11 @@ public final class GenerationStore {
     /// The directory those weights were read from, so a settings row can tell the one copy
     /// that is in use from a duplicate of the same model elsewhere. Nil while none are.
     public internal(set) var loadedDirectory: URL?
+    /// Which choice of reference picture is the latest, and the read still fetching one. See
+    /// `GenerationStore+Reference.swift`; stored here only because Swift keeps stored
+    /// properties on the type.
+    var referenceChoice = 0
+    var referenceRead: Task<Void, Never>?
     /// True while the engine is between queued generations, swapping to the model the next one
     /// needs. The queue accepts more work throughout.
     public internal(set) var isSwitchingForQueue = false

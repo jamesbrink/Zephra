@@ -549,7 +549,11 @@ reads one, in one of the two ways the next section describes.
 The well offers three doors to a picture, and `ReferenceAdoption` in
 `Sources/Zephra/Support/` is the one place all three read the file through: a
 library image hands back what it was itself edited from, when it was one,
-rather than itself. Empty, the well is a `Menu` whose primary action opens
+rather than itself. It holds no state: which choice is current is the store's
+own bookkeeping (`GenerationStore.claimReference`, `adoptReference`), numbered
+when the choice is made rather than when its bytes arrive, so a slow library
+read or a drop's provider can never land on top of a choice that came after
+it. Empty, the well is a `Menu` whose primary action opens
 `Views/ReferencePicker/ReferencePickerSheet`, a sheet over the window with a
 search field and a grid of the whole library — what was made here and what was
 imported to start from, everything but Recently Deleted — newest first; filled, the same
@@ -781,7 +785,10 @@ Weights live in the folder Settings > Models names, which is
 `~/Library/Application Support/Zephra/Models` until the user changes it:
 `Downloads/<org>--<repo>` for a release, `<descriptor id>` for a variant packed
 here. `make prefetch` writes exactly what the app would have written, so it
-seeds a first launch. The hub cache is still read if it holds a release — a Mac
+seeds a first launch; and a prefetch that was interrupted is finished by the
+app, which then removes the `.incomplete` partials `hf` left under the folder's
+`.cache/huggingface/download`, since a partial nothing will finish would
+otherwise hold the folder incomplete for good. The hub cache is still read if it holds a release — a Mac
 that ran `hf download`, or an older Zephra — but nothing is written there any
 more, and neither `HF_HOME` nor `HF_HUB_CACHE` decides where a download goes.
 

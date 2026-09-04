@@ -43,6 +43,20 @@ extension ModelDownloader {
             try part.revision.write(
                 to: Self.completed(in: part.destination), atomically: true, encoding: .utf8)
             try? FileManager.default.removeItem(at: Self.pin(in: part.destination))
+            Self.dropHubPartials(in: part.destination)
+        }
+    }
+
+    /// Removes what an interrupted `hf download --local-dir` into this same folder left
+    /// behind: its `.incomplete` files under `.cache/huggingface/download`. Every file this
+    /// transfer listed is whole now, and `HubSnapshotCheck` would otherwise hold the folder
+    /// incomplete for good on the strength of a partial nothing will ever finish. Only the
+    /// partials go; the metadata `hf` keeps beside them is left for it.
+    private static func dropHubPartials(in destination: URL) {
+        let bookkeeping = destination.appending(path: ".cache/huggingface/download")
+        for file in HubSnapshotCheck.incompleteFiles(in: bookkeeping)
+        where file.pathExtension == "incomplete" {
+            try? FileManager.default.removeItem(at: file)
         }
     }
 

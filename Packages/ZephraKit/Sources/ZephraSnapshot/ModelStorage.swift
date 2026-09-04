@@ -58,6 +58,11 @@ public nonisolated enum ModelStorage {
                         in: locations),
                     to: &items)
             }
+            for item in descriptor.adapters {
+                for repository in HubCache.repositories(of: item.repoID, in: cache) {
+                    add(adapter(item, of: descriptor, at: repository, captioned: locations), to: &items)
+                }
+            }
         }
         return items
     }
