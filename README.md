@@ -614,7 +614,7 @@ upscales save to the selected folder, which is remembered across launches.
 Folder changes wait for image writes and pause library edits; finish generation,
 queued work, and upscaling first. Migration verifies copied files before removing
 originals, preserves embedded metadata and deletion dates, and leaves unrelated
-files alone. Existing destination files are never overwritten: a conflict asks
-you to choose an empty folder. A failed move keeps the old location selected; if
-only removal of an original fails, the complete destination is selected and the
+files alone. When moving data, choose a folder without existing images or library
+metadata; merging existing libraries is not supported and nothing is overwritten.
+A failed move keeps the old location selected; if only removal of an original fails, the complete destination is selected and the
 retained original is reported.

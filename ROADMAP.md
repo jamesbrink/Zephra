@@ -156,8 +156,8 @@ Left out of the first pass on purpose, each a small change to one file unless no
 
 ## Image library location: left out on purpose
 
-- **Merging existing libraries with conflicting files or manifests.** Folder migration
-  refuses conflicts and never overwrites images or album/deletion metadata. A merge
+- **Merging existing libraries.** Folder migration
+  refuses destinations containing images or album/deletion metadata. A merge
   needs explicit choices for duplicate pictures, album identities, and deletion dates.
   For now, move into an empty folder, or keep both libraries in place and switch
   between their folders in Settings.

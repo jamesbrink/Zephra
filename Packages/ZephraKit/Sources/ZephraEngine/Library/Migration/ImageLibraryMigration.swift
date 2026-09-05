@@ -55,15 +55,27 @@ public struct ImageLibraryMigration: Sendable {
                 found.append(try ImageMigrationFile(url: url, path: path))
             }
         }
-        if !found.isEmpty {
-            for path in [AlbumManifest.fileName, "Recently Deleted/" + RecentlyDeletedManifest.fileName] {
-                let manifest = destination.appending(path: path)
-                try ImageDirectoryAccess.requireDirectory(manifest.deletingLastPathComponent())
-                guard (try? files.attributesOfItem(atPath: manifest.path)) == nil else {
-                    throw ImageDirectoryError("The destination already contains library metadata. Choose an empty folder to move this library.")
-                }
+        if !found.isEmpty { try requireEmptyDestinationLibrary() }
+        return found.sorted { $0.path < $1.path }
+    }
+
+    /// Manifests can refer to files or album IDs absent from the source. Even a
+    /// noncolliding destination picture could inherit a name or an expired deletion date.
+    private func requireEmptyDestinationLibrary() throws {
+        let files = FileManager.default
+        for directory in ["", "Sources", "Recently Deleted"] {
+            let folder = directory.isEmpty ? destination : destination.appending(path: directory)
+            try ImageDirectoryAccess.requireDirectory(folder)
+            guard files.fileExists(atPath: folder.path) else { continue }
+            let entries = try files.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
+            let hasImagesOrMetadata = entries.contains { url in
+                url.pathExtension.lowercased() == "png"
+                    || (directory.isEmpty && url.lastPathComponent == AlbumManifest.fileName)
+                    || (directory == "Recently Deleted" && url.lastPathComponent == RecentlyDeletedManifest.fileName)
+            }
+            guard !hasImagesOrMetadata else {
+                throw ImageDirectoryError("The destination already contains images or library metadata. Choose an empty folder to move this library.")
             }
         }
-        return found.sorted { $0.path < $1.path }
     }
 }
