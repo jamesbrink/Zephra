@@ -332,7 +332,10 @@ as an index, and it is Foundation only, so `make test` covers all of it.
 - `LibraryIndex` (`@MainActor @Observable`) is what the UI observes, split by
   concern the way `GenerationStore` is. Mutations take a set of ids, apply
   optimistically, queue onto one serial chain, and revert by re-reading the one
-  file that failed. `LibraryQuery` holds the scope, the text, and the sort, and
+  file that failed — unless a newer change for that file is still `pending`, in
+  which case the older write neither overwrites what is on screen nor reverts
+  nor reports: the newer write is about to land and speaks for itself.
+  `LibraryQuery` holds the scope, the text, and the sort, and
   `sections` are recomputed when it changes — the view never filters.
 - Deleting moves the file to `Recently Deleted/` with a `deletedAt` in that
   folder's own manifest, and a scan purges anything older than thirty days.

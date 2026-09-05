@@ -88,13 +88,21 @@ extension LibraryIndex {
 
     /// Records a write that landed, or puts one that did not back to what the file says.
     ///
+    /// A newer change may be waiting in `pending` behind this write; then what is on screen is
+    /// the newer value and this write must not put the older one back, nor revert or report:
+    /// the newer write is about to land and will speak for itself.
+    ///
     /// Reverting re-reads the one file rather than remembering what was there: between the
     /// optimistic change and the failure the file may have been changed by something else, and
     /// what is on disk is the only answer that cannot be wrong.
-    private func apply(_ write: AnnotationWrite, wrote annotation: LibraryAnnotation?) {
+    func apply(_ write: AnnotationWrite, wrote annotation: LibraryAnnotation?) {
         guard let index = items.firstIndex(where: { $0.id == write.id }) else { return }
+        let newerWaiting = pending[write.id] != nil
         if let modifiedAt = write.modifiedAt, let size = write.size, let annotation {
-            items[index] = items[index].written(annotation, modifiedAt: modifiedAt, size: size)
+            // Record what the file now looks like so the next scan recognises it, keeping the
+            // annotation on screen when a newer one is queued behind this write.
+            let shown = newerWaiting ? items[index].annotation : annotation
+            items[index] = items[index].written(shown, modifiedAt: modifiedAt, size: size)
             return
         }
         let url = items[index].url
@@ -104,6 +112,7 @@ extension LibraryIndex {
                 itemID: write.id, action: .annotate, reason: write.reason ?? "The file is gone.")
             return
         }
+        guard !newerWaiting else { return }
         items[index] = items[index].withAnnotation(library.annotation(at: url))
         lastFailure = LibraryFailure(
             itemID: write.id, action: .annotate, reason: write.reason ?? "The write did not land.")
