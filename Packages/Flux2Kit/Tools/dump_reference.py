@@ -1,12 +1,23 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["torch", "diffusers", "transformers", "safetensors", "numpy"]
+# dependencies = [
+#     "torch==2.14.0",
+#     "diffusers==0.40.0",
+#     "transformers==5.16.1",
+#     "tokenizers==0.23.2",
+#     "safetensors==0.8.0",
+#     "numpy==2.5.2",
+# ]
 # ///
 """Dump reference tensors from the Apache-2.0 diffusers implementation of FLUX.2.
 
 Every fixture this writes is a claim about what the reference does, checked in Swift by the
 matching test. Files are tiny on purpose: a doll's-house configuration catches a transposed axis
 or a swapped modulation chunk exactly as well as a real one, and can be committed.
+
+The dependency versions above are pinned so a fixture says what produced it; bump them
+together and regenerate every fixture in the same commit. `versions.json` beside the fixtures
+records what the last run used.
 
 Run with `uv run Tools/dump_reference.py --out Tests/Flux2Tests/Fixtures`.
 """
@@ -104,6 +115,18 @@ def dump_scheduler(out: pathlib.Path) -> None:
     print(f"scheduler: {len(tensors)} tensors")
 
 
+def write_versions(out: pathlib.Path) -> None:
+    """Records which versions of the reference stack wrote the fixtures beside it."""
+    import json
+    from importlib.metadata import version
+
+    packages = ["torch", "diffusers", "transformers", "tokenizers", "safetensors", "numpy"]
+    (out / "versions.json").write_text(
+        json.dumps({name: version(name) for name in packages}, indent=2) + "\n"
+    )
+    print("versions: " + ", ".join(f"{name} {version(name)}" for name in packages))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", required=True, type=pathlib.Path)
@@ -126,6 +149,7 @@ def main() -> None:
         if arguments.only and name not in arguments.only:
             continue
         dumper(arguments.out)
+    write_versions(arguments.out)
 
 
 if __name__ == "__main__":

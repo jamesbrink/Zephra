@@ -1,6 +1,13 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["torch", "diffusers", "transformers", "safetensors", "numpy"]
+# dependencies = [
+#     "torch==2.14.0",
+#     "diffusers==0.40.0",
+#     "transformers==5.16.1",
+#     "tokenizers==0.23.2",
+#     "safetensors==0.8.0",
+#     "numpy==2.5.2",
+# ]
 # ///
 """Dump reference tensors for the FLUX.2 transformer, from the Apache-2.0 diffusers port.
 

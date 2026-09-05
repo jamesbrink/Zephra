@@ -32,7 +32,7 @@ enum QwenImageDenoiseLoop {
         latentSize: (height: Int, width: Int),
         reference: Reference?,
         scheduler: FlowMatchEulerScheduler,
-        transformer: QwenImageTransformer,
+        transformer: any QwenImageVelocityModel,
         autoencoder: QwenImageAutoencoder,
         conditioning: MLXArray,
         frequencies: (image: RotaryFrequencies, text: RotaryFrequencies),

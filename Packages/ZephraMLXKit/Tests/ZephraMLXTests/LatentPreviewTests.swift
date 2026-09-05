@@ -21,23 +21,27 @@ struct LatentPreviewTests {
         #expect(LatentPreview.poolingFactor(height: 33, width: 33) == 2)
     }
 
-    @Test("pooling takes the mean of each block, and drops the cells past the last whole one")
+    @Test("pooling takes the mean of each block")
     func poolingTakesBlockMeans() {
-        // 0, 1, 2, 3 along a row, twice down: the mean of the first 2x2 block is 0.5.
-        let values: [Float] = [0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 4, 5, 6, 7]
-        let latents = MLXArray(values, [1, 1, 4, 4])
+        // 0 to 15 row-major: the first 2x2 block is 0, 1, 4, 5, whose mean is 2.5.
+        let latents = MLXArray((0..<16).map { Float($0) }, [1, 1, 4, 4])
         let pooled = LatentPreview.pooled(latents, by: 2)
 
         #expect(pooled.shape == [1, 1, 2, 2])
-        #expect(pooled[0, 0, 0, 0].item(Float.self) == 0.5)
-        #expect(pooled[0, 0, 0, 1].item(Float.self) == 2.5)
-        #expect(pooled[0, 0, 1, 1].item(Float.self) == 6.5)
+        let expected = MLXArray([Float](arrayLiteral: 2.5, 4.5, 10.5, 12.5), [1, 1, 2, 2])
+        #expect(MLX.allClose(pooled, expected, atol: 0).item(Bool.self))
     }
 
     @Test("a row that does not fill a block is left out rather than half-counted")
     func theRemainderIsDropped() {
+        // 5 rows by 3 columns, 0 to 14: two whole blocks down and one across; the fifth row
+        // and the third column are never averaged in.
         let latents = MLXArray((0..<15).map { Float($0) }, [1, 1, 5, 3])
-        #expect(LatentPreview.pooled(latents, by: 2).shape == [1, 1, 2, 1])
+        let pooled = LatentPreview.pooled(latents, by: 2)
+        #expect(pooled.shape == [1, 1, 2, 1])
+        // Blocks {0, 1, 3, 4} and {6, 7, 9, 10}.
+        let expected = MLXArray([Float](arrayLiteral: 2, 8), [1, 1, 2, 1])
+        #expect(MLX.allClose(pooled, expected, atol: 0).item(Bool.self))
     }
 
     @Test("the bytes are four to a pixel, opaque, and hold the range the decoder produced")
