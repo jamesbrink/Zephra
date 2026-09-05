@@ -15,6 +15,9 @@
 
 - tools-version 5.9 → 6.0; platforms macOS 14 → 15; iOS dropped.
 - mlx-swift `.upToNextMinor(from: "0.29.1")` → `exact: "0.31.3"`.
+- swift-transformers `.upToNextMinor(from: "0.1.24")` → `exact: "0.1.24"`, the pin every
+  Zephra package carries: `QwenImageKit`'s assembled tokenizer leans on this version's `Split`
+  pre-tokenizer behaviour, and one resolved version keeps the graph one copy.
 - Added `swiftSettings: [.swiftLanguageMode(.v5), .enableUpcomingFeature("NonisolatedNonsendingByDefault")]`
   on the `ZImage` target. The upcoming feature makes the pipeline's async methods run on the
   caller's executor, so Zephra's inference actor keeps MLX work on its own serial queue.
@@ -163,6 +166,15 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
 
 ## Known upstream behaviour (not patched)
 
+- `Tokenizer/Tokenizer.swift`'s `makeBPETokenizerData`, the fallback taken when a snapshot has
+  `vocab.json` and `merges.txt` but no `tokenizer.json`, is wrong for the Qwen2 tokenizer
+  family in the two ways `QwenImageKit`'s own assembly used to be: it emits a lone `ByteLevel`
+  pre-tokenizer with `useRegex` on, which is GPT-2's regex rather than Qwen2's, and it drops
+  every merge line beginning `#`, which takes 96 real merges with the `#version:` header. It
+  is unused: both Z-Image snapshots the catalog names ship `tokenizer/tokenizer.json`, and the
+  `tokenizer/*` pattern fetches it, so the `AutoTokenizer` branch is the one that runs. Not
+  patched because nothing reaches it; `QwenImageTokenizer+Assembly.swift` is the corrected
+  assembly should a re-sync ever need one.
 - A denoise step is dominated by the 8-bit quantized matmuls, and those already run near the rate
   the same shapes reach in isolation. Measured with `ZephraBench --micro`, 8-bit group-size-32
   matmul is as fast as the dense bfloat16 equivalent at these shapes, so dequantizing the DiT to

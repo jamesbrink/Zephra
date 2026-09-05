@@ -31,7 +31,9 @@ Shared, by what a file actually touches:
   ZephraKit/ZephraSnapshot     Foundation only  — the model downloader, local snapshot
                                                   checks, the hub cache read as a fallback,
                                                   what the models occupy on disk
-  ZephraKit/ZephraTestSupport  Foundation only  — Scratch, the filesystem test fixture
+  ZephraKit/ZephraTestSupport  Foundation, ZephraCore — Scratch, the filesystem test
+                                                  fixture, and SnapshotUnderTest, the real
+                                                  snapshot a kit's suite may read
   ZephraMLXKit/ZephraQuantization  MLX          — the streaming weight packer
   ZephraMLXKit/ZephraMLX           MLX, MLXNN, ZephraCore — the tiled decode, the allocator's
                                                   knobs, and the streamed layer stack;
@@ -867,8 +869,15 @@ the snapshot, not whichever is listed first"); match that when adding one.
 No test loads model weights. The `ZephraKit` suites never touch Metal; the MLX
 packages' suites run doll's-house tensors through it, and a few of `QwenImageKit`'s
 and `Flux2Kit`'s read a real snapshot's config, tokenizer, and safetensors header
-files when `QWEN_IMAGE_SNAPSHOT` or `FLUX2_KLEIN_SNAPSHOT` names one (or the hub
-cache holds exactly one snapshot). The engine tests drive `MockBackend`
+files. `SnapshotUnderTest` in `ZephraTestSupport` is where they look, in order:
+`QWEN_IMAGE_SNAPSHOT` or `FLUX2_KLEIN_SNAPSHOT` when set; the app's own models
+folder, where a variant packed on this Mac (`<models>/<descriptor id>`) carries
+the configs and tokenizer and the download (`Downloads/<org>--<repo>`) is the
+release itself; then the hub cache when it holds exactly one snapshot. A test
+that reads the release's shard headers gates on `hasRelease` and takes
+`release`, which skips the packed variants. Under `xcodebuild test` the variable
+has to be spelled `TEST_RUNNER_QWEN_IMAGE_SNAPSHOT`: only `TEST_RUNNER_`-prefixed
+variables reach the test process. The engine tests drive `MockBackend`
 through `MockBackendControl`, a lock-protected dial a `@Sendable` factory can
 close over — it fails a load, delays one so cancellation lands mid-flight,
 pretends to build, tallies loads, unloads and builds, and records the last
@@ -1178,7 +1187,11 @@ the re-sync procedure, and the running patch log. Any change inside
 - Conventional Commits for all git messages.
 - Swift 6 strict concurrency in our code. The vendored `ZImageKit` package
   stays in Swift 5 language mode so its 49 upstream files compile untouched.
-- Every package pins the same exact `mlx-swift` version. When bumping it, re-run
+- Every package pins the same exact `mlx-swift` and `swift-transformers`
+  versions (`ZImageKit`'s manifest too, logged in its `VENDORED.md`).
+  `QwenImageKit` assembles Qwen-Image's tokenizer itself, and its
+  `TokenizerTests` pin the ids against the Hugging Face tokenizer's, so a
+  swift-transformers bump is checked by running them. When bumping mlx-swift, re-run
   `Flux2Kit`'s bf16 matmul probe test: mlx-swift up to 0.31.6 miscompiles a
   bf16 split-K matmul on M5-class GPUs at the single block's output shape
   (mlx#3797, fixed in mlx 0.32.0 by mlx#3810, which no mlx-swift release

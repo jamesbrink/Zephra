@@ -9,10 +9,20 @@ import Testing
 enum Fixture {
     /// The tensors in one fixture file.
     static func load(_ name: String) throws -> [String: MLXArray] {
-        let url = try #require(
-            Bundle.module.resourceURL?.appending(path: "Fixtures/\(name).safetensors"),
+        try MLX.loadArrays(url: url("\(name).safetensors"))
+    }
+
+    /// A fixture that is not tensors, decoded from `Fixtures/<name>.json`.
+    static func json<Value: Decodable>(_ name: String, as type: Value.Type = Value.self) throws
+        -> Value
+    {
+        try JSONDecoder().decode(type, from: Data(contentsOf: url("\(name).json")))
+    }
+
+    private static func url(_ file: String) throws -> URL {
+        try #require(
+            Bundle.module.resourceURL?.appending(path: "Fixtures/\(file)"),
             "the fixture bundle is missing")
-        return try MLX.loadArrays(url: url)
     }
 
     /// The largest absolute difference between two tensors, as a Float.

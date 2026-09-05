@@ -1,6 +1,13 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["torch", "diffusers", "transformers", "safetensors", "numpy"]
+# dependencies = [
+#     "torch==2.14.0",
+#     "diffusers==0.40.0",
+#     "transformers==5.16.1",
+#     "tokenizers==0.23.2",
+#     "safetensors==0.8.0",
+#     "numpy==2.5.2",
+# ]
 # ///
 """Dump reference tensors from the Apache-2.0 diffusers implementation.
 
@@ -8,10 +15,17 @@ Every fixture this writes is a claim about what the reference does, checked in S
 matching test. Files are tiny on purpose: a doll's-house configuration catches a transposed axis
 or a swapped modulation chunk exactly as well as a real one, and can be committed.
 
-Run with `uv run Tools/dump_reference.py --out Tests/QwenImageTests/Fixtures`.
+The dependency versions above are pinned so a fixture says what produced it; bump them
+together and regenerate every fixture in the same commit.
+
+Run with `uv run Tools/dump_reference.py --out Tests/QwenImageTests/Fixtures`. The tokenizer
+fixture is the one that needs the real files rather than a doll's house: `--tokenizer DIR`
+names a directory holding `vocab.json`, `merges.txt`, `tokenizer_config.json` and
+`added_tokens.json` (a snapshot's `tokenizer/`); without it they are fetched from the hub.
 """
 
 import argparse
+import json
 import pathlib
 
 import torch
@@ -262,10 +276,103 @@ def dump_vae(out: pathlib.Path) -> None:
     print(f"vae: {len(tensors)} tensors")
 
 
+TOKENIZER_REPOSITORY = "Qwen/Qwen-Image-2512"
+
+# Every way an assembled pre-tokenizer could disagree with Qwen2's own: hyphens and
+# contractions, digits one at a time, runs of newlines and spaces, merges that begin with `#`,
+# a script outside Latin, emoji, an accent as a combining mark (which NFC folds), brackets and
+# quotes, and nothing at all. The wrapped template is added by `dump_tokenizer`.
+TOKENIZER_CASES = [
+    "high-quality, black-and-white",
+    "well-known",
+    "state-of-the-art",
+    "it's, isn't, we've",
+    "don't stop",
+    "I'LL",
+    "###",
+    "#hashtag ### markdown",
+    "12345",
+    "1,024 x 768",
+    "3.14159",
+    "a\n\nb",
+    "line one\nline two\r\nthree",
+    "x  \n y",
+    "  two spaces",
+    "trailing space ",
+    "tab\tseparated",
+    "café naïve",
+    "e\u0301",  # a combining acute, which NFC folds into the precomposed letter
+    "日本語のテキスト",
+    "emoji \U0001f3a8 test",
+    '"quoted"',
+    "(parenthetical) [bracketed] {braced}",
+    "",
+]
+
+
+def dump_tokenizer(out: pathlib.Path, tokenizer_directory: pathlib.Path | None) -> None:
+    """Token ids from the Hugging Face tokenizer, for the port's assembled one to reproduce.
+
+    Not a doll's house: this is the real vocabulary and merge list, because what is being
+    checked is the assembly of those files into a fast tokenizer -- the pre-tokenizer's regex,
+    the normalizer, and which lines of `merges.txt` are merges. The template and
+    `prefix_count` come from the pipeline itself (`prompt_template_encode` and the `drop_idx`
+    it throws away), so the Swift side's copy of both is checked against the reference's.
+    """
+    from importlib.metadata import version
+
+    from diffusers.pipelines.qwenimage.pipeline_qwenimage import QwenImagePipeline
+    from transformers import AutoTokenizer
+
+    if tokenizer_directory is not None:
+        tokenizer = AutoTokenizer.from_pretrained(str(tokenizer_directory))
+        revision = "local"
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_REPOSITORY, subfolder="tokenizer")
+        revision = "hub"
+    pipeline = QwenImagePipeline(
+        scheduler=None, vae=None, text_encoder=None, tokenizer=tokenizer, transformer=None
+    )
+    template = pipeline.prompt_template_encode
+
+    def ids(text: str) -> list[int]:
+        return tokenizer(text, add_special_tokens=False)["input_ids"]
+
+    prefix_count = len(ids(template.split("{}")[0]))
+    assert prefix_count == pipeline.prompt_template_encode_start_idx, prefix_count
+    cases = TOKENIZER_CASES + [template.format("a red cube")]
+    header = {
+        "transformers": version("transformers"),
+        "tokenizers": version("tokenizers"),
+        "revision": revision,
+        "template": template,
+        "prefix_count": prefix_count,
+    }
+    # One case per line, so a change to the reference reads as one line in a diff.
+    body = ",\n".join(
+        "    " + json.dumps({"text": text, "ids": ids(text)}, ensure_ascii=False)
+        for text in cases
+    )
+    fields = "".join(
+        f"  {json.dumps(key)}: {json.dumps(value, ensure_ascii=False)},\n"
+        for key, value in header.items()
+    )
+    (out / "tokenizer_ids.json").write_text(
+        "{\n" + fields + '  "cases": [\n' + body + "\n  ]\n}\n", encoding="utf-8"
+    )
+    print(f"tokenizer: {len(cases)} cases, prefix {prefix_count}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", required=True, type=pathlib.Path)
     parser.add_argument("--only", nargs="*", default=None)
+    parser.add_argument(
+        "--tokenizer",
+        type=pathlib.Path,
+        default=None,
+        help="a directory holding Qwen-Image's tokenizer files; fetched from the hub when absent",
+    )
     arguments = parser.parse_args()
     arguments.out.mkdir(parents=True, exist_ok=True)
 
@@ -277,6 +384,7 @@ def main() -> None:
         "text_encoder": dump_text_encoder,
         "transformer": dump_transformer,
         "vae": dump_vae,
+        "tokenizer": lambda out: dump_tokenizer(out, arguments.tokenizer),
     }
     for name, dumper in dumpers.items():
         if arguments.only and name not in arguments.only:
