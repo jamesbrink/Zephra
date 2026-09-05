@@ -656,15 +656,28 @@ Zephra/
 
 ### Releasing
 
+A release is the app signed with a Developer ID Application certificate, notarized,
+and shipped as a DMG and a ZIP for direct download. It is not an App Store build:
+the app is **unsandboxed** — it has no entitlements file and no App Sandbox — and it
+is signed with the hardened runtime and a secure timestamp, which is what Gatekeeper
+asks of a notarized app outside the store. Sandboxing it is a decision for the day
+it is submitted anywhere that requires one, and `ROADMAP.md` is where that would go.
+
 `make signed-build` regenerates the project, builds Release, and signs the app and
-the resource bundles inside it with a Developer ID Application certificate (hardened
-runtime, secure timestamp), verifies with `codesign --verify --deep --strict` and
-`spctl -a -t exec -vv`. `make release` also packages `build/Zephra.zip` and a signed
-`build/Zephra.dmg`. The read-only DMG contains `Zephra.app` and an Applications
-shortcut: open the disk image and drag the app into Applications. Distribution
-signing uses Apple's secure timestamp server; notarization is a separate step.
-Ordinary `make build` is unaffected and still signs ad-hoc, so a machine with no
-certificate can build and run the app.
+the resource bundles inside it with that certificate, verifies with
+`codesign --verify --deep --strict` and `spctl -a -t exec -vv`. `make release` also
+packages `build/Zephra.zip` and a signed `build/Zephra.dmg`. The read-only DMG
+contains `Zephra.app` and an Applications shortcut: open the disk image and drag the
+app into Applications. Distribution signing uses Apple's secure timestamp server;
+notarization is a separate step. Ordinary `make build` is unaffected and still
+signs ad-hoc, so a machine with no certificate can build and run the app.
+
+The version is set when the release is cut, not in a file: `make release
+VERSION=0.2.0 BUILD_NUMBER=42` passes `MARKETING_VERSION` and
+`CURRENT_PROJECT_VERSION` to `xcodebuild` on the command line, and `project.yml`
+keeps `0.1.0` and `1` as what an ordinary build is stamped with. `VERSION` must be
+`MAJOR.MINOR.PATCH` and `BUILD_NUMBER` a positive integer; `make build` refuses
+anything else before `xcodebuild` runs. Either may be given alone.
 
 `SIGN_IDENTITY` picks the certificate; left empty, the first "Developer ID
 Application" identity in the keychain is used. Both signing and notarization source
@@ -699,9 +712,19 @@ unset. `make -j notarized-release` still waits for packaging to finish before
 notarization starts. `scripts/test-notarization.sh` checks accepted and rejected
 verdict handling without credentials or network access.
 
-`.github/workflows/notarized-release.yml` provides the same flow on an Apple Silicon
-GitHub-hosted runner. It has only a manual trigger and uploads the notarized DMG and
-ZIP as a workflow artifact; it never publishes a GitHub release. The repository needs these
+`.github/workflows/notarized-release.yml` is the same path on an Apple Silicon
+GitHub-hosted runner. It is dispatched by hand with one input, the version, and
+runs every gate a merge is held to locally before it signs anything — in order,
+`make doctor`, `make lint-layers`, `make test`, `make test-app` and `make test-mlx`,
+after downloading the Metal toolchain if the runner image lacks it — then
+`make release VERSION=<input> BUILD_NUMBER=<run number>` and `make notarize`.
+The run number is what makes `CFBundleVersion` monotonic: GitHub only ever
+increases it, and a re-run keeps its number, which is the same version built again.
+The gates build the Debug app and the seven MLX packages' suites, each compiling
+MLX's kernels, before the Release build does so once more, so a run is a couple of
+hours rather than the minutes signing alone took; the workflow has not yet been run
+end to end. It uploads the notarized DMG and ZIP as a workflow artifact named for the
+version and run; it never publishes a GitHub release. The repository needs these
 Actions secrets: `DEVELOPER_ID_APPLICATION_P12_BASE64`,
 `DEVELOPER_ID_APPLICATION_P12_PASSWORD`, `APPLE_API_KEY_P8_BASE64`,
 `APPLE_API_KEY_ID`, and `APPLE_API_ISSUER_ID`.

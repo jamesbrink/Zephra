@@ -1,18 +1,46 @@
 name: Notarized Release
 
+# Manually dispatched only: nothing is distributed until the app is ready to ship, and there
+# is no CI on pull requests (ROADMAP.md). Every gate a merge is held to locally runs here
+# before anything is signed, in the same order and through the same Makefile targets, so a
+# release cannot be cut from a tree that does not pass them.
+#
+# Runtime cost, unmeasured because the workflow has never run end to end: `make doctor`,
+# `make lint-layers` and `make test` are seconds to a few minutes (the Swift packages under
+# `swift test`, no Metal). `make test-app` builds the Debug app, which compiles MLX's Metal
+# kernels from scratch, and `make test-mlx` builds and runs the seven MLX packages' suites
+# through xcodebuild. `make release` then builds Release, compiling the kernels again at -O.
+# On an Apple Silicon GitHub-hosted runner that is at least two full MLX builds and a Debug
+# one, so expect a couple of hours; the timeout below is set for that, not for the old
+# sign-and-notarize run alone. Nothing here loads model weights.
+
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: >-
+          Marketing version to stamp the app with (MAJOR.MINOR.PATCH, e.g. 0.2.0).
+          Becomes MARKETING_VERSION; the build number is the workflow run number.
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   build-sign-notarize:
-    name: Build, sign, and notarize
+    name: Gate, build, sign, and notarize
     runs-on: macos-26
-    timeout-minutes: 90
+    timeout-minutes: 300
 
     env:
+      # The version the app is stamped with (project.yml holds the defaults an ordinary
+      # build gets). The marketing version is the dispatch input; the build number is the
+      # run number, which GitHub only ever increases for a workflow, so CFBundleVersion is
+      # monotonic across releases without anyone editing a file. A re-run of the same run
+      # keeps its number, which is right: it is the same version built again.
+      VERSION: ${{ inputs.version }}
+      BUILD_NUMBER: ${{ github.run_number }}
       DEVELOPER_ID_APPLICATION_P12_BASE64: ${{ secrets.DEVELOPER_ID_APPLICATION_P12_BASE64 }}
       DEVELOPER_ID_APPLICATION_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_APPLICATION_P12_PASSWORD }}
       APPLE_API_KEY_P8_BASE64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
@@ -23,9 +51,56 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v5
 
+      # Refused here, before an hour of gates, rather than by `make build` at the end; the
+      # Makefile applies the same rule for a local `make release VERSION=...`.
+      - name: Check the version input
+        run: |
+          set -euo pipefail
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "version must be MAJOR.MINOR.PATCH, got '$VERSION'" >&2
+            exit 1
+          fi
+          echo "Building Zephra $VERSION ($BUILD_NUMBER)"
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
+      # Xcode 26 ships without the Metal toolchain, and mlx-swift's kernels cannot compile
+      # without it. The status check is the one scripts/doctor.sh makes, so this is a no-op
+      # on an image that already has it and about 700 MB of download on one that does not.
+      - name: Install the Metal toolchain
+        run: |
+          set -euo pipefail
+          status=$(xcodebuild -showComponent MetalToolchain 2>/dev/null \
+            | awk -F': ' '/^Status/ { print $2 }')
+          if [ "$status" = "installed" ]; then
+            echo "Metal toolchain already installed"
+          else
+            echo "Metal toolchain status: ${status:-unknown}; downloading"
+            xcodebuild -downloadComponent MetalToolchain
+          fi
+
+      # The gates, in the order they are run locally before a merge (ROADMAP.md, standing decisions).
+      # `make doctor` exits with the number of failed prerequisite checks and prints the fix
+      # for each, so a runner image that lost Xcode or the toolchain fails here, loudly,
+      # rather than as a bare error deep inside a build.
+      - name: Check prerequisites
+        run: make doctor
+
+      - name: Lint the module boundaries
+        run: make lint-layers
+
+      - name: Test ZephraKit
+        run: make test
+
+      - name: Test the app target
+        run: make test-app
+
+      - name: Test the MLX packages
+        run: make test-mlx
+
+      # Credentials are imported only once the gates have passed: a failed test should not
+      # need the signing keychain to have been created at all.
       - name: Import signing credentials
         env:
           KEYCHAIN_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-${{ github.sha }}
@@ -53,7 +128,7 @@ jobs:
           echo "NOTARY_KEY=$api_key" >>"$GITHUB_ENV"
 
       - name: Build signed DMG and ZIP
-        run: make release SIGNING_CONFIG=/dev/null
+        run: make release SIGNING_CONFIG=/dev/null VERSION="$VERSION" BUILD_NUMBER="$BUILD_NUMBER"
 
       - name: Notarize and staple
         run: make notarize SIGNING_CONFIG=/dev/null
@@ -61,7 +136,7 @@ jobs:
       - name: Upload notarized DMG and ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: Zephra-${{ github.sha }}
+          name: Zephra-${{ inputs.version }}-${{ github.run_number }}
           path: |
             build/Zephra.dmg
             build/Zephra.zip

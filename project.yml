@@ -83,6 +83,10 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.zephra.Zephra
         PRODUCT_NAME: Zephra
+        # What an ordinary build is stamped with. A release overrides both on the
+        # xcodebuild command line (`make release VERSION=0.2.0 BUILD_NUMBER=42`; the
+        # workflow passes its dispatch input and the run number), so a version is never
+        # bumped here for a release, only when the default itself should move.
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
         INFOPLIST_FILE: Sources/Zephra/Resources/Info.plist
