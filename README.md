@@ -335,6 +335,9 @@ Twice as fast as Z-Image Turbo per image at 1024 (four steps of 6.9 s against ni
 quality rather than costing time. Editing is dearer: a 1024² image made from a 512²
 reference took 66 s and peaked at 19.2 GB, because the reference's tokens ride through
 every attention layer beside the image's, so on a 16 GB Mac edit at 768² or below.
+Those two figures were taken while the reference's tokens were still float32, which
+widened the whole edit to float32; the tokens are cast to the stream's dtype now, and
+the edit is due a rerun on an idle machine.
 
 The port in `Packages/Flux2Kit` is Zephra's own, translated from two MIT-licensed
 Swift ports and pinned against `diffusers` — see `PROVENANCE.md` for the four places

@@ -73,6 +73,41 @@ struct ReferenceOrderingTests {
         #expect(abs(Float(EmpiricalShift.mu(imageSequenceLength: 12, steps: 4)) - mu) < 1e-6)
     }
 
+    @Test("reference tokens come out in the dtype the stream runs in")
+    func tokensTakeTheStreamDtype() throws {
+        // The autoencoder answers in float32 whatever it is asked; the cast is the encoder's
+        // job, because the pipeline concatenates the tokens straight onto the target.
+        let vae = try Fixture.load("vae")
+        let autoencoder = try VAEParityTests.loaded(vae)
+        let image = try #require(vae["vae.in.image"])
+        let narrow = Flux2ReferenceConditioning.encode([image], with: autoencoder, dtype: .bfloat16)
+        #expect(narrow.count == 1)
+        #expect(narrow[0].tokens.dtype == .bfloat16)
+        let wide = Flux2ReferenceConditioning.encode([image], with: autoencoder, dtype: .float32)
+        #expect(wide[0].tokens.dtype == .float32)
+        #expect(narrow[0].ids == wide[0].ids, "the dtype changes nothing about where the tokens sit")
+    }
+
+    @Test("concatenating a reference does not widen the target's dtype")
+    func concatenationKeepsTheTargetDtype() throws {
+        let fixture = try Fixture.load("reference_conditioning")
+        let target = try #require(fixture["target.packed"])
+        let targetIDs = Flux2PositionIDs.image(height: target.dim(2), width: target.dim(3))
+        let references = try Self.references(fixture).map {
+            Flux2ReferenceConditioning.Reference(tokens: $0.tokens.asType(.bfloat16), ids: $0.ids)
+        }
+        let (tokens, _) = Flux2ReferenceConditioning.concatenated(
+            target: Flux2LatentPacking.tokens(target).asType(.bfloat16),
+            targetIDs: targetIDs, references: references)
+        #expect(tokens.dtype == .bfloat16)
+        // And the finding itself, so the promotion rule this guards against is on record: a
+        // float32 reference beside a bfloat16 target widens the whole sequence.
+        let (widened, _) = Flux2ReferenceConditioning.concatenated(
+            target: Flux2LatentPacking.tokens(target).asType(.bfloat16),
+            targetIDs: targetIDs, references: try Self.references(fixture))
+        #expect(widened.dtype == .float32)
+    }
+
     @Test("no references means the target passes through untouched")
     func noReferences() {
         let target = MLXArray(0..<24).asType(.float32).reshaped([1, 12, 2])

@@ -1129,7 +1129,10 @@ every size and peaks at 7651 MB at 512, 9037 MB at 768, and 12087 MB at 1024,
 and peaks at 15289 MB at 1024, 10861 MB tiled, for the same step time. So 1024 is
 the default size and the 4-bit entry is what a 16 GB Mac opens on, with the exact
 decode. An edit is dearer: a 1024 image from a 512 reference peaked at 19227 MB and
-took 66 s, the reference's 1024 tokens riding through every attention layer. The
+took 66 s, the reference's 1024 tokens riding through every attention layer — and
+those two figures were measured with the reference's tokens still float32, which
+widened the whole edit to float32; `Flux2ReferenceConditioning.encode` now casts
+them to the stream's dtype, and the edit is due a rerun on an idle machine. The
 stream runs in bfloat16; `ZEPHRA_DIT_DTYPE=f32` is the escape hatch for the
 mlx-swift split-K bug on M5-class GPUs, at three times the step time, and the
 packer's float32 scales are cast to the stream's dtype at load, without which MLX's
