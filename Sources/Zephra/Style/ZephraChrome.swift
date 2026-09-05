@@ -8,8 +8,8 @@ import SwiftUI
 enum ZephraChrome {
     /// The floating prompt capsule, the largest radius in the app.
     static let capsuleRadius: CGFloat = 16
-    /// A pane-sized panel sitting inside the window's own chrome.
-    static let panelRadius: CGFloat = 10
+    /// The picture in the reference well: a step above a card, since it sits on the capsule.
+    static let wellRadius: CGFloat = 10
     /// A small card in a list: a queue row, a block of facts.
     static let cardRadius: CGFloat = 8
     /// A square image standing in for a bigger one.

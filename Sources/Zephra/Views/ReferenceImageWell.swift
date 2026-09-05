@@ -63,7 +63,7 @@ struct ReferenceImageWell: View {
     private var filled: some View {
         ReferenceThumbnail()
             .frame(width: 64, height: 64)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: ZephraChrome.wellRadius, style: .continuous))
             .overlay(alignment: .topTrailing) {
                 Button {
                     ReferenceAdoption.use(nil, into: store)
