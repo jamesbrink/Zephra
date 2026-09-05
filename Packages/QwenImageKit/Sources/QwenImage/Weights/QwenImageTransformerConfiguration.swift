@@ -44,9 +44,18 @@ public struct QwenImageTransformerConfiguration: Hashable, Sendable, Decodable {
         case patchSize = "patch_size"
     }
 
-    /// Checks the one invariant that is silent when broken: rotary embeddings split a head's
-    /// width across three axes, and half of each axis carries the cosine.
+    /// Checks the invariants that are silent when broken: rotary embeddings split a head's
+    /// width across three axes, and half of each axis carries the cosine; the packing is the
+    /// two-by-two `QwenImageLatentPacking` implements; and the port has no guidance embedder,
+    /// so a config asking for one is refused rather than ignored.
     public func validated() throws -> Self {
+        guard !guidanceEmbeds else {
+            throw QwenImageConfigurationError.unsupportedValue(field: "guidance_embeds", value: "true")
+        }
+        guard patchSize == QwenImageLatentPacking.patchSize else {
+            throw QwenImageConfigurationError.unsupportedValue(
+                field: "patch_size", value: String(patchSize))
+        }
         guard axesDimsRope.reduce(0, +) == attentionHeadDim else {
             throw QwenImageConfigurationError.ropeAxesDoNotSumToHeadDim(
                 axes: axesDimsRope, headDim: attentionHeadDim)

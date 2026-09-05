@@ -16,6 +16,10 @@ public enum QwenImageConfigurationError: Error, LocalizedError, Equatable {
     case textEncoderHeadsDoNotDivide(hidden: Int, heads: Int, keyValueHeads: Int)
     /// A configuration file the snapshot must carry is not there.
     case missingConfiguration(name: String, directory: URL)
+    /// A field the port reads but implements only one value of asks for another.
+    case unsupportedValue(field: String, value: String)
+    /// The transformer's channels per token must be the latent's channels times the patch.
+    case channelsDoNotMatchLatent(inChannels: Int, latentChannels: Int, patch: Int)
 
     public var errorDescription: String? {
         switch self {
@@ -29,6 +33,10 @@ public enum QwenImageConfigurationError: Error, LocalizedError, Equatable {
             "A \(hidden)-wide encoder cannot be split into \(heads) heads over \(keyValueHeads) key-value heads."
         case .missingConfiguration(let name, let directory):
             "No \(name) in \(directory.path(percentEncoded: false))."
+        case .unsupportedValue(let field, let value):
+            "This port does not implement \(field) = \(value); the image would be silently wrong."
+        case .channelsDoNotMatchLatent(let inChannels, let latentChannels, let patch):
+            "The transformer takes \(inChannels) channels a token, but a \(latentChannels)-channel latent packed \(patch) by \(patch) gives \(latentChannels * patch * patch)."
         }
     }
 }

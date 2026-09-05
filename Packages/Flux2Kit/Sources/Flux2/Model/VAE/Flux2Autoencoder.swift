@@ -20,13 +20,9 @@ public final class Flux2Autoencoder: Module {
     @ModuleInfo(key: "decoder") var decoder: Flux2VAEDecoder
     @ModuleInfo(key: "bn") var statistics: Flux2BatchNormStats
 
-    /// How many pixels one latent cell becomes along each edge, for the published model: three
-    /// spatial halvings, so eight, and a 64-cell tile decodes a 512-pixel square.
-    public static let spatialScale = 8
-
     private let latentChannels: Int
-    // Read from the configuration rather than from `spatialScale`, so a tiled decode of a
-    // doll's-house autoencoder cuts the tiles to the size that autoencoder actually produces.
+    // From the configuration, so a tiled decode of a doll's-house autoencoder cuts the tiles to
+    // the size that autoencoder actually produces; on the published model, eight.
     private let pixelsPerCell: Int
 
     /// Builds both towers as `configuration` describes them. Weights arrive separately.

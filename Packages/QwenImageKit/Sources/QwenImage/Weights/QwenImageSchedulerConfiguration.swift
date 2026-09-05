@@ -36,4 +36,19 @@ public struct QwenImageSchedulerConfiguration: Hashable, Sendable, Decodable {
         case shiftTerminal = "shift_terminal"
         case timeShiftType = "time_shift_type"
     }
+
+    /// Refuses what the port does not implement: the shift is `exponential` (the only branch
+    /// `FlowMatchEulerScheduler` has), and the timestep embedding scales a sigma by exactly a
+    /// thousand, which is `num_train_timesteps` folded into the port.
+    public func validated() throws -> Self {
+        guard timeShiftType == "exponential" else {
+            throw QwenImageConfigurationError.unsupportedValue(
+                field: "time_shift_type", value: timeShiftType)
+        }
+        guard numTrainTimesteps == 1000 else {
+            throw QwenImageConfigurationError.unsupportedValue(
+                field: "num_train_timesteps", value: String(numTrainTimesteps))
+        }
+        return self
+    }
 }

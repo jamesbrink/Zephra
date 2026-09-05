@@ -23,10 +23,9 @@ public final class QwenImageAutoencoder: Module {
     private let latentsMean: [Float]
     private let latentsStandardDeviation: [Float]
     private let latentChannels: Int
-
-    /// How many pixels one latent cell becomes along each edge. Three spatial halvings in the
-    /// encoder, so eight, and a tile of 64 latent cells decodes a 512-pixel square.
-    public static let spatialScale = 8
+    // From the configuration, so a tiled decode of a doll's-house autoencoder cuts the tiles to
+    // the size that autoencoder actually produces; on the published model, eight.
+    private let pixelsPerCell: Int
 
     /// Builds the autoencoder described by `configuration`. Weights arrive separately.
     public init(_ configuration: QwenImageVAEConfiguration) {
@@ -43,6 +42,7 @@ public final class QwenImageAutoencoder: Module {
         latentsMean = configuration.latentsMean.map(Float.init)
         latentsStandardDeviation = configuration.latentsStd.map(Float.init)
         latentChannels = configuration.zDim
+        pixelsPerCell = configuration.spatialScale
     }
 
     /// Turns latents into an image in the range -1 to 1.
@@ -61,7 +61,7 @@ public final class QwenImageAutoencoder: Module {
         // holding the full-resolution result of it live.
         let pixels =
             if let tile, tile < Swift.max(denormalized.dim(1), denormalized.dim(2)) {
-                TiledDecode.run(denormalized, tile: tile, scale: Self.spatialScale) {
+                TiledDecode.run(denormalized, tile: tile, scale: pixelsPerCell) {
                     decoder(postQuantization($0))
                 }
             } else {

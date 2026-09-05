@@ -12,7 +12,8 @@ extension Flux2Pipeline {
     ) throws -> [Flux2ReferenceConditioning.Reference] {
         guard let data = request.referenceImage else { return [] }
         onProgress(Flux2GenerationProgress(stage: .encodingReference))
-        let pixels = try Flux2PixelBuffer.pixels(from: data)
+        let pixels = try Flux2PixelBuffer.pixels(
+            from: data, alignment: model.configuration.sizeAlignment)
         let references = Flux2ReferenceConditioning.encode(
             [pixels], with: model.autoencoder, dtype: model.activation)
         MLX.eval(references.map(\.tokens))
@@ -29,8 +30,8 @@ extension Flux2Pipeline {
         onPreview: PreviewHandler? = nil
     ) throws -> Data {
         let configuration = model.configuration
-        let packedHeight = request.height / Self.sizeAlignment
-        let packedWidth = request.width / Self.sizeAlignment
+        let packedHeight = request.height / configuration.sizeAlignment
+        let packedWidth = request.width / configuration.sizeAlignment
         let targetTokens = packedHeight * packedWidth
 
         // Noise is drawn in the packed space the transformer reads, as the reference draws it;

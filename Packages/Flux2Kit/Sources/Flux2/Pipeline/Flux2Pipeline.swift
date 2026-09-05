@@ -20,10 +20,6 @@ public final class Flux2Pipeline {
         let activation: DType
     }
 
-    /// Both image edges must be a multiple of this: the autoencoder's eightfold reduction times
-    /// the two-by-two packing.
-    public static let sizeAlignment = Flux2Autoencoder.spatialScale * Flux2LatentPacking.patchSize
-
     var loaded: Loaded?
 
     /// Creates an empty pipeline. Nothing is read until `loadModel`.
@@ -99,7 +95,7 @@ public final class Flux2Pipeline {
         onPreview: PreviewHandler? = nil
     ) throws -> Data {
         guard let model = loaded else { throw Flux2PipelineError.notLoaded }
-        let alignment = Self.sizeAlignment
+        let alignment = model.configuration.sizeAlignment
         guard request.width % alignment == 0, request.height % alignment == 0 else {
             throw Flux2PipelineError.unalignedSize(
                 width: request.width, height: request.height, alignment: alignment)

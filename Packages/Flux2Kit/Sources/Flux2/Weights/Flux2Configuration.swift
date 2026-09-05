@@ -44,15 +44,26 @@ public struct Flux2Configuration: Hashable, Sendable {
         scheduler = try Self.decode(
             Flux2SchedulerConfiguration.self,
             from: snapshot, component: .scheduler, file: "scheduler_config.json"
-        )
-        // The one invariant that spans two files: the transformer reads a text stream that is
-        // the encoder's width times the number of layers tapped.
+        ).validated()
+        // Two invariants span two files: the transformer reads a text stream that is the
+        // encoder's width times the number of layers tapped, and a token is the latent's
+        // channels times the patch's cells.
         let taps = textEncoder.hiddenStateTaps.count
         guard transformer.jointAttentionDim == textEncoder.hiddenSize * taps else {
             throw Flux2ConfigurationError.jointDimIsNotTheTaps(
                 joint: transformer.jointAttentionDim, hidden: textEncoder.hiddenSize, taps: taps)
         }
+        guard transformer.inChannels == vae.packedChannels else {
+            throw Flux2ConfigurationError.channelsDoNotMatchLatent(
+                inChannels: transformer.inChannels, latentChannels: vae.latentChannels,
+                patch: vae.patchSize[0])
+        }
     }
+
+    /// Both image edges must be a multiple of this: the autoencoder's spatial reduction times
+    /// the patch it packs by. The one place the number is derived; the catalog's copy is
+    /// checked against it by a test.
+    public var sizeAlignment: Int { vae.spatialScale * vae.patchSize[0] }
 
     private static func decode<Value: Decodable>(
         _ type: Value.Type,

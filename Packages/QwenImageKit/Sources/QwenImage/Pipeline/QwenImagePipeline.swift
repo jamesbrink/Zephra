@@ -22,10 +22,6 @@ public final class QwenImagePipeline {
         let activation: DType
     }
 
-    /// The image size must be a whole number of patches, which is the VAE's eightfold
-    /// compression times the transformer's 2x2 patch.
-    public static let sizeAlignment = 16
-
     public init() {}
 
     /// Whether a model is in memory.
@@ -48,7 +44,7 @@ public final class QwenImagePipeline {
         onPreview: PreviewHandler? = nil
     ) throws -> Data {
         guard let model = loaded else { throw QwenImagePipelineError.notLoaded }
-        let alignment = Self.sizeAlignment
+        let alignment = model.configuration.sizeAlignment
         guard request.width % alignment == 0, request.height % alignment == 0 else {
             throw QwenImagePipelineError.unalignedSize(
                 width: request.width, height: request.height, alignment: alignment)

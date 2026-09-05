@@ -44,8 +44,20 @@ public struct QwenImageConfiguration: Hashable, Sendable {
         scheduler = try Self.decode(
             QwenImageSchedulerConfiguration.self,
             from: snapshot, component: .scheduler, file: "scheduler_config.json"
-        )
+        ).validated()
+        // The one invariant that spans two files: a token is the latent's channels times the
+        // patch's cells, which is why `in_channels` is 64 for a 16-channel latent.
+        let patch = transformer.patchSize
+        guard transformer.inChannels == vae.zDim * patch * patch else {
+            throw QwenImageConfigurationError.channelsDoNotMatchLatent(
+                inChannels: transformer.inChannels, latentChannels: vae.zDim, patch: patch)
+        }
     }
+
+    /// The image size must be a whole number of patches: the VAE's spatial reduction times
+    /// the transformer's patch. The one place the number is derived; the catalog's copy is
+    /// checked against it by a test.
+    public var sizeAlignment: Int { vae.spatialScale * transformer.patchSize }
 
     private static func decode<Value: Decodable>(
         _ type: Value.Type,

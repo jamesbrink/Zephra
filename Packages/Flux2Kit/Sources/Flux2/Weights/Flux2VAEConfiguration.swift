@@ -37,10 +37,15 @@ public struct Flux2VAEConfiguration: Hashable, Sendable, Decodable {
         case batchNormEps = "batch_norm_eps"
     }
 
-    /// Checks what the packing and the norms assume.
+    /// Checks what the packing and the norms assume, and that the middle block has the
+    /// attention the port always builds.
     public func validated() throws -> Self {
-        guard patchSize == [2, 2] else {
+        guard patchSize == [Flux2LatentPacking.patchSize, Flux2LatentPacking.patchSize] else {
             throw Flux2ConfigurationError.unexpectedPatchSize(patchSize)
+        }
+        guard midBlockAddAttention else {
+            throw Flux2ConfigurationError.unsupportedValue(
+                field: "mid_block_add_attention", value: "false")
         }
         guard blockOutChannels.allSatisfy({ $0.isMultiple(of: normNumGroups) }) else {
             throw Flux2ConfigurationError.groupsDoNotDivideChannels(
