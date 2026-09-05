@@ -28,8 +28,16 @@ struct InferenceTuning {
         return InferenceTuning(
             cacheLimitBytes: min(8 * gigabyte, physical / 6),
             memoryLimitBytes: workingSet,
-            wiredLimitBytes: workingSet
+            wiredLimitBytes: overriddenLimit("ZEPHRA_WIRED_LIMIT_MB") ?? workingSet
         )
+    }
+
+    /// A limit named in the environment in megabytes, as bytes, or nil when it is not set: the
+    /// same switch the benchmark reads, for launching the app with one limit changed.
+    private static func overriddenLimit(_ variable: String) -> Int? {
+        guard let value = ProcessInfo.processInfo.environment[variable], let megabytes = Int(value)
+        else { return nil }
+        return megabytes * 1_000_000
     }
 
     /// The limits for a Mac whose GPU has not been asked, for the cache recommendation, which
