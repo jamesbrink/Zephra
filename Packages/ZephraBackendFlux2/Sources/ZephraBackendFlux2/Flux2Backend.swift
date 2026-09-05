@@ -33,7 +33,11 @@ public nonisolated final class Flux2Backend: ImageGenerationBackend {
     ) async throws {
         if loadedModelID != nil { unload() }
         do {
-            try pipeline.loadModel(at: localPath) { progress in
+            // The stream's dtype is this package's call, not the kit's: bfloat16, or float32 on
+            // an M5-class GPU or under ZEPHRA_DIT_DTYPE. See `Flux2ActivationPrecision`.
+            try pipeline.loadModel(
+                at: localPath, activation: Flux2ActivationPrecision.resolve()
+            ) { progress in
                 onProgress(Flux2ProgressMapper.event(from: progress))
             }
         } catch let error as CancellationError {

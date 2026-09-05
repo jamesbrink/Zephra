@@ -15,6 +15,8 @@ public final class Flux2Pipeline {
         let textEncoder: Qwen3TextEncoder
         let transformer: Flux2Transformer
         let autoencoder: Flux2Autoencoder
+        /// What the stream is held in, decided once at load; see `Flux2TransformerPrecision`.
+        let activation: DType
     }
 
     /// Both image edges must be a multiple of this: the autoencoder's eightfold reduction times
@@ -29,9 +31,11 @@ public final class Flux2Pipeline {
     /// Whether `loadModel` has succeeded and `unloadModel` has not been called since.
     public var isLoaded: Bool { loaded != nil }
 
-    /// Reads the configuration, the tokenizer, and every component's weights under `snapshot`.
+    /// Reads the configuration, the tokenizer, and every component's weights under `snapshot`,
+    /// and holds the stream in `activation` from then on.
     public func loadModel(
         at snapshot: URL,
+        activation: DType = Flux2TransformerPrecision.defaultActivation,
         onProgress: (Flux2GenerationProgress) -> Void = { _ in }
     ) throws {
         onProgress(Flux2GenerationProgress(stage: .loading))
@@ -60,13 +64,14 @@ public final class Flux2Pipeline {
             weights: try Flux2WeightLoading.weights(
                 in: snapshot.appending(path: Flux2Configuration.Component.vae.directoryName)))
 
-        // The stream's dtype is decided here, once: a float32 scale anywhere would widen it.
-        Flux2WeightLoading.castFloatParameters(of: textEncoder, to: Flux2TransformerPrecision.activation)
-        Flux2WeightLoading.castFloatParameters(of: transformer, to: Flux2TransformerPrecision.activation)
+        // The stream's dtype is applied here, once: a float32 scale anywhere would widen it.
+        Flux2WeightLoading.castFloatParameters(of: textEncoder, to: activation)
+        Flux2WeightLoading.castFloatParameters(of: transformer, to: activation)
 
         loaded = Loaded(
             snapshot: snapshot, configuration: configuration, tokenizer: tokenizer,
-            textEncoder: textEncoder, transformer: transformer, autoencoder: autoencoder)
+            textEncoder: textEncoder, transformer: transformer, autoencoder: autoencoder,
+            activation: activation)
         MLX.eval(textEncoder.parameters(), transformer.parameters(), autoencoder.parameters())
     }
 

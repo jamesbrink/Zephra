@@ -50,10 +50,12 @@ final class Flux2ParallelAttention: Module {
     /// `3072 + 9216 = 12288`, so it sits squarely inside the window at the token counts a
     /// 512-to-896-pixel generation produces. The stream runs in bfloat16 by default, because a
     /// float32 stream puts the attention over a 4096-token image off the fused kernel and costs
-    /// a 2 GB score matrix per block; on hardware the bug reaches, `ZEPHRA_DIT_DTYPE=f32` runs
-    /// the stream in float32 and never dispatches the broken kernel. See
-    /// `Flux2TransformerPrecision`. `TransformerParityTests` runs a bfloat16 probe at this exact
-    /// shape so a bump reports the state of the bug instead of producing quiet garbage.
+    /// a 2 GB score matrix per block; on hardware the bug reaches, the host loads the pipeline
+    /// with a float32 `activation` and the stream never dispatches the broken kernel (Zephra's
+    /// backend does that on an M5-class GPU, or under `ZEPHRA_DIT_DTYPE=f32`). See
+    /// `Flux2TransformerPrecision`. `TransformerParityTests` runs two bfloat16 probes at this
+    /// exact shape — the dense GEMM and the packed `quantizedMatmul` the catalog variants take —
+    /// so a bump reports the state of the bug instead of producing quiet garbage.
     func callAsFunction(_ x: MLXArray, frequencies: RotaryFrequencies) -> MLXArray {
         let (batch, tokens) = (x.shape[0], x.shape[1])
         let inner = heads * headDim
