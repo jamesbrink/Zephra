@@ -53,6 +53,10 @@ struct LibraryPane: View {
             }
             // A query that no longer lists the picture closes the viewer: left open it would
             // show something the grid behind it cannot, with nowhere to step to.
+            .onChange(of: index.library.root) {
+                selection.keeping([])
+                workspace.viewing = nil
+            }
             .onChange(of: index.sections) {
                 guard workspace.viewing != nil, viewingItem == nil else { return }
                 // The grid mounted in its place runs no change of its own for this, so what

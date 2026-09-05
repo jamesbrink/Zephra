@@ -29,8 +29,8 @@ public final class LibraryIndex {
     /// The most recent thing the library could not do, or nil when the last one worked.
     public internal(set) var lastFailure: LibraryFailure?
     /// Called with the files just moved to Recently Deleted, before the move is confirmed on
-    /// disk. `GenerationStore` has no idea the library index exists, so this is how the
-    /// composition root tells the canvas to let go of a picture the grid, the viewer, or the
+    /// disk. The index does not own the canvas, so this is how the composition root tells
+    /// it to let go of a picture the grid, the viewer, or the
     /// wall deleted out from under it — a delete made through here rather than through the
     /// store's own `delete(_:)`, which tells the store directly.
     public var onRecentlyDeleted: (@MainActor (Set<URL>) -> Void)?
@@ -43,12 +43,15 @@ public final class LibraryIndex {
     }
 
     /// The folders being indexed.
-    public let library: ImageLibrary
+    public internal(set) var library: ImageLibrary
 
-    let scan: LibraryScan
+    var scan: LibraryScan
     /// How long the folder watch waits for things to stop moving before it looks. Injectable
     /// because a test cannot wait a quarter of a second per assertion.
     let settleFor: Duration
+    public internal(set) var isChangingDirectory = false
+    @ObservationIgnored var directoryEpoch = 0
+    @ObservationIgnored var activeScans: [UUID: Task<Scanned, Never>] = [:]
 
     /// The one chain every write goes down, so two mutations never touch a file at once.
     @ObservationIgnored var work: Task<Void, Never>?

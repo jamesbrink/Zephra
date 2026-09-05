@@ -41,6 +41,7 @@ extension LibraryIndex {
     /// Applies a change to the annotation of every image in `ids`, on screen now and on disk
     /// shortly. Images the change leaves alone are not written.
     func annotate(_ ids: Set<LibraryItem.ID>, _ change: (inout LibraryAnnotation) -> Void) {
+        guard !isChangingDirectory else { return }
         var touched = false
         for index in items.indices where ids.contains(items[index].id) {
             var annotation = items[index].annotation

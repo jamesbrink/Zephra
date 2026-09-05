@@ -60,7 +60,7 @@ public final class GenerationStore {
     public internal(set) var isSwappingModel = false
     /// Called with the file an image was just written to, once it is on disk. The app hands the
     /// library index a way to add that one file rather than rescanning the folder for it; the
-    /// engine has no idea an index exists.
+    /// save path never needs to rescan the library.
     public var onImageSaved: (@MainActor (URL) -> Void)?
     /// Called with the file an image was moved out of when it was deleted from the filmstrip, so
     /// the app can tell the library index about it without waiting for a folder watch.
@@ -74,6 +74,7 @@ public final class GenerationStore {
     public var warmsUpAfterLoad = true
     /// Progress while model files and their destination are being changed.
     public internal(set) var modelDirectoryProgress: String?
+    public internal(set) var imageDirectoryProgress: String?
 
     /// How many images stay in memory before the oldest is dropped.
     static let historyLimit = 24
@@ -86,7 +87,7 @@ public final class GenerationStore {
     /// How to build the one upscaler, or nil for a build that carries none — a preview store,
     /// or a tool. Nil is what greys every Upscale button, with no other rule needed.
     let upscalerFactory: UpscalerFactory?
-    let library: ImageLibrary
+    var library: ImageLibrary
     let logger = Logger(subsystem: "io.zephra", category: "engine")
     /// The folder models are downloaded and built in, forwarded to the inference actor as it
     /// is made and whenever it changes.
@@ -135,17 +136,18 @@ public final class GenerationStore {
 
     /// True when a generation can start right now: the engine is ready and there is a prompt.
     public var canGenerate: Bool {
-        !isChangingModelDirectory && state.acceptsGeneration && settings.isReadyToGenerate && !isAdoptingReference
+        !isChangingModelDirectory && !isChangingImageDirectory && state.acceptsGeneration && settings.isReadyToGenerate && !isAdoptingReference
     }
 
     /// True when `generate()` will do something: start now, or queue behind the running one.
     public var canQueue: Bool {
-        !isChangingModelDirectory && settings.isReadyToGenerate && (state.acceptsGeneration || isDraining) && !isAdoptingReference
+        !isChangingModelDirectory && !isChangingImageDirectory && settings.isReadyToGenerate && (state.acceptsGeneration || isDraining) && !isAdoptingReference
     }
 
     /// Shows an earlier image on the canvas and adopts its settings, so the obvious next move
     /// is to tweak one thing and generate a variation.
     public func select(_ image: GeneratedImage) {
+        guard !isChangingImageDirectory else { return }
         stopFollowingRun()
         // The settings about to be adopted include the picture's own reference, or none; a
         // library read still on its way was for the settings being replaced.

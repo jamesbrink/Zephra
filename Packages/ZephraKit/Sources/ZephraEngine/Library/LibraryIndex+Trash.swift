@@ -31,6 +31,7 @@ extension LibraryIndex {
     /// Discards everything whose thirty days are up. Called on a scan; safe to call at any time,
     /// because the manifest, not this, decides what is old enough.
     public func purgeExpired(now: Date = Date()) {
+        guard !isChangingDirectory else { return }
         let library = library
         enqueue {
             let cutoff = now.addingTimeInterval(-RecentlyDeletedManifest.grace)
@@ -53,6 +54,7 @@ extension LibraryIndex {
         report: ((Set<URL>) -> Void)? = nil,
         _ operation: @escaping @Sendable (ImageLibrary, URL) throws -> URL
     ) {
+        guard !isChangingDirectory else { return }
         let moving = items.filter { ids.contains($0.id) }.map(\.url)
         guard !moving.isEmpty else { return }
         items.removeAll { ids.contains($0.id) }

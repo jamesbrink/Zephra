@@ -30,6 +30,7 @@ struct RootView: View {
 
     var body: some View {
         WorkspaceSplitView()
+        .disabled(store.isChangingImageDirectory)
         .navigationTitle("Zephra")
         .navigationSubtitle(store.windowSubtitle)
         .toolbar { WorkspaceToolbar() }
@@ -40,6 +41,10 @@ struct RootView: View {
         .toolbarBackgroundVisibility(.visible, for: .windowToolbar)
         .environment(\.openLibraryItem, open)
         .environment(\.viewLibraryItem, view)
+        .onChange(of: store.outputDirectory) {
+            workspace.viewing = nil
+            workspace.query = LibraryQuery(sort: workspace.query.sort)
+        }
         .onChange(of: workspace.query, initial: true) { index.query = $1 }
         .task { await store.bootstrapFromInterface() }
     }

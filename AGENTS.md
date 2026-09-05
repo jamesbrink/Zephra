@@ -238,7 +238,15 @@ so a dropped frame does not pay for it.
 
 ## The library
 
-`~/Pictures/Zephra` is the library. There is no database: the folder is the
+`~/Pictures/Zephra` is the default library. Settings > General can select another
+folder and optionally migrate images, sources, albums, and Recently Deleted.
+`AppSettings.imageLibrary()` supplies the same persisted root to the store and index.
+`GenerationStore.changeImageDirectory` gates work and drains writes while
+`LibraryIndex` pauses mutations and scans; only a successful change is persisted.
+Migration moves owned PNGs and manifests without overwriting destination files.
+Keep in Place switches the visible library and leaves the old folder untouched.
+
+The selected folder is the library. There is no database: the folder is the
 truth, and everything the app knows about an image is inside that image's own
 PNG. Move a file, rename it, or copy it to another Mac and its prompt, its
 favourite, and its tags go with it. `ZephraEngine/Library/` is that folder read
@@ -1045,6 +1053,8 @@ the re-sync procedure, and the running patch log. Any change inside
   canvas, which is what the running card's ring being off says.
   `downloading` and `failed` sit over a picture, since that is where they must stay
   legible, and `failed` is a download that gave up.
+- `ZEPHRA_PREVIEW_STATE=settings` freezes the engine but uses a live library index
+  at the configured `imagesDirectory`, for native folder-change UAT with temporary fixtures.
 - `make logs` streams `os.Logger` output for subsystem `io.zephra`.
 - `make screenshot` photographs the app's window by its CoreGraphics id, so it captures the
   window rather than the rectangle of screen it sits in, and it fails rather than falling back

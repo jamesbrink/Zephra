@@ -24,12 +24,14 @@ extension LibraryIndex {
     /// unmounted while the app slept, and a change the watch's debounce coalesced away — and
     /// because a refresh command should be able to say so.
     public func rescanNow() async {
-        guard isLive else { return }
+        guard isLive, !isChangingDirectory else { return }
         isScanning = true
         scanCount += 1
         let scan = scan
         let known = Dictionary(items.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        let scanned = await Task.detached(priority: .utility) { () -> Scanned in
+        let epoch = directoryEpoch
+        let ticket = UUID()
+        let task = Task.detached(priority: .utility) { () -> Scanned in
             // The fingerprint is taken first: a change during the scan then shows up as a
             // difference next time rather than being read and forgotten.
             let fingerprint = scan.fingerprint()
@@ -39,7 +41,11 @@ extension LibraryIndex {
                 albums: scan.library.albums(reconciledWith: items),
                 fingerprint: fingerprint
             )
-        }.value
+        }
+        activeScans[ticket] = task
+        let scanned = await task.value
+        activeScans[ticket] = nil
+        guard epoch == directoryEpoch, !isChangingDirectory else { return }
         adopt(scanned)
         isScanning = false
         watchFolders()
@@ -51,7 +57,7 @@ extension LibraryIndex {
     /// of ten thousand images it would also be a directory listing every time an image is saved.
     /// The albums are left alone: a file that has only just been written is in none of them.
     public func insert(fileAt url: URL) {
-        guard isLive else { return }
+        guard isLive, !isChangingDirectory else { return }
         let standardized = url.standardizedFileURL
         let collection = library.scanRoots.first {
             $0.url.standardizedFileURL == standardized.deletingLastPathComponent()
@@ -69,10 +75,11 @@ extension LibraryIndex {
     /// when the folders actually differ from what is held. Zephra's own writes come back through
     /// here too, and this is what stops each of them costing a scan.
     func folderChanged() {
+        guard !isChangingDirectory else { return }
         debounce?.cancel()
         debounce = Task { [settleFor] in
             try? await Task.sleep(for: settleFor)
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, !self.isChangingDirectory else { return }
             // Behind the writes, not beside them: a scan that read a file Zephra was halfway
             // through annotating would show the old answer and then have to be told again.
             self.enqueue { await self.rescanIfChanged() }
@@ -82,7 +89,7 @@ extension LibraryIndex {
 
     /// Rescans only if the folders' fingerprint has moved.
     func rescanIfChanged() async {
-        guard isLive else { return }
+        guard isLive, !isChangingDirectory else { return }
         let scan = scan
         let now = await Task.detached(priority: .utility) { scan.fingerprint() }.value
         guard now != fingerprint else { return }
@@ -92,6 +99,7 @@ extension LibraryIndex {
     /// Watches every folder that exists. Called again after each scan, so the Recently Deleted
     /// folder starts being watched the first time something is deleted into it.
     func watchFolders() {
+        guard !isChangingDirectory else { return }
         for root in library.scanRoots
         where watches[root.collection] == nil || watches[root.collection]?.isCancelled == true {
             var isDirectory: ObjCBool = false

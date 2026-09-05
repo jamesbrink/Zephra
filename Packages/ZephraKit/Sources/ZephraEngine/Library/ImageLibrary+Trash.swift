@@ -29,7 +29,7 @@ extension ImageLibrary {
     @discardableResult
     public func moveToRecentlyDeleted(_ url: URL, at date: Date = Date()) throws -> URL {
         let folder = directory(for: .recentlyDeleted)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try ImageDirectoryAccess.prepare(folder)
         let target = availableURL(named: url.lastPathComponent, in: folder)
         try FileManager.default.moveItem(at: url, to: target)
         var manifest = recentlyDeletedManifest()
@@ -42,7 +42,7 @@ extension ImageLibrary {
     /// landed, which is a stepped-around name if the original one has been taken since.
     @discardableResult
     public func restoreFromRecentlyDeleted(_ url: URL) throws -> URL {
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try ImageDirectoryAccess.prepare(root)
         let target = availableURL(named: url.lastPathComponent, in: root)
         try FileManager.default.moveItem(at: url, to: target)
         var manifest = recentlyDeletedManifest()
@@ -96,7 +96,7 @@ extension ImageLibrary {
 
     private func write(_ manifest: RecentlyDeletedManifest) throws {
         let folder = directory(for: .recentlyDeleted)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try ImageDirectoryAccess.prepare(folder)
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.sortedKeys, .prettyPrinted, .withoutEscapingSlashes]
