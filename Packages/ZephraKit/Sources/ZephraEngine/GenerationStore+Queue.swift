@@ -36,7 +36,7 @@ extension GenerationStore {
             isSwitchingForQueue = false
             queue.removeFirst()
             running = next
-            start(next.settings)
+            start(next)
         } else {
             reload(next.model, thenDrain: true)
         }

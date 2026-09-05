@@ -210,7 +210,8 @@ engine be tested in seconds without Metal.
 - `GenerationStore` (`@MainActor @Observable`) is the only object the UI
   observes, and it is split across `GenerationStore+*.swift` by concern —
   loading (the entry points in `+Loading`, the borrow-prepare-release body in
-  `+Preparation`), the admission gate (`+Admission`), generation, the queue,
+  `+Preparation`), the admission gate (`+Admission`), generation (`+Generation`,
+  with the write that follows in `+Saving`), the queue,
   batches (several seeds of one prompt from
   one press of Generate), model switching, history, availability, preview,
   the reference picture, the library, following the run, upscaling and filing
@@ -224,6 +225,12 @@ engine be tested in seconds without Metal.
   seconds of synchronous Metal work, and on the cooperative pool that would
   starve every other task in the process. Backends are not `Sendable`, which is
   why a registry of `@Sendable` factories goes in and the backend is built here.
+  A backend looks for a cancel between steps and not after its decode, so both
+  `InferenceActor.generate` and the store's `run` check again once the bytes are
+  back: a Stop that lands during the decode keeps no image, publishes nothing
+  and writes nothing. A finished image carries its own job's batch and model
+  (`QueuedGeneration`), not `running`'s, which a cancel empties, nor the store's
+  `descriptor`, which a switch moves before the run is over.
 - `EngineEventPump` carries progress from that queue back to the main actor. Its
   `AsyncStream` buffers the newest four events and drops the rest — progress is
   a snapshot, not a log — and `run` drains before returning, so the state a

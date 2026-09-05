@@ -82,9 +82,13 @@ actor InferenceActor {
             throw BackendError.loadFailed("The model has not been loaded yet.")
         }
         var timer = StepTimer()
-        return try await backend.generate(settings) { event in
+        let data = try await backend.generate(settings) { event in
             events.send(.progress(timer.annotated(event)))
         }
+        // A backend looks for a cancel between steps and not after the decode; a stop that
+        // landed during the decode is honoured here, so a stopped run never hands back bytes.
+        try Task.checkCancellation()
+        return data
     }
 
     /// Makes `png` `request.factor` times larger on each edge, on this same serial queue, so an
