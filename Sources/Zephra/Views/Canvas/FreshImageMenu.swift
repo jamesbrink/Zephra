@@ -25,8 +25,8 @@ struct FreshImageMenu: View {
             Button("Use as Reference") { ReferenceAdoption.adopt(image, into: store) }
         }
         Divider()
-        // Nothing is asked first: the file goes to the Trash, so this is undoable in the
-        // Finder, and a dialog on every discarded image would be in the way.
+        // Nothing is asked first: the file goes to Recently Deleted, where Put Back has thirty
+        // days, and a dialog on every discarded image would be in the way.
         Button("Delete", role: .destructive) { store.delete(image.id) }
     }
 }

@@ -183,7 +183,8 @@ Code rules:
 - One public type per file; file name matches the type name.
 - Target ≤150 lines per file.
 - No `*Manager`, `*Helper`, `*Utils`, or `*Service` type names — name types
-  for what they are.
+  for what they are. The one exception is a subclass that keeps AppKit's own
+  name: `PromptLayoutManager` is an `NSLayoutManager`.
 - Views hold at most 3 stored properties, or get split into subviews.
 - `ModelCatalog` is the only static registry in the codebase. No other
   singletons.

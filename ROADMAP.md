@@ -41,7 +41,10 @@ is distributed until the app is ready to ship.
    timestep to the stream's dtype, and its own `get_timestep_embedding` rounds the
    frequency ladder to it too, before the float32 sinusoid; the port keeps both float32,
    the way the float32 fixtures see them. Decide whether to match, as klein now does for
-   its timestep, with a bfloat16 fixture.
+   its timestep, with a bfloat16 fixture. One `MemoryUnits` in `ZephraCore` for the
+   megabyte: `InferenceTuning.bytesPerMB` and `ZephraBench`'s reading of
+   `ZEPHRA_WIRED_LIMIT_MB` both count 2^20 today and each says so in a comment, which is
+   two places to keep agreeing.
 
 Deferred: **ERNIE-Image-Turbo** (eight to twelve days for legible in-image text at
 16 GB; the Mistral3 encoder is the new work), **Boogu-Image-0.1-Turbo** (a credible

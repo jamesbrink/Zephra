@@ -13,8 +13,8 @@ extension ZephraApp {
     /// and unmakes.
     ///
     /// A saved image is handed to the index by path, one header read and a sorted insert; a
-    /// deleted one is a rescan, because the store deletes to the system Trash and a path that
-    /// has gone is not something the index can be told about in place. Either way the folder
+    /// deleted one is a rescan, because the store moves the file to Recently Deleted and a path
+    /// that has gone is not something the index can be told about in place. Either way the folder
     /// watch would notice in its own time — this is only so the grid moves at once.
     func openLibrary() {
         index.start()

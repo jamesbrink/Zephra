@@ -19,21 +19,17 @@ import ZephraEngine
 /// Focus belongs to the row, because the whole row is the click target.
 struct PromptEditor: View {
     @Environment(GenerationStore.self) private var store
-    private let focus: Binding<Bool>
+    @Binding var focus: Bool
     @State private var textHeight: CGFloat = 0
 
     /// The band the prompt area has always been, and the ceiling it scrolls past.
     private static let restingHeight: CGFloat = 76
     private static let ceiling: CGFloat = 148
 
-    init(focus: Binding<Bool>) {
-        self.focus = focus
-    }
-
     var body: some View {
         @Bindable var store = store
-        PromptTextView(text: $store.settings.prompt, isFocused: focus)
-            .onAppear { focus.wrappedValue = store.settings.prompt.isEmpty }
+        PromptTextView(text: $store.settings.prompt, isFocused: $focus)
+            .onAppear { focus = store.settings.prompt.isEmpty }
             .frame(height: min(max(textHeight, Self.restingHeight), Self.ceiling))
             .background(alignment: .topLeading) { twin }
             .overlay(alignment: .topLeading) { placeholder }

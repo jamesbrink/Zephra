@@ -12,6 +12,13 @@ enum ReferenceDrop {
     /// The types a drop target accepts.
     static let types: [UTType] = [.fileURL, .image]
 
+    /// A provider on its way to the detached read. `NSItemProvider` is documented thread-safe,
+    /// which the compiler cannot see; this wrapper is the one place that says so. Nonisolated,
+    /// since the app's files default to the main actor and the read runs off it.
+    private nonisolated struct DroppedProvider: @unchecked Sendable {
+        let provider: NSItemProvider
+    }
+
     /// Takes the first provider that is a picture, encodes it, and hands it to `store`.
     /// Returns whether the drop was taken up, which is decided before the bytes are read.
     @MainActor
@@ -24,11 +31,10 @@ enum ReferenceDrop {
         // The drop is a choice like any other, made now rather than when its bytes arrive: a
         // slow provider must not overtake a picture chosen from the library after it was
         // accepted, and Generate waits for it the way it waits for a library read.
-        // `NSItemProvider` is documented thread-safe, which the compiler cannot see.
-        nonisolated(unsafe) let dropped = provider
+        let dropped = DroppedProvider(provider: provider)
         store.adoptReference {
             let data = await withCheckedContinuation { continuation in
-                dropped.loadDataRepresentation(forTypeIdentifier: type.identifier) { data, _ in
+                dropped.provider.loadDataRepresentation(forTypeIdentifier: type.identifier) { data, _ in
                     continuation.resume(returning: data)
                 }
             }

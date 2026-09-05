@@ -171,10 +171,13 @@ enum BenchRunner {
     /// A limit named in the environment in megabytes, as bytes, or nil when it is not set. The
     /// memory and wired limits are what the app sets from the GPU's working set; setting them
     /// here is how a run in the app is reproduced headlessly.
+    /// A limit named in the environment in megabytes, as bytes: 2^20 to the megabyte, the way
+    /// `iogpu.wired_limit_mb` and the app's `InferenceTuning` count them, so a run in the app
+    /// replays here under the same limit.
     private static func megabytes(_ variable: String) -> Int? {
         guard let value = ProcessInfo.processInfo.environment[variable], let megabytes = Int(value)
         else { return nil }
-        return megabytes * 1_000_000
+        return megabytes * (1 << 20)
     }
 
     private static func write(_ image: Data, to url: URL) throws {

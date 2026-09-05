@@ -15,7 +15,10 @@ struct InferenceTuning {
     /// Bytes MLX may keep wired: the GPU's working set, which `iogpu.wired_limit_mb` raises.
     let wiredLimitBytes: Int
 
-    /// One megabyte, as the Performance tab and `@AppStorage` count them.
+    /// One megabyte, as the Performance tab, `@AppStorage` and `iogpu.wired_limit_mb` count
+    /// them: 2^20 bytes, the one definition in this file. `ZephraCore` has no shared unit yet;
+    /// when it grows one (`MemoryUnits`, on the roadmap), this and `ZephraBench`'s reading of
+    /// the same variable should both take it.
     static let bytesPerMB = 1 << 20
 
     /// Limits for this machine: cache at one sixth of RAM capped at 8 GB, total and wired at
@@ -37,7 +40,7 @@ struct InferenceTuning {
     private static func overriddenLimit(_ variable: String) -> Int? {
         guard let value = ProcessInfo.processInfo.environment[variable], let megabytes = Int(value)
         else { return nil }
-        return megabytes * 1_000_000
+        return megabytes * bytesPerMB
     }
 
     /// The limits for a Mac whose GPU has not been asked, for the cache recommendation, which

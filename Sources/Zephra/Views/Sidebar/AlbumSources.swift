@@ -7,11 +7,12 @@ import ZephraEngine
 /// sidebar where it does not move, and naming one happens in the row itself. What is left here
 /// is the list and the one change that still deserves to be asked about.
 ///
-/// An alert rather than a confirmation dialog for the deletion, deliberately: a sheet-style
-/// alert is a window, so it can be seen and driven, and a dialog that appears as a popover
-/// under the pointer cannot. It is raised only for a deletion — a rename lives in the same
-/// `edit` value but is drawn by the row, so `isPrompting` asks the kind and not just whether
-/// anything is being edited.
+/// An alert rather than a confirmation dialog for the deletion, deliberately, and this is the
+/// one sentence every destructive confirmation in the app (`ModelsSettings`' included) rests
+/// on: a sheet-style alert is a window, so it can be seen and driven, and a dialog that appears
+/// as a popover under the pointer cannot. It is raised only for a deletion — a rename lives in
+/// the same `edit` value but is drawn by the row, so `isPrompting` asks the kind and not just
+/// whether anything is being edited.
 struct AlbumSources: View {
     /// The sidebar's one edit: a name being typed in a row, or a deletion waiting on the alert.
     @Binding var edit: AlbumEdit?
