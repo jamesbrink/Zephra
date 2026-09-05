@@ -18,36 +18,41 @@ enum ImageExport {
         return "\(stem)-\(image.settings.seed).png"
     }
 
-    /// The bytes to hand out: the image with its generation record inside it, so a copy that
-    /// leaves Zephra still says what made it. Falls back to the plain pixels if the record
-    /// cannot be embedded, and returns them unchanged when one is already there.
+    /// The bytes to hand out. A picture that has a file is exported *as that file*, because
+    /// the file is the truth: the upscale record and every annotation are written there and
+    /// never into the bytes in memory. Before the save lands, the pixels with the generation
+    /// record embedded, so a copy that leaves Zephra still says what made it; the plain pixels
+    /// if the record cannot be embedded, and unchanged when one is already there.
     ///
     /// Not isolated to the main actor: drag-and-drop exports run off it.
     nonisolated static func exportData(for image: GeneratedImage) -> Data {
-        (try? GenerationRecord.embedded(in: image)) ?? image.pngData
+        if let url = image.fileURL, let onDisk = try? Data(contentsOf: url) { return onDisk }
+        return (try? GenerationRecord.embedded(in: image)) ?? image.pngData
     }
 
-    /// Asks where to put the image and writes the PNG bytes there.
-    @discardableResult
-    static func saveAs(_ image: GeneratedImage) -> URL? {
+    /// Asks where to put the image and writes it there: the file, once it has one, through
+    /// the same path the library uses, so saving it onto itself is a no-op rather than a
+    /// deletion; the bytes in memory until then.
+    static func saveAs(_ image: GeneratedImage) {
+        if let url = image.fileURL, exists(url) {
+            saveAs(files: [url])
+            return
+        }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.png]
         panel.nameFieldStringValue = suggestedFileName(for: image)
         panel.canCreateDirectories = true
-        panel.directoryURL = image.fileURL?.deletingLastPathComponent()
-        guard panel.runModal() == .OK, let url = panel.url else { return nil }
+        guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             try Self.exportData(for: image).write(to: url, options: .atomic)
-            return url
         } catch {
             present(error, whileTryingTo: "save this image")
-            return nil
         }
     }
 
     /// Shows the image in the Finder, writing a temporary copy when it has no home yet.
     static func revealInFinder(_ image: GeneratedImage) {
-        if let url = image.fileURL, FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) {
+        if let url = image.fileURL, exists(url) {
             NSWorkspace.shared.activateFileViewerSelecting([url])
             return
         }
@@ -55,8 +60,13 @@ enum ImageExport {
         NSWorkspace.shared.activateFileViewerSelecting([temporary])
     }
 
-    /// Puts the image on the clipboard as PNG bytes, ready to paste anywhere.
+    /// Puts the image on the clipboard: its file, when it has one, so the Finder can paste the
+    /// file and the bytes ride along; the PNG bytes alone until then.
     static func copyToPasteboard(_ image: GeneratedImage) {
+        if let url = image.fileURL, exists(url) {
+            copyToPasteboard(files: [url])
+            return
+        }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setData(exportData(for: image), forType: .png)

@@ -13,7 +13,7 @@ struct WrappingHStack: Layout {
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let width = proposal.replacingUnspecifiedDimensions().width
-        let rows = rows(of: subviews, within: width)
+        let rows = Self.rows(of: sizes(of: subviews), within: width, spacing: horizontalSpacing)
         let height = rows.map(\.height).reduce(0, +)
             + verticalSpacing * CGFloat(max(rows.count - 1, 0))
         return CGSize(width: width, height: height)
@@ -25,44 +25,47 @@ struct WrappingHStack: Layout {
         subviews: Subviews,
         cache: inout ()
     ) {
+        let sizes = sizes(of: subviews)
         var y = bounds.minY
-        for row in rows(of: subviews, within: bounds.width) {
+        for row in Self.rows(of: sizes, within: bounds.width, spacing: horizontalSpacing) {
             var x = bounds.minX
             for index in row.indices {
-                let size = subviews[index].sizeThatFits(.unspecified)
                 subviews[index].place(
                     at: CGPoint(x: x, y: y),
                     anchor: .topLeading,
-                    proposal: ProposedViewSize(size)
+                    proposal: ProposedViewSize(sizes[index])
                 )
-                x += size.width + horizontalSpacing
+                x += sizes[index].width + horizontalSpacing
             }
             y += row.height + verticalSpacing
         }
     }
 
     /// One line of the layout: which subviews are on it and how tall the tallest of them is.
-    private struct Row {
+    struct Row: Equatable {
         var indices: [Int] = []
         var width: CGFloat = 0
         var height: CGFloat = 0
     }
 
+    private func sizes(of subviews: Subviews) -> [CGSize] {
+        subviews.map { $0.sizeThatFits(.unspecified) }
+    }
+
     /// Fills lines left to right, breaking whenever the next subview would overhang `width`.
     /// A subview wider than the whole line gets a line to itself rather than an empty one
     /// before it.
-    private func rows(of subviews: Subviews, within width: CGFloat) -> [Row] {
+    ///
+    /// Over sizes rather than subviews, so the arithmetic can be pinned by a test without a
+    /// view hierarchy to measure.
+    nonisolated static func rows(of sizes: [CGSize], within width: CGFloat, spacing: CGFloat) -> [Row] {
         var rows: [Row] = []
         var row = Row()
-        for index in subviews.indices {
-            let size = subviews[index].sizeThatFits(.unspecified)
-            let advance = row.indices.isEmpty ? size.width : row.width + horizontalSpacing + size.width
+        for (index, size) in sizes.enumerated() {
+            let advance = row.indices.isEmpty ? size.width : row.width + spacing + size.width
             if !row.indices.isEmpty, advance > width {
                 rows.append(row)
-                row = Row()
-                row.indices = [index]
-                row.width = size.width
-                row.height = size.height
+                row = Row(indices: [index], width: size.width, height: size.height)
             } else {
                 row.indices.append(index)
                 row.width = advance

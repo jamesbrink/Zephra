@@ -189,7 +189,10 @@ with a progress readout while that happens.
   opening an image again shows what it was made from, ready to vary. Favourites, tags and
   album membership go into the same file, under a second keyword, so they travel with the
   picture too. A PNG that Zephra did not make carries no record and is ignored. Right-click
-  a thumbnail for Save as, Copy, Reveal in Finder, Upscale, and Delete; Delete (⌘⌫ for the
+  a thumbnail for Save as, Copy, Reveal in Finder, Upscale, and Delete. Save as copies the
+  file itself, so what the library has written to it since goes along; saving a file onto
+  itself does nothing, and saving several into a folder that already holds some of the names
+  asks whether to keep both (numbered), replace, or cancel. Delete (⌘⌫ for the
   image on the canvas) moves the file to `Recently Deleted` inside the selected library folder, where it
   waits thirty days before it is thrown away for good. In that collection the menu offers
   Put Back and Delete Immediately instead.
@@ -559,7 +562,8 @@ Zephra/
 ├── Sources/ZephraBench/           # headless benchmark tool
 ├── Sources/ZephraQuantize/        # builds a 4-bit variant from a bf16 release
 ├── design/mock/                   # the UI the app was built against
-└── scripts/doctor.sh, screenshot.sh, window-id.swift, make-icon.swift,
+├── Tests/ZephraTests/             # the app target's own suites (make test-app)
+└── scripts/doctor.sh, screenshot.sh, window-id.swift, ax-press.swift, make-icon.swift,
             compare-safetensors.py, download-fixture.py, sign-release.sh, create-dmg.sh,
             notarize-release.sh, submit-notarization.sh, test-notarization.sh, verify-dmg.sh
 ```
@@ -575,6 +579,9 @@ Zephra/
   No MLX, a couple of seconds. One suite:
   `cd Packages/ZephraKit && swift test --filter ModelSwap` (the filter is a regex
   over type names).
+- `make test-app` — the app target's own suites (`Tests/ZephraTests`: export
+  planning, display strings, layout arithmetic), hosted in the Debug app through
+  `xcodebuild`. The first run builds the app and takes minutes.
 - `make test-mlx` — every package that links MLX: the packer, the backends' mapping
   tests, and `QwenImageKit`'s and `Flux2Kit`'s parity suites against tensors dumped
   from `diffusers`.
@@ -602,8 +609,11 @@ Zephra/
   time them, `--stream` and `--stream-depth N` to measure the weights read from disk,
   `--backend` and `--snapshot` to time a snapshot the catalog does not list). Benchmark
   on an idle machine, Release only.
-- `make logs` streams the app's log; `make screenshot` captures the window;
-  `make open` opens the generated project in Xcode; `make clean` removes build output.
+- `make logs` streams the app's log; `make screenshot` captures the window
+  (`WINDOW=General` captures a Settings tab by its title instead), and
+  `swift scripts/ax-press.swift "<title>"` presses a control in the running app
+  through accessibility without activating it; `make open` opens the generated
+  project in Xcode; `make clean` removes build output.
 - `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|starting|queued|watching|batch|library|viewer|picker|downloading|building|failed|settings`
   launches a Debug build frozen in that state with no model, for screenshots; `tucked` is
   `image` with the floating prompt slid down to its lip, `viewer` is the library with a
