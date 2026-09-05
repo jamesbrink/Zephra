@@ -14,7 +14,7 @@ extension GenerationStore {
         weightResidencyPolicy = policy
         guard let loadedDescriptor, let loadedResidency,
             policy.residency(for: loadedDescriptor) != loadedResidency,
-            !isChangingModelDirectory, !isDraining, !isUpscaling, queue.isEmpty
+            acceptsWork, !isDraining, !isUpscaling, queue.isEmpty
         else { return }
         logger.info(
             "weights of \(loadedDescriptor.id, privacy: .public) will be \(policy.residency(for: loadedDescriptor).rawValue, privacy: .public)"

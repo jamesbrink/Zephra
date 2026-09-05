@@ -8,12 +8,14 @@ extension GenerationStore {
 
     /// True when a generation can start right now: the engine is ready and there is a prompt.
     public var canGenerate: Bool {
-        !isChangingModelDirectory && !isChangingImageDirectory && !isShuttingDown && !deletionInProgress && state.acceptsGeneration && settings.isReadyToGenerate && !isAdoptingReference
+        acceptsWork && state.acceptsGeneration && settings.isReadyToGenerate
+            && !isAdoptingReference
     }
 
     /// True when `generate()` will do something: start now, or queue behind the running one.
     public var canQueue: Bool {
-        !isChangingModelDirectory && !isChangingImageDirectory && !isShuttingDown && !deletionInProgress && settings.isReadyToGenerate && (state.acceptsGeneration || isDraining) && !isAdoptingReference
+        acceptsWork && settings.isReadyToGenerate && (state.acceptsGeneration || isDraining)
+            && !isAdoptingReference
     }
 
     /// Shows an earlier image on the canvas and adopts its settings, so the obvious next move

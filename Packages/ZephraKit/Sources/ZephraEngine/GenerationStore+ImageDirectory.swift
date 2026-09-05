@@ -4,9 +4,8 @@ extension GenerationStore {
     public var isChangingImageDirectory: Bool { imageDirectoryProgress != nil }
 
     public var canChangeImageDirectory: Bool {
-        !isChangingImageDirectory && !isChangingModelDirectory && !isShuttingDown
-            && !deletionInProgress && !isDraining
-            && !isUpscaling && queue.isEmpty && running == nil && state != .cancelling
+        acceptsWork && !isDraining && !isUpscaling && queue.isEmpty && running == nil
+            && state != .cancelling
     }
 
     /// Changes every library reader and writer together, after their outstanding work settles.

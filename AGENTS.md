@@ -188,6 +188,12 @@ so acquisition completion never opens a deletion gap. Failed/canceled loads unlo
 before releasing their claim. Foreground events carry an operation identity; superseded
 progress and completion cannot change the selected model's state.
 
+`GenerationStore.acceptsWork` (`+Admission`) is the one gate every entry point
+reads — no folder changing, no storage being deleted, not quitting — and a caller
+adds only the conditions that are its own; `drain()` reads it too, so
+`deleteModelStorage` drains again on its way out. `canQueueVariation(of:)` is the
+variation's own answer, and does not wait for a reference still on its way into
+the well: a variation replaces the settings outright and cancels that read.
 All UI storage deletion goes through `GenerationStore.deleteModelStorage`, which
 checks active requests/residency/queued work and closes new admission while deleting.
 Folder changes close download admission, pause every request and await file closure.

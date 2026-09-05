@@ -5,7 +5,7 @@ import ZephraSnapshot
 extension GenerationStore {
     /// A folder change may stop preparation, but never discards queued or generating work.
     public var canChangeModelDirectory: Bool {
-        !isChangingModelDirectory && !isChangingImageDirectory && !isShuttingDown && !deletionInProgress && !isDraining && !isUpscaling && queue.isEmpty && state != .cancelling
+        acceptsWork && !isDraining && !isUpscaling && queue.isEmpty && state != .cancelling
     }
 
     public var isChangingModelDirectory: Bool { modelDirectoryProgress != nil }
