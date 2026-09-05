@@ -1,3 +1,4 @@
+import Foundation
 import Synchronization
 import ZephraCore
 
@@ -59,6 +60,14 @@ final class MockBackendControl: Sendable {
         var previewsEveryStep = false
         /// How many preview frames have been reported.
         var previewsEmitted = 0
+        /// The claim the last `ensureAvailable` was handed, so a test can ask the pool whether
+        /// it is still held once the weights are gone.
+        var lastAcquisitionID: UUID?
+        /// A backend that never looks for a cancel after its last step, so a stop pressed
+        /// during the decode reaches the store with finished bytes in hand.
+        var ignoresFinalCancellation = false
+        /// How long the pretend decode after the last step takes. Zero skips it.
+        var decodeDelay: Duration = .zero
     }
 
     private let storage = Mutex(Settings())
