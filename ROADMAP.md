@@ -30,8 +30,16 @@ remediation adds. Nothing is distributed until the app is ready to ship.
    matmul time on the quantized transformer, an adapter slot on the settings and in
    the record, a picker in the capsule. Start with klein, the smallest transformer.
 6. **Hygiene.** Rerun `make bench` idle for every catalog entry and refresh the figures
-   (the Qwen entry has not been re-measured since its VAE encoder was added). Try 6-bit
-   or mxfp8 on Qwen-Image's 6.8B modulation weights, which cost 3.4 GB at 8-bit.
+   (the Qwen entry has not been re-measured since its VAE encoder was added, and every
+   Qwen figure predates the stream running in bfloat16 — it ran in float32 by accident
+   until the 2026-09-05 audit, so resident and `--stream` at 1024 are both due; klein's
+   edit figures, 66 s and 19227 MB from a 512 reference, likewise predate the reference
+   tokens being cast to the stream's dtype). Try 6-bit or mxfp8 on Qwen-Image's 6.8B
+   modulation weights, which cost 3.4 GB at 8-bit. Qwen-Image's reference rounds the
+   timestep to the stream's dtype, and its own `get_timestep_embedding` rounds the
+   frequency ladder to it too, before the float32 sinusoid; the port keeps both float32,
+   the way the float32 fixtures see them. Decide whether to match, as klein now does for
+   its timestep, with a bfloat16 fixture.
 
 Deferred: **ERNIE-Image-Turbo** (eight to twelve days for legible in-image text at
 16 GB; the Mistral3 encoder is the new work), **Boogu-Image-0.1-Turbo** (a credible
