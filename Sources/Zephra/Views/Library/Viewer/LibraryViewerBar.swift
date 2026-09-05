@@ -4,9 +4,9 @@ import ZephraEngine
 /// The strip over the viewer: a way back to the grid, where the shown image sits among the
 /// rest, and buttons for the same steps the arrow keys already answer to.
 ///
-/// A `safeAreaInset`, the same device `LibraryFilterBar` uses over the grid, so the picture
-/// beneath keeps the full height it needs to centre itself rather than being squeezed by a row
-/// stacked above it.
+/// Stacked above the picture by `LibraryViewer`, not inset over it as `LibraryFilterBar` is
+/// over the grid: a grid scrolls under its bar and wants the full height, and a picture
+/// fitted to the pane wants only the height left under the bar.
 struct LibraryViewerBar: View {
     @Environment(WorkspaceSelection.self) private var workspace
     @Environment(LibraryIndex.self) private var index
