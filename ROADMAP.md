@@ -110,6 +110,17 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
 - **A filmstrip of thumbnails along the bottom**, the way Photos and Preview both
   offer, instead of only the bar's "n of N" and the prev/next buttons.
 
+## One window: left out on purpose
+
+- **A second window, with state of its own.** The app is one `Window` scene: the
+  pane, the query, the viewer, the selection and the canvas are all app-wide, and
+  two windows sharing one pane and one canvas — which is what the old `WindowGroup`
+  gave, with New Window already off the File menu — is worse than one. Making that
+  state per-window means a `WorkspaceSelection` and an `ImageCache` per scene and a
+  canvas that is still one `GenerationStore.current` underneath, so the second window
+  would either mirror the first or need a store of its own. Do it when someone wants
+  the library on one screen and the canvas on another.
+
 ## Library editing: left out on purpose
 
 - **Undo for Delete.** Favourites, tags and albums undo from the Edit menu

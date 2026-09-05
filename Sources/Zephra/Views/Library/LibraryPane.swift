@@ -45,8 +45,9 @@ struct LibraryPane: View {
             // The index is published from here rather than from the grid, so Export, Copy,
             // Reveal and Delete still know which files they are about while the viewer is up.
             .focusedSceneValue(\.libraryIndex, index)
-            // `initial`, because a second window opens on whatever the shared workspace is
-            // already viewing, and its own selection has to say so from the first frame.
+            // `initial`, so a pane built while the workspace is already viewing something —
+            // the `viewer` screenshot build, or a switch back from the canvas — has its
+            // selection say so from the first frame.
             .onChange(of: workspace.viewing, initial: true) { _, id in
                 guard let id else { return }
                 selection.apply(LibraryCursor.Outcome(ids: [id], anchor: id))

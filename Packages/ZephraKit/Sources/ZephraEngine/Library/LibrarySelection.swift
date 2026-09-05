@@ -3,8 +3,8 @@ import Observation
 /// What is selected in the library grid, and the two things the keyboard needs to move it.
 ///
 /// Separate from `LibraryIndex` on purpose: a selection is about a view, not about the folder.
-/// The grid can be rebuilt by a rescan under a selection that survives it, and a second window
-/// would have its own.
+/// The grid can be rebuilt by a rescan under a selection that survives it, and it belongs to the
+/// pane rather than to the index.
 @MainActor
 @Observable
 public final class LibrarySelection {
