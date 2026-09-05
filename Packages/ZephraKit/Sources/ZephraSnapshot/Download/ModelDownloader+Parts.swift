@@ -15,7 +15,7 @@ extension ModelDownloader {
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws {
         let session = makeSession()
-        defer { session.finishTasksAndInvalidate() }
+        defer { session.invalidateAndCancel() }
 
         let work = try await listing(of: parts, on: session)
         var tally = DownloadTally(
@@ -45,6 +45,7 @@ extension ModelDownloader {
             }
             partsLeft[Self.folder(part.destination), default: 1] -= 1
             guard partsLeft[Self.folder(part.destination)] == 0 else { continue }
+            try Task.checkCancellation()
             // Every file of this folder is down at the commit it was pinned to: the pin goes,
             // the commit is written down for the next transfer into this folder to compare
             // against, and the directory is a finished download from here on.

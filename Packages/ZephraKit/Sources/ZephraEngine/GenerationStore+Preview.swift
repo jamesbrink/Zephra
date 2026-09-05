@@ -24,10 +24,12 @@ extension GenerationStore {
         running: QueuedGeneration? = nil,
         queue: [QueuedGeneration] = [],
         livePreview: GenerationPreview? = nil,
-        following: Bool? = nil
+        following: Bool? = nil,
+        swappingModel: Bool = false
     ) -> GenerationStore {
         let store = GenerationStore(descriptor: descriptor, registry: nil, output: nil)
         store.state = state
+        store.isSwappingModel = swappingModel
         store.history = images.isEmpty ? image.map { [$0] } ?? [] : images
         store.current = image ?? store.history.first
         store.running = running

@@ -13,6 +13,8 @@ extension ModelDownloader {
     /// retry, the classification and the message are here rather than three times over. Only an
     /// answer that will not change — no such repository, a refusal — stops the tries early;
     /// everything else resumes from the bytes on disk, which is also what Try again does.
+    /// Cancellation instead removes unfinished writable downloads before returning; completed
+    /// repositories and read-only cached releases are retained.
     public func fetch(
         _ descriptor: ModelDescriptor,
         into locations: ModelLocations,
@@ -51,6 +53,12 @@ extension ModelDownloader {
             }
             return release
         } catch let error as CancellationError {
+            do {
+                try Self.discardUnfinished(parts, under: locations.root)
+            } catch {
+                throw BackendError.downloadFailed(
+                    "The download stopped, but its partial files could not be removed: \(error.localizedDescription)")
+            }
             throw error
         } catch let error as ModelDownloadError {
             throw Self.backendError(error, descriptor: descriptor)

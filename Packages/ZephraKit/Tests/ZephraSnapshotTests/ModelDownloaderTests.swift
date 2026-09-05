@@ -121,7 +121,7 @@ struct ModelDownloaderTests {
     }
 
     /// A model whose release is one repository and whose distillation is another.
-    private static func withAdapter() -> ModelDescriptor {
+    static func withAdapter() -> ModelDescriptor {
         let base = ModelCatalog.default
         return ModelDescriptor(
             id: "adapter-test", displayName: base.displayName, variantName: base.variantName,

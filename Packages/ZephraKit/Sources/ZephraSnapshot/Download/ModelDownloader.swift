@@ -40,8 +40,8 @@ public struct ModelDownloader: Sendable {
     ///
     /// Progress is weighted by bytes and counts what was already on disk, so a resumed download
     /// starts where it left off rather than at zero. Cancellation is checked between chunks and
-    /// leaves the `.incomplete` files behind on purpose: they are what the next try continues
-    /// from.
+    /// leaves the `.incomplete` files for a low-level caller to resume. The app's `fetch`
+    /// entry point removes unfinished downloads on cancellation instead.
     public func download(
         repoID: String,
         revision: String = "main",

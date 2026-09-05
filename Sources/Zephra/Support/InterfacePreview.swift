@@ -29,7 +29,8 @@ enum InterfacePreview {
             // reference, so the well beside the prompt is there to be screenshotted.
             let descriptor = isEditingBuild ? PreviewModel.editing : ModelCatalog.default
             let store = GenerationStore.preview(
-                state: state, image: frozenImage(for: state), descriptor: descriptor)
+                state: state, image: frozenImage(for: state), descriptor: descriptor,
+                swappingModel: name == "downloading")
             if isEditingBuild {
                 // Through the same door the interface uses, so the frozen window shows the
                 // strength a dropped picture really gets rather than the 1 that means none.

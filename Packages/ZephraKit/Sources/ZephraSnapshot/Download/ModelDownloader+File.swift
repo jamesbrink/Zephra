@@ -141,6 +141,7 @@ extension ModelDownloader {
             try Task.checkCancellation()
             throw ModelDownloadError.interrupted(reason: error.localizedDescription)
         }
+        try Task.checkCancellation()
         try handle.synchronize()
     }
 

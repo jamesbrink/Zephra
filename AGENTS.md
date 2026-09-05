@@ -75,7 +75,11 @@ Shared, by what a file actually touches:
     (`ChunkedDownload`, told of each drain by `ChunkedBody`; the task's pause and
     the count saying it is paused change under one lock, so a drain can never
     resume a task a moment before it is suspended for good), so a fast
-    connection cannot pile a shard up in memory ahead of a slow disk. Cancellation is checked between chunks. **No
+    connection cannot pile a shard up in memory ahead of a slow disk. Cancellation is checked
+    between chunks. The app's `fetch` entry point removes unfinished writable download folders
+    when cancelled, after file handles close, including cancellation during retry backoff.
+    Completed repositories and cached releases stay; network failures remain resumable.
+    The canvas offers Cancel download during initial loading and model switches. **No
     `Authorization` header is ever sent** — every repository the catalog names
     is public — so no token, in the environment or in a file, can turn a
     public model into a login wall.
