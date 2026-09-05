@@ -94,7 +94,7 @@ extension Flux2Pipeline {
 
         onProgress(Flux2GenerationProgress(stage: .decoding))
         let grid = Flux2LatentPacking.grid(latents, height: packedHeight, width: packedWidth)
-        let pixels = model.autoencoder.decodePacked(grid)
+        let pixels = model.autoencoder.decodePacked(grid, tile: request.vaeTile)
         MLX.eval(pixels)
         return try PixelBuffer.png(from: pixels)
     }

@@ -18,6 +18,8 @@ public final class QwenImagePipeline {
         let textEncoder: Qwen25TextEncoder
         let transformer: QwenImageTransformer
         let autoencoder: QwenImageAutoencoder
+        /// What the stream is held in, decided once at load; see `QwenImageTransformerPrecision`.
+        let activation: DType
     }
 
     /// The image size must be a whole number of patches, which is the VAE's eightfold
@@ -82,7 +84,7 @@ public final class QwenImagePipeline {
 
         // Noise and conditioning enter the loop in the stream's dtype: MLX promotes, so a
         // float32 noise would run every block in float32 whatever the weights are.
-        let dtype = QwenImageTransformerPrecision.activation
+        let dtype = model.activation
         let noise = QwenImageLatentPacking.pack(
             MLXRandom.normal(
                 [1, model.configuration.vae.zDim, latentHeight, latentWidth],
@@ -110,7 +112,7 @@ public final class QwenImagePipeline {
         onProgress(QwenImageGenerationProgress(stage: .decoding))
         let unpacked = QwenImageLatentPacking.unpack(
             latents, height: latentHeight, width: latentWidth)
-        let pixels = model.autoencoder.decode(unpacked)
+        let pixels = model.autoencoder.decode(unpacked, tile: request.vaeTile)
         MLX.eval(pixels)
         return try PixelBuffer.png(from: pixels)
     }

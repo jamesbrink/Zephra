@@ -1,5 +1,6 @@
 import Foundation
 import ZephraCore
+import ZephraMLX
 import ZephraSnapshot
 import ZImage
 
@@ -22,9 +23,22 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
     private var pipeline: ZImagePipeline?
     private var loadedDescriptor: ModelDescriptor?
     private var loadedSnapshot: URL?
+    /// The switches the composition root read once: here, how often a preview frame is made.
+    private let environment: InferenceEnvironment
+    /// The VAE tile the engine set for the run about to start; see `ZImageBackendFactory`.
+    private let tile: VAETileSetting
 
-    /// Creates an idle backend. No weights are touched until `ensureAvailable` is called.
-    public init() {}
+    /// Creates an idle backend running under `environment`, decoding at whatever `tile` holds
+    /// when a run starts. No weights are touched until `ensureAvailable` is called.
+    public init(environment: InferenceEnvironment, tile: VAETileSetting) {
+        self.environment = environment
+        self.tile = tile
+    }
+
+    /// An idle backend under the default switches, for tests that only ask about the disk.
+    public convenience init() {
+        self.init(environment: InferenceEnvironment(), tile: VAETileSetting())
+    }
 
     /// Resolves the descriptor's weights, downloading them if they are not on this Mac, and
     /// returns the directory to load from — or, for the four-bit variant, the release `build`
@@ -121,10 +135,13 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
             // failure rather than a load one: the model is loaded and fine, the request is not.
             throw BackendError.generationFailed(error.readableMessage)
         }
+        // The vendored kit keeps its tile as a knob of its own; it is set from the engine's
+        // choice for this run, on this queue, just before the run that reads it.
+        VAETiledDecode.latentTile = tile.value
         // One throttle per run, and no hook at all when frames are switched off, so the loop
         // skips the check; see `PreviewFrameReporter`.
         let previewHandler: ZImagePipeline.PreviewHandler? = PreviewFrameReporter.handler(
-            interval: PreviewThrottle.environmentInterval, onProgress: onProgress)
+            interval: environment.previewInterval, onProgress: onProgress)
         do {
             return try await pipeline.generateToMemory(
                 request,

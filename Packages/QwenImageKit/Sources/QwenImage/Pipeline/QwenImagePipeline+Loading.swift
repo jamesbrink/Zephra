@@ -13,12 +13,13 @@ extension QwenImagePipeline {
     /// here and stays.
     ///
     /// The text encoder's and the transformer's float32 parameters — the packer's scales and
-    /// biases — are cast to the activation dtype here, before a stream is attached, so a
-    /// streamed pass hands back the cast nodes rather than the shards' float32. The
-    /// autoencoder is left in float32 on purpose: its decode is the peak and not the step,
-    /// and the VAE and preview fixtures are float32.
+    /// biases — are cast to `activation` here, before a stream is attached, so a streamed pass
+    /// hands back the cast nodes rather than the shards' float32. The autoencoder is left in
+    /// float32 on purpose: its decode is the peak and not the step, and the VAE and preview
+    /// fixtures are float32. `activation` is the host's choice; the kit reads no environment.
     public func loadModel(
         at snapshot: URL,
+        activation: DType = QwenImageTransformerPrecision.defaultActivation,
         streaming: QwenImageStreaming? = nil,
         onProgress: (QwenImageGenerationProgress) -> Void = { _ in }
     ) throws {
@@ -27,7 +28,6 @@ extension QwenImagePipeline {
 
         let configuration = try QwenImageConfiguration(readingFrom: snapshot)
         let manifest = try PackedSnapshotManifest.read(from: snapshot)
-        let activation = QwenImageTransformerPrecision.activation
 
         let textEncoderDirectory = snapshot.appending(path: "text_encoder")
         let textEncoder = Qwen25TextEncoder(configuration.textEncoder)
@@ -78,7 +78,8 @@ extension QwenImagePipeline {
             tokenizer: try QwenImageTokenizer(snapshot: snapshot),
             textEncoder: textEncoder,
             transformer: transformer,
-            autoencoder: autoencoder
+            autoencoder: autoencoder,
+            activation: activation
         )
         QwenImageResidentParameters.eval(
             textEncoder: textEncoder, transformer: transformer, autoencoder: autoencoder,

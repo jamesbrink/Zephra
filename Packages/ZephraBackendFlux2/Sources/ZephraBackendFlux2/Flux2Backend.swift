@@ -1,6 +1,7 @@
 import Flux2
 import Foundation
 import ZephraCore
+import ZephraMLX
 
 /// Runs FLUX.2 klein models through Zephra's own MLX pipeline.
 ///
@@ -20,9 +21,23 @@ public nonisolated final class Flux2Backend: ImageGenerationBackend {
 
     let pipeline = Flux2Pipeline()
     private var loadedDescriptor: ModelDescriptor?
+    /// The switches the composition root read once: the stream's dtype override and how often
+    /// a preview frame is made.
+    private let environment: InferenceEnvironment
+    /// The VAE tile the engine set for the run about to start; see `Flux2BackendFactory`.
+    private let tile: VAETileSetting
 
-    /// Creates an idle backend. No weights are touched until `ensureAvailable` is called.
-    public init() {}
+    /// Creates an idle backend running under `environment`, decoding at whatever `tile` holds
+    /// when a run starts. No weights are touched until `ensureAvailable` is called.
+    public init(environment: InferenceEnvironment, tile: VAETileSetting) {
+        self.environment = environment
+        self.tile = tile
+    }
+
+    /// An idle backend under the default switches, for tests that only ask about the disk.
+    public convenience init() {
+        self.init(environment: InferenceEnvironment(), tile: VAETileSetting())
+    }
 
     /// Reads the packed weights at `localPath` into memory.
     nonisolated(nonsending) public func load(
@@ -36,7 +51,8 @@ public nonisolated final class Flux2Backend: ImageGenerationBackend {
             // The stream's dtype is this package's call, not the kit's: bfloat16, or float32 on
             // an M5-class GPU or under ZEPHRA_DIT_DTYPE. See `Flux2ActivationPrecision`.
             try pipeline.loadModel(
-                at: localPath, activation: Flux2ActivationPrecision.resolve()
+                at: localPath,
+                activation: Flux2ActivationPrecision.resolve(environment: environment)
             ) { progress in
                 onProgress(Flux2ProgressMapper.event(from: progress))
             }
@@ -60,10 +76,12 @@ public nonisolated final class Flux2Backend: ImageGenerationBackend {
         // One throttle per run, and no hook at all when frames are switched off, so the loop
         // skips the check; see `PreviewFrameReporter`.
         let onPreview: Flux2Pipeline.PreviewHandler? = PreviewFrameReporter.handler(
-            interval: PreviewThrottle.environmentInterval, onProgress: onProgress)
+            interval: environment.previewInterval, onProgress: onProgress)
         do {
+            var request = Flux2RequestMapper.request(for: settings, descriptor: descriptor)
+            request.vaeTile = tile.value
             return try pipeline.generate(
-                Flux2RequestMapper.request(for: settings, descriptor: descriptor),
+                request,
                 onProgress: { progress in
                     onProgress(Flux2ProgressMapper.event(from: progress))
                 },

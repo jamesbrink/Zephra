@@ -146,8 +146,8 @@ Shared, by what a file actually touches:
   process-wide allocator's limits and readings, with `WiredLimitReservation`
   beside it replacing the one wired-memory ticket in the order asked, and
   `MLXInferenceRuntime` the one `InferenceRuntime` every family hands out — it
-  takes the family's VAE tile as a pair of accessors, which is the only thing
-  about it that is not process-wide. `GPUGeneration`: whether this is an
+  takes the family's `VAETileSetting`, the locked slot the engine's per-run
+  tile lands in, which is the only thing about it that is not process-wide. `GPUGeneration`: whether this is an
   M5-class GPU, read once from Metal, for the one dtype gate that needs to
   know. `LatentPreview`: how far to pool a latent for a preview frame, and the
   frame's bytes through `PixelBuffer`. `Streaming/`: the `LayerWeightStream`
@@ -709,11 +709,13 @@ measured; leave a comment saying where a figure came from. `ModelMenu` lists
    import whatever it needs; nothing above it may.
 3. Catalog entries naming that `BackendID`.
 4. One line in `Sources/Zephra/ZephraApp.swift`:
-   `registry.register(.yourFamily, YourBackendFactory.make)` and
+   `registry.register(.yourFamily, YourBackendFactory.make(environment))` —
+   the `InferenceEnvironment` the root read once — and
    `YourBackendFactory.runtime` in the `CombinedInferenceRuntime` list beside
-   it — `MLXInferenceRuntime` over the family's own VAE tile, the way the three
-   factories build theirs; no family writes a runtime type of its own. That
-   file is the only place in the app target allowed to name a concrete backend.
+   it — `MLXInferenceRuntime` over the family's own `VAETileSetting`, the way
+   the three factories build theirs; no family writes a runtime type of its
+   own, and no kit reads an environment variable. That file is the only place
+   in the app target allowed to name a concrete backend.
 
 Then the places that are not the app, each a one-line switch case or list entry:
 the package and target dependencies in `project.yml`, `MLX_PACKAGES` in the
@@ -1475,6 +1477,18 @@ the re-sync procedure, and the running patch log. Any change inside
 
 ## Debugging hooks
 
+Every `ZEPHRA_*` switch below that the inference path honours — the VAE tile, the stream
+depth, the DiT dtype, the preview interval, the residency override, and the three memory
+limits — is read **once at launch**, into `InferenceEnvironment` (`ZephraCore/Runtime`), by
+the composition root (`ZephraApp.swift`) or by `ZephraBench/main.swift`, and handed down as a
+value: the kits take what they need on their requests, the backends hold the rest as instance
+state, and nothing below the root reads `ProcessInfo`. Changing a variable after launch
+changes nothing. (`ZephraQuantize` honours none of them, so it reads nothing.) The one
+reader outside the root is `AppSettings.residencyPolicy(mode:budget:)`, which applies
+`ZEPHRA_WEIGHT_RESIDENCY` itself because the Performance tab's picker has to show the same
+override the store runs under; `InferenceEnvironment.weightResidency` carries the value for
+anything else that wants it.
+
 - `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|starting|queued|watching|batch|library|viewer|picker|downloading|building|failed`
   launches a Debug build frozen in that state with no model, for screenshots (`make screenshot`).
   `tucked` is `image` with the canvas's floating prompt slid down to its lip.
@@ -1532,7 +1546,7 @@ the re-sync procedure, and the running patch log. Any change inside
   benchmark otherwise, so a step time measured without the flag is the model's own and stays
   comparable with the figures already recorded here. `ZEPHRA_PREVIEW_INTERVAL_MS` is the switch
   underneath: milliseconds between frames, and 0 switches them off, which is what the benchmark
-  sets. Measured at 1024 pixels on an M4 Max, mean over the frames of one run: 43 ms for klein
+  does to its own `InferenceEnvironment` without the flag. Measured at 1024 pixels on an M4 Max, mean over the frames of one run: 43 ms for klein
   4-bit, 130 ms for Qwen-Image 4-bit, 192 ms for Z-Image 8-bit, against 0.5 to 8 s for the same
   models' full decodes. The machine was not idle for the last two, so those are ceilings.
 - `ZEPHRA_PROFILE_STEP=1` prints per-phase timings (text encode, per-step graph build, per-step
@@ -1545,19 +1559,22 @@ the re-sync procedure, and the running patch log. Any change inside
 - `ZEPHRA_VAE_TILE=<latent tile edge>` decodes the VAE in overlapping tiles and blends the seams,
   so the decode's peak is set by the tile rather than by the image. 64 gives 512-pixel tiles and
   takes the 1024-pixel peak from 23.5 GB to 17.7 GB for a mean absolute pixel difference of 1 of
-  255. It is the starting value of each family's tile — `VAETiledDecode.latentTile` for
-  Z-Image, `QwenImageAutoencoder.latentTile` for Qwen-Image — and so is what `ZephraBench` and
-  the command line use. The app overrides it at its first run rather than at launch: Settings >
-  Performance holds a three-way preference (`AppSettings.vaeTiling`), the store keeps it as
-  `vaeTilingPolicy`, and `InferenceActor` sets the tile on its own queue as each run (and each
-  warm-up) starts, for that run's own model — tiling under Automatic when that model's
-  `peakBytes` is over what the GPU may keep resident (`MemoryBudget`). A model chosen mid-run
-  therefore never changes the running run's decode.
+  255. `ZephraBench` sets it on the running family's runtime handle, so it is the tile the
+  benchmark decodes at. In the app it only decides what the Performance tab reads before the
+  first run: Settings > Performance holds a three-way preference (`AppSettings.vaeTiling`),
+  the store keeps it as `vaeTilingPolicy`, and `InferenceActor` sets the tile through
+  `InferenceRuntime.setVAETileSize` on its own queue as each run (and each warm-up) starts, for
+  that run's own model — tiling under Automatic when that model's `peakBytes` is over what
+  the GPU may keep resident (`MemoryBudget`). The handle writes the family's `VAETileSetting`,
+  one locked slot per backend package that the backend reads as it builds the run's request
+  and the kit takes as `decode(_:tile:)`; there is no static in any kit for it. A model
+  chosen mid-run therefore never changes the running run's decode.
 - `ZEPHRA_WEIGHT_RESIDENCY=streamed|resident` overrides the Performance tab's streaming
   preference for one launch, and `ZEPHRA_STREAM_DEPTH=N` says how many blocks a streamed load
-  reads ahead (2 unless set). `make bench ARGS="--model qwen-image-2512-4bit --stream"` is the
-  same with the report saying what one step read and how fast; `--stream-depth N` sweeps the
-  window. A model whose family cannot stream loads resident whatever either says.
+  reads ahead (2 unless set; the backend hands it to `QwenImageStreaming(depth:)` at load).
+  `make bench ARGS="--model qwen-image-2512-4bit --stream"` is the same with the report saying
+  what one step read and how fast; `--stream-depth N` sweeps the window. A model whose family
+  cannot stream loads resident whatever either says.
 - `ZEPHRA_GENERATE_ON_LAUNCH=<prompt>` presses Generate with that prompt and the saved settings
   as soon as the model is ready: one real generation in the app itself, window and all, from a
   shell on a Mac nobody is sitting at. The bench measures the model without the window; a
@@ -1565,6 +1582,8 @@ the re-sync procedure, and the running patch log. Any change inside
   `ZEPHRA_WIRED_LIMIT_MB=N` overrides the wired limit the app sets from the working set for
   that launch (0 switches wiring off), and the bench reads the same variable together with
   `ZEPHRA_MEMORY_LIMIT_MB=N`, so a run in the app can be replayed headlessly under its limits.
+  Every `_MB` here is `MemoryUnits.mebibyte`, the same 2^20 the Performance tab's preference
+  is stored in.
   Launch the app from a shell (`./build/Release/Zephra.app/Contents/MacOS/Zephra`) rather
   than with `open` when the point is the error text: MLX prints the Metal error it dies of
   to stderr, and the crash report carries only `abort() called`. The kernel's side of a GPU

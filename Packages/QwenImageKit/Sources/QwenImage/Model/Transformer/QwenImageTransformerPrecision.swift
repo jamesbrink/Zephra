@@ -5,13 +5,14 @@ import MLX
 ///
 /// bfloat16 by default: the weights are, the reference runs in it, and at a 4096-token image
 /// the attention over a float32 stream falls off MLX's fused kernel and costs a 2 GB score
-/// matrix per block. The pipeline casts the noise and the conditioning to this before the
-/// first step, and the loader casts the packer's float32 scales to it before anything
-/// evaluates them; any one of those left in float32 widens the whole stream after it, which
-/// is how this family ran in float32 by accident. `ZEPHRA_DIT_DTYPE=f32` runs the stream in
-/// float32 instead, the same switch klein reads.
+/// matrix per block. The dtype is the host's choice, handed to
+/// `QwenImagePipeline.loadModel(at:activation:streaming:)` and applied there once — to the
+/// packer's float32 scales before a stream is attached, and by `generate` to the noise and the
+/// conditioning before the first block — so nothing in the stream can widen it by accident;
+/// any one of those left in float32 is how this family ran in float32 by accident. The kit
+/// reads no environment variable: `ZEPHRA_DIT_DTYPE=f32` is read once at the composition root
+/// and arrives here as a value.
 public enum QwenImageTransformerPrecision {
-    /// The dtype the pipeline casts its latents and text to before the first block.
-    public static let activation: DType =
-        ProcessInfo.processInfo.environment["ZEPHRA_DIT_DTYPE"] == "f32" ? .float32 : .bfloat16
+    /// The dtype a pipeline casts its latents and text to unless told otherwise.
+    public static let defaultActivation: DType = .bfloat16
 }

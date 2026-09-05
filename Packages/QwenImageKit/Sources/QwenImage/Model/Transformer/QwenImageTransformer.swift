@@ -54,8 +54,8 @@ public final class QwenImageTransformer: Module {
     ///   - timestep: The noise level, from zero to one.
     ///   - frequencies: Rotary tables for both streams, sized to this image and prompt.
     ///
-    /// The stream runs in the latents' dtype, which the pipeline chooses through
-    /// `QwenImageTransformerPrecision`; the text and the conditioning are cast to it here so
+    /// The stream runs in the latents' dtype, which the pipeline was loaded with (see
+    /// `QwenImageTransformerPrecision`); the text and the conditioning are cast to it here so
     /// neither can widen it. The sinusoid itself is built in float32 whatever arrives.
     ///
     /// Throws only when streaming: a shard that changed under the model, or a stop between

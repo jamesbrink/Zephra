@@ -28,15 +28,6 @@ public final class QwenImageAutoencoder: Module {
     /// encoder, so eight, and a tile of 64 latent cells decodes a 512-pixel square.
     public static let spatialScale = 8
 
-    /// Latent-space tile edge for the decode, or nil to decode the whole latent exactly.
-    ///
-    /// The decode allocates in proportion to the image, not to the weights, so this is the knob
-    /// that decides a generation's peak. Starts from `ZEPHRA_VAE_TILE` so the benchmark and the
-    /// command line can set it; a host assigns it per model and the next decode picks it up.
-    /// Written from the main actor and read on the inference queue: a word-sized optional cannot
-    /// tear, and the worst a race can do is decode one image with the previous setting.
-    public nonisolated(unsafe) static var latentTile: Int? = TiledDecode.environmentTile
-
     /// Builds the autoencoder described by `configuration`. Weights arrive separately.
     public init(_ configuration: QwenImageVAEConfiguration) {
         _postQuantization.wrappedValue = Conv2d(
@@ -56,16 +47,20 @@ public final class QwenImageAutoencoder: Module {
 
     /// Turns latents into an image in the range -1 to 1.
     ///
-    /// - Parameter latents: `[batch, channels, height, width]`, as the denoising loop leaves
-    ///   them — still on the normalised scale the transformer works in.
+    /// - Parameters:
+    ///   - latents: `[batch, channels, height, width]`, as the denoising loop leaves them —
+    ///     still on the normalised scale the transformer works in.
+    ///   - tile: The latent-space tile edge to decode in, or nil to decode the whole latent
+    ///     exactly. The decode allocates in proportion to the image, not to the weights, so
+    ///     this is the knob that decides a generation's peak; the host chooses it per run.
     /// - Returns: `[batch, height, width, 3]`.
-    public func decode(_ latents: MLXArray) -> MLXArray {
+    public func decode(_ latents: MLXArray, tile: Int? = nil) -> MLXArray {
         let denormalized = denormalized(latents)
         // Tiling is applied around the whole decode, `post_quant_conv` included: it is a 1x1
         // convolution, so it commutes with taking a tile and there is nothing to be gained by
         // holding the full-resolution result of it live.
         let pixels =
-            if let tile = Self.latentTile, tile < Swift.max(denormalized.dim(1), denormalized.dim(2)) {
+            if let tile, tile < Swift.max(denormalized.dim(1), denormalized.dim(2)) {
                 TiledDecode.run(denormalized, tile: tile, scale: Self.spatialScale) {
                     decoder(postQuantization($0))
                 }

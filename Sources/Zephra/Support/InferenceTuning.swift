@@ -24,23 +24,19 @@ struct InferenceTuning {
     /// Limits for this machine: cache at one sixth of RAM capped at 8 GB, total and wired at
     /// what the GPU may keep resident. The last two follow `budget` rather than a fraction of
     /// RAM, so a raised `iogpu.wired_limit_mb` is honoured rather than second-guessed.
-    static func forThisMachine(budget: MemoryBudget) -> InferenceTuning {
+    /// `wiredLimitOverride` is `InferenceEnvironment.wiredLimitBytes`, `ZEPHRA_WIRED_LIMIT_MB`
+    /// read once at the root, for launching the app with that one limit changed.
+    static func forThisMachine(
+        budget: MemoryBudget, wiredLimitOverride: Int? = nil
+    ) -> InferenceTuning {
         let physical = Int(budget.physicalMemory)
         let gigabyte = 1 << 30
         let workingSet = Int(budget.gpuWorkingSet)
         return InferenceTuning(
             cacheLimitBytes: min(8 * gigabyte, physical / 6),
             memoryLimitBytes: workingSet,
-            wiredLimitBytes: overriddenLimit("ZEPHRA_WIRED_LIMIT_MB") ?? workingSet
+            wiredLimitBytes: wiredLimitOverride ?? workingSet
         )
-    }
-
-    /// A limit named in the environment in megabytes, as bytes, or nil when it is not set: the
-    /// same switch the benchmark reads, for launching the app with one limit changed.
-    private static func overriddenLimit(_ variable: String) -> Int? {
-        guard let value = ProcessInfo.processInfo.environment[variable], let megabytes = Int(value)
-        else { return nil }
-        return megabytes * bytesPerMB
     }
 
     /// The limits for a Mac whose GPU has not been asked, for the cache recommendation, which

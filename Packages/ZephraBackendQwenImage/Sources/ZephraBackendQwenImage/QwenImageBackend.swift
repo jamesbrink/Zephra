@@ -1,6 +1,7 @@
 import Foundation
 import QwenImage
 import ZephraCore
+import ZephraMLX
 import ZephraSnapshot
 
 /// Runs Qwen-Image family models through the MLX pipeline.
@@ -16,9 +17,23 @@ public nonisolated final class QwenImageBackend: ImageGenerationBackend {
 
     private let pipeline = QwenImagePipeline()
     private var loadedDescriptor: ModelDescriptor?
+    /// The switches the composition root read once: the stream's dtype, how far a streamed
+    /// load reads ahead, and how often a preview frame is made.
+    private let environment: InferenceEnvironment
+    /// The VAE tile the engine set for the run about to start; see `QwenImageBackendFactory`.
+    private let tile: VAETileSetting
 
-    /// Creates an idle backend. No weights are touched until `ensureAvailable` is called.
-    public init() {}
+    /// Creates an idle backend running under `environment`, decoding at whatever `tile` holds
+    /// when a run starts. No weights are touched until `ensureAvailable` is called.
+    public init(environment: InferenceEnvironment, tile: VAETileSetting) {
+        self.environment = environment
+        self.tile = tile
+    }
+
+    /// An idle backend under the default switches, for tests that only ask about the disk.
+    public convenience init() {
+        self.init(environment: InferenceEnvironment(), tile: VAETileSetting())
+    }
 
     /// Resolves the descriptor's weights, downloading them if they are not on this Mac, and
     /// returns the release `build` packs next.
@@ -66,9 +81,15 @@ public nonisolated final class QwenImageBackend: ImageGenerationBackend {
     ) async throws {
         if loadedModelID != nil { unload() }
         let streaming = residency == .streamed
-            ? QwenImageStreaming(depth: QwenImageRuntime.streamDepth) : nil
+            ? QwenImageStreaming(depth: environment.streamDepth) : nil
         do {
-            try pipeline.loadModel(at: localPath, streaming: streaming) { progress in
+            // The stream's dtype is this package's call, not the kit's: bfloat16 unless
+            // ZEPHRA_DIT_DTYPE=f32 was read at launch.
+            try pipeline.loadModel(
+                at: localPath,
+                activation: environment.ditFloat32 == true ? .float32 : .bfloat16,
+                streaming: streaming
+            ) { progress in
                 onProgress(QwenImageProgressMapper.event(from: progress))
             }
         } catch let error as CancellationError {
@@ -91,10 +112,12 @@ public nonisolated final class QwenImageBackend: ImageGenerationBackend {
         // One throttle per run, and no hook at all when frames are switched off, so the loop
         // skips the check; see `PreviewFrameReporter`.
         let onPreview: QwenImagePipeline.PreviewHandler? = PreviewFrameReporter.handler(
-            interval: PreviewThrottle.environmentInterval, onProgress: onProgress)
+            interval: environment.previewInterval, onProgress: onProgress)
         do {
+            var request = try QwenImageRequestMapper.request(for: settings, descriptor: descriptor)
+            request.vaeTile = tile.value
             return try pipeline.generate(
-                try QwenImageRequestMapper.request(for: settings, descriptor: descriptor),
+                request,
                 onProgress: { progress in
                     onProgress(QwenImageProgressMapper.event(from: progress))
                 },
