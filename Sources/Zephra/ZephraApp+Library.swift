@@ -21,7 +21,10 @@ extension ZephraApp {
         // Only the `viewer` screenshot build has an answer here.
         if let viewing = InterfacePreview.viewing(in: index) { workspace.viewing = viewing }
         thumbnails.sweep()
-        store.onImageSaved = { url in index.insert(fileAt: url) }
+        store.onImageSaved = { url in
+            index.insert(fileAt: url)
+            BackgroundNotices.post(.imageSaved(url))
+        }
         store.onImageDeleted = { _ in Task { await index.rescanNow() } }
         // The reverse direction: a delete made through the index — the grid, the viewer, the
         // sidebar wall, or the canvas's own menu — never goes through the store, so the store

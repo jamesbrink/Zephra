@@ -29,15 +29,24 @@ extension ImageExport {
         export(files, into: folder)
     }
 
-    /// Puts the images on the clipboard: the pixels of a single one, so it can be pasted into
-    /// anything, and the file references either way, so the Finder can paste them as files.
+    /// Puts the images on the clipboard: the pixels of a single one, as PNG and as a promised
+    /// TIFF, so it can be pasted into anything, and the file references either way, so the
+    /// Finder can paste them as files.
     static func copyToPasteboard(files: [URL]) {
         guard !files.isEmpty else { return }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.writeObjects(files.map { $0 as NSURL })
-        guard files.count == 1, let data = try? Data(contentsOf: files[0]) else { return }
-        pasteboard.setData(data, forType: .png)
+        if files.count == 1, let data = try? Data(contentsOf: files[0]) {
+            pasteboard.writeObjects([PasteboardImage.item(png: data, file: files[0])])
+        } else {
+            pasteboard.writeObjects(files.map { $0 as NSURL })
+        }
+    }
+
+    /// What a plain ⌘C over the grid hands the responder chain: the files, which is what the
+    /// Finder and the well both read, and the one file's pixels beside it.
+    nonisolated static func itemProviders(for files: [URL]) -> [NSItemProvider] {
+        files.compactMap { NSItemProvider(contentsOf: $0) }
     }
 
     /// Shows the images in the Finder, selected.

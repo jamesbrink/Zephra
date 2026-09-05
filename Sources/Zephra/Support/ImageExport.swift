@@ -61,7 +61,8 @@ enum ImageExport {
     }
 
     /// Puts the image on the clipboard: its file, when it has one, so the Finder can paste the
-    /// file and the bytes ride along; the PNG bytes alone until then.
+    /// file and the bytes ride along; the PNG bytes alone until then, with TIFF promised beside
+    /// them either way (`PasteboardImage`).
     static func copyToPasteboard(_ image: GeneratedImage) {
         if let url = image.fileURL, exists(url) {
             copyToPasteboard(files: [url])
@@ -69,7 +70,7 @@ enum ImageExport {
         }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.setData(exportData(for: image), forType: .png)
+        pasteboard.writeObjects([PasteboardImage.item(png: exportData(for: image), file: nil)])
     }
 
     /// A copy in the temporary directory, used for dragging out and for revealing unsaved images.

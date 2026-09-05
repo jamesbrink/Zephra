@@ -426,6 +426,22 @@ as an index, and it is Foundation only, so `make test` covers all of it.
   folder. Failures are collected into one alert. `ExportPlanTests`,
   `ImageExportReplaceTests` and `ExportDataTests` in `Tests/ZephraTests` pin
   all of it, the middle one on the real filesystem under `Scratch`.
+- Copy puts one picture on the pasteboard in every form a paste asks for:
+  the file's URL, so the Finder pastes the file; the PNG bytes as they are;
+  and a TIFF that is promised rather than written — `PasteboardImage` is an
+  `NSPasteboardItemDataProvider` that makes the TIFF only when something asks
+  for that type, since four megapixels uncompressed is tens of megabytes
+  nobody may ever paste. Several files go on as URLs alone. Plain ⌘C over
+  the grid is `LibraryGrid`'s `onCopyCommand`, the responder-chain hook,
+  handing out `NSItemProvider`s for the selected files, so the Edit menu's
+  own Copy reaches the grid only while the grid has the keyboard and still
+  means the text in a field otherwise; ⇧⌘C stays the named "Copy Image".
+  Share — the inspector's button, the context menu, and File > Share… — hands
+  the same files to the system: `ShareLink` where there is a view to anchor
+  on, and `SharePicker` (an `NSSharingServicePicker` over the key window's
+  content view) for the menu item, which resolves through `CommandTarget`
+  and is greyed out for a canvas picture that has no file yet.
+  `PasteboardImageTests` pins the three forms on a private pasteboard.
 
 ## The app target's shape
 
@@ -491,8 +507,8 @@ Four directories, by what a file is rather than what screen it is on:
   preference is applied by `AppearanceApplier`, set on `NSApp` from the
   composition root rather than as a colour scheme on a scene, so the Settings
   window, the menus, and the alerts change with the main window.
-  `CommandTarget` is what the menu bar's file commands — Export, Copy, Reveal,
-  Delete, Use as Reference, Upscale — are about: the canvas's picture while the
+  `CommandTarget` is what the menu bar's file commands — Export, Share, Copy,
+  Reveal, Delete, Use as Reference, Upscale — are about: the canvas's picture while the
   canvas pane is showing one (not while it follows a run, which has no file
   yet), the grid's focused selection filtered to the sections on screen, and
   otherwise nothing, which greys them all out; there is no fallback from an
@@ -537,7 +553,25 @@ Four directories, by what a file is rather than what screen it is on:
   Generating" is `EngineState.stopCommandTitle`, so the item names what it
   stops ("Cancel Download", "Stop Building", …), and File > "Export…" (⇧⌘E)
   is what was "Save as…": the picture is already on the disk, and nothing is
-  a document with changes to keep. `Sidebar/CanvasSidebar` is the canvas sidebar,
+  a document with changes to keep. `SeedControl`'s label is a button: it opens
+  `SeedEntryPopover`, where a seed is typed as the number the tooltip shows or
+  as the short hex label off another picture's inspector, and `SeedEntry`
+  (`Support/`) is the one parser — digits are decimal, a hex letter, a `0x`
+  or the label's middle dot make it hex, eight hex digits are the label and
+  come back as the seed's leading half over zeros, sixteen are the whole
+  value, and any other count is refused rather than guessed at
+  (`SeedEntryTests`). `Support/BackgroundNotice` is what a change of engine
+  state is worth telling the Mac about while another app is in front: a
+  download that ended in a build, a load or a ready model finished, one that
+  ended in a failure failed, and one the person stopped says nothing; it is a
+  pure function over two states, pinned by `BackgroundNoticeTests`, and
+  `BackgroundNoticeObserver` on `RootView` feeds it every transition. A saved
+  image is the other notice, posted from the `onImageSaved` wiring in
+  `ZephraApp+Library`. `BackgroundNotices.post` is the one place
+  `UNUserNotificationCenter` is touched: it posts only when `NSApp` is not
+  active and the General toggle (`AppSettings.backgroundNotifications`)
+  allows, and asks permission the first time it has something to say rather
+  than at launch. `Sidebar/CanvasSidebar` is the canvas sidebar,
   which builds today's runs once and hands them to `Sidebar/Timeline/` — a
   card per run still waiting, the running run's card in amber, and under those
   the wall of today's pictures in small squares — and to the "Today in

@@ -65,5 +65,7 @@ enum CommandTarget: Equatable {
 
     var copyTitle: String { count > 1 ? "Copy \(count) Images" : "Copy Image" }
 
+    var shareTitle: String { count > 1 ? "Share \(count) Images…" : "Share…" }
+
     var deleteTitle: String { count > 1 ? "Delete \(count) Images" : "Delete Image" }
 }

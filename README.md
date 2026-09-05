@@ -180,7 +180,9 @@ with a progress readout while that happens.
   one model, and steps go back to the new model's own default when you switch to a different
   model — nine steps of Z-Image's schedule and nine of Qwen-Image's four-step distillation
   are not the same request. The lock keeps the seed across runs; unlocked, every run gets a
-  fresh one. Images save to `~/Pictures/Zephra` by default, with the seed in the file name; if a write
+  fresh one, and a click on the seed's label opens a field to type one in — the whole number,
+  or the short `7A3F·9C2E` label read off another picture's inspector, which sets the seed's
+  leading half. Images save to `~/Pictures/Zephra` by default, with the seed in the file name; if a write
   fails, a notice sits over the prompt until an image saves, and the picture stays on the
   canvas either way.
 - The sidebar's wall is today's work in one flow, newest run first: a batch's seeds sit
@@ -195,7 +197,11 @@ with a progress readout while that happens.
   with ⌘Z from the Edit menu and redone with ⇧⌘Z, as far back as the session goes; deleting a
   picture is not on that stack, because Recently Deleted keeps it for thirty days instead. A
   PNG that Zephra did not make carries no record and is ignored. Right-click
-  a thumbnail for Export, Copy, Reveal in Finder, Upscale, and Delete. Export copies the
+  a thumbnail for Export, Share, Copy, Reveal in Finder, Upscale, and Delete. Copy puts the
+  file, its PNG and a TIFF on the clipboard, so it pastes into the Finder, Mail and a text
+  view alike, and plain ⌘C over the grid does the same for the selection. Share hands the
+  files to the Mac's own sharing services — Mail, Messages, AirDrop — from the inspector, the
+  menu, or File > Share…. Export copies the
   file itself, so what the library has written to it since goes along; exporting a file onto
   itself does nothing, and exporting several into a folder that already holds some of the names
   asks whether to keep both (numbered), replace, or cancel. Delete (⌘⌫ for the
@@ -204,7 +210,9 @@ with a progress readout while that happens.
   Put Back — to the folder the picture came from, Sources or the library root — and Delete
   Immediately, which moves the file to the Finder's Trash and says so.
 - Settings holds the appearance — System, Light, or Dark, applied to every window as the
-  segment moves — with where images are written and the seed preference under General.
+  segment moves — with where images are written, the seed preference, and whether a saved
+  image or a finished or failed download is announced with a notification while another app
+  is in front, under General.
   Performance has the after-load warm-up, the ceiling on the GPU scratch the runtime keeps
   between generations — with the figure recommended for your Mac, and a reset back to it —
   whether the VAE decode is tiled (Automatic, Always, Never), and a live readout of active,
@@ -234,7 +242,8 @@ with a progress readout while that happens.
 - Shortcuts: Generate ⌘↩, Stop Generating ⌘. (the item says what it stops: Cancel Download,
   Stop Building, Stop Loading, Stop Upscaling), New Album ⌘N, Undo ⌘Z, Redo ⇧⌘Z, Canvas ⌘1,
   Library ⌘2, Find ⌘F, Show Inspector ⌥⌘I, Hide Prompt ⌥⌘P, Select All Images ⌘A, Favorite
-  ⌘⇧D, thumbnail size ⌘+ and ⌘−, Export ⇧⌘E, Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C, Use as
+  ⌘⇧D, thumbnail size ⌘+ and ⌘−, Export ⇧⌘E, Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C (and
+  plain ⌘C over the grid's selection), Use as
   Reference ⌥⌘R, Clear Reference ⇧⌥⌘R, Upscale 2× ⌥⌘U, Upscale 4× ⌥⇧⌘U, Delete Image ⌘⌫,
   Return on a selected library image opens it full size in the viewer, Back to Grid ⌘↑ (from
   the library viewer). Export, Copy, Reveal, Delete, Use as Reference and Upscale act on the

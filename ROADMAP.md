@@ -128,6 +128,12 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
 
 ## Library editing: left out on purpose
 
+- **Dragging several pictures out at once.** A drag from the grid carries one
+  image: SwiftUI's `draggable` takes one `Transferable`, and a drop of several
+  files on the Finder wants an `NSFilePromiseProvider` per file from an
+  `NSViewRepresentable` drag source over the cell. ⌘C over the selection and
+  Share… already move several at once, which is what a batch usually wants.
+
 - **Undo for Delete.** Favourites, tags and albums undo from the Edit menu
   (`LibraryIndex+Undo`); moving a picture to Recently Deleted does not. It already
   has thirty days of Put Back, and an undo entry that races the folder's purge, or

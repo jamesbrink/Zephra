@@ -3,7 +3,7 @@ import SwiftUI
 import ZephraCore
 import ZephraEngine
 
-/// Where Export, Copy, Reveal, Delete, Use as Reference and Upscale actually land.
+/// Where Export, Share, Copy, Reveal, Delete, Use as Reference and Upscale actually land.
 ///
 /// All of them ask the same question and act on the same answers, so the question is asked
 /// once, in `CommandTarget`. The wording follows the answer too: "Delete Image" over one
@@ -80,6 +80,18 @@ extension ZephraCommands {
         case .library(let items): ImageExport.saveAs(files: items.map(\.url))
         }
     }
+
+    /// The files Share… would hand the picker: a canvas picture only once it has one, since the
+    /// sharing services take files and a picture still being written has none to give.
+    var shareFiles: [URL] {
+        switch target {
+        case .none: return []
+        case .canvas(let image): return image.fileURL.map { [$0] } ?? []
+        case .library(let items): return items.map(\.url)
+        }
+    }
+
+    func share() { SharePicker.show(files: shareFiles) }
 
     func copy() {
         switch target {

@@ -42,6 +42,7 @@ struct RootView: View {
         .environment(\.openLibraryItem, open)
         .environment(\.viewLibraryItem, view)
         .registeringLibraryUndo()
+        .postingBackgroundNotices()
         .onChange(of: store.outputDirectory) {
             workspace.viewing = nil
             workspace.query = LibraryQuery(sort: workspace.query.sort)

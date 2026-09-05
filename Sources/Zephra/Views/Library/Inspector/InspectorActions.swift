@@ -42,6 +42,12 @@ struct InspectorActions: View {
                 UpscaleButtons(source: .file(item.url))
                     .gridCellColumns(2)
             }
+            GridRow {
+                ShareLink(item: item.url) {
+                    Text("Share…").frame(maxWidth: .infinity)
+                }
+                .gridCellColumns(2)
+            }
             if store.descriptor.capabilities.supportsReferenceImage {
                 GridRow {
                     UseAsReferenceButton(item: item)

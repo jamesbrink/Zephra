@@ -10,6 +10,9 @@ enum AppSettings {
     static let randomizeSeedEachRun = "randomizeSeedEachRun"
     /// Whether the model runs a throwaway generation after loading.
     static let warmUpOnLaunch = "warmUpOnLaunch"
+    /// Whether a saved image or a finished download is announced while the app is in the
+    /// background.
+    static let backgroundNotifications = "backgroundNotifications"
     /// The `ModelDescriptor.id` chosen in the model menu, restored on the next launch.
     static let selectedModelID = "selectedModelID"
     /// Ceiling on the GPU scratch the runtime retains between generations, in megabytes.
@@ -51,6 +54,8 @@ enum AppSettings {
     static let initialRandomizeSeedEachRun = true
     /// Warming up costs a second at launch and saves several on the first real image.
     static let initialWarmUpOnLaunch = true
+    /// A run and a download are both things a person walks away from.
+    static let initialBackgroundNotifications = true
     /// Exactness wherever the Mac has the memory for it, tiling only where it does not.
     static let initialVAETiling = VAETilingMode.automatic
     /// Resident wherever the Mac can hold the model, streamed only where it cannot.
@@ -123,6 +128,7 @@ enum AppSettings {
         switch key {
         case randomizeSeedEachRun: initialRandomizeSeedEachRun
         case warmUpOnLaunch: initialWarmUpOnLaunch
+        case backgroundNotifications: initialBackgroundNotifications
         case inspectorVisible: initialInspectorVisible
         default: false
         }
