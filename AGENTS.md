@@ -404,9 +404,19 @@ Four directories, by what a file is rather than what screen it is on:
   `Canvas/LivePreviewView` — the run's own frames, a `CGImage` over the RGBA8
   bytes, `.medium` interpolation because a frame is an estimate, letterboxed
   into the run's own aspect so the finished picture lands in the rectangle its
-  frames were filling. Before the first frame that rectangle is empty and the
-  step segments ride across it. There is no context menu and nothing to drag,
-  because there is no file yet; a click still tucks the prompt away.
+  frames were filling. Before the first frame `Canvas/RunPlaceholderView` sits in
+  that rectangle: a still safelight card, the system spinner, and the phase in
+  words. Still on purpose, and `make lint-layers` keeps it so: **nothing in the
+  app target may run a repeating animation**, because while the model works the
+  GPU is the model's. A breathing opacity animation there, sixty composited
+  frames a second over a streamed Qwen-Image step, took a 16 GB M4 mini's GPU
+  down every time — a GPU restart the driver blamed on whichever command buffer
+  was in flight, which MLX turns into an uncaught C++ exception on Metal's
+  completion queue, so the app aborted a step in. Reduce Motion off, the same
+  launch crashed at 38 s; on, it made its picture in 144 s. The system's
+  indeterminate spinner stayed on screen through that run and is fine. There is
+  no context menu and nothing to drag, because there is no file yet; a click
+  still tucks the prompt away.
   `Canvas/RunningRunInspector` is the column beside it: prompt, model, size,
   the step of how many, seed, elapsed and left — the last two from the pace
   `store.state` already measures rather than a clock of the view's own — and
@@ -1210,6 +1220,18 @@ the re-sync procedure, and the running patch log. Any change inside
   reads ahead (2 unless set). `make bench ARGS="--model qwen-image-2512-4bit --stream"` is the
   same with the report saying what one step read and how fast; `--stream-depth N` sweeps the
   window. A model whose family cannot stream loads resident whatever either says.
+- `ZEPHRA_GENERATE_ON_LAUNCH=<prompt>` presses Generate with that prompt and the saved settings
+  as soon as the model is ready: one real generation in the app itself, window and all, from a
+  shell on a Mac nobody is sitting at. The bench measures the model without the window; a
+  failure that needs the window on screen, as the GPU reset above did, needs this instead.
+  `ZEPHRA_WIRED_LIMIT_MB=N` overrides the wired limit the app sets from the working set for
+  that launch (0 switches wiring off), and the bench reads the same variable together with
+  `ZEPHRA_MEMORY_LIMIT_MB=N`, so a run in the app can be replayed headlessly under its limits.
+  Launch the app from a shell (`./build/Release/Zephra.app/Contents/MacOS/Zephra`) rather
+  than with `open` when the point is the error text: MLX prints the Metal error it dies of
+  to stderr, and the crash report carries only `abort() called`. The kernel's side of a GPU
+  restart is in `log show` under `IOGPUFamily`, and the reports under
+  `/Library/Logs/DiagnosticReports/gpuEvent-*.ips` say which process the firmware blamed.
 
 ## Environment notes
 

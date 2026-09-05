@@ -147,6 +147,19 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
 - **The `mlx-flash`-style paced reader.** It meters `pread` with a token bucket so
   reads never slow the GPU's own memory traffic. MLX's four-thread reader has not
   shown the need; the bench's step time against the resident figure would.
+- **A streamed step and the rest of the GPU.** On the 16 GB M4 mini a streamed
+  Qwen-Image step with the app's own canvas animating over it ended in a GPU
+  restart every time (2026-09-04, three launches; the placeholder is still now and
+  `make lint-layers` keeps it so). Zephra can only keep its own window quiet:
+  another application animating at sixty frames a second on the same 16 GB Mac may
+  trip the same restart, and MLX makes a discarded command buffer an uncaught
+  exception, so the process aborts rather than failing the run. Not reproduced on
+  the bench, which has no window, nor with the wired limit off, so it is the
+  compositing and not the residency set. What would narrow it: the same launch on a
+  48 GB Mac, resident against streamed with the same animation, and `F_NOCACHE` on
+  the shards to take sixteen gigabytes a step out of the page cache. Catching the
+  exception is MLX's to offer; a `std::set_terminate` here could only write a
+  better last line.
 
 ## Upscaler follow-ups
 

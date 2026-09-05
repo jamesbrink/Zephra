@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The run's own rectangle before its first frame: a card that breathes, an amber spinner, and
-/// a word for what the model is doing.
+/// The run's own rectangle before its first frame: a still safelight card, the system's
+/// spinner, and a word for what the model is doing.
 ///
 /// A run's first frame comes only after its first step, which on a large model is half a
 /// minute, and an empty rectangle for that long reads as nothing happening. Bare step
@@ -9,17 +9,21 @@ import SwiftUI
 /// toolbar already carry one. So this says what the wait is rather than how far it has got:
 /// the phase in words, and a hint that a picture follows the first step. Safelight amber is
 /// the colour of "only while the model works", which is exactly when this is on screen.
+///
+/// The card is deliberately still. It once breathed, a repeating opacity animation across
+/// the whole rectangle, and on a 16 GB M4 mini that took the GPU down: sixty frames a second
+/// of compositing over a streamed Qwen-Image step ended, every time, in a GPU restart that
+/// MLX reports as an uncaught exception, and the app aborted a step in. With the animation off
+/// the same step ran to a picture. The spinner is the system's own indeterminate indicator,
+/// which that run kept on screen throughout; the rule is in `make lint-layers`.
 struct RunPlaceholderView: View {
     /// What the model is doing, from `EngineState.generationPhase`, or nil between phases.
     let phase: String?
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var breathing = false
-
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: ZephraChrome.cardRadius)
-                .fill(Color.safelight.opacity(breathing ? 0.07 : 0.03))
+                .fill(Color.safelight.opacity(0.05))
                 .strokeBorder(ZephraChrome.hairline, lineWidth: 1)
                 .padding(1)
             VStack(spacing: 10) {
@@ -36,12 +40,6 @@ struct RunPlaceholderView: View {
             }
             .multilineTextAlignment(.center)
             .padding(24)
-        }
-        .onAppear {
-            guard !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) {
-                breathing = true
-            }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(phase ?? "Starting")
