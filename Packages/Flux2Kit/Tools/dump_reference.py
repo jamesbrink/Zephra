@@ -119,6 +119,7 @@ def main() -> None:
         "reference_conditioning": dump_reference_conditioning.dump,
         "text_encoder": dump_text_encoder.dump,
         "transformer": dump_transformer.dump,
+        "timestep_bf16": dump_transformer.dump_timestep_bf16,
         "vae": dump_vae.dump,
     }
     for name, dumper in dumpers.items():

@@ -20,7 +20,7 @@ final class Flux2TimeGuidanceEmbedding: Module {
             embeddingDim: embeddingDim, channels: channels)
     }
 
-    func callAsFunction(_ value: MLXArray) -> MLXArray {
-        timestep(value)
+    func callAsFunction(_ value: MLXArray, projectionDType: DType) -> MLXArray {
+        timestep(value, projectionDType: projectionDType)
     }
 }

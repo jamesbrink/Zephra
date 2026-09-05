@@ -28,8 +28,14 @@ final class Flux2TimestepEmbedding: Module {
     }
 
     /// The conditioning vector for one batch of noise levels, `[batch]` in, `[batch, dim]` out.
-    func callAsFunction(_ timestep: MLXArray) -> MLXArray {
-        output(silu(input(Self.sinusoid(timestep))))
+    ///
+    /// The timestep arrives already in the stream's dtype, and the float32 sinusoid is cast to
+    /// `projectionDType` before the first linear, which is the order the reference does it in:
+    /// `timestep.to(hidden_states.dtype) * 1000`, then `timesteps_proj.to(timestep.dtype)`.
+    /// Under bfloat16 both roundings are visible — 0.77 becomes 768 rather than 770 at the
+    /// sinusoid — so `TransformerParityTests` pins them against a bfloat16 fixture.
+    func callAsFunction(_ timestep: MLXArray, projectionDType: DType) -> MLXArray {
+        output(silu(input(Self.sinusoid(timestep).asType(projectionDType))))
     }
 
     /// The frequency ladder, one per output pair, built on the CPU in doubles.
@@ -49,12 +55,13 @@ final class Flux2TimestepEmbedding: Module {
 
     /// The sinusoidal projection, **cosines first**.
     ///
-    /// Built in float32 whatever the timestep's dtype: the far end of the ladder is a frequency
-    /// of 1e-4, and at bfloat16 the smallest angles collapse to each other, so neighbouring
-    /// steps of a four-step schedule stop being distinguishable.
+    /// The timestep is scaled by 1000 in its own dtype, as the reference scales it, and the
+    /// angles are then built in float32 whatever that dtype was: the far end of the ladder is
+    /// a frequency of 1e-4, and at bfloat16 the smallest angles collapse to each other, so
+    /// neighbouring steps of a four-step schedule stop being distinguishable.
     static func sinusoid(_ timestep: MLXArray) -> MLXArray {
-        let angles = timestep.reshaped([-1, 1]).asType(.float32) * timestepScale
-            * MLXArray(ladder)
+        let scaled = (timestep.reshaped([-1, 1]) * timestepScale).asType(.float32)
+        let angles = scaled * MLXArray(ladder)
         return MLX.concatenated([MLX.cos(angles), MLX.sin(angles)], axis: -1)
     }
 }
