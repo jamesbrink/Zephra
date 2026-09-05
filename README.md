@@ -195,7 +195,8 @@ with a progress readout while that happens.
   asks whether to keep both (numbered), replace, or cancel. Delete (⌘⌫ for the
   image on the canvas) moves the file to `Recently Deleted` inside the selected library folder, where it
   waits thirty days before it is thrown away for good. In that collection the menu offers
-  Put Back and Delete Immediately instead.
+  Put Back — to the folder the picture came from, Sources or the library root — and Delete
+  Immediately, which moves the file to the Finder's Trash and says so.
 - Settings holds the appearance — System, Light, or Dark, applied to every window as the
   segment moves — with where images are written and the seed preference under General.
   Performance has the after-load warm-up, the ceiling on the GPU scratch the runtime keeps

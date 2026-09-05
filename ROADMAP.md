@@ -199,6 +199,22 @@ Left out of the first pass on purpose, each a small change to one file unless no
   because builds and resident weights share the same large Metal allocator.
 - Coalesce differing file-pattern requests for the same repository revision. Identical
   dependency sets share now; differing sets serialize until current readers finish.
+- **Borrow by identity rather than by count.** `DownloadRequest.borrowers` is an
+  integer, and the audit's E1 fix keeps it one by never borrowing twice (Retry on a
+  resident model answers ready without touching the pool; a load that reaches a lease
+  the store holds reuses it; `unloadModel` asserts the request is gone after its one
+  release). The fuller change is `borrowedBy: UUID?` (the load identity), `acquire`
+  refusing a second borrow rather than counting it, and `release` requiring the
+  matching identity. `RepositoryTransfer.owners` and `ModelTransfers.claims` would
+  stay: they are per physical part and per claim, not the foreground borrow, and
+  folding the three together would move `ModelTransfers` bookkeeping onto the main
+  actor. Not worth it for a defect the invariant now catches in Debug.
+- **A mock backend that really fetches through its acquisition.** `MockBackend`
+  records the `TransferAcquisition` id it is handed and never calls `fetch`, because
+  the engine test target has no stub hub (`StubHub` lives in `ZephraSnapshotTests`).
+  A `fetchesThroughAcquisition` dial that does call it would let the claim accounting
+  be tested end to end with the real `ModelTransfers.fetch`; it needs `StubHub`
+  moved into `ZephraTestSupport` first. None of the current engine tests need it.
 
 ## Image library location: left out on purpose
 

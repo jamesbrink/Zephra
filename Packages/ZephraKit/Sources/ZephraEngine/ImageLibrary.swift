@@ -26,7 +26,7 @@ public struct ImageLibrary: Sendable {
     /// only thing the history needs at the next launch.
     @discardableResult
     public func write(_ image: GeneratedImage) throws -> URL {
-        try ImageDirectoryAccess.prepare(root)
+        try ImageDirectoryAccess.prepareForWrite(root)
         let url = availableURL(named: fileName(for: image))
         try Self.annotated(image).write(to: url, options: .atomic)
         return url
@@ -43,7 +43,7 @@ public struct ImageLibrary: Sendable {
     public func write(
         _ data: Data, record: GenerationRecord, named name: String, referenceText: String?
     ) throws -> URL {
-        try ImageDirectoryAccess.prepare(root)
+        try ImageDirectoryAccess.prepareForWrite(root)
         let url = availableURL(named: name)
         let annotated = (try? GenerationRecord.embedded(
             record, in: data, prompt: record.prompt, referenceText: referenceText)) ?? data

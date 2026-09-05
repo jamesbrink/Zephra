@@ -43,9 +43,12 @@ struct DownloadTally {
     }
 
     /// Un-counts bytes that turned out not to be usable: a partial file the server would not
-    /// resume, which has to be fetched from the start.
+    /// resume, which has to be fetched from the start. The readings the rate is taken over
+    /// are un-counted with them, so the window measures what arrived rather than what was
+    /// thrown away.
     mutating func discard(_ bytes: Int64) {
         completedBytes -= bytes
+        samples = samples.map { ($0.at, max(0, $0.bytes - bytes)) }
     }
 
     /// Counts one file as finished.
@@ -80,6 +83,7 @@ struct DownloadTally {
         let seconds = (now - first.at).components
         let elapsed = Double(seconds.seconds) + Double(seconds.attoseconds) / 1e18
         guard elapsed >= 0.5 else { return nil }
-        return Double(completedBytes - first.bytes) / elapsed
+        // Never negative: a discard can still leave the total under the oldest reading.
+        return max(0, Double(completedBytes - first.bytes) / elapsed)
     }
 }

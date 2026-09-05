@@ -2,6 +2,20 @@ import Foundation
 
 /// Validates a selected library folder before any preference changes.
 public enum ImageDirectoryAccess {
+    /// The check every write makes: the volume is mounted, and the folder exists. The full
+    /// `prepare` — the symlink walk, the write probe — belongs to choosing the folder, which
+    /// `changeImageDirectory` does once; a check that expensive on every save was not worth
+    /// what it caught. The mounted check stays because an unmounted disk is exactly the case a
+    /// write must refuse rather than recreate the folder on the mount point.
+    public static func prepareForWrite(_ directory: URL) throws {
+        let files = FileManager.default
+        guard directory.isFileURL else { throw ImageDirectoryError("Choose a local folder for images.") }
+        let mounted = files.mountedVolumeURLs(includingResourceValuesForKeys: nil) ?? []
+        try requireMountedVolume(containing: directory, mounted: mounted)
+        try requireMountedVolume(containing: directory.resolvingSymlinksInPath(), mounted: mounted)
+        try files.createDirectory(at: directory, withIntermediateDirectories: true)
+    }
+
     public static func prepare(_ directory: URL) throws {
         let files = FileManager.default
         guard directory.isFileURL else { throw ImageDirectoryError("Choose a local folder for images.") }

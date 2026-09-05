@@ -16,13 +16,14 @@ extension ModelStorage {
     }
 
     static func download(
-        _ descriptor: ModelDescriptor, at url: URL, isComplete: Bool, in locations: ModelLocations
+        _ descriptor: ModelDescriptor, at url: URL, isComplete: Bool, in locations: ModelLocations,
+        origin: ModelStorageItem.Origin = .appFolder
     ) -> ModelStorageItem {
         let name = descriptor.isBuiltLocally
             ? "\(descriptor.displayName) release" : descriptor.fullName
         return ModelStorageItem(
             name: name, kind: .download, url: url, location: place(of: url, in: locations),
-            modelIDs: [descriptor.id], isComplete: isComplete)
+            modelIDs: [descriptor.id], isComplete: isComplete, origin: origin)
     }
 
     /// The same adapter where `hf download` put it: the whole repository directory in the hub
@@ -34,7 +35,8 @@ extension ModelStorage {
         ModelStorageItem(
             name: "\(descriptor.displayName) adapter", kind: .download, url: repository.url,
             location: place(of: repository.url, in: locations), modelIDs: [descriptor.id],
-            isComplete: repository.file(adapter.file, revision: adapter.revision) != nil)
+            isComplete: repository.file(adapter.file, revision: adapter.revision) != nil,
+            origin: .hubCache)
     }
 
     /// An adapter's download, listed with the model it serves rather than on its own: it is one
@@ -85,6 +87,6 @@ extension ModelStorageItem {
         ModelStorageItem(
             name: name, kind: kind, url: url, location: location,
             modelIDs: modelIDs + others.filter { !modelIDs.contains($0) },
-            isComplete: isComplete, bytes: bytes)
+            isComplete: isComplete, origin: origin, bytes: bytes)
     }
 }

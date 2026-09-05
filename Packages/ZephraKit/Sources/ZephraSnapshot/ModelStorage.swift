@@ -55,7 +55,7 @@ public nonisolated enum ModelStorage {
                 add(
                     download(
                         descriptor, at: repository.url, isComplete: repository.isComplete,
-                        in: locations),
+                        in: locations, origin: .hubCache),
                     to: &items)
             }
             for item in descriptor.adapters {

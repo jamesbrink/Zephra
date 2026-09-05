@@ -1,4 +1,5 @@
 import Foundation
+import ZephraSnapshot
 
 extension ImageLibraryMigration {
     /// Returns warnings for originals retained after the complete destination was published.
@@ -18,9 +19,10 @@ extension ImageLibraryMigration {
         let entries = try inventory()
         try ImageDirectoryAccess.prepare(destination)
         let files = FileManager.default
-        let capacity = try files.attributesOfFileSystem(forPath: destination.path)
         let needed = entries.reduce(Int64(0)) { $0 + $1.bytes }
-        guard let free = availableBytes ?? (capacity[.systemFreeSize] as? NSNumber)?.int64Value,
+        // `volumeAvailableCapacityForImportantUsage`, which counts purgeable space, rather than
+        // `.systemFreeSize`, which does not: the same reading every transfer reserves against.
+        guard let free = try availableBytes ?? TransferCapacity.read(destination).available,
               free >= needed + 64 * 1024 * 1024 else {
             throw ImageDirectoryError("Not enough free space in \(destination.path) to copy and verify the images.")
         }

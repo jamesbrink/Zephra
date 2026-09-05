@@ -44,7 +44,10 @@ extension GenerationStore {
             await pendingSwitch?.value
             await pendingLoad?.value
             await unloadModel()
-            isSwappingModel = false
+            // A swap asked for after this stop began owns the flag; only the swap this stop
+            // cancelled gives it up. Clearing it outright opened a window in which a retry
+            // could start a load under the pending swap.
+            isSwappingModel = switchTask.map { !$0.isCancelled } ?? false
             isStoppingPreparation = false
             transition(to: .idle)
         }

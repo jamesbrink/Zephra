@@ -52,6 +52,26 @@ struct RecentlyDeletedPurgeTests {
         #expect(FileManager.default.fileExists(atPath: deletedAgain.path(percentEncoded: false)))
     }
 
+    @Test("a purge that fails is reported, not swallowed")
+    func failedPurgeIsReported() async throws {
+        let bed = EngineTestBed()
+        let url = try bed.library.write(LibraryAnnotationTests.image(seed: 4))
+        let deleted = try bed.library.moveToRecentlyDeleted(url, at: Self.longAgo)
+        let folder = deleted.deletingLastPathComponent()
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o555], ofItemAtPath: folder.path(percentEncoded: false))
+        defer {
+            try? FileManager.default.setAttributes(
+                [.posixPermissions: 0o755], ofItemAtPath: folder.path(percentEncoded: false))
+        }
+        let index = bed.index()
+        index.start()
+        await index.settle()
+
+        #expect(index.lastFailure?.action == .purge)
+        #expect(FileManager.default.fileExists(atPath: deleted.path(percentEncoded: false)))
+    }
+
     @Test("a purge through the index forgets the name too")
     func indexPurgeForgets() async throws {
         let bed = EngineTestBed()

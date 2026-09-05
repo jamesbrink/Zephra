@@ -16,6 +16,16 @@ public struct ModelStorageItem: Identifiable, Hashable, Sendable {
         case built
     }
 
+    /// Which of the two places the directory was found in, which decides what a row may
+    /// promise about it: a partial in the app's own folder resumes when the model is chosen;
+    /// one in the hub cache never will, since nothing is written there.
+    public enum Origin: Hashable, Sendable {
+        /// The folder Settings > Models names, or one it named before.
+        case appFolder
+        /// `~/.cache/huggingface/hub`, in either layout: read as a fallback, never written.
+        case hubCache
+    }
+
     /// The directory's path: two items never share one.
     public var id: String { url.path(percentEncoded: false) }
     /// What to call it: the model's own name when the directory is what loads, or the
@@ -33,12 +43,15 @@ public struct ModelStorageItem: Identifiable, Hashable, Sendable {
     /// Whether what is there would load. False for a download that was stopped part-way,
     /// which is still worth listing: it takes space, and it resumes if the model is chosen.
     public let isComplete: Bool
+    /// Where the directory was found.
+    public let origin: Origin
     /// The directory's size, once `ModelStorage.measure` has walked it; nil before that.
     public var bytes: Int64?
 
     public init(
         name: String, kind: Kind, url: URL, location: String,
-        modelIDs: [ModelDescriptor.ID], isComplete: Bool, bytes: Int64? = nil
+        modelIDs: [ModelDescriptor.ID], isComplete: Bool, origin: Origin = .appFolder,
+        bytes: Int64? = nil
     ) {
         self.name = name
         self.kind = kind
@@ -46,6 +59,7 @@ public struct ModelStorageItem: Identifiable, Hashable, Sendable {
         self.location = location
         self.modelIDs = modelIDs
         self.isComplete = isComplete
+        self.origin = origin
         self.bytes = bytes
     }
 }
