@@ -84,6 +84,9 @@ struct ZephraApp: App {
                 .environment(\.inferenceRuntime, runtime)
                 .environment(\.memoryBudget, Self.budget)
         }
+        // The window takes each tab's own height (`SettingsTab.height`), shrinking as well
+        // as growing, rather than standing at the tallest tab's for all four.
+        .windowResizability(.contentSize)
     }
 
     /// Starts the library reading the folder, and tells it about the images this session makes
