@@ -5,7 +5,7 @@ public enum BackendError: Error, Sendable, Hashable, LocalizedError {
     /// The requested model has no implementation or no weights on disk.
     case modelNotAvailable(String)
     /// The download did not finish. The string says why, in a sentence a person can act on,
-    /// because "check your connection" is the wrong advice for a rejected token or a full disk.
+    /// because "check your connection" is the wrong advice for a missing repository or a full disk.
     case downloadFailed(String)
     /// The weights are present but could not be read into memory.
     case loadFailed(String)

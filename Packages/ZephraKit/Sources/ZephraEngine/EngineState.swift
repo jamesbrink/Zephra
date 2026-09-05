@@ -25,7 +25,8 @@ public enum EngineState: Hashable, Sendable {
     /// generating: no model need be loaded for it, and the engine returns to whatever it was
     /// doing before once it is over.
     case upscaling(UpscaleProgressEvent)
-    /// A cancel was requested; finishing the current step.
+    /// A stop was requested and is being honoured: a generation finishing its current step,
+    /// an upscale finishing its tile, or a preparation (download, build, load) winding down.
     case cancelling
     /// Stopped on an error the user needs to see.
     case failed(EngineError)

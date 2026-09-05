@@ -4,9 +4,11 @@ What Zephra should build next, in order, and what was deliberately left out of t
 work already done. The order was set on 3 September 2026 after FLUX.2 klein and
 reference-picture editing landed; the survey behind it lives in the session notes.
 
-Standing decisions: no CI for now (`make test` and `make test-mlx` are the gate, run
-locally before every merge), and no release or distribution work until the app is
-ready to ship.
+Standing decisions: no CI on pull requests (`make test` and `make test-mlx` are the
+gate, run locally before every merge). The one workflow,
+`.github/workflows/notarized-release.yml`, is a manually dispatched release build;
+it does not yet run the tests or the layer lint before signing, which the audit
+remediation adds. Nothing is distributed until the app is ready to ship.
 
 ## Next steps, in order
 
@@ -65,17 +67,18 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   loads and fails at the loader. Hashing sixteen gigabytes costs seconds, not
   minutes, so this is worth doing; it wants a streaming digest as the bytes are
   written rather than a second pass.
-- **Changing the models folder moves nothing**, by design — a sixty-gigabyte
-  copy is not something to start from a settings row. The last few folders the
-  setting pointed at are remembered (`ModelLocations.previous`), so what was
-  downloaded or built under them is still found, listed and loaded; only new
-  downloads and builds go to the new folder. What is left out is the honest
-  version of moving: a "move my models" button that copies, verifies, and only
-  then forgets the old root.
-- **Deleting a model never asks the engine to unload it first.** The row is disabled
-  while the model is loaded; choosing another model frees it. A Delete that unloads
-  and then trashes would be a `GenerationStore` concern, and the engine would need to
-  know that a deletion is the reason it went idle.
+- **Changing the models folder asks: Move Models, Keep in Place, or Cancel.**
+  Keep in Place remembers the last few roots (`ModelLocations.previous`), so what
+  was downloaded or built under them is still found, listed and loaded, and only
+  new downloads and builds go to the new folder. Move copies into staging,
+  verifies byte for byte, publishes, then removes the originals, and refuses a
+  collision rather than overwrite. What is still left out: merging two roots that
+  both hold a copy of one model (the move refuses instead).
+- **Deleting a model never asks the engine to unload it first.** Deletion goes
+  through `GenerationStore.deleteModelStorage`, which refuses while the directory is
+  resident, requested, or queued and closes admission while it runs; the row is
+  disabled for the loaded model and choosing another model frees it. What is left
+  out is a Delete that unloads on the user's behalf.
 - **Sizes are measured by walking, every time the tab opens.** Twenty files per
   model makes that instant; a cache of a thousand small repositories would not be.
 

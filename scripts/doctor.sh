@@ -51,17 +51,18 @@ else
 fi
 
 if command -v hf >/dev/null 2>&1; then
-    ok "hf CLI on PATH (optional, for make prefetch and make prefetch-flux2)"
+    ok "hf CLI on PATH (optional, for the make prefetch* targets, make quantize, and make quantize-flux2 without FLUX2_SOURCE)"
 else
-    printf 'note  hf CLI not on PATH; only make prefetch, make prefetch-flux2, and make quantize need it: pip install -U huggingface_hub\n'
+    printf 'note  hf CLI not on PATH; only the make prefetch* targets, make quantize, and make quantize-flux2 without FLUX2_SOURCE need it: pip install -U huggingface_hub\n'
 fi
 
 # Not a failure: a model can live on another volume. But FLUX.2 klein is built by the app on
-# first load from a 16 GB release in the hub cache, plus 4.5 GB of packed variant beside it, and
-# running out of disk half-way through the build is the bad outcome worth a line here.
+# first load from a 16 GB release in the models folder, plus 5.4 GB (4-bit) or 8.6 GB (8-bit) of
+# packed variant beside it, and running out of disk half-way through the build is the bad
+# outcome worth a line here. The figures are the catalog's `downloadBytes` and `builtBytes`.
 free_gb=$(df -g "$HOME" | awk 'NR == 2 { print $4 }')
 if [ -n "$free_gb" ] && [ "$free_gb" -lt 40 ]; then
-    printf 'note  %s GB free on the home volume; FLUX.2 klein wants about 21 GB (16 GB release plus the packed variant), and hf cache delete frees the release again\n' "$free_gb"
+    printf 'note  %s GB free on the home volume; FLUX.2 klein wants about 22 GB (16 GB release plus the packed variant); the release is a row in Settings > Models once the build is done\n' "$free_gb"
 fi
 
 if [ "$failures" -eq 0 ]; then

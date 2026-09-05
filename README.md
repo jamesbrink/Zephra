@@ -204,9 +204,11 @@ with a progress readout while that happens.
   what it occupies, and a Delete that permanently removes its files after confirmation. A release both klein variants
   pack from is one row, an adapter is a row named for the model it serves, a download that
   stopped part-way says so, and the model that is
-  loaded cannot be deleted from under itself. Changing the folder moves nothing: what is
-  there keeps working where it is, still listed with its whole path, and the next download
-  and build go to the new folder.
+  loaded cannot be deleted from under itself. Changing the folder asks whether to Move
+  Models (copy, verify, publish, then remove the originals; a collision refuses rather than
+  overwrites), Keep in Place (the old folder stays a read-only fallback, still listed with its
+  whole path, and the next download and build go to the new folder), or Cancel. Move Models
+  Here brings models from a previous folder later.
   About shows the version and the third-party license notices.
 - Downloads need no Hugging Face account, and Zephra never sends a token: every model comes
   from a public, ungated repository, and no `Authorization` header goes out whatever is in
@@ -215,14 +217,34 @@ with a progress readout while that happens.
   nothing depends on a Hugging Face cache layout or on the `hf` tool, though a release
   already in that cache is read rather than fetched again. A transfer that breaks is tried
   again, five times with a growing pause, and resumes from the bytes already on disk; so
-  does Try again after the tries run out, and Stop leaves those bytes for the next attempt.
-  The message says why it stopped rather than only that it did.
+  does Try again after the tries run out. Pause keeps the bytes for the next attempt; Cancel
+  download, offered while a model is loading or switching, discards an unfinished repository
+  once nothing else is using it, and never a finished one. The message says why a transfer
+  stopped rather than only that it did.
 - Shortcuts: Generate ⌘↩, Stop ⌘., New Album ⌘N, Canvas ⌘1, Library ⌘2, Find ⌘F, Show
   Inspector ⌥⌘I, Hide Prompt ⌥⌘P, Select All Images ⌘A, Favourite ⌘⇧D, thumbnail size ⌘+ and
   ⌘−, Save As ⌘S, Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C, Use as Reference ⌥⌘R, Clear
-  Reference ⇧⌥⌘R, Upscale 2× ⌥⌘U, Upscale 4× ⌥⇧⌘U, Delete Image ⌘⌫. Return in the prompt
+  Reference ⇧⌥⌘R, Upscale 2× ⌥⌘U, Upscale 4× ⌥⇧⌘U, Delete Image ⌘⌫, Back to Grid ⌘↑ (from
+  the library viewer). Return in the prompt
   field breaks the line, which is why Generate is ⌘↩; Cut, Copy, Paste and Select All there
   are the standard Edit menu items.
+
+### Image library location
+
+Settings > General > Images offers **Open**, **Change…**, and **Use Default** for the
+library folder. The default is `~/Pictures/Zephra`. After choosing a folder, select
+**Move Images** to migrate existing images, albums, sources, and Recently Deleted,
+or **Keep in Place** to leave them untouched and display the selected folder’s
+library. Choose the old folder again to return to its images. New generations and
+upscales save to the selected folder, which is remembered across launches.
+
+Folder changes wait for image writes and pause library edits; finish generation,
+queued work, and upscaling first. Migration verifies copied files before removing
+originals, preserves embedded metadata and deletion dates, and leaves unrelated
+files alone. When moving data, choose a folder without existing images or library
+metadata; merging existing libraries is not supported and nothing is overwritten.
+A failed move keeps the old location selected; if only removal of an original fails, the complete destination is selected and the
+retained original is reported.
 
 ## How it works
 
@@ -284,8 +306,9 @@ rectified-flow transformer conditioned on Qwen3-4B, distilled to four steps with
 no guidance, and the same checkpoint edits a picture handed in beside the prompt.
 The app builds it on first load from the 16 GB bfloat16 release, packing the
 transformer at four or eight bits and the first 27 of the encoder's 36 layers the
-same way — the transformer conditions on the hidden state after the 27th layer, so
-nothing past it is loaded — and copying the 168 MB autoencoder whole. `make
+same way — the transformer conditions on the hidden states after the 9th, 18th and
+27th layers laid side by side, so nothing past the 27th is loaded — and copying the
+168 MB autoencoder whole. `make
 quantize-flux2` is the same build by hand, for benchmarking or for a copy of the
 release kept elsewhere (`FLUX2_SOURCE`).
 
@@ -406,9 +429,10 @@ resident does, because the difference between them is the VAE decode's scratch, 
 unquantized in both.
 
 **What a 16 GB Mac gets.** The 4-bit variant, and it reaches 1024² there. The bar is peak
-against four fifths of physical memory — peak is what a Mac has to find, and it is resident
-plus the VAE decode's transient — so 512² at 10.7 GB and 768² at 14.6 GB fit outright, and
-1024², 17.8 GB untiled, fits at about 12 GB once the decode is tiled. The 8-bit model's
+against what the GPU may keep resident (12.1 GB on a 16 GB Mac; see the memory budget
+below) — peak is what a Mac has to find, and it is resident plus the VAE decode's transient
+— so 512² at 10.7 GB fits outright, 768² at 14.6 GB and 1024² at 17.8 GB untiled fit once
+the decode is tiled, which Automatic does for them. The 8-bit model's
 17.7 GB tiled peak is still over the bar on such a machine, so its row says "Needs 23 GB"; it
 stays selectable, because a smaller size still runs. A 24 GB Mac is offered both, the 8-bit one
 with its decode tiled; a 32 GB Mac runs both untiled and exact.
@@ -510,15 +534,17 @@ Zephra/
 │   ├── Flux2Kit/                  # ours, translated from MIT ports — FLUX.2 klein. See PROVENANCE.md
 │   ├── ZephraKit/                 # ours — no MLX dependency
 │   │   ├── Sources/ZephraCore/          # value types + protocols
-│   │   ├── Sources/ZephraEngine/        # actor + store, depends on ZephraCore only
+│   │   ├── Sources/ZephraEngine/        # actor + store, depends on ZephraCore and ZephraSnapshot
 │   │   │   ├── Library/                 # the image folder as an index: scan, query, annotate
 │   │   │   ├── Timeline/                # the canvas sidebar: queue cards, then today's pictures as one wall
-│   │   │   └── Upscale/                 # the record an upscale carries and where it is filed
+│   │   │   ├── Upscale/                 # the record an upscale carries and where it is filed
+│   │   │   └── Downloads/               # what the app keeps alive per model request
 │   │   ├── Sources/ZephraSnapshot/      # the model downloader, snapshot checks, what is on disk
 │   │   └── Tests/ZephraCoreTests, ZephraEngineTests, ZephraSnapshotTests
 │   ├── ZephraMLXKit/              # ours — MLX work no family owns
 │   │   ├── Sources/ZephraQuantization/  # the streaming weight packer every family drives
-│   │   └── Sources/ZephraMLX/           # the tiled decode and the allocator's knobs
+│   │   └── Sources/ZephraMLX/           # the tiled decode, the allocator's knobs, the preview
+│   │       └── Streaming/               # pooling, and the streamed layer stack
 │   ├── ZephraBackendZImage/       # ours — the only package that imports ZImage
 │   ├── ZephraBackendQwenImage/    # ours — the only package that imports QwenImage
 │   ├── ZephraBackendFlux2/        # ours — the only package that imports Flux2; builds on first load
@@ -534,7 +560,8 @@ Zephra/
 ├── Sources/ZephraQuantize/        # builds a 4-bit variant from a bf16 release
 ├── design/mock/                   # the UI the app was built against
 └── scripts/doctor.sh, screenshot.sh, window-id.swift, make-icon.swift,
-            compare-safetensors.py, sign-release.sh, notarize-release.sh
+            compare-safetensors.py, download-fixture.py, sign-release.sh, create-dmg.sh,
+            notarize-release.sh, submit-notarization.sh, test-notarization.sh, verify-dmg.sh
 ```
 
 ## Development
@@ -564,21 +591,28 @@ Zephra/
 - `make quantize` / `make quantize-qwen` / `make quantize-flux2` — the builds the app
   does on first load, by hand. `BITS` and `GROUP_SIZE` override the 4-bit, group-64
   default; `QUANT_OUT`, `QWEN_OUT` and `FLUX2_OUT` override where it lands, and
-  `QWEN_SOURCE` / `QWEN_LORA` / `FLUX2_SOURCE` say what it is built from. Worth using
-  for benchmarking, or to build from a source kept off the boot volume.
+  `QWEN_SOURCE` / `QWEN_LORA` / `FLUX2_SOURCE` say what it is built from. `ARGS` passes
+  anything else to the tool, such as `--text-encoder-bits 8` to hold the text encoder at
+  a different precision from the transformer. Worth using for benchmarking, or to build
+  from a source kept off the boot volume.
 - `make lint-layers` — check the module boundaries above. Run it before every commit.
 - `make bench ARGS="..."` — headless timing (`--size`, `--steps`, `--runs`, `--model`,
   `--prompt`, `--json`, `--out`, `--micro` for the DiT's kernels alone, `--reference`
-  to time the editing path, `--strength`). Benchmark on an idle machine, Release only.
+  to time the editing path, `--strength`, `--preview` to turn the live frames on and
+  time them, `--stream` and `--stream-depth N` to measure the weights read from disk,
+  `--backend` and `--snapshot` to time a snapshot the catalog does not list). Benchmark
+  on an idle machine, Release only.
 - `make logs` streams the app's log; `make screenshot` captures the window;
   `make open` opens the generated project in Xcode; `make clean` removes build output.
-- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|queued|watching|batch|library|viewer|downloading|building|failed`
+- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|starting|queued|watching|batch|library|viewer|picker|downloading|building|failed|settings`
   launches a Debug build frozen in that state with no model, for screenshots; `tucked` is
   `image` with the floating prompt slid down to its lip, `viewer` is the library with a
-  picture open full size, `generating`, `queued` and `watching` show a run in flight with a
-  frame from it (`watching` is the one where the canvas has been left on an earlier picture),
-  and `downloading` and `failed` sit over a picture, since that is where they must stay
-  legible.
+  picture open full size, `picker` is `editing` with the reference picker sheet open,
+  `generating`, `queued` and `watching` show a run in flight with a frame from it
+  (`watching` is the one where the canvas has been left on an earlier picture), `starting`
+  is the same run before its first frame, `downloading` and `failed` sit over a picture,
+  since that is where they must stay legible, and `settings` freezes the engine but keeps
+  the real library, for trying the folder-change flow with throwaway fixtures.
 
 ### Releasing
 
@@ -642,20 +676,3 @@ Z-Image base, runtime LoRA, and the upscaler's follow-ups.
 
 Proprietary — all rights reserved. See `LICENSE`. Third-party components are
 used under their own licenses; see `THIRD_PARTY_NOTICES.md`.
-
-### Image library location
-
-Settings > General > Images offers **Open**, **Change…**, and **Use Default** for the
-library folder. The default is `~/Pictures/Zephra`. After choosing a folder, select
-**Move Images** to migrate existing images, albums, sources, and Recently Deleted,
-or **Keep in Place** to leave them untouched and display the selected folder’s
-library. Choose the old folder again to return to its images. New generations and
-upscales save to the selected folder, which is remembered across launches.
-
-Folder changes wait for image writes and pause library edits; finish generation,
-queued work, and upscaling first. Migration verifies copied files before removing
-originals, preserves embedded metadata and deletion dates, and leaves unrelated
-files alone. When moving data, choose a folder without existing images or library
-metadata; merging existing libraries is not supported and nothing is overwritten.
-A failed move keeps the old location selected; if only removal of an original fails, the complete destination is selected and the
-retained original is reported.

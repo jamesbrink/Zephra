@@ -3,7 +3,8 @@ import MLX
 
 /// Packs one component's safetensors shards, one tensor at a time.
 ///
-/// Tensors are read straight out of the memory-mapped source shard, packed, evaluated, and
+/// Tensors are read out of the source shard one at a time (MLX loads each lazily, on its first
+/// evaluation, with no mmap path), packed, evaluated, and
 /// handed to the shard writer, so the only weights resident are the one being converted and
 /// whatever the writer has yet to spill. That is what lets a 24 GB float32 transformer convert
 /// in about 8 GB, and it is the property to preserve above all others in here.

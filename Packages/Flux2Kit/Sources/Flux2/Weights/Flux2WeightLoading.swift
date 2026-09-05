@@ -13,7 +13,8 @@ import MLXNN
 public enum Flux2WeightLoading {
     /// Every tensor in a component's shards.
     ///
-    /// Arrays come back memory-mapped and unevaluated, so nothing is resident until it is used.
+    /// Arrays come back lazy and unevaluated (read on first use, not memory-mapped), so nothing
+    /// is resident until it is used.
     public static func weights(in directory: URL) throws -> [String: MLXArray] {
         let shards = try FileManager.default
             .contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)

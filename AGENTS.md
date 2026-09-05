@@ -202,8 +202,11 @@ engine be tested in seconds without Metal.
   loading, generation, the queue, batches (several seeds of one prompt from
   one press of Generate), model switching, history, availability, preview,
   the reference picture, the library, following the run, upscaling and filing
-  the upscaled result. Add a new concern as another extension file, not as more
-  lines in `GenerationStore.swift`.
+  the upscaled result, the interface's own questions (`+Interaction`), the
+  download requests it keeps alive (`+Downloads`), the two folder changes
+  (`+ImageDirectory`, `+ModelDirectory`), and weight residency (`+Residency`).
+  Add a new concern as another extension file, not as more lines in
+  `GenerationStore.swift`.
 - `InferenceActor` is the only place backend code runs. It overrides
   `unownedExecutor` with a serial `DispatchQueue`: a generation is tens of
   seconds of synchronous Metal work, and on the cooperative pool that would
@@ -697,7 +700,8 @@ Makefile targets:
 - `make quantize-flux2` — the build the app does on first load, by hand: pack
   the klein release from the app's own folder (or `FLUX2_SOURCE`) into
   `~/Library/Application Support/Zephra/Models/flux2-klein-4b-4bit`
-  (`FLUX2_OUT` overrides; `BITS=8` needs one, as above). About a minute.
+  (`FLUX2_OUT` overrides, and its default already follows `BITS`, so `BITS=8` lands
+  in `flux2-klein-4b-8bit` without one). About a minute.
 - `make lint-layers` — enforce the layering rules above.
 - `make logs` — stream app logs (`log stream`, subsystem `io.zephra`).
 - `make screenshot` — capture the app window (see debugging hooks).
@@ -896,8 +900,9 @@ loader reads. The app does that itself on first load, the way klein does;
 6575 MB resident, against 13.3 GB and 12236 MB for the 8-bit model. Peak follows
 the image size — 10693 MB at 512 pixels, 14599 MB at 768,
 17839 MB at 1024 — because peak is resident plus the unquantized VAE decode's
-scratch. So a 16 GB Mac is offered this variant and can run it at 512 and 768, but
-1024 will page. Four bits is not faster: MLX's quantized matmul costs the same at
+scratch. So a 16 GB Mac is offered this variant: 512 fits outright, and 768 and 1024
+fit once the decode is tiled (12010 MB at 1024, under the 12124 MB working set;
+Automatic tiles them). Four bits is not faster: MLX's quantized matmul costs the same at
 these shapes whichever bit width it packs, which `make bench ARGS=--micro` shows
 directly and the end-to-end step times agree with. Group size 64 rather than 32,
 measured: 32 costs 825 MB more resident and 1.1 GB more on disk for no visible
@@ -1123,7 +1128,8 @@ Three more things about the Z-Image plan are load-bearing and easy to break:
   cast to float32 before packing. The transformer's `castFloatParameters` patch turns
   them into bfloat16 at load.
 
-Weights stream one tensor at a time out of the memory-mapped source shard and spill
+Weights stream one tensor at a time out of the source shard — MLX reads each
+lazily, on first evaluation, so only the tensor being packed is resident — and spill
 once four gigabytes have accumulated, so a 24 GB float32 transformer converts at
 about 8 GB resident. The whole build takes about a minute once the source is local.
 
@@ -1141,8 +1147,13 @@ the re-sync procedure, and the running patch log. Any change inside
   stays in Swift 5 language mode so its 49 upstream files compile untouched.
 - Every package pins the same exact `mlx-swift` version. When bumping it, re-run
   `Flux2Kit`'s bf16 matmul probe test: mlx-swift up to 0.31.6 miscompiles a
-  bf16 split-K matmul on M5-class GPUs at the single block's output shape, and
-  the port relies on its conditioning stream being float32 to stay clear of it.
+  bf16 split-K matmul on M5-class GPUs at the single block's output shape
+  (mlx#3797, fixed in mlx 0.32.0 by mlx#3810, which no mlx-swift release
+  carries yet). klein's stream is bfloat16 by default since `a17023e`; on an
+  M5 the only protection today is `ZEPHRA_DIT_DTYPE=f32`, at three times the
+  step time. The catalog variants pack the block's output projection, so the
+  production path is the quantized matmul rather than the dense one the probe
+  runs, and whether it reaches the same kernel is not established.
 - No emojis in code or docs.
 - Keep files small; split before a file grows past its target size.
 - `ROADMAP.md` is where deferred work lives: an option considered and left out
