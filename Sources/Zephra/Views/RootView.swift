@@ -46,7 +46,10 @@ struct RootView: View {
             workspace.query = LibraryQuery(sort: workspace.query.sort)
         }
         .onChange(of: workspace.query, initial: true) { index.query = $1 }
-        .task { await store.bootstrapFromInterface() }
+        .task {
+            await store.bootstrapFromInterface()
+            await LaunchGeneration.run(on: store)
+        }
     }
 
     /// Reads the image onto the canvas and goes there. The settings are deliberately not
