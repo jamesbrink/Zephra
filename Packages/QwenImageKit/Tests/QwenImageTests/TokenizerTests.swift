@@ -7,6 +7,45 @@ import ZephraTestSupport
 /// The prompt wrapper and the tokenizer that turns it into ids.
 @Suite("Tokenizer")
 struct TokenizerTests {
+    /// What `dump_tokenizer` wrote: the Hugging Face tokenizer's ids for each prompt, and the
+    /// reference pipeline's own template and count of the tokens it drops.
+    private struct ReferenceIDs: Decodable {
+        struct Case: Decodable {
+            let text: String
+            let ids: [Int]
+        }
+        let template: String
+        let prefixCount: Int
+        let cases: [Case]
+
+        enum CodingKeys: String, CodingKey {
+            case template, cases
+            case prefixCount = "prefix_count"
+        }
+    }
+
+    @Test("every fixture prompt encodes to the ids the reference tokenizer produced", .enabled(if: SnapshotUnderTest.qwenImage.isPresent))
+    func encodesToTheReferenceIDs() throws {
+        let snapshot = try #require(SnapshotUnderTest.qwenImage.directory)
+        let tokenizer = try QwenImageTokenizer(snapshot: snapshot)
+        let reference: ReferenceIDs = try Fixture.json("tokenizer_ids")
+
+        // Hyphens, contractions, single digits, runs of newlines, merges beginning with `#`,
+        // other scripts, and a combining accent: each is a way an assembled pre-tokenizer can
+        // disagree with the real one while the suite's other tests stay green.
+        #expect(reference.cases.count >= 20)
+        for item in reference.cases {
+            #expect(tokenizer.encode(item.text) == item.ids, "\(item.text.debugDescription)")
+        }
+    }
+
+    @Test("the drop index is the reference's own count of the template prefix")
+    func dropIndexIsTheReferencesPrefixCount() throws {
+        let reference: ReferenceIDs = try Fixture.json("tokenizer_ids")
+        #expect(QwenImagePromptTemplate.dropIndex == reference.prefixCount)
+        #expect(QwenImagePromptTemplate.text == reference.template)
+    }
+
     @Test("the template's own tokens are exactly the ones the drop index removes", .enabled(if: SnapshotUnderTest.qwenImage.isPresent))
     func dropIndexMatchesTheTemplate() throws {
         let snapshot = try #require(SnapshotUnderTest.qwenImage.directory)

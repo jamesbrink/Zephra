@@ -32,7 +32,7 @@ option `AGENTS.md` deliberately keeps open, so the repository was never opened.
 | `Qwen/Qwen-Image-2512` config files | Apache 2.0 | Every architectural constant: layer counts, head dimensions, rope axis widths, VAE channel multipliers, scheduler shift parameters. Read directly out of the model's `config.json` files rather than from prose about them. |
 | `huggingface/diffusers` | Apache 2.0 | The reference behaviour. `QwenImageTransformer2DModel`, `AutoencoderKLQwenImage`, `FlowMatchEulerDiscreteScheduler` and the pipeline's prompt handling define what this port must reproduce. |
 | `mlx-gen` (https://github.com/lpalbou/mlx-gen) | MIT | One published finding, not code: that four-bit modulation layers cost coherent structure in this architecture. It is why `QwenImageQuantizationPlan` holds them at eight bits. |
-| `Packages/ZImageKit` (vendored) | MIT | One approach, not a file: assembling a byte-level BPE tokenizer from `vocab.json` and `merges.txt` when a snapshot ships no `tokenizer.json`. Noted in `THIRD_PARTY_NOTICES.md` and in the source. |
+| `Packages/ZImageKit` (vendored) | MIT | One approach, not a file: assembling a byte-level BPE tokenizer from `vocab.json` and `merges.txt` when a snapshot ships no `tokenizer.json`. Noted in `THIRD_PARTY_NOTICES.md`. The assembly itself now follows `transformers`' `Qwen2Tokenizer` rather than that copy, which carried GPT-2's pre-tokenizer and dropped the merges beginning `#`; `QwenImageTokenizer+Assembly.swift` says what it emits. |
 
 ## How the boundary was kept honest
 
@@ -40,18 +40,25 @@ Behaviour was pinned by comparison with `diffusers`, not by comparison with
 another Swift port. `Packages/QwenImageKit/Tools/dump_reference.py` runs the
 Python reference and writes tensors to
 `Packages/QwenImageKit/Tests/QwenImageTests/Fixtures`; the Swift suites assert
-against those. Every tensor-producing component has such a fixture — rope,
-scheduler, latent packing, text encoder, one MMDiT block, the whole transformer,
-VAE decode, VAE encode — so "does this match the reference" is a question the
-test suite answers rather than a claim in a commit message.
+against those. Every component has such a fixture — rope, scheduler, latent
+packing, text encoder, one MMDiT block, the whole transformer, VAE decode, VAE
+encode, and the tokenizer — so "does this match the reference" is a question
+the test suite answers rather than a claim in a commit message.
 
-Two pieces have no fixture yet and are the known gaps: the tokenizer, which the
-suite compares only to itself (its pre-tokenizer does not match Qwen2's; a
-token-id fixture from the Hugging Face tokenizer is the remedy), and the
-prompt template. The text-encoder fixture is dumped from a plain `Qwen2Model`
-rather than `Qwen2_5_VLForConditionalGeneration`, which is equivalent for text-only
-input because the three multimodal rotary axes coincide when no image is
-present; that reduction is why a 1-D rotary embedding in the port is correct.
+The tokenizer's fixture is `tokenizer_ids.json`: the ids the Hugging Face
+`Qwen2Tokenizer` produces for twenty-five prompts chosen for the ways an
+assembled pre-tokenizer can differ from the real one (hyphens, contractions,
+digits, runs of newlines, merges that begin with `#`, a combining accent, other
+scripts), plus the pipeline's own `prompt_template_encode` and its
+`prompt_template_encode_start_idx`, both read off `QwenImagePipeline` itself. So
+`QwenImagePromptTemplate`'s text and `dropIndex` are checked against the
+reference too, not only against each other. Until that fixture existed the
+suite compared the tokenizer only to itself, and its pre-tokenizer was GPT-2's
+rather than Qwen2's; nine of the twenty-five prompts encoded differently. The
+text-encoder fixture is dumped from a plain `Qwen2Model` rather than
+`Qwen2_5_VLForConditionalGeneration`, which is equivalent for text-only input
+because the three multimodal rotary axes coincide when no image is present; that
+reduction is why a 1-D rotary embedding in the port is correct.
 
 `QwenImageVAEEncoder` and `QwenImageVAEDownsample` were written from
 `diffusers`' `QwenImageEncoder3d` and `QwenImageResample` in
