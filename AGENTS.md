@@ -350,6 +350,26 @@ as an index, and it is Foundation only, so `make test` covers all of it.
   nor reports: the newer write is about to land and speaks for itself.
   `LibraryQuery` holds the scope, the text, and the sort, and
   `sections` are recomputed when it changes — the view never filters.
+- Undo. Every edit to the annotation chunk — a favourite, the tags, album
+  membership — and every album made, renamed or deleted registers its inverse
+  on `LibraryIndex.undoManager`, an optional `UndoManager` (Foundation, so the
+  engine stays Foundation-only) that the app sets from the window's own through
+  `LibraryUndoRegistration` in `Sources/Zephra/Support/`; nil, which a test or
+  the preview index leaves it at, records nothing. The index registers rather
+  than the call sites because it is the one thing that still knows every
+  touched image's previous annotation, and it registers only what changed, so a
+  favourite set on a picture already favourite leaves no "Undo" that does
+  nothing. `LibraryIndex+Undo` is the whole of it: putting annotations back is
+  an ordinary `annotate`, which records the redo on its way. The menu names
+  are "Favorite", "Tag", "Album", "New Album", "Rename Album" and "Delete
+  Album"; deleting an album is one entry covering the album and its members'
+  memberships, and each inverse carries its name through, so "Undo New Album"
+  redoes as "Redo New Album" rather than as the deletion it ran. Changing the
+  images folder empties the stack, since every entry names files no longer
+  indexed. Recently Deleted stays out on purpose: a delete already has thirty
+  days of Put Back. No `CommandGroup` replaces `.undoRedo`, which is what lets
+  the standard Edit items reach the window's manager whenever a text field is
+  not first responder. `LibraryUndoTests` pins all of it.
 - Deleting moves the file to `Recently Deleted/` with a `deletedAt` and an
   `origin` (the root or `Sources/`) in that folder's own manifest, and a scan
   purges anything older than thirty days (`ImageLibrary+Purge`). Both kinds of
@@ -383,6 +403,13 @@ as an index, and it is Foundation only, so `make test` covers all of it.
   all of it, the middle one on the real filesystem under `Scratch`.
 
 ## The app target's shape
+
+The app is one window — a `Window("Zephra", id: "main")` scene, not a
+`WindowGroup` — beside Settings. Everything a window would own (`WorkspaceSelection`,
+the caches, the canvas's `current`) is app-wide state built once in `ZephraApp`, so
+a second window would only mirror the first; ⌘W closes it and a click on the Dock
+icon brings it back, with the Window menu listing it by itself. Per-window state is
+a ROADMAP item.
 
 Four directories, by what a file is rather than what screen it is on:
 
