@@ -33,6 +33,8 @@ QWEN_LORA_REPO := lightx2v/Qwen-Image-2512-Lightning
 # The four-step adapter in float32. The repository also ships whole merged checkpoints of twenty
 # gigabytes each, which is why this names one file rather than downloading the repository.
 QWEN_LORA_FILE := Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors
+# The default is halcyon's external volume, where the 57.7 GB source lives; set QWEN_MODELS (or
+# QWEN_SOURCE and QWEN_LORA directly) on any other Mac.
 QWEN_MODELS ?= /Volumes/ExternalStorage/Models
 QWEN_SOURCE ?= $(QWEN_MODELS)/Qwen-Image-2512
 QWEN_LORA   ?= $(QWEN_MODELS)/Qwen-Image-2512-Lightning/$(QWEN_LORA_FILE)
@@ -53,7 +55,7 @@ ZIMAGE_BASE_DIR := $(DOWNLOADS)/$(subst /,--,$(BASE_MODEL))
 FLUX2_DIR       := $(DOWNLOADS)/$(subst /,--,$(FLUX2_MODEL))
 
 DEST     := platform=macOS,arch=arm64
-XCB      := xcodebuild -project $(PROJECT) -destination '$(DEST)' SYMROOT=$(BUILD) -derivedDataPath $(DERIVED)
+XCB      := xcodebuild -project "$(PROJECT)" -destination '$(DEST)' SYMROOT="$(BUILD)" -derivedDataPath "$(DERIVED)"
 # Every package that links MLX, and so needs xcodebuild rather than `swift test`, written as
 # directory:scheme. SwiftPM names a package's scheme after the package, except where it ships
 # more than one library product, when the aggregate that covers every test target is
@@ -88,18 +90,21 @@ build: gen
 	$(XCB) -scheme $(SCHEME) -configuration $(CONFIG) build
 
 run: build
-	open -a $(APP)
+	open -a "$(APP)"
 
 bench: gen
-	$(XCB) -scheme ZephraBench -configuration Release build >/dev/null
+	@mkdir -p "$(BUILD)"; $(XCB) -scheme ZephraBench -configuration Release build >"$(BUILD)/ZephraBench-build.log" 2>&1 \
+	  || { tail -40 "$(BUILD)/ZephraBench-build.log"; echo "ZephraBench failed to build; full log in $(BUILD)/ZephraBench-build.log"; exit 1; }
 	$(BENCH) $(ARGS)
 
 # Build the 4-bit variant locally: no repository publishes Z-Image-Turbo in the manifest format
 # the vendored loader reads. The download is the slow part; the quantization itself is a minute.
 quantize: gen
-	$(XCB) -scheme ZephraQuantize -configuration Release build >/dev/null
+	@mkdir -p "$(BUILD)"; $(XCB) -scheme ZephraQuantize -configuration Release build >"$(BUILD)/ZephraQuantize-build.log" 2>&1 \
+	  || { tail -40 "$(BUILD)/ZephraQuantize-build.log"; echo "ZephraQuantize failed to build; full log in $(BUILD)/ZephraQuantize-build.log"; exit 1; }
+	@set -e; source=$$(hf download $(BASE_MODEL) --exclude 'assets/*' --local-dir "$(ZIMAGE_BASE_DIR)"); \
 	"$(QUANTIZE)" --family z-image \
-	  --source "$$(hf download $(BASE_MODEL) --exclude 'assets/*' --local-dir "$(ZIMAGE_BASE_DIR)")" \
+	  --source "$$source" \
 	  --source-name $(BASE_MODEL) --bits $(BITS) --group-size $(GROUP_SIZE) \
 	  --out "$(QUANT_OUT)" $(ARGS)
 
@@ -108,16 +113,20 @@ quantize: gen
 # wants fifty steps and real guidance, which is two passes through twenty billion parameters per
 # step; without the merge this build is unusable rather than merely slower.
 quantize-qwen: gen
-	$(XCB) -scheme ZephraQuantize -configuration Release build >/dev/null
+	@mkdir -p "$(BUILD)"; $(XCB) -scheme ZephraQuantize -configuration Release build >"$(BUILD)/ZephraQuantize-build.log" 2>&1 \
+	  || { tail -40 "$(BUILD)/ZephraQuantize-build.log"; echo "ZephraQuantize failed to build; full log in $(BUILD)/ZephraQuantize-build.log"; exit 1; }
 	"$(QUANTIZE)" --family qwen-image \
 	  --source "$(QWEN_SOURCE)" --lora "$(QWEN_LORA)" \
 	  --source-name $(QWEN_MODEL) --bits $(BITS) --group-size $(GROUP_SIZE) \
 	  --out "$(QWEN_OUT)" $(ARGS)
 
 quantize-flux2: gen
-	$(XCB) -scheme ZephraQuantize -configuration Release build >/dev/null
+	@mkdir -p "$(BUILD)"; $(XCB) -scheme ZephraQuantize -configuration Release build >"$(BUILD)/ZephraQuantize-build.log" 2>&1 \
+	  || { tail -40 "$(BUILD)/ZephraQuantize-build.log"; echo "ZephraQuantize failed to build; full log in $(BUILD)/ZephraQuantize-build.log"; exit 1; }
+	@set -e; source="$(FLUX2_SOURCE)"; \
+	if [ -z "$$source" ]; then source=$$(hf download $(FLUX2_MODEL) $(FLUX2_EXCLUDE) --local-dir "$(FLUX2_DIR)"); fi; \
 	"$(QUANTIZE)" --family flux2 \
-	  --source "$${FLUX2_SOURCE:-$$(hf download $(FLUX2_MODEL) $(FLUX2_EXCLUDE) --local-dir "$(FLUX2_DIR)")}" \
+	  --source "$$source" \
 	  --source-name $(FLUX2_MODEL) --bits $(BITS) --group-size $(GROUP_SIZE) \
 	  --out "$(FLUX2_OUT)" $(ARGS)
 
@@ -204,7 +213,7 @@ open: gen
 	open $(PROJECT)
 
 clean:
-	rm -rf $(BUILD) $(DERIVED) $(PROJECT)
+	rm -rf "$(BUILD)" "$(DERIVED)" "$(PROJECT)"
 
 logs:
 	log stream --style compact --predicate 'subsystem == "io.zephra"'
@@ -225,11 +234,14 @@ lint-layers:
 	  || (echo "LAYER VIOLATION: one backend package imports another, or the upscaler"; exit 1)
 	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|ZephraBackend)' Packages/ZephraUpscale*/Sources 2>/dev/null \
 	  || (echo "LAYER VIOLATION: an upscaler package imports a model family"; exit 1)
-	@for family in ZImage QwenImage Flux2; do \
+	@status=0; for family in ZImage QwenImage Flux2; do \
 	  others=$$(echo "ZImage QwenImage Flux2" | tr ' ' '\n' | grep -v "^$$family$$" | paste -sd'|' -); \
-	  ! grep -rlnE "^import ($$others)$$" Packages/ZephraBackend$$family/Sources 2>/dev/null \
-	    || (echo "LAYER VIOLATION: ZephraBackend$$family imports another family's kit"; exit 1); \
-	done
+	  if grep -rlnE "^import ($$others)$$" Packages/ZephraBackend$$family/Sources 2>/dev/null; then \
+	    echo "LAYER VIOLATION: ZephraBackend$$family imports another family's kit"; status=1; \
+	  fi; \
+	done; exit $$status
+	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|ZephraBackend|ZephraUpscale)' Packages/ZephraMLXKit/Sources 2>/dev/null \
+	  || (echo "LAYER VIOLATION: ZephraMLXKit imports a model package; nothing there may depend on a family"; exit 1)
 	@! grep -rlnE '^import (SwiftUI|AppKit)' Packages/ZephraKit/Sources 2>/dev/null \
 	  || (echo "LAYER VIOLATION: UI framework imported inside ZephraKit"; exit 1)
 	@! grep -rlnE 'repeatForever|repeatCount\(|TimelineView\(\.animation|phaseAnimator|keyframeAnimator' Sources/Zephra --include='*.swift' \
