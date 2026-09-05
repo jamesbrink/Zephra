@@ -1,9 +1,10 @@
 import SwiftUI
 
 /// The version, and the third-party notices bundled with the app. This is the disclosure, so
-/// it shows the file verbatim rather than a summary of it.
+/// it shows the whole file, laid out by `NoticesView` rather than as raw Markdown; the same
+/// notices are the standard About panel's credits, through `AboutPanel`.
 struct AboutSettings: View {
-    @State private var notices = ""
+    @State private var notices = NoticesDocument(blocks: [])
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -13,26 +14,18 @@ struct AboutSettings: View {
                 .foregroundStyle(.secondary)
             Divider()
             ScrollView {
-                Text(notices)
-                    .font(.caption)
-                    .monospaced()
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                NoticesView(document: notices)
             }
         }
         .padding(18)
-        .task { notices = Self.loadNotices() }
+        .task {
+            // Off the main actor: a few hundred lines, but nothing the tab has to wait for.
+            notices = await Task.detached { NoticesDocument.bundled() }.value
+        }
     }
 
     private static var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0"
-    }
-
-    private static func loadNotices() -> String {
-        guard let url = Bundle.main.url(forResource: "THIRD_PARTY_NOTICES", withExtension: "md"),
-              let text = try? String(contentsOf: url, encoding: .utf8)
-        else { return "Acknowledgements are in THIRD_PARTY_NOTICES.md in the source repository." }
-        return text
     }
 }
 
