@@ -27,8 +27,9 @@ texts appear once per license type at the end of this file.
 - **Copyright:** Copyright (c) 2023 ml-explore
 - **License:** MIT
 - **Used as:** the Metal/MLX runtime every pipeline is built on, a dependency
-  of `ZImageKit`, `QwenImageKit`, `ZephraMLXKit`, and both backend packages.
-  It compiles the following libraries into the same binary:
+  of `ZImageKit`, `QwenImageKit`, `Flux2Kit`, `ZephraMLXKit`, the three backend
+  packages, and `ZephraUpscaleRealESRGAN`. It compiles the following libraries
+  into the same binary:
   - **mlx** — https://github.com/ml-explore/mlx — Copyright © 2023 Apple
     Inc. — MIT
   - **mlx-c** — https://github.com/ml-explore/mlx-c — Copyright (c) 2023
@@ -39,6 +40,11 @@ texts appear once per license type at the end of this file.
     Victor Zverovich and {fmt} contributors — MIT
   - **JSON for Modern C++** — https://github.com/nlohmann/json — Copyright
     (c) 2013-2022 Niels Lohmann — MIT
+  - **pocketfft** — https://gitlab.mpcdf.mpg.de/mtr/pocketfft — Copyright
+    (C) 2010-2022 Max-Planck-Society, Copyright (C) 2019-2020 Peter Bell; the
+    odd-sized DCT-IV transforms Copyright (C) 2003, 2007-14 Matteo Frigo and
+    Massachusetts Institute of Technology — BSD 3-Clause. Header-only, included
+    by mlx's CPU FFT (`mlx/backend/cpu/fft.cpp`), which is compiled on macOS.
 
 ### Qwen-Image port (`Packages/QwenImageKit`)
 
@@ -133,7 +139,7 @@ at, carries no license file and was never opened.
 
 ### Jinja
 
-- **Source:** https://github.com/huggingface/swift-jinja
+- **Source:** https://github.com/johnmai-dev/Jinja
 - **Copyright:** Copyright (c) 2024 John Mai
 - **License:** MIT
 - **Used as:** template rendering for tokenizer chat templates, pulled in
@@ -169,15 +175,21 @@ it. Some are loaded as they are; the rest are built into a local variant on the
 user's own machine, which the `make quantize*` targets also do by hand.
 
 - **Tongyi-MAI/Z-Image-Turbo** — https://huggingface.co/Tongyi-MAI/Z-Image-Turbo
-  — License: Apache License 2.0
+  — Copyright Alibaba Group (Tongyi Lab) — License: Apache License 2.0. The
+  text encoder inside it is Qwen3-4B (Alibaba Cloud, Apache License 2.0).
 - **mzbac/Z-Image-Turbo-8bit** — https://huggingface.co/mzbac/Z-Image-Turbo-8bit
-  — License: Apache License 2.0
+  — Copyright (c) 2025 mzbac, a repacking of the Tongyi-MAI weights above —
+  License: Apache License 2.0
 - **Qwen/Qwen-Image-2512** — https://huggingface.co/Qwen/Qwen-Image-2512
-  — License: Apache License 2.0
+  — Copyright Alibaba Cloud (Qwen team) — License: Apache License 2.0 — the
+  transformer, the autoencoder, and the text encoder. The text encoder is
+  Qwen2.5-VL-7B (Alibaba Cloud, Apache License 2.0), shipped inside this
+  repository; Zephra loads its language layers and never its vision tower.
 - **lightx2v/Qwen-Image-2512-Lightning** — https://huggingface.co/lightx2v/Qwen-Image-2512-Lightning
-  — License: Apache License 2.0 — the four-step distillation adapter.
+  — Copyright lightx2v — License: Apache License 2.0 — the four-step
+  distillation adapter.
 - **black-forest-labs/FLUX.2-klein-4B** — https://huggingface.co/black-forest-labs/FLUX.2-klein-4B
-  — License: Apache License 2.0 — the transformer, the autoencoder, and the
+  — Copyright Black Forest Labs Inc. — License: Apache License 2.0 — the transformer, the autoencoder, and the
   text encoder. The text encoder is Qwen3-4B (Alibaba Cloud, Apache License
   2.0), shipped inside this repository byte for byte. The autoencoder's
   configuration names `black-forest-labs/FLUX.2-dev` as its origin, and that
@@ -291,8 +303,10 @@ SOFTWARE.
 ### Apache License, Version 2.0
 
 Applies to: swift-transformers, swift-log, swift-collections, swift-numerics,
-swift-argument-parser, metal-cpp, diffusers, and the Z-Image and Qwen-Image
-model weights.
+swift-argument-parser, metal-cpp, diffusers, and the model weights listed
+above: Z-Image-Turbo and its 8-bit repacking, Qwen-Image-2512 with its
+Qwen2.5-VL-7B text encoder, the Qwen-Image-2512-Lightning adapter, and
+FLUX.2-klein-4B with its Qwen3-4B text encoder.
 
 ```
                                  Apache License
@@ -476,7 +490,8 @@ model weights.
 ### BSD 3-Clause License
 
 Applies to: Real-ESRGAN (the network's architecture and the
-`realesr-general-x4v3` weights).
+`realesr-general-x4v3` weights), and pocketfft (compiled into mlx). Each
+holder's own notice follows; the license conditions are the same text.
 
 ```
 Copyright (c) 2021, Xintao Wang
@@ -506,4 +521,42 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
+```
+pocketfft
+
+Copyright (C) 2010-2022 Max-Planck-Society
+Copyright (C) 2019-2020 Peter Bell
+
+For the odd-sized DCT-IV transforms:
+  Copyright (C) 2003, 2007-14 Matteo Frigo
+  Copyright (C) 2003, 2007-14 Massachusetts Institute of Technology
+
+Authors: Martin Reinecke, Peter Bell
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this
+  list of conditions and the following disclaimer in the documentation and/or
+  other materials provided with the distribution.
+* Neither the name of the copyright holder nor the names of its contributors may
+  be used to endorse or promote products derived from this software without
+  specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
