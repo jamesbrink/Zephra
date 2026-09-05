@@ -85,9 +85,8 @@ public nonisolated enum ModelStorage {
         return total
     }
 
-    /// Moves the item's directory to the Trash, where it can be put back. Nothing is unlinked
-    /// on the user's behalf: a mistaken click on twenty gigabytes is undone from the Finder.
+    /// Permanently removes the item's directory so its disk space is reclaimed immediately.
     public static func remove(_ item: ModelStorageItem) throws {
-        try FileManager.default.trashItem(at: item.url, resultingItemURL: nil)
+        try FileManager.default.removeItem(at: item.url)
     }
 }

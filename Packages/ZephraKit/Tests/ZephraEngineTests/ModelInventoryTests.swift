@@ -32,8 +32,7 @@ struct ModelInventoryTests {
         let scratch = Scratch("ModelInventory")
         try scratch.make("models/z-image-turbo-4bit/model_index.json")
         let inventory = ModelInventory(
-            cache: scratch.url("hub"), locations: ModelLocations(root: scratch.url("models")),
-            remove: { try FileManager.default.removeItem(at: $0.url) })
+            cache: scratch.url("hub"), locations: ModelLocations(root: scratch.url("models")))
         await inventory.refresh()
         let item = try #require(inventory.items.first)
 

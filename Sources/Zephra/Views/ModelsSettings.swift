@@ -3,7 +3,7 @@ import ZephraCore
 import ZephraEngine
 import ZephraSnapshot
 
-/// Where the models live on this Mac, what each occupies, and a way to send one to the Trash.
+/// Where the models live on this Mac, what each occupies, and a way to permanently delete one.
 ///
 /// The list is the disk's, read afresh each time the tab opens and after every deletion, so a
 /// model fetched by `make prefetch` or removed in the Finder shows up as it is. Each row says
@@ -47,9 +47,9 @@ struct ModelsSettings: View {
         .formStyle(.grouped)
         .task { await inventory.refresh() }
         .confirmationDialog(
-            "Move to Trash?", isPresented: isConfirming, presenting: pendingDeletion
+            "Permanently delete model?", isPresented: isConfirming, presenting: pendingDeletion
         ) { item in
-            Button("Move to Trash", role: .destructive) { delete(item) }
+            Button("Delete permanently", role: .destructive) { delete(item) }
         } message: { item in
             Text(consequence(of: item))
         }
@@ -90,7 +90,7 @@ struct ModelsSettings: View {
         case .download: "downloads it again"
         case .built: "builds it again"
         }
-        return "Deleting \(item.name) \(frees). It can be put back from the Finder; choosing a "
+        return "Deleting \(item.name) \(frees). This cannot be undone. Choosing a "
             + "model that needs it \(cost)."
     }
 

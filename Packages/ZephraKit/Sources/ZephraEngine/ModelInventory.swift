@@ -4,7 +4,7 @@ import ZephraCore
 import ZephraSnapshot
 
 /// What the catalog's models occupy on this Mac, as the Settings window observes it: each
-/// directory, its size, and the total, with a way to send one to the Trash.
+/// directory, its size, and the total, with a way to permanently delete one.
 ///
 /// Reading the list is one directory listing per model and is done on the main actor;
 /// measuring is a walk over every file and is not. So the items appear at once with their
@@ -27,7 +27,7 @@ public final class ModelInventory {
     @ObservationIgnored private var generation = 0
 
     /// An inventory over `catalog`, reading `locations` and the hub cache. The defaults are
-    /// the real places; a test passes a scratch folder and a `remove` that spares the Trash.
+    /// the real places; a test passes a scratch folder and can inject removal failures.
     public init(
         catalog: [ModelDescriptor] = ModelCatalog.all,
         cache: URL = HubCache.directory(),
@@ -70,14 +70,14 @@ public final class ModelInventory {
         if mine == generation { isMeasuring = false }
     }
 
-    /// Sends the item's directory to the Trash and reads the list again. A failure is kept in
+    /// Permanently deletes the item's directory and reads the list again. A failure is kept in
     /// `lastFailure` and the list re-read anyway, since the disk may have changed part-way.
     public func delete(_ item: ModelStorageItem) async {
         lastFailure = nil
         do {
             try remove(item)
         } catch {
-            lastFailure = "Couldn't move \(item.name) to the Trash. \(error.localizedDescription)"
+            lastFailure = "Couldn't delete \(item.name). \(error.localizedDescription)"
         }
         await refresh()
     }

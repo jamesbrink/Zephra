@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import ZephraSnapshot
 
-/// One directory in Settings > Models: what it is, what it occupies, and a button to trash it.
+/// One directory in Settings > Models: what it is, what it occupies, and a button to permanently delete it.
 struct ModelStorageRow: View {
     let item: ModelStorageItem
     /// True while the engine holds weights from this directory, which greys the button out.
@@ -23,7 +23,7 @@ struct ModelStorageRow: View {
                 .foregroundStyle(.secondary)
             Button("Delete", action: onDelete)
                 .disabled(inUse)
-                .help(inUse ? "In use. Choose another model first." : "Move it to the Trash")
+                .help(inUse ? "In use. Choose another model first." : "Permanently delete these model files")
         }
         .contextMenu {
             Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([item.url]) }

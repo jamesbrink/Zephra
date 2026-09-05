@@ -43,7 +43,7 @@ picture with any of them, and upscales with Real-ESRGAN.
   packed from it. Everything lives in one
   folder — `~/Library/Application Support/Zephra/Models` unless you change it in
   Settings > Models — and Settings lists every directory with its size and a
-  Delete that moves it to the Trash. `make quantize*` does the same builds from
+  Delete that permanently removes its files after confirmation. `make quantize*` does the same builds from
   the command line, which is worth doing only to keep a source that large off the
   boot volume.
 
@@ -184,7 +184,7 @@ with a progress readout while that happens.
   cached and peak GPU memory plus which way the decode is currently set. Every change
   applies immediately. Models is the folder models are kept in — with Open, Change… and
   Use Default — and then every directory the catalog's models have on this Mac: where it is,
-  what it occupies, and a Delete that moves it to the Trash. A release both klein variants
+  what it occupies, and a Delete that permanently removes its files after confirmation. A release both klein variants
   pack from is one row, an adapter is a row named for the model it serves, a download that
   stopped part-way says so, and the model that is
   loaded cannot be deleted from under itself. Changing the folder moves nothing: what is

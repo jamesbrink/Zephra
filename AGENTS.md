@@ -822,7 +822,7 @@ timeout or a rate limit stops the retrying early.
 
 Settings > Models lists every directory the catalog's models have on this Mac —
 the app's own folder first, then either hub layout — with where it is, its size,
-and a Delete that moves it to the Trash. `ModelStorage` in `ZephraSnapshot` is
+and a Delete that permanently removes its files after confirmation. `ModelStorage` in `ZephraSnapshot` is
 the listing and the measuring; `ModelInventory` in `ZephraEngine` is what the
 tab observes. A release two variants pack from is one row naming both, a
 download stopped part-way is a row saying so, an adapter is a row of its own
