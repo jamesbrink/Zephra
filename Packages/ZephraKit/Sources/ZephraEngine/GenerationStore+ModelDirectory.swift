@@ -10,6 +10,25 @@ extension GenerationStore {
 
     public var isChangingModelDirectory: Bool { modelDirectoryProgress != nil }
 
+    /// Where models are downloaded and built, for a settings window to show.
+    public var modelLocations: ModelLocations { locations }
+
+    /// Keeps models in `locations` from the next load onwards, and says whether that is a
+    /// change. This low-level handoff applies startup preferences without interrupting work.
+    /// Settings uses `changeModelDirectory(to:moving:)` to stop preparation and optionally
+    /// migrate files before committing a new destination.
+    ///
+    /// Awaited rather than fired off, so the engine holds the new folder before this returns:
+    /// a load started straight after would otherwise race the handoff and could still fetch
+    /// or build under the folder just left.
+    @discardableResult
+    public func setModelLocations(_ locations: ModelLocations) async -> Bool {
+        guard acceptsWork, locations != self.locations else { return false }
+        self.locations = locations
+        if let inference { await inference.setLocations(locations) }
+        return true
+    }
+
     /// Stops preparation before changing its destination, optionally moving one old root.
     /// The caller persists the returned location only after this operation succeeds.
     public func changeModelDirectory(to target: ModelLocations, moving source: URL? = nil) async throws -> [String] {

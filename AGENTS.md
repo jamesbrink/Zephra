@@ -184,8 +184,10 @@ it never shares the inference actor's mutable backend or calls build/load/genera
 `ModelDownloads` in Engine owns request observation and foreground borrowing;
 `ModelTransfers` in Snapshot owns network slots, preflight, compatible repository claims
 and per-volume space reservations. A claim spans validation, build and resident use,
-so acquisition completion never opens a deletion gap. Failed/canceled loads unload
-before releasing their claim. Foreground events carry an operation identity; superseded
+so acquisition completion never opens a deletion gap, and is borrowed once: Retry on
+a resident model answers ready without touching the pool, and a load that reaches a
+lease the store already holds reuses it (`unloadModel` asserts the request is gone
+after its one release). Failed/canceled loads unload before releasing their claim. Foreground events carry an operation identity; superseded
 progress and completion cannot change the selected model's state.
 
 `GenerationStore.acceptsWork` (`+Admission`) is the one gate every entry point
@@ -207,7 +209,9 @@ engine be tested in seconds without Metal.
 
 - `GenerationStore` (`@MainActor @Observable`) is the only object the UI
   observes, and it is split across `GenerationStore+*.swift` by concern —
-  loading, generation, the queue, batches (several seeds of one prompt from
+  loading (the entry points in `+Loading`, the borrow-prepare-release body in
+  `+Preparation`), the admission gate (`+Admission`), generation, the queue,
+  batches (several seeds of one prompt from
   one press of Generate), model switching, history, availability, preview,
   the reference picture, the library, following the run, upscaling and filing
   the upscaled result, the interface's own questions (`+Interaction`), the

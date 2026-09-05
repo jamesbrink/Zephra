@@ -37,6 +37,11 @@ extension InferenceActor {
         do {
             try Task.checkCancellation()
             let live = try backend(for: acquired.model)
+            // Already up the way `residency` asks: the same shortcut the descriptor overload
+            // takes, so no path through here reads the weights a second time.
+            if live.loadedModelID == acquired.model.id, loadedResidency == residency, let loadedPath {
+                return loadedPath
+            }
             let localPath = try await live.build(acquired.model, at: acquired.directory,
                 locations: acquired.locations) { events.send(.build($0)) }
             try Task.checkCancellation()
