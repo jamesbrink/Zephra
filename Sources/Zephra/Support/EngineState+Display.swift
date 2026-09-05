@@ -62,16 +62,23 @@ extension EngineState {
     }
 
     /// The headline the canvas shows, or nil when the canvas needs no headline.
-    func title(for descriptor: ModelDescriptor) -> String? {
+    ///
+    /// The model is named by `fullName`, the way the toolbar and the subtitle name it: the
+    /// variant is what is being fetched or built, and "Z-Image Turbo" over a window whose
+    /// toolbar says "Z-Image Turbo · 8-bit" reads as a different model. `availability` is what
+    /// the disk said before the download began, and is where the size comes from when the
+    /// transfer has not listed itself yet.
+    func title(for descriptor: ModelDescriptor, availability: ModelAvailability?) -> String? {
         switch self {
         case .idle:
-            "\(descriptor.displayName) isn't loaded yet."
+            "\(descriptor.fullName) isn't loaded yet."
         case .checkingModel, .loading:
             "Preparing model…"
-        case .downloading:
-            "\(descriptor.displayName) needs a one-time \(ByteCount.gigabytes(descriptor.downloadBytes)) download."
+        case .downloading(let event):
+            "\(descriptor.fullName) needs a one-time "
+                + "\(ByteCount.gigabytes(Self.transferBytes(event, availability, descriptor))) download."
         case .building:
-            "Building the \(descriptor.variantName ?? "packed") variant of \(descriptor.displayName). This happens once."
+            "Building \(descriptor.fullName). This happens once."
         case .warmingUp:
             "Warming up…"
         case .upscaling:
@@ -82,6 +89,25 @@ extension EngineState {
             error.message
         case .ready, .generating:
             nil
+        }
+    }
+
+    /// The bytes the download headline states: what is actually being fetched, not the
+    /// catalog's figure for a Mac with nothing.
+    ///
+    /// The event's own total first, because it is the sum of the files the transfer listed
+    /// after the descriptor's globs and after what was already on disk was counted — a cached
+    /// Qwen-Image release with its adapter missing lists 1.7 GB, not 59.4. Before the listing
+    /// lands, what availability said the disk was missing, which every backend fills from
+    /// `ModelLocations.bytesToFetch` by the same rule. Only then the catalog's `transferBytes`,
+    /// which is the release plus its adapters, since a Mac with nothing fetches both.
+    private static func transferBytes(
+        _ event: DownloadProgressEvent, _ availability: ModelAvailability?, _ descriptor: ModelDescriptor
+    ) -> Int64 {
+        if let total = event.totalBytes, total > 0 { return total }
+        switch availability {
+        case .needsDownload(let bytes), .needsDownloadAndBuild(let bytes): return bytes
+        case .available, .needsBuild, .missing, nil: return descriptor.transferBytes
         }
     }
 
