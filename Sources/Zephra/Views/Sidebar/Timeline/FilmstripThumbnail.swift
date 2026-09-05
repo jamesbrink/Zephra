@@ -15,31 +15,18 @@ struct FilmstripThumbnail: View {
     let image: GeneratedImage
 
     @Environment(GenerationStore.self) private var store
-    @Environment(ImageCache.self) private var cache
 
     var body: some View {
         Button {
             store.select(image)
         } label: {
-            thumbnail
+            SessionImage(request: .thumbnail(image))
         }
         .buttonStyle(.plain)
         .draggable(image)
         .help(image.settings.prompt)
         .contextMenu { FreshImageMenu(image: image) }
         .accessibilityLabel(image.settings.prompt)
-    }
-
-    private var thumbnail: some View {
-        Rectangle()
-            .fill(.quaternary)
-            .aspectRatio(1, contentMode: .fit)
-            .overlay {
-                if let bitmap = cache.thumbnail(for: image) {
-                    Image(nsImage: bitmap).resizable().aspectRatio(contentMode: .fill)
-                }
-            }
-            .clipped()
     }
 }
 

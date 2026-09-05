@@ -12,8 +12,6 @@ struct FreshImageInspector: View {
     /// The picture on the canvas.
     let image: GeneratedImage
 
-    @Environment(ImageCache.self) private var cache
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -35,14 +33,7 @@ struct FreshImageInspector: View {
     }
 
     private var picture: some View {
-        Rectangle()
-            .fill(.quaternary)
-            .aspectRatio(image.settings.size.aspectRatio, contentMode: .fit)
-            .overlay {
-                if let bitmap = cache.fullSizeImage(for: image) {
-                    Image(nsImage: bitmap).resizable().aspectRatio(contentMode: .fill)
-                }
-            }
+        SessionImage(request: .full(image))
             .clipShape(
                 RoundedRectangle(cornerRadius: ZephraChrome.thumbnailRadius, style: .continuous)
             )

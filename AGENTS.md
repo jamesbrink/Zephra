@@ -430,9 +430,25 @@ Four directories, by what a file is rather than what screen it is on:
   and persisted through `AppSettings`.
 - `Support/` — caches, exports, pickers, previews. The thumbnail pipeline lives
   here: `ThumbnailKey` names a baked file by path, mtime, size and edge,
-  `ThumbnailFolder` is an actor that bakes off the main thread, and
-  `ThumbnailCache` coalesces the in-flight requests. Nothing decodes an image
-  on the main actor. `AppSettings` is the one list of preference keys and
+  `ThumbnailFolder` is an actor that bakes off the main thread, four at a time
+  through a gate that hands a finished bake's slot straight to the next waiter
+  (`ThumbnailFolderTests` pins the four), and `ThumbnailCache` coalesces the
+  in-flight requests; `ThumbnailRequest`, the identity of a cell's task, names
+  the file's mtime and size as well as its path and bucket, so a rewritten file
+  bakes again while the old picture stays up. Beside it, `ImageCache` is the
+  same shape for the pictures this session made: `cached` for the first frame,
+  `load` decoding in a detached task and coalesced by image id and kind
+  (`ImageCache+Decoding` is the Image I/O half, injectable for
+  `ImageCacheTests`), and `referenceThumbnail` digesting and decoding the
+  reference bytes off the main actor. `Views/Canvas/SessionImage` is the one
+  view over it — the canvas, the fresh-image inspector and the filmstrip all
+  draw through it, holding the request's aspect until the pixels land and
+  fading only the canvas's whole picture in — and `Views/ReferenceThumbnail` is
+  the well's, keyed on `GenerationStore.referenceChoice`, the ticket every way
+  of choosing a picture moves, so nothing hashes the bytes in `body`. Nothing
+  decodes an image on the main actor: a drop, the file chooser and every library
+  door hand `adoptReference` a closure and the read runs in its detached task.
+  `AppSettings` is the one list of preference keys and
   starting values; a preference is bound with `@AppStorage` at its picker and
   read outside a view through `AppSettings`'s helpers. `DirectoryRow` is the
   labelled path with an Open button that General and Models both show, plus

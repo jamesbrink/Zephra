@@ -19,14 +19,23 @@ actor ThumbnailFolder {
     /// How long a thumbnail nothing has asked for is kept.
     static let keepFor: TimeInterval = 30 * 24 * 60 * 60
 
+    /// How a full-size picture becomes a thumbnail file: the source, the pixels along its long
+    /// edge, and where to write it. `bake(_:pixels:to:)` in the app; a test injects a counter.
+    typealias Baker = @Sendable (URL, Int, URL) -> CGImage?
+
+    private let bake: Baker
     private var baking = 0
     private var waiting: [CheckedContinuation<Void, Never>] = []
     private var hasSwept = false
 
     /// A folder under the user's caches, which is the right place: every file in it can be
     /// rebuilt from the picture it came from, so the system is welcome to delete the lot.
-    init(directory: URL = ThumbnailFolder.defaultDirectory()) {
+    init(
+        directory: URL = ThumbnailFolder.defaultDirectory(),
+        bake: @escaping Baker = ThumbnailFolder.bake(_:pixels:to:)
+    ) {
         self.directory = directory
+        self.bake = bake
     }
 
     /// The thumbnail for one image at one size, read from the folder when it is there and baked
@@ -40,8 +49,9 @@ actor ThumbnailFolder {
         }
         await enterGate()
         defer { leaveGate() }
+        let bake = bake
         return await Task.detached(priority: .utility) {
-            Self.bake(url, pixels: pixels, to: file)
+            bake(url, pixels, file)
         }.value
     }
 
@@ -75,20 +85,26 @@ actor ThumbnailFolder {
             .appending(path: "Thumbnails", directoryHint: .isDirectory)
     }
 
-    /// Waits until fewer than four bakes are running.
+    /// Takes a slot, or waits for one to be handed over.
+    ///
+    /// A waiter is resumed already holding the slot the leaver had: the count is not touched
+    /// on either side of the hand-over. Freeing the slot and letting the waiter take it again
+    /// left a gap in which a newcomer could take it first, and then the waiter took one too —
+    /// five bakes through a gate of four, and more with every waiter woken into that gap.
     private func enterGate() async {
-        guard baking >= Self.concurrentBakes else {
+        if baking < Self.concurrentBakes {
             baking += 1
             return
         }
         await withCheckedContinuation { waiting.append($0) }
-        baking += 1
     }
 
-    /// Lets the next waiting bake through.
+    /// Hands the slot to the next waiter, or frees it when nobody is waiting.
     private func leaveGate() {
-        baking -= 1
-        guard !waiting.isEmpty else { return }
+        guard !waiting.isEmpty else {
+            baking -= 1
+            return
+        }
         waiting.removeFirst().resume()
     }
 }
