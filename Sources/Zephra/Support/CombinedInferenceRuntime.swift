@@ -29,6 +29,14 @@ struct CombinedInferenceRuntime: InferenceRuntime {
         for runtime in runtimes { runtime.setMemoryLimit(bytes: bytes) }
     }
 
+    func setWiredLimit(bytes: Int) {
+        for runtime in runtimes { runtime.setWiredLimit(bytes: bytes) }
+    }
+
+    func gpuWorkingSetBytes() -> UInt64? {
+        runtimes.first?.gpuWorkingSetBytes()
+    }
+
     func deviceSummary() -> String {
         runtimes.first?.deviceSummary() ?? ""
     }

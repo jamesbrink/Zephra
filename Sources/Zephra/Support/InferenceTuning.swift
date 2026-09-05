@@ -1,26 +1,41 @@
 import Foundation
+import ZephraCore
 
 /// Memory ceilings for the inference runtime, derived from the machine rather than hardcoded.
 ///
 /// The cache limit caps scratch buffers MLX keeps between generations; the memory limit is a
-/// soft ceiling on total allocation so a small Mac degrades instead of swapping to death.
+/// soft ceiling on total allocation so a small Mac degrades instead of swapping to death; the
+/// wired limit is what MLX keeps resident, so a model that fits the GPU's working set stays in
+/// it rather than being paged out from under the next step.
 struct InferenceTuning {
     /// Bytes of scratch memory the runtime may retain between generations.
     let cacheLimitBytes: Int
     /// Soft ceiling on total runtime allocation, in bytes.
     let memoryLimitBytes: Int
+    /// Bytes MLX may keep wired: the GPU's working set, which `iogpu.wired_limit_mb` raises.
+    let wiredLimitBytes: Int
 
     /// One megabyte, as the Performance tab and `@AppStorage` count them.
     static let bytesPerMB = 1 << 20
 
-    /// Limits for this machine: cache at one sixth of RAM capped at 8 GB, total at three quarters.
-    static func forThisMachine() -> InferenceTuning {
-        let physical = Int(ProcessInfo.processInfo.physicalMemory)
+    /// Limits for this machine: cache at one sixth of RAM capped at 8 GB, total and wired at
+    /// what the GPU may keep resident. The last two follow `budget` rather than a fraction of
+    /// RAM, so a raised `iogpu.wired_limit_mb` is honoured rather than second-guessed.
+    static func forThisMachine(budget: MemoryBudget) -> InferenceTuning {
+        let physical = Int(budget.physicalMemory)
         let gigabyte = 1 << 30
+        let workingSet = Int(budget.gpuWorkingSet)
         return InferenceTuning(
             cacheLimitBytes: min(8 * gigabyte, physical / 6),
-            memoryLimitBytes: physical / 4 * 3
+            memoryLimitBytes: workingSet,
+            wiredLimitBytes: workingSet
         )
+    }
+
+    /// The limits for a Mac whose GPU has not been asked, for the cache recommendation, which
+    /// depends on RAM alone.
+    static func forThisMachine() -> InferenceTuning {
+        forThisMachine(budget: MemoryBudget(physicalMemory: ProcessInfo.processInfo.physicalMemory))
     }
 
     /// The cache ceiling this machine recommends, in the megabytes the preference is stored in.

@@ -11,6 +11,15 @@ public protocol InferenceRuntime: Sendable {
     /// Caps what the allocator may hold in total, so a run that would page fails instead.
     func setMemoryLimit(bytes: Int)
 
+    /// Caps what the allocator keeps wired — resident and neither compressed nor swapped —
+    /// which is how a model that fits the GPU's working set stays in it. Never above what
+    /// `gpuWorkingSetBytes()` reports; the runtime warns past that and the Mac pages.
+    func setWiredLimit(bytes: Int)
+
+    /// Bytes the GPU may keep resident: Metal's recommended working set, which
+    /// `iogpu.wired_limit_mb` raises. Nil when there is no GPU runtime to ask.
+    func gpuWorkingSetBytes() -> UInt64?
+
     /// One line naming the device and the memory it will work within, for logs and headers.
     func deviceSummary() -> String
 
@@ -25,4 +34,12 @@ public protocol InferenceRuntime: Sendable {
     /// readout should show, and the only way to see what an environment variable set at launch
     /// left behind.
     func vaeTileSize() -> Int?
+}
+
+extension InferenceRuntime {
+    /// A runtime with nothing to wire ignores the limit.
+    public func setWiredLimit(bytes: Int) {}
+
+    /// A runtime without a GPU has no working set to report.
+    public func gpuWorkingSetBytes() -> UInt64? { nil }
 }

@@ -16,6 +16,7 @@ struct PerformanceSettings: View {
                     .foregroundStyle(.secondary)
             }
             Section("GPU memory") {
+                GPUMemoryRow()
                 CacheLimitControl()
             }
             Section("Image decoding") {

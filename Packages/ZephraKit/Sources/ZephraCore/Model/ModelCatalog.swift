@@ -92,13 +92,18 @@ public enum ModelCatalog {
     /// The model selected on first launch when nothing is known about the machine.
     public static let `default`: ModelDescriptor = zImageTurbo8bit
 
-    /// The model to start a Mac with this much RAM on: the first listed variant that runs at
+    /// The model to start a Mac with this budget on: the first listed variant that runs at
     /// its default size there, or `default` when none does.
     ///
     /// Without this a 16 GB Mac would open on a model its own menu marks "Needs 23 GB", load
     /// 12 GB of weights it cannot decode with, and only find the variant it can run by hand.
+    public static func `default`(fitting budget: MemoryBudget) -> ModelDescriptor {
+        fitting(budget: budget).first ?? zImageTurbo8bit
+    }
+
+    /// `default(fitting:)` for a Mac whose GPU has not been asked what it may keep.
     public static func `default`(fitting physicalMemory: UInt64) -> ModelDescriptor {
-        fitting(physicalMemory: physicalMemory).first ?? zImageTurbo8bit
+        `default`(fitting: MemoryBudget(physicalMemory: physicalMemory))
     }
 
     /// Looks up a model by the identifier stored in settings or in a past generation.
@@ -106,27 +111,43 @@ public enum ModelCatalog {
         all.first { $0.id == id }
     }
 
-    /// The models that run at their default size on a Mac with this much RAM without paging,
-    /// counting the tiled VAE decode as available — it is what the app turns on when it matters.
+    /// The models that run at their default size within `budget` without paging, counting
+    /// the tiled VAE decode and streamed weights as available — they are what the app turns
+    /// on when it matters.
     ///
     /// This is the filter behind the model picker's wording, not a gate on what can be chosen:
     /// a model left out of this list is still runnable at a smaller size.
-    public static func fitting(physicalMemory: UInt64) -> [ModelDescriptor] {
-        all.filter { fit($0, physicalMemory: physicalMemory).runsAtDefaultSize }
+    public static func fitting(budget: MemoryBudget) -> [ModelDescriptor] {
+        all.filter { fit($0, budget: budget).runsAtDefaultSize }
     }
 
-    /// Where one model lands against a Mac's working-set budget: exactly, only tiled, or not
-    /// at its default size at all.
+    /// `fitting(budget:)` for a Mac whose GPU has not been asked what it may keep.
+    public static func fitting(physicalMemory: UInt64) -> [ModelDescriptor] {
+        fitting(budget: MemoryBudget(physicalMemory: physicalMemory))
+    }
+
+    /// Where one model lands against a Mac's working-set budget: exactly, only tiled, only
+    /// streamed, or not at its default size at all.
+    public static func fit(_ descriptor: ModelDescriptor, budget: MemoryBudget) -> MemoryFit {
+        MemoryFit(descriptor: descriptor, budget: budget)
+    }
+
+    /// `fit(_:budget:)` for a Mac whose GPU has not been asked what it may keep.
     public static func fit(_ descriptor: ModelDescriptor, physicalMemory: UInt64) -> MemoryFit {
-        MemoryFit(descriptor: descriptor, physicalMemory: physicalMemory)
+        fit(descriptor, budget: MemoryBudget(physicalMemory: physicalMemory))
     }
 
     /// Whether this Mac can run the model at its default size with the exact, untiled decode.
+    public static func fitsComfortably(_ descriptor: ModelDescriptor, budget: MemoryBudget) -> Bool {
+        fit(descriptor, budget: budget) == .fits
+    }
+
+    /// `fitsComfortably(_:budget:)` for a Mac whose GPU has not been asked what it may keep.
     public static func fitsComfortably(
         _ descriptor: ModelDescriptor,
         physicalMemory: UInt64
     ) -> Bool {
-        fit(descriptor, physicalMemory: physicalMemory) == .fits
+        fitsComfortably(descriptor, budget: MemoryBudget(physicalMemory: physicalMemory))
     }
 
     /// What every Z-Image Turbo variant accepts. Quantizing the weights changes how much memory

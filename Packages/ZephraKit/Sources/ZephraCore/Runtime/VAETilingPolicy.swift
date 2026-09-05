@@ -1,8 +1,8 @@
 /// Turns a preference and a machine into the tile edge the VAE decode should run at.
 ///
 /// A value type with no state of its own so the decision is testable without a GPU: give it a
-/// mode and a memory size, ask it about a model, and it answers with a latent tile edge or nil
-/// for the exact untiled decode.
+/// mode and a memory budget, ask it about a model, and it answers with a latent tile edge or
+/// nil for the exact untiled decode.
 public struct VAETilingPolicy: Hashable, Sendable {
     /// The latent-space tile edge the app asks for when it tiles. 64 latent cells is a
     /// 512-pixel tile, which is what the 5437 MB transient in `ModelDescriptor.tiledPeakBytes`
@@ -11,12 +11,17 @@ public struct VAETilingPolicy: Hashable, Sendable {
 
     /// What the user chose.
     public let mode: VAETilingMode
-    /// Bytes of RAM in the machine, as `ProcessInfo.physicalMemory` reports them.
-    public let physicalMemory: UInt64
+    /// What this Mac's GPU may keep resident.
+    public let budget: MemoryBudget
 
-    public init(mode: VAETilingMode, physicalMemory: UInt64) {
+    public init(mode: VAETilingMode, budget: MemoryBudget) {
         self.mode = mode
-        self.physicalMemory = physicalMemory
+        self.budget = budget
+    }
+
+    /// A policy for a Mac whose GPU has not been asked what it may keep.
+    public init(mode: VAETilingMode, physicalMemory: UInt64) {
+        self.init(mode: mode, budget: MemoryBudget(physicalMemory: physicalMemory))
     }
 
     /// The tile edge to run `descriptor` at, or nil to decode untiled.
@@ -33,9 +38,7 @@ public struct VAETilingPolicy: Hashable, Sendable {
             Self.latentTileEdge
         case .automatic:
             descriptor.flatMap { model in
-                Double(model.peakBytes) > MemoryFit.budget(physicalMemory: physicalMemory)
-                    ? Self.latentTileEdge
-                    : nil
+                Double(model.peakBytes) > budget.bytes ? Self.latentTileEdge : nil
             }
         }
     }

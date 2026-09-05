@@ -60,8 +60,9 @@ struct ModelCatalogTests {
             Issue.record("expected Qwen-Image not to fit on a 24 GB Mac")
             return
         }
-        // The tiled peak over the working-set fraction: 26.07 GB of peak wants 32.6 GB of Mac.
-        #expect(needed == 32_587_500_000)
+        // The tiled peak itself: the GPU working set that would clear the budget.
+        #expect(needed == ModelCatalog.qwenImage2512_4bit.tiledPeakBytes)
+        #expect(needed == 26_070_000_000)
     }
 
     @Test("a 24 GB Mac runs the 4-bit model exactly and the 8-bit one only tiled")
@@ -81,11 +82,10 @@ struct ModelCatalogTests {
             Issue.record("expected the 8-bit model not to fit on an 8 GB Mac")
             return
         }
-        // The tiled peak divided by the working-set fraction: what the machine would need.
-        #expect(needed == 22_100_000_000)
-        #expect(
-            ModelCatalog.fit(ModelCatalog.zImageTurbo8bit, physicalMemory: UInt64(needed))
-                == .fitsTiled)
+        // The tiled peak itself: the GPU working set the machine would need.
+        #expect(needed == ModelCatalog.zImageTurbo8bit.tiledPeakBytes)
+        let enough = MemoryBudget(physicalMemory: Self.gigabytes(48), gpuWorkingSet: UInt64(needed))
+        #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo8bit, budget: enough) == .fitsTiled)
     }
 
     @Test("every peak is above its resident size, and tiling never costs more than not tiling")

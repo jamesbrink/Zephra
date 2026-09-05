@@ -28,7 +28,7 @@ struct VAETilingPolicyTests {
     @Test("a 16 GB Mac tiles for every model whose untiled peak is over its budget")
     func smallMacAlwaysTiles() {
         let policy = Self.policy(.automatic, 16)
-        let budget = MemoryFit.budget(physicalMemory: ModelCatalogTests.gigabytes(16))
+        let budget = MemoryBudget(physicalMemory: ModelCatalogTests.gigabytes(16)).bytes
         for model in ModelCatalog.all {
             let expected: Int? =
                 Double(model.peakBytes) > budget ? VAETilingPolicy.latentTileEdge : nil

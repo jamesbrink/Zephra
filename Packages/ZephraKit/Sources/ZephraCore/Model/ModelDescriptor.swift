@@ -27,6 +27,13 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
     /// Tiling bounds the decode's transient by the tile rather than by the image, so this is
     /// `residentBytes` plus a fixed tile cost rather than a size-dependent one.
     public let tiledPeakBytes: Int64
+    /// The same peak with the weights streamed from disk a block at a time and the decode
+    /// tiled, or 0 for a model whose family cannot stream.
+    ///
+    /// Streaming holds a few blocks of the transformer at once instead of all of them, so this
+    /// is the activations, the decode's tile, and a window of weights rather than the model.
+    /// Non-zero is also what lets the picker offer the model on a Mac that cannot hold it.
+    public let streamedPeakBytes: Int64
     /// The longest prompt, in tokens, the text encoder is configured for.
     public let maxPromptTokens: Int
     /// The settings this model will accept.
@@ -57,6 +64,7 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
         residentBytes: Int64,
         peakBytes: Int64,
         tiledPeakBytes: Int64,
+        streamedPeakBytes: Int64 = 0,
         maxPromptTokens: Int,
         capabilities: ModelCapabilities,
         builtBytes: Int64 = 0,
@@ -72,6 +80,7 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
         self.residentBytes = residentBytes
         self.peakBytes = peakBytes
         self.tiledPeakBytes = tiledPeakBytes
+        self.streamedPeakBytes = streamedPeakBytes
         self.maxPromptTokens = maxPromptTokens
         self.capabilities = capabilities
         self.builtBytes = builtBytes

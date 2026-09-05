@@ -22,13 +22,47 @@ public nonisolated enum MLXRuntime {
     /// - Parameters:
     ///   - cacheLimitBytes: Ceiling on retained scratch memory, or nil to leave it alone.
     ///   - memoryLimitBytes: Ceiling on total allocation, or nil to leave it alone.
-    public static func configure(cacheLimitBytes: Int?, memoryLimitBytes: Int?) {
+    ///   - wiredLimitBytes: Ceiling on what MLX keeps wired in the GPU's residency set, or nil
+    ///     to leave it alone. Clamped to the working set: MLX warns above it, and a model wired
+    ///     past what the GPU may keep is exactly the paging the limit exists to prevent.
+    public static func configure(
+        cacheLimitBytes: Int?, memoryLimitBytes: Int?, wiredLimitBytes: Int? = nil
+    ) {
         if let cacheLimitBytes {
             Memory.cacheLimit = cacheLimitBytes
         }
         if let memoryLimitBytes {
             Memory.memoryLimit = memoryLimitBytes
         }
+        if let wiredLimitBytes {
+            let ceiling = GPU.maxRecommendedWorkingSetBytes() ?? wiredLimitBytes
+            setWiredLimit(min(wiredLimitBytes, ceiling))
+        }
+    }
+
+    /// The one long-lived reservation that keeps MLX's residency set at the wired limit.
+    ///
+    /// MLX starts with a wired limit of zero: nothing but its heap is kept resident, and the
+    /// OS may page a buffer it has not touched for a while. mlx-swift hands the limit out as
+    /// tickets on an actor, so the reservation is replaced on the actor's own time; a limit
+    /// set twice in quick succession still lands in order, since one task does both halves.
+    nonisolated(unsafe) private static var wiredTicket: WiredMemoryTicket?
+
+    private static func setWiredLimit(_ bytes: Int) {
+        let previous = wiredTicket
+        let ticket = WiredSumPolicy().ticket(size: bytes, kind: .active)
+        wiredTicket = ticket
+        Task {
+            _ = await previous?.end()
+            _ = await ticket.start()
+        }
+    }
+
+    /// Bytes the GPU may keep resident: Metal's recommended working set, which macOS sets at
+    /// roughly three quarters of RAM and `iogpu.wired_limit_mb` raises. Read once per launch;
+    /// a change to the sysctl is seen at the next one.
+    public static func gpuWorkingSetBytes() -> UInt64 {
+        GPU.deviceInfo().maxRecommendedWorkingSetSize
     }
 
     /// Current GPU memory use: what is live, what is cached for reuse, and the high-water mark

@@ -10,6 +10,7 @@ import ZephraEngine
 struct VAETilingControl: View {
     @Environment(\.inferenceRuntime) private var runtime
     @Environment(GenerationStore.self) private var store
+    @Environment(\.memoryBudget) private var budget
     @AppStorage(AppSettings.vaeTiling) private var mode = AppSettings.initialVAETiling
 
     var body: some View {
@@ -43,10 +44,7 @@ struct VAETilingControl: View {
     }
 
     private func apply() {
-        let policy = VAETilingPolicy(
-            mode: mode,
-            physicalMemory: ProcessInfo.processInfo.physicalMemory
-        )
+        let policy = VAETilingPolicy(mode: mode, budget: budget)
         runtime?.setVAETileSize(policy.tileSize(for: store.descriptor))
     }
 }

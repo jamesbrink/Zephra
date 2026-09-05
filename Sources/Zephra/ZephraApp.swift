@@ -27,6 +27,10 @@ struct ZephraApp: App {
         Flux2InferenceRuntime(),
     ])
     private var runtime: CombinedInferenceRuntime { Self.runtime }
+    /// What this Mac's GPU may keep resident, read once here from the runtime and the
+    /// `iogpu.wired_limit_mb` sysctl, then handed to every view and to the store: the model
+    /// picker's wording, the tiled decode, and the fallback model all follow it.
+    private static let budget = GPUMemoryBudget.forThisMachine(runtime: runtime)
 
     var body: some Scene {
         WindowGroup("Zephra") {
@@ -36,6 +40,7 @@ struct ZephraApp: App {
                 .environment(workspace)
                 .environment(index)
                 .environment(thumbnails)
+                .environment(\.memoryBudget, Self.budget)
                 // The appearance preference is applied to the application from the main
                 // window, so it lands before the first frame and follows the picker in
                 // Settings; see `AppearanceApplier`.
@@ -44,7 +49,8 @@ struct ZephraApp: App {
                 // is worked out again whenever the model changes. Settings re-applies it when
                 // the preference itself changes; see `VAETilingControl`.
                 .onChange(of: store.descriptor, initial: true) { _, model in
-                    runtime.setVAETileSize(AppSettings.tilingPolicy().tileSize(for: model))
+                    runtime.setVAETileSize(
+                        AppSettings.tilingPolicy(budget: Self.budget).tileSize(for: model))
                     // Remembered here rather than in the menu, so a model the engine stepped
                     // onto by itself — the saved one having gone from the disk — is the one
                     // the next launch opens on.
@@ -74,6 +80,7 @@ struct ZephraApp: App {
                 .environment(inventory)
                 .environment(index)
                 .environment(\.inferenceRuntime, runtime)
+                .environment(\.memoryBudget, Self.budget)
         }
     }
 
@@ -109,21 +116,25 @@ struct ZephraApp: App {
         #if DEBUG
         if let exercise = DownloadExercise.makeStore() { return exercise }
         #endif
+        let tuning = InferenceTuning.forThisMachine(budget: budget)
         runtime.setCacheLimit(bytes: InferenceTuning.storedCacheLimitBytes())
-        runtime.setMemoryLimit(bytes: InferenceTuning.forThisMachine().memoryLimitBytes)
+        runtime.setMemoryLimit(bytes: tuning.memoryLimitBytes)
+        runtime.setWiredLimit(bytes: tuning.wiredLimitBytes)
         var registry = BackendRegistry()
         registry.register(.zImage, ZImageBackendFactory.make)
         registry.register(.qwenImage, QwenImageBackendFactory.make)
         registry.register(.flux2, Flux2BackendFactory.make)
         // The upscaler is registered here for the same reason the backends are: this is the one
         // file that may name a concrete one.
-        return GenerationStore(
+        let store = GenerationStore(
             descriptor: ZephraApp.savedModel(),
             registry: registry,
             outputDirectory: AppSettings.imageLibrary().root,
             locations: AppSettings.modelLocations(),
             upscaler: RealESRGANUpscaler.make
         )
+        store.memoryBudget = budget
+        return store
     }
 
     /// The model chosen last time, or the largest one this Mac can actually run when nothing
@@ -135,6 +146,6 @@ struct ZephraApp: App {
     private static func savedModel() -> ModelDescriptor {
         let saved = UserDefaults.standard.string(forKey: AppSettings.selectedModelID)
         return saved.flatMap(ModelCatalog.descriptor(id:))
-            ?? ModelCatalog.default(fitting: ProcessInfo.processInfo.physicalMemory)
+            ?? ModelCatalog.default(fitting: budget)
     }
 }

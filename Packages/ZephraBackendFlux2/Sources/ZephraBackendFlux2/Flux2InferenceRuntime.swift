@@ -17,6 +17,14 @@ public struct Flux2InferenceRuntime: InferenceRuntime {
         MLXRuntime.configure(cacheLimitBytes: nil, memoryLimitBytes: bytes)
     }
 
+    public func setWiredLimit(bytes: Int) {
+        MLXRuntime.configure(cacheLimitBytes: nil, memoryLimitBytes: nil, wiredLimitBytes: bytes)
+    }
+
+    public func gpuWorkingSetBytes() -> UInt64? {
+        MLXRuntime.gpuWorkingSetBytes()
+    }
+
     public func setVAETileSize(_ tile: Int?) {
         Flux2Runtime.vaeTileSize = tile
     }

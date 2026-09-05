@@ -17,6 +17,7 @@ import ZephraEngine
 struct ModelMenu: View {
     @Environment(GenerationStore.self) private var store
     @Environment(WorkspaceSelection.self) private var workspace
+    @Environment(\.memoryBudget) private var budget
 
     var body: some View {
         if workspace.pane == .canvas {
@@ -75,11 +76,24 @@ struct ModelMenu: View {
         case .fitsTiled:
             return "\(model.fullName) decodes in tiles on this Mac, which keeps it out of swap "
                 + "at \(sizeText(model)) for about 1 part in 255 of difference in the image."
+        case .fitsStreamed:
+            return "\(model.fullName) is more than this Mac's GPU can hold, so its weights are "
+                + "read from the disk again on every step. It runs at \(sizeText(model)), "
+                + "slower than it would if it were resident."
         case .tight(let needed):
             let gigabytes = Int((Double(needed) / 1_000_000_000).rounded(.up))
-            return "\(model.fullName) needs about \(gigabytes) GB of memory at \(sizeText(model)),"
-                + " even with the decode tiled, so this Mac will page there. A smaller size runs."
+            let hint = MemoryFit.wouldFitWithWiredLimitRaised(model, budget: budget)
+                ? " Raising the GPU memory limit in Settings > Performance would let it run."
+                : ""
+            return "\(model.fullName) needs a GPU working set of about \(gigabytes) GB at "
+                + "\(sizeText(model)), even with the decode tiled, and this Mac's is "
+                + "\(budgetText). A smaller size runs.\(hint)"
         }
+    }
+
+    /// This Mac's GPU working set, for the tooltip.
+    private var budgetText: String {
+        Int(budget.gpuWorkingSet).formatted(.byteCount(style: .memory, spellsOutZero: false))
     }
 
     /// Memory never disables a row: a model that pages at its default size still runs at a
@@ -96,6 +110,7 @@ struct ModelMenu: View {
         switch fit(model) {
         case .fits: nil
         case .fitsTiled: "Tiles the decode"
+        case .fitsStreamed: "Streams from disk"
         case .tight(let needed): "Needs \(Int((Double(needed) / 1_000_000_000).rounded(.up))) GB"
         }
     }
@@ -104,20 +119,12 @@ struct ModelMenu: View {
         "\(model.capabilities.defaultSize.width) pixels"
     }
 
+    /// How this model lands on this Mac. The budget is read once at launch and does not
+    /// change while the app runs, and the catalog is five entries, so this is cheap enough
+    /// to answer per row rather than memoise.
     private func fit(_ model: ModelDescriptor) -> MemoryFit {
-        Self.fitsThisMac[model.id] ?? .fits
+        ModelCatalog.fit(model, budget: budget)
     }
-
-    /// How each model lands on this Mac. Physical memory does not change while the app runs,
-    /// so the catalog is measured against it once rather than on every row.
-    private static let fitsThisMac: [ModelDescriptor.ID: MemoryFit] = {
-        let memory = ProcessInfo.processInfo.physicalMemory
-        return Dictionary(
-            uniqueKeysWithValues: ModelCatalog.all.map {
-                ($0.id, ModelCatalog.fit($0, physicalMemory: memory))
-            }
-        )
-    }()
 }
 
 #Preview("Model") {

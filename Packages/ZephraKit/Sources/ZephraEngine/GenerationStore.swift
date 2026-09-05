@@ -72,6 +72,10 @@ public final class GenerationStore {
     /// up front. The engine has no idea where the answer comes from; the app sets it from the
     /// user's preference before it calls `bootstrap()`.
     public var warmsUpAfterLoad = true
+    /// What this Mac's GPU may keep resident, which is what a fallback model is chosen by. The
+    /// engine cannot ask the GPU itself; the app sets it from the runtime before `bootstrap()`,
+    /// and until then the answer is the fraction of RAM a GPU-less budget assumes.
+    public var memoryBudget = MemoryBudget(physicalMemory: ProcessInfo.processInfo.physicalMemory)
     /// Progress while model files and their destination are being changed.
     public internal(set) var modelDirectoryProgress: String?
     public let downloads: ModelDownloads

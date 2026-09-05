@@ -63,13 +63,13 @@ enum AppSettings {
     /// The Mac's own appearance, until the user picks one.
     static let initialAppearance = AppearanceMode.system
 
-    /// How the stored preference and this machine's memory decide the VAE tile, for the
-    /// composition root, which has to answer the question outside a picker.
-    static func tilingPolicy() -> VAETilingPolicy {
+    /// How the stored preference and this machine's memory budget decide the VAE tile, for
+    /// the composition root, which has to answer the question outside a picker.
+    static func tilingPolicy(budget: MemoryBudget) -> VAETilingPolicy {
         let stored = UserDefaults.standard.string(forKey: vaeTiling)
         return VAETilingPolicy(
             mode: stored.flatMap(VAETilingMode.init(rawValue:)) ?? initialVAETiling,
-            physicalMemory: ProcessInfo.processInfo.physicalMemory
+            budget: budget
         )
     }
 

@@ -25,11 +25,10 @@ extension GenerationStore {
     /// Returns whether the model changed. Read `availability` first; an unknown model is
     /// given the benefit of the doubt.
     @discardableResult
-    public func fallBackIfUnobtainable(
-        physicalMemory: UInt64 = ProcessInfo.processInfo.physicalMemory
-    ) -> Bool {
+    public func fallBackIfUnobtainable(budget: MemoryBudget? = nil) -> Bool {
         guard availability[descriptor.id]?.isObtainable == false else { return false }
-        let candidates = ModelCatalog.fitting(physicalMemory: physicalMemory) + ModelCatalog.all
+        let budget = budget ?? memoryBudget
+        let candidates = ModelCatalog.fitting(budget: budget) + ModelCatalog.all
         guard let fallback = candidates.first(where: { availability[$0.id]?.isObtainable != false })
         else { return false }
         logger.notice(
