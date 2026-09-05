@@ -68,6 +68,28 @@ struct SchedulerTests {
         #expect(wide.dtype == .float32)
     }
 
+    @Test("one Euler step moves the sample by (sigma_next - sigma) * v")
+    func eulerStep() {
+        // With the dynamic shift off, a static shift of 1 and no terminal, the ladder is exact:
+        // 1, 0.75, 0.5, 0.25, 0. Step 0 moves by -0.25 v; so does the last, from 0.25 to 0.
+        let unshifted = QwenImageSchedulerConfiguration(
+            numTrainTimesteps: 1000, shift: 1, useDynamicShifting: false, baseShift: 0.5,
+            maxShift: 0.9, baseImageSeqLen: 256, maxImageSeqLen: 8192, shiftTerminal: nil,
+            timeShiftType: "exponential")
+        let scheduler = FlowMatchEulerScheduler(
+            configuration: unshifted, steps: 4, imageSequenceLength: 4096)
+        #expect(scheduler.sigmas == [1, 0.75, 0.5, 0.25, 0])
+        let sample = MLXArray([1.0, 2.0] as [Float])
+        let velocity = MLXArray([10.0, -4.0] as [Float])
+        #expect(scheduler.step(modelOutput: velocity, index: 0, sample: sample).asArray(Float.self) == [-1.5, 3.0])
+        #expect(scheduler.step(modelOutput: velocity, index: 3, sample: sample).asArray(Float.self) == [-1.5, 3.0])
+        // With the terminal stretch on, the last gap is the terminal itself.
+        let terminal = FlowMatchEulerScheduler(
+            configuration: Self.configuration, steps: 4, imageSequenceLength: 4096)
+        let last = terminal.step(modelOutput: velocity, index: 3, sample: sample)
+        #expect(Fixture.maxAbsoluteDifference(last, sample - velocity * Float(0.02)) < 1e-6)
+    }
+
     @Test("mu runs through the two published points")
     func muInterpolatesTheConfiguredLine() {
         #expect(

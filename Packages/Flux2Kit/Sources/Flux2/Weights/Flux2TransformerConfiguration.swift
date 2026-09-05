@@ -63,9 +63,13 @@ public struct Flux2TransformerConfiguration: Hashable, Sendable, Decodable {
         case timestepGuidanceChannels = "timestep_guidance_channels"
     }
 
-    /// Checks the invariant that is silent when broken: rotary embeddings split a head's width
-    /// across the axes, and half of each axis carries the cosine.
+    /// Checks the invariants that are silent when broken: rotary embeddings split a head's
+    /// width across the axes, and half of each axis carries the cosine; and the port has no
+    /// guidance embedder, so a config asking for one is refused rather than ignored.
     public func validated() throws -> Self {
+        guard !guidanceEmbeds else {
+            throw Flux2ConfigurationError.unsupportedValue(field: "guidance_embeds", value: "true")
+        }
         guard axesDimsRope.reduce(0, +) == attentionHeadDim else {
             throw Flux2ConfigurationError.ropeAxesDoNotSumToHeadDim(
                 axes: axesDimsRope, headDim: attentionHeadDim)

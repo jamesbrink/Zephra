@@ -10,25 +10,13 @@ import Foundation
 /// It lives here, in the Foundation-only layer, rather than in the kits: a kit is one family's
 /// arithmetic and knows nothing about how often a host wants to look. The backends own a
 /// throttle each and decide, per step, whether to spend the decode at all — which is why the
-/// pipelines hand out a *way to make* a frame rather than a frame.
+/// pipelines hand out a *way to make* a frame rather than a frame. The interval itself comes
+/// down from the composition root in `InferenceEnvironment.previewInterval`, where
+/// `ZEPHRA_PREVIEW_INTERVAL_MS` is read once; nil there is frames off.
 public struct PreviewThrottle: Sendable {
     /// The interval every family starts from. Measured: the pooled decode is well under a fifth
     /// of this for each of them, so the frames cost a few percent of a run.
     public static let defaultInterval: Duration = .milliseconds(750)
-
-    /// The interval this process should throttle at, or nil when frames are switched off
-    /// entirely.
-    ///
-    /// `ZEPHRA_PREVIEW_INTERVAL_MS` is the one switch: a number is that many milliseconds
-    /// between frames, and zero is off, which is how `ZephraBench` measures a run without them
-    /// and how a suspected regression is bisected without a rebuild. Anything unreadable is
-    /// ignored rather than fatal, because a mistyped variable should not stop a generation.
-    public static var environmentInterval: Duration? {
-        guard let raw = ProcessInfo.processInfo.environment["ZEPHRA_PREVIEW_INTERVAL_MS"],
-            let milliseconds = Int(raw)
-        else { return defaultInterval }
-        return milliseconds > 0 ? .milliseconds(milliseconds) : nil
-    }
 
     /// The shortest gap between two frames.
     public let interval: Duration

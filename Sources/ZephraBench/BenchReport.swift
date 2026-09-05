@@ -32,8 +32,9 @@ struct BenchReport: Codable, Sendable {
     let meanPreviewSeconds: Double?
     /// Where the last preview frame was written, or nil when there was none to write.
     let previewPath: String?
-    /// Whether the weights were held or streamed, as `WeightResidency`'s raw value. What
-    /// actually ran: a family that cannot stream reports resident whatever was asked.
+    /// Whether the weights were held or streamed, as `WeightResidency`'s raw value, asked of
+    /// the backend after the load (`loadedResidency`) rather than copied from the flag: a
+    /// family that cannot stream reports resident whatever was asked.
     let weightResidency: String
     /// Gigabytes of weights read from disk per step when streaming, or nil when held.
     let streamedGBPerStep: Double?

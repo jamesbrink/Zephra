@@ -10,6 +10,11 @@ needs those files: `--tokenizer <snapshot>/tokenizer`, or nothing, and they are 
 `Qwen/Qwen-Image-2512`. The file records the `transformers` and `tokenizers` versions that
 wrote it.
 
-Regenerate with `Tools/dump_reference.py`; its inline metadata pins the versions every fixture
-here was dumped with, so `uv run Tools/dump_reference.py --out Tests/QwenImageTests/Fixtures
---tokenizer <snapshot>/tokenizer` reproduces them.
+Regenerate with `Tools/dump_reference.py`; its inline metadata pins the versions of the
+reference stack it runs under, so `uv run Tools/dump_reference.py --out
+Tests/QwenImageTests/Fixtures --tokenizer <snapshot>/tokenizer` reproduces them, and every
+run writes `versions.json` beside the fixtures with the versions it actually used. The
+tokenizer fixture was dumped under those pins and records them itself; the safetensors
+fixtures predate the pin, and the `versions.json` committed with them is the pinned set
+until the first regeneration under it. Bump the pins and regenerate every fixture in the
+same commit.

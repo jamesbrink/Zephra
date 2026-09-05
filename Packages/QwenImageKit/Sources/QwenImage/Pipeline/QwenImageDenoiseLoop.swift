@@ -1,6 +1,7 @@
 import CoreGraphics
 import Foundation
 import MLX
+import ZephraMLX
 
 /// The denoising ladder: packed noise in, packed latents out.
 ///
@@ -31,7 +32,7 @@ enum QwenImageDenoiseLoop {
         latentSize: (height: Int, width: Int),
         reference: Reference?,
         scheduler: FlowMatchEulerScheduler,
-        transformer: QwenImageTransformer,
+        transformer: any QwenImageVelocityModel,
         autoencoder: QwenImageAutoencoder,
         conditioning: MLXArray,
         frequencies: (image: RotaryFrequencies, text: RotaryFrequencies),

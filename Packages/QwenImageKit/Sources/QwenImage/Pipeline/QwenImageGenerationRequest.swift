@@ -26,6 +26,8 @@ public struct QwenImageGenerationRequest: Sendable {
     /// full strength and no reference at all produce the same image. That is why this defaults
     /// to 1 rather than to something in the middle.
     public var referenceStrength: Double
+    /// The latent tile edge the autoencoder decodes in, or nil for the exact, untiled decode.
+    public var vaeTile: Int?
 
     public init(
         prompt: String,
@@ -35,7 +37,8 @@ public struct QwenImageGenerationRequest: Sendable {
         seed: UInt64,
         maxPromptTokens: Int,
         referenceImage: CGImage? = nil,
-        referenceStrength: Double = 1
+        referenceStrength: Double = 1,
+        vaeTile: Int? = nil
     ) {
         self.prompt = prompt
         self.width = width
@@ -45,5 +48,6 @@ public struct QwenImageGenerationRequest: Sendable {
         self.maxPromptTokens = maxPromptTokens
         self.referenceImage = referenceImage
         self.referenceStrength = referenceStrength
+        self.vaeTile = vaeTile
     }
 }

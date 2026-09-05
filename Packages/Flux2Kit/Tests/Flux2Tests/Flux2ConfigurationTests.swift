@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import ZephraCore
 import ZephraTestSupport
 
 @testable import Flux2
@@ -55,6 +56,51 @@ struct Flux2ConfigurationTests {
         #expect(scheduler.useDynamicShifting)
         #expect(scheduler.shiftTerminal == nil, "nothing stretches klein's tail")
         #expect(scheduler.timeShiftType == "exponential")
+    }
+
+    @Test("the catalog's alignment is the snapshot's own",
+          .enabled(if: SnapshotUnderTest.flux2Klein.isPresent))
+    func catalogAlignmentIsTheSnapshots() throws {
+        let snapshot = try #require(SnapshotUnderTest.flux2Klein.directory)
+        let configuration = try Flux2Configuration(readingFrom: snapshot)
+        for model in [ModelCatalog.flux2Klein4bit, ModelCatalog.flux2Klein8bit] {
+            #expect(model.capabilities.sizeAlignment == configuration.sizeAlignment, Comment(rawValue: model.id))
+        }
+    }
+
+    @Test("a config asking for a guidance embedder is refused rather than ignored")
+    func guidanceEmbedderIsRefused() throws {
+        let json = """
+            {"attention_head_dim": 128, "axes_dims_rope": [32, 32, 32, 32], "eps": 1e-6,
+             "guidance_embeds": true, "in_channels": 128, "joint_attention_dim": 7680,
+             "mlp_ratio": 3.0, "num_attention_heads": 24, "num_layers": 5,
+             "num_single_layers": 20, "out_channels": null, "rope_theta": 2000,
+             "timestep_guidance_channels": 256}
+            """
+        let decoded = try JSONDecoder().decode(
+            Flux2TransformerConfiguration.self, from: Data(json.utf8))
+        #expect(throws: Flux2ConfigurationError.unsupportedValue(field: "guidance_embeds", value: "true")) {
+            try decoded.validated()
+        }
+    }
+
+    @Test("a shift the scheduler does not implement, and a middle block without attention, are refused")
+    func unsupportedSchedulerAndVAEValuesAreRefused() throws {
+        let linear = Flux2SchedulerConfiguration(
+            numTrainTimesteps: 1000, useDynamicShifting: true, shiftTerminal: nil,
+            timeShiftType: "linear")
+        #expect(throws: Flux2ConfigurationError.unsupportedValue(field: "time_shift_type", value: "linear")) {
+            try linear.validated()
+        }
+        let vae = """
+            {"block_out_channels": [32, 64], "layers_per_block": 1, "latent_channels": 4,
+             "norm_num_groups": 32, "mid_block_add_attention": false, "patch_size": [2, 2],
+             "batch_norm_eps": 1e-4}
+            """
+        let decoded = try JSONDecoder().decode(Flux2VAEConfiguration.self, from: Data(vae.utf8))
+        #expect(throws: Flux2ConfigurationError.unsupportedValue(field: "mid_block_add_attention", value: "false")) {
+            try decoded.validated()
+        }
     }
 
     @Test("rotary axes that do not partition the head are refused")

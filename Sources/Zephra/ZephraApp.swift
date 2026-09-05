@@ -20,6 +20,9 @@ struct ZephraApp: App {
     /// What the models occupy on disk, for Settings > Models. Built here with the store so the
     /// window and Settings observe the one list.
     @State private var inventory = ModelInventory(locations: AppSettings.modelLocations())
+    /// Every `ZEPHRA_*` switch the inference path honours, read from the process environment
+    /// here and nowhere else, then handed to the backends as a value.
+    private static let environment = InferenceEnvironment.read(ProcessInfo.processInfo.environment)
     /// The GPU runtime the Performance tab reads and tunes, over every backend at once. Built
     /// here because this is the only file allowed to name a backend.
     private static let runtime = CombinedInferenceRuntime([
@@ -100,14 +103,18 @@ struct ZephraApp: App {
         #if DEBUG
         if let exercise = DownloadExercise.makeStore() { return exercise }
         #endif
-        let tuning = InferenceTuning.forThisMachine(budget: budget)
+        let tuning = InferenceTuning.forThisMachine(
+            budget: budget, wiredLimitOverride: environment.wiredLimitBytes)
         runtime.setCacheLimit(bytes: InferenceTuning.storedCacheLimitBytes())
         runtime.setMemoryLimit(bytes: tuning.memoryLimitBytes)
         runtime.setWiredLimit(bytes: tuning.wiredLimitBytes)
+        // The tile each run decodes at is chosen by the store as the run starts; this is only
+        // what the Performance tab reads before the first run.
+        runtime.setVAETileSize(environment.vaeTile)
         var registry = BackendRegistry()
-        registry.register(.zImage, ZImageBackendFactory.make)
-        registry.register(.qwenImage, QwenImageBackendFactory.make)
-        registry.register(.flux2, Flux2BackendFactory.make)
+        registry.register(.zImage, ZImageBackendFactory.make(environment))
+        registry.register(.qwenImage, QwenImageBackendFactory.make(environment))
+        registry.register(.flux2, Flux2BackendFactory.make(environment))
         // The upscaler is registered here for the same reason the backends are: this is the one
         // file that may name a concrete one.
         let store = GenerationStore(

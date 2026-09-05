@@ -2,6 +2,7 @@ import Foundation
 import MLX
 import MLXFast
 import MLXNN
+import ZephraMLX
 
 /// A single-stream block's attention and feed-forward, run side by side out of one pair of
 /// matrices.
@@ -68,8 +69,8 @@ final class Flux2ParallelAttention: Module {
             attentionPart[.ellipsis, (index * inner)..<((index + 1) * inner)]
                 .reshaped([batch, tokens, heads, headDim])
         }
-        let queries = frequencies.rotate(queryNorm(head(0))).transposed(0, 2, 1, 3)
-        let keys = frequencies.rotate(keyNorm(head(1))).transposed(0, 2, 1, 3)
+        let queries = frequencies.rotate(queryNorm(head(0)), computeDType: .float32).transposed(0, 2, 1, 3)
+        let keys = frequencies.rotate(keyNorm(head(1)), computeDType: .float32).transposed(0, 2, 1, 3)
         let values = head(2).transposed(0, 2, 1, 3)
 
         let attended = MLXFast.scaledDotProductAttention(

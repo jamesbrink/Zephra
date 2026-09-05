@@ -55,14 +55,27 @@ struct SchedulerTests {
         }
     }
 
-    @Test("the Euler step moves by the gap to the next sigma")
+    @Test("one Euler step moves the sample by (sigma_next - sigma) * v")
     func eulerStep() {
+        // With the shift off the ladder is exact: 1, 0.75, 0.5, 0.25, 0. So step 0 moves by
+        // -0.25 v and the last step, from 0.25 to 0, by -0.25 v as well.
+        let unshifted = Flux2SchedulerConfiguration(
+            numTrainTimesteps: 1000, useDynamicShifting: false, shiftTerminal: nil,
+            timeShiftType: "exponential")
         let scheduler = FlowMatchEulerScheduler(
-            configuration: Self.klein, steps: 4, imageSequenceLength: 4096)
+            configuration: unshifted, steps: 4, imageSequenceLength: 4096)
+        #expect(scheduler.sigmas == [1, 0.75, 0.5, 0.25, 0])
         let sample = MLXArray([1.0, 2.0] as [Float])
-        let velocity = MLXArray([10.0, 10.0] as [Float])
-        let next = scheduler.step(modelOutput: velocity, index: 0, sample: sample)
-        let gap = Float(scheduler.sigmas[1] - scheduler.sigmas[0])
+        let velocity = MLXArray([10.0, -4.0] as [Float])
+        let first = scheduler.step(modelOutput: velocity, index: 0, sample: sample)
+        #expect(first.asArray(Float.self) == [-1.5, 3.0])
+        let last = scheduler.step(modelOutput: velocity, index: 3, sample: sample)
+        #expect(last.asArray(Float.self) == [-1.5, 3.0])
+        // And on the real ladder the gap is whatever the shift made it.
+        let shifted = FlowMatchEulerScheduler(
+            configuration: Self.klein, steps: 4, imageSequenceLength: 4096)
+        let gap = Float(shifted.sigmas[1] - shifted.sigmas[0])
+        let next = shifted.step(modelOutput: velocity, index: 0, sample: sample)
         #expect(Fixture.maxAbsoluteDifference(next, sample + velocity * gap) < 1e-6)
     }
 }

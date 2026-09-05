@@ -39,7 +39,7 @@ extension TransformerParityTests {
 
     /// The same shape down the path the app actually takes. Both catalog variants pack `to_out`
     /// — 4-bit and 8-bit, group 64 — so a generation runs `quantizedMatmul` over bfloat16
-    /// activations with bfloat16 scales, the way `Flux2WeightLoading.castFloatParameters`
+    /// activations with bfloat16 scales, the way `PackedWeightLoading.castFloatParameters`
     /// leaves them. Whether that reaches the split-K kernel is exactly what is not established;
     /// the day an M5 runs this suite, the answer is here rather than in a picture.
     @Test(

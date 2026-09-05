@@ -15,10 +15,9 @@ struct BundledWeightsTests {
         SRVGGNetWeights.sanitized(try MLX.loadArrays(url: try BundledWeights.located()))
     }
 
-    @Test(
-        "every published tensor lands and every parameter is filled",
-        .enabled(if: BundledWeights.url != nil))
+    @Test("every published tensor lands and every parameter is filled")
     func namesAndShapesLineUp() throws {
+        _ = try #require(BundledWeights.url, "the checkpoint is not in the test bundle")
         let published = try Self.published()
         let model = SRVGGNet(.generalX4v3)
         let wanted = model.parameters().flattened().reduce(into: [String: [Int]]()) {
@@ -43,10 +42,9 @@ struct BundledWeightsTests {
         #expect(mismatched.isEmpty, Comment(rawValue: mismatched.joined(separator: "; ")))
     }
 
-    @Test(
-        "the checkpoint is the 1,213,296-parameter general x4 v3 network",
-        .enabled(if: BundledWeights.url != nil))
+    @Test("the checkpoint is the 1,213,296-parameter general x4 v3 network")
     func theParameterCountIsTheOneThatNamesTheModel() throws {
+        _ = try #require(BundledWeights.url, "the checkpoint is not in the test bundle")
         let published = try Self.published()
 
         // No configuration file ships with this checkpoint, so the parameter count is what says
@@ -57,8 +55,9 @@ struct BundledWeightsTests {
         #expect(published["body.1.weight"]?.shape == [64])
     }
 
-    @Test("the checkpoint loads and enlarges a picture", .enabled(if: BundledWeights.url != nil))
+    @Test("the checkpoint loads and enlarges a picture")
     func theCheckpointRuns() throws {
+        _ = try #require(BundledWeights.url, "the checkpoint is not in the test bundle")
         let model = SRVGGNet(.generalX4v3)
         try SRVGGNetWeights.load(
             into: model,

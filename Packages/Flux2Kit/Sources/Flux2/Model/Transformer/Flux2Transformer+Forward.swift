@@ -1,6 +1,7 @@
 import Foundation
 import MLX
 import MLXNN
+import ZephraMLX
 
 extension Flux2Transformer {
     /// Predicts the flow for one step.

@@ -43,7 +43,7 @@ struct RotaryEmbeddingTests {
     func rotationPreservesMagnitude() {
         let table = Self.embedding.frequencies(ids: Flux2PositionIDs.image(height: 2, width: 3))
         let x = MLXRandom.normal([1, 6, 2, 16], key: MLXRandom.key(3))
-        let rotated = table.rotate(x)
+        let rotated = table.rotate(x, computeDType: .float32)
         let before = MLX.sum(x.reshaped([1, 6, 2, 8, 2]).square(), axis: -1)
         let after = MLX.sum(rotated.reshaped([1, 6, 2, 8, 2]).square(), axis: -1)
         #expect(Fixture.maxAbsoluteDifference(before, after) < 1e-5)
@@ -53,6 +53,6 @@ struct RotaryEmbeddingTests {
     func originIsIdentity() {
         let table = Self.embedding.frequencies(ids: [[0, 0, 0, 0]])
         let x = MLXRandom.normal([1, 1, 2, 16], key: MLXRandom.key(4))
-        #expect(Fixture.maxAbsoluteDifference(table.rotate(x), x) < 1e-6)
+        #expect(Fixture.maxAbsoluteDifference(table.rotate(x, computeDType: .float32), x) < 1e-6)
     }
 }

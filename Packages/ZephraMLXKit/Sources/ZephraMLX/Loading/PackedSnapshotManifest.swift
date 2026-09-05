@@ -1,12 +1,13 @@
 import Foundation
-import ZephraMLX
 
 /// The `quantization.json` a locally built snapshot carries.
 ///
-/// Its presence is what tells the loader the weights are packed. The top-level pair is only a
+/// Its presence is what tells a loader the weights are packed. The top-level pair is only a
 /// fallback: every layer states its own width, which is what lets a build hold some layers at
-/// eight bits while everything else is at four.
-public struct Flux2QuantizationManifest: Decodable {
+/// eight bits while everything else is at four. One reader for every family, because the
+/// packer writes one format; the names inside are whatever the family's plan wrote, and the
+/// family maps its module paths back to them with `checkpointName` when the two differ.
+public struct PackedSnapshotManifest: Decodable {
     /// One packed layer.
     public struct Layer: Decodable {
         /// The checkpoint name of the layer, without `.weight`.
@@ -29,6 +30,8 @@ public struct Flux2QuantizationManifest: Decodable {
     /// Every packed layer.
     public let layers: [Layer]
 
+    // Built once at decode: the loader asks for every leaf of a sixty-block tree, and a
+    // dictionary rebuilt per lookup made that quadratic in the layer count.
     private let byName: [String: Layer]
 
     enum CodingKeys: String, CodingKey {
@@ -49,9 +52,8 @@ public struct Flux2QuantizationManifest: Decodable {
     ///
     /// A broken manifest is never taken for a missing one. Reading it as "unpacked" loads a
     /// packed shard into an unpacked tree and fails a component later with a shape error that
-    /// names neither the file nor the reason. (A copy of the other kit's reader; M8 of the
-    /// audit remediation merges the two into `ZephraMLX`.)
-    public static func read(from snapshot: URL) throws -> Flux2QuantizationManifest? {
+    /// names neither the file nor the reason.
+    public static func read(from snapshot: URL) throws -> PackedSnapshotManifest? {
         let url = snapshot.appending(path: "quantization.json")
         guard FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) else {
             return nil

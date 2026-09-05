@@ -20,22 +20,9 @@ public final class Flux2Autoencoder: Module {
     @ModuleInfo(key: "decoder") var decoder: Flux2VAEDecoder
     @ModuleInfo(key: "bn") var statistics: Flux2BatchNormStats
 
-    /// How many pixels one latent cell becomes along each edge, for the published model: three
-    /// spatial halvings, so eight, and a 64-cell tile decodes a 512-pixel square.
-    public static let spatialScale = 8
-
-    /// Latent-space tile edge for the decode, or nil to decode the whole latent exactly.
-    ///
-    /// The decode allocates in proportion to the image, not to the weights, so this is the knob
-    /// that decides a generation's peak. Starts from `ZEPHRA_VAE_TILE` so the benchmark and the
-    /// command line can set it; a host assigns it per model and the next decode picks it up.
-    /// Written from the main actor and read on the inference queue: a word-sized optional cannot
-    /// tear, and the worst a race can do is decode one image with the previous setting.
-    public nonisolated(unsafe) static var latentTile: Int? = TiledDecode.environmentTile
-
     private let latentChannels: Int
-    // Read from the configuration rather than from `spatialScale`, so a tiled decode of a
-    // doll's-house autoencoder cuts the tiles to the size that autoencoder actually produces.
+    // From the configuration, so a tiled decode of a doll's-house autoencoder cuts the tiles to
+    // the size that autoencoder actually produces; on the published model, eight.
     private let pixelsPerCell: Int
 
     /// Builds both towers as `configuration` describes them. Weights arrive separately.
@@ -71,15 +58,19 @@ public final class Flux2Autoencoder: Module {
 
     /// Turns a packed latent back into pixels.
     ///
-    /// - Parameter packed: `[batch, 128, height, width]`, as the denoising loop leaves it.
+    /// - Parameters:
+    ///   - packed: `[batch, 128, height, width]`, as the denoising loop leaves it.
+    ///   - tile: The latent-space tile edge to decode in, or nil to decode the whole latent
+    ///     exactly. The decode allocates in proportion to the image, not to the weights, so
+    ///     this is the knob that decides a generation's peak; the host chooses it per run.
     /// - Returns: `[batch, height * 16, width * 16, 3]` NHWC in the range -1 to 1.
-    public func decodePacked(_ packed: MLXArray) -> MLXArray {
+    public func decodePacked(_ packed: MLXArray, tile: Int? = nil) -> MLXArray {
         let latents = unpacked(packed).transposed(0, 2, 3, 1)
         // Tiling wraps `post_quant_conv` as well: it is a 1x1 convolution, so it commutes with
         // taking a tile, and holding its full-resolution result live would waste the point.
         // The tile is measured on the unpacked latent, so a 64-cell tile still means 512 pixels.
         let pixels =
-            if let tile = Self.latentTile,
+            if let tile,
                 tile < Swift.max(latents.dim(1), latents.dim(2))
             {
                 TiledDecode.run(latents, tile: tile, scale: pixelsPerCell) {

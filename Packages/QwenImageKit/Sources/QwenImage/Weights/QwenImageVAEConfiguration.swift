@@ -38,9 +38,14 @@ public struct QwenImageVAEConfiguration: Hashable, Sendable, Decodable {
         case latentsStd = "latents_std"
     }
 
-    /// Checks that the per-channel normalization covers every latent channel. Getting this wrong
-    /// yields a washed-out or oversaturated image rather than an error.
+    /// Checks that the per-channel normalization covers every latent channel — getting this
+    /// wrong yields a washed-out or oversaturated image rather than an error — and that no
+    /// stage asks for an attention block, which the port does not build outside the middle.
     public func validated() throws -> Self {
+        guard attnScales.isEmpty else {
+            throw QwenImageConfigurationError.unsupportedValue(
+                field: "attn_scales", value: String(describing: attnScales))
+        }
         guard latentsMean.count == zDim, latentsStd.count == zDim else {
             throw QwenImageConfigurationError.latentStatisticsDoNotCoverChannels(
                 mean: latentsMean.count, standardDeviation: latentsStd.count, channels: zDim)

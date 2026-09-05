@@ -5,27 +5,14 @@ import ZephraCore
 ///
 /// One copy of MLX serves every family, so the allocator's limits and readings are the same
 /// answer whichever backend is asked, and every one of them is `MLXRuntime`'s. The one thing
-/// that really is a family's own — the tile its autoencoder decodes in — arrives as a pair of
-/// accessors, which is how three families share one runtime type without this package naming
-/// any of them.
+/// that really is a family's own — the tile its autoencoder decodes in — is a `VAETileSetting`
+/// the family's factory shares between this handle and the backends it makes, which is how
+/// three families share one runtime type without this package naming any of them.
 public struct MLXInferenceRuntime: InferenceRuntime {
-    /// How to read and write one family's VAE tile.
-    public struct VAETileAccess: Sendable {
-        /// The tile edge in force, or nil for the exact, untiled decode.
-        public let read: @Sendable () -> Int?
-        /// Sets the tile for the next decode.
-        public let write: @Sendable (Int?) -> Void
-
-        public init(read: @escaping @Sendable () -> Int?, write: @escaping @Sendable (Int?) -> Void) {
-            self.read = read
-            self.write = write
-        }
-    }
-
-    private let tile: VAETileAccess
+    private let tile: VAETileSetting
 
     /// Creates the runtime handle over `tile`. Nothing is touched until a method is called.
-    public init(tile: VAETileAccess) {
+    public init(tile: VAETileSetting) {
         self.tile = tile
     }
 
@@ -52,11 +39,11 @@ public struct MLXInferenceRuntime: InferenceRuntime {
     }
 
     public func setVAETileSize(_ tile: Int?) {
-        self.tile.write(tile)
+        self.tile.value = tile
     }
 
     public func vaeTileSize() -> Int? {
-        tile.read()
+        tile.value
     }
 
     public func memorySnapshot() -> MemorySnapshot {

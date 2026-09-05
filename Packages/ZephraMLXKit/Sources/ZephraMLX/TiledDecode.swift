@@ -10,21 +10,11 @@ import MLX
 /// as it is produced, so only one tile's worth of feature maps is ever live.
 ///
 /// Nothing here knows which autoencoder it is driving: it takes a latent, a tile edge, how many
-/// pixels a latent cell becomes, and the untiled decode as a closure. The shape of the algorithm
+/// pixels a latent cell becomes, and the untiled decode as a closure. Nor where the tile came
+/// from: the host reads `ZEPHRA_VAE_TILE` once into `InferenceEnvironment` and passes the
+/// tile down on each request. The shape of the algorithm
 /// is diffusers' `enable_vae_tiling`.
 public nonisolated enum TiledDecode {
-    /// `ZEPHRA_VAE_TILE` read as a latent-space tile edge, or nil when it is unset or too small
-    /// to be worth the seams.
-    ///
-    /// One variable across every family, because a machine's decode budget is a property of the
-    /// machine. A family reads this once for its own default and lets a host override it.
-    public static let environmentTile: Int? = {
-        guard let raw = ProcessInfo.processInfo.environment["ZEPHRA_VAE_TILE"],
-            let value = Int(raw), value >= 16
-        else { return nil }
-        return value
-    }()
-
     /// How much of a tile overlaps its neighbour. A quarter is diffusers' default and is enough
     /// for a stack of 3x3 convolutions to have forgotten the tile edge by the time it reaches
     /// the region that is kept.

@@ -1,13 +1,12 @@
 import CoreGraphics
 import Foundation
-import ImageIO
 import MLX
-import UniformTypeIdentifiers
 
-/// Turning the decoder's output into PNG bytes, and a picture back into the encoder's input.
+/// A reference picture turned into the encoder's input.
 ///
-/// Both directions take or return a `CGImage`; reading one off disk is the backend's job, not
-/// the kit's, so nothing here opens a file.
+/// It takes a `CGImage`; reading one off disk is the backend's job, not the kit's, so nothing
+/// here opens a file. The other direction — the decoder's output as PNG or as a preview
+/// frame's bytes — is `PixelBuffer` in `ZephraMLX`, the same for every family.
 public enum QwenPixelBuffer {
     /// Draws `image` at `width` by `height` and returns it the way the encoder wants it.
     ///
@@ -40,46 +39,5 @@ public enum QwenPixelBuffer {
         let rgba = MLXArray(Array(buffer)).reshaped([1, height, width, 4])
         let rgb = rgba[0..., 0..., 0..., 0 ..< 3].asType(.float32)
         return rgb / MLXArray(Float(127.5)) - MLXArray(Float(1))
-    }
-
-    /// Encodes `pixels`, `[batch, height, width, 3]` in the range -1 to 1, as PNG.
-    public static func png(from pixels: MLXArray) throws -> Data {
-        let image = pixels[0]
-        let (height, width) = (image.shape[0], image.shape[1])
-
-        // -1...1 to 0...255, with an opaque alpha channel, which is what CoreGraphics wants.
-        let scaled = MLX.clip((image + 1) * 127.5, min: MLXArray(Float(0)), max: MLXArray(Float(255)))
-        let opaque = MLX.concatenated(
-            [scaled, MLXArray.full([height, width, 1], values: MLXArray(Float(255)))], axis: -1)
-        MLX.eval(opaque)
-        let bytes = opaque.asType(.uint8).asData().data
-
-        guard
-            let provider = CGDataProvider(data: bytes as CFData),
-            let cgImage = CGImage(
-                width: width,
-                height: height,
-                bitsPerComponent: 8,
-                bitsPerPixel: 32,
-                bytesPerRow: width * 4,
-                space: CGColorSpaceCreateDeviceRGB(),
-                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
-                provider: provider,
-                decode: nil,
-                shouldInterpolate: false,
-                intent: .defaultIntent
-            )
-        else { throw QwenImagePipelineError.encodingFailed }
-
-        let output = NSMutableData()
-        guard
-            let destination = CGImageDestinationCreateWithData(
-                output, UTType.png.identifier as CFString, 1, nil)
-        else { throw QwenImagePipelineError.encodingFailed }
-        CGImageDestinationAddImage(destination, cgImage, nil)
-        guard CGImageDestinationFinalize(destination) else {
-            throw QwenImagePipelineError.encodingFailed
-        }
-        return output as Data
     }
 }

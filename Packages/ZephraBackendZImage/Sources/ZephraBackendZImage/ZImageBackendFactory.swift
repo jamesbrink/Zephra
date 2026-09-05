@@ -8,15 +8,18 @@ import ZephraMLX
 /// this backend serves runs through the same pipeline, and the descriptor arrives again at
 /// `ensureAvailable`.
 public nonisolated enum ZImageBackendFactory {
-    /// Makes a fresh, idle `ZImageBackend`.
-    public static let make: BackendFactory = { _ in ZImageBackend() }
+    /// The VAE tile the engine chose for the run about to start: written through `runtime`,
+    /// read by every backend this factory makes as it builds a request, and handed to the
+    /// vendored kit's own knob for that run. One slot per family, under a lock.
+    private static let tile = VAETileSetting()
+
+    /// A factory for fresh, idle `ZImageBackend`s running under `environment`, the switches
+    /// the composition root read once.
+    public static func make(_ environment: InferenceEnvironment) -> BackendFactory {
+        { _ in ZImageBackend(environment: environment, tile: tile) }
+    }
 
     /// The shared MLX runtime with this family's autoencoder tile behind it. The allocator's
     /// limits and readings are process-wide; only the tile is Z-Image's own.
-    public static var runtime: any InferenceRuntime {
-        MLXInferenceRuntime(
-            tile: .init(
-                read: { ZImageRuntime.vaeTileSize },
-                write: { ZImageRuntime.vaeTileSize = $0 }))
-    }
+    public static var runtime: any InferenceRuntime { MLXInferenceRuntime(tile: tile) }
 }

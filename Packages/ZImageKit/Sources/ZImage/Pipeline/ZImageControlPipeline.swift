@@ -367,6 +367,8 @@ public class ZImageControlPipeline {
     }
     return cgImage
   }
+  // ZEPHRA-PATCH: `encodeImageToLatents` moved from here to `PipelineUtilities`, so the SDEdit
+  // path in ZImagePipeline and this pipeline's conditioning share one encode; see below.
   private func convertToRGBA(_ image: CGImage) -> CGImage? {
     let width = image.width
     let height = image.height
@@ -611,12 +613,12 @@ public class ZImageControlPipeline {
       logger.info("Loading VAE...")
       let vae = try loadVAE(snapshot: snapshot, config: modelConfigs.vae)
       let vaeWeights = try weightsMapper.loadVAE()
-      try ZImageWeightsMapping.applyVAE(weights: vaeWeights, to: vae, manifest: quantManifest, logger: logger)
+      try ZImageWeightsMapping.applyVAE(weights: vaeWeights, to: vae, manifest: quantManifest, logger: logger)  // ZEPHRA-PATCH: a failed apply throws
       self.vae = vae
       logger.info("Loading control transformer...")
       let transformer = try loadControlTransformer(snapshot: snapshot, config: modelConfigs.transformer)
       let transformerWeights = try weightsMapper.loadTransformer()
-      try ZImageControlWeightsMapping.applyControlTransformer(
+      try ZImageControlWeightsMapping.applyControlTransformer(  // ZEPHRA-PATCH: a failed apply throws
         weights: transformerWeights,
         to: transformer,
         manifest: quantManifest,
@@ -635,7 +637,7 @@ public class ZImageControlPipeline {
       logger.info("Loading control transformer...")
       let transformer = try loadControlTransformer(snapshot: snapshot, config: modelConfigs.transformer)
       let transformerWeights = try weightsMapper.loadTransformer()
-      try ZImageControlWeightsMapping.applyControlTransformer(
+      try ZImageControlWeightsMapping.applyControlTransformer(  // ZEPHRA-PATCH: a failed apply throws
         weights: transformerWeights,
         to: transformer,
         manifest: quantManifest,
@@ -654,7 +656,7 @@ public class ZImageControlPipeline {
           preferredFile: request.controlnetWeightsFile,
           progressCallback: request.progressCallback
         )
-        try ZImageControlWeightsMapping.applyControlnetWeights(
+        try ZImageControlWeightsMapping.applyControlnetWeights(  // ZEPHRA-PATCH: a failed apply throws
           weights: result.weights,
           to: self.transformer!,
           manifest: result.manifest,
@@ -715,7 +717,7 @@ public class ZImageControlPipeline {
       let textEncoder = try loadTextEncoder(snapshot: snapshot, config: modelConfigs.textEncoder)
       let weightsMapper = ZImageWeightsMapper(snapshot: snapshot, logger: logger)
       let textEncoderWeights = try weightsMapper.loadTextEncoder()
-      try ZImageWeightsMapping.applyTextEncoder(weights: textEncoderWeights, to: textEncoder, manifest: self.quantManifest, logger: logger)
+      try ZImageWeightsMapping.applyTextEncoder(weights: textEncoderWeights, to: textEncoder, manifest: self.quantManifest, logger: logger)  // ZEPHRA-PATCH: a failed apply throws
       var finalPrompt = request.prompt
       var enhancedPromptForCache: String? = nil
       if request.enhancePrompt {
@@ -828,7 +830,7 @@ public class ZImageControlPipeline {
       let weightsMapper = ZImageWeightsMapper(snapshot: snapshot, logger: logger)
       let transformerModel = try loadControlTransformer(snapshot: snapshot, config: modelConfigs.transformer)
       let transformerWeights = try weightsMapper.loadTransformer()
-      try ZImageControlWeightsMapping.applyControlTransformer(
+      try ZImageControlWeightsMapping.applyControlTransformer(  // ZEPHRA-PATCH: a failed apply throws
         weights: transformerWeights,
         to: transformerModel,
         manifest: quantManifest,
@@ -843,7 +845,7 @@ public class ZImageControlPipeline {
           preferredFile: request.controlnetWeightsFile,
           progressCallback: request.progressCallback
         )
-        try ZImageControlWeightsMapping.applyControlnetWeights(
+        try ZImageControlWeightsMapping.applyControlnetWeights(  // ZEPHRA-PATCH: a failed apply throws
           weights: result.weights,
           to: self.transformer!,
           manifest: result.manifest,
@@ -908,7 +910,7 @@ public class ZImageControlPipeline {
     guard let outputPath = request.outputPath else {
       throw PipelineError.outputPathRequired
     }
-    let decoded = decodeLatents(latents, vae: vae, height: request.height, width: request.width)
+    let decoded = try decodeLatents(latents, vae: vae, height: request.height, width: request.width)  // ZEPHRA-PATCH: stop between VAE tiles
     try QwenImageIO.saveImage(array: decoded, to: outputPath)
     logger.info("Wrote image to \(outputPath.path)")
     return outputPath
@@ -948,12 +950,12 @@ public class ZImageControlPipeline {
       logger.info("Loading VAE...")
       let vae = try loadVAE(snapshot: snapshot, config: modelConfigs.vae)
       let vaeWeights = try weightsMapper.loadVAE()
-      try ZImageWeightsMapping.applyVAE(weights: vaeWeights, to: vae, manifest: quantManifest, logger: logger)
+      try ZImageWeightsMapping.applyVAE(weights: vaeWeights, to: vae, manifest: quantManifest, logger: logger)  // ZEPHRA-PATCH: a failed apply throws
       self.vae = vae
       logger.info("Loading control transformer...")
       let transformer = try loadControlTransformer(snapshot: snapshot, config: modelConfigs.transformer)
       let transformerWeights = try weightsMapper.loadTransformer()
-      try ZImageControlWeightsMapping.applyControlTransformer(
+      try ZImageControlWeightsMapping.applyControlTransformer(  // ZEPHRA-PATCH: a failed apply throws
         weights: transformerWeights,
         to: transformer,
         manifest: quantManifest,
@@ -972,7 +974,7 @@ public class ZImageControlPipeline {
       logger.info("Loading control transformer...")
       let transformer = try loadControlTransformer(snapshot: snapshot, config: modelConfigs.transformer)
       let transformerWeights = try weightsMapper.loadTransformer()
-      try ZImageControlWeightsMapping.applyControlTransformer(
+      try ZImageControlWeightsMapping.applyControlTransformer(  // ZEPHRA-PATCH: a failed apply throws
         weights: transformerWeights,
         to: transformer,
         manifest: quantManifest,
@@ -991,7 +993,7 @@ public class ZImageControlPipeline {
           preferredFile: request.controlnetWeightsFile,
           progressCallback: request.progressCallback
         )
-        try ZImageControlWeightsMapping.applyControlnetWeights(
+        try ZImageControlWeightsMapping.applyControlnetWeights(  // ZEPHRA-PATCH: a failed apply throws
           weights: result.weights,
           to: self.transformer!,
           manifest: result.manifest,
@@ -1052,7 +1054,7 @@ public class ZImageControlPipeline {
       let textEncoder = try loadTextEncoder(snapshot: snapshot, config: modelConfigs.textEncoder)
       let weightsMapper = ZImageWeightsMapper(snapshot: snapshot, logger: logger)
       let textEncoderWeights = try weightsMapper.loadTextEncoder()
-      try ZImageWeightsMapping.applyTextEncoder(weights: textEncoderWeights, to: textEncoder, manifest: self.quantManifest, logger: logger)
+      try ZImageWeightsMapping.applyTextEncoder(weights: textEncoderWeights, to: textEncoder, manifest: self.quantManifest, logger: logger)  // ZEPHRA-PATCH: a failed apply throws
       var finalPrompt = request.prompt
       var enhancedPromptForCache: String? = nil
       if request.enhancePrompt {
@@ -1149,7 +1151,7 @@ public class ZImageControlPipeline {
       let weightsMapper = ZImageWeightsMapper(snapshot: snapshot, logger: logger)
       let transformerModel = try loadControlTransformer(snapshot: snapshot, config: modelConfigs.transformer)
       let transformerWeights = try weightsMapper.loadTransformer()
-      try ZImageControlWeightsMapping.applyControlTransformer(
+      try ZImageControlWeightsMapping.applyControlTransformer(  // ZEPHRA-PATCH: a failed apply throws
         weights: transformerWeights,
         to: transformerModel,
         manifest: quantManifest,
@@ -1164,7 +1166,7 @@ public class ZImageControlPipeline {
           preferredFile: request.controlnetWeightsFile,
           progressCallback: request.progressCallback
         )
-        try ZImageControlWeightsMapping.applyControlnetWeights(
+        try ZImageControlWeightsMapping.applyControlnetWeights(  // ZEPHRA-PATCH: a failed apply throws
           weights: result.weights,
           to: self.transformer!,
           manifest: result.manifest,
@@ -1226,14 +1228,14 @@ public class ZImageControlPipeline {
     ))
     logger.info("Denoising complete, decoding latents...")
     GPU.clearCache()
-    let decoded = decodeLatents(latents, vae: vae, height: request.height, width: request.width)
+    let decoded = try decodeLatents(latents, vae: vae, height: request.height, width: request.width)  // ZEPHRA-PATCH: stop between VAE tiles
     let imageData = try QwenImageIO.imageData(from: decoded)
     logger.info("Generated image data (\(imageData.count) bytes)")
     return imageData
   }
   #endif
-  private func decodeLatents(_ latents: MLXArray, vae: AutoencoderKL, height: Int, width: Int) -> MLXArray {
-    PipelineUtilities.decodeLatents(latents, vae: vae, height: height, width: width)
+  private func decodeLatents(_ latents: MLXArray, vae: AutoencoderKL, height: Int, width: Int) throws -> MLXArray {  // ZEPHRA-PATCH: stop between VAE tiles
+    try PipelineUtilities.decodeLatents(latents, vae: vae, height: height, width: width)  // ZEPHRA-PATCH: stop between VAE tiles
   }
   private struct ControlnetWeightsResult {
     let weights: [String: MLXArray]
@@ -1354,8 +1356,8 @@ public enum ZImageControlWeightsMapping {
     }
     return mapped
   }
-  private static func applyToModule(_ module: Module, weights: [String: MLXArray], prefix: String, logger: Logger) throws {
-    try applyToModule(module, weights: weights, prefix: prefix, logger: logger, tensorNameTransform: nil)
+  private static func applyToModule(_ module: Module, weights: [String: MLXArray], prefix: String, logger: Logger) throws {  // ZEPHRA-PATCH: a failed apply throws WeightsApplyError; see VENDORED.md.
+    try applyToModule(module, weights: weights, prefix: prefix, logger: logger, tensorNameTransform: nil)  // ZEPHRA-PATCH: a failed apply throws
   }
   private static func applyToModule(
     _ module: Module,
@@ -1363,7 +1365,7 @@ public enum ZImageControlWeightsMapping {
     prefix: String,
     logger: Logger,
     tensorNameTransform: ((String) -> String)?
-  ) throws {
+  ) throws {  // ZEPHRA-PATCH: a failed apply throws WeightsApplyError; see VENDORED.md.
     let params = module.parameters().flattened()
     var updates: [(String, MLXArray)] = []
     for (key, _) in params {
@@ -1410,14 +1412,14 @@ public enum ZImageControlWeightsMapping {
       }
     }
     if updates.isEmpty {
-      throw WeightsApplyError.noMatchingWeights(component: prefix)
+      throw WeightsApplyError.noMatchingWeights(component: prefix)  // ZEPHRA-PATCH: was a warning
     }
     do {
       let nd = ModuleParameters.unflattened(updates)
       try module.update(parameters: nd, verify: [.shapeMismatch])
     } catch {
       logger.error("Failed to apply weights to \(prefix): \(error)")
-      throw WeightsApplyError.applyFailed(component: prefix, reason: String(describing: error))
+      throw WeightsApplyError.applyFailed(component: prefix, reason: String(describing: error))  // ZEPHRA-PATCH: was swallowed
     }
   }
   public static func applyControlTransformer(
@@ -1425,7 +1427,7 @@ public enum ZImageControlWeightsMapping {
     to transformer: ZImageControlTransformer2DModel,
     manifest: ZImageQuantizationManifest?,
     logger: Logger
-  ) throws {
+  ) throws {  // ZEPHRA-PATCH: a failed apply throws WeightsApplyError; see VENDORED.md.
     if let manifest = manifest {
       let availableKeys = Set(weights.keys)
       ZImageQuantizer.applyQuantization(
@@ -1455,7 +1457,7 @@ public enum ZImageControlWeightsMapping {
     to transformer: ZImageControlTransformer2DModel,
     manifest: ZImageQuantizationManifest?,
     logger: Logger
-  ) throws {
+  ) throws {  // ZEPHRA-PATCH: a failed apply throws WeightsApplyError; see VENDORED.md.
     let isQuantized = manifest != nil
     if let manifest = manifest {
       let availableKeys = Set(weights.keys)
@@ -1470,7 +1472,7 @@ public enum ZImageControlWeightsMapping {
     for (idx, block) in transformer.controlNoiseRefiner.enumerated() {
       if isQuantized {
         let prefix = "controlNoiseRefiner.\(idx)"
-        try applyToModule(
+        try applyToModule(  // ZEPHRA-PATCH: a failed apply throws
           block, weights: weights,
           prefix: prefix,
           logger: logger,
@@ -1484,7 +1486,7 @@ public enum ZImageControlWeightsMapping {
     for (idx, block) in transformer.controlLayers.enumerated() {
       if isQuantized {
         let prefix = "controlLayers.\(idx)"
-        try applyToModule(
+        try applyToModule(  // ZEPHRA-PATCH: a failed apply throws
           block, weights: weights,
           prefix: prefix,
           logger: logger,

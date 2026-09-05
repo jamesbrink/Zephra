@@ -2,6 +2,7 @@ import Foundation
 import MLX
 import MLXNN
 
+// ZEPHRA-PATCH: SDEdit's `encodeImageToLatents` below takes a CGImage.
 #if canImport(CoreGraphics)
 import CoreGraphics
 #endif
@@ -38,8 +39,8 @@ public enum PipelineUtilities {
         vae: AutoencoderKL,
         height: Int,
         width: Int
-    ) -> MLXArray {
-        let (decoded, _) = vae.decode(latents)
+    ) throws -> MLXArray {  // ZEPHRA-PATCH: stop between VAE tiles
+        let (decoded, _) = try vae.decode(latents)  // ZEPHRA-PATCH: stop between VAE tiles
         var image = decoded
         if height != decoded.dim(2) || width != decoded.dim(3) {
             var nhwc = image.transposed(0, 2, 3, 1)

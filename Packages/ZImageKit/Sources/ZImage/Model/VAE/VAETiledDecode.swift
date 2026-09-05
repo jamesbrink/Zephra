@@ -40,13 +40,14 @@ public enum VAETiledDecode {
   ///   - latents: the latent, already in NHWC and already scaled and shifted.
   ///   - tile: tile edge in latent space.
   ///   - scale: how many pixels one latent cell becomes along each edge.
-  ///   - body: the untiled decoder.
+  ///   - body: the untiled decoder. It may throw, which is how a caller stops between tiles:
+  ///     a 1024-pixel decode is seconds, and Stop should not wait for it.
   static func decode(
     _ latents: MLXArray,
     tile: Int,
     scale: Int,
-    body: (MLXArray) -> MLXArray
-  ) -> MLXArray {
+    body: (MLXArray) throws -> MLXArray  // ZEPHRA-PATCH: stop between VAE tiles
+  ) rethrows -> MLXArray {  // ZEPHRA-PATCH: stop between VAE tiles
     let height = latents.dim(1)
     let width = latents.dim(2)
     // Stride is rounded once, in latent cells, and the pixel counts follow from it: a tile
@@ -62,7 +63,7 @@ public enum VAETiledDecode {
       for left in Swift.stride(from: 0, to: width, by: stride) {
         let patch = latents[
           0..., top ..< Swift.min(top + tile, height), left ..< Swift.min(left + tile, width), 0...]
-        let decoded = body(patch)
+        let decoded = try body(patch)  // ZEPHRA-PATCH: stop between VAE tiles
         MLX.eval(decoded)
         row.append(decoded)
       }

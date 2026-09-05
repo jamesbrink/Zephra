@@ -109,24 +109,19 @@ struct VAEParityTests {
         // smallest tile below and large enough for the blending to have work to do.
         let packed = Self.noise([1, 16, 32, 32])
         let whole = model.decodePacked(packed)
-        let restore = Flux2Autoencoder.latentTile
-        defer { Flux2Autoencoder.latentTile = restore }
 
         // The tile is measured on the unpacked latent, so a 16-cell tile is 128 pixels here and
         // would be 128 pixels in the real model too. Getting that scale wrong -- reading it off
         // the published model's eight rather than off this configuration's two -- reassembles
         // the tiles into an image of the wrong size, which is what this pins.
-        Flux2Autoencoder.latentTile = 16
-        let quarters = model.decodePacked(packed)
+        let quarters = model.decodePacked(packed, tile: 16)
         #expect(quarters.shape == whole.shape)
 
-        Flux2Autoencoder.latentTile = 48
-        let wide = model.decodePacked(packed)
+        let wide = model.decodePacked(packed, tile: 48)
         #expect(wide.shape == whole.shape)
 
         // A tile at least as wide as the latent is not a tiling at all, and takes the exact path.
-        Flux2Autoencoder.latentTile = 64
-        #expect(Fixture.maxAbsoluteDifference(model.decodePacked(packed), whole) == 0)
+        #expect(Fixture.maxAbsoluteDifference(model.decodePacked(packed, tile: 64), whole) == 0)
 
         // Tiling is an approximation because the group norms take their statistics over
         // whatever they are given, so a tile normalises against a tile. That error shrinks as

@@ -1,6 +1,8 @@
 import Foundation
 import MLX
+import MLXFast
 import MLXNN
+import ZephraMLX
 
 /// One dual-stream MMDiT block, instantiated sixty times.
 ///
@@ -40,8 +42,8 @@ final class QwenImageTransformerBlock: Module {
         let textParameters = textModulation(conditioning)
 
         let attended = attention(
-            image: imageParameters.attention.modulate(QwenImageLayerNorm.applied(to: image, eps: eps)),
-            text: textParameters.attention.modulate(QwenImageLayerNorm.applied(to: text, eps: eps)),
+            image: imageParameters.attention.modulate(MLXFast.layerNorm(image, weight: nil, bias: nil, eps: eps)),
+            text: textParameters.attention.modulate(MLXFast.layerNorm(text, weight: nil, bias: nil, eps: eps)),
             imageFrequencies: imageFrequencies,
             textFrequencies: textFrequencies
         )
@@ -51,11 +53,11 @@ final class QwenImageTransformerBlock: Module {
         imageStream =
             imageStream
             + imageParameters.feedForward.gate
-            * imageFeedForward(imageParameters.feedForward.modulate(QwenImageLayerNorm.applied(to: imageStream, eps: eps)))
+            * imageFeedForward(imageParameters.feedForward.modulate(MLXFast.layerNorm(imageStream, weight: nil, bias: nil, eps: eps)))
         textStream =
             textStream
             + textParameters.feedForward.gate
-            * textFeedForward(textParameters.feedForward.modulate(QwenImageLayerNorm.applied(to: textStream, eps: eps)))
+            * textFeedForward(textParameters.feedForward.modulate(MLXFast.layerNorm(textStream, weight: nil, bias: nil, eps: eps)))
 
         return (image: imageStream, text: textStream)
     }

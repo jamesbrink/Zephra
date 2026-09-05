@@ -17,13 +17,21 @@ let package = Package(
     targets: [
         // Packing weights is the same job whatever produced them: read a safetensors shard,
         // decide a precision per tensor, pack, spill. Only the decision is family-specific,
-        // and that arrives as a QuantizationPlan.
+        // and that arrives as a QuantizationPlan. ZephraCore and ZephraSnapshot are for the
+        // one build every family runs the same way: a descriptor's plan into its `.partial`
+        // directory, tallied for progress and stamped with its provenance.
         .target(
             name: "ZephraQuantization",
-            dependencies: [.product(name: "MLX", package: "mlx-swift")]
+            dependencies: [
+                .product(name: "MLX", package: "mlx-swift"),
+                .product(name: "ZephraCore", package: "ZephraKit"),
+                .product(name: "ZephraSnapshot", package: "ZephraKit"),
+            ]
         ),
-        // MLX work that is the same job for every family and knows nothing about any of them.
-        // A model package may depend on this; nothing here may depend on a model package.
+        // MLX work that is the same job for every family and knows nothing about any of them:
+        // the loader, the manifest reader, the rotary table, the pixel packer, the tiled decode,
+        // the allocator's knobs and the streamed layer stack. A model package may depend on
+        // this; nothing here may depend on a model package.
         .target(
             name: "ZephraMLX",
             dependencies: [

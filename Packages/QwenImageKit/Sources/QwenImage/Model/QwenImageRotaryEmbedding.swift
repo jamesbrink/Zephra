@@ -1,5 +1,6 @@
 import Foundation
 import MLX
+import ZephraMLX
 
 /// Qwen-Image's multimodal rotary position embedding.
 ///

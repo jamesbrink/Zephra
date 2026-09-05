@@ -390,6 +390,7 @@ public final class QwenTokenizer {
     return prefix + trimmedContent + suffix
   }
 
+  // ZEPHRA-PATCH: the pad-to-multiple-of-32 change above, its knob and its helpers.
   /// Restores the old pad-to-the-limit behaviour when `ZEPHRA_PAD_PROMPT=full` is set, so the
   /// saving can be measured without a rebuild.
   private static let padsToLimit =

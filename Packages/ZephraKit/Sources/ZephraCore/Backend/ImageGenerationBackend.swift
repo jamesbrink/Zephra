@@ -14,6 +14,12 @@ public protocol ImageGenerationBackend: AnyObject {
     /// The descriptor identifier currently held in memory, or nil when nothing is loaded.
     var loadedModelID: String? { get }
 
+    /// How the loaded weights are actually held — what `load` did, not what it was asked —
+    /// or nil when nothing is loaded or the backend cannot say. A family that cannot stream
+    /// answers `.resident` whatever residency it was handed, which is what lets a report say
+    /// what ran rather than what was requested.
+    var loadedResidency: WeightResidency? { get }
+
     /// Whether the weights for `descriptor` are already on this Mac, looking in `locations` and
     /// nowhere the user did not ask for. Reads the disk and nothing else: it must never
     /// download, and it must leave whatever is loaded exactly as it was, so a picker can label
@@ -70,6 +76,9 @@ public protocol ImageGenerationBackend: AnyObject {
 }
 
 extension ImageGenerationBackend {
+    /// A backend that does not say how its weights are held.
+    public var loadedResidency: WeightResidency? { nil }
+
     /// Loads with the weights resident, for the callers that never stream: the benchmark's
     /// default, the quantizer, and the tests.
     public nonisolated(nonsending) func load(

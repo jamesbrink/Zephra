@@ -569,9 +569,11 @@ Zephra/
 │   │   ├── Sources/ZephraSnapshot/      # the model downloader, snapshot checks, what is on disk
 │   │   └── Tests/ZephraCoreTests, ZephraEngineTests, ZephraSnapshotTests
 │   ├── ZephraMLXKit/              # ours — MLX work no family owns
-│   │   ├── Sources/ZephraQuantization/  # the streaming weight packer every family drives
-│   │   └── Sources/ZephraMLX/           # the tiled decode, the allocator's knobs, the preview
-│   │       └── Streaming/               # pooling, and the streamed layer stack
+│   │   ├── Sources/ZephraQuantization/  # the streaming weight packer every family drives, and the one catalog build
+│   │   └── Sources/ZephraMLX/           # the tiled decode, the allocator's knobs, the preview pooling, the pixel packer
+│   │       ├── Loading/                 # the packed-weight loader, the manifest reader, a component's shards
+│   │       ├── Rotary/                  # the rotary table both ports build, and its one rotate
+│   │       └── Streaming/               # the streamed layer stack
 │   ├── ZephraBackendZImage/       # ours — the only package that imports ZImage
 │   ├── ZephraBackendQwenImage/    # ours — the only package that imports QwenImage
 │   ├── ZephraBackendFlux2/        # ours — the only package that imports Flux2; builds on first load
@@ -633,12 +635,21 @@ Zephra/
   catalog entry is stamped with the provenance the app checks, so it is loaded as the
   app's own.
 - `make lint-layers` — check the module boundaries above. Run it before every commit.
+- `make vendored-diff` — diff the vendored `ZImageKit` against upstream at its pinned
+  commit and fail on any change without a `ZEPHRA-PATCH` marker.
 - `make bench ARGS="..."` — headless timing (`--size`, `--steps`, `--runs`, `--model`,
-  `--prompt`, `--json`, `--out`, `--micro` for the DiT's kernels alone, `--reference`
-  to time the editing path, `--strength`, `--preview` to turn the live frames on and
-  time them, `--stream` and `--stream-depth N` to measure the weights read from disk,
-  `--backend` and `--snapshot` to time a snapshot the catalog does not list). Benchmark
-  on an idle machine, Release only.
+  `--prompt`, `--json`, `--out`, `--micro` for the DiT's kernels alone — it follows
+  `--model`, and only Z-Image has one, so another family is refused rather than timed
+  under the wrong name — `--reference` to time the editing path, `--strength` (truncated
+  to a share of the steps, never fewer than one, and clamped into the model's 0.1–0.9),
+  `--preview` to turn the live frames on and time them, `--stream` and `--stream-depth N`
+  to measure the weights read from disk, `--backend` and `--snapshot` to time a snapshot
+  the catalog does not list). The Makefile passes `--models "$(MODELS_DIR)"`, so the
+  bench looks in the folder Settings > Models names rather than downloading a model the
+  app already has; the report's `weights` line is what the backend says it loaded
+  (`loadedResidency`), not what `--stream` asked for. Every `ZEPHRA_*` switch is read
+  once at start-up into `InferenceEnvironment`. Benchmark on an idle machine, Release
+  only.
 - `make logs` streams the app's log; `make screenshot` captures the window
   (`WINDOW=General` captures a Settings tab by its title instead), and
   `swift scripts/ax-press.swift "<title>"` presses a control in the running app

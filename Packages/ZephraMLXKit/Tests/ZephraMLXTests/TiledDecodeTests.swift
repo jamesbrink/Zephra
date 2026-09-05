@@ -54,6 +54,27 @@ struct TiledDecodeTests {
         #expect(MLX.abs(tiled - exact).max().item(Float.self) < 1e-6)
     }
 
+    @Test("the overlap is a linear ramp from the earlier tile into the later one")
+    func theOverlapIsALinearRamp() {
+        // A tile of 16 strides by 12 and keeps 12; a latent 24 wide is exactly two tiles. The
+        // decoder answers a constant per call — 0 for the first tile, 1 for the second — so
+        // the only thing in the output is the blend itself: twelve zeros, then the four
+        // overlapping columns ramping 0, 1/4, 1/2, 3/4, then eight ones. A reversed ramp, a
+        // missing one, or one measured on the wrong side would each read differently.
+        let latents = MLXArray.zeros([1, 1, 24, 4])
+        var calls = 0
+        let tiled = TiledDecode.run(latents, tile: 16, scale: 1) { patch in
+            defer { calls += 1 }
+            return MLXArray.full([1, 1, patch.dim(2), 3], values: MLXArray(Float(calls)))
+        }
+        MLX.eval(tiled)
+        #expect(calls == 2)
+        #expect(tiled.shape == [1, 1, 24, 3])
+        let row = tiled[0, 0, 0..., 0].asArray(Float.self)
+        let expected: [Float] = [Float](repeating: 0, count: 12) + [0, 0.25, 0.5, 0.75] + [Float](repeating: 1, count: 8)
+        #expect(row == expected)
+    }
+
     /// A smoothly varying latent, so a seam shows up as a difference rather than as noise.
     private static func latent(height: Int, width: Int) -> MLXArray {
         let rows = MLXArray(0..<height, [1, height, 1, 1]).asType(.float32) / Float(height)

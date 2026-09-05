@@ -3,6 +3,7 @@ import Foundation
 import ImageIO
 import MLX
 import Testing
+import ZephraMLX
 
 @testable import Flux2
 
@@ -24,8 +25,8 @@ struct PixelBufferTests {
     @Test("an image survives the trip out to PNG and back to within a step of 255")
     func roundTrip() throws {
         let pixels = MLXRandom.uniform(low: -1, high: 1, [1, 48, 64, 3], key: MLXRandom.key(5))
-        let png = try Flux2PixelBuffer.png(from: pixels)
-        let back = try Flux2PixelBuffer.pixels(from: png)
+        let png = try PixelBuffer.png(from: pixels)
+        let back = try Flux2PixelBuffer.pixels(from: png, alignment: 16)
         #expect(back.shape == [1, 3, 48, 64])
         #expect(Fixture.maxAbsoluteDifference(back.transposed(0, 2, 3, 1), pixels) < 2.0 / 255)
     }
@@ -37,7 +38,7 @@ struct PixelBufferTests {
             (1536, 512, 1536, 512), (1000, 600, 992, 592),
         ]
         for (width, height, fittedWidth, fittedHeight) in cases {
-            let target = Flux2ImageFitting.target(width: width, height: height)
+            let target = Flux2ImageFitting.target(width: width, height: height, alignment: 16)
             #expect(target.width == fittedWidth && target.height == fittedHeight,
                     Comment(rawValue: "\(width)x\(height) -> \(target.width)x\(target.height)"))
             #expect(target.width % 16 == 0 && target.height % 16 == 0)
@@ -48,7 +49,7 @@ struct PixelBufferTests {
     @Test("the trim is a centre crop, never a black bar down one edge")
     func cropNotLetterbox() throws {
         let png = try Self.solidPNG(width: 1000, height: 600, red: 0.8)
-        let pixels = try Flux2PixelBuffer.pixels(from: png)
+        let pixels = try Flux2PixelBuffer.pixels(from: png, alignment: 16)
         #expect(pixels.shape == [1, 3, 592, 992])
         // A letterboxed edge would sit at -1; a solid picture has one value everywhere.
         let spread = (MLX.max(pixels[0, 0]) - MLX.min(pixels[0, 0])).item(Float.self)
@@ -59,7 +60,7 @@ struct PixelBufferTests {
     @Test("bytes that are not a picture are refused, not decoded into something")
     func unreadable() {
         #expect(throws: Flux2PipelineError.unreadableReference) {
-            try Flux2PixelBuffer.pixels(from: Data([1, 2, 3, 4]))
+            try Flux2PixelBuffer.pixels(from: Data([1, 2, 3, 4]), alignment: 16)
         }
     }
 }

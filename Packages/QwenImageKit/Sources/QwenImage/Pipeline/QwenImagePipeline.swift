@@ -1,6 +1,7 @@
 import Foundation
 import MLX
 import MLXRandom
+import ZephraMLX
 
 /// Runs Qwen-Image: prompt in, PNG out.
 ///
@@ -17,11 +18,9 @@ public final class QwenImagePipeline {
         let textEncoder: Qwen25TextEncoder
         let transformer: QwenImageTransformer
         let autoencoder: QwenImageAutoencoder
+        /// What the stream is held in, decided once at load; see `QwenImageTransformerPrecision`.
+        let activation: DType
     }
-
-    /// The image size must be a whole number of patches, which is the VAE's eightfold
-    /// compression times the transformer's 2x2 patch.
-    public static let sizeAlignment = 16
 
     public init() {}
 
@@ -45,7 +44,7 @@ public final class QwenImagePipeline {
         onPreview: PreviewHandler? = nil
     ) throws -> Data {
         guard let model = loaded else { throw QwenImagePipelineError.notLoaded }
-        let alignment = Self.sizeAlignment
+        let alignment = model.configuration.sizeAlignment
         guard request.width % alignment == 0, request.height % alignment == 0 else {
             throw QwenImagePipelineError.unalignedSize(
                 width: request.width, height: request.height, alignment: alignment)
@@ -81,7 +80,7 @@ public final class QwenImagePipeline {
 
         // Noise and conditioning enter the loop in the stream's dtype: MLX promotes, so a
         // float32 noise would run every block in float32 whatever the weights are.
-        let dtype = QwenImageTransformerPrecision.activation
+        let dtype = model.activation
         let noise = QwenImageLatentPacking.pack(
             MLXRandom.normal(
                 [1, model.configuration.vae.zDim, latentHeight, latentWidth],
@@ -109,8 +108,8 @@ public final class QwenImagePipeline {
         onProgress(QwenImageGenerationProgress(stage: .decoding))
         let unpacked = QwenImageLatentPacking.unpack(
             latents, height: latentHeight, width: latentWidth)
-        let pixels = model.autoencoder.decode(unpacked)
+        let pixels = model.autoencoder.decode(unpacked, tile: request.vaeTile)
         MLX.eval(pixels)
-        return try QwenPixelBuffer.png(from: pixels)
+        return try PixelBuffer.png(from: pixels)
     }
 }

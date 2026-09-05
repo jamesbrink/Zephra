@@ -20,6 +20,8 @@ public struct Flux2GenerationRequest: Hashable, Sendable {
     public var maxPromptTokens: Int
     /// A picture to edit, as PNG bytes, or nil to start from noise.
     public var referenceImage: Data?
+    /// The latent tile edge the autoencoder decodes in, or nil for the exact, untiled decode.
+    public var vaeTile: Int?
 
     /// Creates a request.
     public init(
@@ -29,7 +31,8 @@ public struct Flux2GenerationRequest: Hashable, Sendable {
         steps: Int,
         seed: UInt64,
         maxPromptTokens: Int,
-        referenceImage: Data? = nil
+        referenceImage: Data? = nil,
+        vaeTile: Int? = nil
     ) {
         self.prompt = prompt
         self.width = width
@@ -38,5 +41,6 @@ public struct Flux2GenerationRequest: Hashable, Sendable {
         self.seed = seed
         self.maxPromptTokens = maxPromptTokens
         self.referenceImage = referenceImage
+        self.vaeTile = vaeTile
     }
 }

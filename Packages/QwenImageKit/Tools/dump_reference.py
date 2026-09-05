@@ -363,6 +363,18 @@ def dump_tokenizer(out: pathlib.Path, tokenizer_directory: pathlib.Path | None) 
     print(f"tokenizer: {len(cases)} cases, prefix {prefix_count}")
 
 
+def write_versions(out: pathlib.Path) -> None:
+    """Records which versions of the reference stack wrote the fixtures beside it."""
+    import json
+    from importlib.metadata import version
+
+    packages = ["torch", "diffusers", "transformers", "tokenizers", "safetensors", "numpy"]
+    (out / "versions.json").write_text(
+        json.dumps({name: version(name) for name in packages}, indent=2) + "\n"
+    )
+    print("versions: " + ", ".join(f"{name} {version(name)}" for name in packages))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", required=True, type=pathlib.Path)
@@ -390,6 +402,7 @@ def main() -> None:
         if arguments.only and name not in arguments.only:
             continue
         dumper(arguments.out)
+    write_versions(arguments.out)
 
 
 if __name__ == "__main__":

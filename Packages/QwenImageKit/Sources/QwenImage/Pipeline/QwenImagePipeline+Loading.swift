@@ -13,12 +13,13 @@ extension QwenImagePipeline {
     /// here and stays.
     ///
     /// The text encoder's and the transformer's float32 parameters — the packer's scales and
-    /// biases — are cast to the activation dtype here, before a stream is attached, so a
-    /// streamed pass hands back the cast nodes rather than the shards' float32. The
-    /// autoencoder is left in float32 on purpose: its decode is the peak and not the step,
-    /// and the VAE and preview fixtures are float32.
+    /// biases — are cast to `activation` here, before a stream is attached, so a streamed pass
+    /// hands back the cast nodes rather than the shards' float32. The autoencoder is left in
+    /// float32 on purpose: its decode is the peak and not the step, and the VAE and preview
+    /// fixtures are float32. `activation` is the host's choice; the kit reads no environment.
     public func loadModel(
         at snapshot: URL,
+        activation: DType = QwenImageTransformerPrecision.defaultActivation,
         streaming: QwenImageStreaming? = nil,
         onProgress: (QwenImageGenerationProgress) -> Void = { _ in }
     ) throws {
@@ -26,39 +27,42 @@ extension QwenImagePipeline {
         onProgress(QwenImageGenerationProgress(stage: .loading))
 
         let configuration = try QwenImageConfiguration(readingFrom: snapshot)
-        let manifest = try QwenImageQuantizationManifest.read(from: snapshot)
-        let activation = QwenImageTransformerPrecision.activation
+        let manifest = try PackedSnapshotManifest.read(from: snapshot)
 
         let textEncoderDirectory = snapshot.appending(path: "text_encoder")
         let textEncoder = Qwen25TextEncoder(configuration.textEncoder)
-        try QwenImageWeightLoading.load(
+        try PackedWeightLoading.load(
             into: textEncoder,
-            weights: try QwenImageWeightLoading.weights(in: textEncoderDirectory),
-            manifest: manifest
+            weights: QwenImageTransformerWeights.sanitized(
+                try SafetensorsShards.weights(in: textEncoderDirectory)),
+            manifest: manifest,
+            checkpointName: QwenImageTransformerWeights.checkpointName(of:)
         )
-        QwenImageWeightLoading.castFloatParameters(of: textEncoder, to: activation)
+        PackedWeightLoading.castFloatParameters(of: textEncoder, to: activation)
         if let streaming {
             textEncoder.model.stream = try LayerWeightStream(
                 layers: textEncoder.model.layers,
                 keyPrefix: QwenImageResidentParameters.textEncoderLayers,
-                index: ShardIndex(shards: QwenImageWeightLoading.shards(in: textEncoderDirectory)),
+                index: ShardIndex(shards: SafetensorsShards.shards(in: textEncoderDirectory)),
                 depth: streaming.depth
             )
         }
 
         let transformerDirectory = snapshot.appending(path: "transformer")
         let transformer = QwenImageTransformer(configuration.transformer)
-        try QwenImageWeightLoading.load(
+        try PackedWeightLoading.load(
             into: transformer,
-            weights: try QwenImageWeightLoading.weights(in: transformerDirectory),
-            manifest: manifest
+            weights: QwenImageTransformerWeights.sanitized(
+                try SafetensorsShards.weights(in: transformerDirectory)),
+            manifest: manifest,
+            checkpointName: QwenImageTransformerWeights.checkpointName(of:)
         )
-        QwenImageWeightLoading.castFloatParameters(of: transformer, to: activation)
+        PackedWeightLoading.castFloatParameters(of: transformer, to: activation)
         if let streaming {
             transformer.stream = try LayerWeightStream(
                 layers: transformer.blocks,
                 keyPrefix: QwenImageResidentParameters.transformerBlocks,
-                index: ShardIndex(shards: QwenImageWeightLoading.shards(in: transformerDirectory)),
+                index: ShardIndex(shards: SafetensorsShards.shards(in: transformerDirectory)),
                 depth: streaming.depth,
                 checkpointName: QwenImageTransformerWeights.checkpointName(of:)
             )
@@ -66,7 +70,7 @@ extension QwenImagePipeline {
 
         let autoencoder = QwenImageAutoencoder(configuration.vae)
         try autoencoder.load(
-            weights: try QwenImageWeightLoading.weights(in: snapshot.appending(path: "vae")))
+            weights: try SafetensorsShards.weights(in: snapshot.appending(path: "vae")))
 
         loaded = Loaded(
             snapshot: snapshot,
@@ -74,7 +78,8 @@ extension QwenImagePipeline {
             tokenizer: try QwenImageTokenizer(snapshot: snapshot),
             textEncoder: textEncoder,
             transformer: transformer,
-            autoencoder: autoencoder
+            autoencoder: autoencoder,
+            activation: activation
         )
         QwenImageResidentParameters.eval(
             textEncoder: textEncoder, transformer: transformer, autoencoder: autoencoder,
