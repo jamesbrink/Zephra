@@ -18,7 +18,7 @@ struct UseAsReferenceButton: View {
             ReferenceAdoption.adopt(item, into: store)
             workspace.pane = .canvas
         } label: {
-            Text("Use as reference").frame(maxWidth: .infinity)
+            Text("Use as Reference").frame(maxWidth: .infinity)
         }
         .disabled(!store.descriptor.capabilities.supportsReferenceImage)
     }

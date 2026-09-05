@@ -7,7 +7,7 @@ import ZephraEngine
 /// looking for; everything older is named, and a day in another year says which year.
 ///
 /// The word after the count follows the scope, because the grid is not always showing all of
-/// them: under Favourites, six images is six favourites, and saying "6 images" there would be
+/// them: under Favorites, six images is six favourites, and saying "6 images" there would be
 /// counting something that is not on screen.
 struct LibraryDayHeader: View {
     /// The day this header stands over.

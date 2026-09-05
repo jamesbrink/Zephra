@@ -72,7 +72,7 @@ struct CanvasStateView: View {
         if store.isStoppingPreparation {
             Text("Stopping model preparation…").foregroundStyle(.secondary)
         } else if store.state.isBusy {
-            Button(isDownloading ? "Cancel download" : "Stop") { store.cancel() }
+            Button(isDownloading ? "Cancel Download" : "Stop") { store.cancel() }
                 .buttonStyle(.link)
                 .padding(.top, 2)
                 .help(isDownloading ? "Cancel the download and remove its partial files" : "Stop loading the model")
@@ -83,8 +83,8 @@ struct CanvasStateView: View {
     /// a download the user stopped. Absent whenever there is nothing to start.
     private var startLabel: String? {
         switch store.state {
-        case .failed: "Try again"
-        case .idle: store.isSwappingModel ? nil : "Load model"
+        case .failed: "Try Again"
+        case .idle: store.isSwappingModel ? nil : "Load Model"
         default: nil
         }
     }

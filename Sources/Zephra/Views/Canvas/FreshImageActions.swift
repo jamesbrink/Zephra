@@ -22,7 +22,7 @@ struct FreshImageActions: View {
                     .disabled(image.fileURL == nil)
                     .help(image.fileURL?.lastPathComponent ?? ImageFacts.notSaved)
                 if store.descriptor.capabilities.supportsReferenceImage {
-                    button("Use as reference") { ReferenceAdoption.adopt(image, into: store) }
+                    button("Use as Reference") { ReferenceAdoption.adopt(image, into: store) }
                 }
             }
             GridRow {

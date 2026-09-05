@@ -4,7 +4,7 @@ import ZephraEngine
 /// What each collection of the library is called on screen, and the symbol beside it.
 ///
 /// In the app rather than in `ZephraEngine`, because a scope is a value and what it is called
-/// is a matter of copy. The engine has no opinion about the word "Favourites".
+/// is a matter of copy. The engine has no opinion about the word "Favorites".
 extension LibraryScope {
     /// The row's title, for the collections that name themselves.
     var title: String {
@@ -19,7 +19,7 @@ extension LibraryScope {
     func title(albumName: (UUID) -> String?) -> String {
         switch self {
         case .all: "All images"
-        case .favourites: "Favourites"
+        case .favourites: "Favorites"
         case .lastSevenDays: "Last 7 days"
         case .album(let id): albumName(id) ?? "Album"
         case .recentlyDeleted: "Recently deleted"

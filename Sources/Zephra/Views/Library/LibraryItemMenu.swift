@@ -76,6 +76,6 @@ struct LibraryItemMenu: View {
 
     /// A mixed selection is made to agree, so the word is what it is about to become.
     private var favouriteTitle: String {
-        items.allSatisfy(\.isFavourite) ? "Remove from Favourites" : "Add to Favourites"
+        items.allSatisfy(\.isFavourite) ? "Remove from Favorites" : "Add to Favorites"
     }
 }

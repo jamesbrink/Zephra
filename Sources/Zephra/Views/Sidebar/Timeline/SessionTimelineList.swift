@@ -47,7 +47,7 @@ struct SessionTimelineList: View {
             } header: {
                 SectionHeader("Today", detail: "\(runs.reduce(0) { $0 + $1.finishedCount })") {
                     if !store.queue.isEmpty {
-                        Button("Clear queue") { store.clearQueue() }
+                        Button("Clear Queue") { store.clearQueue() }
                             .buttonStyle(.link)
                     }
                 }

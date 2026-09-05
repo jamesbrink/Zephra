@@ -48,7 +48,7 @@ struct LibraryCommands: Commands {
     private var favouriteTitle: String {
         guard let index, !chosen.isEmpty,
               chosen.allSatisfy({ index.item(for: $0)?.isFavourite == true })
-        else { return "Add to Favourites" }
-        return "Remove from Favourites"
+        else { return "Add to Favorites" }
+        return "Remove from Favorites"
     }
 }

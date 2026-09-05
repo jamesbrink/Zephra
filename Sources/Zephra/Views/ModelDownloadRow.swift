@@ -20,11 +20,11 @@ struct ModelDownloadRow: View {
                 switch download.status {
                 case .queued, .downloading:
                     Button("Pause") { store.pauseDownload(download.id) }.disabled(!canStop)
-                    Button("Cancel download") { store.pauseDownload(download.id, discard: true) }.disabled(!canStop)
+                    Button("Cancel Download") { store.pauseDownload(download.id, discard: true) }.disabled(!canStop)
                 case .paused:
                     Button("Resume") { store.resumeDownload(download.model) }
                         .disabled(store.isChangingModelDirectory || store.isChangingImageDirectory || store.isStoppingPreparation || store.isShuttingDown)
-                    Button("Cancel download") { store.pauseDownload(download.id, discard: true) }.disabled(!canStop)
+                    Button("Cancel Download") { store.pauseDownload(download.id, discard: true) }.disabled(!canStop)
                 case .cancelled, .failed:
                     Button(download.status == .paused ? "Resume" : "Retry") { store.resumeDownload(download.model) }
                         .disabled(store.isChangingModelDirectory || store.isChangingImageDirectory || store.isStoppingPreparation || store.isShuttingDown)

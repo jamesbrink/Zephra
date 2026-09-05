@@ -21,8 +21,8 @@ struct FavouriteToggle: View {
         }
         .buttonStyle(.plain)
         .disabled(ids.isEmpty)
-        .help(isFavourite ? "Remove from favourites" : "Add to favourites")
-        .accessibilityLabel(isFavourite ? "Remove from favourites" : "Add to favourites")
+        .help(isFavourite ? "Remove from Favorites" : "Add to Favorites")
+        .accessibilityLabel(isFavourite ? "Remove from Favorites" : "Add to Favorites")
     }
 
     private var isFavourite: Bool {

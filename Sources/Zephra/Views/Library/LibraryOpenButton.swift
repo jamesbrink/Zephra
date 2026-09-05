@@ -1,7 +1,7 @@
 import SwiftUI
 import ZephraEngine
 
-/// "Open in canvas", wherever it is offered: the cell's menu, the inspector, the menu bar.
+/// "Open in Canvas", wherever it is offered: the cell's menu, the inspector, the menu bar.
 ///
 /// A view of its own rather than a repeated `Button`, because opening is the same act in all
 /// three places and only the styling differs — which is inherited, so each caller says how it
@@ -24,7 +24,7 @@ struct LibraryOpenButton: View {
             || store.current?.fileURL?.standardizedFileURL != item.url.standardizedFileURL
         {
             Button { openLibraryItem(item) } label: {
-                Text("Open in canvas").frame(maxWidth: .infinity)
+                Text("Open in Canvas").frame(maxWidth: .infinity)
             }
         }
     }

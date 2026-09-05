@@ -15,7 +15,7 @@ import ZephraEngine
 ///
 /// The Reference row says only that there was one. Showing the picture would mean reading the
 /// whole file to get at its second chunk, and this view is drawn for whatever is selected as
-/// the selection moves; "Use as reference" is where that read belongs, off the main actor and
+/// the selection moves; "Use as Reference" is where that read belongs, off the main actor and
 /// only when it is asked for.
 struct ImageFactsView: View {
     /// The lines to show, already formatted.
