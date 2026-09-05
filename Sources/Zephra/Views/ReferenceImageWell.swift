@@ -25,20 +25,18 @@ struct ReferenceImageWell: View {
                     ReferenceAdoption.adopt(id: reference.id, into: store)
                     return true
                 }
+                // Each drop is a choice made as it is accepted and read off the main actor:
+                // `adoptReference` takes the ticket now and decodes in a detached task, so a
+                // large photo never stalls the drop and a later choice still wins. A file
+                // macOS cannot read leaves whatever was there alone.
                 .dropDestination(for: URL.self) { urls, _ in
-                    // Read inside the closure: a dropped file's read grant lasts the drop.
-                    // A file macOS cannot read leaves whatever was there alone.
-                    guard let url = urls.first,
-                          let png = ReferenceImageEncoder.pngData(contentsOf: url)
-                    else { return false }
-                    ReferenceAdoption.use(png, into: store)
+                    guard let url = urls.first else { return false }
+                    store.adoptReference { ReferenceImageEncoder.pngData(contentsOf: url) }
                     return true
                 }
                 .dropDestination(for: Data.self) { items, _ in
-                    guard let data = items.first,
-                          let png = ReferenceImageEncoder.pngData(from: data)
-                    else { return false }
-                    ReferenceAdoption.use(png, into: store)
+                    guard let data = items.first else { return false }
+                    store.adoptReference { ReferenceImageEncoder.pngData(from: data) }
                     return true
                 }
                 .sheet(isPresented: $isPickerPresented) {
@@ -105,7 +103,8 @@ struct ReferenceImageWell: View {
     }
 
     private func chooseFile() {
-        if let png = ReferenceImagePicker.choose() { ReferenceAdoption.use(png, into: store) }
+        guard let url = ReferenceImagePicker.choose() else { return }
+        store.adoptReference { ReferenceImageEncoder.pngData(contentsOf: url) }
     }
 }
 

@@ -8,8 +8,8 @@ struct ReferenceFileButton: View {
 
     var body: some View {
         Button("Choose File…") {
-            guard let png = ReferenceImagePicker.choose() else { return }
-            ReferenceAdoption.use(png, into: store)
+            guard let url = ReferenceImagePicker.choose() else { return }
+            store.adoptReference { ReferenceImageEncoder.pngData(contentsOf: url) }
             dismiss()
         }
     }
