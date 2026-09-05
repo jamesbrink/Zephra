@@ -58,6 +58,17 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   straight 4-bit build before shipping. The bf16 source is the honest input, and
   disk is the cost: 32.9 GB in, 6.7 GB out, and the packer spills at 4 GB resident, so
   it runs on a 16 GB Mac but wants 40 GB free.
+- **`ZephraQuantize`'s refusals are exercised by hand.** The tool has no test target:
+  `QuantizeOptions.parse` exits on a bad line and `main.swift` is top-level code, so the
+  overlap, adapter-required and precision-name refusals are checked from a shell
+  (`--out` inside `--source`, `--family qwen-image` without `--lora`) rather than by a
+  suite. The checks underneath them — `SnapshotQuantizer.requireDisjoint`,
+  `LoRAAdapter`'s zero-match refusal — are tested in `ZephraQuantizationTests`. A test
+  target would need the parser to return errors instead of exiting.
+- **A build by hand is stamped with provenance only under a catalog name.** `ZephraQuantize`
+  writes `.zephra-packed-source` when `--out`'s last component is a catalog descriptor's id,
+  and nothing otherwise, since there is no descriptor to describe it; a build under another
+  name is still a snapshot the bench's `--snapshot` can time.
 - **A build cannot be resumed.** `SnapshotBuild` writes into a `.partial` directory
   and removes it when the build is stopped, so a Qwen-Image build interrupted at
   nineteen of its twenty-one gigabytes starts over. Keeping it and skipping the

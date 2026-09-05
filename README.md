@@ -270,7 +270,8 @@ Sources/Zephra (SwiftUI app) ─→ ZephraEngine ─→ ZephraCore, ZephraSnapsh
                              ─→ ZephraUpscale<Network> ─→ ZephraCore, ZephraMLX
                                                           [imported in ZephraApp.swift ONLY]
 Sources/ZephraBench (tool)   ─→ ZephraCore, every ZephraBackend<Family>
-Sources/ZephraQuantize (tool)─→ ZephraCore, ZephraQuantization, every ZephraBackend<Family>
+Sources/ZephraQuantize (tool)─→ ZephraCore, ZephraSnapshot, ZephraQuantization,
+                                every ZephraBackend<Family>
 ```
 
 `ZephraCore`, `ZephraSnapshot`, and `ZephraEngine` have zero MLX dependencies,
@@ -613,7 +614,13 @@ Zephra/
   `QWEN_SOURCE` / `QWEN_LORA` / `FLUX2_SOURCE` say what it is built from. `ARGS` passes
   anything else to the tool, such as `--text-encoder-bits 8` to hold the text encoder at
   a different precision from the transformer. Worth using for benchmarking, or to build
-  from a source kept off the boot volume.
+  from a source kept off the boot volume. The tool refuses an output that is the source
+  or inside it, builds into a sibling `.partial` that is renamed into place only when it
+  finishes (^C stops it and removes the partial), and requires `--lora` for Qwen-Image,
+  whose four-step distillation is the adapter: `--no-lora` with an `--out` other than
+  the catalog's directory builds the undistilled model on purpose. A build named for a
+  catalog entry is stamped with the provenance the app checks, so it is loaded as the
+  app's own.
 - `make lint-layers` — check the module boundaries above. Run it before every commit.
 - `make bench ARGS="..."` — headless timing (`--size`, `--steps`, `--runs`, `--model`,
   `--prompt`, `--json`, `--out`, `--micro` for the DiT's kernels alone, `--reference`
