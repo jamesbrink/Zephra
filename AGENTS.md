@@ -788,6 +788,16 @@ Makefile targets:
   (hardened runtime, secure timestamp), verify, and package `build/Zephra.zip` plus
   signed `build/Zephra.dmg` with an Applications shortcut. Secure timestamping
   needs Apple's server. `SIGN_IDENTITY` overrides the auto-detected certificate.
+  `VERSION=MAJOR.MINOR.PATCH` and `BUILD_NUMBER=<positive integer>` stamp the
+  bundle (`MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`, passed to `xcodebuild`
+  on the command line and refused by `build` when malformed); without them the
+  build carries `project.yml`'s defaults, which is what an ordinary build gets
+  and where they are never bumped for a release. The app is unsandboxed and
+  Developer ID only, never an App Store build. The release workflow
+  (`.github/workflows/notarized-release.yml`, dispatched by hand) is the same
+  path with the gates in front: `make doctor`, `make lint-layers`, `make test`,
+  `make test-app` and `make test-mlx`, then `make release` with the dispatch
+  input as `VERSION` and the run number as `BUILD_NUMBER`, then `make notarize`.
 - `make notarize` — submit the ZIP, require Accepted, staple and verify the app,
   then rebuild both packages. Submit the signed DMG separately, staple it, and
   verify its ticket, image checksum, signature, and Gatekeeper assessment. It reads

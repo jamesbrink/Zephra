@@ -6,9 +6,11 @@ reference-picture editing landed; the survey behind it lives in the session note
 
 Standing decisions: no CI on pull requests (`make test` and `make test-mlx` are the
 gate, run locally before every merge). The one workflow,
-`.github/workflows/notarized-release.yml`, is a manually dispatched release build;
-it does not yet run the tests or the layer lint before signing, which the audit
-remediation adds. Nothing is distributed until the app is ready to ship.
+`.github/workflows/notarized-release.yml`, is a manually dispatched release build,
+gated: it runs `make doctor`, `make lint-layers`, `make test`, `make test-app` and
+`make test-mlx` before it signs, and takes the version from its dispatch input and
+the build number from the run number. It has not yet been run end to end. Nothing
+is distributed until the app is ready to ship.
 
 ## Next steps, in order
 
