@@ -34,6 +34,11 @@ public final class LibraryIndex {
     /// wall deleted out from under it — a delete made through here rather than through the
     /// store's own `delete(_:)`, which tells the store directly.
     public var onRecentlyDeleted: (@MainActor (Set<URL>) -> Void)?
+    /// Where a favourite, a tag, or an album edit registers its inverse, so the Edit menu's
+    /// Undo and Redo reach the library. The app hands over the window's manager
+    /// (`LibraryUndoRegistration`); nil, which a test or the preview index leaves it at,
+    /// records nothing. Not observed: which manager is wired is not something a view draws.
+    @ObservationIgnored public var undoManager: UndoManager?
     /// What the library is showing. Setting it reprojects; it never rescans.
     public var query: LibraryQuery {
         didSet {

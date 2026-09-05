@@ -15,19 +15,19 @@ extension LibraryIndex {
 
     /// Sets or clears the favourite mark on every image in `ids`.
     public func setFavourite(_ ids: Set<LibraryItem.ID>, on isFavourite: Bool) {
-        annotate(ids) { $0.isFavourite = isFavourite }
+        annotate(ids, named: "Favorite") { $1.isFavourite = isFavourite }
     }
 
     /// Replaces the tags on every image in `ids`.
     public func setTags(_ tags: [String], on ids: Set<LibraryItem.ID>) {
         let cleaned = Self.cleaned(tags)
-        annotate(ids) { $0.tags = cleaned }
+        annotate(ids, named: "Tag") { $1.tags = cleaned }
     }
 
     /// Adds one tag to every image in `ids` that has not got it.
     public func addTag(_ tag: String, to ids: Set<LibraryItem.ID>) {
         guard let tag = Self.cleaned([tag]).first else { return }
-        annotate(ids) { annotation in
+        annotate(ids, named: "Tag") { _, annotation in
             guard !annotation.tags.contains(tag) else { return }
             annotation.tags.append(tag)
         }
@@ -35,97 +35,41 @@ extension LibraryIndex {
 
     /// Takes one tag off every image in `ids`.
     public func removeTag(_ tag: String, from ids: Set<LibraryItem.ID>) {
-        annotate(ids) { $0.tags.removeAll { $0 == tag } }
+        annotate(ids, named: "Tag") { $1.tags.removeAll { $0 == tag } }
     }
 
     /// Applies a change to the annotation of every image in `ids`, on screen now and on disk
-    /// shortly. Images the change leaves alone are not written.
-    func annotate(_ ids: Set<LibraryItem.ID>, _ change: (inout LibraryAnnotation) -> Void) {
-        guard !isChangingDirectory else { return }
-        var touched = false
+    /// shortly, and registers its inverse under `name` on the Edit menu. Images the change
+    /// leaves alone are neither written nor remembered.
+    func annotate(
+        _ ids: Set<LibraryItem.ID>,
+        named name: String,
+        _ change: (LibraryItem.ID, inout LibraryAnnotation) -> Void
+    ) {
+        recordUndo(restoring: applyAnnotations(ids, change), named: name)
+    }
+
+    /// The mutation under `annotate`, without the undo: what each touched image's annotation
+    /// was before, keyed by id, so the caller can register putting it back — or fold it into a
+    /// larger inverse of its own, as deleting an album does.
+    func applyAnnotations(
+        _ ids: Set<LibraryItem.ID>,
+        _ change: (LibraryItem.ID, inout LibraryAnnotation) -> Void
+    ) -> [LibraryItem.ID: LibraryAnnotation] {
+        guard !isChangingDirectory else { return [:] }
+        var previous: [LibraryItem.ID: LibraryAnnotation] = [:]
         for index in items.indices where ids.contains(items[index].id) {
             var annotation = items[index].annotation
-            change(&annotation)
+            change(items[index].id, &annotation)
             guard annotation != items[index].annotation else { continue }
+            previous[items[index].id] = items[index].annotation
             items[index] = items[index].withAnnotation(annotation)
             pending[items[index].id] = annotation
-            touched = true
         }
-        guard touched else { return }
+        guard !previous.isEmpty else { return [:] }
         reproject()
         enqueue { await self.writePending() }
-    }
-
-    /// Writes everything queued, in one pass off the main actor.
-    func writePending() async {
-        guard !pending.isEmpty else { return }
-        let batch = pending
-        pending = [:]
-        let library = library
-        let results = await Task.detached(priority: .utility) { () -> [AnnotationWrite] in
-            batch.map { id, annotation in
-                do {
-                    let written = try library.annotate(URL(filePath: id), with: annotation)
-                    return AnnotationWrite(
-                        id: id, modifiedAt: written.modifiedAt, size: written.size, reason: nil)
-                } catch {
-                    return AnnotationWrite(
-                        id: id, modifiedAt: nil, size: nil, reason: error.localizedDescription)
-                }
-            }
-        }.value
-        for result in results { apply(result, wrote: batch[result.id]) }
-        reproject()
-    }
-
-    /// What one attempted write came back with.
-    struct AnnotationWrite: Sendable {
-        let id: LibraryItem.ID
-        let modifiedAt: Date?
-        let size: Int64?
-        let reason: String?
-    }
-
-    /// Records a write that landed, or puts one that did not back to what the file says.
-    ///
-    /// A newer change may be waiting in `pending` behind this write; then what is on screen is
-    /// the newer value and this write must not put the older one back, nor revert or report:
-    /// the newer write is about to land and will speak for itself.
-    ///
-    /// Reverting re-reads the one file rather than remembering what was there: between the
-    /// optimistic change and the failure the file may have been changed by something else, and
-    /// what is on disk is the only answer that cannot be wrong.
-    func apply(_ write: AnnotationWrite, wrote annotation: LibraryAnnotation?) {
-        guard let index = items.firstIndex(where: { $0.id == write.id }) else { return }
-        let newerWaiting = pending[write.id] != nil
-        if let modifiedAt = write.modifiedAt, let size = write.size, let annotation {
-            // Record what the file now looks like so the next scan recognises it, keeping the
-            // annotation on screen when a newer one is queued behind this write.
-            let shown = newerWaiting ? items[index].annotation : annotation
-            items[index] = items[index].written(shown, modifiedAt: modifiedAt, size: size)
-            return
-        }
-        let url = items[index].url
-        guard FileManager.default.fileExists(atPath: write.id) else {
-            items.remove(at: index)
-            lastFailure = LibraryFailure(
-                itemID: write.id, action: .annotate, reason: write.reason ?? "The file is gone.")
-            return
-        }
-        guard !newerWaiting else { return }
-        items[index] = items[index].withAnnotation(library.annotation(at: url))
-        lastFailure = LibraryFailure(
-            itemID: write.id, action: .annotate, reason: write.reason ?? "The write did not land.")
-    }
-
-    /// Queues work behind whatever the library is already doing, so two mutations never write
-    /// the same file at once and a rescan never runs against a half-finished write.
-    func enqueue(_ operation: @escaping @MainActor () async -> Void) {
-        let previous = work
-        work = Task { @MainActor in
-            await previous?.value
-            await operation()
-        }
+        return previous
     }
 
     /// Tags are trimmed, emptied of blanks, and deduplicated, so "rain " and "rain" are one tag.

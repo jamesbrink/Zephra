@@ -96,7 +96,8 @@ with a progress readout while that happens.
 
 ## Using it
 
-- The window is a sidebar and one of two panes, and the sidebar changes with the pane. On
+- Zephra is one window (⌘W closes it; the Dock icon brings it back), plus Settings. The
+  window is a sidebar and one of two panes, and the sidebar changes with the pane. On
   Canvas (⌘1) it is the session: the search field (⌘F) over today's runs — what is waiting,
   what is being rendered, and the images as they come out. On Library (⌘2) it is the search
   field, chips for everything and favourites, and the collections to look in — every image,
@@ -190,7 +191,10 @@ with a progress readout while that happens.
   the PNG itself, so moving, renaming, or copying a file to another Mac keeps it, and
   opening an image again shows what it was made from, ready to vary. Favourites, tags and
   album membership go into the same file, under a second keyword, so they travel with the
-  picture too. A PNG that Zephra did not make carries no record and is ignored. Right-click
+  picture too. Each of those edits, and making, renaming or deleting an album, can be undone
+  with ⌘Z from the Edit menu and redone with ⇧⌘Z, as far back as the session goes; deleting a
+  picture is not on that stack, because Recently Deleted keeps it for thirty days instead. A
+  PNG that Zephra did not make carries no record and is ignored. Right-click
   a thumbnail for Export, Copy, Reveal in Finder, Upscale, and Delete. Export copies the
   file itself, so what the library has written to it since goes along; exporting a file onto
   itself does nothing, and exporting several into a folder that already holds some of the names
@@ -228,16 +232,17 @@ with a progress readout while that happens.
   once nothing else is using it, and never a finished one. The message says why a transfer
   stopped rather than only that it did.
 - Shortcuts: Generate ⌘↩, Stop Generating ⌘. (the item says what it stops: Cancel Download,
-  Stop Building, Stop Loading, Stop Upscaling), New Album ⌘N, Canvas ⌘1, Library ⌘2, Find
-  ⌘F, Show Inspector ⌥⌘I, Hide Prompt ⌥⌘P, Select All Images ⌘A, Favourite ⌘⇧D, thumbnail
-  size ⌘+ and ⌘−, Export ⇧⌘E, Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C, Use as Reference ⌥⌘R,
-  Clear Reference ⇧⌥⌘R, Upscale 2× ⌥⌘U, Upscale 4× ⌥⇧⌘U, Delete Image ⌘⌫, Return on a
-  selected library image opens it full size in the viewer, Back to Grid ⌘↑ (from the
-  library viewer). Export, Copy, Reveal, Delete, Use as Reference and Upscale act on the
+  Stop Building, Stop Loading, Stop Upscaling), New Album ⌘N, Undo ⌘Z, Redo ⇧⌘Z, Canvas ⌘1,
+  Library ⌘2, Find ⌘F, Show Inspector ⌥⌘I, Hide Prompt ⌥⌘P, Select All Images ⌘A, Favourite
+  ⌘⇧D, thumbnail size ⌘+ and ⌘−, Export ⇧⌘E, Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C, Use as
+  Reference ⌥⌘R, Clear Reference ⇧⌥⌘R, Upscale 2× ⌥⌘U, Upscale 4× ⌥⇧⌘U, Delete Image ⌘⌫,
+  Return on a selected library image opens it full size in the viewer, Back to Grid ⌘↑ (from
+  the library viewer). Export, Copy, Reveal, Delete, Use as Reference and Upscale act on the
   grid's selection while the grid has the keyboard, on the canvas's picture while the canvas
   is showing one, and are greyed out otherwise — never on a picture hidden behind the
   library. Return in the prompt field breaks the line, which is why Generate is ⌘↩; Cut,
-  Copy, Paste and Select All there are the standard Edit menu items.
+  Copy, Paste, Select All and — while the cursor is in a field — Undo and Redo there are the
+  standard Edit menu items.
 
 ### Image library location
 

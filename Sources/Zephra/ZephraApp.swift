@@ -17,7 +17,7 @@ struct ZephraApp: App {
     @State private var index = InterfacePreview.index() ?? LibraryIndex(library: AppSettings.imageLibrary())
     @State private var thumbnails = ThumbnailCache()
     /// What the models occupy on disk, for Settings > Models. Built here with the store so the
-    /// two windows observe the one list.
+    /// window and Settings observe the one list.
     @State private var inventory = ModelInventory(locations: AppSettings.modelLocations())
     /// The GPU runtime the Performance tab reads and tunes, over every backend at once. Built
     /// here because this is the only file allowed to name a backend.
@@ -33,7 +33,10 @@ struct ZephraApp: App {
     private static let budget = GPUMemoryBudget.forThisMachine(runtime: runtime)
 
     var body: some Scene {
-        WindowGroup("Zephra") {
+        // One window, not a group: everything a window would own is app-wide state built
+        // above, so a second one could only mirror the first. `Window` reopens on a Dock
+        // click and lists itself under the Window menu; see ROADMAP for per-window state.
+        Window("Zephra", id: "main") {
             RootView()
                 .environment(store)
                 .environment(cache)
@@ -84,7 +87,7 @@ struct ZephraApp: App {
     }
 
     /// Starts the library reading the folder, and tells it about the images this session makes
-    /// and unmakes. Idempotent, which is what lets a second window call it too.
+    /// and unmakes.
     ///
     /// A saved image is handed to the index by path, one header read and a sorted insert; a
     /// deleted one is a rescan, because the store deletes to the system Trash and a path that
@@ -92,8 +95,7 @@ struct ZephraApp: App {
     /// watch would notice in its own time — this is only so the grid moves at once.
     private func openLibrary() {
         index.start()
-        // Only the `viewer` screenshot build has an answer here; a second window opening on
-        // a normal launch must not close a viewer the first one has up.
+        // Only the `viewer` screenshot build has an answer here.
         if let viewing = InterfacePreview.viewing(in: index) { workspace.viewing = viewing }
         thumbnails.sweep()
         store.onImageSaved = { url in index.insert(fileAt: url) }
