@@ -15,7 +15,7 @@ struct PromptCaption: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
-                .shadow(color: .black.opacity(0.55), radius: 6)
+                .shadow(color: .black.opacity(ZephraChrome.captionShadowOpacity), radius: 6)
                 .padding(.horizontal, 24)
         }
     }

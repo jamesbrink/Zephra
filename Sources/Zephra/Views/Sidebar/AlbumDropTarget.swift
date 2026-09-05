@@ -46,7 +46,7 @@ struct AlbumDropTarget: ViewModifier {
     private var highlight: AnyView? {
         guard isTargeted else { return nil }
         return AnyView(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
+            RoundedRectangle(cornerRadius: ZephraChrome.fieldRadius, style: .continuous)
                 .strokeBorder(Color.accentColor, lineWidth: 2)
         )
     }

@@ -12,9 +12,6 @@ struct LibraryFilterBar: View {
     /// What is selected in the grid, for the count on the left.
     let selection: LibrarySelection
 
-    /// Tall enough for a 22 pt chip with air around it, and no taller.
-    private static let height: CGFloat = 42
-
     var body: some View {
         HStack(spacing: 10) {
             LibraryFilterTokens()
@@ -22,7 +19,7 @@ struct LibraryFilterBar: View {
             Spacer(minLength: 12)
         }
         .padding(.horizontal, 20)
-        .frame(height: Self.height)
+        .frame(height: ZephraChrome.barHeight)
         .background(.bar)
         .overlay(alignment: .bottom) {
             Rectangle()

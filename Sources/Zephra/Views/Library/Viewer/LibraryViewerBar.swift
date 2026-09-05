@@ -11,9 +11,6 @@ struct LibraryViewerBar: View {
     @Environment(WorkspaceSelection.self) private var workspace
     @Environment(LibraryIndex.self) private var index
 
-    /// Tall enough for a 22 pt chip with air around it, matching `LibraryFilterBar`.
-    private static let height: CGFloat = 42
-
     var body: some View {
         HStack(spacing: 14) {
             Button { workspace.viewing = nil } label: {
@@ -36,7 +33,7 @@ struct LibraryViewerBar: View {
                 .help("Next")
         }
         .padding(.horizontal, 20)
-        .frame(height: Self.height)
+        .frame(height: ZephraChrome.barHeight)
         .background(.bar)
         .overlay(alignment: .bottom) {
             Rectangle().fill(ZephraChrome.hairline).frame(height: 1)

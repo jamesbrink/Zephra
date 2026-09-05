@@ -70,7 +70,7 @@ struct ReferenceImageWell: View {
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .symbolRenderingMode(.palette)
-                        .foregroundStyle(.white, .black.opacity(0.6))
+                        .foregroundStyle(ZephraChrome.badgeForeground, ZephraChrome.badgeBackdrop)
                 }
                 .buttonStyle(.plain)
                 .offset(x: 5, y: -5)

@@ -19,6 +19,13 @@ enum ZephraChrome {
     static let tileRadius: CGFloat = 5
     /// Half the height of a 22 pt chip, which is what makes it a capsule.
     static let chipRadius: CGFloat = 11
+    /// A text field, or a ring drawn round a row: the smallest corner in the app.
+    static let fieldRadius: CGFloat = 6
+
+    /// The height of a search field: one line of `.callout` with air around it.
+    static let fieldHeight: CGFloat = 26
+    /// The strip over a pane: tall enough for a 22 pt chip with air around it, and no taller.
+    static let barHeight: CGFloat = 42
 
     /// The one-pixel line that separates a surface from what is behind it. The system's own
     /// separator, so it is right in both appearances without a second definition.

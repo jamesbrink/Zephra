@@ -39,7 +39,7 @@ struct InspectorActions: View {
                 .help(item.fileName)
             }
             GridRow {
-                UpscaleButtons(item: item)
+                UpscaleButtons(source: .file(item.url))
                     .gridCellColumns(2)
             }
             if store.descriptor.capabilities.supportsReferenceImage {

@@ -40,7 +40,7 @@ struct ChromePanel: ViewModifier {
         switch style {
         case .floating: AnyShapeStyle(.regularMaterial)
         case .inset: AnyShapeStyle(.quaternary)
-        case .warning: AnyShapeStyle(Color.safelight.opacity(0.12))
+        case .warning: AnyShapeStyle(ZephraChrome.warningWash)
         }
     }
 
@@ -48,7 +48,7 @@ struct ChromePanel: ViewModifier {
         switch style {
         case .floating: AnyShapeStyle(ZephraChrome.hairline)
         case .inset: AnyShapeStyle(Color.clear)
-        case .warning: AnyShapeStyle(Color.safelight.opacity(0.28))
+        case .warning: AnyShapeStyle(ZephraChrome.warningStroke)
         }
     }
 }

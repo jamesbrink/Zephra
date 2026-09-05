@@ -15,25 +15,12 @@ struct SharedFactsView: View {
     private static let mixed = "Multiple"
 
     var body: some View {
-        VStack(spacing: 0) {
-            row("Model", shared { modelName(of: $0) })
-            row("Size", shared { ImageFacts($0).size }, style: .digits)
-            row("Steps", shared { ImageFacts($0).steps }, style: .digits)
-            row("Seed", shared { ImageFacts($0).seed }, style: .monospaced)
-            row("Took", shared { ImageFacts($0).took }, style: .digits)
-            Divider()
-        }
-        .font(.callout)
-    }
-
-    private func row(_ key: String, _ value: String, style: KeyValueStyle = .plain) -> some View {
-        VStack(spacing: 0) {
-            Divider()
-            KeyValueRow(key, value, style: style)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .padding(.vertical, 7)
-                .accessibilityElement(children: .combine)
+        FactsTable {
+            FactsRow("Model", shared { modelName(of: $0) })
+            FactsRow("Size", shared { ImageFacts($0).size }, style: .digits)
+            FactsRow("Steps", shared { ImageFacts($0).steps }, style: .digits)
+            FactsRow("Seed", shared { ImageFacts($0).seed }, style: .monospaced)
+            FactsRow("Took", shared { ImageFacts($0).took }, style: .digits)
         }
     }
 

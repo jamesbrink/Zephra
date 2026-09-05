@@ -9,6 +9,12 @@ import ZephraEngine
 /// Generate. The same squares are in the sidebar's session timeline now, beside the card that
 /// says how far along the run is.
 struct CanvasOverlay: View {
+    /// How wide the stack may grow: controls wrap within this when their settings and actions
+    /// cannot share a row.
+    static let maxWidth: CGFloat = 736
+    /// The air on each side, inside that width.
+    static let horizontalPadding: CGFloat = 28
+
     var body: some View {
         VStack(spacing: 14) {
             SaveNotice()
@@ -16,10 +22,10 @@ struct CanvasOverlay: View {
             PromptCaption()
             PromptCapsule()
         }
-        .padding(.horizontal, 28)
+        .padding(.horizontal, Self.horizontalPadding)
         // A little more than the sidebar's foot, so the capsule floats rather than sits.
         .padding(.bottom, 26)
-        .frame(maxWidth: 736)
+        .frame(maxWidth: Self.maxWidth)
     }
 }
 

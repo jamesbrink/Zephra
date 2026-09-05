@@ -26,7 +26,10 @@ struct FreshImageActions: View {
                 }
             }
             GridRow {
-                UpscaleImageButtons(image: image)
+                UpscaleButtons(
+                    source: .image(image),
+                    unsavedReason: image.fileURL == nil ? ImageFacts.notSaved : nil
+                )
                     .gridCellColumns(2)
             }
         }
