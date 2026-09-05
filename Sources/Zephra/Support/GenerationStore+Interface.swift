@@ -11,6 +11,12 @@ extension GenerationStore {
     /// a size to show from the moment it starts.
     var hasPicture: Bool { current != nil || isShowingRun }
 
+    /// The step bar's reading: the run in flight's steps, not the slider's. One place, so the
+    /// capsule, its lip and the running card cannot count differently.
+    var stepProgress: StepProgress {
+        StepProgress(state: state, running: running?.settings, next: settings)
+    }
+
     /// Applies the launch preferences, then loads the model. The root view's only entry point.
     func bootstrapFromInterface() async {
         warmsUpAfterLoad = AppSettings.flag(AppSettings.warmUpOnLaunch)

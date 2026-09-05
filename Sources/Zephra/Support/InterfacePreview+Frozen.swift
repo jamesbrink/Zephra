@@ -27,8 +27,9 @@ extension InterfacePreview {
             livePreview: name == "starting" ? nil : PreviewImages.frame(),
             following: watching ? false : nil
         )
-        // The capsule draws its step segments from `settings`, so a frozen window whose
-        // prompt and step count did not match the run would contradict itself.
+        // The capsule's prompt and controls are drawn from `settings`, so a frozen window
+        // whose prompt did not match the run's card would contradict itself. The step bar is
+        // the run's own (`StepProgress`) whatever the slider says.
         store.settings = flight[0].settings
         return store
     }
