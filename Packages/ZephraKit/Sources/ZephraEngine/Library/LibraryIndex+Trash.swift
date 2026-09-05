@@ -23,7 +23,7 @@ extension LibraryIndex {
     /// Deletes images for good, without waiting for their thirty days.
     public func purge(_ ids: Set<LibraryItem.ID>) {
         move(ids, action: .purge) { library, url in
-            try library.discard(url)
+            try library.purgeFromRecentlyDeleted(url)
             return url
         }
     }

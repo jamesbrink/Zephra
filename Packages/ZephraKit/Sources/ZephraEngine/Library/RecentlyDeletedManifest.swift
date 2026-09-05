@@ -19,11 +19,16 @@ public struct RecentlyDeletedManifest: Hashable, Sendable, Codable {
         public var fileName: String
         /// When it was deleted, which is when its thirty days started.
         public var deletedAt: Date
+        /// Which folder it was deleted from, so Put Back returns it there. Optional because a
+        /// manifest written before origins were recorded has none; such a file goes to the
+        /// root, or wherever its own header says it belongs.
+        public var origin: LibraryCollection?
 
         /// Records one deletion.
-        public init(fileName: String, deletedAt: Date) {
+        public init(fileName: String, deletedAt: Date, origin: LibraryCollection? = nil) {
             self.fileName = fileName
             self.deletedAt = deletedAt
+            self.origin = origin
         }
     }
 
@@ -43,10 +48,16 @@ public struct RecentlyDeletedManifest: Hashable, Sendable, Codable {
         entries.first { $0.fileName == fileName }?.deletedAt
     }
 
+    /// Where `fileName` was deleted from, or nil for a file nobody wrote down or one written
+    /// down before origins were.
+    public func origin(_ fileName: String) -> LibraryCollection? {
+        entries.first { $0.fileName == fileName }?.origin
+    }
+
     /// Records a deletion, replacing any earlier entry under the same name.
-    public mutating func record(_ fileName: String, at date: Date) {
+    public mutating func record(_ fileName: String, at date: Date, origin: LibraryCollection? = nil) {
         entries.removeAll { $0.fileName == fileName }
-        entries.append(Entry(fileName: fileName, deletedAt: date))
+        entries.append(Entry(fileName: fileName, deletedAt: date, origin: origin))
     }
 
     /// Forgets a file, because it was restored or purged.

@@ -337,9 +337,17 @@ as an index, and it is Foundation only, so `make test` covers all of it.
   nor reports: the newer write is about to land and speaks for itself.
   `LibraryQuery` holds the scope, the text, and the sort, and
   `sections` are recomputed when it changes — the view never filters.
-- Deleting moves the file to `Recently Deleted/` with a `deletedAt` in that
-  folder's own manifest, and a scan purges anything older than thirty days.
-  Nothing is unlinked on the user's behalf before then.
+- Deleting moves the file to `Recently Deleted/` with a `deletedAt` and an
+  `origin` (the root or `Sources/`) in that folder's own manifest, and a scan
+  purges anything older than thirty days (`ImageLibrary+Purge`). Both kinds of
+  picture are deleted into it and listed there, a generated one by its record
+  and an imported one by its `SourceRecord`; Put Back returns each to the folder
+  it came from — the manifest's word, else the file's own header for a manifest
+  written before origins were recorded. The purge rechecks that a file is ours
+  for every candidate, entry or not, since a name can be reused by somebody
+  else's picture, and drops the stale entry rather than the picture; Delete
+  Immediately forgets the entry too, so a later file under that name gets its
+  own thirty days. Nothing is unlinked on the user's behalf before then.
 - `LibrarySelection` holds what is chosen; `LibraryCursor` is the pure
   arithmetic of moving through a grid, so keyboard navigation is tested without
   a window. `ImageFacts` formats the seven rows the inspector shows.

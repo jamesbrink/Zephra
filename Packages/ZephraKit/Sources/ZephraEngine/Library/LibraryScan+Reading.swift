@@ -37,19 +37,28 @@ extension LibraryScan {
     /// One file read into an item, or nil when Zephra has no business showing it.
     ///
     /// One header read answers everything: the record, the annotation, and, in the sources
-    /// folder, where the picture came from. A file in the generated folders needs a generation
-    /// record and a file in the sources folder needs an import record; without one, the file is
-    /// somebody else's and the library leaves it alone.
+    /// folder, where the picture came from. A file in the generated folder needs a generation
+    /// record, a file in the sources folder needs an import record, and Recently Deleted holds
+    /// either, since both kinds are deleted into it; without one, the file is somebody else's
+    /// and the library leaves it alone.
     func item(_ listing: Listing, in collection: LibraryCollection) -> LibraryItem? {
         guard let text = try? PNGTextChunks.read(fromHeaderOf: listing.url) else { return nil }
         let provenance: LibraryProvenance
         switch collection {
-        case .generated, .recentlyDeleted:
+        case .generated:
             guard let record = GenerationRecord.decode(from: text) else { return nil }
             provenance = .generated(record)
         case .sources:
             guard let source = SourceRecord.decode(from: text) else { return nil }
             provenance = .imported(source)
+        case .recentlyDeleted:
+            if let record = GenerationRecord.decode(from: text) {
+                provenance = .generated(record)
+            } else if let source = SourceRecord.decode(from: text) {
+                provenance = .imported(source)
+            } else {
+                return nil
+            }
         }
         return LibraryItem(
             url: listing.url,
