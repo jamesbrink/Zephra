@@ -15,7 +15,7 @@ Independent review approved the approach with these required refinements: chain 
 ## Validation and final review
 
 - Independent final review found no blocking defects, including a follow-up review of mounted-volume checks and the narrow macOS system-symlink exception.
-- `make test`: 418 tests across 74 suites passed; three subsequent destination tests also passed (421 total), covering upscale output/indexing after a switch, returning to a prior library, default location, and no-op behavior.
+- `make test`: all 421 tests across 75 suites passed together, covering upscale output/indexing after a switch, returning to a prior library, default location, and no-op behavior. A fixed-delay reference-choice test exposed by the loaded host was made deterministic with release gates and task completion; the reviewer approved that test-only fix.
 - `make build CONFIG=Debug` and a final incremental rebuild succeeded; `make lint-layers` and `git diff --check` passed.
 - Native Settings UAT used a temporary library and the Debug `settings` state, without model inference. Verified layout, default-target confirmation and Cancel, Keep in Place and switch-back, conflict refusal, successful Move Images, and persisted destination after quitting/relaunching.
 - All five migrated PNG/manifest fixture files matched their original SHA-256 digests; original owned files were removed while unrelated and conflicting files stayed unchanged. Library UI retained favourites, tags, album membership, and Recently Deleted. Adding another file at the destination updated the live library count through its new folder watcher.
