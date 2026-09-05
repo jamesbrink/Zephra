@@ -27,7 +27,9 @@ struct LibraryThumbnail: View {
             }
             .clipped()
             .accessibilityHidden(true)
-            .task(id: ThumbnailRequest(item.id, thumbnails?.size)) { await load() }
+            // Keyed on the file's state too, so a rewritten file bakes again; the old picture
+            // stays up while it does, which is the rule the doc comment above already states.
+            .task(id: ThumbnailRequest(item, thumbnails?.size)) { await load() }
     }
 
     /// Asks the cache, drawing whatever it already holds on the first frame so a picture that
