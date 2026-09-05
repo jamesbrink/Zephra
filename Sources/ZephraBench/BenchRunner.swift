@@ -34,9 +34,10 @@ enum BenchRunner {
         let backend = try registry.make(descriptor)
         let verbose = !options.json
 
-        // The tool has no preferences to read, so models are where the app puts them by
-        // default; a `--snapshot` names its own directory and is looked for there first.
-        let locations = ModelLocations.default
+        // The tool has no preferences to read, so `--models` is how it is told the folder
+        // Settings names; without it, models are where the app puts them by default. A
+        // `--snapshot` names its own directory and is looked for there first.
+        let locations = options.models.map { ModelLocations(root: $0) } ?? ModelLocations.default
         let downloaded = try await backend.ensureAvailable(descriptor, locations: locations, acquisition: ModelDownloader()) {
             event in
             note("downloading \(event.completedFiles)/\(event.totalFiles) files", verbose)
@@ -103,7 +104,9 @@ enum BenchRunner {
             previewFrames: options.preview ? previewSeconds.count : nil,
             meanPreviewSeconds: options.preview ? mean(previewSeconds) : nil,
             previewPath: previewPath,
-            weightResidency: residency.rawValue,
+            // What the backend says it did, not what it was asked: a family that cannot
+            // stream loads resident whatever `--stream` said.
+            weightResidency: backend.loadedResidency?.rawValue ?? "unknown",
             streamedGBPerStep: streamed.map { Double($0.bytes) / 1_000_000_000 },
             streamReadGBps: streamed.map { $0.bytesPerSecond / 1_000_000_000 },
             activeMemoryMB: Double(memory.activeBytes) / 1_000_000,

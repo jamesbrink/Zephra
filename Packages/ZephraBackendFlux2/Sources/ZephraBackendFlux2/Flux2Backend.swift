@@ -19,6 +19,9 @@ public nonisolated final class Flux2Backend: ImageGenerationBackend {
     /// The descriptor identifier currently in memory, or nil when nothing is loaded.
     public private(set) var loadedModelID: String?
 
+    /// This family cannot stream, so whatever is loaded is resident.
+    public var loadedResidency: WeightResidency? { loadedModelID == nil ? nil : .resident }
+
     let pipeline = Flux2Pipeline()
     private var loadedDescriptor: ModelDescriptor?
     /// The switches the composition root read once: the stream's dtype override and how often

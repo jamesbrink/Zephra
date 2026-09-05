@@ -15,11 +15,9 @@ struct InferenceTuning {
     /// Bytes MLX may keep wired: the GPU's working set, which `iogpu.wired_limit_mb` raises.
     let wiredLimitBytes: Int
 
-    /// One megabyte, as the Performance tab, `@AppStorage` and `iogpu.wired_limit_mb` count
-    /// them: 2^20 bytes, the one definition in this file. `ZephraCore` has no shared unit yet;
-    /// when it grows one (`MemoryUnits`, on the roadmap), this and `ZephraBench`'s reading of
-    /// the same variable should both take it.
-    static let bytesPerMB = 1 << 20
+    /// One megabyte, as the Performance tab and `@AppStorage` count them: `MemoryUnits`'s,
+    /// the same 2^20 every `ZEPHRA_*_MB` switch is read in.
+    static let bytesPerMB = MemoryUnits.mebibyte
 
     /// Limits for this machine: cache at one sixth of RAM capped at 8 GB, total and wired at
     /// what the GPU may keep resident. The last two follow `budget` rather than a fraction of
@@ -30,10 +28,9 @@ struct InferenceTuning {
         budget: MemoryBudget, wiredLimitOverride: Int? = nil
     ) -> InferenceTuning {
         let physical = Int(budget.physicalMemory)
-        let gigabyte = 1 << 30
         let workingSet = Int(budget.gpuWorkingSet)
         return InferenceTuning(
-            cacheLimitBytes: min(8 * gigabyte, physical / 6),
+            cacheLimitBytes: min(8 * MemoryUnits.gibibyte, physical / 6),
             memoryLimitBytes: workingSet,
             wiredLimitBytes: wiredLimitOverride ?? workingSet
         )

@@ -634,11 +634,18 @@ Zephra/
   app's own.
 - `make lint-layers` — check the module boundaries above. Run it before every commit.
 - `make bench ARGS="..."` — headless timing (`--size`, `--steps`, `--runs`, `--model`,
-  `--prompt`, `--json`, `--out`, `--micro` for the DiT's kernels alone, `--reference`
-  to time the editing path, `--strength`, `--preview` to turn the live frames on and
-  time them, `--stream` and `--stream-depth N` to measure the weights read from disk,
-  `--backend` and `--snapshot` to time a snapshot the catalog does not list). Benchmark
-  on an idle machine, Release only.
+  `--prompt`, `--json`, `--out`, `--micro` for the DiT's kernels alone — it follows
+  `--model`, and only Z-Image has one, so another family is refused rather than timed
+  under the wrong name — `--reference` to time the editing path, `--strength` (truncated
+  to a share of the steps, never fewer than one, and clamped into the model's 0.1–0.9),
+  `--preview` to turn the live frames on and time them, `--stream` and `--stream-depth N`
+  to measure the weights read from disk, `--backend` and `--snapshot` to time a snapshot
+  the catalog does not list). The Makefile passes `--models "$(MODELS_DIR)"`, so the
+  bench looks in the folder Settings > Models names rather than downloading a model the
+  app already has; the report's `weights` line is what the backend says it loaded
+  (`loadedResidency`), not what `--stream` asked for. Every `ZEPHRA_*` switch is read
+  once at start-up into `InferenceEnvironment`. Benchmark on an idle machine, Release
+  only.
 - `make logs` streams the app's log; `make screenshot` captures the window
   (`WINDOW=General` captures a Settings tab by its title instead), and
   `swift scripts/ax-press.swift "<title>"` presses a control in the running app

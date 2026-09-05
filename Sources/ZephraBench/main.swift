@@ -15,8 +15,8 @@ if options.micro {
     // so a 1024 px side is 64 patches (4,096 tokens), plus a caption stream padded to 64.
     let side = options.size / 8 / 2
     let patches = side * side
-    BenchBackends.microbench(tokens: patches + 64)
-    exit(0)
+    let family = ModelCatalog.descriptor(id: options.model)?.backend ?? options.backend ?? .zImage
+    BenchBackends.microbench(family: family, tokens: patches + 64)
 }
 
 do {

@@ -15,6 +15,9 @@ public nonisolated final class QwenImageBackend: ImageGenerationBackend {
     /// The descriptor identifier currently in memory, or nil when nothing is loaded.
     public private(set) var loadedModelID: String?
 
+    /// How the loaded weights are held: what `load` was given, since this family honours it.
+    public private(set) var loadedResidency: WeightResidency?
+
     private let pipeline = QwenImagePipeline()
     private var loadedDescriptor: ModelDescriptor?
     /// The switches the composition root read once: the stream's dtype, how far a streamed
@@ -99,6 +102,7 @@ public nonisolated final class QwenImageBackend: ImageGenerationBackend {
         }
         loadedModelID = descriptor.id
         loadedDescriptor = descriptor
+        loadedResidency = residency
     }
 
     /// Runs one generation and returns the encoded PNG bytes.
@@ -135,5 +139,6 @@ public nonisolated final class QwenImageBackend: ImageGenerationBackend {
         pipeline.unloadModel()
         loadedModelID = nil
         loadedDescriptor = nil
+        loadedResidency = nil
     }
 }

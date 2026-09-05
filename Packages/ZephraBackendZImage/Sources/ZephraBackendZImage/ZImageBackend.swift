@@ -20,6 +20,9 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
     /// The descriptor identifier currently in memory, or nil when nothing is loaded.
     public private(set) var loadedModelID: String?
 
+    /// This family cannot stream, so whatever is loaded is resident.
+    public var loadedResidency: WeightResidency? { loadedModelID == nil ? nil : .resident }
+
     private var pipeline: ZImagePipeline?
     private var loadedDescriptor: ModelDescriptor?
     private var loadedSnapshot: URL?

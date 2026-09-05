@@ -1,3 +1,4 @@
+import Foundation
 import ZephraBackendFlux2
 import ZephraBackendQwenImage
 import ZephraBackendZImage
@@ -32,6 +33,21 @@ enum BenchBackends {
         }
     }
 
-    /// Times one family's kernels at `tokens` without loading weights. Only Z-Image has one.
-    static func microbench(tokens: Int) { ZImageMicrobench.run(tokens: tokens) }
+    /// Times one family's DiT kernels at `tokens` without loading weights, or refuses when
+    /// the family has no microbench: only Z-Image has one, and timing its kernels under
+    /// another family's name would be a number about the wrong model.
+    static func microbench(family: BackendID, tokens: Int) -> Never {
+        switch family {
+        case .zImage:
+            ZImageMicrobench.run(tokens: tokens)
+            exit(0)
+        default:
+            let reason =
+                "ZephraBench: --micro has no kernel timings for \(family.rawValue); only Z-Image's "
+                + "DiT has a microbench. Pass --model with a Z-Image entry, or run the full "
+                + "benchmark for this family.\n"
+            FileHandle.standardError.write(Data(reason.utf8))
+            exit(2)
+        }
+    }
 }

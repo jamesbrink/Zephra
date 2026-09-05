@@ -109,7 +109,7 @@ run: build
 bench: gen
 	@mkdir -p "$(BUILD)"; $(XCB) -scheme ZephraBench -configuration Release build >"$(BUILD)/ZephraBench-build.log" 2>&1 \
 	  || { tail -40 "$(BUILD)/ZephraBench-build.log"; echo "ZephraBench failed to build; full log in $(BUILD)/ZephraBench-build.log"; exit 1; }
-	$(BENCH) $(ARGS)
+	$(BENCH) --models "$(MODELS_DIR)" $(ARGS)
 
 # Build the 4-bit variant locally: no repository publishes Z-Image-Turbo in the manifest format
 # the vendored loader reads. The download is the slow part; the quantization itself is a minute.
