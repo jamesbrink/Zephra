@@ -41,6 +41,7 @@ struct RootView: View {
         .toolbarBackgroundVisibility(.visible, for: .windowToolbar)
         .environment(\.openLibraryItem, open)
         .environment(\.viewLibraryItem, view)
+        .registeringLibraryUndo()
         .onChange(of: store.outputDirectory) {
             workspace.viewing = nil
             workspace.query = LibraryQuery(sort: workspace.query.sort)

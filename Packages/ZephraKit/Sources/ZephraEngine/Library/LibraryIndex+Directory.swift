@@ -27,13 +27,16 @@ extension LibraryIndex {
         isScanning = false
     }
 
-    /// Keeps the observable identity used by every window while replacing its disk snapshot.
+    /// Keeps the observable identity the window and Settings share while replacing its disk
+    /// snapshot. The undo stack goes with the old folder: every entry on it names files that
+    /// are no longer indexed.
     func adoptDirectory(_ library: ImageLibrary) {
         self.library = library
         scan = LibraryScan(library: library, calendar: scan.calendar)
         items = []
         albums = []
         pending = [:]
+        undoManager?.removeAllActions(withTarget: self)
         fingerprint = 0
         lastFailure = nil
         if case .album = query.scope { query.scope = .all }

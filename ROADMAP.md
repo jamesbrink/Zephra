@@ -110,6 +110,15 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
 - **A filmstrip of thumbnails along the bottom**, the way Photos and Preview both
   offer, instead of only the bar's "n of N" and the prev/next buttons.
 
+## Library editing: left out on purpose
+
+- **Undo for Delete.** Favourites, tags and albums undo from the Edit menu
+  (`LibraryIndex+Undo`); moving a picture to Recently Deleted does not. It already
+  has thirty days of Put Back, and an undo entry that races the folder's purge, or
+  a Delete Immediately made in between, would have to say what it could not do. Add
+  it as a `moveToRecentlyDeleted` inverse that checks the manifest still lists the
+  file, when someone reaches for ⌘Z after a delete.
+
 ## Reference picker: left out on purpose
 
 - **Choosing more than one picture at once.** The sheet is single-selection, and
