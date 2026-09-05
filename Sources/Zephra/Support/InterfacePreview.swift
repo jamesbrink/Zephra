@@ -7,7 +7,8 @@ import ZephraEngine
 ///
 /// Set `ZEPHRA_PREVIEW_STATE` to `ready`, `image`, `editing`, `tucked`, `generating`, `queued`,
 /// `watching`, `batch`, `library`, `viewer`, `picker`, `downloading`, `building`, or `failed`
-/// before launching. Debug builds only; in Release this is inert.
+/// before launching. `settings` uses the configured library on disk with a frozen engine for
+/// folder-change UAT; point `imagesDirectory` at a temporary fixture first. Debug builds only; in Release this is inert.
 ///
 /// This half is what the composition root calls. `InterfacePreview+Frozen.swift` is how each
 /// state is stood up.
@@ -17,6 +18,8 @@ enum InterfacePreview {
     static func store() -> GenerationStore? {
         guard let state = requestedState else { return nil }
         switch name {
+        case "settings":
+            return GenerationStore.preview(state: state, outputDirectory: AppSettings.imageLibrary().root)
         case "batch":
             let run = PreviewImages.run(of: 4)
             let store = GenerationStore.preview(state: state, images: run)
@@ -82,6 +85,7 @@ enum InterfacePreview {
     /// never generated anything.
     static func index() -> LibraryIndex? {
         guard requestedState != nil else { return nil }
+        if name == "settings" { return LibraryIndex(library: AppSettings.imageLibrary()) }
         // Real files in the temporary directory, so the grid shows pictures. The index itself
         // still touches no disk: it is handed the paths and never looks for a folder.
         return LibraryIndex.preview(count: 38, pictures: PreviewImages.libraryFiles(count: 41))

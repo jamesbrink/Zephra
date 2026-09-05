@@ -32,4 +32,5 @@ struct SettingsView: View {
     SettingsView()
         .environment(GenerationStore.preview(state: .ready))
         .environment(ModelInventory())
+        .environment(LibraryIndex(library: .pictures()))
 }

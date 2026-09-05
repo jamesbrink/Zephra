@@ -84,7 +84,9 @@ extension GenerationStore {
 
     private func save(_ image: GeneratedImage) {
         let library = library
+        let previous = saveTask
         saveTask = Task.detached(priority: .utility) { [image] in
+            await previous?.value
             do {
                 let url = try library.write(image)
                 await MainActor.run { self.attach(url, to: image.id) }

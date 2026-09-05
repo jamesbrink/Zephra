@@ -36,6 +36,8 @@ enum AppSettings {
     /// own folder under Application Support. The app is not sandboxed, so a path is enough:
     /// no security-scoped bookmark is needed to read a folder the user pointed at.
     static let modelsDirectory = "modelsDirectory"
+    /// The image library folder. Empty means ~/Pictures/Zephra.
+    static let imagesDirectory = "imagesDirectory"
     /// The folders `modelsDirectory` was set to before, newest first, so what was put there
     /// is still found. Never more than a handful.
     static let previousModelsDirectories = "previousModelsDirectories"

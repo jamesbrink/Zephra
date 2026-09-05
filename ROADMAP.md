@@ -153,3 +153,11 @@ Left out of the first pass on purpose, each a small change to one file unless no
 - **The DIV2K training-data terms.** Real-ESRGAN's repository is BSD-3-Clause and the
   weights are taken to inherit it, but the training set's own terms were not verified.
   Check before any commercial release.
+
+## Image library location: left out on purpose
+
+- **Merging existing libraries with conflicting files or manifests.** Folder migration
+  refuses conflicts and never overwrites images or album/deletion metadata. A merge
+  needs explicit choices for duplicate pictures, album identities, and deletion dates.
+  For now, move into an empty folder, or keep both libraries in place and switch
+  between their folders in Settings.

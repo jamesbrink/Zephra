@@ -13,7 +13,7 @@ struct ZephraApp: App {
     @State private var store = ZephraApp.makeStore()
     @State private var cache = ImageCache()
     @State private var workspace = InterfacePreview.workspace() ?? WorkspaceSelection()
-    @State private var index = InterfacePreview.index() ?? LibraryIndex(library: .pictures())
+    @State private var index = InterfacePreview.index() ?? LibraryIndex(library: AppSettings.imageLibrary())
     @State private var thumbnails = ThumbnailCache()
     /// What the models occupy on disk, for Settings > Models. Built here with the store so the
     /// two windows observe the one list.
@@ -64,6 +64,7 @@ struct ZephraApp: App {
             SettingsView()
                 .environment(store)
                 .environment(inventory)
+                .environment(index)
                 .environment(\.inferenceRuntime, runtime)
         }
     }
@@ -108,6 +109,7 @@ struct ZephraApp: App {
         return GenerationStore(
             descriptor: ZephraApp.savedModel(),
             registry: registry,
+            outputDirectory: AppSettings.imageLibrary().root,
             locations: AppSettings.modelLocations(),
             upscaler: RealESRGANUpscaler.make
         )

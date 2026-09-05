@@ -25,7 +25,7 @@ extension GenerationStore {
     /// or build under the folder just left.
     @discardableResult
     public func setModelLocations(_ locations: ModelLocations) async -> Bool {
-        guard !isChangingModelDirectory, locations != self.locations else { return false }
+        guard !isChangingModelDirectory && !isChangingImageDirectory, locations != self.locations else { return false }
         self.locations = locations
         if let inference { await inference.setLocations(locations) }
         return true
@@ -64,7 +64,7 @@ extension GenerationStore {
     /// A preview store has no backend to build, so it never starts anything.
     @discardableResult
     private func startLoading(_ model: ModelDescriptor, asSwap: Bool) -> Task<Void, Never>? {
-        guard !isChangingModelDirectory, let inference = inferenceActor() else { return nil }
+        guard !isChangingModelDirectory && !isChangingImageDirectory, let inference = inferenceActor() else { return nil }
         switch state {
         case .idle, .failed: break
         default: return nil

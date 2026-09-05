@@ -16,6 +16,7 @@ extension GenerationStore {
     /// on where it was made. Deleting the image on the canvas shows the next newest one instead,
     /// without adopting its settings, so a prompt being edited survives it.
     public func delete(_ id: GeneratedImage.ID) {
+        guard !isChangingImageDirectory else { return }
         let index = history.firstIndex { $0.id == id }
         let removed = index.map { history[$0] } ?? (current?.id == id ? current : nil)
         guard let removed else { return }

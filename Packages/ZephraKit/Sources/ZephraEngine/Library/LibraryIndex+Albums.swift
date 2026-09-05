@@ -11,6 +11,7 @@ extension LibraryIndex {
     @discardableResult
     public func createAlbum(named name: String) -> Album {
         let album = Album(name: name.trimmingCharacters(in: .whitespacesAndNewlines))
+        guard !isChangingDirectory else { return album }
         albums = sorted(albums + [album])
         reproject()
         writeAlbumsBehindTheQueue()
@@ -20,6 +21,7 @@ extension LibraryIndex {
     /// Renames an album. No image is rewritten: the copy of the name each one carries is a
     /// fallback for a lost manifest, and it is allowed to be behind.
     public func renameAlbum(_ album: Album, to name: String) {
+        guard !isChangingDirectory else { return }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let index = albums.firstIndex(where: { $0.id == album.id })
         else { return }
@@ -32,6 +34,7 @@ extension LibraryIndex {
     /// Removes an album and takes its images out of it. The images themselves are untouched
     /// otherwise: an album is a grouping, not a folder.
     public func deleteAlbum(_ album: Album) {
+        guard !isChangingDirectory else { return }
         albums.removeAll { $0.id == album.id }
         let members = Set(
             items.filter { item in item.annotation.albums.contains { $0.id == album.id } }.map(\.id))

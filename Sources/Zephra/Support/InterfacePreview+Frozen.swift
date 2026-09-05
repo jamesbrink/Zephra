@@ -57,7 +57,7 @@ extension InterfacePreview {
     static var requestedState: EngineState? {
         #if DEBUG
         switch name {
-        case "ready", "image", "editing", "tucked", "batch", "library", "viewer", "picker":
+        case "settings", "ready", "image", "editing", "tucked", "batch", "library", "viewer", "picker":
             return .ready
         case "generating":
             return .generating(GenerationProgressEvent(
