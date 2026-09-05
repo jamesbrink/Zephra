@@ -939,6 +939,9 @@ Makefile targets:
   (`FLUX2_OUT` overrides, and its default already follows `BITS`, so `BITS=8` lands
   in `flux2-klein-4b-8bit` without one). About a minute.
 - `make lint-layers` — enforce the layering rules above.
+- `make vendored-diff` — fetch `mzbac/zimage.swift` at the pinned commit into a
+  scratch clone and fail on any hunk of `Packages/ZImageKit` that carries no
+  `ZEPHRA-PATCH` marker; see `VENDORED.md`'s re-sync procedure.
 - `make logs` — stream app logs (`log stream`, subsystem `io.zephra`).
 - `make screenshot` — capture the app window (see debugging hooks);
   `WINDOW=<title>` captures the window with that title instead, which is how
@@ -1084,10 +1087,14 @@ the snapshot, not whichever is listed first"); match that when adding one.
   -only-testing:ZephraQuantizationTests/QuantizableWeightTests`. A package's
   scheme is its own name, except `ZephraMLXKit`, which ships two library
   products and so is tested through `ZephraMLXKit-Package`.
-- `QwenImageKit`'s suites check the port against tensors dumped from
-  `diffusers` by `Packages/QwenImageKit/Tools/dump_reference.py`. Adding a
-  component means adding its fixture in the same commit; that is what the
-  clean-room claim in `PROVENANCE.md` rests on.
+- `QwenImageKit`'s and `Flux2Kit`'s suites check the ports against tensors
+  dumped from `diffusers` by each kit's `Tools/dump_reference.py`, whose inline
+  metadata pins the reference stack's versions and which writes
+  `Fixtures/versions.json` with what a run actually used. Adding a component
+  means adding its fixture in the same commit; that is what the clean-room
+  claim in `PROVENANCE.md` rests on. What the two ports share through
+  `ZephraMLX` is pinned by both kits' fixtures through the shared copy, and
+  `ZephraMLXTests` pins the shared pieces on doll's-house tensors of their own.
 
 No test loads model weights. The `ZephraKit` suites never touch Metal; the MLX
 packages' suites run doll's-house tensors through it, and a few of `QwenImageKit`'s

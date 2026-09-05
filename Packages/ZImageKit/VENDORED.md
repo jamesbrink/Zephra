@@ -142,12 +142,12 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
   the 4-bit variant, where the untiled peak is 17839 MB.
 
   `VAETiledDecode.latentTile` is a public settable property rather than a constant, so a host can
-  change the tile between generations without a relaunch. It starts at `ZEPHRA_VAE_TILE`, which
-  is how `ZephraBench` and the command line still reach it; the Zephra app overwrites it from
-  Settings > Performance for the model it is about to run, so inside the app the environment
-  variable only decides what happens before the first window appears. Written from the main
-  thread and read on the inference thread, which is why it is `nonisolated(unsafe)`: the worst a
-  race can do is decode one image with the previous setting.
+  change the tile between generations without a relaunch. It starts at `ZEPHRA_VAE_TILE`, read
+  here because this package cannot take `InferenceEnvironment`; `ZephraBackendZImage` overwrites
+  it from the engine's per-run choice just before every generation, on the inference queue, so
+  in Zephra the vendored read decides nothing and the app and the bench both set it the same
+  way. `nonisolated(unsafe)` because it is a static written and read on more than one thread in
+  the general case; in Zephra both happen on the inference queue.
 
   The pixels kept from each tile are the stride's worth, and the blend is the rest of the tile:
   both are derived from the rounded latent stride rather than rounded separately, because a
