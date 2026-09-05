@@ -11,11 +11,12 @@ import ZephraUpscaleRealESRGAN
 @main
 struct ZephraApp: App {
     @NSApplicationDelegateAdaptor(AppTermination.self) private var termination
-    @State private var store = ZephraApp.makeStore()
+    // Not private: `ZephraApp+Library.swift` wires these four together once the window is up.
+    @State var store = ZephraApp.makeStore()
     @State private var cache = ImageCache()
-    @State private var workspace = InterfacePreview.workspace() ?? WorkspaceSelection()
-    @State private var index = InterfacePreview.index() ?? LibraryIndex(library: AppSettings.imageLibrary())
-    @State private var thumbnails = ThumbnailCache()
+    @State var workspace = InterfacePreview.workspace() ?? WorkspaceSelection()
+    @State var index = InterfacePreview.index() ?? LibraryIndex(library: AppSettings.imageLibrary())
+    @State var thumbnails = ThumbnailCache()
     /// What the models occupy on disk, for Settings > Models. Built here with the store so the
     /// window and Settings observe the one list.
     @State private var inventory = ModelInventory(locations: AppSettings.modelLocations())
@@ -90,28 +91,6 @@ struct ZephraApp: App {
         .windowResizability(.contentSize)
     }
 
-    /// Starts the library reading the folder, and tells it about the images this session makes
-    /// and unmakes.
-    ///
-    /// A saved image is handed to the index by path, one header read and a sorted insert; a
-    /// deleted one is a rescan, because the store deletes to the system Trash and a path that
-    /// has gone is not something the index can be told about in place. Either way the folder
-    /// watch would notice in its own time — this is only so the grid moves at once.
-    private func openLibrary() {
-        index.start()
-        // Only the `viewer` screenshot build has an answer here.
-        if let viewing = InterfacePreview.viewing(in: index) { workspace.viewing = viewing }
-        thumbnails.sweep()
-        store.onImageSaved = { url in index.insert(fileAt: url) }
-        store.onImageDeleted = { _ in Task { await index.rescanNow() } }
-        // The reverse direction: a delete made through the index — the grid, the viewer, the
-        // sidebar wall, or the canvas's own menu — never goes through the store, so the store
-        // is told separately when one of the files it might be showing is gone.
-        index.onRecentlyDeleted = { urls in
-            for url in urls { store.forget(fileAt: url) }
-        }
-    }
-
     /// Builds the one store the window observes.
     ///
     /// `ZEPHRA_PREVIEW_STATE` short-circuits to a frozen store so the interface can be run and
@@ -132,7 +111,7 @@ struct ZephraApp: App {
         // The upscaler is registered here for the same reason the backends are: this is the one
         // file that may name a concrete one.
         let store = GenerationStore(
-            descriptor: ZephraApp.savedModel(),
+            descriptor: ZephraApp.savedModel(fitting: budget),
             registry: registry,
             outputDirectory: AppSettings.imageLibrary().root,
             locations: AppSettings.modelLocations(),
@@ -143,17 +122,5 @@ struct ZephraApp: App {
         store.weightResidencyPolicy = AppSettings.residencyPolicy(budget: budget)
         store.vaeTilingPolicy = AppSettings.tilingPolicy(budget: budget)
         return store
-    }
-
-    /// The model chosen last time, or the largest one this Mac can actually run when nothing
-    /// was chosen or the saved identifier belongs to a build that no longer ships that model.
-    ///
-    /// A saved choice is honoured whatever its size: a model that pages at its default size
-    /// still runs at a smaller one, and that is the user's call to make. Whether it is still
-    /// on the disk is the store's to find out, at bootstrap, from the backend.
-    private static func savedModel() -> ModelDescriptor {
-        let saved = UserDefaults.standard.string(forKey: AppSettings.selectedModelID)
-        return saved.flatMap(ModelCatalog.descriptor(id:))
-            ?? ModelCatalog.default(fitting: budget)
     }
 }
