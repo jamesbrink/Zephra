@@ -43,48 +43,6 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
         self.init(environment: InferenceEnvironment(), tile: VAETileSetting())
     }
 
-    /// Resolves the descriptor's weights, downloading them if they are not on this Mac, and
-    /// returns the directory to load from — or, for the four-bit variant, the release `build`
-    /// packs next.
-    ///
-    /// What is already here is looked up rather than left to the vendored resolver, which knows
-    /// only the layout `hf download` writes and would fetch a model Zephra itself downloaded
-    /// again on every launch. Three places are looked at before anything is fetched: the packed
-    /// variant, which makes the release unnecessary and may even have been deleted; the folder
-    /// the user keeps models in; and the hub cache in either layout, read as a fallback and
-    /// never written. `ZephraSnapshot`'s downloader does the fetching, and it is the only step
-    /// that can report progress.
-    nonisolated(nonsending) public func ensureAvailable(
-        _ descriptor: ModelDescriptor,
-        locations: ModelLocations,
-        acquisition: any ModelAcquisition,
-        onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
-    ) async throws -> URL {
-        switch descriptor.source {
-        case .localDirectory:
-            let candidates = locations.builtCandidates(for: descriptor)
-            if let built = candidates.first(where: {
-                LocalSnapshot.zImage.missingEntry(in: $0) == nil
-            }) {
-                return built
-            }
-            return try LocalSnapshot.zImage.verified(
-                candidates.first ?? locations.built(descriptor), descriptor: descriptor)
-        case .huggingFace:
-            if descriptor.isBuiltLocally,
-               let packed = LocalSnapshot.zImage.packedVariant(of: descriptor, in: locations)
-            {
-                return packed
-            }
-            let check = LocalSnapshot.zImage(for: descriptor)
-            let here = check.downloadedRelease(of: descriptor, in: locations)
-            if let here, locations.missingAdapters(of: descriptor).isEmpty { return here }
-            let fetched = try await acquisition.fetch(
-                descriptor, into: locations, release: here, onProgress: onProgress)
-            return try check.verified(fetched, descriptor: descriptor)
-        }
-    }
-
     /// Reads the weights at `localPath` into memory.
     ///
     /// Whatever was loaded before is released first. Two Z-Image models are 13 GB each, so
