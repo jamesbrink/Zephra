@@ -25,6 +25,10 @@ public struct Flux2InferenceRuntime: InferenceRuntime {
         MLXRuntime.gpuWorkingSetBytes()
     }
 
+    public func weightStreamReading() -> WeightStreamReading? {
+        MLXRuntime.weightStreamReading()
+    }
+
     public func setVAETileSize(_ tile: Int?) {
         Flux2Runtime.vaeTileSize = tile
     }

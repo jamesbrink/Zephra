@@ -76,6 +76,7 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
     nonisolated(nonsending) public func load(
         _ descriptor: ModelDescriptor,
         at localPath: URL,
+        residency: WeightResidency,
         onProgress: @escaping (GenerationProgressEvent) -> Void
     ) async throws {
         if loadedModelID != nil { unload() }

@@ -25,6 +25,10 @@ public struct ZImageInferenceRuntime: InferenceRuntime {
         MLXRuntime.gpuWorkingSetBytes()
     }
 
+    public func weightStreamReading() -> WeightStreamReading? {
+        MLXRuntime.weightStreamReading()
+    }
+
     public func setVAETileSize(_ tile: Int?) {
         ZImageRuntime.vaeTileSize = tile
     }

@@ -33,8 +33,9 @@ Shared, by what a file actually touches:
                                                   what the models occupy on disk
   ZephraKit/ZephraTestSupport  Foundation only  — Scratch, the filesystem test fixture
   ZephraMLXKit/ZephraQuantization  MLX          — the streaming weight packer
-  ZephraMLXKit/ZephraMLX           MLX, ZephraCore — the tiled decode and the allocator's
-                                                  knobs; <Family>Kit may take it
+  ZephraMLXKit/ZephraMLX           MLX, MLXNN, ZephraCore — the tiled decode, the allocator's
+                                                  knobs, and the streamed layer stack;
+                                                  <Family>Kit may take it
 ```
 
 - `ZephraCore` (in `Packages/ZephraKit`): Sendable value types + protocols.
@@ -107,14 +108,17 @@ Shared, by what a file actually touches:
   to run that from the app: a `.partial` directory renamed on success, removed
   on failure, and a free-space refusal before anything is read.
 - `ZephraMLX` (in `Packages/ZephraMLXKit`): MLX work that is the same job for
-  every family. Three things are there. `TiledDecode`: an autoencoder's decode
+  every family. Four things are there. `TiledDecode`: an autoencoder's decode
   allocates in proportion to the image, so decoding overlapping latent tiles
   bounds the peak by the tile. `MLXRuntime`: the process-wide allocator's
   limits and readings, which each family's `InferenceRuntime` forwards to,
   adding only its own VAE tile. `LatentPreview`: how far to pool a latent for a
   preview frame, and how to turn the decoded pixels into RGBA8 bytes — the two
-  halves of a frame that are not a family's own decoder. A model package may
-  depend on this; nothing in it may depend on a model package. The vendored
+  halves of a frame that are not a family's own decoder. `Streaming/`: the
+  `LayerWeightStream` that runs a stack of identical layers with a window of
+  their weights in memory, reading each layer from its shards a couple ahead of
+  the one running (see "Streaming the weights" under Model weights). A model
+  package may depend on this; nothing in it may depend on a model package. The vendored
   `ZImageKit` keeps its own copy of the first and the third as a
   `ZEPHRA-PATCH`, because pointing vendored code at ours would complicate every
   re-sync.
@@ -950,6 +954,71 @@ rebuilt on demand would have to keep the shard mapped for the pipeline's whole
 life to have anything to fill itself from. The catalog's measured figures have
 not been adjusted for it by arithmetic; they are due a rerun.
 
+**Streaming the weights.** A Mac whose GPU cannot hold Qwen-Image still runs it,
+by reading the model from the disk on every step instead of holding it. The
+mechanism is `LayerWeightStream` in `ZephraMLX`, and its shape is set by how MLX
+loads: `MLX.loadArrays` parses a shard's header and hands back arrays that are read
+with `pread` into an MLX-owned buffer only when evaluated, and there is no mmap
+path (the MLX maintainers measured one and rejected it: the kernel page cache is
+the wrong eviction policy for weights). So a stream keeps, per layer, the very
+`MLXArray` objects the forward pass reads, and one pass does this in this order:
+open fresh lazy nodes for every tensor in the stack's shards; `asyncEval` the first
+`depth` layers' arrays, which starts their reads on the CPU stream; then for each
+layer, run its work, `asyncEval` its outputs, **wait for the layer before it**, then
+`asyncEval` the layer `depth` ahead, then hand each of the layer's arrays a fresh
+unevaluated node from the next pass with `_updateInternal`. The buffers a layer
+held live exactly until its command buffers complete, and nothing has to remember
+a placeholder. Two of those choices are load-bearing and easy to undo: outputs
+are committed per layer at all because an unevaluated graph holds every layer's
+weights as inputs, so one eval per step would read most of the model before any
+of it ran; and the wait on the layer before is what bounds the window at
+`depth + 2` layers, because MLX allocates a tensor's buffer when its read is
+*queued*, not when the bytes arrive, and a loop that queued freely would run five
+or six layers ahead before MLX's own task limit stopped it. Waiting on the layer
+before rather than the one just committed leaves the GPU a layer of work in hand.
+
+In Qwen-Image the transformer's sixty blocks (16.1 GB packed, about 269 MB
+each) and the text encoder's twenty-eight layers stream; the embeddings, the input
+and output projections, the norms and the whole autoencoder stay resident, which
+is what `QwenImageResidentParameters` evaluates at load. `QwenImagePipeline.loadModel`
+takes a `QwenImageStreaming` (depth, two by default: three layers held at once)
+and attaches a stream to each stack after the loader has filled it and before
+anything evaluates it. A streamed step is one read of the transformer, so a
+`Task.checkCancellation()` sits between blocks and Stop is answered inside a step.
+Every block's tensors have identical shapes, so MLX's buffer cache hands block
+i's freed buffers to block i+2's reads; the bench reports `cacheMemoryMB` so a
+run where that stopped happening shows up rather than being guessed at.
+
+What decides it: `ModelDescriptor.streamedPeakBytes`, zero for a family that cannot
+stream, is the measured peak with the weights streamed and the decode tiled;
+`MemoryFit` tries it after `fitsTiled` and before giving up, and answers
+`fitsStreamed`, which the picker words "Streams from disk". `WeightResidencyPolicy`
+turns the Performance tab's three-way preference (`AppSettings.weightResidency`)
+and the budget into a `WeightResidency` for a load — under Automatic, streamed
+exactly when the verdict is `fitsStreamed`, and never for a model with no streamed
+figure, which is how klein and Z-Image are never asked to. The residency rides on
+`ImageGenerationBackend.load(_:at:residency:onProgress:)`; `InferenceActor` pins it
+beside `loadedPath`, so asking for a model already up the other way is a reload,
+and `GenerationStore.setWeightResidencyPolicy` reloads through the swap path when
+the loaded model's answer changes. `ZEPHRA_WEIGHT_RESIDENCY=streamed|resident`
+overrides the preference for one launch and `ZEPHRA_STREAM_DEPTH=N` the depth;
+`make bench ARGS="--stream"` measures it and prints the gigabytes read per step and
+the disk's rate, which is what tells a read-bound step from a slow GPU.
+
+**The memory budget** every verdict is measured against is `MemoryBudget` in
+`ZephraCore`: not a fraction of RAM but what the GPU may keep resident, Metal's
+`recommendedMaxWorkingSetSize` — 12124 MB on a 16 GB M4 mini, 38338 MB on a
+48 GB M4 Max — which is the figure `sudo sysctl -w iogpu.wired_limit_mb=N`
+raises. The app reads it once at launch (`GPUMemoryBudget`, from the runtime and
+the sysctl) and hands it down as an environment value and to the store; MLX's
+memory limit and wired limit are set from it too, so a resident model is kept in
+Metal's residency set rather than left for the OS to page. Settings >
+Performance shows the figure and, when the chosen model would run with the limit
+raised and does not run now, the exact command with a Copy button: the app never
+runs `sudo`, and a change to the sysctl is seen at the next launch. A budget
+built from RAM alone, which the tests and a GPU-less build use, assumes four
+fifths of it.
+
 Fourth model: `flux2-klein-4b-4bit` and `flux2-klein-4b-8bit` — **FLUX.2 klein
 4B** (`black-forest-labs/FLUX.2-klein-4B`, Apache 2.0, ungated), a 3.9-billion
 parameter rectified-flow transformer of 5 dual-stream and 20 single-stream blocks,
@@ -1123,7 +1192,12 @@ the re-sync procedure, and the running patch log. Any change inside
   the command line use. The app overrides it as soon as its window appears: Settings >
   Performance holds a three-way preference (`AppSettings.vaeTiling`) and `VAETilingPolicy`
   applies it for the model about to run, tiling under Automatic when that model's `peakBytes`
-  is over four fifths of physical memory.
+  is over what the GPU may keep resident (`MemoryBudget`).
+- `ZEPHRA_WEIGHT_RESIDENCY=streamed|resident` overrides the Performance tab's streaming
+  preference for one launch, and `ZEPHRA_STREAM_DEPTH=N` says how many blocks a streamed load
+  reads ahead (2 unless set). `make bench ARGS="--model qwen-image-2512-4bit --stream"` is the
+  same with the report saying what one step read and how fast; `--stream-depth N` sweeps the
+  window. A model whose family cannot stream loads resident whatever either says.
 
 ## Environment notes
 

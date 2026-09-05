@@ -31,6 +31,11 @@ struct BenchOptions: Sendable {
     /// How far from it the timed runs start, on a model that starts from a noised copy. Only
     /// read when there is a reference, and clamped to the model's own bounds after that.
     var referenceStrength = 0.6
+    /// Whether the weights are streamed from disk on every step rather than held, on a model
+    /// whose family can. Off by default, so a timing taken today is the model's own.
+    var stream = false
+    /// How many layers a streamed load reads ahead, or nil for the backend's own default.
+    var streamDepth: Int?
 
     /// Reads options from the command line, exiting with usage text on anything unrecognised.
     /// A benchmark is run by hand, so a typo should stop it rather than quietly measure the
@@ -48,11 +53,13 @@ struct BenchOptions: Sendable {
                 options.micro = true
             case "--preview":
                 options.preview = true
+            case "--stream":
+                options.stream = true
             case "--help", "-h":
                 print(usage)
                 exit(0)
             case "--size", "--steps", "--runs", "--prompt", "--out", "--model", "--backend",
-                "--snapshot", "--reference", "--strength":
+                "--snapshot", "--reference", "--strength", "--stream-depth":
                 guard index < arguments.count else { fail("\(flag) needs a value") }
                 let value = arguments[index]
                 index += 1
@@ -76,6 +83,7 @@ struct BenchOptions: Sendable {
         case "--snapshot": options.snapshot = URL(fileURLWithPath: value)
         case "--reference": options.reference = readableFile(value, flag)
         case "--strength": options.referenceStrength = fraction(value, flag)
+        case "--stream-depth": options.streamDepth = positive(value, flag)
         default: fail("unknown option \(flag)")
         }
     }
@@ -123,7 +131,7 @@ struct BenchOptions: Sendable {
     private static let usage = """
         usage: ZephraBench [--model ID] [--size N] [--steps N] [--runs N] [--prompt TEXT] \
         [--out PATH] [--json] [--micro] [--preview] [--backend NAME --snapshot DIR] \
-        [--reference IMAGE --strength S]
+        [--reference IMAGE --strength S] [--stream [--stream-depth N]]
 
         --model names a catalog entry, so variants can be compared at a fixed seed.
         --backend and --snapshot together run a model the catalog does not carry yet, which
@@ -144,5 +152,10 @@ struct BenchOptions: Sendable {
         so a step time measured without it is the model's own.
         --micro times the DiT's individual MLX kernels at --size worth of tokens and
         exits, without loading any weights.
-        """
+        
+        --stream reads the weights from disk on every step instead of holding them, the way
+        the app does on a Mac whose GPU cannot hold the model, and reports the bytes read per
+        step and the disk's rate; --stream-depth is how many blocks are read ahead (2 unless
+        set). A model whose family cannot stream loads resident whatever the flag says.
+"""
 }

@@ -28,6 +28,7 @@ let package = Package(
             name: "ZephraMLX",
             dependencies: [
                 .product(name: "MLX", package: "mlx-swift"),
+                .product(name: "MLXNN", package: "mlx-swift"),
                 .product(name: "ZephraCore", package: "ZephraKit"),
             ]
         ),
@@ -36,6 +37,9 @@ let package = Package(
             dependencies: [
                 "ZephraMLX",
                 .product(name: "MLX", package: "mlx-swift"),
+                .product(name: "MLXNN", package: "mlx-swift"),
+                .product(name: "MLXRandom", package: "mlx-swift"),
+                .product(name: "ZephraTestSupport", package: "ZephraKit"),
             ]
         ),
         .testTarget(

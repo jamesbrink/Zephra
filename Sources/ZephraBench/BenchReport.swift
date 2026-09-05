@@ -32,9 +32,21 @@ struct BenchReport: Codable, Sendable {
     let meanPreviewSeconds: Double?
     /// Where the last preview frame was written, or nil when there was none to write.
     let previewPath: String?
+    /// Whether the weights were held or streamed, as `WeightResidency`'s raw value. What
+    /// actually ran: a family that cannot stream reports resident whatever was asked.
+    let weightResidency: String
+    /// Gigabytes of weights read from disk per step when streaming, or nil when held.
+    let streamedGBPerStep: Double?
+    /// The rate the last streamed pass read at, in gigabytes per second, or nil when held.
+    /// Reads and compute together: a rate near the disk's own says the step is read-bound.
+    let streamReadGBps: Double?
     /// GPU memory still live after the last run, in megabytes. This is what the app will hold
     /// steadily while a model stays loaded.
     let activeMemoryMB: Double
+    /// GPU memory the allocator is keeping for reuse after the last run, in megabytes. When
+    /// streaming, a figure that holds steady across steps says the blocks' buffers are being
+    /// recycled rather than freshly allocated.
+    let cacheMemoryMB: Double
     /// Highest GPU memory use seen during the whole session, in megabytes. The gap between
     /// this and `activeMemoryMB` is the transient cost of reading the weights.
     let peakMemoryMB: Double
@@ -101,7 +113,15 @@ struct BenchReport: Codable, Sendable {
         if let previewPath {
             lines.append(row("frame written", previewPath))
         }
+        lines.append(row("weights", weightResidency))
+        if let streamedGBPerStep, let streamReadGBps {
+            lines.append(
+                row(
+                    "streamed",
+                    String(format: "%.1f GB per step at %.2f GB/s", streamedGBPerStep, streamReadGBps)))
+        }
         lines.append(row("live memory", String(format: "%.0f MB", activeMemoryMB)))
+        lines.append(row("cached", String(format: "%.0f MB", cacheMemoryMB)))
         lines.append(row("peak memory", String(format: "%.0f MB", peakMemoryMB)))
         lines.append(row("image written", outputPath))
         return lines.joined(separator: "\n")

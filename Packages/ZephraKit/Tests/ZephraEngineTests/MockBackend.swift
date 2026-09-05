@@ -81,9 +81,10 @@ final class MockBackend: ImageGenerationBackend {
     func load(
         _ descriptor: ModelDescriptor,
         at localPath: URL,
+        residency: WeightResidency,
         onProgress: @escaping (GenerationProgressEvent) -> Void
     ) async throws {
-        control.update { $0.loads += 1 }
+        control.update { $0.loads += 1; $0.lastResidency = residency }
         let dials = control.settings
         if let error = dials.loadError { throw error }
         onProgress(GenerationProgressEvent(phase: .preparing, fraction: 0))

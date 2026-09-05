@@ -89,6 +89,7 @@ extension GenerationStore {
             self.applyLoadEvent(event)
         }
         var acquired: AcquiredModel?
+        let residency = weightResidencyPolicy.residency(for: model)
         do {
             acquired = try await downloads.acquire(model, registry: registry, locations: locations) { [weak self] event in
                 guard let self, self.loadIdentity == identity else { return }
@@ -101,7 +102,9 @@ extension GenerationStore {
             }
             try await downloads.transfers.reserveBuild(acquired.id,
                 bytes: builtExists ? 0 : model.builtBytes, at: acquired.locations.root)
-            let directory = try await pump.run { sink in try await inference.prepare(acquired, events: sink) }
+            let directory = try await pump.run { sink in
+                try await inference.prepare(acquired, residency: residency, events: sink)
+            }
             await downloads.transfers.finishBuild(acquired.id)
             try Task.checkCancellation()
             if warmsUpAfterLoad {
@@ -112,6 +115,7 @@ extension GenerationStore {
             guard loadIdentity == identity else { throw CancellationError() }
             acquiredModel = acquired
             loadedDirectory = directory
+            loadedResidency = residency
             loadedDescriptor = model
             transition(to: .ready)
         } catch {
@@ -122,6 +126,7 @@ extension GenerationStore {
             if loadIdentity == identity {
                 loadedDescriptor = nil
                 loadedDirectory = nil
+                loadedResidency = nil
                 switch error {
                 case is CancellationError: transition(to: .idle)
                 case BackendRegistryError.noBackend(let id): transition(to: .failed(.noBackend(id)))
@@ -143,5 +148,6 @@ extension GenerationStore {
         acquiredModel = nil
         loadedDescriptor = nil
         loadedDirectory = nil
+        loadedResidency = nil
     }
 }

@@ -14,6 +14,9 @@ enum BenchRunner {
         // first generation and not after. Zero switches the frames off, which is the default
         // here: a benchmark measures the model, unless it was asked to measure the frames too.
         setenv("ZEPHRA_PREVIEW_INTERVAL_MS", options.preview ? "750" : "0", 1)
+        if let depth = options.streamDepth {
+            setenv("ZEPHRA_STREAM_DEPTH", String(depth), 1)
+        }
         // Either a catalogued model, or a snapshot named on the command line for a family whose
         // catalog entry does not exist yet. The flag was checked when it was parsed, so an
         // unknown identifier cannot reach here.
@@ -44,8 +47,9 @@ enum BenchRunner {
         }
         note("loading \(descriptor.fullName)", verbose)
         let clock = ContinuousClock()
+        let residency: WeightResidency = options.stream ? .streamed : .resident
         let loadDuration = try await clock.measure {
-            try await backend.load(descriptor, at: snapshot) { _ in }
+            try await backend.load(descriptor, at: snapshot, residency: residency) { _ in }
         }
 
         note("warm-up", verbose)
@@ -80,6 +84,9 @@ enum BenchRunner {
             try BenchPreviewImage.write($0, beside: options.output).path
         }
         let memory = BenchBackends.runtime().memorySnapshot()
+        // The last pass in the process is the last step's pass over the transformer, which is
+        // the one a step time is measured against.
+        let streamed = BenchBackends.runtime().weightStreamReading()
 
         return BenchReport(
             device: BenchBackends.runtime().deviceSummary(),
@@ -96,7 +103,11 @@ enum BenchRunner {
             previewFrames: options.preview ? previewSeconds.count : nil,
             meanPreviewSeconds: options.preview ? mean(previewSeconds) : nil,
             previewPath: previewPath,
+            weightResidency: residency.rawValue,
+            streamedGBPerStep: streamed.map { Double($0.bytes) / 1_000_000_000 },
+            streamReadGBps: streamed.map { $0.bytesPerSecond / 1_000_000_000 },
             activeMemoryMB: Double(memory.activeBytes) / 1_000_000,
+            cacheMemoryMB: Double(memory.cacheBytes) / 1_000_000,
             peakMemoryMB: Double(memory.peakBytes) / 1_000_000,
             outputPath: options.output.path,
             referencePath: settings.referenceImage == nil ? nil : options.reference?.path

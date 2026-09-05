@@ -36,7 +36,7 @@ struct TextEncoderParityTests {
         try encoder.update(parameters: ModuleParameters.unflattened(weights), verify: .all)
         MLX.eval(encoder.parameters())
 
-        let hidden = encoder(tokens, dropping: 0)
+        let hidden = try encoder(tokens, dropping: 0)
         #expect(hidden.shape == reference.shape)
         let difference = Fixture.maxAbsoluteDifference(hidden, reference)
         #expect(difference < 2e-4, "hidden states differ by \(difference)")
@@ -52,7 +52,7 @@ struct TextEncoderParityTests {
         let weights = fixture.filter { $0.key.hasPrefix("model.") }
         try encoder.update(parameters: ModuleParameters.unflattened(weights), verify: .all)
 
-        let dropped = encoder(tokens, dropping: 2)
+        let dropped = try encoder(tokens, dropping: 2)
         #expect(dropped.shape == [1, reference.shape[1] - 2, 64])
         #expect(Fixture.maxAbsoluteDifference(dropped, reference[0..., 2...]) < 2e-4)
     }

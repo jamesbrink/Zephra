@@ -76,6 +76,11 @@ public nonisolated enum MLXRuntime {
         )
     }
 
+    /// What the last streamed pass read and how fast, or nil while nothing has streamed.
+    public static func weightStreamReading() -> WeightStreamReading? {
+        WeightStreamMeter.lastPass
+    }
+
     /// One line naming the Metal device and the memory it will work within, for logs and for
     /// the benchmark header.
     public static func deviceSummary() -> String {

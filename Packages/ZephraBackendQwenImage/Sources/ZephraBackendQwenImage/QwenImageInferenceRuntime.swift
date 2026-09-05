@@ -25,6 +25,10 @@ public struct QwenImageInferenceRuntime: InferenceRuntime {
         MLXRuntime.gpuWorkingSetBytes()
     }
 
+    public func weightStreamReading() -> WeightStreamReading? {
+        MLXRuntime.weightStreamReading()
+    }
+
     public func setVAETileSize(_ tile: Int?) {
         QwenImageRuntime.vaeTileSize = tile
     }

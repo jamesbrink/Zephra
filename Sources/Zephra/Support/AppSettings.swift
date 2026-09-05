@@ -17,6 +17,9 @@ enum AppSettings {
     static let cacheLimitMB = "cacheLimitMB"
     /// When the VAE decode runs in tiles, as a `VAETilingMode` raw value.
     static let vaeTiling = "vaeTiling"
+    /// When a model's weights are streamed from disk rather than held, as a
+    /// `WeightResidencyMode` raw value.
+    static let weightResidency = "weightResidency"
     /// Which pane the window was showing, as a `WorkspacePane` raw value.
     static let workspacePane = "workspacePane"
     /// The collection the library was showing, as a `LibraryScope` raw value.
@@ -50,6 +53,8 @@ enum AppSettings {
     static let initialWarmUpOnLaunch = true
     /// Exactness wherever the Mac has the memory for it, tiling only where it does not.
     static let initialVAETiling = VAETilingMode.automatic
+    /// Resident wherever the Mac can hold the model, streamed only where it cannot.
+    static let initialWeightResidency = WeightResidencyMode.automatic
     /// The library opens with its inspector out: the facts about an image are why it is there.
     static let initialInspectorVisible = true
     /// Big enough to judge an image by, small enough for a wall of them.
@@ -71,6 +76,21 @@ enum AppSettings {
             mode: stored.flatMap(VAETilingMode.init(rawValue:)) ?? initialVAETiling,
             budget: budget
         )
+    }
+
+    /// How the stored preference and this machine's memory budget decide where a model's
+    /// weights live, for the composition root, which sets it on the store before bootstrap.
+    /// `ZEPHRA_WEIGHT_RESIDENCY=streamed|resident` overrides the preference for one launch,
+    /// the way `ZEPHRA_VAE_TILE` does for the tile.
+    static func residencyPolicy(budget: MemoryBudget) -> WeightResidencyPolicy {
+        let stored = UserDefaults.standard.string(forKey: weightResidency)
+        var mode = stored.flatMap(WeightResidencyMode.init(rawValue:)) ?? initialWeightResidency
+        switch ProcessInfo.processInfo.environment["ZEPHRA_WEIGHT_RESIDENCY"] {
+        case "streamed": mode = .always
+        case "resident": mode = .never
+        default: break
+        }
+        return WeightResidencyPolicy(mode: mode, budget: budget)
     }
 
     /// Where models are kept right now, for the composition root, which has to answer the

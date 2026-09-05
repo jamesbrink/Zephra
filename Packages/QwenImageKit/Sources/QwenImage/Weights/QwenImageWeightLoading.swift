@@ -13,8 +13,21 @@ import MLXNN
 public enum QwenImageWeightLoading {
     /// Every tensor in a component's shards.
     ///
-    /// Arrays come back memory-mapped and unevaluated, so nothing is resident until it is used.
+    /// Arrays come back unevaluated: only each shard's header is parsed, and a tensor is read
+    /// from the file into memory the first time it is evaluated, so nothing is resident until
+    /// it is used.
     public static func weights(in directory: URL) throws -> [String: MLXArray] {
+        let shards = try shards(in: directory)
+        var all: [String: MLXArray] = [:]
+        for shard in shards {
+            all.merge(try MLX.loadArrays(url: shard)) { first, _ in first }
+        }
+        return all
+    }
+
+    /// A component's shards, in the order `weights(in:)` reads them, so an index built over
+    /// them and the dictionary read from them agree about which shard a tensor came from.
+    public static func shards(in directory: URL) throws -> [URL] {
         let shards = try FileManager.default
             .contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
             .filter { $0.pathExtension == "safetensors" }
@@ -23,11 +36,7 @@ public enum QwenImageWeightLoading {
             throw QwenImageConfigurationError.missingConfiguration(
                 name: "*.safetensors", directory: directory)
         }
-        var all: [String: MLXArray] = [:]
-        for shard in shards {
-            all.merge(try MLX.loadArrays(url: shard)) { first, _ in first }
-        }
-        return all
+        return shards
     }
 
     /// Reshapes `model` so it can hold whichever of `weights` are packed, then loads them.

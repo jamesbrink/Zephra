@@ -76,6 +76,16 @@ public final class GenerationStore {
     /// engine cannot ask the GPU itself; the app sets it from the runtime before `bootstrap()`,
     /// and until then the answer is the fraction of RAM a GPU-less budget assumes.
     public var memoryBudget = MemoryBudget(physicalMemory: ProcessInfo.processInfo.physicalMemory)
+    /// Where the weights of the next model loaded should live, from the user's preference and
+    /// the budget. Set through `setWeightResidencyPolicy(_:)` once the store is running, which
+    /// reloads a model already up the other way; set directly, like the two above, before
+    /// `bootstrap()`.
+    public var weightResidencyPolicy = WeightResidencyPolicy(
+        mode: .automatic,
+        budget: MemoryBudget(physicalMemory: ProcessInfo.processInfo.physicalMemory))
+    /// How the loaded model's weights are held, for the Performance tab and the loading text.
+    /// Nil while nothing is loaded.
+    public internal(set) var loadedResidency: WeightResidency?
     /// Progress while model files and their destination are being changed.
     public internal(set) var modelDirectoryProgress: String?
     public let downloads: ModelDownloads

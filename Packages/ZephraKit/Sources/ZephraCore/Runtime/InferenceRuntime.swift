@@ -20,6 +20,10 @@ public protocol InferenceRuntime: Sendable {
     /// `iogpu.wired_limit_mb` raises. Nil when there is no GPU runtime to ask.
     func gpuWorkingSetBytes() -> UInt64?
 
+    /// What the last pass of a streamed layer stack read and how fast, or nil while nothing
+    /// has streamed. What a settings readout shows beside "Streamed".
+    func weightStreamReading() -> WeightStreamReading?
+
     /// One line naming the device and the memory it will work within, for logs and headers.
     func deviceSummary() -> String
 
@@ -42,4 +46,7 @@ extension InferenceRuntime {
 
     /// A runtime without a GPU has no working set to report.
     public func gpuWorkingSetBytes() -> UInt64? { nil }
+
+    /// A runtime that never streams has nothing to report.
+    public func weightStreamReading() -> WeightStreamReading? { nil }
 }

@@ -62,7 +62,7 @@ enum QwenImageDenoiseLoop {
             try Task.checkCancellation()
             onProgress(
                 QwenImageGenerationProgress(stage: .denoising(step: index, of: sigmas.count)))
-            let prediction = transformer(
+            let prediction = try transformer(
                 latents: latents,
                 text: conditioning,
                 timestep: MLXArray([Float(sigma)]),

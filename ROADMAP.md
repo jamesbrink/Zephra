@@ -129,6 +129,25 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   under the finished picture as it fades in, would mean the store keeping a strip of
   them: a quarter of a megabyte each, for something nobody has asked to look at twice.
 
+## Streamed weights and the GPU limit: left out on purpose
+
+- **A privileged helper to set `iogpu.wired_limit_mb` from Settings.** The row shows
+  the command and copies it; running it wants an administrator's password and
+  `SMAppService`, for a setting that hands macOS's share of RAM to the GPU. A
+  person typing it at a prompt knows what they did.
+- **Streaming klein and Z-Image.** Both 4-bit variants fit a 16 GB Mac, so their
+  `streamedPeakBytes` stays zero and the policy never asks. The transformer loops
+  are the same shape as Qwen-Image's; an 8 GB Mac would be the argument.
+- **Prefetching block 0 of the next step during the decode**, a small win that needs
+  a "last step" flag through the transformer; **per-block cancellation** is in, but
+  the text encoder's pass still stops only at its end; a **custom `mlx_io_reader`**
+  (needs `Cmlx`, which `ZephraMLX` should not import); `F_NOCACHE` on the shards or
+  wiring the window, unless the bench's read rate shows the read, not the GPU, is
+  what a step waits on with a built-in SSD.
+- **The `mlx-flash`-style paced reader.** It meters `pread` with a token bucket so
+  reads never slow the GPU's own memory traffic. MLX's four-thread reader has not
+  shown the need; the bench's step time against the resident figure would.
+
 ## Upscaler follow-ups
 
 Left out of the first pass on purpose, each a small change to one file unless noted:

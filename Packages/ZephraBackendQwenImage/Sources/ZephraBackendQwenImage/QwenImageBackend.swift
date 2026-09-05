@@ -61,11 +61,14 @@ public nonisolated final class QwenImageBackend: ImageGenerationBackend {
     nonisolated(nonsending) public func load(
         _ descriptor: ModelDescriptor,
         at localPath: URL,
+        residency: WeightResidency,
         onProgress: @escaping (GenerationProgressEvent) -> Void
     ) async throws {
         if loadedModelID != nil { unload() }
+        let streaming = residency == .streamed
+            ? QwenImageStreaming(depth: QwenImageRuntime.streamDepth) : nil
         do {
-            try pipeline.loadModel(at: localPath) { progress in
+            try pipeline.loadModel(at: localPath, streaming: streaming) { progress in
                 onProgress(QwenImageProgressMapper.event(from: progress))
             }
         } catch let error as CancellationError {

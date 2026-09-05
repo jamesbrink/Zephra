@@ -91,3 +91,25 @@ struct InferenceActorTests {
         #expect(dial.settings.upscales == 2)
     }
 }
+
+@Suite("InferenceActor residency")
+struct InferenceActorResidencyTests {
+    @Test("the residency reaches the backend, and asking for the other one is a reload")
+    func residencyIsPinnedBesideThePath() async throws {
+        let control = MockBackendControl()
+        let registry = BackendRegistry().registering(.zImage) { _ in MockBackend(control: control) }
+        let inference = InferenceActor(registry: registry)
+        let (stream, continuation) = AsyncStream.makeStream(of: EngineEvent.self)
+        let sink = EngineEventSink(continuation)
+
+        try await inference.prepare(ModelCatalog.default, residency: .streamed, events: sink)
+        #expect(control.settings.lastResidency == .streamed)
+        try await inference.prepare(ModelCatalog.default, residency: .streamed, events: sink)
+        #expect(control.settings.loads == 1, "the same residency is already up")
+        try await inference.prepare(ModelCatalog.default, residency: .resident, events: sink)
+        #expect(control.settings.loads == 2, "the other residency is a reload")
+        #expect(control.settings.lastResidency == .resident)
+        continuation.finish()
+        for await _ in stream {}
+    }
+}

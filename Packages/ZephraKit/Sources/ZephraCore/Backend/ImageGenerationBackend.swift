@@ -32,11 +32,16 @@ public protocol ImageGenerationBackend: AnyObject {
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws -> URL
 
-    /// Loads weights from `localPath` into memory. Progress handler is intentionally not
-    /// @Sendable (mirrors the underlying libraries).
+    /// Loads weights from `localPath` into memory, held the way `residency` says. Progress
+    /// handler is intentionally not @Sendable (mirrors the underlying libraries).
+    ///
+    /// A family that cannot stream is never asked to: `WeightResidencyPolicy` answers
+    /// `.resident` for any descriptor whose `streamedPeakBytes` is zero, so such a family may
+    /// ignore the argument.
     nonisolated(nonsending) func load(
         _ descriptor: ModelDescriptor,
         at localPath: URL,
+        residency: WeightResidency,
         onProgress: @escaping (GenerationProgressEvent) -> Void
     ) async throws
 
@@ -65,6 +70,16 @@ public protocol ImageGenerationBackend: AnyObject {
 }
 
 extension ImageGenerationBackend {
+    /// Loads with the weights resident, for the callers that never stream: the benchmark's
+    /// default, the quantizer, and the tests.
+    public nonisolated(nonsending) func load(
+        _ descriptor: ModelDescriptor,
+        at localPath: URL,
+        onProgress: @escaping (GenerationProgressEvent) -> Void
+    ) async throws {
+        try await load(descriptor, at: localPath, residency: .resident, onProgress: onProgress)
+    }
+
     /// The download is what gets loaded.
     public nonisolated(nonsending) func build(
         _ descriptor: ModelDescriptor,

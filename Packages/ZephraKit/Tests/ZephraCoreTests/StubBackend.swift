@@ -31,6 +31,7 @@ final class StubBackend: ImageGenerationBackend {
     func load(
         _ descriptor: ModelDescriptor,
         at localPath: URL,
+        residency: WeightResidency,
         onProgress: @escaping (GenerationProgressEvent) -> Void
     ) async throws {}
 

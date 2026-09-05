@@ -21,8 +21,8 @@ public final class Qwen25TextEncoder: Module {
     ///   - tokens: The templated prompt's ids, `[batch, length]`.
     ///   - dropping: How many leading tokens the template contributes, which the reference
     ///     drops before conditioning. For Qwen-Image's own template that is 34.
-    public func callAsFunction(_ tokens: MLXArray, dropping prefix: Int) -> MLXArray {
-        let hidden = model(tokens)
+    public func callAsFunction(_ tokens: MLXArray, dropping prefix: Int) throws -> MLXArray {
+        let hidden = try model(tokens)
         guard prefix > 0 else { return hidden }
         precondition(
             hidden.shape[1] > prefix,

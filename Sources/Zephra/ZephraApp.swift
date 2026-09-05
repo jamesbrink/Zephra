@@ -134,6 +134,7 @@ struct ZephraApp: App {
             upscaler: RealESRGANUpscaler.make
         )
         store.memoryBudget = budget
+        store.weightResidencyPolicy = AppSettings.residencyPolicy(budget: budget)
         return store
     }
 

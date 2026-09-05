@@ -1,6 +1,7 @@
 import Foundation
 import MLX
 import MLXNN
+import ZephraMLX
 
 /// The Qwen2.5 decoder stack: embeddings, layers, and the final norm.
 ///
@@ -11,6 +12,9 @@ final class Qwen25Model: Module {
     @ModuleInfo(key: "embed_tokens") var embedTokens: Embedding
     @ModuleInfo(key: "layers") var layers: [Qwen25DecoderLayer]
     @ModuleInfo(key: "norm") var norm: RMSNorm
+
+    /// Set when the layers' weights are read from disk on each pass rather than held.
+    var stream: LayerWeightStream<Qwen25DecoderLayer>?
 
     init(_ configuration: QwenImageTextEncoderConfiguration) {
         _embedTokens.wrappedValue = Embedding(
@@ -27,11 +31,18 @@ final class Qwen25Model: Module {
     /// Qwen-Image conditions on this — the last hidden state, after the final norm — not on a
     /// layer part-way up and not on logits. Z-Image takes the second-to-last, so the difference
     /// is worth stating out loud.
-    func callAsFunction(_ tokens: MLXArray) -> MLXArray {
+    func callAsFunction(_ tokens: MLXArray) throws -> MLXArray {
         var x = embedTokens(tokens)
         let mask = Self.causalMask(tokens.shape[1], dtype: x.dtype)
-        for layer in layers {
-            x = layer(x, mask: mask)
+        if let stream {
+            try stream.run { layer in
+                x = layer(x, mask: mask)
+                return [x]
+            }
+        } else {
+            for layer in layers {
+                x = layer(x, mask: mask)
+            }
         }
         return norm(x)
     }

@@ -90,7 +90,7 @@ struct TransformerParityTests {
 
         let embedding = QwenImageRotaryEmbedding(
             theta: 10000, axesDim: configuration.axesDimsRope)
-        let prediction = transformer(
+        let prediction = try transformer(
             latents: try #require(fixture["model.in.latents"]),
             text: try #require(fixture["model.in.text"]),
             timestep: try #require(fixture["model.in.timestep"]),

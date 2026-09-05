@@ -21,6 +21,10 @@ actor InferenceActor {
     /// The directory the resident weights were read from, for `prepare` to hand back again
     /// when asked for a model that is already up.
     var loadedPath: URL?
+    /// How the loaded weights are held. Pinned beside `loadedPath` because a model already up
+    /// the other way is not already up: asking for it streamed after it was loaded resident
+    /// is a reload, the same as asking for a different model.
+    var loadedResidency: WeightResidency?
     private let upscalerFactory: UpscalerFactory?
     private var upscaler: (any ImageUpscaler)?
     /// The folder models are kept in, as the last `setLocations` left it. Read at the top of
@@ -107,6 +111,7 @@ actor InferenceActor {
         backend = nil
         backendID = nil
         loadedPath = nil
+        loadedResidency = nil
     }
 
     /// The one upscaler, built on first use, or nil in a build that was given no factory.

@@ -36,6 +36,9 @@ final class MockBackendControl: Sendable {
         /// The folder the last `ensureAvailable` was told to keep models in, so a test can
         /// assert that a chosen folder actually reached the backend.
         var lastLocations: ModelLocations?
+        /// Where the last `load` was told to keep the weights, so a test can assert the
+        /// policy's answer actually reached the backend.
+        var lastResidency: WeightResidency?
         /// What `availability(of:)` answers per descriptor id. Anything absent is `.available`.
         var availability: [String: ModelAvailability] = [:]
         /// How many times `load` was called.

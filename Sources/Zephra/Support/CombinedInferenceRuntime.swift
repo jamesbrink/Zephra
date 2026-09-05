@@ -37,6 +37,10 @@ struct CombinedInferenceRuntime: InferenceRuntime {
         runtimes.first?.gpuWorkingSetBytes()
     }
 
+    func weightStreamReading() -> WeightStreamReading? {
+        runtimes.first?.weightStreamReading()
+    }
+
     func deviceSummary() -> String {
         runtimes.first?.deviceSummary() ?? ""
     }

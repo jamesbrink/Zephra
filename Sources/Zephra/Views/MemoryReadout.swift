@@ -2,12 +2,13 @@ import SwiftUI
 import ZephraCore
 
 /// Live GPU memory: what is held by live arrays, what the allocator is keeping for reuse, the
-/// high-water mark since launch, and which way the VAE decode is set to run — the one setting
-/// that moves that high-water mark. Polled once a second, and only while this tab is on screen.
+/// high-water mark since launch, which way the VAE decode is set to run — the one setting
+/// that moves that high-water mark — and, when the weights are streamed, what the last pass
+/// read and how fast. Polled once a second, and only while this tab is on screen.
 struct MemoryReadout: View {
     @Environment(\.inferenceRuntime) private var runtime
     @State private var snapshot: MemorySnapshot?
-    @State private var tiledDecode = false
+    @State private var streamed: WeightStreamReading?
 
     var body: some View {
         Group {
@@ -16,7 +17,13 @@ struct MemoryReadout: View {
                 row("Cached", snapshot.cacheBytes)
                 row("Peak since launch", snapshot.peakBytes)
                 LabeledContent("VAE decode") {
-                    Text(tiledDecode ? "Tiled" : "Whole image")
+                    Text(runtime?.vaeTileSize() != nil ? "Tiled" : "Whole image")
+                }
+                if let streamed {
+                    LabeledContent("Weights") {
+                        Text(streamedText(streamed))
+                            .monospacedDigit()
+                    }
                 }
             } else {
                 Text("No inference runtime in this build.")
@@ -34,13 +41,20 @@ struct MemoryReadout: View {
         }
     }
 
+    /// "Streamed, 16.1 GB per pass at 1.6 GB/s".
+    private func streamedText(_ reading: WeightStreamReading) -> String {
+        String(
+            format: "Streamed, %.1f GB per pass at %.1f GB/s",
+            Double(reading.bytes) / 1_000_000_000, reading.bytesPerSecond / 1_000_000_000)
+    }
+
     /// Reads the runtime until the tab goes away. `.task` is cancelled on disappear, so a
     /// hidden Performance tab costs nothing.
     private func poll() async {
         guard let runtime else { return }
         while !Task.isCancelled {
             snapshot = runtime.memorySnapshot()
-            tiledDecode = runtime.vaeTileSize() != nil
+            streamed = runtime.weightStreamReading()
             try? await Task.sleep(for: .seconds(1))
         }
     }
