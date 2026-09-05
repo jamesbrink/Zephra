@@ -41,6 +41,10 @@ public enum SnapshotBuild {
         let partial = destination.deletingLastPathComponent()
             .appending(
                 path: destination.lastPathComponent + ".partial", directoryHint: .isDirectory)
+        // Neither the directory replaced at the end nor the partial emptied at the start may
+        // touch the release, or the build destroys what it reads. Checked before either is.
+        try SnapshotQuantizer.requireDisjoint(source: release, destination: destination)
+        try SnapshotQuantizer.requireDisjoint(source: release, destination: partial)
         // What a crashed build left behind is removed before the volume is measured: on a
         // nearly full disk it is the very thing standing in the way.
         try? FileManager.default.removeItem(at: partial)

@@ -59,6 +59,9 @@ public final class LoRAAdapter {
                 case .alpha: fromThisFile[key, default: Update()].alpha = tensor.item(Float.self)
                 }
             }
+            // A file whose tensors follow no naming this reads is not an adapter of nothing:
+            // merged, it hands back the base model looking exactly like a distilled build.
+            guard !fromThisFile.isEmpty else { throw QuantizationError.adapterNamesNothing(url) }
             updates.merge(fromThisFile) { _, later in later }
         }
         // A factor with no partner is a truncated or mis-shaped export, and merging half of one

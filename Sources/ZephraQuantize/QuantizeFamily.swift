@@ -37,6 +37,14 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
         }
     }
 
+    /// Whether the catalog's build of this family is the release with an adapter merged in.
+    ///
+    /// Qwen-Image's four-step distillation ships as an adapter, and the catalog entry — no
+    /// guidance, no negative prompt — describes the merged weights. A build without it loads
+    /// under that entry and runs, and makes soft, hazy pictures; so the tool refuses to make
+    /// one unless told to with `--no-lora`.
+    var requiresAdapter: Bool { self == .qwenImage }
+
     /// This family's packing plan at the requested precisions.
     ///
     /// Qwen-Image holds its modulation layers at eight bits whatever the rest is set to: they

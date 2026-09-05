@@ -139,6 +139,9 @@ targets:
     dependencies:
       - package: ZephraKit
         product: ZephraCore
+      # For stamping a build named for a catalog entry with the provenance the app checks.
+      - package: ZephraKit
+        product: ZephraSnapshot
       - package: ZephraMLXKit
         product: ZephraQuantization
       - package: ZephraBackendZImage

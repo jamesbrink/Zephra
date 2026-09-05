@@ -189,18 +189,20 @@ struct LoRAAdapterTests {
     }
 
     /// A complete rank-2 update for `blocks.0.to_q`, shaped 4 by 3.
-    private static func pair() -> [String: MLXArray] {
+    static func pair() -> [String: MLXArray] {
         [
             "blocks.0.to_q.lora_down.weight": MLXArray.ones([2, 3]),
             "blocks.0.to_q.lora_up.weight": MLXArray.ones([4, 2]),
         ]
     }
 
-    private static func write(_ arrays: [String: MLXArray], to url: URL) throws {
+    @discardableResult
+    static func write(_ arrays: [String: MLXArray], to url: URL) throws -> URL {
         try FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try MLX.save(
             arrays: arrays.mapValues { $0.asType(.float32) }, metadata: [:], url: url)
+        return url
     }
 
     /// A source shard holding packable linear weights of 64 by 128.

@@ -23,6 +23,12 @@ public enum QuantizationError: Error, LocalizedError, Equatable {
     /// An adapter names weights the component being packed does not have, so the distillation
     /// it encodes would be silently half-applied.
     case unmatchedAdapterLayers(component: String, keys: [String])
+    /// An adapter file holds no tensor this reader takes for a factor, so it would merge
+    /// nothing and hand back the base model as if it had been distilled.
+    case adapterNamesNothing(URL)
+    /// The build would write into the snapshot it reads, or around it, and the packer empties
+    /// what it writes to.
+    case destinationOverlapsSource(source: URL, destination: URL)
     /// The volume the build would be written to cannot hold it. Checked before anything is
     /// read, because a component that ran out of disk half way reads as a snapshot to a loader.
     case notEnoughSpace(needed: Int64, free: Int64)
@@ -52,6 +58,18 @@ public enum QuantizationError: Error, LocalizedError, Equatable {
             The adapter names \(keys.count) weights \(component) has not got, such as \
             \(keys.prefix(3).joined(separator: ", ")). Merging it would apply part of the \
             distillation and not the rest.
+            """
+        case .adapterNamesNothing(let url):
+            """
+            No tensor in \(url.lastPathComponent) is a LoRA factor this reads, so the adapter \
+            would merge nothing; kohya `lora_unet_` exports are not supported.
+            """
+        case .destinationOverlapsSource(let source, let destination):
+            """
+            The build would be written to \(destination.path(percentEncoded: false)), which is \
+            the source at \(source.path(percentEncoded: false)), inside it, or holds it. The \
+            packer empties what it writes to, so the release would be destroyed; choose \
+            another destination.
             """
         case .notEnoughSpace(let needed, let free):
             """

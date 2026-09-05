@@ -24,6 +24,8 @@ struct QuantizeOptions: Sendable {
     /// Low-rank adapter files merged into the transformer before it is packed. Repeat `--lora`
     /// to stack more than one; the usual case is a single distillation adapter.
     var adapters: [URL] = []
+    /// Build a family that is normally distilled by an adapter without one, on purpose.
+    var noLora = false
 
     /// Reads options from the command line, exiting with usage text on anything unrecognised.
     static func parse(_ arguments: [String]) -> QuantizeOptions {
@@ -35,6 +37,10 @@ struct QuantizeOptions: Sendable {
             if flag == "--help" || flag == "-h" {
                 print(usage)
                 exit(0)
+            }
+            if flag == "--no-lora" {
+                options.noLora = true
+                continue
             }
             guard index < arguments.count else { fail("\(flag) needs a value") }
             let value = arguments[index]
@@ -56,7 +62,11 @@ struct QuantizeOptions: Sendable {
         case "--source": options.source = URL(fileURLWithPath: value)
         case "--out": options.output = URL(fileURLWithPath: value)
         case "--source-name": options.sourceName = value
-        case "--lora": options.adapters.append(URL(fileURLWithPath: value))
+        case "--lora":
+            // `make quantize-qwen QWEN_LORA=` hands an empty path; that is a missing adapter,
+            // not an adapter, and is refused as one rather than opened as a file.
+            guard !value.isEmpty else { fail("--lora needs a file; pass --no-lora to build without one") }
+            options.adapters.append(URL(fileURLWithPath: value))
         case "--bits": options.bits = positive(value, flag)
         case "--group-size": options.groupSize = positive(value, flag)
         case "--text-encoder-bits": options.textEncoderBits = positive(value, flag)
@@ -80,15 +90,21 @@ struct QuantizeOptions: Sendable {
     private static let usage = """
         usage: ZephraQuantize --family NAME --source DIR [--out DIR] [--bits N] \
         [--group-size N] [--text-encoder-bits N] [--text-encoder-group-size N] \
-        [--lora FILE ...] [--source-name ID]
+        [--lora FILE ... | --no-lora] [--source-name ID]
 
         --family is one of \(QuantizeFamily.names) and decides which plan is used: which
         directories are packed, which tensors are left alone, and where the result is written.
         --source is a full-precision snapshot directory, such as the one `hf download` prints.
+        --out must not be the source or inside it; the build empties what it writes to first.
         The text encoder options default to the transformer's, which is what a plain uniform
         build wants.
         --lora merges a low-rank adapter into the transformer on the way past, so a distilled
         variant ships as an ordinary snapshot with no adapter code at run time. Every weight the
-        adapter names must exist in the transformer, or the build stops.
+        adapter names must exist in the transformer, or the build stops. qwen-image requires
+        one: without it the build is the undistilled model, which loads under the distilled
+        name and makes soft, hazy pictures. --no-lora builds it anyway, and then --out must
+        name a directory other than the catalog's.
+        The build is written to a sibling `.partial` directory and renamed into place when it
+        finishes; ^C stops it between tensors and removes the partial.
         """
 }
