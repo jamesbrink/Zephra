@@ -55,18 +55,14 @@ struct CanvasView: View {
     }
 
     /// The run being watched. Until its first frame arrives there is only the shape it will
-    /// fill, so the steps ride across it in safelight: something is happening, and this much of
-    /// it has happened. They go the moment there is a picture to look at instead.
+    /// fill, so `RunPlaceholderView` sits in it: something is happening, and this is what. It
+    /// goes the moment there is a picture to look at instead; the step count itself stays on
+    /// the capsule's edge and in the toolbar, where it already was.
     private var runInFlight: some View {
         LivePreviewView(preview: store.livePreview, size: runSize)
             .overlay {
                 if store.livePreview == nil {
-                    StepSegments(
-                        total: store.running?.settings.steps ?? 0,
-                        completed: store.state.denoisingProgress?.step ?? 0,
-                        isRunning: true
-                    )
-                    .frame(width: 200)
+                    RunPlaceholderView(phase: store.state.generationPhase)
                 }
             }
             .onTapGesture(count: 1) { workspace.promptTucked.toggle() }

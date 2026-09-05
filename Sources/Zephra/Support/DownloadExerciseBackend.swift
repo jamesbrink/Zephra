@@ -19,7 +19,7 @@ nonisolated final class DownloadExerciseBackend: ImageGenerationBackend {
         try await acquisition.fetch(model, into: locations, release: nil, onProgress: onProgress)
     }
 
-    func load(_ model: ModelDescriptor, at path: URL,
+    func load(_ model: ModelDescriptor, at path: URL, residency: WeightResidency,
               onProgress: @escaping (GenerationProgressEvent) -> Void) async throws {
         onProgress(GenerationProgressEvent(phase: .preparing, fraction: 0))
         try await Task.sleep(for: .milliseconds(300))

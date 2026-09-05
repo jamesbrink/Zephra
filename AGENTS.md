@@ -1144,7 +1144,7 @@ the re-sync procedure, and the running patch log. Any change inside
 
 ## Debugging hooks
 
-- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|queued|watching|batch|library|viewer|picker|downloading|building|failed`
+- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|starting|queued|watching|batch|library|viewer|picker|downloading|building|failed`
   launches a Debug build frozen in that state with no model, for screenshots (`make screenshot`).
   `tucked` is `image` with the canvas's floating prompt slid down to its lip.
   `viewer` opens the library pane on its first image full size; `picker` runs the
@@ -1155,7 +1155,8 @@ the re-sync procedure, and the running patch log. Any change inside
   `generating`, `queued` and `watching` all stand a run up with a made-up frame from it, so
   the live preview is on screen without a model: the first two are following the run, and
   `watching` is the one that is not — the model working while an earlier picture stays on the
-  canvas, which is what the running card's ring being off says.
+  canvas, which is what the running card's ring being off says. `starting` is the same run at
+  its first step with no frame yet, which is where `RunPlaceholderView` shows.
   `downloading` and `failed` sit over a picture, since that is where they must stay
   legible, and `failed` is a download that gave up.
 - Debug only: `ZEPHRA_DOWNLOAD_TEST_HUB=http://127.0.0.1:<port>` uses the real

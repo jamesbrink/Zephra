@@ -129,15 +129,25 @@ extension EngineState {
         return parts.joined(separator: " · ")
     }
 
-    private static func generationDetail(_ event: GenerationProgressEvent) -> String {
-        var parts: [String] = []
-        switch event.phase {
-        case .preparing: parts.append("Preparing")
-        case .encodingText: parts.append("Reading the prompt")
-        case .denoising(let step, let total): parts.append("Step \(step) of \(total)")
-        case .decoding: parts.append("Developing the image")
-        case .saving: parts.append("Saving")
+    /// What the running generation is doing right now, in a few words and without the pace:
+    /// what the empty canvas says while the first frame is on its way.
+    var generationPhase: String? {
+        guard case .generating(let event) = self else { return nil }
+        return Self.phaseText(event.phase)
+    }
+
+    private static func phaseText(_ phase: GenerationPhase) -> String {
+        switch phase {
+        case .preparing: "Preparing"
+        case .encodingText: "Reading the prompt"
+        case .denoising(let step, let total): "Step \(step) of \(total)"
+        case .decoding: "Developing the image"
+        case .saving: "Saving"
         }
+    }
+
+    private static func generationDetail(_ event: GenerationProgressEvent) -> String {
+        var parts = [phaseText(event.phase)]
         if let pace = event.secondsPerStep {
             parts.append(String(format: "%.1f s/step", pace))
         }

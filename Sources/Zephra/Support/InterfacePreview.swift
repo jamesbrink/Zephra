@@ -5,8 +5,8 @@ import ZephraEngine
 /// Launches the app frozen in one engine state, with no model and no network, so the
 /// interface can be screenshotted and inspected on its own.
 ///
-/// Set `ZEPHRA_PREVIEW_STATE` to `ready`, `image`, `editing`, `tucked`, `generating`, `queued`,
-/// `watching`, `batch`, `library`, `viewer`, `picker`, `downloading`, `building`, or `failed`
+/// Set `ZEPHRA_PREVIEW_STATE` to `ready`, `image`, `editing`, `tucked`, `generating`, `starting`,
+/// `queued`, `watching`, `batch`, `library`, `viewer`, `picker`, `downloading`, `building`, or `failed`
 /// before launching. `settings` uses the configured library on disk with a frozen engine for
 /// folder-change UAT; point `imagesDirectory` at a temporary fixture first. Debug builds only; in Release this is inert.
 ///
@@ -25,7 +25,7 @@ enum InterfacePreview {
             let store = GenerationStore.preview(state: state, images: run)
             store.settings = run[0].settings
             return store
-        case "generating", "queued", "watching":
+        case "generating", "starting", "queued", "watching":
             return runningStore(state: state, seeds: name == "queued" ? 3 : 2)
         default:
             // The editing and picker previews run against an invented model that reads a

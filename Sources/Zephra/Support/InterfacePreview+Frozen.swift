@@ -22,7 +22,9 @@ extension InterfacePreview {
             image: watching ? PreviewImages.sample() : nil,
             running: flight.first,
             queue: Array(flight.dropFirst()),
-            livePreview: PreviewImages.frame(),
+            // `starting` is the run before its first frame, which is what the placeholder in
+            // the run's rectangle is for; every other running build has a frame in hand.
+            livePreview: name == "starting" ? nil : PreviewImages.frame(),
             following: watching ? false : nil
         )
         // The capsule draws its step segments from `settings`, so a frozen window whose
@@ -64,6 +66,12 @@ extension InterfacePreview {
                 phase: .denoising(step: 4, of: 9),
                 fraction: 0.44,
                 secondsPerStep: 2.1
+            ))
+        case "starting":
+            return .generating(GenerationProgressEvent(
+                phase: .denoising(step: 1, of: 4),
+                fraction: 0.1,
+                secondsPerStep: 29.7
             ))
         case "queued", "watching":
             return .generating(GenerationProgressEvent(
