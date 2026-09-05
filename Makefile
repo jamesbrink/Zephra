@@ -87,7 +87,7 @@ VERSION      ?=
 BUILD_NUMBER ?=
 VERSION_FLAGS := $(if $(VERSION),MARKETING_VERSION=$(VERSION)) $(if $(BUILD_NUMBER),CURRENT_PROJECT_VERSION=$(BUILD_NUMBER))
 
-.PHONY: doctor gen build run bench quantize quantize-qwen quantize-flux2 prefetch prefetch-qwen prefetch-flux2 open clean lint-layers logs screenshot test test-app test-mlx test-backend icon signed-build release notarize notarized-release
+.PHONY: doctor gen build run bench quantize quantize-qwen quantize-flux2 prefetch prefetch-qwen prefetch-flux2 open clean lint-layers vendored-diff logs screenshot test test-app test-mlx test-backend icon signed-build release notarize notarized-release
 
 # What a fresh Mac needs before `make build` can work, each with its fix printed.
 doctor:
@@ -246,6 +246,12 @@ logs:
 # how a Settings tab is captured: `make screenshot WINDOW=General`.
 screenshot:
 	WINDOW="$(WINDOW)" ./scripts/screenshot.sh
+
+# Every hunk of the vendored ZImageKit that differs from upstream at the pinned commit must
+# carry a ZEPHRA-PATCH marker; this fetches upstream into a scratch clone and checks. Run it
+# after a re-sync, and before committing a change under Packages/ZImageKit.
+vendored-diff:
+	./scripts/vendored-diff.sh --check
 
 # Layering rules from CLAUDE.md, enforced mechanically. The patterns are deliberately
 # family-agnostic: a second backend package must not need a Makefile edit to be policed.

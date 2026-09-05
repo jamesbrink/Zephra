@@ -75,9 +75,9 @@ public struct ZImageWeightsMapping {
     to model: ZImageTransformer2DModel,
     manifest: ZImageQuantizationManifest? = nil,
     logger: Logger
-  ) throws {
+  ) throws {  // ZEPHRA-PATCH: a failed apply throws WeightsApplyError; see VENDORED.md.
     if weights.isEmpty {
-      throw WeightsApplyError.noWeights(component: "transformer")
+      throw WeightsApplyError.noWeights(component: "transformer")  // ZEPHRA-PATCH: was a warning
     }
 
     if let manifest = manifest {
@@ -115,9 +115,9 @@ public struct ZImageWeightsMapping {
     to model: QwenTextEncoder,
     manifest: ZImageQuantizationManifest? = nil,
     logger: Logger
-  ) throws {
+  ) throws {  // ZEPHRA-PATCH: a failed apply throws WeightsApplyError; see VENDORED.md.
     if weights.isEmpty {
-      throw WeightsApplyError.noWeights(component: "text_encoder")
+      throw WeightsApplyError.noWeights(component: "text_encoder")  // ZEPHRA-PATCH: was a warning
     }
 
     if let manifest = manifest {
@@ -131,7 +131,7 @@ public struct ZImageWeightsMapping {
     }
 
     let mapped = textEncoderMapping(weights)
-    try applyToModule(model, weights: mapped, prefix: "text_encoder", logger: logger)
+    try applyToModule(model, weights: mapped, prefix: "text_encoder", logger: logger)  // ZEPHRA-PATCH: a failed apply throws
   }
 
   public static func applyVAE(
@@ -139,13 +139,13 @@ public struct ZImageWeightsMapping {
     to model: AutoencoderKL,
     manifest: ZImageQuantizationManifest? = nil,
     logger: Logger
-  ) throws {
+  ) throws {  // ZEPHRA-PATCH: a failed apply throws WeightsApplyError; see VENDORED.md.
     if weights.isEmpty {
-      throw WeightsApplyError.noWeights(component: "vae")
+      throw WeightsApplyError.noWeights(component: "vae")  // ZEPHRA-PATCH: was a warning
     }
 
     let mapped = vaeMapping(weights)
-    try applyToModule(model, weights: mapped, prefix: "vae", logger: logger)
+    try applyToModule(model, weights: mapped, prefix: "vae", logger: logger)  // ZEPHRA-PATCH: a failed apply throws
   }
 
   // ZEPHRA-PATCH: a failed apply used to be logged and swallowed, which let a model with
@@ -181,7 +181,7 @@ public struct ZImageWeightsMapping {
     }
 
     if updates.isEmpty {
-      throw WeightsApplyError.noMatchingWeights(component: prefix)
+      throw WeightsApplyError.noMatchingWeights(component: prefix)  // ZEPHRA-PATCH: was a warning
     }
 
     do {
@@ -189,7 +189,7 @@ public struct ZImageWeightsMapping {
       try module.update(parameters: nd, verify: [.shapeMismatch])
     } catch {
       logger.error("Failed to apply weights to \(prefix): \(error)")
-      throw WeightsApplyError.applyFailed(component: prefix, reason: String(describing: error))
+      throw WeightsApplyError.applyFailed(component: prefix, reason: String(describing: error))  // ZEPHRA-PATCH: was swallowed
     }
   }
 }

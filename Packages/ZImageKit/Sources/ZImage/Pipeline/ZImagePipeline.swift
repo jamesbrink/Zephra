@@ -69,7 +69,7 @@ public struct ZImageGenerationRequest: Sendable {
     self.lora = lora
     self.enhancePrompt = enhancePrompt
     self.enhanceMaxTokens = enhanceMaxTokens
-    self.referenceStrength = referenceStrength
+    self.referenceStrength = referenceStrength  // ZEPHRA-PATCH: SDEdit
   }
 }
 
@@ -300,11 +300,13 @@ public final class ZImagePipeline {
     } else {
       logger.info("Reusing cached tokenizer")
     }
+    // ZEPHRA-PATCH: the `noteMemory` lines through this function are ZEPHRA_PROFILE_STEP's
+    // memory readings; see `ZImageStepProfile`.
     ZImageStepProfile.noteMemory("mem: before text enc")
     logger.info("Loading text encoder...")
     let te = try loadTextEncoder(snapshot: snapshot, config: configs.textEncoder)
     let textEncoderWeights = try weightsMapper.loadTextEncoder()
-    try ZImageWeightsMapping.applyTextEncoder(weights: textEncoderWeights, to: te, manifest: manifest, logger: logger)
+    try ZImageWeightsMapping.applyTextEncoder(weights: textEncoderWeights, to: te, manifest: manifest, logger: logger)  // ZEPHRA-PATCH: a failed apply throws
     textEncoder = te
     progressHandler?(GenerationProgress(stage: .loadingTransformer, stepIndex: 0, totalSteps: 1))
     ZImageStepProfile.noteMemory("mem: before dit")
@@ -313,7 +315,7 @@ public final class ZImagePipeline {
     ZImageStepProfile.noteMemory("mem: dit constructed")
     let transformerWeights = try weightsMapper.loadTransformer()
     ZImageStepProfile.noteMemory("mem: dit file read")
-    try ZImageWeightsMapping.applyTransformer(weights: transformerWeights, to: trans, manifest: manifest, logger: logger)
+    try ZImageWeightsMapping.applyTransformer(weights: transformerWeights, to: trans, manifest: manifest, logger: logger)  // ZEPHRA-PATCH: a failed apply throws
     // ZEPHRA-PATCH: the 8-bit repository stores scales, norms and the unquantized projections
     // as F32, which dragged every layer into float32 arithmetic. Move them to the DiT's own
     // precision once, at load, rather than casting on every step.
@@ -325,7 +327,7 @@ public final class ZImagePipeline {
       logger.info("Loading VAE...")
       let v = try loadVAE(snapshot: snapshot, config: configs.vae)
       let vaeWeights = try weightsMapper.loadVAE()
-      try ZImageWeightsMapping.applyVAE(weights: vaeWeights, to: v, manifest: manifest, logger: logger)
+      try ZImageWeightsMapping.applyVAE(weights: vaeWeights, to: v, manifest: manifest, logger: logger)  // ZEPHRA-PATCH: a failed apply throws
       vae = v
     } else {
       logger.info("Reusing cached VAE")
@@ -402,6 +404,7 @@ public final class ZImagePipeline {
 
     return imageData
   }
+  // ZEPHRA-PATCH: `previewHandler` threaded through from `generateToMemory`.
   private func generateCore(_ request: ZImageGenerationRequest, progressHandler: ProgressHandler? = nil, previewHandler: PreviewHandler? = nil) async throws -> MLXArray {
 
     let vaeScale = 16
@@ -449,7 +452,7 @@ public final class ZImagePipeline {
         logger.info("Enhanced prompt: \(enhanced)")
         finalPrompt = enhanced
       }
-      if clearsCacheAfterGeneration { GPU.clearCache() }
+      if clearsCacheAfterGeneration { GPU.clearCache() }  // ZEPHRA-PATCH: the cache knob
     }
     logger.info("Encoding prompts...")
 
@@ -560,7 +563,7 @@ public final class ZImagePipeline {
       // ZEPHRA-PATCH: split the step into graph construction and kernel execution when
       // ZEPHRA_PROFILE_STEP=1; `measure` calls straight through otherwise.
       let noisePred = ZImageStepProfile.measure("step build") {
-        transformer.forward(latents: modelLatents, timestepIn: timestepArray, promptEmbedsIn: embeds)
+        transformer.forward(latents: modelLatents, timestep: timestepArray, promptEmbeds: embeds)
       }
       var guidedNoise: MLXArray
       if doCFG, negativeEmbeds != nil {
@@ -603,20 +606,20 @@ public final class ZImagePipeline {
 
     // ZEPHRA-PATCH: the decode is forced inside the timed block under ZEPHRA_PROFILE_STEP so
     // its cost lands on the VAE line rather than on whatever later touches the array.
-    let decoded = ZImageStepProfile.measure("vae decode") { () -> MLXArray in
-      let image = decodeLatents(latents, vae: vae, height: request.height, width: request.width)
+    let decoded = try ZImageStepProfile.measure("vae decode") { () throws -> MLXArray in  // ZEPHRA-PATCH: stop between VAE tiles
+      let image = try decodeLatents(latents, vae: vae, height: request.height, width: request.width)  // ZEPHRA-PATCH: stop between VAE tiles
       if ZImageStepProfile.isEnabled { MLX.eval(image) }
       return image
     }
     ZImageStepProfile.noteMemory("mem: decode done")
     MLX.eval(MLXArray([]))
-    if clearsCacheAfterGeneration { GPU.clearCache() }
+    if clearsCacheAfterGeneration { GPU.clearCache() }  // ZEPHRA-PATCH: the cache knob
 
     return decoded
   }
 
-  private func decodeLatents(_ latents: MLXArray, vae: AutoencoderKL, height: Int, width: Int) -> MLXArray {
-    PipelineUtilities.decodeLatents(latents, vae: vae, height: height, width: width)
+  private func decodeLatents(_ latents: MLXArray, vae: AutoencoderKL, height: Int, width: Int) throws -> MLXArray {  // ZEPHRA-PATCH: stop between VAE tiles
+    try PipelineUtilities.decodeLatents(latents, vae: vae, height: height, width: width)  // ZEPHRA-PATCH: stop between VAE tiles
   }
 
   private func calculateShift(

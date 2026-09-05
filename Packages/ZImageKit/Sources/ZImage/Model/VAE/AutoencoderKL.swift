@@ -352,12 +352,16 @@ private final class VAEDecoder: Module {
     super.init()
   }
 
-  func callAsFunction(_ latents: MLXArray) -> MLXArray {
+  func callAsFunction(_ latents: MLXArray) throws -> MLXArray {  // ZEPHRA-PATCH: stop between VAE tiles
     // ZEPHRA-PATCH: with a tile set — by `ZEPHRA_VAE_TILE` or by the host at runtime — decode
     // overlapping tiles and blend the seams, so the transient is set by the tile size rather
-    // than by the image size. Default off.
+    // than by the image size. Default off. Cancellation is checked before each tile, so Stop
+    // is answered inside a decode of seconds rather than after it.
     if let tile = VAETiledDecode.latentTile, latents.dim(1) > tile || latents.dim(2) > tile {
-      return VAETiledDecode.decode(latents, tile: tile, scale: pixelScale) { untiled($0) }
+      return try VAETiledDecode.decode(latents, tile: tile, scale: pixelScale) {  // ZEPHRA-PATCH: stop between VAE tiles
+        try Task.checkCancellation()  // ZEPHRA-PATCH: stop between VAE tiles
+        return untiled($0)
+      }
     }
     return untiled(latents)
   }
@@ -459,11 +463,11 @@ public final class AutoencoderKL: Module {
     super.init()
   }
 
-  public func decode(_ latents: MLXArray, return_dict: Bool = false) -> (MLXArray, Any) {
+  public func decode(_ latents: MLXArray, return_dict: Bool = false) throws -> (MLXArray, Any) {  // ZEPHRA-PATCH: stop between VAE tiles
     var x = latents
     x = x.transposed(0, 2, 3, 1)
     x = (x / MLXArray(configuration.scalingFactor)) + MLXArray(configuration.shiftFactor)
-    x = decoder(x)
+    x = try decoder(x)  // ZEPHRA-PATCH: stop between VAE tiles
     x = x.transposed(0, 3, 1, 2)
     return (x, [:] as [String: Int])
   }

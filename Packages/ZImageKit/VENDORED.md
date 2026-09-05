@@ -28,8 +28,18 @@
 ```sh
 git clone https://github.com/mzbac/zimage.swift /tmp/zimage-src
 git -C /tmp/zimage-src diff 970f83e4..<new-sha> -- Sources/ZImage > /tmp/zimage.diff
-# hand-apply against Packages/ZImageKit/Sources/ZImage, re-apply the patches below
+# hand-apply against Packages/ZImageKit/Sources/ZImage, re-apply the patches below,
+# bump UPSTREAM_SHA in scripts/vendored-diff.sh and the "Vendored at" line above, then:
+make vendored-diff
 ```
+
+`scripts/vendored-diff.sh` fetches upstream at the pinned commit into a scratch clone
+(`~/.cache/zephra/zimage-src`, or `ZIMAGE_SCRATCH`) and diffs it against
+`Packages/ZImageKit/Sources/ZImage`. Without a flag it prints the whole unified diff and
+then every hunk with no `ZEPHRA-PATCH` marker; `--check` prints only those and exits 1 when
+there are any, or when a file of ours has no marker in its opening comment. It is the
+mechanical form of the rule at the top of the next section: an unmarked hunk is either a
+patch that lost its reason or an edit that should not be there.
 
 ## Local patches
 
@@ -51,7 +61,10 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
 - `Model/Transformer/ZImageTransformerPrecision.swift` (new) and `Model/Transformer/ZImageTransformer2D.swift`:
   the 8-bit repository stores every unpacked transformer tensor as F32, including the quantization
   scales, and MLX widens a mixed multiply, so the whole DiT ran in float32. Parameters are cast to
-  bfloat16 once at load and `forward` casts its latents and prompt embeddings on entry. Measured:
+  bfloat16 once at load and `forward` casts its latents and prompt embeddings on entry, shadowing
+  its own parameters with `let` so the labels stay upstream's (`timestep:`, `promptEmbeds:`) — an
+  earlier version renamed them to `timestepIn:`/`promptEmbedsIn:` for no reason the diff
+  needed, which put a hunk on every call site. Measured:
   resident 13029 MB to 12236 MB, peak 24298 MB to 23501 MB. Step time unchanged within the noise
   of a shared machine; the isolated kernels are about 8 percent faster in bfloat16. Output at a
   fixed seed is identical in composition with a mean absolute pixel difference of 2.2 of 255,
@@ -145,6 +158,16 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
   families. This copy is kept on purpose: pointing vendored code at a Zephra package would
   complicate every re-sync, so the two are expected to drift only when one of them is fixed.
 
+  Cancellable between tiles (`// ZEPHRA-PATCH: stop between VAE tiles`): `VAETiledDecode.decode`
+  takes a throwing `body` and rethrows, `VAEDecoder.callAsFunction` checks
+  `Task.checkCancellation()` before each tile and so throws, and the chain above it —
+  `AutoencoderKL.decode`, `PipelineUtilities.decodeLatents`, and the private `decodeLatents` in
+  both pipelines — is marked `throws` and called with `try`. A 1024-pixel decode is seconds, and
+  Stop should not wait for it. Untiled, nothing is checked and nothing changes; the audit of
+  2026-09-05 found the earlier entry here did not say the tiled decode was uncancellable, and
+  this replaces that gap. The two application sites in the ControlNet pipeline are
+  compile-verified only, as the rest of that pipeline is.
+
 - `Pipeline/ZImageLatentPreview.swift` (new), `Pipeline/ZImagePipeline.swift`,
   `Model/VAE/AutoencoderKL.swift`: preview frames of a run in flight. `generateToMemory` and
   `generateCore` take a second, defaulted `previewHandler`, and the denoise loop calls it after
@@ -168,6 +191,16 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
   `ZephraMLX.LatentPreview` in `Packages/ZephraMLXKit` holds the same pooling and byte packing
   for the other two families. This copy is kept on purpose, for the same reason `VAETiledDecode`
   is a copy: a Zephra dependency in this package's manifest would complicate every re-sync.
+
+- Marker discipline, retrofitted after the audit of 2026-09-05: about twenty changed lines
+  carried no marker — every `try` the throwing weight apply forced on its call sites in
+  `ZImagePipeline.swift`, `ZImageControlPipeline.swift` and `WeightsMapping.swift`, the
+  `throws` on those signatures, the `ZImageStepProfile.noteMemory` readings in `loadModel`,
+  the `clearsCacheAfterGeneration` call sites, the `CoreGraphics` import in
+  `PipelineUtilities.swift`, the `padsToLimit` knob in `Tokenizer.swift`, and the deleted
+  private `encodeImageToLatents` in the control pipeline. Each now carries a short trailing
+  `// ZEPHRA-PATCH:` naming the patch above it belongs to, and `make vendored-diff` fails if
+  another appears.
 
 ## Known upstream behaviour (not patched)
 
