@@ -606,12 +606,16 @@ Makefile targets:
 - `make signed-build` — build Release and sign the app with a Developer ID
   Application identity. Sources `~/Documents/Zephra Signing/signing.env` when present.
 - `make release` — build Release, sign with a Developer ID Application identity
-  (hardened runtime, secure timestamp), verify, and zip to `build/Zephra.zip`.
-  Needs no network. `SIGN_IDENTITY` overrides the auto-detected certificate.
-- `make notarize` — submit that zip, staple the ticket, and repackage. It reads
+  (hardened runtime, secure timestamp), verify, and package `build/Zephra.zip` plus
+  signed `build/Zephra.dmg` with an Applications shortcut. Secure timestamping
+  needs Apple's server. `SIGN_IDENTITY` overrides the auto-detected certificate.
+- `make notarize` — submit the ZIP, require Accepted, staple and verify the app,
+  then rebuild both packages. Submit the signed DMG separately, staple it, and
+  verify its ticket, image checksum, signature, and Gatekeeper assessment. It reads
   App Store Connect API-key variables from the signing config, or falls back to
   the keychain profile named by `NOTARY_PROFILE`.
-- `make notarized-release` — run the signed release and notarization steps together.
+- `make notarized-release` — produce the notarized DMG and ZIP; packaging and
+  notarization run sequentially even with `make -j`.
 - `make prefetch` — download the default model weights with `hf download`
   into `$(MODELS_DIR)/Downloads/mzbac--Z-Image-Turbo-8bit`, which is where the
   app itself would have written them, so a first launch finds them. Set

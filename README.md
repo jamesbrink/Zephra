@@ -544,16 +544,19 @@ Zephra/
 `make signed-build` regenerates the project, builds Release, and signs the app and
 the resource bundles inside it with a Developer ID Application certificate (hardened
 runtime, secure timestamp), verifies with `codesign --verify --deep --strict` and
-`spctl -a -t exec -vv`. `make release` does that and packages `build/Zephra.zip`
-with `ditto`. Both need no network. Ordinary `make build` is unaffected and still
-signs ad-hoc, so a machine with no certificate can build and run the app.
+`spctl -a -t exec -vv`. `make release` also packages `build/Zephra.zip` and a signed
+`build/Zephra.dmg`. The read-only DMG contains `Zephra.app` and an Applications
+shortcut: open the disk image and drag the app into Applications. Distribution
+signing uses Apple's secure timestamp server; notarization is a separate step.
+Ordinary `make build` is unaffected and still signs ad-hoc, so a machine with no
+certificate can build and run the app.
 
 `SIGN_IDENTITY` picks the certificate; left empty, the first "Developer ID
 Application" identity in the keychain is used. Both signing and notarization source
 `~/Documents/Zephra Signing/signing.env` when it exists; override its location with
 `SIGNING_CONFIG=/path/to/signing.env`.
 
-Notarization is a separate step, because it is the only one that talks to Apple. A
+Notarization is a separate step from signing and packaging. A
 team App Store Connect API key is the same credential locally and in CI:
 
 ```sh
@@ -568,14 +571,22 @@ Then:
 make notarized-release
 ```
 
-`make notarize` submits the zip, waits for the verdict, staples the ticket to the
-app, rebuilds the zip from the stapled bundle so it passes Gatekeeper offline, and
-re-checks with `spctl`. As a fallback it uses the keychain profile selected by
-`NOTARY_PROFILE` when the three API-key variables are unset.
+The final installer is **`build/Zephra.dmg`**; `build/Zephra.zip` remains available
+as an alternative. `make notarize` first submits the ZIP and requires Apple's
+Accepted verdict, staples and verifies the app, and rebuilds both packages from
+that stapled app. It then submits the signed DMG separately, staples its ticket,
+and validates the image, signature, and Gatekeeper assessment. It mounts the final
+DMG read-only to verify the contained app and Applications shortcut, then detaches
+it. Both the disk image
+and the app inside it carry tickets for offline use. As a fallback it uses the
+keychain profile selected by `NOTARY_PROFILE` when the three API-key variables are
+unset. `make -j notarized-release` still waits for packaging to finish before
+notarization starts. `scripts/test-notarization.sh` checks accepted and rejected
+verdict handling without credentials or network access.
 
 `.github/workflows/notarized-release.yml` provides the same flow on an Apple Silicon
-GitHub-hosted runner. It has only a manual trigger and uploads the notarized zip as a
-workflow artifact; it never publishes a GitHub release. The repository needs these
+GitHub-hosted runner. It has only a manual trigger and uploads the notarized DMG and
+ZIP as a workflow artifact; it never publishes a GitHub release. The repository needs these
 Actions secrets: `DEVELOPER_ID_APPLICATION_P12_BASE64`,
 `DEVELOPER_ID_APPLICATION_P12_PASSWORD`, `APPLE_API_KEY_P8_BASE64`,
 `APPLE_API_KEY_ID`, and `APPLE_API_ISSUER_ID`.

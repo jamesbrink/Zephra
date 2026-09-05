@@ -73,6 +73,7 @@ NOTARY_PROFILE ?= zephra-notary
 SIGNING_CONFIG ?= $(HOME)/Documents/Zephra Signing/signing.env
 RELEASE_APP    := $(BUILD)/Release/Zephra.app
 RELEASE_ZIP    := $(BUILD)/Zephra.zip
+RELEASE_DMG    := $(BUILD)/Zephra.dmg
 
 .PHONY: doctor gen build run bench quantize quantize-qwen quantize-flux2 prefetch prefetch-qwen prefetch-flux2 open clean lint-layers logs screenshot test test-mlx test-backend icon signed-build release notarize notarized-release
 
@@ -149,14 +150,20 @@ signed-build:
 	set +a; \
 	if [ -n "$(SIGN_IDENTITY)" ]; then SIGN_IDENTITY="$(SIGN_IDENTITY)"; fi; \
 	export SIGN_IDENTITY; \
-	./scripts/sign-release.sh $(RELEASE_APP)
+	./scripts/sign-release.sh "$(RELEASE_APP)"
 
-# Package the signed app. No network: notarization is a separate step so this
-# target works offline.
+# Package the signed app as a ZIP and a signed DMG. Notarization is separate;
+# distribution signatures use Apple secure timestamps.
 release: signed-build
-	rm -f $(RELEASE_ZIP)
-	ditto -c -k --keepParent $(RELEASE_APP) $(RELEASE_ZIP)
-	@echo "release: $(RELEASE_ZIP) is signed and ready for 'make notarize'"
+	rm -f "$(RELEASE_ZIP)"
+	ditto -c -k --keepParent "$(RELEASE_APP)" "$(RELEASE_ZIP)"
+	@set -a; \
+	if [ -f "$(SIGNING_CONFIG)" ]; then . "$(SIGNING_CONFIG)"; fi; \
+	set +a; \
+	if [ -n "$(SIGN_IDENTITY)" ]; then SIGN_IDENTITY="$(SIGN_IDENTITY)"; fi; \
+	export SIGN_IDENTITY; \
+	./scripts/create-dmg.sh "$(RELEASE_APP)" "$(RELEASE_DMG)"
+	@echo "release: $(RELEASE_DMG) and $(RELEASE_ZIP) are ready for 'make notarize'"
 
 # Submit to Apple, staple the ticket, repackage. Needs credentials stored once:
 #   xcrun notarytool store-credentials $(NOTARY_PROFILE) \
@@ -166,10 +173,13 @@ notarize:
 	if [ -f "$(SIGNING_CONFIG)" ]; then . "$(SIGNING_CONFIG)"; fi; \
 	set +a; \
 	if [ -n "$(NOTARY_PROFILE)" ]; then NOTARY_PROFILE="$(NOTARY_PROFILE)"; fi; \
-	export NOTARY_PROFILE; \
-	./scripts/notarize-release.sh $(RELEASE_APP) $(RELEASE_ZIP)
+	if [ -n "$(SIGN_IDENTITY)" ]; then SIGN_IDENTITY="$(SIGN_IDENTITY)"; fi; \
+	export NOTARY_PROFILE SIGN_IDENTITY; \
+	./scripts/notarize-release.sh "$(RELEASE_APP)" "$(RELEASE_ZIP)" "$(RELEASE_DMG)"
 
-notarized-release: release notarize
+# Keep notarization after packaging even when make is invoked with -j.
+notarized-release: release
+	$(MAKE) notarize
 
 # Into the app's own folder, under the name the app would have given it, so a first launch
 # finds the download rather than fetching it again.

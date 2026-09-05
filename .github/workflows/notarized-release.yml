@@ -52,17 +52,19 @@ jobs:
 
           echo "NOTARY_KEY=$api_key" >>"$GITHUB_ENV"
 
-      - name: Build signed archive
+      - name: Build signed DMG and ZIP
         run: make release SIGNING_CONFIG=/dev/null
 
       - name: Notarize and staple
         run: make notarize SIGNING_CONFIG=/dev/null
 
-      - name: Upload notarized app
+      - name: Upload notarized DMG and ZIP
         uses: actions/upload-artifact@v4
         with:
           name: Zephra-${{ github.sha }}
-          path: build/Zephra.zip
+          path: |
+            build/Zephra.dmg
+            build/Zephra.zip
           if-no-files-found: error
           retention-days: 14
 
