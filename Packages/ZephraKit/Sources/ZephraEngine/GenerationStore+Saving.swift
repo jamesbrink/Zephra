@@ -19,8 +19,15 @@ extension GenerationStore {
         }
     }
 
+    /// Records where the image landed. One deleted while its write was in flight goes straight
+    /// on to Recently Deleted instead, and never reaches `onImageSaved`: the index learns of
+    /// it as a delete, and a picture the user removed does not reappear in the library.
     func attach(_ url: URL, to id: GeneratedImage.ID) {
         lastSaveFailure = nil
+        if deletedBeforeSave.remove(id) != nil {
+            moveToRecentlyDeleted(url)
+            return
+        }
         if current?.id == id {
             current = current?.withFileURL(url)
         }
@@ -38,6 +45,8 @@ extension GenerationStore {
     /// a full disk, and the remedy on the failure screen reloads the model, which would be no
     /// remedy at all. The interface shows this as a notice until an image saves cleanly.
     func saveFailed(_ failure: SaveFailure) {
+        // Nothing landed, so there is nothing to move on.
+        deletedBeforeSave.remove(failure.imageID)
         logger.error("save failed: \(failure.reason, privacy: .public)")
         lastSaveFailure = failure
     }

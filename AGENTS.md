@@ -211,9 +211,12 @@ engine be tested in seconds without Metal.
   observes, and it is split across `GenerationStore+*.swift` by concern —
   loading (the entry points in `+Loading`, the borrow-prepare-release body in
   `+Preparation`), the admission gate (`+Admission`), generation (`+Generation`,
-  with the write that follows in `+Saving`), the queue,
+  with the write that follows in `+Saving`, which moves an image deleted while
+  its write was in flight straight on to Recently Deleted rather than announcing
+  it saved), the queue,
   batches (several seeds of one prompt from
   one press of Generate), model switching, history, availability, preview,
+  the public convenience init (`+Init`),
   the reference picture, the library, following the run, upscaling and filing
   the upscaled result, the interface's own questions (`+Interaction`), the
   download requests it keeps alive (`+Downloads`), the two folder changes

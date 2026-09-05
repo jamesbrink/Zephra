@@ -125,19 +125,9 @@ public final class GenerationStore {
     @ObservationIgnored var openTask: Task<Void, Never>?
     @ObservationIgnored var upscaleTask: Task<Void, Never>?
 
-    /// Creates a store for one model, running on the backends `registry` knows how to build.
-    /// `outputDirectory` nil means ~/Pictures/Zephra.
-    public convenience init(
-        descriptor: ModelDescriptor = ModelCatalog.default,
-        registry: BackendRegistry,
-        outputDirectory: URL? = nil,
-        locations: ModelLocations = .default,
-        upscaler: UpscalerFactory? = nil, downloads: ModelDownloads = ModelDownloads()
-    ) {
-        self.init(
-            descriptor: descriptor, registry: registry, output: outputDirectory,
-            locations: locations, upscaler: upscaler, downloads: downloads)
-    }
+    /// Images deleted from the filmstrip before their save landed. The write is already on
+    /// its way, so `attach` moves the file on to Recently Deleted when it does.
+    @ObservationIgnored var deletedBeforeSave: Set<GeneratedImage.ID> = []
 
     /// The one designated initializer. A nil `registry` makes a preview store: see
     /// `GenerationStore+Preview.swift`.
