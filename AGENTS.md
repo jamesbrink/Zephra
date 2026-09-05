@@ -200,7 +200,9 @@ All UI storage deletion goes through `GenerationStore.deleteModelStorage`, which
 checks active requests/residency/queued work and closes new admission while deleting.
 Folder changes close download admission, pause every request and await file closure.
 `AppTermination` defers normal Quit while `GenerationStore.shutdown` settles tasks,
-then the runtime seam synchronizes Metal before allowing process teardown.
+then `LibraryIndex.shutdown` stops watching and drains its write chain and scans (store
+first, because the store's last save inserts into the index), then the runtime seam
+synchronizes Metal before allowing process teardown.
 
 ## How a generation runs
 

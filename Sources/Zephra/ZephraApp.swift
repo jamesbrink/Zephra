@@ -54,7 +54,10 @@ struct ZephraApp: App {
                 }
                 .task {
                     termination.shutdown = {
+                        // Store first: its last save calls `onImageSaved` -> `index.insert`,
+                        // which must land before the index stops taking anything.
                         await store.shutdown()
+                        await index.shutdown()
                         let runtime = Self.runtime
                         await Task.detached { runtime.synchronize() }.value
                     }
