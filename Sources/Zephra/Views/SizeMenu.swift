@@ -25,6 +25,7 @@ struct SizeMenu: View {
                 .monospacedDigit()
         }
         .menuStyle(.button)
+        .menuIndicator(.visible)
         .buttonStyle(.accessoryBar)
         .fixedSize()
         .help("Output size")

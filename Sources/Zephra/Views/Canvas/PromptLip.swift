@@ -24,7 +24,9 @@ struct PromptLip: View {
             workspace.promptTucked = false
         } label: {
             VStack(spacing: 0) {
+                // Inset by the radius, as on the capsule, so the lip's corners clip nothing.
                 StepSegments(progress: store.stepProgress)
+                    .padding(.horizontal, ZephraChrome.capsuleRadius)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.up")
                     .font(.caption2)
