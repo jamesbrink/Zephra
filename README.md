@@ -51,7 +51,7 @@ a model resumes its partial download; background jobs do not restart automatical
   | FLUX.2 klein 4B, 8-bit | same 16 GB | 8.6 GB | 8.1 GB | 15.3 GB (10.9 GB) | 16 GB, tiled |
   | Z-Image-Turbo, 8-bit | 13.3 GB | — | 12.2 GB | 23.5 GB (17.7 GB) | 24 GB, tiled |
   | Z-Image-Turbo, 4-bit | 32.9 GB source | 6.7 GB | 6.6 GB | 17.8 GB (12.0 GB) | 16 GB, tiled |
-  | Qwen-Image-2512, 4-bit | 59.4 GB source | 21.6 GB | 21.5 GB | 30.4 GB (26.1 GB) | 32 GB, tiled |
+  | Qwen-Image-2512, 4-bit | 59.4 GB source | 21.6 GB | 21.5 GB | 30.4 GB (26.1 GB) | 32 GB, tiled; 16 GB, streamed |
 
   A "source" download is not what gets loaded: the app packs it into the variant
   this Mac runs, on first load, and the picker says so ("32.9 GB download, then
@@ -468,11 +468,33 @@ decode does work**, and is shipped for every model: decoding in overlapping 512-
 takes peak memory at 1024² from 23.5 GB to 17.7 GB on the 8-bit Z-Image model, for a mean
 absolute difference of 1.0 of 255 and no visible seam, and from 30.4 GB to 26.1 GB on
 Qwen-Image for 0.19 of 255. Settings > Performance controls it, and Automatic — the default —
-turns it on only for a model whose untiled peak is over four fifths of this Mac's memory. So a
-32 GB Mac decodes both Z-Image variants exactly and tiles for Qwen-Image, a 24 GB Mac tiles for
-the 8-bit Z-Image model and not for the 4-bit one, and a 16 GB Mac tiles for both and thereby
-reaches 1024² on the 4-bit one. Always and Never override the judgement, and
+turns it on only for a model whose untiled peak is over what this Mac's GPU may keep resident.
+So a 32 GB Mac decodes both Z-Image variants exactly and tiles for Qwen-Image, a 24 GB Mac
+tiles for the 8-bit Z-Image model and not for the 4-bit one, and a 16 GB Mac tiles for both
+and thereby reaches 1024² on the 4-bit one. Always and Never override the judgement, and
 `ZEPHRA_VAE_TILE=64` still sets the tile for `ZephraBench`, which has no settings to read.
+
+**Streamed weights** are the lever after tiling. A Mac whose GPU cannot hold Qwen-Image's
+21.5 GB of weights runs it anyway by reading the transformer from the disk on every step, a
+few of its sixty blocks at a time, and the text encoder's layers the same way once per
+picture; the embeddings, the projections and the autoencoder stay resident. Measured on an
+M4 Max at 1024², four steps, the peak falls from 30.5 GB resident to 10.2 GB streamed, 1.4 GB
+stays live between pictures, each step reads 16.1 GB, and the image is byte for byte the
+resident one. The price is the read: on a 16 GB M4 mini's 1.6 GB/s SSD that is about ten
+seconds a step, which hides under a base GPU's own step time at 1024² and does not at 512².
+The picker says "Streams from disk" where it applies; Settings > Performance has the three-way
+control, Automatic streaming only a model that would otherwise page; and
+`make bench ARGS="--model qwen-image-2512-4bit --stream"` reports the bytes read per step and
+the disk's rate, which is what tells a read-bound step from a slow GPU.
+
+**The memory every verdict is measured against** is what the GPU may keep resident — Metal's
+recommended working set, about three quarters of RAM by default (12.1 GB on a 16 GB Mac) — not
+a fraction of RAM. `sudo sysctl -w iogpu.wired_limit_mb=N` raises it, and Zephra follows:
+the picker's wording, the tiled decode, the fallback model and MLX's own memory and wired
+limits all read the raised figure at the next launch. Settings > Performance shows what the
+GPU may keep and, when raising it would let the chosen model run, the exact command with a
+Copy button. It needs an administrator password, lasts until the next restart, and leaves
+macOS less to work with; `/etc/sysctl.conf` makes it permanent.
 
 ## Project layout
 

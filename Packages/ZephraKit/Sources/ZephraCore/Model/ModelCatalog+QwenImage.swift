@@ -62,6 +62,14 @@ extension ModelCatalog {
         // 26088 MB at 1328. The tiled peak barely moves with the image because the tile, not the
         // image, sets the decode's transient — what is left is the transformer.
         tiledPeakBytes: 26_070_000_000,
+        // Measured with the weights streamed (`make bench ARGS="--stream"`), same seed, tiled
+        // at 64, on an M4 Max: 10243 MB peak at 1024 against 30473 MB resident in the same
+        // session, 1409 MB live between runs, 16.15 GB read per step, and the image byte for
+        // byte the resident one. The peak is the text encoder's pass, the transformer's
+        // three-block window with its activations, and the decode's tile, none of which
+        // depends on the machine; the step time does, and is not recorded here because the
+        // machine was not idle (see README's Performance section).
+        streamedPeakBytes: 10_250_000_000,
         // diffusers' QwenImagePipeline keeps the first 512 hidden states of the prompt
         // (`max_sequence_length`, its default); the tokenizer would allow 1024, but nothing
         // past 512 ever reaches the transformer there, so nothing past 512 does here.

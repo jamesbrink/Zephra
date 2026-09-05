@@ -49,15 +49,19 @@ struct ModelCatalogTests {
         #expect(!ModelCatalog.fitsComfortably(ModelCatalog.qwenImage2512_4bit, physicalMemory: memory))
     }
 
-    @Test("Qwen-Image decodes exactly on a 36 GB Mac and not at all on a 24 GB one")
+    @Test("Qwen-Image decodes exactly on a 36 GB Mac, streams on a 24 GB one, and not on 8")
     func qwenImageNeedsALargeMac() {
         // 30.9 GB of budget against a 30.4 GB peak: 36 GB is the smallest Mac sold that runs
         // this model with the exact decode, and it is a close thing.
         #expect(ModelCatalog.fit(ModelCatalog.qwenImage2512_4bit, physicalMemory: Self.gigabytes(36)) == .fits)
         #expect(ModelCatalog.fit(ModelCatalog.qwenImage2512_4bit, physicalMemory: Self.gigabytes(48)) == .fits)
-        let fit = ModelCatalog.fit(ModelCatalog.qwenImage2512_4bit, physicalMemory: Self.gigabytes(24))
+        // A 24 GB Mac cannot hold the model tiled (26.1 GB) and can hold it streamed
+        // (10.2 GB); so can a 16 GB one.
+        #expect(ModelCatalog.fit(ModelCatalog.qwenImage2512_4bit, physicalMemory: Self.gigabytes(24)) == .fitsStreamed)
+        #expect(ModelCatalog.fit(ModelCatalog.qwenImage2512_4bit, physicalMemory: Self.gigabytes(16)) == .fitsStreamed)
+        let fit = ModelCatalog.fit(ModelCatalog.qwenImage2512_4bit, physicalMemory: Self.gigabytes(8))
         guard case .tight(let needed) = fit else {
-            Issue.record("expected Qwen-Image not to fit on a 24 GB Mac")
+            Issue.record("expected Qwen-Image not to fit on an 8 GB Mac even streamed")
             return
         }
         // The tiled peak itself: the GPU working set that would clear the budget.
@@ -71,8 +75,9 @@ struct ModelCatalogTests {
         #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo4bit, physicalMemory: memory) == .fits)
         // 23.5 GB untiled is over the 19.3 GB budget; 17.7 GB tiled is under it.
         #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo8bit, physicalMemory: memory) == .fitsTiled)
-        // Both Z-Image variants and both klein variants; only Qwen-Image is left out.
-        #expect(ModelCatalog.fitting(physicalMemory: memory).count == 4)
+        // Both Z-Image variants, both klein variants, and Qwen-Image streamed.
+        #expect(ModelCatalog.fitting(physicalMemory: memory).count == 5)
+        #expect(ModelCatalog.fit(ModelCatalog.qwenImage2512_4bit, physicalMemory: memory) == .fitsStreamed)
     }
 
     @Test("a Mac too small for a model is told how much memory it would take")

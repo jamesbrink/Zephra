@@ -68,31 +68,6 @@ enum AppSettings {
     /// The Mac's own appearance, until the user picks one.
     static let initialAppearance = AppearanceMode.system
 
-    /// How the stored preference and this machine's memory budget decide the VAE tile, for
-    /// the composition root, which has to answer the question outside a picker.
-    static func tilingPolicy(budget: MemoryBudget) -> VAETilingPolicy {
-        let stored = UserDefaults.standard.string(forKey: vaeTiling)
-        return VAETilingPolicy(
-            mode: stored.flatMap(VAETilingMode.init(rawValue:)) ?? initialVAETiling,
-            budget: budget
-        )
-    }
-
-    /// How the stored preference and this machine's memory budget decide where a model's
-    /// weights live, for the composition root, which sets it on the store before bootstrap.
-    /// `ZEPHRA_WEIGHT_RESIDENCY=streamed|resident` overrides the preference for one launch,
-    /// the way `ZEPHRA_VAE_TILE` does for the tile.
-    static func residencyPolicy(budget: MemoryBudget) -> WeightResidencyPolicy {
-        let stored = UserDefaults.standard.string(forKey: weightResidency)
-        var mode = stored.flatMap(WeightResidencyMode.init(rawValue:)) ?? initialWeightResidency
-        switch ProcessInfo.processInfo.environment["ZEPHRA_WEIGHT_RESIDENCY"] {
-        case "streamed": mode = .always
-        case "resident": mode = .never
-        default: break
-        }
-        return WeightResidencyPolicy(mode: mode, budget: budget)
-    }
-
     /// Where models are kept right now, for the composition root, which has to answer the
     /// question before any view exists. An unset or empty path is the app's own folder.
     static func modelLocations() -> ModelLocations {

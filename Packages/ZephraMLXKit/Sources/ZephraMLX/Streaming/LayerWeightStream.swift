@@ -101,7 +101,7 @@ public final class LayerWeightStream<Layer: Module> {
             MLX.asyncEval(carry)
             // The layer before this one has had a whole layer's work to finish in; waiting
             // for it here is what bounds the window, and the GPU still holds this layer.
-            MLX.eval(previous)
+            if !previous.isEmpty { MLX.eval(previous) }
             previous = carry
             if position + depth < count {
                 prefetch(position + depth)

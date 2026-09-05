@@ -45,7 +45,7 @@ struct WeightResidencyControl: View {
     }
 
     private func apply() {
-        store.setWeightResidencyPolicy(WeightResidencyPolicy(mode: mode, budget: budget))
+        store.setWeightResidencyPolicy(AppSettings.residencyPolicy(mode: mode, budget: budget))
     }
 }
 

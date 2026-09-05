@@ -55,16 +55,18 @@ struct MemoryFitTests {
 
     @Test("a tight verdict names the working set that would clear it")
     func tightNamesTheWorkingSet() {
-        let qwen = ModelCatalog.qwenImage2512_4bit
-        guard case .tight(let needed) = MemoryFit(descriptor: qwen, budget: Self.sixteenDefault)
+        // Qwen-Image's peaks without its streamed figure: what the catalog said before
+        // streaming, and what a family that cannot stream says still.
+        let unstreamable = Self.model(peak: 30_360_000_000, tiled: 26_070_000_000)
+        guard case .tight(let needed) = MemoryFit(descriptor: unstreamable, budget: Self.sixteenDefault)
         else {
-            Issue.record("Qwen-Image does not fit a 16 GB Mac's default working set")
+            Issue.record("a 26 GB tiled peak does not fit a 16 GB Mac's default working set")
             return
         }
-        #expect(needed == qwen.tiledPeakBytes)
+        #expect(needed == unstreamable.tiledPeakBytes)
         // Feeding that figure back as the working set is exactly enough.
         let enough = MemoryBudget(physicalMemory: Self.gigabytes(48), gpuWorkingSet: UInt64(needed))
-        #expect(MemoryFit(descriptor: qwen, budget: enough) == .fitsTiled)
+        #expect(MemoryFit(descriptor: unstreamable, budget: enough) == .fitsTiled)
     }
 
     @Test("the raise-the-limit hint appears only when RAM would actually hold the tiled peak")
@@ -74,14 +76,18 @@ struct MemoryFitTests {
             MemoryFit.wouldFitWithWiredLimitRaised(ModelCatalog.flux2Klein8bit, budget: Self.sixteenDefault))
         #expect(
             !MemoryFit.wouldFitWithWiredLimitRaised(ModelCatalog.qwenImage2512_4bit, budget: Self.sixteenDefault))
-        // A 32 GB Mac's default working set (about 22.9 GB) is under Qwen-Image's 26.1 GB
-        // tiled peak, and the RAM is over it: this is the Mac the hint is for.
+        // A 32 GB Mac's default working set (about 22.9 GB) is under a 26.1 GB tiled peak,
+        // and the RAM is over it: this is the Mac the hint is for, when the model cannot
+        // stream instead.
+        let unstreamable = Self.model(peak: 30_360_000_000, tiled: 26_070_000_000)
         let thirtyTwo = MemoryBudget(physicalMemory: Self.gigabytes(32), gpuWorkingSet: Self.megabytes(22_900))
-        guard case .tight = MemoryFit(descriptor: ModelCatalog.qwenImage2512_4bit, budget: thirtyTwo) else {
-            Issue.record("Qwen-Image is over a 32 GB Mac's default working set")
+        guard case .tight = MemoryFit(descriptor: unstreamable, budget: thirtyTwo) else {
+            Issue.record("a 26 GB tiled peak is over a 32 GB Mac's default working set")
             return
         }
-        #expect(MemoryFit.wouldFitWithWiredLimitRaised(ModelCatalog.qwenImage2512_4bit, budget: thirtyTwo))
+        #expect(MemoryFit.wouldFitWithWiredLimitRaised(unstreamable, budget: thirtyTwo))
+        // Qwen-Image itself streams there, so the picker offers it rather than the hint.
+        #expect(MemoryFit(descriptor: ModelCatalog.qwenImage2512_4bit, budget: thirtyTwo) == .fitsStreamed)
     }
 
     @Test("a streamed figure is offered after tiling and before giving up, and never when zero")
