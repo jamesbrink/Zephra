@@ -4,38 +4,36 @@ import ZephraEngine
 /// Owns bringing the tucked prompt back by anything other than a click on the picture or the
 /// lip: Escape, a View-menu command reaching in through `WorkspaceSelection`, or simply typing.
 ///
-/// The visual slide is `PromptTuckOverlay`'s; this view exists only to hold the focus and key
-/// handling apart from it, so neither view collects more than the three stored properties
-/// `AGENTS.md` allows.
+/// Tucking is visual only. `PromptTuckOverlay` slides the capsule off the bottom edge and the
+/// prompt's text view stays first responder underneath it — this view hands it the caret as the
+/// prompt tucks, and never takes the keyboard for itself — so whatever is typed lands in the
+/// real editor, composed input included: a Japanese input source builds its text inside the
+/// field the way it always did, and the first change to the prompt is what brings the capsule
+/// back. An earlier version focused itself and appended each keystroke's raw characters to the
+/// prompt, which put the letters in but broke every input method that composes them. Escape
+/// arrives as `cancelOperation:`, which the text view forwards up the chain to `onExitCommand`.
+///
+/// The visual slide is `PromptTuckOverlay`'s; this view exists only to keep the coming-back
+/// apart from it, so neither view collects more than the three stored properties `AGENTS.md`
+/// allows.
 struct PromptTuckHost: View {
     @Environment(WorkspaceSelection.self) private var workspace
     @Environment(GenerationStore.self) private var store
-    @FocusState private var canvasFocused: Bool
 
     var body: some View {
         PromptTuckOverlay()
-            .focusable()
-            .focusEffectDisabled()
-            .focused($canvasFocused)
             .onChange(of: workspace.promptTucked) { _, tucked in
-                // Also takes focus off the hidden `PromptEditor`, so typing lands here rather
-                // than in a text view nobody can see.
-                if tucked { canvasFocused = true }
+                // The caret goes to the hidden editor as the prompt tucks, so a keystroke has
+                // somewhere to land even when the click that tucked it took the focus away.
+                if tucked { workspace.focusPrompt() }
             }
-            .onKeyPress(.escape) {
-                guard workspace.promptTucked else { return .ignored }
+            .onChange(of: store.settings.prompt) { _, _ in
+                guard workspace.promptTucked else { return }
                 workspace.promptTucked = false
-                return .handled
             }
-            .onKeyPress(characters: .alphanumerics.union(.whitespaces).union(.punctuationCharacters)) { press in
-                // A Command or Option chord still reports its base letter as `characters`, so
-                // without this a tucked canvas would eat Save, Copy and Cancel and type the
-                // letter instead of running the command. Shift alone is a capital, which is text.
-                guard workspace.promptTucked, press.modifiers.isSubset(of: [.shift]) else { return .ignored }
+            .onExitCommand {
+                guard workspace.promptTucked else { return }
                 workspace.promptTucked = false
-                store.settings.prompt += press.characters
-                workspace.focusPrompt()
-                return .handled
             }
     }
 }
