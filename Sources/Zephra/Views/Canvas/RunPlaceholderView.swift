@@ -23,7 +23,7 @@ struct RunPlaceholderView: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: ZephraChrome.cardRadius)
-                .fill(Color.safelight.opacity(0.05))
+                .fill(ZephraChrome.safelightWash)
                 .strokeBorder(ZephraChrome.hairline, lineWidth: 1)
                 .padding(1)
             VStack(spacing: 10) {

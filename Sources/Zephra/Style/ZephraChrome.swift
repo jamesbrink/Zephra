@@ -8,8 +8,8 @@ import SwiftUI
 enum ZephraChrome {
     /// The floating prompt capsule, the largest radius in the app.
     static let capsuleRadius: CGFloat = 16
-    /// A pane-sized panel sitting inside the window's own chrome.
-    static let panelRadius: CGFloat = 10
+    /// The picture in the reference well: a step above a card, since it sits on the capsule.
+    static let wellRadius: CGFloat = 10
     /// A small card in a list: a queue row, a block of facts.
     static let cardRadius: CGFloat = 8
     /// A square image standing in for a bigger one.
@@ -19,6 +19,13 @@ enum ZephraChrome {
     static let tileRadius: CGFloat = 5
     /// Half the height of a 22 pt chip, which is what makes it a capsule.
     static let chipRadius: CGFloat = 11
+    /// A text field, or a ring drawn round a row: the smallest corner in the app.
+    static let fieldRadius: CGFloat = 6
+
+    /// The height of a search field: one line of `.callout` with air around it.
+    static let fieldHeight: CGFloat = 26
+    /// The strip over a pane: tall enough for a 22 pt chip with air around it, and no taller.
+    static let barHeight: CGFloat = 42
 
     /// The one-pixel line that separates a surface from what is behind it. The system's own
     /// separator, so it is right in both appearances without a second definition.

@@ -13,9 +13,6 @@ struct SidebarSearch: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
             TextField("Search prompts and seeds", text: text)
                 .textFieldStyle(.plain)
                 .font(.callout)
@@ -27,9 +24,7 @@ struct SidebarSearch: View {
                     .foregroundStyle(.quaternary)
             }
         }
-        .padding(.horizontal, 8)
-        .frame(height: 26)
-        .background(.quaternary, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .searchFieldChrome()
         .onChange(of: workspace.searchFocusToken) { isFocused = true }
         .accessibilityLabel("Search prompts and seeds")
     }

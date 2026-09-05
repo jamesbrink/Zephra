@@ -42,16 +42,14 @@ struct RunningRunInspector: View {
     }
 
     private var facts: some View {
-        VStack(spacing: 0) {
-            row("Model", modelName)
-            row("Size", settings.size.label, style: .digits)
-            row("Steps", steps, style: .digits)
-            row("Seed", settings.seed.shortSeedLabel, style: .monospaced)
-            row("Elapsed", elapsed, style: .digits)
-            row("Left", remaining, style: .digits)
-            Divider()
+        FactsTable {
+            FactsRow("Model", modelName)
+            FactsRow("Size", settings.size.label, style: .digits)
+            FactsRow("Steps", steps, style: .digits)
+            FactsRow("Seed", settings.seed.shortSeedLabel, style: .monospaced)
+            FactsRow("Elapsed", elapsed, style: .digits)
+            FactsRow("Left", remaining, style: .digits)
         }
-        .font(.callout)
     }
 
     /// Full width, the way the inspector's other actions are: the label carries the width, not
@@ -63,17 +61,6 @@ struct RunningRunInspector: View {
         }
         .disabled(store.state == .cancelling)
         .help("Stop after this step and clear the queue")
-    }
-
-    private func row(_ key: String, _ value: String, style: KeyValueStyle = .plain) -> some View {
-        VStack(spacing: 0) {
-            Divider()
-            KeyValueRow(key, value, style: style)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .padding(.vertical, 7)
-                .accessibilityElement(children: .combine)
-        }
     }
 
     /// What the run in flight was queued with, falling back to what the next one would use so

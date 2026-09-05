@@ -35,7 +35,7 @@ struct ReferenceThumbnail: View {
 #Preview("Reference thumbnail") {
     ReferenceThumbnail()
         .frame(width: 64, height: 64)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: ZephraChrome.wellRadius, style: .continuous))
         .padding()
         .environment(ImageCache())
         .environment(GenerationStore.preview(

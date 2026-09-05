@@ -30,7 +30,7 @@ struct AlbumDropTarget: ViewModifier {
                 onFile(expanded(dropped))
                 return true
             } isTargeted: { isTargeted = $0 }
-            .listRowBackground(highlight)
+            .listRowBackground(isTargeted ? Optional(highlight) : nil)
     }
 
     /// The whole selection when the dropped image is part of it, and just that image otherwise.
@@ -39,15 +39,12 @@ struct AlbumDropTarget: ViewModifier {
         return dropped.union(selection.ids)
     }
 
-    /// The accent ring while a drag is over the row, and nothing at all otherwise.
-    ///
-    /// Nothing rather than a clear rectangle: any row background at all replaces the list's own
-    /// selection highlight, so a row that always set one would stop looking selected.
-    private var highlight: AnyView? {
-        guard isTargeted else { return nil }
-        return AnyView(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .strokeBorder(Color.accentColor, lineWidth: 2)
-        )
+    /// The accent ring while a drag is over the row. It is set as the row's background only
+    /// then, and nothing at all otherwise — nothing rather than a clear rectangle, because any
+    /// row background at all replaces the list's own selection highlight, so a row that always
+    /// set one would stop looking selected.
+    private var highlight: some View {
+        RoundedRectangle(cornerRadius: ZephraChrome.fieldRadius, style: .continuous)
+            .strokeBorder(Color.accentColor, lineWidth: 2)
     }
 }

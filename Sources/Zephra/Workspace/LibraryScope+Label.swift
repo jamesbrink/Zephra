@@ -14,8 +14,8 @@ extension LibraryScope {
     /// The row's title, with albums named by whatever owns their names.
     ///
     /// An album has no name of its own — the album manifest holds it — so one is asked for by
-    /// id. Phase 4 passes the library index's lookup; until then, and for an album whose name
-    /// has gone missing, the generic word stands in rather than a raw UUID.
+    /// id: `SidebarView` passes `LibraryIndex.name(of:)`. For an album whose name has gone
+    /// missing, the generic word stands in rather than a raw UUID.
     func title(albumName: (UUID) -> String?) -> String {
         switch self {
         case .all: "All images"

@@ -47,10 +47,13 @@ struct ModelsSettings: View {
         }
         .formStyle(.grouped)
         .task { await inventory.refresh() }
-        .confirmationDialog(
+        // An alert, not a confirmation dialog, for the reason `AlbumSources` gives: one style
+        // for every destructive confirmation.
+        .alert(
             "Permanently delete model?", isPresented: isConfirming, presenting: pendingDeletion
         ) { item in
             Button("Delete Permanently", role: .destructive) { delete(item) }
+            Button("Cancel", role: .cancel) { pendingDeletion = nil }
         } message: { item in
             Text(consequence(of: item))
         }

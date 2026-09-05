@@ -25,8 +25,7 @@ struct PromptCapsule: View {
             .padding(.bottom, 12)
         }
         .chromePanel(.floating)
-        // Controls wrap within this width when their settings and actions cannot share a row.
-        .frame(maxWidth: 736)
+        .frame(maxWidth: CanvasOverlay.maxWidth)
     }
 }
 

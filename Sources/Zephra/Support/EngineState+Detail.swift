@@ -22,12 +22,6 @@ extension EngineState {
         }
     }
 
-    /// Whether the detail line is a measurement, which is set in a monospaced face.
-    ///
-    /// Every state that has a detail line at all reports a count, a rate, or a percentage, so
-    /// there is one answer rather than a second list to keep in step with `detail`.
-    var detailIsMeasurement: Bool { detail != nil }
-
     /// What the running generation is doing right now, in a few words and without the pace:
     /// what the empty canvas says while the first frame is on its way.
     var generationPhase: String? {

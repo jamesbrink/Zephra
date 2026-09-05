@@ -63,14 +63,14 @@ struct ReferenceImageWell: View {
     private var filled: some View {
         ReferenceThumbnail()
             .frame(width: 64, height: 64)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: ZephraChrome.wellRadius, style: .continuous))
             .overlay(alignment: .topTrailing) {
                 Button {
                     ReferenceAdoption.use(nil, into: store)
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .symbolRenderingMode(.palette)
-                        .foregroundStyle(.white, .black.opacity(0.6))
+                        .foregroundStyle(ZephraChrome.badgeForeground, ZephraChrome.badgeBackdrop)
                 }
                 .buttonStyle(.plain)
                 .offset(x: 5, y: -5)

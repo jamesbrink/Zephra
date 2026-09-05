@@ -21,7 +21,7 @@ struct RunPreviewThumbnail: View {
 
     var body: some View {
         shape
-            .fill(Color.safelight.opacity(0.18))
+            .fill(ZephraChrome.safelightTint)
             .frame(width: Self.edge, height: Self.edge)
             .overlay {
                 if let frame {

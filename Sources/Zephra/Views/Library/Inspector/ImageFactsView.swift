@@ -24,31 +24,18 @@ struct ImageFactsView: View {
     let edited: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
-            row("Model", facts.model)
-            row("Size", facts.size, style: .digits)
-            row("Steps", facts.steps, style: .digits)
-            row("Seed", facts.seed, style: .monospaced)
-            row("Took", facts.took, style: .digits)
+        FactsTable {
+            FactsRow("Model", facts.model)
+            FactsRow("Size", facts.size, style: .digits)
+            FactsRow("Steps", facts.steps, style: .digits)
+            FactsRow("Seed", facts.seed, style: .monospaced)
+            FactsRow("Took", facts.took, style: .digits)
             if edited {
-                row("Reference", "Edited from a picture")
+                FactsRow("Reference", "Edited from a picture")
             }
             if let upscaled = facts.upscaled {
-                row("Upscaled", upscaled)
+                FactsRow("Upscaled", upscaled)
             }
-            Divider()
-        }
-        .font(.callout)
-    }
-
-    private func row(_ key: String, _ value: String, style: KeyValueStyle = .plain) -> some View {
-        VStack(spacing: 0) {
-            Divider()
-            KeyValueRow(key, value, style: style)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .padding(.vertical, 7)
-                .accessibilityElement(children: .combine)
         }
     }
 }

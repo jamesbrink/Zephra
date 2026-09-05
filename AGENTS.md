@@ -183,7 +183,8 @@ Code rules:
 - One public type per file; file name matches the type name.
 - Target ≤150 lines per file.
 - No `*Manager`, `*Helper`, `*Utils`, or `*Service` type names — name types
-  for what they are.
+  for what they are. The one exception is a subclass that keeps AppKit's own
+  name: `PromptLayoutManager` is an `NSLayoutManager`.
 - Views hold at most 3 stored properties, or get split into subviews.
 - `ModelCatalog` is the only static registry in the codebase. No other
   singletons.
@@ -417,16 +418,26 @@ a ROADMAP item.
 
 Four directories, by what a file is rather than what screen it is on:
 
-- `Style/` — the chrome: `ZephraChrome`'s radii and hairlines, `ChromePanel`,
-  `Chip`, `SectionHeader`, `CountBadge`, `KeyValueRow`, `WrappingHStack`,
-  `ModelDot`, and `MenuChevron`, the inline chevron a capsule menu's title
-  ends with (a `Menu` reads its label the way `Label` does, so a chevron drawn
-  as a view lands in front of the title or nowhere, and `.menuIndicator` draws
-  nothing under `.accessoryBar` outside a toolbar). A view that reaches for a literal radius or a raw colour belongs
+- `Style/` — the chrome: `ZephraChrome`'s radii, hairlines and heights
+  (`fieldRadius`, `fieldHeight`, `barHeight` beside the radii), the colours
+  laid over things in `ZephraChrome+Washes` (`badgeForeground` and
+  `badgeBackdrop` for a glyph on a picture, `safelightWash` and
+  `safelightTint` for the run's surfaces, `hoverWash` over a wall square under
+  the pointer, `warningWash` and `warningStroke`
+  for `ChromePanel`'s warning, `captionShadowOpacity`), `ChromePanel`, `Chip`,
+  `SectionHeader`, `CountBadge`, `KeyValueRow`, `WrappingHStack`, `ModelDot`;
+  `FactsRow` and `FactsTable`, the one line and the one column every inspector's
+  facts are drawn from; `SearchFieldChrome`, the modifier that dresses the
+  sidebar's search and the reference picker's alike; and `MenuChevron`, the
+  inline chevron a capsule menu's title ends with (a `Menu` reads its label the
+  way `Label` does, so a chevron drawn as a view lands in front of the title or
+  nowhere, and `.menuIndicator` draws nothing under `.accessoryBar` outside a
+  toolbar). A view that reaches for a literal radius or a raw colour belongs
   here instead. Safelight amber means "only while the model works" and appears
-  nowhere else. The radii step down by what a thing is: 16 for the capsule,
-  8 for a card or a thumbnail, 5 for a square on the sidebar's wall, so a card
-  reads as a thing to act on and a square as a thing to look at.
+  nowhere else. The radii step down by what a thing is: 16 for the capsule, 10
+  for the picture in the reference well, 8 for a card or a thumbnail, 6 for a
+  field, 5 for a square on the sidebar's wall, so a card reads as a thing to
+  act on and a square as a thing to look at.
 - `Workspace/` — which pane is up, which query the library is showing, whether
   the inspector is open, and the labels those enums draw themselves with.
   `WorkspaceSelection` is one `@Observable`, injected by the composition root
@@ -582,7 +593,15 @@ Four directories, by what a file is rather than what screen it is on:
   inset by `ZephraChrome.capsuleRadius`, on the lip too, so the corners' curve
   clips no segment; `StopButton` beside Generate is a bordered "Stop" in
   safelight; the size menu and the seed count show their chevrons, and the
-  count says what it counts ("4 seeds").
+  count says what it counts ("4 seeds"). The tuck is `Canvas/PromptTuckHost`'s,
+  and it is visual only: `PromptTuckOverlay` slides the capsule under a lip and
+  the prompt's text view stays first responder underneath it — the host hands
+  it the caret as the prompt tucks and never takes the keyboard itself — so
+  whatever is typed lands in the real editor, composed input included, and the
+  first change to the prompt brings the capsule back; Escape arrives as
+  `cancelOperation:` through `onExitCommand`. It once focused itself and
+  appended raw characters to the prompt, which broke every input method that
+  composes.
   `Canvas/RunningRunInspector` is the column beside it: prompt, model, size,
   the step of how many, seed, elapsed and left — the last two from the pace
   `store.state` already measures rather than a clock of the view's own — and

@@ -11,10 +11,10 @@ struct PromptLip: View {
     /// How tall the lip stands above the window's bottom edge.
     static let height: CGFloat = 22
 
-    /// `PromptCapsule`'s own `frame(maxWidth: 736)` sits inside `CanvasOverlay`'s 28 pt of
-    /// horizontal padding on each side, so its true width tops out at 736 minus twice that —
-    /// the same figure the lip needs to sit flush beneath it.
-    private static let width: CGFloat = 736 - 2 * 28
+    /// `PromptCapsule`'s own `maxWidth` sits inside `CanvasOverlay`'s horizontal padding on
+    /// each side, so its true width tops out at the one minus twice the other — the same figure
+    /// the lip needs to sit flush beneath it.
+    private static let width: CGFloat = CanvasOverlay.maxWidth - 2 * CanvasOverlay.horizontalPadding
 
     @Environment(WorkspaceSelection.self) private var workspace
     @Environment(GenerationStore.self) private var store

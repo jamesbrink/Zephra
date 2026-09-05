@@ -32,9 +32,8 @@ struct PromptRow: View {
                 .contentShape(Rectangle())
                 .onTapGesture { promptFocused = true }
         }
-        // `PromptTuckHost` bumps this once the prompt has just been brought back — by Escape,
-        // a menu command, or the first character of what was typed while it was tucked away —
-        // so the caret lands here rather than nowhere.
+        // `PromptTuckHost` bumps this as the prompt tucks away, so the caret is in the hidden
+        // editor and what is typed while the capsule is down lands here rather than nowhere.
         .onChange(of: workspace.promptFocusToken) { promptFocused = true }
     }
 }
