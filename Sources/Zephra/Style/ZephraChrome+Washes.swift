@@ -16,6 +16,9 @@ extension ZephraChrome {
     /// Safelight strong enough to be a colour of its own: the run's thumbnail before its
     /// first frame.
     static let safelightTint = Color.safelight.opacity(0.18)
+    /// What lifts a square on the sidebar's wall while the pointer is over it: the wash that
+    /// says it can be pressed.
+    static let hoverWash = Color.white.opacity(0.12)
     /// The fill of a panel that carries a warning.
     static let warningWash = Color.safelight.opacity(0.12)
     /// The edge of that panel.

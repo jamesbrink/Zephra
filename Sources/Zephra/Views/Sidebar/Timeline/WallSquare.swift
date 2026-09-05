@@ -25,7 +25,7 @@ struct WallSquare: View {
             .clipShape(shape)
             .overlay {
                 if isHovered {
-                    shape.fill(.white.opacity(0.12))
+                    shape.fill(ZephraChrome.hoverWash)
                     shape.strokeBorder(ZephraChrome.hairline, lineWidth: 1)
                 }
             }

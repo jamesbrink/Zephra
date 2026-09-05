@@ -422,7 +422,8 @@ Four directories, by what a file is rather than what screen it is on:
   (`fieldRadius`, `fieldHeight`, `barHeight` beside the radii), the colours
   laid over things in `ZephraChrome+Washes` (`badgeForeground` and
   `badgeBackdrop` for a glyph on a picture, `safelightWash` and
-  `safelightTint` for the run's surfaces, `warningWash` and `warningStroke`
+  `safelightTint` for the run's surfaces, `hoverWash` over a wall square under
+  the pointer, `warningWash` and `warningStroke`
   for `ChromePanel`'s warning, `captionShadowOpacity`), `ChromePanel`, `Chip`,
   `SectionHeader`, `CountBadge`, `KeyValueRow`, `WrappingHStack`, `ModelDot`;
   `FactsRow` and `FactsTable`, the one line and the one column every inspector's
