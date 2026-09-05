@@ -8,7 +8,7 @@ import ZephraTestSupport
 @Suite("Downloading a model repository", .serialized)
 struct ModelDownloaderTests {
     /// A downloader pointed at the stub instead of the hub.
-    private func downloader() -> ModelDownloader {
+    func downloader() -> ModelDownloader {
         ModelDownloader(
             host: URL(string: "https://huggingface.co")!,
             userAgent: "Zephra/test",
@@ -16,7 +16,7 @@ struct ModelDownloaderTests {
     }
 
     /// A listing page for `files`, in the shape the tree endpoint answers with.
-    private func page(_ files: [(String, Int)]) -> Data {
+    func page(_ files: [(String, Int)]) -> Data {
         let entries = files.map { path, size in
             ["type": "file", "path": path, "size": size] as [String: Any]
         }

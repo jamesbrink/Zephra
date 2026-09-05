@@ -22,7 +22,16 @@ extension GenerationStore {
         guard let removed else { return }
         if let index { history.remove(at: index) }
         if current?.id == id { current = next(after: index) }
-        guard let url = removed.fileURL else { return }
+        guard let url = removed.fileURL else {
+            // The save is still on its way; `attach` moves the file on when it lands.
+            deletedBeforeSave.insert(id)
+            return
+        }
+        moveToRecentlyDeleted(url)
+    }
+
+    /// Moves one file into Recently Deleted on the library chain and tells the app once it has.
+    func moveToRecentlyDeleted(_ url: URL) {
         let library = library
         let previous = libraryTask
         libraryTask = Task.detached(priority: .utility) {

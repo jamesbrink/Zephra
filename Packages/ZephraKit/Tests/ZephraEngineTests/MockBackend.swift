@@ -1,5 +1,6 @@
 import Foundation
 import ZephraCore
+import ZephraSnapshot
 
 /// A backend that does everything the real one does except arithmetic: it reports download and
 /// denoising progress, honours cancellation between steps, and returns a real if tiny PNG.
@@ -43,7 +44,10 @@ final class MockBackend: ImageGenerationBackend {
         acquisition: any ModelAcquisition,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws -> URL {
-        control.update { $0.lastLocations = locations }
+        control.update {
+            $0.lastLocations = locations
+            $0.lastAcquisitionID = (acquisition as? TransferAcquisition)?.id
+        }
         onProgress(DownloadProgressEvent(completedFiles: 0, totalFiles: 2, fraction: 0))
         try await control.settings.downloadGate?(descriptor)
         if control.settings.downloadDelay > .zero {
@@ -100,7 +104,7 @@ final class MockBackend: ImageGenerationBackend {
         _ settings: GenerationSettings,
         onProgress: @escaping (GenerationProgressEvent) -> Void
     ) async throws -> Data {
-        control.update { $0.generations += 1; $0.lastSettings = settings }
+        control.update { $0.generations += 1; $0.lastSettings = settings; $0.tileAtGenerate = $0.vaeTile }
         let dials = control.settings
         if let error = dials.generateError { throw error }
         onProgress(GenerationProgressEvent(phase: .encodingText, fraction: 0))
@@ -124,8 +128,10 @@ final class MockBackend: ImageGenerationBackend {
                 )
             )
         }
-        try Task.checkCancellation()
+        if !dials.ignoresFinalCancellation { try Task.checkCancellation() }
         onProgress(GenerationProgressEvent(phase: .decoding, fraction: 1))
+        // Deliberately sleeps through a cancel: a decode is Metal work nothing interrupts.
+        if dials.decodeDelay > .zero { try? await Task.sleep(for: dials.decodeDelay) }
         return Self.pngData
     }
 

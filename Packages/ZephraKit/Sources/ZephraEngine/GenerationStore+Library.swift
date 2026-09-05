@@ -42,15 +42,12 @@ extension GenerationStore {
     ///
     /// `settings` and `descriptor` follow, so the controls show what is about to run.
     ///
-    /// Does nothing while the engine cannot take work, for the same reason `generate()` does
+    /// Does nothing unless `canQueueVariation(of:)`, for the same reason `generate()` does
     /// nothing unless `canQueue`: draining during a download, a load or a warm-up would swap
     /// models under the load that is already running and cancel it. The prompt tested is the
     /// record's rather than the one in the field, because that is the one about to run.
     public func queueVariation(of item: LibraryItem) {
-        guard !isChangingModelDirectory && !isChangingImageDirectory, let record = item.provenance.record,
-              record.settings().isReadyToGenerate,
-              state.acceptsGeneration || isDraining
-        else { return }
+        guard canQueueVariation(of: item), let record = item.provenance.record else { return }
         let known = ModelCatalog.descriptor(id: record.modelID)
         let model = known ?? descriptor
         var request = record.settings(referenceImage: item.referenceImage).withRandomSeed()
@@ -60,6 +57,9 @@ extension GenerationStore {
         // follows it: without this an image asked for while an older picture was open would
         // finish invisibly.
         startFollowingRun()
+        // The request carries the record's own reference, or none; a library read still on
+        // its way was for the settings being replaced, as in `select(_:)`.
+        _ = claimReference()
         descriptor = model
         settings = request
         queue.append(QueuedGeneration(model: model, settings: request))

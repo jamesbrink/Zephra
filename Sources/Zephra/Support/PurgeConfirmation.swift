@@ -11,13 +11,18 @@ import AppKit
 /// presentation binding.
 enum PurgeConfirmation {
     /// Asks, and answers whether to go ahead. Deleting into Recently Deleted never asks — the
-    /// file sits in a folder for thirty days and Put Back is right there. This is the other one.
+    /// file sits in a folder for thirty days and Put Back is right there. This is the other
+    /// one, and it says what really happens: `ImageLibrary.discard` moves the file to the
+    /// Finder's Trash where there is one, so the sentence does not promise a permanence the
+    /// code does not deliver.
     static func confirm(count: Int) -> Bool {
         let alert = NSAlert()
         alert.messageText = count == 1
             ? "Delete this image?"
             : "Delete these \(count) images?"
-        alert.informativeText = "This cannot be undone."
+        alert.informativeText = count == 1
+            ? "It will be moved to the Trash."
+            : "They will be moved to the Trash."
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Delete")
         alert.addButton(withTitle: "Cancel")

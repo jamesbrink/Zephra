@@ -11,29 +11,11 @@ extension GenerationStore {
         guard let registry else { return nil }
         if let inference { return inference }
         let made = InferenceActor(
-            registry: registry, locations: locations, upscaler: upscalerFactory)
+            registry: registry, locations: locations, upscaler: upscalerFactory,
+            runtime: runtime)
         inference = made
         return made
     }
-
-    /// Keeps models in `locations` from the next load onwards, and says whether that is a
-    /// change. This low-level handoff applies startup preferences without interrupting work.
-    /// Settings uses `changeModelDirectory(to:moving:)` to stop preparation and optionally
-    /// migrate files before committing a new destination.
-    ///
-    /// Awaited rather than fired off, so the engine holds the new folder before this returns:
-    /// a load started straight after would otherwise race the handoff and could still fetch
-    /// or build under the folder just left.
-    @discardableResult
-    public func setModelLocations(_ locations: ModelLocations) async -> Bool {
-        guard !isChangingModelDirectory && !isChangingImageDirectory, locations != self.locations else { return false }
-        self.locations = locations
-        if let inference { await inference.setLocations(locations) }
-        return true
-    }
-
-    /// Where models are downloaded and built, for a settings window to show.
-    public var modelLocations: ModelLocations { locations }
 
     /// Finds or downloads the model, loads it, and warms up. Call once from the root view.
     /// Calling it again once the engine is running is a no-op, so a re-rendered root is free.
@@ -65,13 +47,20 @@ extension GenerationStore {
     /// A preview store has no backend to build, so it never starts anything.
     @discardableResult
     private func startLoading(_ model: ModelDescriptor, asSwap: Bool) -> Task<Void, Never>? {
-        guard !isChangingModelDirectory, !isChangingImageDirectory, !isShuttingDown, !deletionInProgress, !isStoppingPreparation, let inference = inferenceActor() else { return nil }
+        guard acceptsWork, !isStoppingPreparation, let inference = inferenceActor() else { return nil }
         switch state {
         case .idle, .failed: break
         default: return nil
         }
         // A swap passes through .idle while the old weights go back; only the swap may load.
         if isSwappingModel, !asSwap { return nil }
+        // Retry after a generation failure: the weights are up and the lease is held, so
+        // there is nothing to fetch, build or load. Answer ready and touch neither the pool
+        // nor the actor; a second borrow of the same request could never be given back.
+        if isResident(model) {
+            transition(to: .ready)
+            return nil
+        }
         transition(to: .checkingModel)
         let identity = UUID()
         loadIdentity = identity
@@ -81,73 +70,12 @@ extension GenerationStore {
         return task
     }
 
-    /// The body of a load, from finding the weights to the throwaway first generation.
-    private func load(_ model: ModelDescriptor, on inference: InferenceActor, identity: UUID) async {
-        guard let registry else { return }
-        let pump = EngineEventPump { [weak self] event in
-            guard let self, self.loadIdentity == identity else { return }
-            self.applyLoadEvent(event)
-        }
-        var acquired: AcquiredModel?
-        let residency = weightResidencyPolicy.residency(for: model)
-        do {
-            acquired = try await downloads.acquire(model, registry: registry, locations: locations) { [weak self] event in
-                guard let self, self.loadIdentity == identity else { return }
-                self.applyLoadEvent(.download(event))
-            }
-            try Task.checkCancellation()
-            guard let acquired else { throw CancellationError() }
-            let builtExists = locations.builtCandidates(for: model).contains {
-                $0.standardizedFileURL == acquired.directory.standardizedFileURL
-            }
-            try await downloads.transfers.reserveBuild(acquired.id,
-                bytes: builtExists ? 0 : model.builtBytes, at: acquired.locations.root)
-            let directory = try await pump.run { sink in
-                try await inference.prepare(acquired, residency: residency, events: sink)
-            }
-            await downloads.transfers.finishBuild(acquired.id)
-            try Task.checkCancellation()
-            if warmsUpAfterLoad {
-                if loadIdentity == identity { transition(to: .warmingUp) }
-                try await inference.warmUp(model)
-            }
-            try Task.checkCancellation()
-            guard loadIdentity == identity else { throw CancellationError() }
-            acquiredModel = acquired
-            loadedDirectory = directory
-            loadedResidency = residency
-            loadedDescriptor = model
-            transition(to: .ready)
-        } catch {
-            // Even a failed load may have allocated weights. Settle them before releasing
-            // their disk lease; suppressing obsolete UI events must not suppress cleanup.
-            await inference.unload()
-            if let acquired { await downloads.release(acquired) }
-            if loadIdentity == identity {
-                loadedDescriptor = nil
-                loadedDirectory = nil
-                loadedResidency = nil
-                switch error {
-                case is CancellationError: transition(to: .idle)
-                case BackendRegistryError.noBackend(let id): transition(to: .failed(.noBackend(id)))
-                case let error as BackendError: transition(to: .failed(.backend(error)))
-                default: transition(to: .failed(.backend(.loadFailed(error.localizedDescription))))
-                }
-            }
-        }
-        if loadIdentity == identity {
-            preparingModel = nil
-            bootstrapTask = nil
-        }
-        await refreshAvailability()
-    }
-
-    func unloadModel() async {
-        await inference?.unload()
-        if let acquiredModel { await downloads.release(acquiredModel) }
-        acquiredModel = nil
-        loadedDescriptor = nil
-        loadedDirectory = nil
-        loadedResidency = nil
+    /// Whether `model` is loaded the way the policy asks and its lease is the one this store
+    /// holds, so a load would find everything already done.
+    private func isResident(_ model: ModelDescriptor) -> Bool {
+        loadedDescriptor?.id == model.id
+            && loadedResidency == weightResidencyPolicy.residency(for: model)
+            && acquiredModel?.model.id == model.id
+            && acquiredModel?.locations == locations
     }
 }

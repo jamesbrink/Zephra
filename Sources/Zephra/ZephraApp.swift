@@ -45,20 +45,19 @@ struct ZephraApp: App {
                 // window, so it lands before the first frame and follows the picker in
                 // Settings; see `AppearanceApplier`.
                 .applyingAppearancePreference()
-                // The tiled decode is chosen for the model that is about to run, so the answer
-                // is worked out again whenever the model changes. Settings re-applies it when
-                // the preference itself changes; see `VAETilingControl`.
+                // Remembered here rather than in the menu, so a model the engine stepped onto
+                // by itself — the saved one having gone from the disk — is the one the next
+                // launch opens on. The tiled decode is not decided here: the store chooses it
+                // for each run's own model as the run starts; see `GenerationStore+Tiling`.
                 .onChange(of: store.descriptor, initial: true) { _, model in
-                    runtime.setVAETileSize(
-                        AppSettings.tilingPolicy(budget: Self.budget).tileSize(for: model))
-                    // Remembered here rather than in the menu, so a model the engine stepped
-                    // onto by itself — the saved one having gone from the disk — is the one
-                    // the next launch opens on.
                     AppSettings.write(model.id, to: AppSettings.selectedModelID)
                 }
                 .task {
                     termination.shutdown = {
+                        // Store first: its last save calls `onImageSaved` -> `index.insert`,
+                        // which must land before the index stops taking anything.
                         await store.shutdown()
+                        await index.shutdown()
                         let runtime = Self.runtime
                         await Task.detached { runtime.synchronize() }.value
                     }
@@ -131,10 +130,12 @@ struct ZephraApp: App {
             registry: registry,
             outputDirectory: AppSettings.imageLibrary().root,
             locations: AppSettings.modelLocations(),
-            upscaler: RealESRGANUpscaler.make
+            upscaler: RealESRGANUpscaler.make,
+            runtime: runtime
         )
         store.memoryBudget = budget
         store.weightResidencyPolicy = AppSettings.residencyPolicy(budget: budget)
+        store.vaeTilingPolicy = AppSettings.tilingPolicy(budget: budget)
         return store
     }
 

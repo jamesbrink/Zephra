@@ -13,8 +13,9 @@ extension GenerationStore {
     ///
     /// A preview store has no upscaler, so its buttons are greyed with no extra rule.
     public var canUpscale: Bool {
-        guard !isChangingModelDirectory, !isChangingImageDirectory, !isShuttingDown, !isSwappingModel,
-              !isStoppingPreparation, !deletionInProgress, upscalerFactory != nil, upscaleTask == nil else { return false }
+        guard acceptsWork, !isSwappingModel, !isStoppingPreparation, upscalerFactory != nil,
+            upscaleTask == nil
+        else { return false }
         switch state {
         case .idle, .ready, .failed: return true
         default: return false

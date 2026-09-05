@@ -10,9 +10,9 @@ import ZephraSnapshot
 /// which is why a registry of factories arrives here and the backend itself is built inside.
 actor InferenceActor {
     /// The prompt used for the throwaway generation that pays the first-run compilation cost.
-    private static let warmUpPrompt = "a plain grey square"
+    static let warmUpPrompt = "a plain grey square"
     /// Deliberately small: warming up is about compiling kernels, not about image quality.
-    private static let warmUpSize = ImageSize(width: 512, height: 512)
+    static let warmUpSize = ImageSize(width: 512, height: 512)
 
     private let queue = DispatchSerialQueue(label: "io.zephra.inference", qos: .userInitiated)
     let registry: BackendRegistry
@@ -27,6 +27,9 @@ actor InferenceActor {
     var loadedResidency: WeightResidency?
     private let upscalerFactory: UpscalerFactory?
     private var upscaler: (any ImageUpscaler)?
+    /// The GPU runtime whose VAE tile is set at the start of each run, on this queue, so the
+    /// write is ordered before the decode that reads it. Nil in tests and tools.
+    let runtime: (any InferenceRuntime)?
     /// The folder models are kept in, as the last `setLocations` left it. Read at the top of
     /// each operation rather than held by the backend, so a folder chosen while a download is
     /// running applies to the next one and never to the one in flight.
@@ -43,11 +46,13 @@ actor InferenceActor {
     init(
         registry: BackendRegistry,
         locations: ModelLocations = .default,
-        upscaler: UpscalerFactory? = nil
+        upscaler: UpscalerFactory? = nil,
+        runtime: (any InferenceRuntime)? = nil
     ) {
         self.registry = registry
         self.locations = locations
         self.upscalerFactory = upscaler
+        self.runtime = runtime
     }
 
     /// Keeps models in `locations` from the next `prepare` onwards. A transfer already running
@@ -57,34 +62,22 @@ actor InferenceActor {
         self.locations = locations
     }
 
-    /// Runs one tiny generation and throws the result away, so the first image the user asks
-    /// for is not the one that pays for kernel compilation.
-    func warmUp(_ descriptor: ModelDescriptor) async throws {
-        let live = try backend(for: descriptor)
-        let settings = descriptor.capabilities.clamp(
-            GenerationSettings(
-                prompt: Self.warmUpPrompt,
-                size: Self.warmUpSize,
-                steps: 1,
-                guidance: descriptor.capabilities.defaultGuidance,
-                seed: 0
-            )
-        )
-        try Task.checkCancellation()
-        _ = try await live.generate(settings) { _ in }
-        try Task.checkCancellation()
-    }
-
     /// Produces PNG bytes, timing the denoising loop so the interface can show a countdown even
-    /// when the backend reports no pace of its own.
-    func generate(_ settings: GenerationSettings, events: EngineEventSink) async throws -> Data {
+    /// when the backend reports no pace of its own. `tile` is the VAE tile this run decodes
+    /// at, set here, on this queue, so the run's own model is what it applies to.
+    func generate(_ settings: GenerationSettings, tile: Int?, events: EngineEventSink) async throws -> Data {
         guard let backend else {
             throw BackendError.loadFailed("The model has not been loaded yet.")
         }
+        runtime?.setVAETileSize(tile)
         var timer = StepTimer()
-        return try await backend.generate(settings) { event in
+        let data = try await backend.generate(settings) { event in
             events.send(.progress(timer.annotated(event)))
         }
+        // A backend looks for a cancel between steps and not after the decode; a stop that
+        // landed during the decode is honoured here, so a stopped run never hands back bytes.
+        try Task.checkCancellation()
+        return data
     }
 
     /// Makes `png` `request.factor` times larger on each edge, on this same serial queue, so an

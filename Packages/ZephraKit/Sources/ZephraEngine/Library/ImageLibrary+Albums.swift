@@ -29,7 +29,7 @@ extension ImageLibrary {
 
     /// Writes the album list, creating the library folder if this is the first thing in it.
     public func writeAlbums(_ albums: [Album]) throws {
-        try ImageDirectoryAccess.prepare(root)
+        try ImageDirectoryAccess.prepareForWrite(root)
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.sortedKeys, .prettyPrinted, .withoutEscapingSlashes]

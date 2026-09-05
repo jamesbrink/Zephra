@@ -18,9 +18,10 @@ extension ModelMigration {
         let paths = try directories()
         let trees = try paths.map { try ModelFileTree(source.appending(path: $0)) }
         try ModelDirectoryAccess.prepare(destination)
-        let capacity = try FileManager.default.attributesOfFileSystem(forPath: destination.path)
         let needed = trees.reduce(Int64(0)) { $0 + $1.bytes }
-        guard let free = availableBytes ?? (capacity[.systemFreeSize] as? NSNumber)?.int64Value,
+        // `volumeAvailableCapacityForImportantUsage`, which counts purgeable space, rather than
+        // `.systemFreeSize`, which does not: the same reading every transfer reserves against.
+        guard let free = try availableBytes ?? TransferCapacity.read(destination).available,
               free >= needed + 64 * 1024 * 1024 else {
             throw ModelDirectoryError("Not enough free space in \(destination.path) to copy and verify the models.")
         }

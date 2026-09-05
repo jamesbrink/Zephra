@@ -29,13 +29,12 @@ public final class GenerationStore {
     public internal(set) var lastSaveFailure: SaveFailure?
     /// Generations waiting their turn, oldest first. Runs down by itself after each image.
     public internal(set) var queue: [QueuedGeneration] = []
-    /// The generation being rendered right now, or nil when none is. It is not in `queue`: the
-    /// queue is what is still waiting, and a list showing both reads it straight off.
+    /// The generation being rendered right now, or nil when none is. Not in `queue`, which is
+    /// what is still waiting, so a list showing both reads them straight off.
     public internal(set) var running: QueuedGeneration?
     /// Whether the canvas is following the generation in flight rather than showing a picture
-    /// the user chose. See `GenerationStore+FollowingRun.swift`, which is where every rule
-    /// about it lives; it is stored here only because Swift keeps stored properties on the
-    /// type. `internal(set)` for the same reason: the extension has to be able to set it.
+    /// the user chose. Every rule about it is in `GenerationStore+FollowingRun.swift`; it is
+    /// stored here only because Swift keeps stored properties on the type.
     public internal(set) var followsRun = false
     /// The newest frame of the generation in flight, or nil when there is none to show — before
     /// the first frame of a run, and from the moment any run ends.
@@ -47,8 +46,7 @@ public final class GenerationStore {
     /// that is in use from a duplicate of the same model elsewhere. Nil while none are.
     public internal(set) var loadedDirectory: URL?
     /// Which choice of reference picture is the latest, and the read still fetching one. See
-    /// `GenerationStore+Reference.swift`; stored here only because Swift keeps stored
-    /// properties on the type.
+    /// `GenerationStore+Reference.swift`.
     var referenceChoice = 0
     var referenceRead: Task<Void, Never>?
     /// True while the engine is between queued generations, swapping to the model the next one
@@ -58,9 +56,8 @@ public final class GenerationStore {
     /// swap was stopped. While it is true the state passes through `.idle` without meaning
     /// "nothing to do", so nothing else may start a load.
     public internal(set) var isSwappingModel = false
-    /// Called with the file an image was just written to, once it is on disk. The app hands the
-    /// library index a way to add that one file rather than rescanning the folder for it; the
-    /// save path never needs to rescan the library.
+    /// Called with the file an image was just written to, once it is on disk, so the app can
+    /// hand the library index that one file rather than rescanning the folder for it.
     public var onImageSaved: (@MainActor (URL) -> Void)?
     /// Called with the file an image was moved out of when it was deleted from the filmstrip, so
     /// the app can tell the library index about it without waiting for a folder watch.
@@ -78,9 +75,13 @@ public final class GenerationStore {
     public var memoryBudget = MemoryBudget(physicalMemory: ProcessInfo.processInfo.physicalMemory)
     /// Where the weights of the next model loaded should live, from the user's preference and
     /// the budget. Set through `setWeightResidencyPolicy(_:)` once the store is running, which
-    /// reloads a model already up the other way; set directly, like the two above, before
-    /// `bootstrap()`.
+    /// reloads a model already up the other way; set directly before `bootstrap()`.
     public var weightResidencyPolicy = WeightResidencyPolicy(
+        mode: .automatic,
+        budget: MemoryBudget(physicalMemory: ProcessInfo.processInfo.physicalMemory))
+    /// Whether the decode is tiled, chosen for each run's own model when the run starts. See
+    /// `GenerationStore+Tiling.swift`.
+    public var vaeTilingPolicy = VAETilingPolicy(
         mode: .automatic,
         budget: MemoryBudget(physicalMemory: ProcessInfo.processInfo.physicalMemory))
     /// How the loaded model's weights are held, for the Performance tab and the loading text.
@@ -102,8 +103,7 @@ public final class GenerationStore {
     /// How many images stay in memory before the oldest is dropped.
     static let historyLimit = 24
 
-    // Machinery, not surface. These are internal rather than private only so the generation
-    // half of this type, in GenerationStore+Generation.swift, can reach them.
+    // Machinery, not surface: internal rather than private so the extensions can reach them.
     /// Which backend runs which model family, or nil for a preview store, which has none and so
     /// never loads, generates, or reaches a model at all.
     let registry: BackendRegistry?
@@ -115,6 +115,8 @@ public final class GenerationStore {
     /// The folder models are downloaded and built in, forwarded to the inference actor as it
     /// is made and whenever it changes.
     var locations: ModelLocations
+    /// The GPU runtime the actor sets the tile on before each run; nil in tests and tools.
+    let runtime: (any InferenceRuntime)?
 
     @ObservationIgnored var inference: InferenceActor?
     @ObservationIgnored var bootstrapTask: Task<Void, Never>?
@@ -125,26 +127,16 @@ public final class GenerationStore {
     @ObservationIgnored var openTask: Task<Void, Never>?
     @ObservationIgnored var upscaleTask: Task<Void, Never>?
 
-    /// Creates a store for one model, running on the backends `registry` knows how to build.
-    /// `outputDirectory` nil means ~/Pictures/Zephra.
-    public convenience init(
-        descriptor: ModelDescriptor = ModelCatalog.default,
-        registry: BackendRegistry,
-        outputDirectory: URL? = nil,
-        locations: ModelLocations = .default,
-        upscaler: UpscalerFactory? = nil, downloads: ModelDownloads = ModelDownloads()
-    ) {
-        self.init(
-            descriptor: descriptor, registry: registry, output: outputDirectory,
-            locations: locations, upscaler: upscaler, downloads: downloads)
-    }
+    /// Images deleted from the filmstrip before their save landed; `attach` moves the file on
+    /// to Recently Deleted when it does.
+    @ObservationIgnored var deletedBeforeSave: Set<GeneratedImage.ID> = []
 
     /// The one designated initializer. A nil `registry` makes a preview store: see
     /// `GenerationStore+Preview.swift`.
     init(
         descriptor: ModelDescriptor, registry: BackendRegistry?, output: URL?,
         locations: ModelLocations = .default, upscaler: UpscalerFactory? = nil,
-        downloads: ModelDownloads = ModelDownloads()
+        downloads: ModelDownloads = ModelDownloads(), runtime: (any InferenceRuntime)? = nil
     ) {
         self.downloads = downloads
         self.descriptor = descriptor
@@ -152,7 +144,7 @@ public final class GenerationStore {
         self.registry = registry
         self.locations = locations
         self.upscalerFactory = upscaler
+        self.runtime = runtime
         self.library = output.map { ImageLibrary(root: $0) } ?? .pictures()
     }
-
 }

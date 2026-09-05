@@ -54,7 +54,10 @@ extension ModelDownloader {
         let pin = Self.pin(in: part.destination)
         let requested = part.destination.appending(path: ".zephra-requested-revision")
         let pinned = try? String(contentsOf: pin, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
+        // Trimmed the way the pin is: a trailing newline in the file must not stop a resume
+        // matching, or the transfer re-resolves the branch and may empty the folder.
         let previousRequest = try? String(contentsOf: requested, encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         if let pinned, !pinned.isEmpty,
            previousRequest == part.revision || (previousRequest == nil && (part.revision == "main" || part.revision == pinned)) {
             return pinned

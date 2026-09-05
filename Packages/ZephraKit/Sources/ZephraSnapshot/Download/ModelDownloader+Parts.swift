@@ -59,7 +59,15 @@ extension ModelDownloader {
             // against, and the directory is a finished download from here on.
             try part.revision.write(
                 to: Self.completed(in: part.destination), atomically: true, encoding: .utf8)
-            try? FileManager.default.removeItem(at: Self.pin(in: part.destination))
+            // Not `try?`: a pin left behind makes `HubSnapshotCheck` call the folder incomplete
+            // for good, so it would be fetched again every time. Failing here is visible, and
+            // Retry removes the pin.
+            do {
+                try FileManager.default.removeItem(at: Self.pin(in: part.destination))
+            } catch {
+                throw ModelDownloadError.interrupted(
+                    reason: "Couldn't remove the revision pin in \(part.destination.lastPathComponent): \(error.localizedDescription)")
+            }
             Self.dropHubPartials(in: part.destination)
         }
     }

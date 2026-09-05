@@ -74,6 +74,9 @@ public final class ModelDownloads {
         await releaseIfUnused(request)
     }
 
+    /// Whether the request `id` names is still held: unsettled, or settled and borrowed.
+    func isRetained(_ id: UUID) -> Bool { retained[id] != nil }
+
     func releaseIfUnused(_ request: DownloadRequest) async {
         guard request.settled, request.borrowers == 0, !request.released else { return }
         request.released = true

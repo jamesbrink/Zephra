@@ -79,7 +79,7 @@ extension ModelDownloader {
         case 206:
             let range = response.value(forHTTPHeaderField: "Content-Range") ?? ""
             guard range.hasPrefix("bytes \(have)-") else {
-                try? FileManager.default.removeItem(at: partial)
+                try Self.discardPartial(partial, of: file)
                 tally.discard(have)
                 throw ModelDownloadError.interrupted(
                     reason: "\(file.path) resumed at the wrong offset; starting it over.")
@@ -90,7 +90,7 @@ extension ModelDownloader {
                 tally.discard(have)
                 have = 0
             }
-            try? FileManager.default.removeItem(at: partial)
+            try Self.discardPartial(partial, of: file)
         case 404: throw ModelDownloadError.fileNotFound(path: file.path)
         case 400..<500:
             throw ModelDownloadError.refused(status: response.statusCode, path: file.path)
@@ -143,15 +143,5 @@ extension ModelDownloader {
         }
         try Task.checkCancellation()
         try handle.synchronize()
-    }
-
-    /// Puts the finished file in place, over whatever was there.
-    private func replace(_ partial: URL, with target: URL) throws {
-        let files = FileManager.default
-        try? files.removeItem(at: Self.validator(of: partial))
-        if files.fileExists(atPath: target.path(percentEncoded: false)) {
-            try files.removeItem(at: target)
-        }
-        try files.moveItem(at: partial, to: target)
     }
 }

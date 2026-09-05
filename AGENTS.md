@@ -184,15 +184,25 @@ it never shares the inference actor's mutable backend or calls build/load/genera
 `ModelDownloads` in Engine owns request observation and foreground borrowing;
 `ModelTransfers` in Snapshot owns network slots, preflight, compatible repository claims
 and per-volume space reservations. A claim spans validation, build and resident use,
-so acquisition completion never opens a deletion gap. Failed/canceled loads unload
-before releasing their claim. Foreground events carry an operation identity; superseded
+so acquisition completion never opens a deletion gap, and is borrowed once: Retry on
+a resident model answers ready without touching the pool, and a load that reaches a
+lease the store already holds reuses it (`unloadModel` asserts the request is gone
+after its one release). Failed/canceled loads unload before releasing their claim. Foreground events carry an operation identity; superseded
 progress and completion cannot change the selected model's state.
 
+`GenerationStore.acceptsWork` (`+Admission`) is the one gate every entry point
+reads — no folder changing, no storage being deleted, not quitting — and a caller
+adds only the conditions that are its own; `drain()` reads it too, so
+`deleteModelStorage` drains again on its way out. `canQueueVariation(of:)` is the
+variation's own answer, and does not wait for a reference still on its way into
+the well: a variation replaces the settings outright and cancels that read.
 All UI storage deletion goes through `GenerationStore.deleteModelStorage`, which
 checks active requests/residency/queued work and closes new admission while deleting.
 Folder changes close download admission, pause every request and await file closure.
 `AppTermination` defers normal Quit while `GenerationStore.shutdown` settles tasks,
-then the runtime seam synchronizes Metal before allowing process teardown.
+then `LibraryIndex.shutdown` stops watching and drains its write chain and scans (store
+first, because the store's last save inserts into the index), then the runtime seam
+synchronizes Metal before allowing process teardown.
 
 ## How a generation runs
 
@@ -201,8 +211,14 @@ engine be tested in seconds without Metal.
 
 - `GenerationStore` (`@MainActor @Observable`) is the only object the UI
   observes, and it is split across `GenerationStore+*.swift` by concern —
-  loading, generation, the queue, batches (several seeds of one prompt from
+  loading (the entry points in `+Loading`, the borrow-prepare-release body in
+  `+Preparation`), the admission gate (`+Admission`), generation (`+Generation`,
+  with the write that follows in `+Saving`, which moves an image deleted while
+  its write was in flight straight on to Recently Deleted rather than announcing
+  it saved), the queue,
+  batches (several seeds of one prompt from
   one press of Generate), model switching, history, availability, preview,
+  the public convenience init (`+Init`), the tiled decode (`+Tiling`),
   the reference picture, the library, following the run, upscaling and filing
   the upscaled result, the interface's own questions (`+Interaction`), the
   download requests it keeps alive (`+Downloads`), the two folder changes
@@ -214,6 +230,14 @@ engine be tested in seconds without Metal.
   seconds of synchronous Metal work, and on the cooperative pool that would
   starve every other task in the process. Backends are not `Sendable`, which is
   why a registry of `@Sendable` factories goes in and the backend is built here.
+  A backend looks for a cancel between steps and not after its decode, so both
+  `InferenceActor.generate` and the store's `run` check again once the bytes are
+  back: a Stop that lands during the decode keeps no image, publishes nothing
+  and writes nothing. A finished image carries its own job's batch and model
+  (`QueuedGeneration`), not `running`'s, which a cancel empties, nor the store's
+  `descriptor`, which a switch moves before the run is over. The VAE tile is chosen
+  the same way, per run from the job's model, by `GenerationStore+Tiling` and set
+  by the actor as the run starts; see `ZEPHRA_VAE_TILE` under Debugging hooks.
 - `EngineEventPump` carries progress from that queue back to the main actor. Its
   `AsyncStream` buffers the newest four events and drops the rest — progress is
   a snapshot, not a log — and `run` drains before returning, so the state a
@@ -308,11 +332,22 @@ as an index, and it is Foundation only, so `make test` covers all of it.
 - `LibraryIndex` (`@MainActor @Observable`) is what the UI observes, split by
   concern the way `GenerationStore` is. Mutations take a set of ids, apply
   optimistically, queue onto one serial chain, and revert by re-reading the one
-  file that failed. `LibraryQuery` holds the scope, the text, and the sort, and
+  file that failed — unless a newer change for that file is still `pending`, in
+  which case the older write neither overwrites what is on screen nor reverts
+  nor reports: the newer write is about to land and speaks for itself.
+  `LibraryQuery` holds the scope, the text, and the sort, and
   `sections` are recomputed when it changes — the view never filters.
-- Deleting moves the file to `Recently Deleted/` with a `deletedAt` in that
-  folder's own manifest, and a scan purges anything older than thirty days.
-  Nothing is unlinked on the user's behalf before then.
+- Deleting moves the file to `Recently Deleted/` with a `deletedAt` and an
+  `origin` (the root or `Sources/`) in that folder's own manifest, and a scan
+  purges anything older than thirty days (`ImageLibrary+Purge`). Both kinds of
+  picture are deleted into it and listed there, a generated one by its record
+  and an imported one by its `SourceRecord`; Put Back returns each to the folder
+  it came from — the manifest's word, else the file's own header for a manifest
+  written before origins were recorded. The purge rechecks that a file is ours
+  for every candidate, entry or not, since a name can be reused by somebody
+  else's picture, and drops the stale entry rather than the picture; Delete
+  Immediately forgets the entry too, so a later file under that name gets its
+  own thirty days. Nothing is unlinked on the user's behalf before then.
 - `LibrarySelection` holds what is chosen; `LibraryCursor` is the pure
   arithmetic of moving through a grid, so keyboard navigation is tested without
   a window. `ImageFacts` formats the seven rows the inspector shows.
@@ -926,7 +961,9 @@ timeout or a rate limit stops the retrying early.
 Settings > Models lists every directory the catalog's models have on this Mac —
 the app's own folder first, then either hub layout — with where it is, its size,
 and a Delete that permanently removes its files after confirmation. `ModelStorage` in `ZephraSnapshot` is
-the listing and the measuring; `ModelInventory` in `ZephraEngine` is what the
+the listing and the measuring, and each `ModelStorageItem` says where it was found
+(`origin`: the app's folder or the hub cache), since only a partial in the app's own
+folder resumes when its model is chosen; `ModelInventory` in `ZephraEngine` is what the
 tab observes. A release two variants pack from is one row naming both, a
 download stopped part-way is a row saying so, an adapter is a row of its own
 named for the model it serves ("Qwen-Image 2512 adapter"), and a directory the
@@ -1304,10 +1341,12 @@ the re-sync procedure, and the running patch log. Any change inside
   takes the 1024-pixel peak from 23.5 GB to 17.7 GB for a mean absolute pixel difference of 1 of
   255. It is the starting value of each family's tile — `VAETiledDecode.latentTile` for
   Z-Image, `QwenImageAutoencoder.latentTile` for Qwen-Image — and so is what `ZephraBench` and
-  the command line use. The app overrides it as soon as its window appears: Settings >
-  Performance holds a three-way preference (`AppSettings.vaeTiling`) and `VAETilingPolicy`
-  applies it for the model about to run, tiling under Automatic when that model's `peakBytes`
-  is over what the GPU may keep resident (`MemoryBudget`).
+  the command line use. The app overrides it at its first run rather than at launch: Settings >
+  Performance holds a three-way preference (`AppSettings.vaeTiling`), the store keeps it as
+  `vaeTilingPolicy`, and `InferenceActor` sets the tile on its own queue as each run (and each
+  warm-up) starts, for that run's own model — tiling under Automatic when that model's
+  `peakBytes` is over what the GPU may keep resident (`MemoryBudget`). A model chosen mid-run
+  therefore never changes the running run's decode.
 - `ZEPHRA_WEIGHT_RESIDENCY=streamed|resident` overrides the Performance tab's streaming
   preference for one launch, and `ZEPHRA_STREAM_DEPTH=N` says how many blocks a streamed load
   reads ahead (2 unless set). `make bench ARGS="--model qwen-image-2512-4bit --stream"` is the

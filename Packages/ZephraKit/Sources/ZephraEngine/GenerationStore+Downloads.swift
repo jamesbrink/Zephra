@@ -3,6 +3,8 @@ import ZephraCore
 import ZephraSnapshot
 
 extension GenerationStore {
+    /// Narrower than `acceptsWork` on purpose: pausing a download is allowed during an
+    /// image-folder change and during a deletion, since neither touches the transfer.
     public func canStopDownload(_ modelID: String) -> Bool {
         !isChangingModelDirectory && !isShuttingDown && !isStoppingPreparation
             && !queue.contains { $0.model.id == modelID } && running?.model.id != modelID
@@ -19,7 +21,7 @@ extension GenerationStore {
     }
 
     public func resumeDownload(_ model: ModelDescriptor) {
-        guard !isChangingModelDirectory, !isChangingImageDirectory, !isShuttingDown, !deletionInProgress, let registry else { return }
+        guard acceptsWork, let registry else { return }
         if model.id == descriptor.id, !isDraining, !isUpscaling, !isSwappingModel, !isStoppingPreparation {
             retry()
         } else { _ = downloads.start(model, registry: registry, locations: locations) }
@@ -42,7 +44,10 @@ extension GenerationStore {
             await pendingSwitch?.value
             await pendingLoad?.value
             await unloadModel()
-            isSwappingModel = false
+            // A swap asked for after this stop began owns the flag; only the swap this stop
+            // cancelled gives it up. Clearing it outright opened a window in which a retry
+            // could start a load under the pending swap.
+            isSwappingModel = switchTask.map { !$0.isCancelled } ?? false
             isStoppingPreparation = false
             transition(to: .idle)
         }
@@ -65,7 +70,7 @@ extension GenerationStore {
     }
 
     public func modelStorageIsInUse(_ item: ModelStorageItem) -> Bool {
-        if isChangingModelDirectory || isChangingImageDirectory || isShuttingDown || deletionInProgress { return true }
+        if !acceptsWork { return true }
         if let loadedDirectory {
             let parent = item.url.resolvingSymlinksInPath().standardizedFileURL.path
             let child = loadedDirectory.resolvingSymlinksInPath().standardizedFileURL.path
@@ -86,6 +91,9 @@ extension GenerationStore {
         defer {
             deletionInProgress = false
             Task { await settlement.finish() }
+            // A queued entry whose predecessor finished during the deletion found `drain()`
+            // closed; the same hand-back an upscale makes on its way out.
+            if state == .ready { drain() }
         }
         await inventory.delete(item)
         await refreshAvailability()

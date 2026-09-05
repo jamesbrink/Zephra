@@ -74,7 +74,8 @@ final class EngineTestBed {
             registry: registry(),
             outputDirectory: directory,
             locations: locations ?? ModelLocations(root: directory.appending(path: "models")),
-            upscaler: upscaler
+            upscaler: upscaler,
+            runtime: MockInferenceRuntime(control: control)
         )
     }
 

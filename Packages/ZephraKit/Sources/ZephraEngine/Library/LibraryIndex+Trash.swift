@@ -23,7 +23,7 @@ extension LibraryIndex {
     /// Deletes images for good, without waiting for their thirty days.
     public func purge(_ ids: Set<LibraryItem.ID>) {
         move(ids, action: .purge) { library, url in
-            try library.discard(url)
+            try library.purgeFromRecentlyDeleted(url)
             return url
         }
     }
@@ -35,10 +35,19 @@ extension LibraryIndex {
         let library = library
         enqueue {
             let cutoff = now.addingTimeInterval(-RecentlyDeletedManifest.grace)
-            let purged = await Task.detached(priority: .utility) { () -> Int in
-                ((try? library.purgeRecentlyDeleted(deletedBefore: cutoff, now: now)) ?? []).count
+            let outcome = await Task.detached(priority: .utility) { () -> Result<Int, any Error> in
+                Result { try library.purgeRecentlyDeleted(deletedBefore: cutoff, now: now).count }
             }.value
-            guard purged > 0 else { return }
+            switch outcome {
+            case .success(let purged):
+                guard purged > 0 else { return }
+            case .failure(let error):
+                // A purge that throws is reported, not swallowed: what it managed to delete
+                // before it stopped is still worth reading back.
+                self.lastFailure = LibraryFailure(
+                    itemID: library.recentlyDeletedManifestURL.path(percentEncoded: false),
+                    action: .purge, reason: error.localizedDescription)
+            }
             await self.rescanNow()
         }
     }

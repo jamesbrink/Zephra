@@ -1,5 +1,6 @@
 import SwiftUI
 import ZephraCore
+import ZephraEngine
 
 /// Live GPU memory: what is held by live arrays, what the allocator is keeping for reuse, the
 /// high-water mark since launch, which way the VAE decode is set to run — the one setting
@@ -7,6 +8,7 @@ import ZephraCore
 /// read and how fast. Polled once a second, and only while this tab is on screen.
 struct MemoryReadout: View {
     @Environment(\.inferenceRuntime) private var runtime
+    @Environment(GenerationStore.self) private var store
     @State private var snapshot: MemorySnapshot?
     @State private var streamed: WeightStreamReading?
 
@@ -16,8 +18,11 @@ struct MemoryReadout: View {
                 row("Active", snapshot.activeBytes)
                 row("Cached", snapshot.cacheBytes)
                 row("Peak since launch", snapshot.peakBytes)
+                // The policy's answer for the chosen model, which is what the next run will
+                // decode at; the runtime's own reading would say what the last run used.
                 LabeledContent("VAE decode") {
-                    Text(runtime?.vaeTileSize() != nil ? "Tiled" : "Whole image")
+                    Text(store.vaeTilingPolicy.tileSize(for: store.descriptor) != nil
+                        ? "Tiled" : "Whole image")
                 }
                 if let streamed {
                     LabeledContent("Weights") {
@@ -64,4 +69,5 @@ struct MemoryReadout: View {
     Form { Section("In use now") { MemoryReadout() } }
         .formStyle(.grouped)
         .frame(width: 480)
+        .environment(GenerationStore.preview(state: .ready))
 }

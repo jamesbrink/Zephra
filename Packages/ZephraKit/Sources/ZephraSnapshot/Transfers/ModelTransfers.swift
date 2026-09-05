@@ -82,8 +82,10 @@ public actor ModelTransfers {
         for entry in stopped {
             _ = await entry.preparation?.result
             await entry.task?.value
-            // Another compatible consumer may have joined while cancellation settled.
-            guard entry.owners.isEmpty else { continue }
+            // Nobody can have joined while cancellation settled: `admit()` refuses any claim
+            // on a destination in `releasing`. Were one kept here with its cancelled task and
+            // preparation, that joiner would be stranded on work that never finishes.
+            assert(entry.owners.isEmpty, "a claim cannot be admitted onto a part being released")
             transfers.removeValue(forKey: entry.part)
             order.removeAll { $0 == entry.part }
         }

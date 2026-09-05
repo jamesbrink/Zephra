@@ -1,15 +1,16 @@
 import Foundation
 import ZephraCore
 
-/// Running a generation, recording the result, and getting it onto disk. Split out of
-/// `GenerationStore.swift` to keep the observed surface of the store readable on its own.
+/// Running a generation and recording the result. Split out of `GenerationStore.swift` to
+/// keep the observed surface of the store readable on its own; getting the result onto disk
+/// is `GenerationStore+Saving.swift`.
 extension GenerationStore {
-    /// Kicks off `request` on the inference actor. Only `generate()` and the queue call this.
-    func start(_ request: GenerationSettings) {
+    /// Kicks off `job` on the inference actor. Only the queue calls this.
+    func start(_ job: QueuedGeneration) {
         guard let inference else { return }
         clearLivePreview()
         transition(to: .generating(GenerationProgressEvent(phase: .preparing, fraction: 0)))
-        generationTask = Task { await self.run(request, on: inference) }
+        generationTask = Task { await self.run(job, on: inference) }
     }
 
     /// Returns to `.ready`, then works on down the queue. Every way a run can end goes through
@@ -23,7 +24,7 @@ extension GenerationStore {
 
     /// Drives one generation from start to finish. The activity assertion keeps the Mac awake:
     /// a generation is a long stretch of silent Metal work with no user input behind it.
-    func run(_ request: GenerationSettings, on inference: InferenceActor) async {
+    func run(_ job: QueuedGeneration, on inference: InferenceActor) async {
         let activity = ProcessInfo.processInfo.beginActivity(
             options: [.userInitiated, .idleSystemSleepDisabled],
             reason: "Generating image"
@@ -34,9 +35,15 @@ extension GenerationStore {
         let pump = EngineEventPump { [weak self] event in self?.applyGenerationEvent(event) }
         do {
             let data = try await pump.run { sink in
-                try await inference.generate(request, events: sink)
+                try await inference.generate(job.settings, tile: vaeTile(for: job.model), events: sink)
             }
-            complete(data, request: request, duration: clock.now - started)
+            // Stop pressed during the decode: the backend never looked, and the bytes are not
+            // wanted. A stopped run keeps no image, whenever the stop landed.
+            guard !Task.isCancelled else {
+                finish()
+                return
+            }
+            complete(data, job: job, duration: clock.now - started)
         } catch is CancellationError {
             finish()
         } catch BackendError.cancelled {
@@ -64,13 +71,16 @@ extension GenerationStore {
     /// It reaches the canvas only while the canvas is following the run. A result that lands
     /// while the user is looking at something else still enters history, the wall, and the
     /// library; what it does not do is yank the picture out from under them.
-    private func complete(_ data: Data, request: GenerationSettings, duration: Duration) {
+    ///
+    /// The batch and the model are the job's own rather than `running`'s or the store's: a
+    /// cancel empties `running` and a switch moves `descriptor` before the run is over.
+    private func complete(_ data: Data, job: QueuedGeneration, duration: Duration) {
         let image = GeneratedImage(
             pngData: data,
-            settings: request,
-            modelID: loadedDescriptor?.id ?? descriptor.id,
+            settings: job.settings,
+            modelID: job.model.id,
             duration: duration,
-            batchID: running?.batchID
+            batchID: job.batchID
         )
         if followsRun { current = image }
         history.insert(image, at: 0)
@@ -80,44 +90,6 @@ extension GenerationStore {
         lastDuration = duration
         save(image)
         finish()
-    }
-
-    private func save(_ image: GeneratedImage) {
-        let library = library
-        let previous = saveTask
-        saveTask = Task.detached(priority: .utility) { [image] in
-            await previous?.value
-            do {
-                let url = try library.write(image)
-                await MainActor.run { self.attach(url, to: image.id) }
-            } catch {
-                let failure = SaveFailure(imageID: image.id, reason: error.localizedDescription)
-                await MainActor.run { self.saveFailed(failure) }
-            }
-        }
-    }
-
-    func attach(_ url: URL, to id: GeneratedImage.ID) {
-        lastSaveFailure = nil
-        if current?.id == id {
-            current = current?.withFileURL(url)
-        }
-        if let index = history.firstIndex(where: { $0.id == id }) {
-            history[index] = history[index].withFileURL(url)
-        }
-        onImageSaved?(url)
-    }
-
-    /// A failed write is worth showing, but the pixels are still in memory and still on the
-    /// canvas, so `current` and `history` are left exactly as they were.
-    ///
-    /// It does not become an engine state either. A save lands after `finish()` has already
-    /// started the next queued generation, so failing the engine here would stop a queue over
-    /// a full disk, and the remedy on the failure screen reloads the model, which would be no
-    /// remedy at all. The interface shows this as a notice until an image saves cleanly.
-    func saveFailed(_ failure: SaveFailure) {
-        logger.error("save failed: \(failure.reason, privacy: .public)")
-        lastSaveFailure = failure
     }
 
     func applyLoadEvent(_ event: EngineEvent) {

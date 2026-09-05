@@ -37,6 +37,11 @@ extension InferenceActor {
         do {
             try Task.checkCancellation()
             let live = try backend(for: acquired.model)
+            // Already up the way `residency` asks: the same shortcut the descriptor overload
+            // takes, so no path through here reads the weights a second time.
+            if live.loadedModelID == acquired.model.id, loadedResidency == residency, let loadedPath {
+                return loadedPath
+            }
             let localPath = try await live.build(acquired.model, at: acquired.directory,
                 locations: acquired.locations) { events.send(.build($0)) }
             try Task.checkCancellation()
@@ -51,6 +56,26 @@ extension InferenceActor {
             unload()
             throw error
         }
+    }
+
+    /// Runs one tiny generation and throws the result away, so the first image the user asks
+    /// for is not the one that pays for kernel compilation. `tile` is the VAE tile it decodes
+    /// at, set on this queue the way `generate` sets it.
+    func warmUp(_ descriptor: ModelDescriptor, tile: Int?) async throws {
+        let live = try backend(for: descriptor)
+        runtime?.setVAETileSize(tile)
+        let settings = descriptor.capabilities.clamp(
+            GenerationSettings(
+                prompt: Self.warmUpPrompt,
+                size: Self.warmUpSize,
+                steps: 1,
+                guidance: descriptor.capabilities.defaultGuidance,
+                seed: 0
+            )
+        )
+        try Task.checkCancellation()
+        _ = try await live.generate(settings) { _ in }
+        try Task.checkCancellation()
     }
 
     /// Whether `descriptor`'s weights are already on this Mac. Never downloads, and never
