@@ -67,7 +67,7 @@ struct ZephraApp: App {
         .defaultSize(width: 1200, height: 840)
         .windowToolbarStyle(.unified)
         .commands {
-            ZephraCommands(store: store)
+            ZephraCommands(store: store, workspace: workspace)
             WorkspaceCommands(workspace: workspace, store: store)
             LibraryCommands(workspace: workspace)
             ThumbnailSizeCommands()

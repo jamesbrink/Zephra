@@ -4,14 +4,19 @@ import ZephraEngine
 /// The menu bar. Every one of these has a visible twin in the window; the menu exists so the
 /// shortcuts are discoverable and so the Mac behaves like a Mac.
 ///
-/// Save as, Copy, Reveal and Delete mean two different things depending on where you are
-/// standing, so each of them asks `target` rather than reaching for the canvas: the library's
-/// selection while the grid has the keyboard, and the image on the canvas otherwise. The grid's
-/// focus rather than the library pane's presence, because ⌘⌫ in a text field means the line and
-/// a scene-wide binding would take that away.
+/// Save as, Copy, Reveal, Delete, Use as Reference and Upscale mean different things depending
+/// on where you are standing, so each of them asks `target` (a `CommandTarget`) rather than
+/// reaching for the canvas: the grid's selection while the grid has the keyboard, the canvas's
+/// picture while the canvas is showing one, and nothing otherwise. The grid's focus rather than
+/// the library pane's presence, because ⌘⌫ in a text field means the line and a scene-wide
+/// binding would take that away; and nothing rather than the canvas behind the library, because
+/// a command that acted on a picture nobody can see would be acting on a guess.
 struct ZephraCommands: Commands {
     /// The window's store, handed over by the composition root.
     let store: GenerationStore
+    /// The window's selection, handed over the same way: which pane is up decides what the
+    /// file commands are about.
+    let workspace: WorkspaceSelection
 
     /// The grid's selection while it has the keyboard. Not private: `ZephraCommands+Library`
     /// is where the four file commands work out what they are about.
@@ -52,9 +57,9 @@ struct ZephraCommands: Commands {
                 .keyboardShortcut("c", modifiers: [.command, .shift])
                 .disabled(target.isEmpty)
             Divider()
-            Button("Use as Reference") { if let image = store.current { ReferenceAdoption.adopt(image, into: store) } }
+            Button("Use as Reference") { useAsReference() }
                 .keyboardShortcut("r", modifiers: [.command, .option])
-                .disabled(store.current == nil || !store.descriptor.capabilities.supportsReferenceImage)
+                .disabled(!canUseAsReference)
             Button("Clear Reference") { ReferenceAdoption.use(nil, into: store) }
                 .keyboardShortcut("r", modifiers: [.command, .option, .shift])
                 .disabled(store.settings.referenceImage == nil)
