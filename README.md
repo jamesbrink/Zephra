@@ -20,7 +20,7 @@ model needed for the next generation is built and loaded, with one set of weight
 resident at a time.
 
 Settings > Models lists downloads separately from stored files. Pause keeps partial
-files for Resume; Cancel download removes unfinished files once no other model needs
+files for Resume; Cancel Download removes unfinished files once no other model needs
 them. A shared transfer continues for its remaining consumers. Downloads required by
 queued generations cannot be paused from their row: remove the queued work first,
 or use Stop on the canvas. A background failure stays on its own row and can be retried.
@@ -121,8 +121,8 @@ with a progress readout while that happens.
   Click to select, shift-click for a range, ⌘-click to add one, ⌘A for all of them, arrow
   keys to walk the grid, space for Quick Look. The inspector shows the image, its prompt,
   and the Model, Size, Steps, Seed and Took rows read out of the PNG (the filename is the
-  tooltip on Reveal in Finder), with its tags and albums, and offers Open in canvas, Queue a
-  variation, Reveal in Finder, and Upscale 2× or 4×. Select several and it says what they
+  tooltip on Reveal in Finder), with its tags and albums, and offers Open in Canvas, Queue a
+  Variation, Reveal in Finder, and Upscale 2× or 4×. Select several and it says what they
   have in common and acts on all of them.
 - Upscale runs Real-ESRGAN's compact network over the picture in tiles, on any Mac, in a few
   seconds, and writes the result into the library as `<name>-x2.png` or `<name>-x4.png` with
@@ -189,7 +189,7 @@ with a progress readout while that happens.
   Library reads that folder rather than the app keeping a list of its own. The record of
   what made an image — prompt, size, steps, seed, model, and how long it took — lives inside
   the PNG itself, so moving, renaming, or copying a file to another Mac keeps it, and
-  opening an image again shows what it was made from, ready to vary. Favourites, tags and
+  opening an image again shows what it was made from, ready to vary. Favorites, tags and
   album membership go into the same file, under a second keyword, so they travel with the
   picture too. Each of those edits, and making, renaming or deleting an album, can be undone
   with ⌘Z from the Edit menu and redone with ⇧⌘Z, as far back as the session goes; deleting a
@@ -227,13 +227,13 @@ with a progress readout while that happens.
   nothing depends on a Hugging Face cache layout or on the `hf` tool, though a release
   already in that cache is read rather than fetched again. A transfer that breaks is tried
   again, five times with a growing pause, and resumes from the bytes already on disk; so
-  does Try again after the tries run out. Pause keeps the bytes for the next attempt; Cancel
-  download, offered while a model is loading or switching, discards an unfinished repository
+  does Try Again after the tries run out. Pause keeps the bytes for the next attempt; Cancel
+  Download, offered while a model is loading or switching, discards an unfinished repository
   once nothing else is using it, and never a finished one. The message says why a transfer
   stopped rather than only that it did.
 - Shortcuts: Generate ⌘↩, Stop Generating ⌘. (the item says what it stops: Cancel Download,
   Stop Building, Stop Loading, Stop Upscaling), New Album ⌘N, Undo ⌘Z, Redo ⇧⌘Z, Canvas ⌘1,
-  Library ⌘2, Find ⌘F, Show Inspector ⌥⌘I, Hide Prompt ⌥⌘P, Select All Images ⌘A, Favourite
+  Library ⌘2, Find ⌘F, Show Inspector ⌥⌘I, Hide Prompt ⌥⌘P, Select All Images ⌘A, Favorite
   ⌘⇧D, thumbnail size ⌘+ and ⌘−, Export ⇧⌘E, Reveal in Finder ⌘⇧R, Copy Image ⌘⇧C, Use as
   Reference ⌥⌘R, Clear Reference ⇧⌥⌘R, Upscale 2× ⌥⌘U, Upscale 4× ⌥⇧⌘U, Delete Image ⌘⌫,
   Return on a selected library image opens it full size in the viewer, Back to Grid ⌘↑ (from
