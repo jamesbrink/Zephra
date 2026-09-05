@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import ZephraTestSupport
 import ZephraQuantization
 
 @testable import Flux2
@@ -18,9 +19,9 @@ import ZephraQuantization
 struct WeightKeyCoverageTests {
     @Test(
         "the encoder loads the 27 layers it taps and leaves the rest of Qwen3-4B on disk",
-        .enabled(if: SnapshotUnderTest.isPresent))
+        .enabled(if: SnapshotUnderTest.flux2Klein.hasRelease))
     func textEncoderKeys() throws {
-        let snapshot = try #require(SnapshotUnderTest.directory)
+        let snapshot = try #require(SnapshotUnderTest.flux2Klein.release)
         let configuration = try Flux2Configuration(readingFrom: snapshot)
         let published = try Self.indexedKeys(
             snapshot.appending(path: "text_encoder/model.safetensors.index.json"))
@@ -43,9 +44,9 @@ struct WeightKeyCoverageTests {
 
     @Test(
         "the transformer's 169 tensors are exactly the ones this architecture implies",
-        .enabled(if: SnapshotUnderTest.isPresent))
+        .enabled(if: SnapshotUnderTest.flux2Klein.hasRelease))
     func transformerTensors() throws {
-        let snapshot = try #require(SnapshotUnderTest.directory)
+        let snapshot = try #require(SnapshotUnderTest.flux2Klein.release)
         let configuration = try Flux2Configuration(readingFrom: snapshot)
         let published = try Self.headerShapes(
             snapshot.appending(path: "transformer/diffusion_pytorch_model.safetensors"))
@@ -58,9 +59,9 @@ struct WeightKeyCoverageTests {
 
     @Test(
         "the autoencoder's 251 tensors are exactly the ones this architecture implies",
-        .enabled(if: SnapshotUnderTest.isPresent))
+        .enabled(if: SnapshotUnderTest.flux2Klein.hasRelease))
     func autoencoderTensors() throws {
-        let snapshot = try #require(SnapshotUnderTest.directory)
+        let snapshot = try #require(SnapshotUnderTest.flux2Klein.release)
         let configuration = try Flux2Configuration(readingFrom: snapshot)
         let published = try Self.headerShapes(
             snapshot.appending(path: "vae/diffusion_pytorch_model.safetensors"))

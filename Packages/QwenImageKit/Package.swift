@@ -13,6 +13,8 @@ let package = Package(
         // MLX work that is not this model's: the tiled decode every family's autoencoder wants.
         .package(path: "../ZephraMLXKit"),
         .package(url: "https://github.com/huggingface/swift-transformers", from: "0.1.24"),
+        // SnapshotUnderTest, for the suites that read a real snapshot's files.
+        .package(path: "../ZephraKit"),
     ],
     targets: [
         .target(
@@ -28,7 +30,11 @@ let package = Package(
         ),
         .testTarget(
             name: "QwenImageTests",
-            dependencies: ["QwenImage", .product(name: "MLX", package: "mlx-swift")],
+            dependencies: [
+                "QwenImage",
+                .product(name: "MLX", package: "mlx-swift"),
+                .product(name: "ZephraTestSupport", package: "ZephraKit"),
+            ],
             resources: [.copy("Fixtures")]
         ),
     ]

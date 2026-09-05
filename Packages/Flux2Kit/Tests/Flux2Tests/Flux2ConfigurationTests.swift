@@ -1,14 +1,15 @@
 import Foundation
 import Testing
+import ZephraTestSupport
 
 @testable import Flux2
 
 @Suite("The published configuration decodes and says what the port assumes")
 struct Flux2ConfigurationTests {
     @Test("every constant the port is built on is what the snapshot says",
-          .enabled(if: SnapshotUnderTest.isPresent))
+          .enabled(if: SnapshotUnderTest.flux2Klein.isPresent))
     func publishedConstants() throws {
-        let snapshot = try #require(SnapshotUnderTest.directory)
+        let snapshot = try #require(SnapshotUnderTest.flux2Klein.directory)
         let configuration = try Flux2Configuration(readingFrom: snapshot)
 
         let transformer = configuration.transformer

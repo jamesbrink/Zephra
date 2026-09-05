@@ -14,6 +14,8 @@ let package = Package(
         .package(path: "../ZephraMLXKit"),
         // The tokenizer, and the hub client the download goes through.
         .package(url: "https://github.com/huggingface/swift-transformers", from: "0.1.24"),
+        // SnapshotUnderTest, for the suites that read a real snapshot's files.
+        .package(path: "../ZephraKit"),
     ],
     targets: [
         .target(
@@ -35,6 +37,7 @@ let package = Package(
                 // For reading a safetensors header without the weights behind it, which is how
                 // the coverage test checks 8 GB of tensors in a second.
                 .product(name: "ZephraQuantization", package: "ZephraMLXKit"),
+                .product(name: "ZephraTestSupport", package: "ZephraKit"),
             ],
             resources: [.copy("Fixtures")]
         ),

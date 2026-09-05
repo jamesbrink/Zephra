@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import ZephraTestSupport
 
 @testable import QwenImage
 
@@ -9,9 +10,9 @@ import Testing
 struct QwenImageConfigurationTests {
     @Test(
         "the published snapshot decodes to the shapes this package is built for",
-        .enabled(if: SnapshotUnderTest.isPresent))
+        .enabled(if: SnapshotUnderTest.qwenImage.isPresent))
     func decodesThePublishedSnapshot() throws {
-        let snapshot = try #require(SnapshotUnderTest.directory)
+        let snapshot = try #require(SnapshotUnderTest.qwenImage.directory)
         let configuration = try QwenImageConfiguration(readingFrom: snapshot)
 
         let transformer = configuration.transformer

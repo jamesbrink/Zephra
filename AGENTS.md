@@ -31,7 +31,9 @@ Shared, by what a file actually touches:
   ZephraKit/ZephraSnapshot     Foundation only  — the model downloader, local snapshot
                                                   checks, the hub cache read as a fallback,
                                                   what the models occupy on disk
-  ZephraKit/ZephraTestSupport  Foundation only  — Scratch, the filesystem test fixture
+  ZephraKit/ZephraTestSupport  Foundation, ZephraCore — Scratch, the filesystem test
+                                                  fixture, and SnapshotUnderTest, the real
+                                                  snapshot a kit's suite may read
   ZephraMLXKit/ZephraQuantization  MLX          — the streaming weight packer
   ZephraMLXKit/ZephraMLX           MLX, MLXNN, ZephraCore — the tiled decode, the allocator's
                                                   knobs, and the streamed layer stack;
@@ -867,8 +869,15 @@ the snapshot, not whichever is listed first"); match that when adding one.
 No test loads model weights. The `ZephraKit` suites never touch Metal; the MLX
 packages' suites run doll's-house tensors through it, and a few of `QwenImageKit`'s
 and `Flux2Kit`'s read a real snapshot's config, tokenizer, and safetensors header
-files when `QWEN_IMAGE_SNAPSHOT` or `FLUX2_KLEIN_SNAPSHOT` names one (or the hub
-cache holds exactly one snapshot). The engine tests drive `MockBackend`
+files. `SnapshotUnderTest` in `ZephraTestSupport` is where they look, in order:
+`QWEN_IMAGE_SNAPSHOT` or `FLUX2_KLEIN_SNAPSHOT` when set; the app's own models
+folder, where a variant packed on this Mac (`<models>/<descriptor id>`) carries
+the configs and tokenizer and the download (`Downloads/<org>--<repo>`) is the
+release itself; then the hub cache when it holds exactly one snapshot. A test
+that reads the release's shard headers gates on `hasRelease` and takes
+`release`, which skips the packed variants. Under `xcodebuild test` the variable
+has to be spelled `TEST_RUNNER_QWEN_IMAGE_SNAPSHOT`: only `TEST_RUNNER_`-prefixed
+variables reach the test process. The engine tests drive `MockBackend`
 through `MockBackendControl`, a lock-protected dial a `@Sendable` factory can
 close over — it fails a load, delays one so cancellation lands mid-flight,
 pretends to build, tallies loads, unloads and builds, and records the last

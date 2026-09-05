@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import ZephraTestSupport
 
 @testable import QwenImage
 
@@ -12,9 +13,9 @@ import Testing
 /// modules, because it runs against the index alone and so needs no weights at all.
 @Suite("Weight key coverage")
 struct WeightKeyCoverageTests {
-    @Test("the MMDiT's 1933 tensors are exactly the ones this architecture implies", .enabled(if: SnapshotUnderTest.isPresent))
+    @Test("the MMDiT's 1933 tensors are exactly the ones this architecture implies", .enabled(if: SnapshotUnderTest.qwenImage.hasRelease))
     func transformerKeys() throws {
-        let snapshot = try #require(SnapshotUnderTest.directory)
+        let snapshot = try #require(SnapshotUnderTest.qwenImage.release)
         let configuration = try QwenImageConfiguration(readingFrom: snapshot)
         let published = try Self.indexedKeys(
             snapshot.appending(
@@ -30,9 +31,9 @@ struct WeightKeyCoverageTests {
             "present but unaccounted for: \(published.subtracting(expected).sorted().prefix(5))")
     }
 
-    @Test("the text encoder's language half is loaded and its vision tower is not", .enabled(if: SnapshotUnderTest.isPresent))
+    @Test("the text encoder's language half is loaded and its vision tower is not", .enabled(if: SnapshotUnderTest.qwenImage.hasRelease))
     func textEncoderKeys() throws {
-        let snapshot = try #require(SnapshotUnderTest.directory)
+        let snapshot = try #require(SnapshotUnderTest.qwenImage.release)
         let configuration = try QwenImageConfiguration(readingFrom: snapshot)
         let published = try Self.indexedKeys(
             snapshot.appending(path: "text_encoder/model.safetensors.index.json"))

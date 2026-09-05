@@ -1,14 +1,15 @@
 import Foundation
 import Testing
+import ZephraTestSupport
 
 @testable import QwenImage
 
 /// The prompt wrapper and the tokenizer that turns it into ids.
 @Suite("Tokenizer")
 struct TokenizerTests {
-    @Test("the template's own tokens are exactly the ones the drop index removes", .enabled(if: SnapshotUnderTest.isPresent))
+    @Test("the template's own tokens are exactly the ones the drop index removes", .enabled(if: SnapshotUnderTest.qwenImage.isPresent))
     func dropIndexMatchesTheTemplate() throws {
-        let snapshot = try #require(SnapshotUnderTest.directory)
+        let snapshot = try #require(SnapshotUnderTest.qwenImage.directory)
         let tokenizer = try QwenImageTokenizer(snapshot: snapshot)
 
         // The wrapper's leading half -- everything before the prompt -- must be exactly
@@ -19,9 +20,9 @@ struct TokenizerTests {
         #expect(tokenizer.encode(prefix).count == QwenImagePromptTemplate.dropIndex)
     }
 
-    @Test("a prompt is wrapped in the system message, and its own tokens follow the prefix", .enabled(if: SnapshotUnderTest.isPresent))
+    @Test("a prompt is wrapped in the system message, and its own tokens follow the prefix", .enabled(if: SnapshotUnderTest.qwenImage.isPresent))
     func promptSitsAfterThePrefix() throws {
-        let snapshot = try #require(SnapshotUnderTest.directory)
+        let snapshot = try #require(SnapshotUnderTest.qwenImage.directory)
         let tokenizer = try QwenImageTokenizer(snapshot: snapshot)
 
         let wrapped = tokenizer.encode(prompt: "a red cube")
@@ -33,9 +34,9 @@ struct TokenizerTests {
             "after the prefix is dropped the prompt's own tokens should come first")
     }
 
-    @Test("a long prompt is cut after the limit, and what is kept is unchanged by the cut", .enabled(if: SnapshotUnderTest.isPresent))
+    @Test("a long prompt is cut after the limit, and what is kept is unchanged by the cut", .enabled(if: SnapshotUnderTest.qwenImage.isPresent))
     func longPromptsAreCutAtTheLimit() throws {
-        let snapshot = try #require(SnapshotUnderTest.directory)
+        let snapshot = try #require(SnapshotUnderTest.qwenImage.directory)
         let tokenizer = try QwenImageTokenizer(snapshot: snapshot)
         let prompt = Array(repeating: "a red cube beside a blue sphere", count: 40).joined(separator: ", ")
 
@@ -48,9 +49,9 @@ struct TokenizerTests {
         #expect(tokenizer.encode(prompt: "a red cube", limit: 512) == tokenizer.encode(prompt: "a red cube"))
     }
 
-    @Test("the template markers survive as single special tokens", .enabled(if: SnapshotUnderTest.isPresent))
+    @Test("the template markers survive as single special tokens", .enabled(if: SnapshotUnderTest.qwenImage.isPresent))
     func specialTokensAreWhole() throws {
-        let snapshot = try #require(SnapshotUnderTest.directory)
+        let snapshot = try #require(SnapshotUnderTest.qwenImage.directory)
         let tokenizer = try QwenImageTokenizer(snapshot: snapshot)
         // These live in added_tokens.json rather than vocab.json; without them the template
         // shatters into ordinary text and the prefix count changes.
