@@ -23,7 +23,7 @@ enum BenchBackends {
     /// One copy of MLX serves every backend, so the allocator's limits and its memory readings
     /// are the same answer whichever family is asked. Which one is asked still belongs here,
     /// because the rest of the tool is not allowed to know that any of them exist.
-    static func runtime() -> any InferenceRuntime { ZImageInferenceRuntime() }
+    static func runtime() -> any InferenceRuntime { ZImageBackendFactory.runtime }
 
     /// Times one family's kernels at `tokens` without loading weights. Only Z-Image has one.
     static func microbench(tokens: Int) { ZImageMicrobench.run(tokens: tokens) }

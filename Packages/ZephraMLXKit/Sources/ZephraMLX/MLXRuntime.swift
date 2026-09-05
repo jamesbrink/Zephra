@@ -5,8 +5,9 @@ import ZephraCore
 /// The process-wide MLX allocator's knobs and readouts.
 ///
 /// One copy of MLX serves every family, so a limit set here or a reading taken here is the same
-/// answer whichever backend is asked. Each family's own runtime type adds the one thing that
-/// really is its own — the tile its autoencoder decodes in — and leaves the allocator to this.
+/// answer whichever backend is asked. `MLXInferenceRuntime` is this behind the `InferenceRuntime`
+/// protocol, with the one thing that really is a family's own — the tile its autoencoder
+/// decodes in — handed in by the family.
 public nonisolated enum MLXRuntime {
     public static func synchronize() {
         Stream.gpu.synchronize()
