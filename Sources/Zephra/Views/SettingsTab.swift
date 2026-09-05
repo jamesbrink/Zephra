@@ -46,7 +46,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     var height: CGFloat {
         switch self {
         case .general: 300
-        case .performance: 760
+        case .performance: 820
         case .models: 620
         case .about: 620
         }
