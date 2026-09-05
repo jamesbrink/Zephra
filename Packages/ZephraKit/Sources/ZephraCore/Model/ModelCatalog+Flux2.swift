@@ -43,7 +43,10 @@ extension ModelCatalog {
         // follows the image: 7651 MB at 512, 9037 MB at 768, 12087 MB at 1024. So 1024 fits a
         // 16 GB Mac's budget outright, which is what this entry is for. Editing costs more: a
         // 1024 image from a 512 reference peaked at 19227 MB, the reference's tokens riding
-        // through every attention layer beside the image's.
+        // through every attention layer beside the image's. That edit figure was measured
+        // with the reference's tokens still float32, which widened the whole edit to
+        // float32; they are cast to the stream's dtype since the 2026-09-05 audit, and the
+        // edit is due a rerun on an idle machine.
         residentBytes: 4_940_000_000,
         peakBytes: 12_090_000_000,
         // Measured, same machine and seed, tiled at a 64-cell latent tile: 7660 MB at 1024.

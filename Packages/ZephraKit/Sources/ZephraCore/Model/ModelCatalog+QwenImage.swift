@@ -55,7 +55,10 @@ extension ModelCatalog {
         //
         // Taken before the autoencoder's encoder was ported, which adds 107 MB of always-loaded
         // weights — inside this figure's own rounding, so it is left as measured rather than
-        // adjusted by arithmetic. Due a rerun on an idle machine either way.
+        // adjusted by arithmetic. Due a rerun on an idle machine either way: every figure in
+        // this entry, the streamed ones below included, was measured while the stream ran in
+        // float32 by accident (float32 noise, uncast float32 scales, raw nodes on every
+        // streamed pass); it runs in bfloat16 since the 2026-09-05 audit.
         residentBytes: 21_530_000_000,
         peakBytes: 30_360_000_000,
         // Measured, same machine and seed, tiled at a 64-cell latent tile: 26068 MB at 1024 and

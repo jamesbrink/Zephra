@@ -22,12 +22,18 @@ import ZephraCore
 /// in hand while the wait happens. A layer is released by giving each of its parameter arrays
 /// a fresh, unevaluated node from the next pass's shards: the buffers it held live exactly
 /// until its command buffers complete, and nothing has to remember a placeholder.
+///
+/// What is handed back is in the dtype the tree held at capture, not the dtype on disk. A
+/// loader that casts float32 scales down to the activation dtype does so before the stream is
+/// attached, and the stream keeps that cast on every later pass; without it the second pass
+/// would read the raw float32 scales and widen the whole stream after the first layer.
 public final class LayerWeightStream<Layer: Module> {
     /// One parameter of one layer: the very array the forward pass reads, the checkpoint name
-    /// it is filled from, and what that costs to read.
+    /// it is filled from, the dtype the tree holds it in, and what it costs to read.
     struct Slot {
         let checkpointKey: String
         let array: MLXArray
+        let dtype: DType
         let bytes: Int
     }
 
@@ -35,7 +41,7 @@ public final class LayerWeightStream<Layer: Module> {
     /// the one just finished, whose buffers go back as its command buffers complete, at most
     /// `depth + 2` layers are ever in memory.
     public var depth: Int
-    /// The last pass this stream ran, or nil before the first.
+    /// The last pass this stream ran; nil before the first.
     public private(set) var lastPass: WeightStreamReading?
     /// Bytes one pass reads: every layer's weights, once.
     public let bytesPerPass: Int
@@ -73,7 +79,7 @@ public final class LayerWeightStream<Layer: Module> {
                 guard let entry = index.entries[name] else {
                     throw LayerWeightStreamError.missingTensor(name)
                 }
-                own.append(Slot(checkpointKey: name, array: array, bytes: entry.bytes))
+                own.append(.init(checkpointKey: name, array: array, dtype: array.dtype, bytes: entry.bytes))
             }
             slots.append(own)
         }
@@ -108,15 +114,15 @@ public final class LayerWeightStream<Layer: Module> {
             }
             try release(position, from: &next)
         }
+        let elapsed = started.duration(to: clock.now).components
         let reading = WeightStreamReading(
-            bytes: bytesPerPass,
-            seconds: Double(components: (started.duration(to: clock.now)).components))
+            bytes: bytesPerPass, seconds: Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18)
         lastPass = reading
         WeightStreamMeter.record(reading)
     }
 
     /// Fresh, unevaluated nodes for every tensor in the shards the stack uses: what the layers
-    /// are handed as they are released, and what the next pass therefore reads.
+    /// are handed as they are released, so what the next pass reads.
     private func openPass() throws -> [String: MLXArray] {
         var all: [String: MLXArray] = [:]
         for shard in shards {
@@ -130,21 +136,15 @@ public final class LayerWeightStream<Layer: Module> {
         MLX.asyncEval(slots[position].map(\.array))
     }
 
-    /// Points a layer's arrays at the next pass's nodes, dropping what they held once the
-    /// work already committed against it completes.
+    /// Points a layer's arrays at the next pass's nodes, dropping what they held once the work
+    /// committed against it completes. A node is cast back to the dtype the slot was captured
+    /// in: a lazy cast over a lazy read, evaluated by the next prefetch.
     private func release(_ position: Int, from next: inout [String: MLXArray]) throws {
         for slot in slots[position] {
             guard let fresh = next.removeValue(forKey: slot.checkpointKey) else {
                 throw LayerWeightStreamError.tensorGone(slot.checkpointKey)
             }
-            slot.array._updateInternal(fresh)
+            slot.array._updateInternal(fresh.dtype == slot.dtype ? fresh : fresh.asType(slot.dtype))
         }
-    }
-}
-
-extension Double {
-    /// Seconds from a duration's components.
-    fileprivate init(components: (seconds: Int64, attoseconds: Int64)) {
-        self = Double(components.seconds) + Double(components.attoseconds) / 1e18
     }
 }

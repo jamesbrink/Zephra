@@ -16,23 +16,31 @@ public enum QwenImageReferenceLatents {
     /// Where in the run to start, for a strength between zero and one.
     ///
     /// Strength buys a *share of the steps*, not a noise level: `steps * strength` steps run,
-    /// truncated and never fewer than one, and the loop enters that far from the end. This is the
-    /// mapping diffusers' image-to-image pipelines use in `get_timesteps`, and this model is
-    /// exactly why it is the right one. Its four distilled steps are 1.0, 0.767, 0.456 and
-    /// 0.02, so picking the first sigma at or below the strength would send every strength from
-    /// 0.1 to 0.4 to that 0.02 — one step from almost no noise, and the picture handed back
-    /// unchanged.
+    /// truncated and never fewer than one, and the loop enters that far from the end. Reading
+    /// it as a share rather than as a noise level is what diffusers' image-to-image pipelines
+    /// do in `get_timesteps`, and this model is exactly why: its four distilled steps are 1.0,
+    /// 0.767, 0.456 and 0.02, so picking the first sigma at or below the strength would send
+    /// every strength from 0.1 to 0.4 to that 0.02 — one step from almost no noise, and the
+    /// picture handed back unchanged.
     ///
-    /// So 0.6 of four steps enters at 2 and runs 2; 0.9 of four is 3.6, truncated to three, and
-    /// enters at 1. Truncating matters most here: rounding 3.6 up to four would enter at 0,
-    /// where the mix below is pure noise and the picture is silently discarded at the very top
-    /// of the range the model offers. The entry is 0 only at a strength of exactly 1, which is
-    /// the text-to-image path, and is why the upper bound stays below it.
+    /// The rounding is a deliberate departure from `get_timesteps`, which takes the ceiling
+    /// of the share. Truncating is the only mapping under which every strength the slider
+    /// offers keeps some of the picture: 0.6 of four steps enters at 2 and runs 2 either
+    /// way, but 0.8 of four is 3.2 and 0.9 is 3.6, and the ceiling of both is four — entry
+    /// 0, where the mix below is pure noise and the picture is silently discarded at the top
+    /// of the range the model offers. Truncated, both run three from an entry of 1. The entry
+    /// is 0 only at a strength of exactly 1, which is the text-to-image path, and is why the
+    /// upper bound stays below it.
+    ///
+    /// The product is nudged up by a hair before truncating, because `Double` arithmetic lands
+    /// `100 * 0.29` at 28.999999999999996, and a strength that means twenty-nine steps must
+    /// not buy twenty-eight. A whole-number share is never nearer than 0.01 to the one
+    /// below, so the nudge cannot promote a share that was really short.
     ///
     /// The sigma ladder is not consulted here; the caller reads `sigmas[startIndex]` for the mix.
     public static func startIndex(strength: Double, steps: Int) -> Int {
         guard steps > 0 else { return 0 }
-        let requested = Int(Double(steps) * strength)
+        let requested = Int((Double(steps) * strength + 1e-9).rounded(.down))
         let running = min(max(requested, 1), steps)
         return steps - running
     }

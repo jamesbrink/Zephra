@@ -184,3 +184,51 @@ def dump(out: pathlib.Path) -> None:
     }
     save_file(tensors, str(out / "transformer_model.safetensors"))
     print(f"transformer_model: {len(tensors)} tensors")
+
+
+def dump_timestep_bf16(out: pathlib.Path) -> None:
+    """The conditioning vector for one sigma with the model in bfloat16, as the pipeline runs it.
+
+    `Flux2Transformer2DModel.forward` does `timestep.to(hidden_states.dtype) * 1000` before
+    anything else, so under bfloat16 the sinusoid is built from a *rounded* timestep: 0.77
+    becomes 0.76953125, times 1000 is 769.53 in bfloat16 arithmetic, which is 768. Then
+    `Flux2TimestepGuidanceEmbeddings.forward` casts the float32 projection back to bfloat16
+    before `linear_1`. A port that keeps the sigma in float32 through the sinusoid and casts
+    once at the end lands somewhere else entirely -- the top of the frequency ladder is 1 radian
+    per unit, and 768 against 769.53 is a different cosine -- and `unrounded` records that
+    somewhere else, so the Swift test can show the difference is one it would notice.
+    """
+    from diffusers.models.transformers.transformer_flux2 import Flux2TimestepGuidanceEmbeddings
+
+    torch.manual_seed(0)
+    embed = Flux2TimestepGuidanceEmbeddings(
+        in_channels=256, embedding_dim=DIM, bias=False, guidance_embeds=False
+    ).eval()
+    for parameter in embed.parameters():
+        torch.nn.init.normal_(parameter, std=0.2)
+    wide = embed  # float32, the old port's arithmetic
+    embed = Flux2TimestepGuidanceEmbeddings(
+        in_channels=256, embedding_dim=DIM, bias=False, guidance_embeds=False
+    ).eval()
+    embed.load_state_dict(wide.state_dict())
+    embed = embed.to(torch.bfloat16)
+
+    sigma = torch.tensor([0.77])
+    rounded = sigma.to(torch.bfloat16) * 1000
+    with torch.no_grad():
+        projection = embed.time_proj(rounded).to(torch.bfloat16)
+        conditioning = embed(rounded, None)
+        unrounded = wide(sigma * 1000, None).to(torch.bfloat16)
+    assert rounded.item() == 768.0, rounded
+    tensors = {
+        f"temb.{key}": value.contiguous()
+        for key, value in embed.timestep_embedder.state_dict().items()
+    }
+    tensors |= {
+        "temb.in.sigma": sigma.contiguous(),
+        "temb.out.projection": projection.contiguous(),
+        "temb.out.conditioning": conditioning.contiguous(),
+        "temb.out.unrounded": unrounded.contiguous(),
+    }
+    save_file(tensors, str(out / "timestep_bf16.safetensors"))
+    print(f"timestep_bf16: {len(tensors)} tensors")

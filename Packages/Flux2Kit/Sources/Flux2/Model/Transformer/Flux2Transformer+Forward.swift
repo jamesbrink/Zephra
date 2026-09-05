@@ -22,12 +22,16 @@ extension Flux2Transformer {
         frequencies: RotaryFrequencies,
         textLength: Int
     ) -> MLXArray {
-        // The sinusoid is built in float32 whatever arrives, and the result is cast to the
-        // stream's dtype here, as the reference casts it. It has to be: MLX promotes, so a
+        // The timestep is rounded to the stream's dtype before anything reads it, and the
+        // float32 sinusoid is cast back to that dtype before the MLP — the two casts the
+        // reference makes, in its order, so under bfloat16 the sinusoid sees 768 for 0.77 the
+        // way `diffusers` does. The trailing cast is belt and braces: MLX promotes, so a
         // float32 conditioning would turn every modulated activation float32 and put the
         // attention over a 4096-token image off the fused kernel. The stream's dtype is the
         // caller's choice; see `Flux2TransformerPrecision`.
-        let conditioning = timeEmbedding(timestep.asType(.float32)).asType(latents.dtype)
+        let conditioning = timeEmbedding(
+            timestep.asType(latents.dtype), projectionDType: latents.dtype
+        ).asType(latents.dtype)
 
         // Computed once, here, and read by all twenty-five blocks. See `Flux2SharedModulation`.
         let imageParameters = imageModulation(conditioning)

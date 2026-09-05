@@ -769,15 +769,25 @@ For the models where it does apply:
   entirely and is the ordinary text-to-image path; 0 would return it unchanged.
   Neither end is offered, which is why the bounds stop at 0.1 and 0.9.
 - **Strength buys a share of the steps, not a noise level.** `steps * strength`
-  of them run, rounded and never fewer than one, and the loop enters that far
-  from the end, starting from the encoded picture mixed with that step's share
-  of the run's own seeded noise. So 0.6 of Z-Image's nine steps enters at 4 and
-  runs 5; 0.6 of Qwen-Image's four enters at 2 and runs 2. This is diffusers'
-  `get_timesteps` mapping, and following it rather than entering at the first
-  sigma at or below the strength is load-bearing: a distilled ladder is not
-  evenly spaced. Qwen-Image's four sigmas are 1.0, 0.767, 0.456 and 0.02, so the
-  noise-level reading sent every strength from 0.1 to 0.4 to that 0.02 and handed
-  the picture back untouched.
+  of them run, truncated and never fewer than one, so every strength the slider
+  offers keeps some of the picture, and the loop enters that far from the end,
+  starting from the encoded picture mixed with that step's share of the run's
+  own seeded noise. So 0.6 of Z-Image's nine steps enters at 4 and runs 5; 0.6
+  of Qwen-Image's four enters at 2 and runs 2; and 0.9 of Qwen-Image's four is
+  3.6, which runs 3 from an entry of 1. Reading strength as a share is
+  diffusers' `get_timesteps` mapping, and following it rather than entering at
+  the first sigma at or below the strength is load-bearing: a distilled ladder
+  is not evenly spaced. Qwen-Image's four sigmas are 1.0, 0.767, 0.456 and
+  0.02, so the noise-level reading sent every strength from 0.1 to 0.4 to that
+  0.02 and handed the picture back untouched. The truncation is a deliberate
+  departure from `get_timesteps`, which takes the ceiling of the share: the
+  ceiling of 0.8 or 0.9 of four steps is four, an entry of 0, where the mix is
+  pure noise and the picture is discarded at the top of the slider. The product
+  is nudged up by a hair before it is truncated (`1e-9` on the double product
+  in `QwenImageReferenceLatents`, `1e-7` on the `Float` strength in
+  `ReferenceLatents`), because `100 * 0.29` lands at 28.999999999999996 and
+  ten `Float` steps of 0.7 at 6.9999999; the slider's 0.05 granularity is what
+  makes the nudge safe.
 - Progress still counts against the full step count, so a queue card drawing one
   segment per step shows the skipped ones as finished rather than showing a
   shorter run.
@@ -982,7 +992,10 @@ and peaks at 26053 MB; 1024 takes 33.6 s (8.15 s/step) and peaks at 30364 MB;
 26068 MB at 1024, 26088 MB at 1328 — because the tile, not the image, sets the
 decode's transient and what is left is the transformer. So 1024 is the default
 size: half the seconds of native for an image that still renders legible text,
-and the entry's `peakBytes` is measured there.
+and the entry's `peakBytes` is measured there. Every one of those figures was
+taken while the stream ran in float32 by accident — float32 noise, uncast
+float32 scales, and a stream handing back raw nodes — and is due a rerun on an
+idle machine now that it runs in bfloat16 (see "Streaming the weights").
 
 **The Lightning adapter is not optional.** The base model wants fifty steps and
 real classifier-free guidance, which is two forward passes through twenty
@@ -1023,9 +1036,19 @@ open fresh lazy nodes for every tensor in the stack's shards; `asyncEval` the fi
 `depth` layers' arrays, which starts their reads on the CPU stream; then for each
 layer, run its work, `asyncEval` its outputs, **wait for the layer before it**, then
 `asyncEval` the layer `depth` ahead, then hand each of the layer's arrays a fresh
-unevaluated node from the next pass with `_updateInternal`. The buffers a layer
-held live exactly until its command buffers complete, and nothing has to remember
-a placeholder. Two of those choices are load-bearing and easy to undo: outputs
+unevaluated node from the next pass with `_updateInternal`, cast back to the dtype
+the tree held at capture. The buffers a layer held live exactly until its command
+buffers complete, and nothing has to remember a placeholder. The cast is what lets
+a load-time cast survive streaming: the packer's scales are float32 on disk, MLX's
+quantized matmul takes its output dtype from them, and a stream that handed back
+the raw node would have widened every block after the first to float32 from the
+second step on — which is exactly how Qwen-Image ran in float32 until the audit.
+Now `QwenImagePipeline.loadModel` casts the text encoder's and the transformer's
+float32 parameters to `QwenImageTransformerPrecision.activation` (bfloat16, or
+float32 under `ZEPHRA_DIT_DTYPE=f32`) *before* attaching either stream, `generate`
+casts the noise and the conditioning to it, and the transformer casts its text to
+the latents' dtype at entry; the autoencoder stays float32 on purpose. Two more of
+the loop's choices are load-bearing and easy to undo: outputs
 are committed per layer at all because an unevaluated graph holds every layer's
 weights as inputs, so one eval per step would read most of the model before any
 of it ran; and the wait on the layer before is what bounds the window at
@@ -1116,7 +1139,10 @@ every size and peaks at 7651 MB at 512, 9037 MB at 768, and 12087 MB at 1024,
 and peaks at 15289 MB at 1024, 10861 MB tiled, for the same step time. So 1024 is
 the default size and the 4-bit entry is what a 16 GB Mac opens on, with the exact
 decode. An edit is dearer: a 1024 image from a 512 reference peaked at 19227 MB and
-took 66 s, the reference's 1024 tokens riding through every attention layer. The
+took 66 s, the reference's 1024 tokens riding through every attention layer — and
+those two figures were measured with the reference's tokens still float32, which
+widened the whole edit to float32; `Flux2ReferenceConditioning.encode` now casts
+them to the stream's dtype, and the edit is due a rerun on an idle machine. The
 stream runs in bfloat16; `ZEPHRA_DIT_DTYPE=f32` is the escape hatch for the
 mlx-swift split-K bug on M5-class GPUs, at three times the step time, and the
 packer's float32 scales are cast to the stream's dtype at load, without which MLX's

@@ -11,6 +11,12 @@ extension QwenImagePipeline {
     /// every pass, and only what is left — embeddings, the input and output projections, the
     /// norms, and the whole autoencoder — is evaluated now. Without it every weight is read
     /// here and stays.
+    ///
+    /// The text encoder's and the transformer's float32 parameters — the packer's scales and
+    /// biases — are cast to the activation dtype here, before a stream is attached, so a
+    /// streamed pass hands back the cast nodes rather than the shards' float32. The
+    /// autoencoder is left in float32 on purpose: its decode is the peak and not the step,
+    /// and the VAE and preview fixtures are float32.
     public func loadModel(
         at snapshot: URL,
         streaming: QwenImageStreaming? = nil,
@@ -21,6 +27,7 @@ extension QwenImagePipeline {
 
         let configuration = try QwenImageConfiguration(readingFrom: snapshot)
         let manifest = QwenImageQuantizationManifest.read(from: snapshot)
+        let activation = QwenImageTransformerPrecision.activation
 
         let textEncoderDirectory = snapshot.appending(path: "text_encoder")
         let textEncoder = Qwen25TextEncoder(configuration.textEncoder)
@@ -29,6 +36,7 @@ extension QwenImagePipeline {
             weights: try QwenImageWeightLoading.weights(in: textEncoderDirectory),
             manifest: manifest
         )
+        QwenImageWeightLoading.castFloatParameters(of: textEncoder, to: activation)
         if let streaming {
             textEncoder.model.stream = try LayerWeightStream(
                 layers: textEncoder.model.layers,
@@ -45,6 +53,7 @@ extension QwenImagePipeline {
             weights: try QwenImageWeightLoading.weights(in: transformerDirectory),
             manifest: manifest
         )
+        QwenImageWeightLoading.castFloatParameters(of: transformer, to: activation)
         if let streaming {
             transformer.stream = try LayerWeightStream(
                 layers: transformer.blocks,

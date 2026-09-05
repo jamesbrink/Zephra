@@ -12,7 +12,8 @@ extension Flux2Pipeline {
         guard let data = request.referenceImage else { return [] }
         onProgress(Flux2GenerationProgress(stage: .encodingReference))
         let pixels = try Flux2PixelBuffer.pixels(from: data)
-        let references = Flux2ReferenceConditioning.encode([pixels], with: model.autoencoder)
+        let references = Flux2ReferenceConditioning.encode(
+            [pixels], with: model.autoencoder, dtype: Flux2TransformerPrecision.activation)
         MLX.eval(references.map(\.tokens))
         return references
     }

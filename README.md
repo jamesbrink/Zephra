@@ -170,8 +170,10 @@ with a progress readout while that happens.
   means differs by model. FLUX.2 klein attends to it as extra tokens and still renders the
   whole schedule, so the picture guides the image without a strength to set. Z-Image and
   Qwen-Image start from a noised copy of it instead, so a strength decides how much of it
-  survives: a strength buys that share of the model's steps, and less strength keeps more of
-  the picture. The prompt then says what to change. An edited image carries its reference
+  survives: a strength buys that share of the model's steps, truncated and never fewer than
+  one, so every strength on the slider keeps some of the picture (0.9 of Qwen-Image's four
+  steps runs three of them, not all four), and less strength keeps more of the picture. The
+  prompt then says what to change. An edited image carries its reference
   inside its PNG, so selecting it later puts the picture back, and an exported edit can
   reproduce itself. Steps and size stay as you set them when you switch between variants of
   one model, and steps go back to the new model's own default when you switch to a different
@@ -335,6 +337,9 @@ Twice as fast as Z-Image Turbo per image at 1024 (four steps of 6.9 s against ni
 quality rather than costing time. Editing is dearer: a 1024² image made from a 512²
 reference took 66 s and peaked at 19.2 GB, because the reference's tokens ride through
 every attention layer beside the image's, so on a 16 GB Mac edit at 768² or below.
+Those two figures were taken while the reference's tokens were still float32, which
+widened the whole edit to float32; the tokens are cast to the stream's dtype now, and
+the edit is due a rerun on an idle machine.
 
 The port in `Packages/Flux2Kit` is Zephra's own, translated from two MIT-licensed
 Swift ports and pinned against `diffusers` — see `PROVENANCE.md` for the four places
@@ -390,6 +395,12 @@ classifier-free guidance — two passes through twenty billion parameters per st
 which is not a thing to do on a Mac. Merging the distillation at build time rather
 than loading it at run time means the runtime never sees an adapter: what lands in
 the models directory is simply the four-step model.
+
+The stream runs in bfloat16, resident or streamed from disk, and `ZEPHRA_DIT_DTYPE=f32`
+runs it in float32, the same switch klein reads. The figures above were measured
+before that was true: the noise was drawn float32 and the packer's float32 scales were
+never cast, so every block ran in float32 by accident. They are due a rerun on an idle
+machine.
 
 Holding modulation at eight bits is the one judgement call in the recipe. Those
 layers are 6.8 of the transformer's 20.4 billion parameters and they decide how

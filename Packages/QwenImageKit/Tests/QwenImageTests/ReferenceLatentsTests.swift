@@ -81,6 +81,29 @@ struct ReferenceLatentsTests {
         #expect(ladder[2] > 0.4, "0.5 enters at a real noise level, where the old rule did not")
     }
 
+    /// The floor column of the audit's table, at the two ladders the catalog ships. Ceil —
+    /// diffusers' `get_timesteps` — would put 0.8 and 0.9 of four steps at entry 0, and round
+    /// would put 0.9 there; both discard the picture at the top of the slider.
+    @Test(
+        "the entry step is the same under every strength the slider offers, at 9 and 4 steps",
+        arguments: [
+            (0.1, 8, 3), (0.2, 8, 3), (0.3, 7, 3), (0.4, 6, 3), (0.5, 5, 2),
+            (0.6, 4, 2), (0.7, 3, 2), (0.8, 2, 1), (0.9, 1, 1),
+        ])
+    func entryTable(strength: Double, atNine: Int, atFour: Int) {
+        #expect(QwenImageReferenceLatents.startIndex(strength: strength, steps: 9) == atNine)
+        #expect(QwenImageReferenceLatents.startIndex(strength: strength, steps: 4) == atFour)
+    }
+
+    @Test("a product that lands a hair under a whole number is not truncated below it")
+    func epsilonGuard() {
+        // 100 * 0.29 is 28.999999999999996 in doubles; twenty-nine steps must not buy 28.
+        #expect(100.0 * 0.29 < 29, "the arithmetic really does land short")
+        #expect(QwenImageReferenceLatents.startIndex(strength: 0.29, steps: 100) == 71)
+        // And 0.7 of ten is 7.000000000000001: not truncated up to eight either.
+        #expect(QwenImageReferenceLatents.startIndex(strength: 0.7, steps: 10) == 3)
+    }
+
     @Test("the entry point falls as the strength rises, and never leaves the run")
     func startIndexIsMonotonic() {
         let indices = stride(from: 0.0, through: 1.0, by: 0.05).map {
