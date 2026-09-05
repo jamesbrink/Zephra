@@ -101,7 +101,12 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
   distilled ladder is not evenly spaced. A strength of 1 lands on step 0, where the mix is pure
   noise and the picture contributes nothing, which is why the unpatched path is a special case
   of the patched one rather than a branch beside it. A strength too small to buy a whole step
-  still buys one: running none would hand the reference straight back.
+  still buys one: running none would hand the reference straight back. The share is
+  *truncated*, where `get_timesteps` takes its ceiling — a deliberate departure, because
+  truncating is the only mapping under which every strength the slider offers keeps some of
+  the picture (the ceiling of 0.8 or 0.9 of four steps is four, an entry of 0). The product is
+  taken in doubles with the strength nudged up by 1e-7 first, so a `Float` strength's own
+  rounding (ten steps at 0.7 come to 6.9999999) cannot truncate a whole share to the one below.
 
   `encodeImageToLatents` moved from `ZImageControlPipeline`, where it was private to the
   ControlNet path and so never reached from Zephra, which does not run that pipeline — it was

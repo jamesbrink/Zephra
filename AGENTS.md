@@ -769,15 +769,25 @@ For the models where it does apply:
   entirely and is the ordinary text-to-image path; 0 would return it unchanged.
   Neither end is offered, which is why the bounds stop at 0.1 and 0.9.
 - **Strength buys a share of the steps, not a noise level.** `steps * strength`
-  of them run, rounded and never fewer than one, and the loop enters that far
-  from the end, starting from the encoded picture mixed with that step's share
-  of the run's own seeded noise. So 0.6 of Z-Image's nine steps enters at 4 and
-  runs 5; 0.6 of Qwen-Image's four enters at 2 and runs 2. This is diffusers'
-  `get_timesteps` mapping, and following it rather than entering at the first
-  sigma at or below the strength is load-bearing: a distilled ladder is not
-  evenly spaced. Qwen-Image's four sigmas are 1.0, 0.767, 0.456 and 0.02, so the
-  noise-level reading sent every strength from 0.1 to 0.4 to that 0.02 and handed
-  the picture back untouched.
+  of them run, truncated and never fewer than one, so every strength the slider
+  offers keeps some of the picture, and the loop enters that far from the end,
+  starting from the encoded picture mixed with that step's share of the run's
+  own seeded noise. So 0.6 of Z-Image's nine steps enters at 4 and runs 5; 0.6
+  of Qwen-Image's four enters at 2 and runs 2; and 0.9 of Qwen-Image's four is
+  3.6, which runs 3 from an entry of 1. Reading strength as a share is
+  diffusers' `get_timesteps` mapping, and following it rather than entering at
+  the first sigma at or below the strength is load-bearing: a distilled ladder
+  is not evenly spaced. Qwen-Image's four sigmas are 1.0, 0.767, 0.456 and
+  0.02, so the noise-level reading sent every strength from 0.1 to 0.4 to that
+  0.02 and handed the picture back untouched. The truncation is a deliberate
+  departure from `get_timesteps`, which takes the ceiling of the share: the
+  ceiling of 0.8 or 0.9 of four steps is four, an entry of 0, where the mix is
+  pure noise and the picture is discarded at the top of the slider. The product
+  is nudged up by a hair before it is truncated (`1e-9` on the double product
+  in `QwenImageReferenceLatents`, `1e-7` on the `Float` strength in
+  `ReferenceLatents`), because `100 * 0.29` lands at 28.999999999999996 and
+  ten `Float` steps of 0.7 at 6.9999999; the slider's 0.05 granularity is what
+  makes the nudge safe.
 - Progress still counts against the full step count, so a queue card drawing one
   segment per step shows the skipped ones as finished rather than showing a
   shorter run.

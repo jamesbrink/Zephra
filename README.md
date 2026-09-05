@@ -170,8 +170,10 @@ with a progress readout while that happens.
   means differs by model. FLUX.2 klein attends to it as extra tokens and still renders the
   whole schedule, so the picture guides the image without a strength to set. Z-Image and
   Qwen-Image start from a noised copy of it instead, so a strength decides how much of it
-  survives: a strength buys that share of the model's steps, and less strength keeps more of
-  the picture. The prompt then says what to change. An edited image carries its reference
+  survives: a strength buys that share of the model's steps, truncated and never fewer than
+  one, so every strength on the slider keeps some of the picture (0.9 of Qwen-Image's four
+  steps runs three of them, not all four), and less strength keeps more of the picture. The
+  prompt then says what to change. An edited image carries its reference
   inside its PNG, so selecting it later puts the picture back, and an exported edit can
   reproduce itself. Steps and size stay as you set them when you switch between variants of
   one model, and steps go back to the new model's own default when you switch to a different

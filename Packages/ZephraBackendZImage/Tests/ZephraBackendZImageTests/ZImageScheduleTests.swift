@@ -70,7 +70,8 @@ struct ZImageScheduleTests {
         // 9 * 0.6 = 5.4, so five of the nine steps run and the loop enters at 4.
         #expect(ReferenceLatents.startIndex(strength: 0.6, steps: 9) == 4)
         #expect(ReferenceLatents.startIndex(strength: 0.9, steps: 9) == 1, "8.1 truncates to 8")
-        // Truncated, not rounded, as diffusers does it: 4.5 buys four steps, not five.
+        // Truncated, not rounded: 4.5 buys four steps, not five. (diffusers' `get_timesteps`
+        // would ceil it to five; the departure is deliberate, see the table below.)
         #expect(ReferenceLatents.startIndex(strength: 0.5, steps: 9) == 5)
         #expect(
             ReferenceLatents.startIndex(strength: 0.1, steps: 9) == 8,
@@ -83,6 +84,32 @@ struct ZImageScheduleTests {
         // back untouched, so one step is the floor.
         #expect(ReferenceLatents.startIndex(strength: 0.1, steps: 4) == 3)
         #expect(ReferenceLatents.startIndex(strength: 0, steps: 9) == 8)
+    }
+
+    /// The floor column of the audit's table, at the two ladders the catalog ships. Ceil —
+    /// diffusers' `get_timesteps` — would put 0.8 and 0.9 of four steps at entry 0, and 0.9 of
+    /// nine there too; both discard the picture at the top of the slider.
+    @Test(
+        "the entry step is the same under every strength the slider offers, at 9 and 4 steps",
+        arguments: [
+            (Float(0.1), 8, 3), (0.2, 8, 3), (0.3, 7, 3), (0.4, 6, 3), (0.5, 5, 2),
+            (0.6, 4, 2), (0.7, 3, 2), (0.8, 2, 1), (0.9, 1, 1),
+        ])
+    func entryTable(strength: Float, atNine: Int, atFour: Int) {
+        #expect(ReferenceLatents.startIndex(strength: strength, steps: 9) == atNine)
+        #expect(ReferenceLatents.startIndex(strength: strength, steps: 4) == atFour)
+    }
+
+    @Test("a product that lands a hair under a whole number is not truncated below it")
+    func epsilonGuard() {
+        // A Float 0.7 is 0.69999999, so ten steps of it come to 6.9999999 in doubles; seven
+        // steps must not buy six. Twenty steps of it are the same case at the top of the
+        // model's range.
+        #expect(Double(Float(0.7)) * 10 < 7, "the arithmetic really does land short")
+        #expect(ReferenceLatents.startIndex(strength: 0.7, steps: 10) == 3)
+        #expect(ReferenceLatents.startIndex(strength: 0.7, steps: 20) == 6)
+        // And a share that is really short stays short: 0.65 of ten is 6.5, six steps.
+        #expect(ReferenceLatents.startIndex(strength: 0.65, steps: 10) == 4)
     }
 
     @Test("the ladder is not consulted: the same strength lands the same way at every size")
