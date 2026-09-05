@@ -35,6 +35,9 @@ let package = Package(
             dependencies: [
                 "QwenImage",
                 .product(name: "MLX", package: "mlx-swift"),
+                // A doll's-house module for the loader's refusals, and the error they throw.
+                .product(name: "MLXNN", package: "mlx-swift"),
+                .product(name: "ZephraMLX", package: "ZephraMLXKit"),
                 .product(name: "ZephraTestSupport", package: "ZephraKit"),
             ],
             resources: [.copy("Fixtures")]

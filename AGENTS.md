@@ -25,7 +25,8 @@ Sources/Zephra (SwiftUI app) ─→ ZephraEngine ─→ ZephraCore, ZephraSnapsh
                              ─→ ZephraUpscale<Network> ─→ ZephraCore, ZephraMLX
                                                           [imported in ZephraApp.swift ONLY]
 Sources/ZephraBench (tool)   ─→ ZephraCore, every ZephraBackend<Family>
-Sources/ZephraQuantize (tool)─→ ZephraCore, ZephraQuantization, every ZephraBackend<Family>
+Sources/ZephraQuantize (tool)─→ ZephraCore, ZephraSnapshot, ZephraQuantization,
+                                every ZephraBackend<Family>
 
 Shared, by what a file actually touches:
   ZephraKit/ZephraSnapshot     Foundation only  — the model downloader, local snapshot
@@ -107,10 +108,22 @@ Shared, by what a file actually touches:
   hands it a `QuantizationPlan` saying which directories hold weights, which
   tensors to leave alone, how finely to squeeze the rest, and which low-rank
   adapters to merge on the way past. `SnapshotBuild` beside it is the safe way
-  to run that from the app: a `.partial` directory renamed on success, removed
-  on failure, and a free-space refusal before anything is read.
+  to run that from the app and from `ZephraQuantize` alike: a `.partial`
+  directory renamed on success, removed on failure, and a free-space refusal
+  before anything is read. Both refuse, first of all, a destination that is
+  the source, inside it, or around it, links followed
+  (`SnapshotQuantizer.requireDisjoint`): the packer empties each component
+  directory it writes to before reading the component, so `--out` spelled one
+  directory wrong would have deleted the release it was reading.
 - `ZephraMLX` (in `Packages/ZephraMLXKit`): MLX work that is the same job for
-  every family. Four things are there. `TiledDecode`: an autoencoder's decode
+  every family. Five things are there. `PackedSnapshotError`: the two refusals a
+  packed snapshot meets before a weight of it is loaded — a `quantization.json`
+  that is there and cannot be read, and shards carrying `.scales` with no
+  manifest saying how finely — thrown by both kits' manifest readers and
+  loaders, which stay two copies until M8 merges them. A broken manifest is
+  never taken for a missing one: read as "unpacked", it loaded packed shards
+  into an unpacked tree and failed a component later with a shape error naming
+  neither file nor reason. `TiledDecode`: an autoencoder's decode
   allocates in proportion to the image, so decoding overlapping latent tiles
   bounds the peak by the tile. `MLXRuntime`: the process-wide allocator's
   limits and readings, which each family's `InferenceRuntime` forwards to,
@@ -749,12 +762,23 @@ Makefile targets:
   default, because the wrong one silently produces the wrong artifact an hour
   later. For the same reason it refuses any `BITS` other than 4 unless the
   output directory is given explicitly: every default output name says `4bit`.
+  It refuses an `--out` that is the source, inside it, or around it (the packer
+  empties what it writes to), builds into a sibling `.partial` renamed into
+  place when it finishes — ^C stops it between tensors and removes the partial,
+  so nothing a loader would take for a model is left behind — and, when the
+  output is named for a catalog entry, checks the volume for that entry's
+  `builtBytes` first and stamps the result with the `.zephra-packed-source` the
+  app checks, so a build by hand is one the app accepts as its own.
 - `make quantize-qwen` — likewise for Qwen-Image, from `QWEN_SOURCE` with
   `QWEN_LORA` merged into its transformer, into
   `~/Library/Application Support/Zephra/Models/qwen-image-2512-4bit`
   (`QWEN_OUT` overrides). About a minute with the source local. The app fetches
   the same two things itself and does the same build; this is for keeping the
-  57.7 GB source off the boot volume.
+  57.7 GB source off the boot volume. The adapter is required: with `QWEN_LORA`
+  empty the tool exits with the reason rather than building the undistilled
+  model under the distilled name (see "The Lightning adapter is not optional"),
+  and `ARGS=--no-lora` with a `QWEN_OUT` other than the catalog's is the way to
+  build one on purpose.
 - `make quantize-flux2` — the build the app does on first load, by hand: pack
   the klein release from the app's own folder (or `FLUX2_SOURCE`) into
   `~/Library/Application Support/Zephra/Models/flux2-klein-4b-4bit`
@@ -1215,7 +1239,15 @@ on disk rather than the 12.8 GB a pure four-bit build would write.
 An adapter naming weights the component has not got stops the build. That is the
 one check worth keeping: an adapter written against a different port of the same
 model matches nothing, merges nothing, and hands back the base model — a failure
-that looks exactly like a build that worked.
+that looks exactly like a build that worked. Its narrower twin is caught at the
+file: an adapter whose tensors follow no naming `LoRAAdapter` reads — kohya's
+`lora_unet_` exports, or any spelling it does not know — used to parse to an
+adapter of nothing, "merging 0 adapted weights", and now stops the build with
+`adapterNamesNothing` before a weight is read. And `ZephraQuantize` refuses to
+build Qwen-Image without `--lora` at all (`QuantizeFamily.requiresAdapter`):
+the undistilled build loads under the distilled name and runs, and every
+picture is soft and hazy. `--no-lora` builds it on purpose, and then `--out`
+must name a directory other than the catalog's.
 
 Three more things about the Z-Image plan are load-bearing and easy to break:
 

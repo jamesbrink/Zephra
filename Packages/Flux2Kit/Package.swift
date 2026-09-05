@@ -34,6 +34,9 @@ let package = Package(
             dependencies: [
                 "Flux2",
                 .product(name: "MLX", package: "mlx-swift"),
+                // A doll's-house module for the loader's refusals, and the error they throw.
+                .product(name: "MLXNN", package: "mlx-swift"),
+                .product(name: "ZephraMLX", package: "ZephraMLXKit"),
                 // For reading a safetensors header without the weights behind it, which is how
                 // the coverage test checks 8 GB of tensors in a second.
                 .product(name: "ZephraQuantization", package: "ZephraMLXKit"),

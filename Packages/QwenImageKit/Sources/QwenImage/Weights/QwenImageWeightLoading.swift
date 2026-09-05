@@ -1,6 +1,7 @@
 import Foundation
 import MLX
 import MLXNN
+import ZephraMLX
 
 /// Reading a component's weights off disk and into a module tree.
 ///
@@ -51,34 +52,45 @@ public enum QwenImageWeightLoading {
         manifest: QwenImageQuantizationManifest?
     ) throws {
         let weights = QwenImageTransformerWeights.sanitized(rawWeights)
-        if let manifest {
-            let packed = Set(
-                weights.keys.filter { $0.hasSuffix(".scales") }
-                    .map { String($0.dropLast(".scales".count)) })
-
-            // Every leaf is claimed, not just the packed ones, and the unpacked ones are handed
-            // straight back unchanged. MLX rebuilds the tree from exactly the paths it is given,
-            // so claiming only some elements of an array leaves a sparse one -- which becomes a
-            // dictionary, and no longer matches the array it is meant to replace. Both the
-            // feed-forward's `net` and the modulation's slots are arrays with gaps in them,
-            // because the reference has an activation and a dropout where nothing is packed.
-            var quantizing = false
-            quantize(
-                model: model,
-                filter: { path, _ in
-                    quantizing = packed.contains(path)
-                    guard quantizing else { return (64, 4, .affine) }
-                    let precision = manifest.precision(
-                        of: QwenImageTransformerWeights.checkpointName(of: path))
-                    return (precision.groupSize, precision.bits, .affine)
-                },
-                apply: { layer, groupSize, bits, mode in
-                    guard quantizing else { return layer }
-                    return quantizeSingle(
-                        layer: layer, groupSize: groupSize, bits: bits, mode: mode)
-                }
-            )
+        let packed = Set(
+            weights.keys.filter { $0.hasSuffix(".scales") }
+                .map { String($0.dropLast(".scales".count)) })
+        // Packed tensors with nothing saying how finely would land in an unpacked tree and
+        // fail on shape; the refusal names the tensor instead, before the tree is touched.
+        guard let manifest else {
+            if let first = packed.min() {
+                throw PackedSnapshotError.packedWithoutManifest(firstKey: first + ".scales")
+            }
+            try update(model, with: weights)
+            return
         }
+        // Every leaf is claimed, not just the packed ones, and the unpacked ones are handed
+        // straight back unchanged. MLX rebuilds the tree from exactly the paths it is given,
+        // so claiming only some elements of an array leaves a sparse one -- which becomes a
+        // dictionary, and no longer matches the array it is meant to replace. Both the
+        // feed-forward's `net` and the modulation's slots are arrays with gaps in them,
+        // because the reference has an activation and a dropout where nothing is packed.
+        var quantizing = false
+        quantize(
+            model: model,
+            filter: { path, _ in
+                quantizing = packed.contains(path)
+                guard quantizing else { return (64, 4, .affine) }
+                let precision = manifest.precision(
+                    of: QwenImageTransformerWeights.checkpointName(of: path))
+                return (precision.groupSize, precision.bits, .affine)
+            },
+            apply: { layer, groupSize, bits, mode in
+                guard quantizing else { return layer }
+                return quantizeSingle(
+                    layer: layer, groupSize: groupSize, bits: bits, mode: mode)
+            }
+        )
+        try update(model, with: weights)
+    }
+
+    /// Fills `model` with the tensors in `weights` it has a place for.
+    private static func update(_ model: Module, with weights: [String: MLXArray]) throws {
         let wanted = Set(model.parameters().flattened().map(\.0))
         try model.update(
             parameters: ModuleParameters.unflattened(weights.filter { wanted.contains($0.key) }),

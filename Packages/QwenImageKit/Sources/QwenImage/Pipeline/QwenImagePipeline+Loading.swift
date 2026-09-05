@@ -26,7 +26,7 @@ extension QwenImagePipeline {
         onProgress(QwenImageGenerationProgress(stage: .loading))
 
         let configuration = try QwenImageConfiguration(readingFrom: snapshot)
-        let manifest = QwenImageQuantizationManifest.read(from: snapshot)
+        let manifest = try QwenImageQuantizationManifest.read(from: snapshot)
         let activation = QwenImageTransformerPrecision.activation
 
         let textEncoderDirectory = snapshot.appending(path: "text_encoder")

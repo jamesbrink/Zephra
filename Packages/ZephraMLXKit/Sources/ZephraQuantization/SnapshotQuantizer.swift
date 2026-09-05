@@ -22,7 +22,8 @@ public enum SnapshotQuantizer {
     /// - Parameters:
     ///   - source: A snapshot directory laid out like the Hugging Face release.
     ///   - destination: Where to write the quantized snapshot. Created if missing; existing
-    ///     files with the same names are replaced.
+    ///     files with the same names are replaced. Refused when it is the source, inside it,
+    ///     or around it, before anything is read (`requireDisjoint`).
     ///   - plan: Which components to pack, how finely, and what to copy verbatim.
     ///   - sourceName: The repository the weights came from, recorded in the manifest.
     ///   - shardBudgetBytes: Bytes to buffer before writing a shard.
@@ -40,6 +41,7 @@ public enum SnapshotQuantizer {
         note: @escaping (String) -> Void = { _ in },
         shouldContinue: @escaping () throws -> Void = {}
     ) throws {
+        try requireDisjoint(source: source, destination: destination)
         let resolvedSource = source.resolvingSymlinksInPath()
         try FileManager.default.createDirectory(
             at: destination, withIntermediateDirectories: true)
