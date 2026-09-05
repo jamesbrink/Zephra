@@ -40,10 +40,18 @@ Behaviour was pinned by comparison with `diffusers`, not by comparison with
 another Swift port. `Packages/QwenImageKit/Tools/dump_reference.py` runs the
 Python reference and writes tensors to
 `Packages/QwenImageKit/Tests/QwenImageTests/Fixtures`; the Swift suites assert
-against those. Every component has such a fixture — rope, scheduler, latent
-packing, text encoder, one MMDiT block, the whole transformer, VAE decode, VAE
-encode — so "does this match the reference" is a question the test suite
-answers rather than a claim in a commit message.
+against those. Every tensor-producing component has such a fixture — rope,
+scheduler, latent packing, text encoder, one MMDiT block, the whole transformer,
+VAE decode, VAE encode — so "does this match the reference" is a question the
+test suite answers rather than a claim in a commit message.
+
+Two pieces have no fixture yet and are the known gaps: the tokenizer, which the
+suite compares only to itself (its pre-tokenizer does not match Qwen2's; a
+token-id fixture from the Hugging Face tokenizer is the remedy), and the
+prompt template. The text-encoder fixture is dumped from a plain `Qwen2Model`
+rather than `Qwen2_5_VLForConditionalGeneration`, which is equivalent for text-only
+input because the three multimodal rotary axes coincide when no image is
+present; that reduction is why a 1-D rotary embedding in the port is correct.
 
 `QwenImageVAEEncoder` and `QwenImageVAEDownsample` were written from
 `diffusers`' `QwenImageEncoder3d` and `QwenImageResample` in

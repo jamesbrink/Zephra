@@ -5,7 +5,8 @@ import Foundation
 /// A model is tens of gigabytes over a connection that will drop at least once, and the hub
 /// client resumes a file from the bytes it already has. So a broken transfer is not a failure
 /// yet: it is a reason to wait a moment and continue. Only a permanent answer — the repository
-/// is not there, the token was refused — is worth stopping for, and the caller says which
+/// is not there, a file is missing, a 4xx that is not a timeout or a rate limit — is worth
+/// stopping for, and the caller says which
 /// errors those are, because the types differ by hub client.
 ///
 /// Cancellation always passes straight through: a person who pressed Stop is not asking for

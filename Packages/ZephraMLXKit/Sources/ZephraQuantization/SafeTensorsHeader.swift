@@ -3,7 +3,7 @@ import Foundation
 /// The index at the front of a safetensors file: what is in it, and where.
 ///
 /// The quantizer needs two things a tensor dictionary cannot give it. It needs to walk a shard
-/// in the order the bytes are laid out, so a memory-mapped file is read once from front to back
+/// in the order the bytes are laid out, so the file is read once from front to back
 /// instead of seeking about; and it needs each tensor's shape before deciding what to do with
 /// it. Both come from the header alone, which is a few kilobytes, so neither costs a read of the
 /// weights.
