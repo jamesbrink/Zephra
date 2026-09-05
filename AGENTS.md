@@ -419,7 +419,10 @@ Four directories, by what a file is rather than what screen it is on:
 
 - `Style/` — the chrome: `ZephraChrome`'s radii and hairlines, `ChromePanel`,
   `Chip`, `SectionHeader`, `CountBadge`, `KeyValueRow`, `WrappingHStack`,
-  `ModelDot`. A view that reaches for a literal radius or a raw colour belongs
+  `ModelDot`, and `MenuChevron`, the inline chevron a capsule menu's title
+  ends with (a `Menu` reads its label the way `Label` does, so a chevron drawn
+  as a view lands in front of the title or nowhere, and `.menuIndicator` draws
+  nothing under `.accessoryBar` outside a toolbar). A view that reaches for a literal radius or a raw colour belongs
   here instead. Safelight amber means "only while the model works" and appears
   nowhere else. The radii step down by what a thing is: 16 for the capsule,
   8 for a card or a thumbnail, 5 for a square on the sidebar's wall, so a card

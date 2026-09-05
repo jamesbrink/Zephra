@@ -33,10 +33,13 @@ struct BatchCountControl: View {
             }
         } label: {
             // The number says what it counts: a bare "4" beside a glyph was a puzzle.
-            Label(count == 1 ? "1 seed" : "\(count) seeds", systemImage: "square.stack")
+            Label {
+                Text(count == 1 ? "1 seed" : "\(count) seeds") + MenuChevron.text
+            } icon: {
+                Image(systemName: "square.stack")
+            }
         }
         .menuStyle(.button)
-        .menuIndicator(.visible)
         .buttonStyle(.accessoryBar)
         .monospacedDigit()
         .fixedSize()
