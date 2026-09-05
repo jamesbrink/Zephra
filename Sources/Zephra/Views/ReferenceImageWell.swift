@@ -13,7 +13,6 @@ import ZephraEngine
 /// already does nothing worth taking.
 struct ReferenceImageWell: View {
     @Environment(GenerationStore.self) private var store
-    @Environment(ImageCache.self) private var cache
 
     @State private var isPickerPresented = false
 
@@ -52,18 +51,17 @@ struct ReferenceImageWell: View {
 
     @ViewBuilder
     private var well: some View {
-        if let reference = store.settings.referenceImage,
-           let bitmap = cache.thumbnail(forReference: reference) {
-            filled(bitmap)
+        if store.settings.referenceImage != nil {
+            filled
         } else {
             empty
         }
     }
 
-    private func filled(_ bitmap: NSImage) -> some View {
-        Image(nsImage: bitmap)
-            .resizable()
-            .aspectRatio(contentMode: .fill)
+    /// The picture itself is `ReferenceThumbnail`, which decodes it off the main actor and
+    /// holds the square until it lands; this only frames it and hangs the controls on it.
+    private var filled: some View {
+        ReferenceThumbnail()
             .frame(width: 64, height: 64)
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             .overlay(alignment: .topTrailing) {

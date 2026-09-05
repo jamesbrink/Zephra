@@ -46,8 +46,9 @@ public final class GenerationStore {
     /// that is in use from a duplicate of the same model elsewhere. Nil while none are.
     public internal(set) var loadedDirectory: URL?
     /// Which choice of reference picture is the latest, and the read still fetching one. See
-    /// `GenerationStore+Reference.swift`.
-    var referenceChoice = 0
+    /// `GenerationStore+Reference.swift`. The number is readable so a view drawing the
+    /// picture can key its work on the choice rather than compare the bytes.
+    public internal(set) var referenceChoice = 0
     var referenceRead: Task<Void, Never>?
     /// True while the engine is between queued generations, swapping to the model the next one
     /// needs. The queue accepts more work throughout.

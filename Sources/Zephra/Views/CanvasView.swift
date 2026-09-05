@@ -21,7 +21,6 @@ import ZephraEngine
 /// other pane rather than running up under the title bar.
 struct CanvasView: View {
     @Environment(GenerationStore.self) private var store
-    @Environment(ImageCache.self) private var cache
     @Environment(WorkspaceSelection.self) private var workspace
 
     var body: some View {
@@ -41,11 +40,13 @@ struct CanvasView: View {
         }
     }
 
+    /// The picture, decoded off the main actor by `SessionImage`, which holds its rectangle
+    /// from the first frame and fades the pixels up when they land.
     @ViewBuilder
     private var currentImage: some View {
-        if let image = store.current, let bitmap = cache.fullSizeImage(for: image) {
-            GeneratedImageView(bitmap: bitmap)
-                .id(image.id)
+        if let image = store.current {
+            SessionImage(request: .full(image))
+                .accessibilityLabel("Generated image")
                 // Tucks the floating prompt away so the picture is the only thing on screen;
                 // clicking again, or any of the ways `PromptTuckHost` listens for, brings it back.
                 .onTapGesture(count: 1) { workspace.promptTucked.toggle() }
