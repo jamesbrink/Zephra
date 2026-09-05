@@ -1,6 +1,8 @@
 import Foundation
 import MLX
+import MLXFast
 import MLXNN
+import ZephraMLX
 
 /// One single-stream block, instantiated twenty times.
 ///
@@ -30,7 +32,7 @@ final class Flux2SingleBlock: Module {
         modulation: Flux2SharedModulation.Parameters,
         frequencies: RotaryFrequencies
     ) -> MLXArray {
-        let normalised = modulation.modulate(Flux2LayerNorm.applied(to: hidden, eps: eps))
+        let normalised = modulation.modulate(MLXFast.layerNorm(hidden, weight: nil, bias: nil, eps: eps))
         return hidden + modulation.gate * attention(normalised, frequencies: frequencies)
     }
 }

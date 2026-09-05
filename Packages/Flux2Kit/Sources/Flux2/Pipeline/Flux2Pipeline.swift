@@ -1,5 +1,6 @@
 import Foundation
 import MLX
+import ZephraMLX
 
 /// Text to image, and picture to picture, with FLUX.2 klein: the loaded components and the loop
 /// that runs them.
@@ -40,33 +41,33 @@ public final class Flux2Pipeline {
     ) throws {
         onProgress(Flux2GenerationProgress(stage: .loading))
         let configuration = try Flux2Configuration(readingFrom: snapshot)
-        let manifest = try Flux2QuantizationManifest.read(from: snapshot)
+        let manifest = try PackedSnapshotManifest.read(from: snapshot)
         let tokenizer = try Flux2Tokenizer(snapshot: snapshot)
 
         let textEncoder = Qwen3TextEncoder(configuration.textEncoder)
-        try Flux2WeightLoading.load(
+        try PackedWeightLoading.load(
             into: textEncoder,
-            weights: try Flux2WeightLoading.weights(
+            weights: try SafetensorsShards.weights(
                 in: snapshot.appending(path: Flux2Configuration.Component.textEncoder.directoryName)),
             manifest: manifest)
 
         let transformer = Flux2Transformer(configuration.transformer)
-        try Flux2WeightLoading.load(
+        try PackedWeightLoading.load(
             into: transformer,
             weights: Flux2TransformerWeights.sanitized(
-                try Flux2WeightLoading.weights(
+                try SafetensorsShards.weights(
                     in: snapshot.appending(path: Flux2Configuration.Component.transformer.directoryName))),
             manifest: manifest,
             checkpointName: Flux2TransformerWeights.checkpointName(of:))
 
         let autoencoder = Flux2Autoencoder(configuration.vae)
         try autoencoder.load(
-            weights: try Flux2WeightLoading.weights(
+            weights: try SafetensorsShards.weights(
                 in: snapshot.appending(path: Flux2Configuration.Component.vae.directoryName)))
 
         // The stream's dtype is applied here, once: a float32 scale anywhere would widen it.
-        Flux2WeightLoading.castFloatParameters(of: textEncoder, to: activation)
-        Flux2WeightLoading.castFloatParameters(of: transformer, to: activation)
+        PackedWeightLoading.castFloatParameters(of: textEncoder, to: activation)
+        PackedWeightLoading.castFloatParameters(of: transformer, to: activation)
 
         loaded = Loaded(
             snapshot: snapshot, configuration: configuration, tokenizer: tokenizer,

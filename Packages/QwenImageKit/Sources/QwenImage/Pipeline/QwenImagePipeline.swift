@@ -1,6 +1,7 @@
 import Foundation
 import MLX
 import MLXRandom
+import ZephraMLX
 
 /// Runs Qwen-Image: prompt in, PNG out.
 ///
@@ -111,6 +112,6 @@ public final class QwenImagePipeline {
             latents, height: latentHeight, width: latentWidth)
         let pixels = model.autoencoder.decode(unpacked)
         MLX.eval(pixels)
-        return try QwenPixelBuffer.png(from: pixels)
+        return try PixelBuffer.png(from: pixels)
     }
 }

@@ -3,6 +3,7 @@ import Foundation
 import ImageIO
 import MLX
 import Testing
+import ZephraMLX
 
 @testable import Flux2
 
@@ -24,7 +25,7 @@ struct PixelBufferTests {
     @Test("an image survives the trip out to PNG and back to within a step of 255")
     func roundTrip() throws {
         let pixels = MLXRandom.uniform(low: -1, high: 1, [1, 48, 64, 3], key: MLXRandom.key(5))
-        let png = try Flux2PixelBuffer.png(from: pixels)
+        let png = try PixelBuffer.png(from: pixels)
         let back = try Flux2PixelBuffer.pixels(from: png)
         #expect(back.shape == [1, 3, 48, 64])
         #expect(Fixture.maxAbsoluteDifference(back.transposed(0, 2, 3, 1), pixels) < 2.0 / 255)

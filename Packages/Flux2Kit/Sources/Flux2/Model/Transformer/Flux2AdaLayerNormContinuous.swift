@@ -1,5 +1,6 @@
 import Foundation
 import MLX
+import MLXFast
 import MLXNN
 
 /// The final norm, conditioned on the timestep.
@@ -25,6 +26,6 @@ final class Flux2AdaLayerNormContinuous: Module {
         let width = parameters.shape[parameters.ndim - 1] / 2
         let scale = parameters[.ellipsis, ..<width].expandedDimensions(axis: 1)
         let shift = parameters[.ellipsis, width...].expandedDimensions(axis: 1)
-        return Flux2LayerNorm.applied(to: x, eps: eps) * (1 + scale) + shift
+        return MLXFast.layerNorm(x, weight: nil, bias: nil, eps: eps) * (1 + scale) + shift
     }
 }

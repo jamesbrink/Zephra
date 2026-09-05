@@ -1,6 +1,8 @@
 import Foundation
 import MLX
+import MLXFast
 import MLXNN
+import ZephraMLX
 
 /// One dual-stream block, instantiated five times.
 ///
@@ -43,8 +45,8 @@ final class Flux2DoubleBlock: Module {
         frequencies: RotaryFrequencies
     ) -> (image: MLXArray, text: MLXArray) {
         let attended = attention(
-            image: imageModulation[0].modulate(Flux2LayerNorm.applied(to: image, eps: eps)),
-            text: textModulation[0].modulate(Flux2LayerNorm.applied(to: text, eps: eps)),
+            image: imageModulation[0].modulate(MLXFast.layerNorm(image, weight: nil, bias: nil, eps: eps)),
+            text: textModulation[0].modulate(MLXFast.layerNorm(text, weight: nil, bias: nil, eps: eps)),
             frequencies: frequencies
         )
         var imageStream = image + imageModulation[0].gate * attended.image
@@ -54,12 +56,12 @@ final class Flux2DoubleBlock: Module {
             imageStream
             + imageModulation[1].gate
             * imageFeedForward(
-                imageModulation[1].modulate(Flux2LayerNorm.applied(to: imageStream, eps: eps)))
+                imageModulation[1].modulate(MLXFast.layerNorm(imageStream, weight: nil, bias: nil, eps: eps)))
         textStream =
             textStream
             + textModulation[1].gate
             * textFeedForward(
-                textModulation[1].modulate(Flux2LayerNorm.applied(to: textStream, eps: eps)))
+                textModulation[1].modulate(MLXFast.layerNorm(textStream, weight: nil, bias: nil, eps: eps)))
 
         return (image: imageStream, text: textStream)
     }

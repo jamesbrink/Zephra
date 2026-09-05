@@ -1,6 +1,7 @@
 import Foundation
 import MLX
 import MLXRandom
+import ZephraMLX
 
 extension Flux2Pipeline {
     /// The reference pictures, encoded, or none.
@@ -95,6 +96,6 @@ extension Flux2Pipeline {
         let grid = Flux2LatentPacking.grid(latents, height: packedHeight, width: packedWidth)
         let pixels = model.autoencoder.decodePacked(grid)
         MLX.eval(pixels)
-        return try Flux2PixelBuffer.png(from: pixels)
+        return try PixelBuffer.png(from: pixels)
     }
 }

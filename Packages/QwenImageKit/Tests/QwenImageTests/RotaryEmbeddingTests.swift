@@ -2,6 +2,7 @@ import Foundation
 import MLX
 import MLXRandom
 import Testing
+import ZephraMLX
 
 @testable import QwenImage
 
@@ -71,7 +72,7 @@ struct RotaryEmbeddingTests {
         let (image, _) = Self.embedding.frequencies(
             frames: 1, height: 4, width: 4, textLength: 1)
         let x = MLXRandom.normal([1, 16, 3, 128])
-        let rotated = image.rotate(x)
+        let rotated = image.rotate(x, computeDType: x.dtype)
         #expect(rotated.shape == x.shape)
 
         // Pair magnitudes are invariant under rotation, whatever the angles are.
@@ -89,6 +90,6 @@ struct RotaryEmbeddingTests {
         let identity = RotaryFrequencies(
             cos: MLXArray.ones([5, 4]), sin: MLXArray.zeros([5, 4]))
         let x = MLXRandom.normal([2, 5, 3, 8])
-        #expect(MLX.allClose(identity.rotate(x), x, atol: 1e-6).item(Bool.self))
+        #expect(MLX.allClose(identity.rotate(x, computeDType: x.dtype), x, atol: 1e-6).item(Bool.self))
     }
 }

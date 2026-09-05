@@ -1,6 +1,7 @@
 import Foundation
 import MLX
 import Testing
+import ZephraMLX
 
 @testable import Flux2
 
@@ -48,7 +49,7 @@ struct TransformerParityTests {
             renamed[entry.key.replacingOccurrences(of: "attn.to_out.0.", with: "attn.to_out.")] =
                 entry.value
         }
-        try Flux2WeightLoading.load(into: block, weights: weights, manifest: nil)
+        try PackedWeightLoading.load(into: block, weights: weights, manifest: nil)
 
         let (image, text) = block(
             image: try #require(fixture["block.in.image"]),
@@ -75,7 +76,7 @@ struct TransformerParityTests {
             headDim: configuration.attentionHeadDim,
             mlpHidden: configuration.mlpDim,
             eps: configuration.eps)
-        try Flux2WeightLoading.load(
+        try PackedWeightLoading.load(
             into: block, weights: Fixture.weights(fixture, under: "single."), manifest: nil)
 
         let hidden = block(
@@ -99,7 +100,7 @@ struct TransformerParityTests {
     func wholeModel() throws {
         let fixture = try Fixture.load("transformer_model")
         let model = Flux2Transformer(try Self.configuration())
-        try Flux2WeightLoading.load(
+        try PackedWeightLoading.load(
             into: model,
             weights: Flux2TransformerWeights.sanitized(Fixture.weights(fixture, under: "model.")),
             manifest: nil)

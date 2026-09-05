@@ -1,6 +1,7 @@
 import Foundation
 import MLX
 import MLXNN
+import ZephraMLX
 
 /// FLUX.2's rectified-flow transformer: five dual-stream blocks, then twenty single-stream ones.
 ///
@@ -31,7 +32,7 @@ public final class Flux2Transformer: Module {
     @ModuleInfo(key: "proj_out") var output: Linear
 
     /// Builds the model described by `configuration`. Weights arrive separately, through
-    /// `Flux2WeightLoading.load(into:weights:manifest:checkpointName:)`.
+    /// `PackedWeightLoading.load(into:weights:manifest:checkpointName:)`.
     public init(_ configuration: Flux2TransformerConfiguration) {
         let dim = configuration.innerDim
         let eps = configuration.eps

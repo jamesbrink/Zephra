@@ -2,6 +2,7 @@ import Foundation
 import MLX
 import MLXFast
 import MLXNN
+import ZephraMLX
 
 /// Attention across both streams at once: text and image see each other here and nowhere else.
 ///
@@ -70,8 +71,8 @@ final class Flux2JointAttention: Module {
         let values = joined(split(textValue(text)), split(imageValue(image)))
 
         let attended = MLXFast.scaledDotProductAttention(
-            queries: frequencies.rotate(queries).transposed(0, 2, 1, 3),
-            keys: frequencies.rotate(keys).transposed(0, 2, 1, 3),
+            queries: frequencies.rotate(queries, computeDType: .float32).transposed(0, 2, 1, 3),
+            keys: frequencies.rotate(keys, computeDType: .float32).transposed(0, 2, 1, 3),
             values: values.transposed(0, 2, 1, 3),
             scale: scale,
             mask: nil

@@ -1,5 +1,6 @@
 import Foundation
 import MLX
+import ZephraMLX
 
 /// FLUX.2's four-axis rotary position embedding.
 ///

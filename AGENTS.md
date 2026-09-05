@@ -35,10 +35,14 @@ Shared, by what a file actually touches:
   ZephraKit/ZephraTestSupport  Foundation, ZephraCore — Scratch, the filesystem test
                                                   fixture, and SnapshotUnderTest, the real
                                                   snapshot a kit's suite may read
-  ZephraMLXKit/ZephraQuantization  MLX          — the streaming weight packer
-  ZephraMLXKit/ZephraMLX           MLX, MLXNN, ZephraCore — the tiled decode, the allocator's
-                                                  knobs, and the streamed layer stack;
-                                                  <Family>Kit may take it
+  ZephraMLXKit/ZephraQuantization  MLX, ZephraCore, ZephraSnapshot — the streaming weight
+                                                  packer, and the one descriptor build every
+                                                  family runs through it
+  ZephraMLXKit/ZephraMLX           MLX, MLXNN, ZephraCore — the packed loader, the manifest
+                                                  reader, the rotary table, the pixel packer,
+                                                  the tiled decode, the allocator's knobs and
+                                                  the streamed layer stack; <Family>Kit may
+                                                  take it
 ```
 
 - `ZephraCore` (in `Packages/ZephraKit`): Sendable value types + protocols.
@@ -114,33 +118,49 @@ Shared, by what a file actually touches:
   the source, inside it, or around it, links followed
   (`SnapshotQuantizer.requireDisjoint`): the packer empties each component
   directory it writes to before reading the component, so `--out` spelled one
-  directory wrong would have deleted the release it was reading.
+  directory wrong would have deleted the release it was reading. The
+  `pack(release:into:descriptor:plan:componentWeights:onProgress:)` overload
+  is the whole of a catalog build — space checked against `builtBytes`, one
+  progress event per component through `BuildTally`, cancellation between
+  tensors, and the provenance stamp — so each `<Family>SnapshotBuild` is its
+  plan and its component weights and nothing else. That overload is why the
+  package takes `ZephraCore` and `ZephraSnapshot`.
 - `ZephraMLX` (in `Packages/ZephraMLXKit`): MLX work that is the same job for
-  every family. Six things are there. `PackedSnapshotError`: the two refusals a
-  packed snapshot meets before a weight of it is loaded — a `quantization.json`
-  that is there and cannot be read, and shards carrying `.scales` with no
-  manifest saying how finely — thrown by both kits' manifest readers and
-  loaders, which stay two copies until M8 merges them. A broken manifest is
-  never taken for a missing one: read as "unpacked", it loaded packed shards
-  into an unpacked tree and failed a component later with a shape error naming
-  neither file nor reason. `TiledDecode`: an autoencoder's decode
-  allocates in proportion to the image, so decoding overlapping latent tiles
-  bounds the peak by the tile. `MLXRuntime`: the process-wide allocator's
-  limits and readings, with `WiredLimitReservation` beside it replacing the
-  one wired-memory ticket in the order asked, and `MLXInferenceRuntime` the
-  one `InferenceRuntime` every family hands out — it takes the family's VAE
-  tile as a pair of accessors, which is the only thing about it that is not
-  process-wide. `GPUGeneration`: whether this is an M5-class GPU, read once
-  from Metal, for the one dtype gate that needs to know. `LatentPreview`: how
-  far to pool a latent for a preview frame, and how to turn the decoded pixels
-  into RGBA8 bytes — the two halves of a frame that are not a family's own
-  decoder. `Streaming/`: the `LayerWeightStream` that runs a stack of
-  identical layers with a window of their weights in memory, reading each
-  layer from its shards a couple ahead of the one running (see "Streaming the
-  weights" under Model weights). A model package may depend on this; nothing in
-  it may depend on a model package. The vendored `ZImageKit` keeps its own copy
-  of the tiled decode and the preview as a `ZEPHRA-PATCH`, because pointing
-  vendored code at ours would complicate every re-sync.
+  every family, written once. `Loading/` is how a snapshot gets into a module
+  tree: `PackedSnapshotManifest` reads `quantization.json` (nil when absent,
+  `PackedSnapshotError.malformedManifest` when present and unreadable, never
+  "unpacked" by mistake — read that way, it loaded packed shards into an
+  unpacked tree and failed a component later with a shape error naming
+  neither file nor reason), `PackedWeightLoading` reshapes a tree for
+  whichever tensors carry a `.scales` and fills it, refusing packed shards
+  with no manifest before the tree is touched, and casts the packer's float32
+  scales to the stream's dtype with `castFloatParameters`; `SafetensorsShards`
+  lists and reads a component's shards in one order. `Rotary/` is
+  `RotaryFrequencies`, the cosine and sine table both ports build, and
+  `rotate(_:computeDType:)`, where the one difference between them — klein
+  rotates in float32, Qwen-Image in the stream's dtype — is the argument.
+  `PixelBuffer` turns a decoded `[1, h, w, 3]` in -1 to 1 into a PNG or into
+  RGBA8 bytes, rounding to the nearest byte as `diffusers` does. `TiledDecode`:
+  an autoencoder's decode allocates in proportion to the image, so decoding
+  overlapping latent tiles bounds the peak by the tile. `MLXRuntime`: the
+  process-wide allocator's limits and readings, with `WiredLimitReservation`
+  beside it replacing the one wired-memory ticket in the order asked, and
+  `MLXInferenceRuntime` the one `InferenceRuntime` every family hands out — it
+  takes the family's VAE tile as a pair of accessors, which is the only thing
+  about it that is not process-wide. `GPUGeneration`: whether this is an
+  M5-class GPU, read once from Metal, for the one dtype gate that needs to
+  know. `LatentPreview`: how far to pool a latent for a preview frame, and the
+  frame's bytes through `PixelBuffer`. `Streaming/`: the `LayerWeightStream`
+  that runs a stack of identical layers with a window of their weights in
+  memory, reading each layer from its shards a couple ahead of the one running
+  (see "Streaming the weights" under Model weights). A model package may
+  depend on this; nothing in it may depend on a model package. The vendored
+  `ZImageKit` keeps its own copy of the tiled decode and the preview as a
+  `ZEPHRA-PATCH`, because pointing vendored code at ours would complicate
+  every re-sync. What the two ports deliberately do *not* share — the final
+  norm's bias, the scheduler's shift, the rotary compute dtype,
+  `ReferenceLatents` — is listed in `PROVENANCE.md` under "Shared between the
+  two ports, and what is not".
 - `ZephraEngine` (in `Packages/ZephraKit`): concurrency + state. Depends on
   `ZephraCore` and `ZephraSnapshot`, nothing else. Backends arrive as an
   injected `BackendRegistry` of `@Sendable` factories; this layer never names

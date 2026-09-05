@@ -154,6 +154,37 @@ tests. Four were found and resolved in the reference's favour:
   reference keeps its own grid; `Flux2ImageFitting` and
   `ReferenceOrderingTests` hold that.
 
+## Shared between the two ports, and what is not
+
+Both ports are written against `diffusers`, so where the reference does the
+same thing for both models the Swift is one copy in `ZephraMLX`
+(`Packages/ZephraMLXKit`), and the fixtures of each kit pin it through that
+copy: `RotaryFrequencies` and its `rotate`, the layer norm (now
+`MLXFast.layerNorm` with nothing learned, in both), the packed-weight loader,
+the manifest reader, and `PixelBuffer`'s way out to bytes, which rounds as
+`(image * 255).round()` does. Four things stay two copies on purpose, because
+the references differ:
+
+- **The final norm.** `AdaLayerNormContinuous` chunks scale then shift in
+  both, but klein's `norm_out.linear` is bias-free and Qwen-Image's has a bias.
+  Two nine-line classes, one per kit, rather than a `bias:` knob.
+- **The schedule.** Both walk the same Euler step, `sample + v * (σ_next − σ)`,
+  pinned by each kit's `SchedulerTests`. What bends the ladder is not the
+  same: klein uses the pipeline's `compute_empirical_mu` (`EmpiricalShift`),
+  deliberately not the scheduler config's `base_shift` and `max_shift`, and
+  Qwen-Image uses those very fields (`DynamicShift`) plus a static `shift`
+  branch klein's config never takes. The two `FlowMatchEulerScheduler`s stay
+  in their kits.
+- **The rotary compute dtype.** klein's reference rotates in float32 whatever
+  the stream is; Qwen-Image's rotates in the stream's own dtype. The shared
+  `rotate(_:computeDType:)` takes that as its one argument, `.float32` from
+  klein and `x.dtype` from Qwen-Image, so the shared function is the record of
+  the difference rather than a place it could be lost.
+- **`ReferenceLatents`.** Where an edit enters the ladder and what it enters
+  with, in Qwen-Image's kit and in the vendored `ZImageKit`; two copies because
+  one lives inside vendored code re-synced against upstream, and the two
+  schedules are typed differently. `AGENTS.md`, "Starting from a picture".
+
 ## If this ever needs re-checking
 
 The claim to defend is narrower than the Qwen-Image one: every file in

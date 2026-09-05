@@ -2,6 +2,7 @@ import Foundation
 import MLX
 import MLXNN
 import Testing
+import ZephraMLX
 
 @testable import QwenImage
 

@@ -45,18 +45,12 @@ public nonisolated enum LatentPreview {
             axes: [3, 5])
     }
 
-    /// One decoded frame as RGBA8 bytes, row-major and opaque.
+    /// One decoded frame as RGBA8 bytes, row-major and opaque: `PixelBuffer.rgba8`, the same
+    /// packing the finished image gets, rounding included.
     ///
     /// - Parameter image: `[1, height, width, 3]` in the range -1 to 1, which is what every
     ///   autoencoder in the app decodes to.
     public static func rgba8(_ image: MLXArray) -> Data {
-        let frame = image[0]
-        let (height, width) = (frame.dim(0), frame.dim(1))
-        let scaled = MLX.clip(
-            (frame + 1) * 127.5, min: MLXArray(Float(0)), max: MLXArray(Float(255)))
-        let opaque = MLX.concatenated(
-            [scaled, MLXArray.full([height, width, 1], values: MLXArray(Float(255)))], axis: -1)
-        MLX.eval(opaque)
-        return opaque.asType(.uint8).asData().data
+        PixelBuffer.rgba8(image)
     }
 }

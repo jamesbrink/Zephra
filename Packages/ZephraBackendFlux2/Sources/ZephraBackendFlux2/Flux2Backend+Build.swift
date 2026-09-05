@@ -57,7 +57,6 @@ extension Flux2Backend {
                 release: localPath,
                 into: packed,
                 descriptor: descriptor,
-                sourceName: descriptor.sourceName,
                 onProgress: onProgress
             )
         } catch let error as CancellationError {

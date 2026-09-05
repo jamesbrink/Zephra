@@ -5,8 +5,8 @@ import Foundation
 /// Both kinds are refusals rather than fallbacks. A manifest that is present but unreadable
 /// used to read as "unpacked", and the loader then failed a component later with a shape error
 /// on a `.scales` tensor it had no place for; the snapshot's own path and the decoder's reason
-/// are what a person needs to fix it. Shared by every family's manifest reader, and M8 of the
-/// audit remediation merges those readers into one beside it.
+/// are what a person needs to fix it. Thrown by `PackedSnapshotManifest` and
+/// `PackedWeightLoading` beside it, which every family loads through.
 public enum PackedSnapshotError: Error, LocalizedError, Equatable {
     /// `quantization.json` is there and cannot be decoded.
     case malformedManifest(URL, reason: String)

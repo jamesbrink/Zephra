@@ -2,6 +2,7 @@ import Foundation
 import MLX
 import MLXFast
 import MLXNN
+import ZephraMLX
 
 /// Attention across both streams at once: text and image see each other here and nowhere else.
 ///
@@ -59,12 +60,12 @@ final class QwenImageJointAttention: Module {
         let textLength = text.shape[1]
 
         // Heads are split out before the norms, which act on one head's width.
-        let imageQueries = imageFrequencies.rotate(imageQueryNorm(split(imageQuery(image))))
-        let imageKeys = imageFrequencies.rotate(imageKeyNorm(split(imageKey(image))))
+        let imageQueries = imageFrequencies.rotate(imageQueryNorm(split(imageQuery(image))), computeDType: image.dtype)
+        let imageKeys = imageFrequencies.rotate(imageKeyNorm(split(imageKey(image))), computeDType: image.dtype)
         let imageValues = split(imageValue(image))
 
-        let textQueries = textFrequencies.rotate(textQueryNorm(split(textQuery(text))))
-        let textKeys = textFrequencies.rotate(textKeyNorm(split(textKey(text))))
+        let textQueries = textFrequencies.rotate(textQueryNorm(split(textQuery(text))), computeDType: text.dtype)
+        let textKeys = textFrequencies.rotate(textKeyNorm(split(textKey(text))), computeDType: text.dtype)
         let textValues = split(textValue(text))
 
         // Text first, then image: the order the split at the end undoes.

@@ -1,6 +1,7 @@
 import CoreGraphics
 import Foundation
 import MLX
+import ZephraMLX
 
 /// The denoising ladder: packed noise in, packed latents out.
 ///

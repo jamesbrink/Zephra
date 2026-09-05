@@ -2,6 +2,7 @@ import Foundation
 import MLX
 import MLXNN
 import Testing
+import ZephraMLX
 
 @testable import QwenImage
 
@@ -52,7 +53,7 @@ extension TransformerParityTests {
             "uncast scales widen the stream, which is the finding")
 
         let cast = try Self.packedBlock(fixture)
-        QwenImageWeightLoading.castFloatParameters(of: cast, to: .bfloat16)
+        PackedWeightLoading.castFloatParameters(of: cast, to: .bfloat16)
         let (narrowImage, narrowText) = cast(
             image: image, text: text, conditioning: conditioning,
             imageFrequencies: imageFrequencies, textFrequencies: textFrequencies)
@@ -74,7 +75,7 @@ extension TransformerParityTests {
         try transformer.update(
             parameters: ModuleParameters.unflattened(Self.weights(fixture, under: "model.")),
             verify: .all)
-        QwenImageWeightLoading.castFloatParameters(of: transformer, to: .bfloat16)
+        PackedWeightLoading.castFloatParameters(of: transformer, to: .bfloat16)
         let frequencies = QwenImageRotaryEmbedding(
             theta: 10000, axesDim: configuration.axesDimsRope
         ).frequencies(frames: 1, height: 3, width: 4, textLength: 5)

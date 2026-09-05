@@ -88,24 +88,10 @@ public nonisolated final class QwenImageBackend: ImageGenerationBackend {
         guard let descriptor = loadedDescriptor else {
             throw BackendError.loadFailed("No model is loaded.")
         }
-        // One throttle per run, so a frame is made at most every three quarters of a second
-        // however fast the steps go by, and none at all when the environment has switched them
-        // off. Nil rather than an always-refusing throttle: the loop then skips the check.
-        var throttle = PreviewThrottle.environmentInterval.map(PreviewThrottle.init(interval:))
-        let onPreview: QwenImagePipeline.PreviewHandler? =
-            throttle == nil
-            ? nil
-            : { step, total, frame in
-                guard throttle?.shouldMakeFrame() == true else { return }
-                let started = ContinuousClock.now
-                let made = frame()
-                onProgress(
-                    .frame(
-                        after: step, of: total,
-                        preview: GenerationPreview(
-                            width: made.width, height: made.height, pixels: made.pixels,
-                            duration: ContinuousClock.now - started)))
-            }
+        // One throttle per run, and no hook at all when frames are switched off, so the loop
+        // skips the check; see `PreviewFrameReporter`.
+        let onPreview: QwenImagePipeline.PreviewHandler? = PreviewFrameReporter.handler(
+            interval: PreviewThrottle.environmentInterval, onProgress: onProgress)
         do {
             return try pipeline.generate(
                 try QwenImageRequestMapper.request(for: settings, descriptor: descriptor),
