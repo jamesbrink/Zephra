@@ -3,10 +3,12 @@ import ZephraEngine
 
 /// The things to do with the image being looked at, at the foot of the inspector.
 ///
-/// Opening is the prominent one and takes Return, because it is what the column is usually
-/// leading up to: you looked at the facts, and this is the one. The rest are equals beneath it,
-/// on a grid of two columns so they are the same width whatever they say; a lone last button
-/// takes the whole row rather than sitting off to one side.
+/// Opening is the prominent one, because it is what the column is usually leading up to: you
+/// looked at the facts, and this is the one. Prominent without a default-key ring: Return in
+/// the library belongs to the grid's `LibraryOpenCommand`, which opens the viewer, and a second
+/// owner here would answer the same key from a tag field. The rest are equals beneath it, on a
+/// grid of two columns so they are the same width whatever they say; a lone last button takes
+/// the whole row rather than sitting off to one side.
 ///
 /// "Use as reference" appears only on a model that reads one, so a build running Z-Image alone
 /// never shows a button that could not do anything. Opening is left out when the image is the
@@ -24,7 +26,6 @@ struct InspectorActions: View {
                     LibraryOpenButton(item: item)
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
-                        .keyboardShortcut(.defaultAction)
                         .gridCellColumns(2)
                 }
             }

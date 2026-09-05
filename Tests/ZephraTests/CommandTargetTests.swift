@@ -69,7 +69,8 @@ struct CommandTargetTests {
     @Test("titles pluralise by the count and say Image for one")
     func titlesPluralise() {
         let four = CommandTarget.library(Array(sections.flatMap(\.items).prefix(4)))
-        #expect(four.saveTitle == "Save 4 Images as…")
+        #expect(four.exportTitle == "Export 4 Images…")
+        #expect(CommandTarget.canvas(picture).exportTitle == "Export…")
         #expect(four.copyTitle == "Copy 4 Images")
         #expect(four.deleteTitle == "Delete 4 Images")
         #expect(CommandTarget.canvas(picture).deleteTitle == "Delete Image")

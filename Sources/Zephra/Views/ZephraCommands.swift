@@ -4,7 +4,7 @@ import ZephraEngine
 /// The menu bar. Every one of these has a visible twin in the window; the menu exists so the
 /// shortcuts are discoverable and so the Mac behaves like a Mac.
 ///
-/// Save as, Copy, Reveal, Delete, Use as Reference and Upscale mean different things depending
+/// Export, Copy, Reveal, Delete, Use as Reference and Upscale mean different things depending
 /// on where you are standing, so each of them asks `target` (a `CommandTarget`) rather than
 /// reaching for the canvas: the grid's selection while the grid has the keyboard, the canvas's
 /// picture while the canvas is showing one, and nothing otherwise. The grid's focus rather than
@@ -33,7 +33,7 @@ struct ZephraCommands: Commands {
             Button("Generate") { store.generateFromInterface() }
                 .keyboardShortcut(.return, modifiers: .command)
                 .disabled(!store.canQueue)
-            Button("Cancel") { store.cancel() }
+            Button(store.state.stopCommandTitle) { store.cancel() }
                 .keyboardShortcut(".", modifiers: .command)
                 .disabled(!store.state.isBusy)
             Divider()
@@ -42,8 +42,10 @@ struct ZephraCommands: Commands {
                 .disabled(newAlbum == nil)
         }
         CommandGroup(replacing: .saveItem) {
-            Button(target.saveTitle) { save() }
-                .keyboardShortcut("s", modifiers: .command)
+            // ⇧⌘E rather than ⌘S: nothing here is a document with unsaved changes, and a
+            // picture is already on the disk. What this does is copy it somewhere else.
+            Button(target.exportTitle) { save() }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
                 .disabled(target.isEmpty)
             Button("Reveal in Finder") { reveal() }
                 .keyboardShortcut("r", modifiers: [.command, .shift])

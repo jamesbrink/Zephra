@@ -8,7 +8,7 @@ import ZephraEngine
 ///
 /// It owns the selection, which is why it is a view and not a modifier: a selection belongs to
 /// a window's library pane, survives a rescan under it, and is published to the menu bar so
-/// Save as, Copy, Reveal and Delete mean the library while this is on screen — the viewer
+/// Export, Copy, Reveal and Delete mean the library while this is on screen — the viewer
 /// included, since the publish sits here rather than inside `LibraryGrid`.
 ///
 /// The filter bar shows only when it has something to say — a narrowed query or a live
@@ -42,7 +42,7 @@ struct LibraryPane: View {
             }
             .overlay(alignment: .top) { LibraryFailureNotice() }
             .focusedSceneValue(\.librarySelection, selection)
-            // The index is published from here rather than from the grid, so Save as, Copy,
+            // The index is published from here rather than from the grid, so Export, Copy,
             // Reveal and Delete still know which files they are about while the viewer is up.
             .focusedSceneValue(\.libraryIndex, index)
             // `initial`, because a second window opens on whatever the shared workspace is

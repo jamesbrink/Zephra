@@ -70,6 +70,26 @@ struct EngineStateDisplayTests {
         #expect(state.denoisingProgress?.total == 9)
     }
 
+    @Test("the File menu's stop item names what it stops, and rests on Stop Generating")
+    func stopCommandNamesWhatItStops() {
+        let downloading = EngineState.downloading(
+            DownloadProgressEvent(completedFiles: 0, totalFiles: 1, fraction: 0))
+        #expect(downloading.stopCommandTitle == "Cancel Download")
+        let building = EngineState.building(
+            BuildProgressEvent(component: "vae", completedComponents: 0, totalComponents: 2, fraction: 0))
+        #expect(building.stopCommandTitle == "Stop Building")
+        #expect(EngineState.checkingModel.stopCommandTitle == "Stop Loading")
+        #expect(EngineState.loading(.preparing).stopCommandTitle == "Stop Loading")
+        #expect(EngineState.warmingUp.stopCommandTitle == "Stop Loading")
+        let upscaling = EngineState.upscaling(UpscaleProgressEvent(completedTiles: 0, totalTiles: 4))
+        #expect(upscaling.stopCommandTitle == "Stop Upscaling")
+        let generating = EngineState.generating(GenerationProgressEvent(phase: .preparing, fraction: 0))
+        #expect(generating.stopCommandTitle == "Stop Generating")
+        #expect(EngineState.cancelling.stopCommandTitle == "Stop Generating")
+        #expect(EngineState.ready.stopCommandTitle == "Stop Generating")
+        #expect(EngineState.idle.stopCommandTitle == "Stop Generating")
+    }
+
     @Test("only a download, a build, and an upscale draw a bar")
     func onlyMeasuredStatesDrawABar() {
         let building = EngineState.building(

@@ -59,7 +59,9 @@ enum CommandTarget: Equatable {
         return items.first
     }
 
-    var saveTitle: String { count > 1 ? "Save \(count) Images as…" : "Save as…" }
+    /// "Export" rather than "Save as": nothing is a document with changes to keep, and the
+    /// picture is already on the disk. Title Case, because these are menu items.
+    var exportTitle: String { count > 1 ? "Export \(count) Images…" : "Export…" }
 
     var copyTitle: String { count > 1 ? "Copy \(count) Images" : "Copy Image" }
 

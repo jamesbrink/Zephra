@@ -3,7 +3,7 @@ import SwiftUI
 import ZephraCore
 import ZephraEngine
 
-/// Where Save as, Copy, Reveal, Delete, Use as Reference and Upscale actually land.
+/// Where Export, Copy, Reveal, Delete, Use as Reference and Upscale actually land.
 ///
 /// All of them ask the same question and act on the same answers, so the question is asked
 /// once, in `CommandTarget`. The wording follows the answer too: "Delete Image" over one

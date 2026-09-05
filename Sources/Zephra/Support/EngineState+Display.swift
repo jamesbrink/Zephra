@@ -2,10 +2,11 @@ import Foundation
 import ZephraCore
 import ZephraEngine
 
-/// The words the canvas and the window subtitle use for each engine state.
+/// The words the canvas, the window subtitle and the File menu use for each engine state.
 ///
 /// Copy rules: sentence case, active verbs, the same verb through the flow, and every
-/// failure names a cause and a remedy. Nothing here apologises.
+/// failure names a cause and a remedy. Nothing here apologises. The second line under a
+/// headline — counts, rates, pace — is `EngineState+Detail`.
 extension EngineState {
     /// The window subtitle: the state in a word, plus the measurement that matters while it runs.
     var subtitle: String {
@@ -46,6 +47,20 @@ extension EngineState {
         }
     }
 
+    /// What the File menu's ⌘. item says it will stop, so the menu names the thing rather
+    /// than offering a bare "Cancel" over a download, a build and a generation alike. Title
+    /// Case, because it is a menu item. A state with nothing to stop still says "Stop
+    /// Generating", which is the item's resting name while it is greyed out.
+    var stopCommandTitle: String {
+        switch self {
+        case .downloading: "Cancel Download"
+        case .building: "Stop Building"
+        case .checkingModel, .loading, .warmingUp: "Stop Loading"
+        case .upscaling: "Stop Upscaling"
+        case .idle, .ready, .generating, .cancelling, .failed: "Stop Generating"
+        }
+    }
+
     /// The headline the canvas shows, or nil when the canvas needs no headline.
     func title(for descriptor: ModelDescriptor) -> String? {
         switch self {
@@ -70,28 +85,6 @@ extension EngineState {
         }
     }
 
-    /// The second line under the headline: file counts while downloading, pace while generating.
-    var detail: String? {
-        switch self {
-        case .downloading(let event):
-            Self.downloadDetail(event)
-        case .building(let event):
-            Self.buildDetail(event)
-        case .generating(let event):
-            Self.generationDetail(event)
-        case .upscaling(let event):
-            "Tile \(event.completedTiles) of \(event.totalTiles)"
-        default:
-            nil
-        }
-    }
-
-    /// Whether the detail line is a measurement, which is set in a monospaced face.
-    ///
-    /// Every state that has a detail line at all reports a count, a rate, or a percentage, so
-    /// there is one answer rather than a second list to keep in step with `detail`.
-    var detailIsMeasurement: Bool { detail != nil }
-
     /// How far along a download or a build is, for the bar under the headline, or nil when the
     /// state has no bar.
     var progressFraction: Double? {
@@ -109,51 +102,5 @@ extension EngineState {
               case .denoising(let step, let total) = event.phase
         else { return nil }
         return (step, total)
-    }
-
-    private static func downloadDetail(_ event: DownloadProgressEvent) -> String {
-        var parts = ["File \(event.completedFiles) of \(event.totalFiles)"]
-        if let rate = event.bytesPerSecond, rate > 0 {
-            parts.append("\(Int64(rate).formatted(.byteCount(style: .file)))/s")
-        }
-        parts.append("\(Int((event.fraction * 100).rounded()))%")
-        return parts.joined(separator: " · ")
-    }
-
-    private static func buildDetail(_ event: BuildProgressEvent) -> String {
-        let parts = [
-            "Packing the \(event.component)",
-            "\(event.completedComponents) of \(event.totalComponents)",
-            "\(Int((event.fraction * 100).rounded()))%",
-        ]
-        return parts.joined(separator: " · ")
-    }
-
-    /// What the running generation is doing right now, in a few words and without the pace:
-    /// what the empty canvas says while the first frame is on its way.
-    var generationPhase: String? {
-        guard case .generating(let event) = self else { return nil }
-        return Self.phaseText(event.phase)
-    }
-
-    private static func phaseText(_ phase: GenerationPhase) -> String {
-        switch phase {
-        case .preparing: "Preparing"
-        case .encodingText: "Reading the prompt"
-        case .denoising(let step, let total): "Step \(step) of \(total)"
-        case .decoding: "Developing the image"
-        case .saving: "Saving"
-        }
-    }
-
-    private static func generationDetail(_ event: GenerationProgressEvent) -> String {
-        var parts = [phaseText(event.phase)]
-        if let pace = event.secondsPerStep {
-            parts.append(String(format: "%.1f s/step", pace))
-        }
-        if let left = event.estimatedSecondsRemaining, left >= 1 {
-            parts.append("~\(Int(left.rounded())) s left")
-        }
-        return parts.joined(separator: " · ")
     }
 }

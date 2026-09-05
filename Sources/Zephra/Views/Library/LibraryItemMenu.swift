@@ -45,7 +45,7 @@ struct LibraryItemMenu: View {
                 Button(favouriteTitle) { act { index.toggleFavourite($0) } }
                 AlbumMenu(ids: Set(items.map(\.id)))
                 Divider()
-                Button("Save as…") { act { _ in ImageExport.saveAs(files: urls) } }
+                Button("Export…") { act { _ in ImageExport.saveAs(files: urls) } }
                 Button("Copy") { act { _ in ImageExport.copyToPasteboard(files: urls) } }
                 Button("Reveal in Finder") { act { _ in ImageExport.revealInFinder(files: urls) } }
                 Divider()
