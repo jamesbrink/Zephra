@@ -652,6 +652,10 @@ Makefile targets:
 - `make bench` — build and run `ZephraBench` (`ARGS=...` to pass flags).
 - `make test` — `swift test` in `Packages/ZephraKit` (Core, Snapshot, and
   Engine, fast, no MLX). Anything testable without Metal belongs here.
+- `make test-app` — `xcodebuild test` of `ZephraTests`, the app target's own
+  suites in `Tests/ZephraTests`, hosted inside the Debug app. The first run
+  builds the Debug app, Metal kernels included, and takes minutes; after that
+  it is a link plus the tests.
 - `make test-mlx` — `xcodebuild test` over every package that links MLX
   (`MLX_PACKAGES` in the Makefile, written `directory:scheme`). Slower, needs
   `xcodebuild`. `make test-backend` is kept as an alias. Keep `make test`
@@ -704,7 +708,9 @@ Makefile targets:
   in `flux2-klein-4b-8bit` without one). About a minute.
 - `make lint-layers` — enforce the layering rules above.
 - `make logs` — stream app logs (`log stream`, subsystem `io.zephra`).
-- `make screenshot` — capture the app window (see debugging hooks).
+- `make screenshot` — capture the app window (see debugging hooks);
+  `WINDOW=<title>` captures the window with that title instead, which is how
+  a Settings tab is photographed.
 - `make clean` — remove build output and the generated project.
 
 The first Release build compiles MLX's Metal kernels from scratch and takes
@@ -815,6 +821,16 @@ the snapshot, not whichever is listed first"); match that when adding one.
 
 - `make test` — `ZephraCoreTests`, `ZephraSnapshotTests` and `ZephraEngineTests`,
   seconds, no Metal.
+- `make test-app` — `ZephraTests` in `Tests/ZephraTests`, the app target's own
+  suites, hosted in the app so they can `@testable import Zephra`; Debug only,
+  since Release turns `ENABLE_TESTABILITY` off. Pure interface logic belongs
+  here — export planning, display strings, layout arithmetic, the workspace
+  selection — and nothing that needs a window. The scheme's test action sets
+  `ZEPHRA_PREVIEW_STATE=ready`, so the host launches frozen with no model. The
+  test target takes `ZephraTestSupport` for `Scratch`, and its files default to
+  the main actor the way the app's do. One suite:
+  `make test-app` with `-only-testing:ZephraTests/ExportPlanTests` appended to
+  the `xcodebuild` line, or from Xcode.
 - One suite or test:
   `cd Packages/ZephraKit && swift test --filter ModelSwap`. The filter is a
   regex over the *type* names, not the `@Suite` display names, so `ModelSwap`
@@ -1190,7 +1206,17 @@ the re-sync procedure, and the running patch log. Any change inside
 - `make screenshot` photographs the app's window by its CoreGraphics id, so it captures the
   window rather than the rectangle of screen it sits in, and it fails rather than falling back
   when there is no window: a region or full-screen grab returns whatever is in front of Zephra,
-  which on a shared machine means somebody else's windows end up in `out/`.
+  which on a shared machine means somebody else's windows end up in `out/`. With no argument
+  it takes the largest window; `make screenshot WINDOW=General` takes the one titled
+  "General" — the Settings window is titled after its tab — through the optional title
+  argument of `scripts/window-id.swift`.
+- `swift scripts/ax-press.swift "<title>" [role]` presses the control with that `AXTitle` or
+  `AXDescription` in the running Zephra through the accessibility tree, without activating the
+  app, moving the mouse, or posting an event, so it can open Settings > Models or click a
+  button while a person keeps working; `--dump [depth]` prints the tree for finding titles.
+  The terminal needs Accessibility in System Settings > Privacy & Security. Together with the
+  background launch (`open -g --env ZEPHRA_PREVIEW_STATE=settings build/Debug/Zephra.app`)
+  and the titled screenshot, this is how a Settings tab is photographed hands-off.
 - `make bench ARGS="--size 1024 --steps 9 --runs 3 --json"` measures load, s/step, and peak memory
   headlessly; benchmark on an idle machine, Release only. `--reference IMAGE` measures the
   editing path on a model that has one.

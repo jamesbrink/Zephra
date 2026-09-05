@@ -91,6 +91,25 @@ targets:
         SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
         SWIFT_APPROACHABLE_CONCURRENCY: "YES"
 
+  # The app's own tests, hosted inside the app so they can `@testable import Zephra`. Pure
+  # interface logic belongs here: export planning, display strings, layout arithmetic. Debug
+  # only, because Release turns ENABLE_TESTABILITY off. `Scratch` comes from ZephraTestSupport.
+  ZephraTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests/ZephraTests
+    dependencies:
+      - target: Zephra
+      - package: ZephraKit
+        product: ZephraTestSupport
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.zephra.ZephraTests
+        GENERATE_INFOPLIST_FILE: "YES"
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        SWIFT_APPROACHABLE_CONCURRENCY: "YES"
+
   ZephraBench:
     type: tool
     platform: macOS
@@ -143,6 +162,14 @@ schemes:
       environmentVariables:
         MTL_DEBUG_LAYER: "0"
         MTL_SHADER_VALIDATION: "0"
+    test:
+      config: Debug
+      targets:
+        - ZephraTests
+      environmentVariables:
+        # The host app launches frozen with no model, so no weights load and no MLX limits
+        # are set under the tests; see `InterfacePreview`.
+        ZEPHRA_PREVIEW_STATE: ready
   ZephraBench:
     build:
       targets:

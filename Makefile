@@ -77,7 +77,7 @@ RELEASE_APP    := $(BUILD)/Release/Zephra.app
 RELEASE_ZIP    := $(BUILD)/Zephra.zip
 RELEASE_DMG    := $(BUILD)/Zephra.dmg
 
-.PHONY: doctor gen build run bench quantize quantize-qwen quantize-flux2 prefetch prefetch-qwen prefetch-flux2 open clean lint-layers logs screenshot test test-mlx test-backend icon signed-build release notarize notarized-release
+.PHONY: doctor gen build run bench quantize quantize-qwen quantize-flux2 prefetch prefetch-qwen prefetch-flux2 open clean lint-layers logs screenshot test test-app test-mlx test-backend icon signed-build release notarize notarized-release
 
 # What a fresh Mac needs before `make build` can work, each with its fix printed.
 doctor:
@@ -132,6 +132,15 @@ quantize-flux2: gen
 
 test:
 	cd Packages/ZephraKit && swift test
+
+# The app target's own suites (Tests/ZephraTests), hosted inside the Debug app so they can
+# `@testable import Zephra`; Release turns ENABLE_TESTABILITY off. The first run builds the
+# Debug app, which compiles MLX's Metal kernels from scratch and takes several minutes; after
+# that it is an incremental link plus the tests. The host launches with
+# ZEPHRA_PREVIEW_STATE=ready (set on the scheme), so no model is loaded under the tests.
+test-app: gen
+	$(XCB) -scheme $(SCHEME) -configuration Debug -skipPackagePluginValidation \
+	  -only-testing:ZephraTests test
 
 # These link MLX, so their tests need xcodebuild rather than `swift test`. Kept out of
 # `make test` on purpose: that one stays MLX-free and fast.
@@ -218,8 +227,10 @@ clean:
 logs:
 	log stream --style compact --predicate 'subsystem == "io.zephra"'
 
+# WINDOW=<title> photographs the window with that title instead of the largest one, which is
+# how a Settings tab is captured: `make screenshot WINDOW=General`.
 screenshot:
-	./scripts/screenshot.sh
+	WINDOW="$(WINDOW)" ./scripts/screenshot.sh
 
 # Layering rules from CLAUDE.md, enforced mechanically. The patterns are deliberately
 # family-agnostic: a second backend package must not need a Makefile edit to be policed.
