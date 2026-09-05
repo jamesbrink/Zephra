@@ -18,27 +18,15 @@ struct PromptCapsule: View {
             SharedWidthRows(spacing: 12) {
                 PromptRow()
                 Divider()
-                controls
+                PromptControls()
             }
             .padding(.horizontal, 16)
             .padding(.top, 13)
             .padding(.bottom, 12)
         }
         .chromePanel(.floating)
-        // Wide enough for the settings, the batch count, and a Generate button that spells out
-        // its shortcut, without the row overflowing the panel it is drawn in. The overlay above
-        // allows 736; a settings row that needs more widens the whole capsule, prompt included.
+        // Controls wrap within this width when their settings and actions cannot share a row.
         .frame(maxWidth: 736)
-    }
-
-    private var controls: some View {
-        HStack(alignment: .bottom, spacing: 12) {
-            ControlsRow()
-            Spacer(minLength: 12)
-            BatchCountControl()
-            StopButton()
-            GenerateButton()
-        }
     }
 }
 

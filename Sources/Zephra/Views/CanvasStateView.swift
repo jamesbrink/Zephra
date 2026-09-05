@@ -14,7 +14,9 @@ struct CanvasStateView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            if isGenerating || store.isSwappingModel {
+            // Ready has no status message. Padding and material around its empty message
+            // block would otherwise leave a blank tile over the finished picture.
+            if isGenerating || store.isSwappingModel || (store.state == .ready && store.current != nil) {
                 EmptyView()
             } else if isEmptyAndReady {
                 CanvasEmptyState()

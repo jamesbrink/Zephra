@@ -1,8 +1,7 @@
 import SwiftUI
 import ZephraEngine
 
-/// A sheet offering every picture the library holds as a reference, the well's other door
-/// beside "Choose File…".
+/// A sheet offering library pictures as references, with a visible local-file alternative.
 ///
 /// `onUse` is handed the chosen `LibraryItem`; turning it into reference bytes is
 /// `ReferenceAdoption`'s job; this sheet knows nothing about PNG chunks or which actor that
@@ -33,6 +32,7 @@ struct ReferencePickerSheet: View {
 
     private var footer: some View {
         HStack {
+            ReferenceFileButton()
             Spacer()
             Button("Cancel", role: .cancel) { dismiss() }
                 .keyboardShortcut(.cancelAction)
@@ -62,6 +62,7 @@ struct ReferencePickerSheet: View {
         .frame(width: 700, height: 600)
         .sheet(isPresented: .constant(true)) {
             ReferencePickerSheet { _ in }
+                .environment(GenerationStore.preview(state: .ready, descriptor: PreviewModel.editing))
                 .environment(PreviewImages.library(count: 24))
                 .environment(ThumbnailCache())
         }

@@ -6,10 +6,11 @@ import ZephraEngine
 /// only for models that respond to it, never for a distilled one like Z-Image Turbo, and
 /// strength only while a picture is in the well on a model that starts from a noised copy.
 struct ControlsRow: View {
+    var wraps = false
     @Environment(GenerationStore.self) private var store
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 18) {
+        layout {
             ControlLabel("Size") { SizeMenu() }
             ControlLabel("Steps") { StepsControl() }
             if showsGuidance {
@@ -21,6 +22,12 @@ struct ControlsRow: View {
             ControlLabel("Seed") { SeedControl() }
         }
         .disabled(store.state.isBusy)
+    }
+
+    private var layout: AnyLayout {
+        wraps
+            ? AnyLayout(WrappingHStack(horizontalSpacing: 18, verticalSpacing: 12))
+            : AnyLayout(HStackLayout(alignment: .bottom, spacing: 18))
     }
 
     /// A model with a single legal guidance value has nothing to offer here.

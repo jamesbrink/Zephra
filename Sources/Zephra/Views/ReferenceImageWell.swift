@@ -8,8 +8,7 @@ import ZephraEngine
 /// Sized to the prompt band rather than to its own icon, so its right edge lines up with the
 /// Generate button below it and the two read as one column.
 ///
-/// Empty, it is a `Menu` with a primary action: clicking it opens the library picker straight
-/// away, the more likely of the two sources, and the menu beside it names both. Filled, the
+/// Empty, a labelled button opens the picker with library and local-file choices. Filled, the
 /// same two choices move into a context menu alongside Clear, since the thumbnail's own click
 /// already does nothing worth taking.
 struct ReferenceImageWell: View {
@@ -91,21 +90,16 @@ struct ReferenceImageWell: View {
     }
 
     private var empty: some View {
-        Menu {
+        Button {
+            isPickerPresented = true
+        } label: {
+            ReferencePlaceholder()
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
             Button("From Library…") { isPickerPresented = true }
             Button("Choose File…") { chooseFile() }
-        } label: {
-            Image(systemName: "photo.badge.plus")
-                .font(.title)
-                .foregroundStyle(.secondary)
-                .frame(width: 64, height: 64)
-                .background(.quaternary, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        } primaryAction: {
-            isPickerPresented = true
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .frame(width: 64, height: 64)
         .help("Choose a picture to edit, or drop one here")
         .accessibilityLabel("Add a reference image")
     }
