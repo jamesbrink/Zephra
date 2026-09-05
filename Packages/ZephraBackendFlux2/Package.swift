@@ -32,6 +32,7 @@ let package = Package(
                 .product(name: "ZephraCore", package: "ZephraKit"),
                 .product(name: "ZephraTestSupport", package: "ZephraKit"),
                 .product(name: "ZephraQuantization", package: "ZephraMLXKit"),
+                .product(name: "MLX", package: "mlx-swift"),
             ]
         ),
     ]

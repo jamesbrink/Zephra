@@ -349,9 +349,11 @@ the edit is due a rerun on an idle machine.
 
 The port in `Packages/Flux2Kit` is Zephra's own, translated from two MIT-licensed
 Swift ports and pinned against `diffusers` — see `PROVENANCE.md` for the four places
-it departs from those ports on purpose. The transformer runs in bfloat16;
-`ZEPHRA_DIT_DTYPE=f32` runs it in float32, which is the workaround should mlx-swift's
-bfloat16 split-K bug on M5-class GPUs reach it, at about three times the step time.
+it departs from those ports on purpose. The transformer runs in bfloat16, except on an
+M5-class GPU, where the app runs it in float32 at about three times the step time:
+mlx-swift up to 0.31.6 miscompiles a bfloat16 split-K matmul there, and no release
+carries the fix yet. The gate is unverified, since none of the project's Macs is an
+M5; `ZEPHRA_DIT_DTYPE=f32` or `bf16` overrides it either way, on any Mac.
 
 ### Z-Image-Turbo
 

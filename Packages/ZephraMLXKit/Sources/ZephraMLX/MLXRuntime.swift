@@ -5,8 +5,9 @@ import ZephraCore
 /// The process-wide MLX allocator's knobs and readouts.
 ///
 /// One copy of MLX serves every family, so a limit set here or a reading taken here is the same
-/// answer whichever backend is asked. Each family's own runtime type adds the one thing that
-/// really is its own — the tile its autoencoder decodes in — and leaves the allocator to this.
+/// answer whichever backend is asked. `MLXInferenceRuntime` is this behind the `InferenceRuntime`
+/// protocol, with the one thing that really is a family's own — the tile its autoencoder
+/// decodes in — handed in by the family.
 public nonisolated enum MLXRuntime {
     public static func synchronize() {
         Stream.gpu.synchronize()
@@ -40,22 +41,13 @@ public nonisolated enum MLXRuntime {
         }
     }
 
-    /// The one long-lived reservation that keeps MLX's residency set at the wired limit.
+    /// Replaces the one long-lived reservation that keeps MLX's residency set at the wired limit.
     ///
     /// MLX starts with a wired limit of zero: nothing but its heap is kept resident, and the
-    /// OS may page a buffer it has not touched for a while. mlx-swift hands the limit out as
-    /// tickets on an actor, so the reservation is replaced on the actor's own time; a limit
-    /// set twice in quick succession still lands in order, since one task does both halves.
-    nonisolated(unsafe) private static var wiredTicket: WiredMemoryTicket?
-
+    /// OS may page a buffer it has not touched for a while. The reservation is replaced on the
+    /// ticket actor's own time, in the order asked; see `WiredLimitReservation`.
     private static func setWiredLimit(_ bytes: Int) {
-        let previous = wiredTicket
-        let ticket = WiredSumPolicy().ticket(size: bytes, kind: .active)
-        wiredTicket = ticket
-        Task {
-            _ = await previous?.end()
-            _ = await ticket.start()
-        }
+        WiredLimitReservation.shared.replace(bytes: bytes)
     }
 
     /// Bytes the GPU may keep resident: Metal's recommended working set, which macOS sets at

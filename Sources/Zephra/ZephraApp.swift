@@ -22,9 +22,9 @@ struct ZephraApp: App {
     /// The GPU runtime the Performance tab reads and tunes, over every backend at once. Built
     /// here because this is the only file allowed to name a backend.
     private static let runtime = CombinedInferenceRuntime([
-        ZImageInferenceRuntime(),
-        QwenImageInferenceRuntime(),
-        Flux2InferenceRuntime(),
+        ZImageBackendFactory.runtime,
+        QwenImageBackendFactory.runtime,
+        Flux2BackendFactory.runtime,
     ])
     private var runtime: CombinedInferenceRuntime { Self.runtime }
     /// What this Mac's GPU may keep resident, read once here from the runtime and the

@@ -13,7 +13,7 @@ extension Flux2Pipeline {
         onProgress(Flux2GenerationProgress(stage: .encodingReference))
         let pixels = try Flux2PixelBuffer.pixels(from: data)
         let references = Flux2ReferenceConditioning.encode(
-            [pixels], with: model.autoencoder, dtype: Flux2TransformerPrecision.activation)
+            [pixels], with: model.autoencoder, dtype: model.activation)
         MLX.eval(references.map(\.tokens))
         return references
     }
@@ -37,7 +37,7 @@ extension Flux2Pipeline {
         let scheduler = FlowMatchEulerScheduler(
             configuration: configuration.scheduler, steps: request.steps,
             imageSequenceLength: targetTokens)
-        let dtype = Flux2TransformerPrecision.activation
+        let dtype = model.activation
         var latents = Flux2LatentPacking.tokens(
             MLXRandom.normal(
                 [1, configuration.vae.packedChannels, packedHeight, packedWidth],

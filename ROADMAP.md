@@ -151,6 +151,21 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   under the finished picture as it fades in, would mean the store keeping a strip of
   them: a quarter of a megabyte each, for something nobody has asked to look at twice.
 
+## Dependencies: waiting on upstream
+
+- **Bump to the first mlx-swift that tracks mlx >= 0.32.0 (mlx#3810), then delete
+  klein's M5 gate.** mlx-swift up to 0.31.6 JIT-compiles the bfloat16 split-K steel
+  GEMM with the wrong dtype on M5-class GPUs (mlx#3797), and klein's single-stream
+  `to_out` sits inside the kernel's window. Until a release carries the fix,
+  `Flux2ActivationPrecision` in `ZephraBackendFlux2` runs the stream float32 when
+  `GPUGeneration.isM5Class`, at three times the step time. The gate is unverified: no
+  project Mac is an M5. When one is available, run `Flux2Tests/TransformerParityTests`
+  (both probes — the dense GEMM and the packed 4- and 8-bit `quantizedMatmul` the
+  catalog variants take) on it under the current pin and then under the bumped one,
+  and `make bench ARGS="--model flux2-klein-4b-4bit --size 1024"` with and without
+  `ZEPHRA_DIT_DTYPE=f32`. Both probes green on the bump is the signal to delete the
+  gate and `GPUGeneration` with it.
+
 ## Streamed weights and the GPU limit: left out on purpose
 
 - **A privileged helper to set `iogpu.wired_limit_mb` from Settings.** The row shows

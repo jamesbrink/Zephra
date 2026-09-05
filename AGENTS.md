@@ -116,7 +116,7 @@ Shared, by what a file actually touches:
   directory it writes to before reading the component, so `--out` spelled one
   directory wrong would have deleted the release it was reading.
 - `ZephraMLX` (in `Packages/ZephraMLXKit`): MLX work that is the same job for
-  every family. Five things are there. `PackedSnapshotError`: the two refusals a
+  every family. Six things are there. `PackedSnapshotError`: the two refusals a
   packed snapshot meets before a weight of it is loaded — a `quantization.json`
   that is there and cannot be read, and shards carrying `.scales` with no
   manifest saying how finely — thrown by both kits' manifest readers and
@@ -126,17 +126,21 @@ Shared, by what a file actually touches:
   neither file nor reason. `TiledDecode`: an autoencoder's decode
   allocates in proportion to the image, so decoding overlapping latent tiles
   bounds the peak by the tile. `MLXRuntime`: the process-wide allocator's
-  limits and readings, which each family's `InferenceRuntime` forwards to,
-  adding only its own VAE tile. `LatentPreview`: how far to pool a latent for a
-  preview frame, and how to turn the decoded pixels into RGBA8 bytes — the two
-  halves of a frame that are not a family's own decoder. `Streaming/`: the
-  `LayerWeightStream` that runs a stack of identical layers with a window of
-  their weights in memory, reading each layer from its shards a couple ahead of
-  the one running (see "Streaming the weights" under Model weights). A model
-  package may depend on this; nothing in it may depend on a model package. The vendored
-  `ZImageKit` keeps its own copy of the first and the third as a
-  `ZEPHRA-PATCH`, because pointing vendored code at ours would complicate every
-  re-sync.
+  limits and readings, with `WiredLimitReservation` beside it replacing the
+  one wired-memory ticket in the order asked, and `MLXInferenceRuntime` the
+  one `InferenceRuntime` every family hands out — it takes the family's VAE
+  tile as a pair of accessors, which is the only thing about it that is not
+  process-wide. `GPUGeneration`: whether this is an M5-class GPU, read once
+  from Metal, for the one dtype gate that needs to know. `LatentPreview`: how
+  far to pool a latent for a preview frame, and how to turn the decoded pixels
+  into RGBA8 bytes — the two halves of a frame that are not a family's own
+  decoder. `Streaming/`: the `LayerWeightStream` that runs a stack of
+  identical layers with a window of their weights in memory, reading each
+  layer from its shards a couple ahead of the one running (see "Streaming the
+  weights" under Model weights). A model package may depend on this; nothing in
+  it may depend on a model package. The vendored `ZImageKit` keeps its own copy
+  of the tiled decode and the preview as a `ZEPHRA-PATCH`, because pointing
+  vendored code at ours would complicate every re-sync.
 - `ZephraEngine` (in `Packages/ZephraKit`): concurrency + state. Depends on
   `ZephraCore` and `ZephraSnapshot`, nothing else. Backends arrive as an
   injected `BackendRegistry` of `@Sendable` factories; this layer never names
@@ -595,8 +599,10 @@ measured; leave a comment saying where a figure came from. `ModelMenu` lists
    import whatever it needs; nothing above it may.
 3. Catalog entries naming that `BackendID`.
 4. One line in `Sources/Zephra/ZephraApp.swift`:
-   `registry.register(.yourFamily, YourBackendFactory.make)` and the family's
-   `InferenceRuntime` in the `CombinedInferenceRuntime` list beside it. That
+   `registry.register(.yourFamily, YourBackendFactory.make)` and
+   `YourBackendFactory.runtime` in the `CombinedInferenceRuntime` list beside
+   it — `MLXInferenceRuntime` over the family's own VAE tile, the way the three
+   factories build theirs; no family writes a runtime type of its own. That
    file is the only place in the app target allowed to name a concrete backend.
 
 Then the places that are not the app, each a one-line switch case or list entry:
@@ -1225,10 +1231,16 @@ took 66 s, the reference's 1024 tokens riding through every attention layer — 
 those two figures were measured with the reference's tokens still float32, which
 widened the whole edit to float32; `Flux2ReferenceConditioning.encode` now casts
 them to the stream's dtype, and the edit is due a rerun on an idle machine. The
-stream runs in bfloat16; `ZEPHRA_DIT_DTYPE=f32` is the escape hatch for the
-mlx-swift split-K bug on M5-class GPUs, at three times the step time, and the
-packer's float32 scales are cast to the stream's dtype at load, without which MLX's
-quantized matmul widens every activation to float32.
+stream runs in bfloat16, except on an M5-class GPU, where the backend runs it
+float32 at three times the step time: `Flux2ActivationPrecision` in
+`ZephraBackendFlux2` resolves the dtype — `ZEPHRA_DIT_DTYPE=f32` or `bf16` if
+set, else float32 when `GPUGeneration.isM5Class`, else bfloat16 — and hands it
+to `Flux2Pipeline.loadModel(at:activation:)`; the kit reads no environment
+variable and has no default of its own beyond bfloat16. The gate is the
+workaround for the mlx-swift split-K bug (see "Conventions"), and it is
+unverified: none of the project's Macs is an M5. The packer's float32 scales are
+cast to the stream's dtype at load, without which MLX's quantized matmul widens
+every activation to float32.
 
 Two of this port's choices are load-bearing and easy to undo by accident. The
 schedule uses the pipeline's empirical shift, not the scheduler config's
@@ -1308,14 +1320,19 @@ the re-sync procedure, and the running patch log. Any change inside
   `QwenImageKit` assembles Qwen-Image's tokenizer itself, and its
   `TokenizerTests` pin the ids against the Hugging Face tokenizer's, so a
   swift-transformers bump is checked by running them. When bumping mlx-swift, re-run
-  `Flux2Kit`'s bf16 matmul probe test: mlx-swift up to 0.31.6 miscompiles a
+  `Flux2Kit`'s two bf16 matmul probes: mlx-swift up to 0.31.6 miscompiles a
   bf16 split-K matmul on M5-class GPUs at the single block's output shape
   (mlx#3797, fixed in mlx 0.32.0 by mlx#3810, which no mlx-swift release
   carries yet). klein's stream is bfloat16 by default since `a17023e`; on an
-  M5 the only protection today is `ZEPHRA_DIT_DTYPE=f32`, at three times the
-  step time. The catalog variants pack the block's output projection, so the
-  production path is the quantized matmul rather than the dense one the probe
-  runs, and whether it reaches the same kernel is not established.
+  M5-class GPU `ZephraBackendFlux2` runs it float32 instead, at three times
+  the step time (`Flux2ActivationPrecision`, gated on `GPUGeneration.isM5Class`,
+  overridden either way by `ZEPHRA_DIT_DTYPE`). The gate is unverified — no
+  project Mac is an M5 — and the two probes are what will say whether it is
+  needed: the dense one runs the GEMM the bug is in, and the quantized one
+  runs the packed path both catalog variants actually take, at 4 and 8 bits,
+  since whether `quantizedMatmul` reaches the same kernel is not established.
+  The day both pass on an M5 under a fixed mlx-swift, the gate goes
+  (`ROADMAP.md`).
 - No emojis in code or docs.
 - Keep files small; split before a file grows past its target size.
 - `ROADMAP.md` is where deferred work lives: an option considered and left out
@@ -1386,7 +1403,8 @@ the re-sync procedure, and the running patch log. Any change inside
 - `ZEPHRA_PROFILE_STEP=1` prints per-phase timings (text encode, per-step graph build, per-step
   eval, VAE decode, and Z-Image's preview decode) and MLX's active and peak allocation to stderr.
 - Precision and padding switches, for bisecting a suspected regression without a rebuild:
-  `ZEPHRA_DIT_DTYPE=f32` runs the transformer in float32, `ZEPHRA_PAD_PROMPT=full` pads prompts to
+  `ZEPHRA_DIT_DTYPE=f32` runs the transformer in float32 (and `bf16` runs klein's in bfloat16
+  on an M5, over its device gate), `ZEPHRA_PAD_PROMPT=full` pads prompts to
   the 512-token limit, `ZEPHRA_KEEP_CACHE=1` stops handing MLX's scratch back after a generation,
   and `ZEPHRA_CACHE_LIMIT_MB=N` overrides the benchmark's MLX cache ceiling.
 - `ZEPHRA_VAE_TILE=<latent tile edge>` decodes the VAE in overlapping tiles and blends the seams,

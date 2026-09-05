@@ -22,7 +22,7 @@ public struct Flux2ReferenceConditioning {
     }
 
     /// Encodes each picture, `[1, 3, height, width]` in -1 to 1, through the autoencoder,
-    /// with the tokens in `dtype` — the stream's, `Flux2TransformerPrecision.activation`.
+    /// with the tokens in `dtype` — the stream's, the `activation` the pipeline was loaded with.
     public static func encode(
         _ images: [MLXArray], with autoencoder: Flux2Autoencoder, dtype: DType
     ) -> [Reference] {
