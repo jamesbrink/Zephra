@@ -36,7 +36,7 @@ public final class Flux2Pipeline {
     ) throws {
         onProgress(Flux2GenerationProgress(stage: .loading))
         let configuration = try Flux2Configuration(readingFrom: snapshot)
-        let manifest = Flux2QuantizationManifest.read(from: snapshot)
+        let manifest = try Flux2QuantizationManifest.read(from: snapshot)
         let tokenizer = try Flux2Tokenizer(snapshot: snapshot)
 
         let textEncoder = Qwen3TextEncoder(configuration.textEncoder)

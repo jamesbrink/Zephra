@@ -1,4 +1,5 @@
 import Foundation
+import ZephraMLX
 
 /// The `quantization.json` a locally built snapshot carries.
 ///
@@ -43,11 +44,23 @@ public struct Flux2QuantizationManifest: Decodable {
         byName = Dictionary(layers.map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
-    /// Reads the manifest at a snapshot's root, or nil when the snapshot is full precision.
-    public static func read(from snapshot: URL) -> Flux2QuantizationManifest? {
-        guard let data = try? Data(contentsOf: snapshot.appending(path: "quantization.json"))
-        else { return nil }
-        return try? JSONDecoder().decode(Self.self, from: data)
+    /// Reads the manifest at a snapshot's root: nil when the snapshot has none, which is what
+    /// a full-precision snapshot looks like, and an error when it has one that cannot be read.
+    ///
+    /// A broken manifest is never taken for a missing one. Reading it as "unpacked" loads a
+    /// packed shard into an unpacked tree and fails a component later with a shape error that
+    /// names neither the file nor the reason. (A copy of the other kit's reader; M8 of the
+    /// audit remediation merges the two into `ZephraMLX`.)
+    public static func read(from snapshot: URL) throws -> Flux2QuantizationManifest? {
+        let url = snapshot.appending(path: "quantization.json")
+        guard FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) else {
+            return nil
+        }
+        do {
+            return try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
+        } catch {
+            throw PackedSnapshotError.malformedManifest(url, reason: String(describing: error))
+        }
     }
 
     /// How a named layer was packed, falling back to the header when it is not listed.
