@@ -14,7 +14,7 @@ import Testing
 @Suite("Transformer parity")
 struct TransformerParityTests {
     /// Weights under `prefix`, with the prefix removed so they match a module's own keys.
-    private static func weights(_ fixture: [String: MLXArray], under prefix: String)
+    static func weights(_ fixture: [String: MLXArray], under prefix: String)
         -> [String: MLXArray]
     {
         var stripped: [String: MLXArray] = [:]
@@ -30,7 +30,7 @@ struct TransformerParityTests {
         return QwenImageTransformerWeights.sanitized(stripped)
     }
 
-    private static func frequencies(_ fixture: [String: MLXArray], _ name: String) throws
+    static func frequencies(_ fixture: [String: MLXArray], _ name: String) throws
         -> RotaryFrequencies
     {
         RotaryFrequencies(

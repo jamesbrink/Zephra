@@ -79,11 +79,15 @@ public final class QwenImagePipeline {
             textLength: conditioning.shape[1]
         )
 
+        // Noise and conditioning enter the loop in the stream's dtype: MLX promotes, so a
+        // float32 noise would run every block in float32 whatever the weights are.
+        let dtype = QwenImageTransformerPrecision.activation
         let noise = QwenImageLatentPacking.pack(
             MLXRandom.normal(
                 [1, model.configuration.vae.zDim, latentHeight, latentWidth],
                 key: MLXRandom.key(request.seed)
-            ))
+            )
+        ).asType(dtype)
 
         let latents = try QwenImageDenoiseLoop.run(
             noise: noise,
@@ -96,7 +100,7 @@ public final class QwenImagePipeline {
             scheduler: scheduler,
             transformer: model.transformer,
             autoencoder: model.autoencoder,
-            conditioning: conditioning,
+            conditioning: conditioning.asType(dtype),
             frequencies: frequencies,
             onProgress: onProgress,
             onPreview: onPreview

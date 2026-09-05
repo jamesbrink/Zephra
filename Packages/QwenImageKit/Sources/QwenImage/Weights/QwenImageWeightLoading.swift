@@ -84,4 +84,22 @@ public enum QwenImageWeightLoading {
             parameters: ModuleParameters.unflattened(weights.filter { wanted.contains($0.key) }),
             verify: .all)
     }
+
+    /// Casts every float32 parameter in `model` to `dtype`, leaving the packed integer
+    /// weights alone.
+    ///
+    /// The packer writes scales and biases in float32, as the reference export does, and
+    /// MLX's quantized matmul takes its output dtype from them: one float32 scale and the
+    /// whole stream after that layer is float32, whatever the input was. At a 4096-token image
+    /// that puts the attention off the fused kernel. So the scales are brought down to the
+    /// activation dtype once, at load, and before a `LayerWeightStream` is attached, so the
+    /// stream captures the cast nodes and keeps the dtype on every later pass.
+    ///
+    /// A copy of `Flux2WeightLoading.castFloatParameters`; M8 of the audit remediation moves
+    /// both into one shared loader in `ZephraMLX`.
+    public static func castFloatParameters(of model: Module, to dtype: DType) {
+        guard dtype != .float32 else { return }
+        model.update(
+            parameters: model.parameters().mapValues { $0.dtype == .float32 ? $0.asType(dtype) : $0 })
+    }
 }

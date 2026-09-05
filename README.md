@@ -391,6 +391,12 @@ which is not a thing to do on a Mac. Merging the distillation at build time rath
 than loading it at run time means the runtime never sees an adapter: what lands in
 the models directory is simply the four-step model.
 
+The stream runs in bfloat16, resident or streamed from disk, and `ZEPHRA_DIT_DTYPE=f32`
+runs it in float32, the same switch klein reads. The figures above were measured
+before that was true: the noise was drawn float32 and the packer's float32 scales were
+never cast, so every block ran in float32 by accident. They are due a rerun on an idle
+machine.
+
 Holding modulation at eight bits is the one judgement call in the recipe. Those
 layers are 6.8 of the transformer's 20.4 billion parameters and they decide how
 strongly every other layer responds; four-bit builds that pack them with everything

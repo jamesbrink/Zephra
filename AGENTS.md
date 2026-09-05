@@ -982,7 +982,10 @@ and peaks at 26053 MB; 1024 takes 33.6 s (8.15 s/step) and peaks at 30364 MB;
 26068 MB at 1024, 26088 MB at 1328 — because the tile, not the image, sets the
 decode's transient and what is left is the transformer. So 1024 is the default
 size: half the seconds of native for an image that still renders legible text,
-and the entry's `peakBytes` is measured there.
+and the entry's `peakBytes` is measured there. Every one of those figures was
+taken while the stream ran in float32 by accident — float32 noise, uncast
+float32 scales, and a stream handing back raw nodes — and is due a rerun on an
+idle machine now that it runs in bfloat16 (see "Streaming the weights").
 
 **The Lightning adapter is not optional.** The base model wants fifty steps and
 real classifier-free guidance, which is two forward passes through twenty
@@ -1023,9 +1026,19 @@ open fresh lazy nodes for every tensor in the stack's shards; `asyncEval` the fi
 `depth` layers' arrays, which starts their reads on the CPU stream; then for each
 layer, run its work, `asyncEval` its outputs, **wait for the layer before it**, then
 `asyncEval` the layer `depth` ahead, then hand each of the layer's arrays a fresh
-unevaluated node from the next pass with `_updateInternal`. The buffers a layer
-held live exactly until its command buffers complete, and nothing has to remember
-a placeholder. Two of those choices are load-bearing and easy to undo: outputs
+unevaluated node from the next pass with `_updateInternal`, cast back to the dtype
+the tree held at capture. The buffers a layer held live exactly until its command
+buffers complete, and nothing has to remember a placeholder. The cast is what lets
+a load-time cast survive streaming: the packer's scales are float32 on disk, MLX's
+quantized matmul takes its output dtype from them, and a stream that handed back
+the raw node would have widened every block after the first to float32 from the
+second step on — which is exactly how Qwen-Image ran in float32 until the audit.
+Now `QwenImagePipeline.loadModel` casts the text encoder's and the transformer's
+float32 parameters to `QwenImageTransformerPrecision.activation` (bfloat16, or
+float32 under `ZEPHRA_DIT_DTYPE=f32`) *before* attaching either stream, `generate`
+casts the noise and the conditioning to it, and the transformer casts its text to
+the latents' dtype at entry; the autoencoder stays float32 on purpose. Two more of
+the loop's choices are load-bearing and easy to undo: outputs
 are committed per layer at all because an unevaluated graph holds every layer's
 weights as inputs, so one eval per step would read most of the model before any
 of it ran; and the wait on the layer before is what bounds the window at
