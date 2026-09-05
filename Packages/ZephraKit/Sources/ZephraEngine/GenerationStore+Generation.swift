@@ -35,7 +35,7 @@ extension GenerationStore {
         let pump = EngineEventPump { [weak self] event in self?.applyGenerationEvent(event) }
         do {
             let data = try await pump.run { sink in
-                try await inference.generate(job.settings, events: sink)
+                try await inference.generate(job.settings, tile: vaeTile(for: job.model), events: sink)
             }
             // Stop pressed during the decode: the backend never looked, and the bytes are not
             // wanted. A stopped run keeps no image, whenever the stop landed.

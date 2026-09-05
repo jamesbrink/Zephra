@@ -104,7 +104,7 @@ final class MockBackend: ImageGenerationBackend {
         _ settings: GenerationSettings,
         onProgress: @escaping (GenerationProgressEvent) -> Void
     ) async throws -> Data {
-        control.update { $0.generations += 1; $0.lastSettings = settings }
+        control.update { $0.generations += 1; $0.lastSettings = settings; $0.tileAtGenerate = $0.vaeTile }
         let dials = control.settings
         if let error = dials.generateError { throw error }
         onProgress(GenerationProgressEvent(phase: .encodingText, fraction: 0))

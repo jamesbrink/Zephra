@@ -11,7 +11,8 @@ extension GenerationStore {
         guard let registry else { return nil }
         if let inference { return inference }
         let made = InferenceActor(
-            registry: registry, locations: locations, upscaler: upscalerFactory)
+            registry: registry, locations: locations, upscaler: upscalerFactory,
+            runtime: runtime)
         inference = made
         return made
     }

@@ -68,6 +68,11 @@ final class MockBackendControl: Sendable {
         var ignoresFinalCancellation = false
         /// How long the pretend decode after the last step takes. Zero skips it.
         var decodeDelay: Duration = .zero
+        /// The VAE tile `MockInferenceRuntime` was last told to decode at.
+        var vaeTile: Int?
+        /// The tile in force when the last `generate` began, warm-up included: what a real
+        /// backend's decode would have read.
+        var tileAtGenerate: Int?
     }
 
     private let storage = Mutex(Settings())

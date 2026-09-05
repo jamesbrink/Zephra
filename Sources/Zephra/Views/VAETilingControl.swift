@@ -6,9 +6,9 @@ import ZephraEngine
 ///
 /// This is the one setting that trades exactness for memory, so it says what the trade costs
 /// and then gets out of the way: Automatic tiles only for a model that would otherwise page on
-/// this Mac. The choice reaches the runtime as the picker moves, not on relaunch.
+/// this Mac. The choice reaches the store as the picker moves, not on relaunch, and the store
+/// applies it to each run's own model as the run starts.
 struct VAETilingControl: View {
-    @Environment(\.inferenceRuntime) private var runtime
     @Environment(GenerationStore.self) private var store
     @Environment(\.memoryBudget) private var budget
     @AppStorage(AppSettings.vaeTiling) private var mode = AppSettings.initialVAETiling
@@ -24,7 +24,6 @@ struct VAETilingControl: View {
             .font(.caption)
             .foregroundStyle(.secondary)
             .onChange(of: mode, initial: true) { apply() }
-            .onChange(of: store.descriptor) { apply() }
     }
 
     /// What tiling costs and saves for the model that is actually selected. The saving is the
@@ -44,8 +43,7 @@ struct VAETilingControl: View {
     }
 
     private func apply() {
-        let policy = VAETilingPolicy(mode: mode, budget: budget)
-        runtime?.setVAETileSize(policy.tileSize(for: store.descriptor))
+        store.setVAETilingPolicy(VAETilingPolicy(mode: mode, budget: budget))
     }
 }
 

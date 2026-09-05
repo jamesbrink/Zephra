@@ -216,7 +216,7 @@ engine be tested in seconds without Metal.
   it saved), the queue,
   batches (several seeds of one prompt from
   one press of Generate), model switching, history, availability, preview,
-  the public convenience init (`+Init`),
+  the public convenience init (`+Init`), the tiled decode (`+Tiling`),
   the reference picture, the library, following the run, upscaling and filing
   the upscaled result, the interface's own questions (`+Interaction`), the
   download requests it keeps alive (`+Downloads`), the two folder changes
@@ -233,7 +233,9 @@ engine be tested in seconds without Metal.
   back: a Stop that lands during the decode keeps no image, publishes nothing
   and writes nothing. A finished image carries its own job's batch and model
   (`QueuedGeneration`), not `running`'s, which a cancel empties, nor the store's
-  `descriptor`, which a switch moves before the run is over.
+  `descriptor`, which a switch moves before the run is over. The VAE tile is chosen
+  the same way, per run from the job's model, by `GenerationStore+Tiling` and set
+  by the actor as the run starts; see `ZEPHRA_VAE_TILE` under Debugging hooks.
 - `EngineEventPump` carries progress from that queue back to the main actor. Its
   `AsyncStream` buffers the newest four events and drops the rest — progress is
   a snapshot, not a log — and `run` drains before returning, so the state a
@@ -1298,10 +1300,12 @@ the re-sync procedure, and the running patch log. Any change inside
   takes the 1024-pixel peak from 23.5 GB to 17.7 GB for a mean absolute pixel difference of 1 of
   255. It is the starting value of each family's tile — `VAETiledDecode.latentTile` for
   Z-Image, `QwenImageAutoencoder.latentTile` for Qwen-Image — and so is what `ZephraBench` and
-  the command line use. The app overrides it as soon as its window appears: Settings >
-  Performance holds a three-way preference (`AppSettings.vaeTiling`) and `VAETilingPolicy`
-  applies it for the model about to run, tiling under Automatic when that model's `peakBytes`
-  is over what the GPU may keep resident (`MemoryBudget`).
+  the command line use. The app overrides it at its first run rather than at launch: Settings >
+  Performance holds a three-way preference (`AppSettings.vaeTiling`), the store keeps it as
+  `vaeTilingPolicy`, and `InferenceActor` sets the tile on its own queue as each run (and each
+  warm-up) starts, for that run's own model — tiling under Automatic when that model's
+  `peakBytes` is over what the GPU may keep resident (`MemoryBudget`). A model chosen mid-run
+  therefore never changes the running run's decode.
 - `ZEPHRA_WEIGHT_RESIDENCY=streamed|resident` overrides the Performance tab's streaming
   preference for one launch, and `ZEPHRA_STREAM_DEPTH=N` says how many blocks a streamed load
   reads ahead (2 unless set). `make bench ARGS="--model qwen-image-2512-4bit --stream"` is the

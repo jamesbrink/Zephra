@@ -40,7 +40,7 @@ extension GenerationStore {
             try Task.checkCancellation()
             if warmsUpAfterLoad {
                 if loadIdentity == identity { transition(to: .warmingUp) }
-                try await inference.warmUp(model)
+                try await inference.warmUp(model, tile: vaeTile(for: model))
             }
             try Task.checkCancellation()
             guard loadIdentity == identity else { throw CancellationError() }

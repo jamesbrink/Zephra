@@ -17,6 +17,7 @@ struct InferenceActorTests {
         await #expect(throws: BackendError.loadFailed("The model has not been loaded yet.")) {
             _ = try await inference.generate(
                 GenerationSettings.defaults(for: ModelCatalog.default),
+                tile: nil,
                 events: EngineEventSink(continuation)
             )
         }

@@ -58,6 +58,26 @@ extension InferenceActor {
         }
     }
 
+    /// Runs one tiny generation and throws the result away, so the first image the user asks
+    /// for is not the one that pays for kernel compilation. `tile` is the VAE tile it decodes
+    /// at, set on this queue the way `generate` sets it.
+    func warmUp(_ descriptor: ModelDescriptor, tile: Int?) async throws {
+        let live = try backend(for: descriptor)
+        runtime?.setVAETileSize(tile)
+        let settings = descriptor.capabilities.clamp(
+            GenerationSettings(
+                prompt: Self.warmUpPrompt,
+                size: Self.warmUpSize,
+                steps: 1,
+                guidance: descriptor.capabilities.defaultGuidance,
+                seed: 0
+            )
+        )
+        try Task.checkCancellation()
+        _ = try await live.generate(settings) { _ in }
+        try Task.checkCancellation()
+    }
+
     /// Whether `descriptor`'s weights are already on this Mac. Never downloads, and never
     /// disturbs what is loaded: a backend built only to answer this is thrown away afterwards.
     func availability(of descriptor: ModelDescriptor) async -> ModelAvailability {
