@@ -10,6 +10,12 @@ enum BenchRunner {
     /// family the chosen model belongs to and never names one itself.
     static func run(_ options: BenchOptions, registry: BackendRegistry) async throws -> BenchReport {
         BenchBackends.runtime().setCacheLimit(bytes: cacheLimit())
+        if let limit = megabytes("ZEPHRA_MEMORY_LIMIT_MB") {
+            BenchBackends.runtime().setMemoryLimit(bytes: limit)
+        }
+        if let limit = megabytes("ZEPHRA_WIRED_LIMIT_MB") {
+            BenchBackends.runtime().setWiredLimit(bytes: limit)
+        }
         // The backends read this when they build their throttle, so it has to be set before the
         // first generation and not after. Zero switches the frames off, which is the default
         // here: a benchmark measures the model, unless it was asked to measure the frames too.
@@ -157,12 +163,18 @@ enum BenchRunner {
     /// Caps MLX's retained scratch memory, leaving room for the weights and for the rest of
     /// the machine. Eight gigabytes is plenty for a 2048-pixel run.
     private static func cacheLimit() -> Int {
-        if let override = ProcessInfo.processInfo.environment["ZEPHRA_CACHE_LIMIT_MB"],
-           let megabytes = Int(override) {
-            return megabytes * 1_000_000
-        }
+        if let limit = megabytes("ZEPHRA_CACHE_LIMIT_MB") { return limit }
         let physical = Int(ProcessInfo.processInfo.physicalMemory)
         return min(8_000_000_000, physical / 6)
+    }
+
+    /// A limit named in the environment in megabytes, as bytes, or nil when it is not set. The
+    /// memory and wired limits are what the app sets from the GPU's working set; setting them
+    /// here is how a run in the app is reproduced headlessly.
+    private static func megabytes(_ variable: String) -> Int? {
+        guard let value = ProcessInfo.processInfo.environment[variable], let megabytes = Int(value)
+        else { return nil }
+        return megabytes * 1_000_000
     }
 
     private static func write(_ image: Data, to url: URL) throws {
