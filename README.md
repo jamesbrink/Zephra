@@ -189,7 +189,10 @@ with a progress readout while that happens.
   opening an image again shows what it was made from, ready to vary. Favourites, tags and
   album membership go into the same file, under a second keyword, so they travel with the
   picture too. A PNG that Zephra did not make carries no record and is ignored. Right-click
-  a thumbnail for Save as, Copy, Reveal in Finder, Upscale, and Delete; Delete (⌘⌫ for the
+  a thumbnail for Save as, Copy, Reveal in Finder, Upscale, and Delete. Save as copies the
+  file itself, so what the library has written to it since goes along; saving a file onto
+  itself does nothing, and saving several into a folder that already holds some of the names
+  asks whether to keep both (numbered), replace, or cancel. Delete (⌘⌫ for the
   image on the canvas) moves the file to `Recently Deleted` inside the selected library folder, where it
   waits thirty days before it is thrown away for good. In that collection the menu offers
   Put Back and Delete Immediately instead.

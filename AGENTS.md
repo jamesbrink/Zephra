@@ -314,6 +314,23 @@ as an index, and it is Foundation only, so `make test` covers all of it.
 - `LibrarySelection` holds what is chosen; `LibraryCursor` is the pure
   arithmetic of moving through a grid, so keyboard navigation is tested without
   a window. `ImageFacts` formats the seven rows the inspector shows.
+- Export copies the file, never the bytes in memory, once a picture has one:
+  the file is where the favourite, the tags, the albums and the upscale record
+  were written, and `ImageExport.exportData(for:)` reads it for Save as, Copy
+  and a drag alike, embedding the record into the session's bytes only before
+  the save has landed. Every copy goes through `ExportPlan`
+  (`Sources/Zephra/Support/`), a pure plan of copies, collisions and files
+  that are already the file there, so a file is never copied onto itself — a
+  save onto the source is a silent no-op — and a batch that would land on
+  other files asks Keep Both (numbered the way the Finder does, the default),
+  Replace, or Cancel through `ExportCollisionPrompt`. `copyReplacing` writes
+  into a hidden sibling in the destination's folder and renames it into place
+  (`replaceItemAt` over an existing file, a move otherwise), so the destination
+  is whole or absent at every instant and the source is only ever read;
+  remove-then-copy is what used to delete an original exported into its own
+  folder. Failures are collected into one alert. `ExportPlanTests`,
+  `ImageExportReplaceTests` and `ExportDataTests` in `Tests/ZephraTests` pin
+  all of it, the middle one on the real filesystem under `Scratch`.
 
 ## The app target's shape
 
