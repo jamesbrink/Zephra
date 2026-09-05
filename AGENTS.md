@@ -1187,7 +1187,11 @@ the re-sync procedure, and the running patch log. Any change inside
 - Conventional Commits for all git messages.
 - Swift 6 strict concurrency in our code. The vendored `ZImageKit` package
   stays in Swift 5 language mode so its 49 upstream files compile untouched.
-- Every package pins the same exact `mlx-swift` version. When bumping it, re-run
+- Every package pins the same exact `mlx-swift` and `swift-transformers`
+  versions (`ZImageKit`'s manifest too, logged in its `VENDORED.md`).
+  `QwenImageKit` assembles Qwen-Image's tokenizer itself, and its
+  `TokenizerTests` pin the ids against the Hugging Face tokenizer's, so a
+  swift-transformers bump is checked by running them. When bumping mlx-swift, re-run
   `Flux2Kit`'s bf16 matmul probe test: mlx-swift up to 0.31.6 miscompiles a
   bf16 split-K matmul on M5-class GPUs at the single block's output shape
   (mlx#3797, fixed in mlx 0.32.0 by mlx#3810, which no mlx-swift release

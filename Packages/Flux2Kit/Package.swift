@@ -12,8 +12,8 @@ let package = Package(
         .package(url: "https://github.com/ml-explore/mlx-swift", exact: "0.31.3"),
         // MLX work that is not this model's: the tiled decode every family's autoencoder wants.
         .package(path: "../ZephraMLXKit"),
-        // The tokenizer, and the hub client the download goes through.
-        .package(url: "https://github.com/huggingface/swift-transformers", from: "0.1.24"),
+        // The tokenizer, pinned exactly the way mlx-swift is: every package pins one version.
+        .package(url: "https://github.com/huggingface/swift-transformers", exact: "0.1.24"),
         // SnapshotUnderTest, for the suites that read a real snapshot's files.
         .package(path: "../ZephraKit"),
     ],

@@ -12,7 +12,9 @@ let package = Package(
         .package(url: "https://github.com/ml-explore/mlx-swift", exact: "0.31.3"),
         // MLX work that is not this model's: the tiled decode every family's autoencoder wants.
         .package(path: "../ZephraMLXKit"),
-        .package(url: "https://github.com/huggingface/swift-transformers", from: "0.1.24"),
+        // Pinned exactly, like mlx-swift: the assembled tokenizer leans on this version reading a
+        // Split pre-tokenizer's regex, which is what TokenizerTests pins against the reference.
+        .package(url: "https://github.com/huggingface/swift-transformers", exact: "0.1.24"),
         // SnapshotUnderTest, for the suites that read a real snapshot's files.
         .package(path: "../ZephraKit"),
     ],
