@@ -66,10 +66,12 @@ No code was taken from `mzbac/qwen.image.swift`, which is GPL-3.0. See
 `PROVENANCE.md` for what that means and how the boundary was kept.
 
 One file follows an approach taken from the vendored MIT-licensed
-`ZImageKit`: `Tokenizer/QwenImageTokenizer.swift` assembles a byte-level BPE
-tokenizer from `vocab.json` and `merges.txt` the same way, because Qwen-Image
-ships no `tokenizer.json` either. The zimage.swift copyright notice above
-covers it.
+`ZImageKit`: `Tokenizer/QwenImageTokenizer+Assembly.swift` assembles a byte-level BPE
+tokenizer from `vocab.json` and `merges.txt`, because Qwen-Image ships no
+`tokenizer.json` either. The assembly now follows `transformers`'
+`Qwen2Tokenizer` (its own pre-tokenizer and every merge) rather than that copy's
+GPT-2 configuration, but the approach is still ZImageKit's, and the zimage.swift
+copyright notice above covers it.
 
 ### FLUX.2 port (`Packages/Flux2Kit`)
 
