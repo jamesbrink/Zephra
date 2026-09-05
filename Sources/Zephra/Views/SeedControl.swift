@@ -2,20 +2,31 @@ import SwiftUI
 import ZephraEngine
 
 /// The noise seed in a short readable form, a shuffle for a fresh one, and a lock that keeps
-/// it across runs. The full value lives in the tooltip and in every saved file's name.
+/// it across runs. The full value lives in the tooltip and in every saved file's name, and a
+/// click on the label opens `SeedEntryPopover` to type one in.
 struct SeedControl: View {
     @Environment(GenerationStore.self) private var store
     @AppStorage(AppSettings.randomizeSeedEachRun) private var randomizeEachRun = AppSettings.initialRandomizeSeedEachRun
+    @State private var isEntering = false
 
     var body: some View {
         HStack(spacing: 4) {
-            Text(store.settings.seed.shortSeedLabel)
-                .font(.callout)
-                .monospaced()
-                .foregroundStyle(.secondary)
-                .fixedSize()
-                .padding(.horizontal, 4)
-                .help("Seed \(String(store.settings.seed))")
+            Button {
+                isEntering = true
+            } label: {
+                Text(store.settings.seed.shortSeedLabel)
+                    .font(.callout)
+                    .monospaced()
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
+                    .padding(.horizontal, 4)
+            }
+            .buttonStyle(.accessoryBar)
+            .help("Seed \(String(store.settings.seed)). Click to type one in.")
+            .accessibilityLabel("Seed \(String(store.settings.seed))")
+            .popover(isPresented: $isEntering, arrowEdge: .top) {
+                SeedEntryPopover(isPresented: $isEntering)
+            }
             Button {
                 store.randomizeSeed()
             } label: {

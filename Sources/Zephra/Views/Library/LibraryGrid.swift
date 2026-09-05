@@ -46,6 +46,10 @@ struct LibraryGrid: View {
             // Focus-scoped on purpose: it is what tells the menu bar that ⌘A means these
             // images rather than the text in the sidebar's search field.
             .focusedValue(\.focusedLibraryGrid, selection)
+            // Plain ⌘C, through the responder chain rather than a second Copy item: the Edit
+            // menu's Copy reaches this only while the grid has the keyboard, so Copy in the
+            // search field still means the text there. ⇧⌘C stays the named "Copy Image".
+            .onCopyCommand { ImageExport.itemProviders(for: selected.map(\.url)) }
             // The grid is torn down while the viewer is up and rebuilt fresh the moment it
             // closes, so a selection left over from stepping through the viewer would
             // otherwise land off screen with nothing to bring it back into view.
@@ -105,8 +109,7 @@ struct LibraryGrid: View {
     /// What a menu opened over one image should act on: the whole selection when that image is
     /// part of it, and only that image when it is not.
     private func targets(for item: LibraryItem) -> [LibraryItem] {
-        guard selection.contains(item.id) else { return [item] }
-        return index.sections.flatMap { $0.items.filter { selection.contains($0.id) } }
+        selection.contains(item.id) ? selected : [item]
     }
 
     /// The images just below the fold of one section, for the cache to get a head start on.
@@ -116,6 +119,11 @@ struct LibraryGrid: View {
     }
 
     private var edge: CGFloat { thumbnails?.edge ?? CGFloat(AppSettings.initialLibraryThumbnailEdge) }
+
+    /// The selected images in the order the grid shows them.
+    private var selected: [LibraryItem] {
+        index.sections.flatMap { $0.items.filter { selection.contains($0.id) } }
+    }
 
     private var shown: Set<LibraryItem.ID> {
         Set(index.sections.flatMap { $0.items.map(\.id) })
