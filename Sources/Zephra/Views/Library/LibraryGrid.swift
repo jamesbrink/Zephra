@@ -1,13 +1,12 @@
-import AppKit
 import SwiftUI
 import ZephraEngine
 
 /// The wall of images, grouped by the day they were made.
 ///
-/// The keyboard is the grid's own business and the pointer is the cell's. Everything the arrow
-/// keys do is worked out by `LibraryCursor`, which is a pure function over the sections and the
-/// selection, so "down from the last row of one day lands in the next day at the same column"
-/// is a thing that can be tested rather than a thing that is fiddled with here.
+/// The keyboard is `LibraryGridKeyboard`'s business and the pointer is the cell's. Everything
+/// the arrow keys do is worked out by `LibraryCursor`, which is a pure function over the
+/// sections and the selection, so "down from the last row of one day lands in the next day at
+/// the same column" is a thing that can be tested rather than a thing that is fiddled with.
 ///
 /// The ring around a chosen image is drawn here rather than in the cell: a cell draws one
 /// picture, and whether that picture is chosen is a fact about the grid.
@@ -21,6 +20,8 @@ struct LibraryGrid: View {
     /// The gap between two cells, and between a day's last row and the next day's heading.
     private static let cellSpacing: CGFloat = 12
     private static let sectionSpacing: CGFloat = 18
+    /// The air between the grid and the pane's edges, which the column count allows for.
+    private static let horizontalPadding: CGFloat = 20
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -34,10 +35,13 @@ struct LibraryGrid: View {
             }
             .background(.background)
             .focusable()
+            // The ring the system would draw round the whole pane says nothing; the ring
+            // round the selected cell is what shows where the keyboard is.
             .focusEffectDisabled()
-            .onMoveCommand { move($0, revealing: proxy) }
+            .modifier(LibraryGridKeyboard(selection: selection, proxy: proxy))
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: {
-                selection.columns = columns(across: $0)
+                selection.columns = GridColumns.count(
+                    width: $0, edge: edge, spacing: Self.cellSpacing, inset: Self.horizontalPadding)
             }
             // Focus-scoped on purpose: it is what tells the menu bar that ⌘A means these
             // images rather than the text in the sidebar's search field.
@@ -69,7 +73,7 @@ struct LibraryGrid: View {
                 }
             }
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, Self.horizontalPadding)
         .padding(.vertical, Self.sectionSpacing)
     }
 
@@ -98,24 +102,6 @@ struct LibraryGrid: View {
         ))
     }
 
-    /// Shift held during an arrow key means the selection grows from wherever it is anchored,
-    /// which is the same rule a shift-click follows.
-    private func move(_ direction: MoveCommandDirection, revealing proxy: ScrollViewProxy) {
-        guard let heading = LibraryGrid.direction(of: direction),
-              let outcome = LibraryCursor.move(
-                  heading,
-                  in: index.sections,
-                  columns: selection.columns,
-                  selection: selection.ids,
-                  anchor: selection.anchor,
-                  extending: NSEvent.modifierFlags.contains(.shift)
-              )
-        else { return }
-        selection.apply(outcome)
-        guard let reveal = outcome.reveal else { return }
-        withAnimation(.easeOut(duration: 0.12)) { proxy.scrollTo(reveal, anchor: .center) }
-    }
-
     /// What a menu opened over one image should act on: the whole selection when that image is
     /// part of it, and only that image when it is not.
     private func targets(for item: LibraryItem) -> [LibraryItem] {
@@ -129,26 +115,10 @@ struct LibraryGrid: View {
         return Array(following.prefix(max(selection.columns, 1) * 3))
     }
 
-    /// How many cells the adaptive grid is fitting across, which is what up and down move by.
-    private func columns(across width: CGFloat) -> Int {
-        let usable = width - 40 + Self.cellSpacing
-        return max(1, Int(usable / (edge + Self.cellSpacing)))
-    }
-
     private var edge: CGFloat { thumbnails?.edge ?? CGFloat(AppSettings.initialLibraryThumbnailEdge) }
 
     private var shown: Set<LibraryItem.ID> {
         Set(index.sections.flatMap { $0.items.map(\.id) })
-    }
-
-    private static func direction(of command: MoveCommandDirection) -> LibraryCursor.Direction? {
-        switch command {
-        case .up: .up
-        case .down: .down
-        case .left: .left
-        case .right: .right
-        @unknown default: nil
-        }
     }
 }
 

@@ -21,10 +21,11 @@ import ZephraEngine
 /// The column is there only when it has something to describe: always in the library, whose
 /// own empty state is worth reading, and on the canvas only while a picture is showing. Two
 /// empty states side by side read as something broken. It slides in from the trailing edge
-/// the moment the first picture lands.
+/// the moment the first picture lands, or appears in place under Reduce Motion.
 struct WorkspaceDetail: View {
     @Environment(WorkspaceSelection.self) private var workspace
     @Environment(GenerationStore.self) private var store
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 0) {
@@ -37,7 +38,7 @@ struct WorkspaceDetail: View {
                     .transition(.move(edge: .trailing))
             }
         }
-        .animation(.snappy, value: inspectorShown)
+        .animation(reduceMotion ? nil : .snappy, value: inspectorShown)
     }
 
     private var inspectorShown: Bool {

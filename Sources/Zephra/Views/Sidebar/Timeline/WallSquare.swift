@@ -5,7 +5,10 @@ import ZephraEngine
 /// the picture the canvas is showing.
 ///
 /// The wash is what says a square can be pressed, the way Photos lifts a thumbnail under the
-/// pointer; without it the wall read as a contact sheet. The ring is the same one the library
+/// pointer; without it the wall read as a contact sheet. It comes and goes at once, the way
+/// AppKit's own hover highlights do, rather than fading: a fade would want Reduce Motion
+/// honoured, and a fourth stored property for a twelfth of a second is not worth it. The
+/// ring is the same one the library
 /// grid draws round a selected cell, a point outside the square, so "this one is on the
 /// canvas" looks the same in both places. A place still to be filled takes neither: there is
 /// nothing to press and nothing to show.
@@ -37,7 +40,6 @@ struct WallSquare: View {
                 guard isPressable else { return }
                 isHovered = over
             }
-            .animation(.easeOut(duration: 0.12), value: isHovered)
             .accessibilityAddTraits(isShowing ? .isSelected : [])
     }
 
