@@ -9,7 +9,13 @@ the earlier shape.
 
 - `library-and-gallery.html` — two 1440 x 900 frames. Frame 3a is the Canvas
   pane, frame 3b the Library pane. Open it in a browser; it is self-contained.
-- `img/` — placeholder images the frames use.
+- `img/` — placeholder images the frames use, at 1024 pixels on the long edge
+  (the frames draw them far smaller; the originals were 1664 pixels and are in
+  the history before 2026-09-05). Where they came from was not recorded when
+  the mock was made and they carry no `zephra:generation` chunk, so they are
+  not known to be Zephra's own output; treat them as design placeholders and
+  do not ship them. `a2.png` doubles as the documented reference input for
+  `make bench ARGS="--reference design/mock/img/a2.png"`.
 - `uploads/current-app-canvas.png` — the app as it was before the redesign.
 - `uploads/sidebar-detail.png` — a close-up of the sidebar's search, chips,
   queue, and day-grouped history.
