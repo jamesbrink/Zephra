@@ -17,6 +17,9 @@ final class MockBackendControl: Sendable {
         var stepDelay: Duration = .milliseconds(10)
         /// How long `load` pretends to take, so a test can cancel while it is under way.
         /// Zero skips the sleep entirely.
+        var downloadGate: (@Sendable (ModelDescriptor) async throws -> Void)?
+        var loadGate: (@Sendable (ModelDescriptor) async -> Void)?
+        var ignoresLoadCancellation = false
         var downloadDelay: Duration = .zero
         var loadDelay: Duration = .zero
         /// Overrides the step count in the request, for a mock that ignores what it is asked.

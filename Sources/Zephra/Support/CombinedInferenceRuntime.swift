@@ -19,6 +19,8 @@ struct CombinedInferenceRuntime: InferenceRuntime {
         self.runtimes = runtimes
     }
 
+    func synchronize() { runtimes.first?.synchronize() }
+
     func setCacheLimit(bytes: Int) {
         for runtime in runtimes { runtime.setCacheLimit(bytes: bytes) }
     }

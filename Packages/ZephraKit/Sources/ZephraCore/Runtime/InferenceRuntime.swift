@@ -3,6 +3,8 @@
 /// Kept apart from `ImageGenerationBackend` on purpose: this is the process-wide allocator, not
 /// one model, and the settings window needs it while no model is loaded at all.
 public protocol InferenceRuntime: Sendable {
+    /// Drain outstanding device work before the process destroys the runtime.
+    func synchronize()
     /// Caps the memory the allocator keeps for reuse between allocations. Takes effect at once.
     func setCacheLimit(bytes: Int)
 

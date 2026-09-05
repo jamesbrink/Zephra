@@ -7,7 +7,7 @@ extension GenerationStore {
     var isRunning: Bool {
         // An upscale that is stopping is also in `.cancelling`, and it is not a generation:
         // counting it as one would let Generate queue work behind a model that never loaded.
-        guard !isUpscaling else { return false }
+        guard !isUpscaling, !isStoppingPreparation else { return false }
         switch state {
         case .generating, .cancelling: return true
         default: return false
@@ -25,7 +25,7 @@ extension GenerationStore {
     /// other than the one loaded. With the queue empty, brings the loaded model in line with the
     /// chosen one, so a switch made mid-run lands as soon as the run is over.
     func drain() {
-        guard !isChangingModelDirectory else { return }
+        guard !isChangingModelDirectory, !isShuttingDown else { return }
         guard let next = queue.first else {
             isSwitchingForQueue = false
             if descriptor.id != loadedDescriptor?.id { reload(descriptor, thenDrain: false) }
@@ -68,14 +68,9 @@ extension GenerationStore {
             transition(to: .cancelling)
             upscaleTask?.cancel()
         case .checkingModel, .downloading, .building, .loading, .warmingUp:
-            queue.removeAll()
-            isSwitchingForQueue = false
-            bootstrapTask?.cancel()
+            stopPreparation(discard: true)
         case .idle where isSwappingModel:
-            queue.removeAll()
-            isSwitchingForQueue = false
-            isSwappingModel = false
-            switchTask?.cancel()
+            stopPreparation(discard: true)
         case .idle, .ready, .cancelling, .failed:
             break
         }

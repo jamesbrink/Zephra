@@ -22,6 +22,7 @@ final class StubBackend: ImageGenerationBackend {
     func ensureAvailable(
         _ descriptor: ModelDescriptor,
         locations: ModelLocations,
+        acquisition: any ModelAcquisition,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws -> URL {
         URL(filePath: NSTemporaryDirectory())

@@ -15,7 +15,9 @@ extension ModelLocations {
         _ adapter: ModelAdapter, cache: URL = HubCache.directory()
     ) -> URL? {
         let files = FileManager.default
-        let here = roots.map { ModelLocations(root: $0).adapterFile(adapter) }
+        let here = roots.map { ModelLocations(root: $0) }
+            .filter { RepositoryRevision.matches($0.downloads(repoID: adapter.repoID), revision: adapter.revision) }
+            .map { $0.adapterFile(adapter) }
             .first { files.fileExists(atPath: $0.path(percentEncoded: false)) }
         if let here { return here }
         return HubCache.repositories(of: adapter.repoID, in: cache)

@@ -19,7 +19,8 @@ extension LocalSnapshot {
     ) -> URL? {
         guard case .huggingFace(let repoID, let revision, _) = descriptor.source else { return nil }
         for downloads in locations.downloadsCandidates(repoID: repoID)
-        where missingEntry(in: downloads) == nil && HubSnapshotCheck.isComplete(downloads) {
+        where RepositoryRevision.matches(downloads, revision: revision)
+            && missingEntry(in: downloads) == nil && HubSnapshotCheck.isComplete(downloads) {
             return downloads
         }
         if let cached = HubCache.snapshot(of: repoID, revision: revision),

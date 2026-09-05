@@ -1,6 +1,7 @@
 import Foundation
 import ZephraCore
 import ZephraQuantization
+import ZephraSnapshot
 
 /// What packing the Qwen-Image release into a loadable variant means for this family: which
 /// plan, which adapter goes into it, and how much of the source each component reads.
@@ -35,7 +36,8 @@ enum QwenImageSnapshotBuild {
             sourceName: descriptor.sourceName,
             freeSpaceBytes: descriptor.builtBytes,
             note: { if let event = tally.note($0) { onProgress(event) } },
-            shouldContinue: { try Task.checkCancellation() }
+            shouldContinue: { try Task.checkCancellation() },
+            finalize: { try PackedProvenance.write(descriptor, into: $0) }
         )
     }
 }

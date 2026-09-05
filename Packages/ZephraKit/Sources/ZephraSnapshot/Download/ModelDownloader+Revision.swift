@@ -52,16 +52,32 @@ extension ModelDownloader {
         for part: RepositoryDownload, on session: URLSession
     ) async throws -> String {
         let pin = Self.pin(in: part.destination)
-        if let pinned = try? String(contentsOf: pin, encoding: .utf8)
-            .trimmingCharacters(in: .whitespacesAndNewlines), !pinned.isEmpty
-        {
+        let requested = part.destination.appending(path: ".zephra-requested-revision")
+        let pinned = try? String(contentsOf: pin, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
+        let previousRequest = try? String(contentsOf: requested, encoding: .utf8)
+        if let pinned, !pinned.isEmpty,
+           previousRequest == part.revision || (previousRequest == nil && (part.revision == "main" || part.revision == pinned)) {
             return pinned
         }
         let sha = try await commit(of: part.repoID, revision: part.revision, on: session)
-        try FileManager.default.createDirectory(
-            at: part.destination, withIntermediateDirectories: true)
+        try Task.checkCancellation()
+        guard !Self.isLink(part.destination) else { throw ModelDownloadError.unsafePath(path: part.destination.path) }
+        try FileManager.default.createDirectory(at: part.destination, withIntermediateDirectories: true)
+        // An explicit different revision must not reuse same-sized shards from an old pin.
+        // Record the old identity before removing anything, preserving crash recovery order.
+        if let pinned, !pinned.isEmpty, pinned != sha {
+            try pinned.write(to: Self.completed(in: part.destination), atomically: true, encoding: .utf8)
+        }
+        if part.revision != "main", pinned?.isEmpty != false,
+           !FileManager.default.fileExists(atPath: Self.completed(in: part.destination).path) {
+            // Legacy unmarked bytes cannot establish an explicit revision. Persist an
+            // incompatible identity first so interrupted cleanup remains safe on retry.
+            try "unverified-\(UUID().uuidString)".write(
+                to: Self.completed(in: part.destination), atomically: true, encoding: .utf8)
+        }
         try Self.prepare(part.destination, for: sha)
         try sha.write(to: pin, atomically: true, encoding: .utf8)
+        try part.revision.write(to: requested, atomically: true, encoding: .utf8)
         return sha
     }
 

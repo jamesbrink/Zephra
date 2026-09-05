@@ -8,6 +8,11 @@ import ZephraCore
 /// answer whichever backend is asked. Each family's own runtime type adds the one thing that
 /// really is its own — the tile its autoencoder decodes in — and leaves the allocator to this.
 public nonisolated enum MLXRuntime {
+    public static func synchronize() {
+        Stream.gpu.synchronize()
+        Stream.cpu.synchronize()
+    }
+
     /// Sets the GPU allocator's limits.
     ///
     /// The cache limit caps the memory MLX holds on to between allocations. Left uncapped it

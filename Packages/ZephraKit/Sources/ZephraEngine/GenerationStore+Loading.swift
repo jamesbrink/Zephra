@@ -1,3 +1,4 @@
+import Foundation
 import ZephraCore
 
 /// Getting the model onto the machine and into memory: the one long operation that has to
@@ -64,7 +65,7 @@ extension GenerationStore {
     /// A preview store has no backend to build, so it never starts anything.
     @discardableResult
     private func startLoading(_ model: ModelDescriptor, asSwap: Bool) -> Task<Void, Never>? {
-        guard !isChangingModelDirectory, let inference = inferenceActor() else { return nil }
+        guard !isChangingModelDirectory, !isShuttingDown, !deletionInProgress, !isStoppingPreparation, let inference = inferenceActor() else { return nil }
         switch state {
         case .idle, .failed: break
         default: return nil
@@ -72,38 +73,75 @@ extension GenerationStore {
         // A swap passes through .idle while the old weights go back; only the swap may load.
         if isSwappingModel, !asSwap { return nil }
         transition(to: .checkingModel)
-        let task = Task { await self.load(model, on: inference) }
+        let identity = UUID()
+        loadIdentity = identity
+        preparingModel = model
+        let task = Task { await self.load(model, on: inference, identity: identity) }
         bootstrapTask = task
         return task
     }
 
     /// The body of a load, from finding the weights to the throwaway first generation.
-    private func load(_ model: ModelDescriptor, on inference: InferenceActor) async {
-        let pump = EngineEventPump { [weak self] event in self?.applyLoadEvent(event) }
+    private func load(_ model: ModelDescriptor, on inference: InferenceActor, identity: UUID) async {
+        guard let registry else { return }
+        let pump = EngineEventPump { [weak self] event in
+            guard let self, self.loadIdentity == identity else { return }
+            self.applyLoadEvent(event)
+        }
+        var acquired: AcquiredModel?
         do {
-            let directory = try await pump.run { sink in
-                try await inference.prepare(model, events: sink)
+            acquired = try await downloads.acquire(model, registry: registry, locations: locations) { [weak self] event in
+                guard let self, self.loadIdentity == identity else { return }
+                self.applyLoadEvent(.download(event))
             }
-            // Recorded the moment the weights are resident, before the warm-up: a warm-up
-            // that is stopped or fails leaves them resident, and the folder they came from
-            // must be off limits to Settings from then on, not only once everything went well.
-            loadedDirectory = directory
+            try Task.checkCancellation()
+            guard let acquired else { throw CancellationError() }
+            let builtExists = locations.builtCandidates(for: model).contains {
+                $0.standardizedFileURL == acquired.directory.standardizedFileURL
+            }
+            try await downloads.transfers.reserveBuild(acquired.id,
+                bytes: builtExists ? 0 : model.builtBytes, at: acquired.locations.root)
+            let directory = try await pump.run { sink in try await inference.prepare(acquired, events: sink) }
+            await downloads.transfers.finishBuild(acquired.id)
             try Task.checkCancellation()
             if warmsUpAfterLoad {
-                transition(to: .warmingUp)
+                if loadIdentity == identity { transition(to: .warmingUp) }
                 try await inference.warmUp(model)
             }
+            try Task.checkCancellation()
+            guard loadIdentity == identity else { throw CancellationError() }
+            acquiredModel = acquired
+            loadedDirectory = directory
             loadedDescriptor = model
             transition(to: .ready)
-        } catch is CancellationError {
-            transition(to: .idle)
-        } catch BackendRegistryError.noBackend(let id) {
-            transition(to: .failed(.noBackend(id)))
-        } catch let error as BackendError {
-            transition(to: .failed(.backend(error)))
         } catch {
-            transition(to: .failed(.backend(.loadFailed(error.localizedDescription))))
+            // Even a failed load may have allocated weights. Settle them before releasing
+            // their disk lease; suppressing obsolete UI events must not suppress cleanup.
+            await inference.unload()
+            if let acquired { await downloads.release(acquired) }
+            if loadIdentity == identity {
+                loadedDescriptor = nil
+                loadedDirectory = nil
+                switch error {
+                case is CancellationError: transition(to: .idle)
+                case BackendRegistryError.noBackend(let id): transition(to: .failed(.noBackend(id)))
+                case let error as BackendError: transition(to: .failed(.backend(error)))
+                default: transition(to: .failed(.backend(.loadFailed(error.localizedDescription))))
+                }
+            }
+        }
+        if loadIdentity == identity {
+            preparingModel = nil
+            bootstrapTask = nil
         }
         await refreshAvailability()
+    }
+
+    func unloadModel() async {
+        await inference?.unload()
+        if let acquiredModel { await downloads.release(acquiredModel) }
+        acquiredModel = nil
+        loadedDescriptor = nil
+        loadedDirectory = nil
     }
 }

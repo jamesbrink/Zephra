@@ -28,6 +28,7 @@ final class StubHub: URLProtocol, @unchecked Sendable {
         var listingStatus: Int?
         /// Take this long before answering, so a test can stop a transfer that is in flight.
         var pause: TimeInterval = 0
+        var bodyGate: StubBodyGate?
         /// The `ETag` every file answer carries; a resume whose `If-Range` names another is
         /// answered with the whole file, the way a file that changed would be.
         var etag: String?
@@ -176,6 +177,13 @@ final class StubHub: URLProtocol, @unchecked Sendable {
         _ url: URL, status: Int, headers: [String: String], body: Data,
         behaviour: Behaviour = Behaviour()
     ) {
+        if let gate = behaviour.bodyGate {
+            var released = behaviour
+            released.bodyGate = nil
+            let answer = released
+            gate.submit { self.finish(url, status: status, headers: headers, body: body, behaviour: answer) }
+            return
+        }
         if behaviour.pause > 0 {
             let deadline = Date().addingTimeInterval(behaviour.pause)
             while Date() < deadline {

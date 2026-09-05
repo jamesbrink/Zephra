@@ -99,6 +99,8 @@ targets:
     dependencies:
       - package: ZephraKit
         product: ZephraCore
+      - package: ZephraKit
+        product: ZephraSnapshot
       - package: ZephraBackendZImage
         product: ZephraBackendZImage
       - package: ZephraBackendQwenImage

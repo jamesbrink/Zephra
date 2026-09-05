@@ -32,6 +32,7 @@ public nonisolated final class QwenImageBackend: ImageGenerationBackend {
     nonisolated(nonsending) public func ensureAvailable(
         _ descriptor: ModelDescriptor,
         locations: ModelLocations,
+        acquisition: any ModelAcquisition,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws -> URL {
         switch descriptor.source {
@@ -50,7 +51,7 @@ public nonisolated final class QwenImageBackend: ImageGenerationBackend {
             }
             let here = LocalSnapshot.qwenImageRelease.downloadedRelease(of: descriptor, in: locations)
             if let here, locations.missingAdapters(of: descriptor).isEmpty { return here }
-            let fetched = try await ModelDownloader().fetch(
+            let fetched = try await acquisition.fetch(
                 descriptor, into: locations, release: here, onProgress: onProgress)
             return try LocalSnapshot.qwenImageRelease.verified(fetched, descriptor: descriptor)
         }

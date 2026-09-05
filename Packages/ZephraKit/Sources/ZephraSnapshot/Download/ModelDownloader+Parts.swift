@@ -18,6 +18,14 @@ extension ModelDownloader {
         defer { session.invalidateAndCancel() }
 
         let work = try await listing(of: parts, on: session)
+        try await downloadPrepared(work, on: session, onProgress: onProgress)
+    }
+
+    func downloadPrepared(
+        _ work: [(part: RepositoryDownload, files: [RepositoryFile])],
+        on session: URLSession,
+        onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
+    ) async throws {
         var tally = DownloadTally(
             totalFiles: work.reduce(0) { $0 + $1.files.count },
             totalBytes: work.reduce(0) { $0 + $1.files.reduce(0) { $0 + $1.bytes } })
@@ -77,7 +85,7 @@ extension ModelDownloader {
     /// at that commit, then filtered by its globs. A part that names a repository the hub has
     /// not got, or whose globs match nothing in it, stops the whole download — a catalog
     /// written against a repository that has been rearranged is not something to half-fetch.
-    private func listing(
+    func listing(
         of parts: [RepositoryDownload], on session: URLSession
     ) async throws -> [(part: RepositoryDownload, files: [RepositoryFile])] {
         var work: [(part: RepositoryDownload, files: [RepositoryFile])] = []

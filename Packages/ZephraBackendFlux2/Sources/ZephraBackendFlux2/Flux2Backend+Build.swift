@@ -14,6 +14,7 @@ extension Flux2Backend {
     nonisolated(nonsending) public func ensureAvailable(
         _ descriptor: ModelDescriptor,
         locations: ModelLocations,
+        acquisition: any ModelAcquisition,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws -> URL {
         switch descriptor.source {
@@ -31,7 +32,7 @@ extension Flux2Backend {
             }
             let here = LocalSnapshot.flux2Release.downloadedRelease(of: descriptor, in: locations)
             if let here, locations.missingAdapters(of: descriptor).isEmpty { return here }
-            let fetched = try await ModelDownloader().fetch(
+            let fetched = try await acquisition.fetch(
                 descriptor, into: locations, release: here, onProgress: onProgress)
             return try LocalSnapshot.flux2Release.verified(fetched, descriptor: descriptor)
         }

@@ -55,6 +55,7 @@ struct BuildStateTests {
         }
         store.cancel()
         await task.value
+        await store.settle()
         #expect(store.state == .idle)
         #expect(bed.control.settings.loads == 0, "the load never started")
     }

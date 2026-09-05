@@ -74,6 +74,15 @@ public final class GenerationStore {
     public var warmsUpAfterLoad = true
     /// Progress while model files and their destination are being changed.
     public internal(set) var modelDirectoryProgress: String?
+    public let downloads: ModelDownloads
+    public internal(set) var isStoppingPreparation = false
+    public internal(set) var isShuttingDown = false
+    var loadIdentity: UUID?
+    var preparingModel: ModelDescriptor?
+    var acquiredModel: AcquiredModel?
+    var deletionInProgress = false
+    @ObservationIgnored var storageSettlement: StorageSettlement?
+    @ObservationIgnored var stopTask: Task<Void, Never>?
 
     /// How many images stay in memory before the oldest is dropped.
     static let historyLimit = 24
@@ -108,19 +117,21 @@ public final class GenerationStore {
         registry: BackendRegistry,
         outputDirectory: URL? = nil,
         locations: ModelLocations = .default,
-        upscaler: UpscalerFactory? = nil
+        upscaler: UpscalerFactory? = nil, downloads: ModelDownloads = ModelDownloads()
     ) {
         self.init(
             descriptor: descriptor, registry: registry, output: outputDirectory,
-            locations: locations, upscaler: upscaler)
+            locations: locations, upscaler: upscaler, downloads: downloads)
     }
 
     /// The one designated initializer. A nil `registry` makes a preview store: see
     /// `GenerationStore+Preview.swift`.
     init(
         descriptor: ModelDescriptor, registry: BackendRegistry?, output: URL?,
-        locations: ModelLocations = .default, upscaler: UpscalerFactory? = nil
+        locations: ModelLocations = .default, upscaler: UpscalerFactory? = nil,
+        downloads: ModelDownloads = ModelDownloads()
     ) {
+        self.downloads = downloads
         self.descriptor = descriptor
         self.settings = GenerationSettings.defaults(for: descriptor)
         self.registry = registry
@@ -129,50 +140,4 @@ public final class GenerationStore {
         self.library = output.map { ImageLibrary(root: $0) } ?? .pictures()
     }
 
-    /// The folder finished images are written to. The one answer to that question: nothing
-    /// else works the path out for itself.
-    public var outputDirectory: URL { library.root }
-
-    /// True when a generation can start right now: the engine is ready and there is a prompt.
-    public var canGenerate: Bool {
-        !isChangingModelDirectory && state.acceptsGeneration && settings.isReadyToGenerate && !isAdoptingReference
-    }
-
-    /// True when `generate()` will do something: start now, or queue behind the running one.
-    public var canQueue: Bool {
-        !isChangingModelDirectory && settings.isReadyToGenerate && (state.acceptsGeneration || isDraining) && !isAdoptingReference
-    }
-
-    /// Shows an earlier image on the canvas and adopts its settings, so the obvious next move
-    /// is to tweak one thing and generate a variation.
-    public func select(_ image: GeneratedImage) {
-        stopFollowingRun()
-        // The settings about to be adopted include the picture's own reference, or none; a
-        // library read still on its way was for the settings being replaced.
-        _ = claimReference()
-        current = image
-        settings = image.settings
-        // Everything else carries over whichever model made it; a picture to edit does not,
-        // on a model that cannot read one, or the well could neither show it nor clear it.
-        if !descriptor.capabilities.supportsReferenceImage {
-            settings.referenceImage = nil
-        }
-    }
-
-    /// Picks a fresh seed for the next generation.
-    public func randomizeSeed() { settings = settings.withRandomSeed() }
-
-    /// Waits for everything this store has in flight. A seam for tests, which need generation
-    /// and the file write that follows it to be finished before they assert.
-    func settle() async {
-        await switchTask?.value
-        await bootstrapTask?.value
-        await generationTask?.value
-        // Before the save task: an upscale's write is queued on it as the upscale ends, and
-        // this one is nil the moment that has happened.
-        await upscaleTask?.value
-        await saveTask?.value
-        await libraryTask?.value
-        await openTask?.value
-    }
 }

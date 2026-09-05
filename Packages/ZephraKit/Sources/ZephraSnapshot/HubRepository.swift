@@ -25,7 +25,7 @@ public struct HubRepository: Hashable, Sendable {
     /// revision is still a complete directory, so answering with it would promise weights that
     /// will never be read. When the refs say nothing about this revision, one snapshot is
     /// unambiguous and two are a guess, so a lone snapshot answers and anything else reads as
-    /// needing a download. The `flat` layout records no revision, so it answers for any.
+    /// needing a download. Unmarked flat folders and the lone-snapshot fallback answer only for main.
     ///
     /// Either way a snapshot counts only if `HubSnapshotCheck` says it is complete, which is
     /// what tells a finished download apart from an abandoned one.
@@ -51,9 +51,9 @@ public struct HubRepository: Hashable, Sendable {
         case .hub:
             let snapshots = url.appending(path: "snapshots")
             return commit(of: revision).map { snapshots.appending(path: $0) }
-                ?? Self.onlySnapshot(in: snapshots)
+                ?? (revision == "main" ? Self.onlySnapshot(in: snapshots) : nil)
         case .flat:
-            return url
+            return RepositoryRevision.matches(url, revision: revision) ? url : nil
         }
     }
 

@@ -43,18 +43,29 @@ final class ChunkedDownload: NSObject, URLSessionDataDelegate, @unchecked Sendab
     func start(_ request: URLRequest, on session: URLSession) async throws -> (
         HTTPURLResponse, ChunkedBody
     ) {
+        try Task.checkCancellation()
+        let cancellation = Mutex(false)
         let task = session.dataTask(with: request)
         let (stream, chunks) = AsyncThrowingStream<Data, any Error>.makeStream()
         chunks.onTermination = { _ in task.cancel() }
-        let response = try await withTaskCancellationHandler {
+        let response: HTTPURLResponse = try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
-                pending.withLock {
-                    $0[task.taskIdentifier] = Pending(task: task, response: continuation, chunks: chunks)
+                cancellation.withLock { cancelled in
+                    guard !cancelled else {
+                        continuation.resume(throwing: CancellationError())
+                        return
+                    }
+                    pending.withLock {
+                        $0[task.taskIdentifier] = Pending(task: task, response: continuation, chunks: chunks)
+                    }
+                    task.resume()
                 }
-                task.resume()
             }
         } onCancel: {
-            task.cancel()
+            cancellation.withLock { cancelled in
+                cancelled = true
+                task.cancel()
+            }
         }
         return (response, ChunkedBody(stream: stream, download: self, task: task.taskIdentifier))
     }

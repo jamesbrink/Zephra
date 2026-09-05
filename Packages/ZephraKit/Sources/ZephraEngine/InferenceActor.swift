@@ -1,5 +1,6 @@
 import Foundation
 import ZephraCore
+import ZephraSnapshot
 
 /// The only place backend code runs.
 ///
@@ -14,18 +15,18 @@ actor InferenceActor {
     private static let warmUpSize = ImageSize(width: 512, height: 512)
 
     private let queue = DispatchSerialQueue(label: "io.zephra.inference", qos: .userInitiated)
-    private let registry: BackendRegistry
-    private var backend: (any ImageGenerationBackend)?
-    private var backendID: BackendID?
+    let registry: BackendRegistry
+    var backend: (any ImageGenerationBackend)?
+    var backendID: BackendID?
     /// The directory the resident weights were read from, for `prepare` to hand back again
     /// when asked for a model that is already up.
-    private var loadedPath: URL?
+    var loadedPath: URL?
     private let upscalerFactory: UpscalerFactory?
     private var upscaler: (any ImageUpscaler)?
     /// The folder models are kept in, as the last `setLocations` left it. Read at the top of
     /// each operation rather than held by the backend, so a folder chosen while a download is
     /// running applies to the next one and never to the one in flight.
-    private var locations: ModelLocations
+    var locations: ModelLocations
 
     /// Pins every method of this actor to the inference queue instead of the cooperative pool.
     nonisolated var unownedExecutor: UnownedSerialExecutor {
@@ -52,43 +53,6 @@ actor InferenceActor {
         self.locations = locations
     }
 
-    /// Fetches the weights if they are missing, packs them if the family loads something other
-    /// than its download, then reads them into memory, reporting every stage through `events`,
-    /// and returns the directory the weights were read from. Doing nothing, and handing back
-    /// the same directory, is the right answer if the model is already loaded.
-    @discardableResult
-    func prepare(_ descriptor: ModelDescriptor, events: EngineEventSink) async throws -> URL {
-        let live = try backend(for: descriptor)
-        if live.loadedModelID == descriptor.id, let loadedPath { return loadedPath }
-        // Read once: a folder changed during the download must not have the build looking
-        // for what was fetched, or writing, under a root the download never used.
-        let locations = self.locations
-        let downloaded = try await live.ensureAvailable(descriptor, locations: locations) { event in
-            events.send(.download(event))
-        }
-        let localPath = try await live.build(descriptor, at: downloaded, locations: locations) {
-            event in
-            events.send(.build(event))
-        }
-        try await live.load(descriptor, at: localPath) { event in
-            events.send(.progress(event))
-        }
-        loadedPath = localPath
-        return localPath
-    }
-
-    /// Whether `descriptor`'s weights are already on this Mac. Never downloads, and never
-    /// disturbs what is loaded: a backend built only to answer this is thrown away afterwards.
-    func availability(of descriptor: ModelDescriptor) async -> ModelAvailability {
-        if let backend, backendID == descriptor.backend {
-            return await backend.availability(of: descriptor, locations: locations)
-        }
-        guard let probe = try? registry.make(descriptor) else {
-            return .missing(reason: "No engine in this build can run \(descriptor.backend.rawValue) models.")
-        }
-        return await probe.availability(of: descriptor, locations: locations)
-    }
-
     /// Runs one tiny generation and throws the result away, so the first image the user asks
     /// for is not the one that pays for kernel compilation.
     func warmUp(_ descriptor: ModelDescriptor) async throws {
@@ -102,7 +66,9 @@ actor InferenceActor {
                 seed: 0
             )
         )
+        try Task.checkCancellation()
         _ = try await live.generate(settings) { _ in }
+        try Task.checkCancellation()
     }
 
     /// Produces PNG bytes, timing the denoising loop so the interface can show a countdown even
@@ -140,6 +106,7 @@ actor InferenceActor {
         backend?.unload()
         backend = nil
         backendID = nil
+        loadedPath = nil
     }
 
     /// The one upscaler, built on first use, or nil in a build that was given no factory.
@@ -153,7 +120,7 @@ actor InferenceActor {
 
     /// The live backend, rebuilt whenever the descriptor names a different family. Two backends
     /// are never held at once: the old one is unloaded before the new one exists.
-    private func backend(for descriptor: ModelDescriptor) throws -> any ImageGenerationBackend {
+    func backend(for descriptor: ModelDescriptor) throws -> any ImageGenerationBackend {
         if let backend, backendID == descriptor.backend { return backend }
         unload()
         let made = try registry.make(descriptor)

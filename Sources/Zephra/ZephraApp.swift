@@ -10,6 +10,7 @@ import ZephraUpscaleRealESRGAN
 /// know which backend it is built on.
 @main
 struct ZephraApp: App {
+    @NSApplicationDelegateAdaptor(AppTermination.self) private var termination
     @State private var store = ZephraApp.makeStore()
     @State private var cache = ImageCache()
     @State private var workspace = InterfacePreview.workspace() ?? WorkspaceSelection()
@@ -49,7 +50,14 @@ struct ZephraApp: App {
                     // the next launch opens on.
                     AppSettings.write(model.id, to: AppSettings.selectedModelID)
                 }
-                .task { openLibrary() }
+                .task {
+                    termination.shutdown = {
+                        await store.shutdown()
+                        let runtime = Self.runtime
+                        await Task.detached { runtime.synchronize() }.value
+                    }
+                    openLibrary()
+                }
         }
         .defaultSize(width: 1200, height: 840)
         .windowToolbarStyle(.unified)
@@ -97,6 +105,9 @@ struct ZephraApp: App {
     /// screenshotted without a model. See `InterfacePreview`.
     private static func makeStore() -> GenerationStore {
         if let frozen = InterfacePreview.store() { return frozen }
+        #if DEBUG
+        if let exercise = DownloadExercise.makeStore() { return exercise }
+        #endif
         runtime.setCacheLimit(bytes: InferenceTuning.storedCacheLimitBytes())
         runtime.setMemoryLimit(bytes: InferenceTuning.forThisMachine().memoryLimitBytes)
         var registry = BackendRegistry()

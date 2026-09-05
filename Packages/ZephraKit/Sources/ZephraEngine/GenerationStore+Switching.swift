@@ -12,9 +12,10 @@ extension GenerationStore {
     /// takes effect for whatever is generated next. Nothing is persisted here: which model was
     /// chosen is the app's business.
     public func switchModel(to descriptor: ModelDescriptor) {
-        guard !isChangingModelDirectory, descriptor.id != self.descriptor.id else { return }
+        guard !isChangingModelDirectory, !isShuttingDown, !deletionInProgress, descriptor.id != self.descriptor.id else { return }
         logger.info("model chosen: \(descriptor.id, privacy: .public)")
         adopt(descriptor)
+        if let registry { _ = downloads.start(descriptor, registry: registry, locations: locations) }
         guard !isDraining, !isUpscaling, queue.isEmpty else { return }
         reload(descriptor, thenDrain: false)
     }
@@ -34,22 +35,24 @@ extension GenerationStore {
     /// never resident at once. A load or an earlier swap already under way is cancelled and
     /// waited for first, so two quick picks in the menu never race each other's unload.
     func reload(_ model: ModelDescriptor, thenDrain: Bool) {
+        loadIdentity = nil
         isSwitchingForQueue = thenDrain
         isSwappingModel = true
         let pendingLoad = bootstrapTask
         let pendingSwitch = switchTask
+        let pendingStop = stopTask
         pendingLoad?.cancel()
         pendingSwitch?.cancel()
         transition(to: .idle)
         switchTask = Task {
             // The cancelled work may still be finishing a step, and may still land on .ready
             // for the model being left behind, so the state is settled again after it is done.
+            await pendingStop?.value
             await pendingSwitch?.value
             await pendingLoad?.value
             guard !Task.isCancelled else { return }
-            await self.inference?.unload()
-            self.loadedDescriptor = nil
-            self.loadedDirectory = nil
+            await self.unloadModel()
+            self.isStoppingPreparation = false
             self.transition(to: .idle)
             guard !Task.isCancelled else { return }
             await self.load(model, asSwap: true)

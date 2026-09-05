@@ -35,7 +35,8 @@ public enum SnapshotBuild {
         sourceName: String,
         freeSpaceBytes: Int64,
         note: @escaping (String) -> Void,
-        shouldContinue: @escaping () throws -> Void
+        shouldContinue: @escaping () throws -> Void,
+        finalize: (URL) throws -> Void = { _ in }
     ) throws -> URL {
         let partial = destination.deletingLastPathComponent()
             .appending(
@@ -54,6 +55,7 @@ public enum SnapshotBuild {
                 note: note,
                 shouldContinue: shouldContinue
             )
+            try finalize(partial)
             // The replacement is inside the same cleanup: a destination that will not go, or
             // a move that fails, must not leave gigabytes of finished partial behind either.
             let files = FileManager.default

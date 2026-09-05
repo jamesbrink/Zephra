@@ -70,7 +70,7 @@ struct DownloadTally {
             fraction: totalBytes > 0
                 ? min(1, Double(completedBytes) / Double(totalBytes))
                 : (totalFiles > 0 ? Double(completedFiles) / Double(totalFiles) : 0),
-            bytesPerSecond: rate(now: now)
+            bytesPerSecond: rate(now: now), completedBytes: completedBytes, totalBytes: totalBytes
         )
     }
 

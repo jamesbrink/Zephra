@@ -76,8 +76,15 @@ Shared, by what a file actually touches:
     the count saying it is paused change under one lock, so a drain can never
     resume a task a moment before it is suspended for good), so a fast
     connection cannot pile a shard up in memory ahead of a slow disk. Cancellation is checked
-    between chunks. The app's `fetch` entry point removes unfinished writable download folders
+    between chunks. The standalone `fetch` entry point removes unfinished writable download folders
     when cancelled, after file handles close, including cancellation during retry backoff.
+    The app injects `TransferAcquisition` instead: `ModelTransfers` owns at most two
+    physical repository transfers, with one writer per canonical destination. Matching
+    file sets/revisions share work; incompatible requests wait for read/write claims to
+    release. Multi-repository claims are admitted atomically to avoid crossed-dependency
+    deadlocks. `ModelDownloads` keeps model requests alive independently of the selected
+    foreground load. Switching detaches that waiter, Pause preserves partials, and explicit
+    Cancel discards unfinished files only after the final owner and writer settle.
     Completed repositories and cached releases stay; network failures remain resumable.
     The canvas offers Cancel download during initial loading and model switches. **No
     `Authorization` header is ever sent** — every repository the catalog names
@@ -162,6 +169,24 @@ Code rules:
 
 Run `make lint-layers` before every commit. It greps for forbidden imports
 across the layers above and fails the build if any are found.
+
+## Download lifecycle
+
+`ModelAcquisition` in Core is injected into every backend's `ensureAvailable`.
+`ModelResolution` creates a private unloaded backend for family-specific disk checks;
+it never shares the inference actor's mutable backend or calls build/load/generate.
+`ModelDownloads` in Engine owns request observation and foreground borrowing;
+`ModelTransfers` in Snapshot owns network slots, preflight, compatible repository claims
+and per-volume space reservations. A claim spans validation, build and resident use,
+so acquisition completion never opens a deletion gap. Failed/canceled loads unload
+before releasing their claim. Foreground events carry an operation identity; superseded
+progress and completion cannot change the selected model's state.
+
+All UI storage deletion goes through `GenerationStore.deleteModelStorage`, which
+checks active requests/residency/queued work and closes new admission while deleting.
+Folder changes close download admission, pause every request and await file closure.
+`AppTermination` defers normal Quit while `GenerationStore.shutdown` settles tasks,
+then the runtime seam synchronizes Metal before allowing process teardown.
 
 ## How a generation runs
 
@@ -1045,6 +1070,10 @@ the re-sync procedure, and the running patch log. Any change inside
   canvas, which is what the running card's ring being off says.
   `downloading` and `failed` sit over a picture, since that is where they must stay
   legible, and `failed` is a download that gave up.
+- Debug only: `ZEPHRA_DOWNLOAD_TEST_HUB=http://127.0.0.1:<port>` uses the real
+  downloader and UI with an unloaded exercise backend for disposable HTTP fixtures.
+  Use a separate bundle identifier/preferences domain and models folder. No such hook
+  exists in Release; ordinary Debug launches still use real backends.
 - `make logs` streams `os.Logger` output for subsystem `io.zephra`.
 - `make screenshot` photographs the app's window by its CoreGraphics id, so it captures the
   window rather than the rectangle of screen it sits in, and it fails rather than falling back

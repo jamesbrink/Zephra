@@ -7,6 +7,8 @@ import ZephraMLX
 public struct QwenImageInferenceRuntime: InferenceRuntime {
     public init() {}
 
+    public func synchronize() { MLXRuntime.synchronize() }
+
     public func setCacheLimit(bytes: Int) {
         MLXRuntime.configure(cacheLimitBytes: bytes, memoryLimitBytes: nil)
     }

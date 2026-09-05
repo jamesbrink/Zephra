@@ -7,6 +7,8 @@ public struct Flux2InferenceRuntime: InferenceRuntime {
     /// Creates the runtime handle. Nothing is touched until a method is called.
     public init() {}
 
+    public func synchronize() { MLXRuntime.synchronize() }
+
     public func setCacheLimit(bytes: Int) {
         MLXRuntime.configure(cacheLimitBytes: bytes, memoryLimitBytes: nil)
     }

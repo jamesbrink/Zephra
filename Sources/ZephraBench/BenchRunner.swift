@@ -1,5 +1,6 @@
 import Foundation
 import ZephraCore
+import ZephraSnapshot
 
 /// Drives a backend through a load, a warm-up, and a set of timed runs.
 enum BenchRunner {
@@ -33,7 +34,7 @@ enum BenchRunner {
         // The tool has no preferences to read, so models are where the app puts them by
         // default; a `--snapshot` names its own directory and is looked for there first.
         let locations = ModelLocations.default
-        let downloaded = try await backend.ensureAvailable(descriptor, locations: locations) {
+        let downloaded = try await backend.ensureAvailable(descriptor, locations: locations, acquisition: ModelDownloader()) {
             event in
             note("downloading \(event.completedFiles)/\(event.totalFiles) files", verbose)
         }

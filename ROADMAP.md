@@ -153,3 +153,14 @@ Left out of the first pass on purpose, each a small change to one file unless no
 - **The DIV2K training-data terms.** Real-ESRGAN's repository is BSD-3-Clause and the
   weights are taken to inherit it, but the training set's own terms were not verified.
   Check before any commercial release.
+
+## Download follow-ups
+
+- Persist and automatically resume background download intent across relaunch. Current
+  partial files are resumable when the user selects the model again.
+- More than two simultaneous repository transfers, after memory and disk measurements
+  justify increasing the bound.
+- Concurrent quantization: currently intentionally serialized with all inference work
+  because builds and resident weights share the same large Metal allocator.
+- Coalesce differing file-pattern requests for the same repository revision. Identical
+  dependency sets share now; differing sets serialize until current readers finish.

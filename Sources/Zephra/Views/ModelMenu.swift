@@ -59,6 +59,7 @@ struct ModelMenu: View {
     /// size has to be on screen before choosing the row starts it — and the memory note then
     /// lives in the tooltip.
     private func note(for model: ModelDescriptor) -> String? {
+        if let status = store.downloads.status(for: model.id) { return status }
         let availability = store.availability[model.id]
         if availability?.isObtainable == false { return availability?.label }
         if availability?.needsNetwork == true { return availability?.label }

@@ -27,6 +27,7 @@ struct ModelsSettings: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }
+            ModelDownloadsSection()
             Section {
                 if inventory.items.isEmpty {
                     Text("Nothing downloaded or built yet.")
@@ -57,22 +58,7 @@ struct ModelsSettings: View {
 
     /// Whether the engine is holding, loading, or queued to load weights from this directory.
     private func isInUse(_ item: ModelStorageItem) -> Bool {
-        if store.isChangingModelDirectory { return true }
-        // The loaded model is protected by the directory its weights came from, not by its
-        // name: the same model can sit in the models folder, a folder it used to be, and the
-        // hub cache at once, and only the one copy the engine holds is off limits.
-        // Containment, not equality: a model loaded from the hub cache came from
-        // `models--<repo>/snapshots/<commit>`, and the row is the repository around it.
-        if let loaded = store.loadedDirectory {
-            let row = item.url.standardizedFileURL.path(percentEncoded: false)
-            let folder = row.hasSuffix("/") ? row : row + "/"
-            let weights = loaded.standardizedFileURL.path(percentEncoded: false)
-            if weights == row || weights.hasPrefix(folder) || (weights + "/") == folder { return true }
-        }
-        var wanted = store.queue.map(\.model.id)
-        if let running = store.running { wanted.append(running.model.id) }
-        if store.state.isBusy { wanted.append(store.descriptor.id) }
-        return wanted.contains { item.modelIDs.contains($0) }
+        store.modelStorageIsInUse(item)
     }
 
     private var isConfirming: Binding<Bool> {
@@ -99,8 +85,7 @@ struct ModelsSettings: View {
     private func delete(_ item: ModelStorageItem) {
         guard !isInUse(item) else { return }
         Task {
-            await inventory.delete(item)
-            await store.refreshAvailability()
+            await store.deleteModelStorage(item, inventory: inventory)
         }
     }
 }

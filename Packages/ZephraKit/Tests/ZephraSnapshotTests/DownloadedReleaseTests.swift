@@ -6,7 +6,7 @@ import ZephraTestSupport
 
 @Suite("Where a model's download already is")
 struct DownloadedReleaseTests {
-    private let check = LocalSnapshot(
+    let check = LocalSnapshot(
         requiredEntries: ["model_index.json", "transformer", "text_encoder", "vae"])
 
     @Test("nothing on disk is not a download, whatever the folder is called")
@@ -131,12 +131,12 @@ struct DownloadedReleaseTests {
     }
 
     /// A model from a repository no cache can answer for.
-    private static func model(adapters: [ModelAdapter] = []) -> ModelDescriptor {
+    static func model(revision: String = "main", adapters: [ModelAdapter] = []) -> ModelDescriptor {
         let base = ModelCatalog.default
         return ModelDescriptor(
             id: "downloaded-test", displayName: base.displayName, variantName: base.variantName,
             backend: base.backend,
-            source: .huggingFace(repoID: "org/repo", revision: "main", filePatterns: ["*"]),
+            source: .huggingFace(repoID: "org/repo", revision: revision, filePatterns: ["*"]),
             quantization: base.quantization, downloadBytes: 9,
             residentBytes: base.residentBytes, peakBytes: base.peakBytes,
             tiledPeakBytes: base.tiledPeakBytes, maxPromptTokens: base.maxPromptTokens,
@@ -145,7 +145,7 @@ struct DownloadedReleaseTests {
 
     /// A directory holding what a loader opens, with an index naming its components the way a
     /// real snapshot's does — which is what the completeness check holds it to.
-    private static func snapshot(_ scratch: Scratch, at path: String) throws {
+    static func snapshot(_ scratch: Scratch, at path: String) throws {
         let index = """
             {"transformer": ["diffusers", "Transformer"], \
             "text_encoder": ["transformers", "Encoder"], "vae": ["diffusers", "AutoencoderKL"]}

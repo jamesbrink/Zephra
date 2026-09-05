@@ -40,10 +40,12 @@ final class MockBackend: ImageGenerationBackend {
     func ensureAvailable(
         _ descriptor: ModelDescriptor,
         locations: ModelLocations,
+        acquisition: any ModelAcquisition,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws -> URL {
         control.update { $0.lastLocations = locations }
         onProgress(DownloadProgressEvent(completedFiles: 0, totalFiles: 2, fraction: 0))
+        try await control.settings.downloadGate?(descriptor)
         if control.settings.downloadDelay > .zero {
             try await Task.sleep(for: control.settings.downloadDelay)
         }
@@ -87,7 +89,8 @@ final class MockBackend: ImageGenerationBackend {
         if dials.loadDelay > .zero {
             try await Task.sleep(for: dials.loadDelay)
         }
-        try Task.checkCancellation()
+        await control.settings.loadGate?(descriptor)
+        if !control.settings.ignoresLoadCancellation { try Task.checkCancellation() }
         loadedModelID = descriptor.id
     }
 

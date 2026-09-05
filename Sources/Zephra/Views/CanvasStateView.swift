@@ -16,7 +16,7 @@ struct CanvasStateView: View {
         VStack(spacing: 12) {
             // Ready has no status message. Padding and material around its empty message
             // block would otherwise leave a blank tile over the finished picture.
-            if isGenerating || (store.isSwappingModel && !isDownloading) || (store.state == .ready && store.current != nil) {
+            if isGenerating || (store.state == .ready && store.current != nil) {
                 EmptyView()
             } else if isEmptyAndReady {
                 CanvasEmptyState()
@@ -63,7 +63,13 @@ struct CanvasStateView: View {
                 .controlSize(.large)
                 .padding(.top, 4)
         }
-        if store.state.isBusy {
+        if store.downloads.items.contains(where: { $0.status == .downloading || $0.status == .queued }) {
+            SettingsLink { Text("View downloads in Settings") }
+                .buttonStyle(.link)
+        }
+        if store.isStoppingPreparation {
+            Text("Stopping model preparation…").foregroundStyle(.secondary)
+        } else if store.state.isBusy {
             Button(isDownloading ? "Cancel download" : "Stop") { store.cancel() }
                 .buttonStyle(.link)
                 .padding(.top, 2)
@@ -83,7 +89,8 @@ struct CanvasStateView: View {
 
     private var isGenerating: Bool {
         switch store.state {
-        case .generating, .cancelling: true
+        case .generating: true
+        case .cancelling: !store.isStoppingPreparation
         default: false
         }
     }

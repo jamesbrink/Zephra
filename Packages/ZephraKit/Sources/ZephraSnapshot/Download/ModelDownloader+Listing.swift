@@ -33,6 +33,7 @@ extension ModelDownloader {
         } catch let error as CancellationError {
             throw error
         } catch {
+            try Task.checkCancellation()
             throw ModelDownloadError.interrupted(reason: error.localizedDescription)
         }
         guard let http = response as? HTTPURLResponse else {

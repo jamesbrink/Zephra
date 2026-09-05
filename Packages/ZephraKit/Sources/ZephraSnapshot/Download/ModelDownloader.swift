@@ -13,7 +13,7 @@ import ZephraCore
 /// only when its size matches what the listing said. So a download that is stopped, or that
 /// breaks, resumes from the bytes already there — `Range` on the next request — and a truncated
 /// file is never mistaken for a finished one.
-public struct ModelDownloader: Sendable {
+public struct ModelDownloader: ModelAcquisition {
     /// The only host these releases come from.
     public static let huggingFace = URL(string: "https://huggingface.co")!
 

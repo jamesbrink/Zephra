@@ -75,7 +75,8 @@ public final class ModelInventory {
     public func delete(_ item: ModelStorageItem) async {
         lastFailure = nil
         do {
-            try remove(item)
+            let remove = remove
+            try await Task.detached(priority: .utility) { try remove(item) }.value
         } catch {
             lastFailure = "Couldn't delete \(item.name). \(error.localizedDescription)"
         }

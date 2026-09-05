@@ -28,6 +28,7 @@ public protocol ImageGenerationBackend: AnyObject {
     nonisolated(nonsending) func ensureAvailable(
         _ descriptor: ModelDescriptor,
         locations: ModelLocations,
+        acquisition: any ModelAcquisition,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws -> URL
 

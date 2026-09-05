@@ -12,6 +12,6 @@ extension LocalSnapshot {
     public func packedVariant(
         of descriptor: ModelDescriptor, in locations: ModelLocations
     ) -> URL? {
-        locations.builtCandidates(for: descriptor).first { missingEntry(in: $0) == nil }
+        locations.builtCandidates(for: descriptor).first { missingEntry(in: $0) == nil && PackedProvenance.matches(descriptor, in: $0) }
     }
 }

@@ -9,16 +9,22 @@ public struct DownloadProgressEvent: Hashable, Sendable {
     /// Current transfer rate, absent until enough has moved to measure one.
     public let bytesPerSecond: Double?
 
+    public let completedBytes: Int64?
+    public let totalBytes: Int64?
+
     /// Creates a download update.
     public init(
         completedFiles: Int,
         totalFiles: Int,
         fraction: Double,
-        bytesPerSecond: Double? = nil
+        bytesPerSecond: Double? = nil,
+        completedBytes: Int64? = nil, totalBytes: Int64? = nil
     ) {
         self.completedFiles = completedFiles
         self.totalFiles = totalFiles
         self.fraction = fraction
         self.bytesPerSecond = bytesPerSecond
+        self.completedBytes = completedBytes
+        self.totalBytes = totalBytes
     }
 }

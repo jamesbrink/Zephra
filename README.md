@@ -9,8 +9,25 @@ picture with any of them, and upscales with Real-ESRGAN.
 - **Local.** Everything runs on-device; nothing leaves the machine.
 - **Fast.** MLX drives the GPU directly through Metal, tuned for Apple
   Silicon.
-- **Private.** No accounts, no network calls at generation time, no telemetry.
+- **Private.** No accounts, no image uploads, no telemetry. Model downloads may continue while an image generates.
 - **Native.** A real SwiftUI app, not a wrapped web view.
+
+## Model downloads
+
+Choosing a different model keeps earlier downloads running. Up to two repositories
+transfer at once; variants that use the same source share one transfer. Only the
+model needed for the next generation is built and loaded, with one set of weights
+resident at a time.
+
+Settings > Models lists downloads separately from stored files. Pause keeps partial
+files for Resume; Cancel download removes unfinished files once no other model needs
+them. A shared transfer continues for its remaining consumers. Downloads required by
+queued generations cannot be paused from their row: remove the queued work first,
+or use Stop on the canvas. A background failure stays on its own row and can be retried.
+
+Changing the models folder pauses all downloads before moving files. Quit also keeps
+partials and waits for file handles and inference to settle. After relaunch, selecting
+a model resumes its partial download; background jobs do not restart automatically.
 
 ## Requirements
 

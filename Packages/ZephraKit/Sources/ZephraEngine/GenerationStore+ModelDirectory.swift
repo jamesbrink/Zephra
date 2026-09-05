@@ -5,7 +5,7 @@ import ZephraSnapshot
 extension GenerationStore {
     /// A folder change may stop preparation, but never discards queued or generating work.
     public var canChangeModelDirectory: Bool {
-        !isChangingModelDirectory && !isDraining && !isUpscaling && queue.isEmpty && state != .cancelling
+        !isChangingModelDirectory && !isShuttingDown && !deletionInProgress && !isDraining && !isUpscaling && queue.isEmpty && state != .cancelling
     }
 
     public var isChangingModelDirectory: Bool { modelDirectoryProgress != nil }
@@ -16,20 +16,30 @@ extension GenerationStore {
         guard canChangeModelDirectory else {
             throw ModelDirectoryError("Wait for generation and queued work to finish before changing the models folder.")
         }
+        let settlement = StorageSettlement()
+        storageSettlement = settlement
         modelDirectoryProgress = "Preparing models folder…"
-        defer { modelDirectoryProgress = nil }
+        defer {
+            modelDirectoryProgress = nil
+            downloads.admissionClosed = isShuttingDown
+            Task { await settlement.finish() }
+        }
+        loadIdentity = nil
+        downloads.admissionClosed = true
         let pendingSwitch = switchTask
         let pendingLoad = bootstrapTask
         let interrupted = state.isBusy || isSwappingModel
         pendingSwitch?.cancel()
         pendingLoad?.cancel()
+        await downloads.pauseAll()
+        await stopTask?.value
         await pendingSwitch?.value
         await pendingLoad?.value
         isSwappingModel = false
+        isStoppingPreparation = false
+        preparingModel = nil
         if source != nil || interrupted {
-            await inference?.unload()
-            loadedDescriptor = nil
-            loadedDirectory = nil
+            await unloadModel()
             transition(to: .idle)
         }
         let updates = AsyncStream<String>.makeStream(bufferingPolicy: .bufferingNewest(1))
