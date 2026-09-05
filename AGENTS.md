@@ -90,7 +90,7 @@ Shared, by what a file actually touches:
     foreground load. Switching detaches that waiter, Pause preserves partials, and explicit
     Cancel discards unfinished files only after the final owner and writer settle.
     Completed repositories and cached releases stay; network failures remain resumable.
-    The canvas offers Cancel download during initial loading and model switches. **No
+    The canvas offers Cancel Download during initial loading and model switches. **No
     `Authorization` header is ever sent** — every repository the catalog names
     is public — so no token, in the environment or in a file, can turn a
     public model into a login wall.
@@ -419,7 +419,10 @@ Four directories, by what a file is rather than what screen it is on:
 
 - `Style/` — the chrome: `ZephraChrome`'s radii and hairlines, `ChromePanel`,
   `Chip`, `SectionHeader`, `CountBadge`, `KeyValueRow`, `WrappingHStack`,
-  `ModelDot`. A view that reaches for a literal radius or a raw colour belongs
+  `ModelDot`, and `MenuChevron`, the inline chevron a capsule menu's title
+  ends with (a `Menu` reads its label the way `Label` does, so a chevron drawn
+  as a view lands in front of the title or nowhere, and `.menuIndicator` draws
+  nothing under `.accessoryBar` outside a toolbar). A view that reaches for a literal radius or a raw colour belongs
   here instead. Safelight amber means "only while the model works" and appears
   nowhere else. The radii step down by what a thing is: 16 for the capsule,
   8 for a card or a thumbnail, 5 for a square on the sidebar's wall, so a card
@@ -473,7 +476,26 @@ Four directories, by what a file is rather than what screen it is on:
   commands, and Settings
   sit at the top of `Views/` because they belong to no one surface. The
   three-stored-property rule is what keeps them small; a view that needs a
-  fourth wants a subview. A keyboard shortcut has one owner, the menu bar
+  fourth wants a subview — `LibraryPaneHeader` holds the filter bar's
+  animations for `LibraryPane`, `LibraryGridKeyboard` the arrow keys for
+  `LibraryGrid`, each honouring Reduce Motion, as `WorkspaceDetail` and
+  `PromptTuckOverlay` do with `.animation(reduceMotion ? nil : .snappy,
+  value:)`; the wall's hover wash does not fade at all. `focusEffectDisabled()`
+  on the library grid, the reference picker's grid and the viewer is the one
+  exemption from the system's focus ring, deliberate: a ring round a whole pane
+  says nothing, and the ring round the selected cell is what shows where the
+  keyboard is — which is why an arrow key with nothing selected selects an end
+  of the grid (`LibraryCursor`) rather than doing nothing. `SettingsView` is
+  four tabs, and `SettingsTab` says how tall each stands: the window follows the
+  tab (`.windowResizability(.contentSize)` on the scene) rather than standing at
+  the tallest tab's height for all four, and Escape does not close it, which is
+  what every Settings window on the Mac does. `AboutSettings` lays
+  `THIRD_PARTY_NOTICES.md` out through `NoticesDocument` in `Support/` — the
+  parser, with `NoticesParser` behind it, reading exactly the Markdown the file
+  uses and keeping its fenced NOTICE and license texts verbatim — and
+  `NoticesView`; `AboutCommands` points the application menu's About item at
+  `AboutPanel`, the standard panel with the same document as plain-text
+  credits, so one parser feeds two renderers. A keyboard shortcut has one owner, the menu bar
   (`ZephraCommands`, `WorkspaceCommands`, `LibraryCommands`,
   `ThumbnailSizeCommands`); a button that shows a chord shows it as text, the
   way `GenerateButton` writes ⌘⏎, and never declares it too, because a chord
@@ -525,15 +547,17 @@ Four directories, by what a file is rather than what screen it is on:
 
   A double-click in the grid, or Return on the selection, no longer opens the
   canvas — it opens `Library/Viewer/LibraryViewer`, the picture full size in
-  the library pane itself, with `LibraryViewerBar` over the top ("Library"
-  back, "n of N", previous/next) and `LibraryViewerNavigation` underneath
+  the library pane itself, with `LibraryViewerBar` stacked above it ("Library"
+  back, "n of N", previous/next) — stacked, not inset, so the picture is fitted
+  to the height under the bar — `ViewerPlaceholder`, the grid's thumbnail at
+  the picture's own aspect, standing in until the decode lands, and `LibraryViewerNavigation` underneath
   (Escape or a second double-click closes it; the arrow keys step, crossing
   day headings the way the grid's own do, through the pure arithmetic in
   `ZephraEngine`'s `LibraryViewerStep`). `WorkspaceSelection.viewing` names
   the one item shown, cleared whenever the pane changes; `LibraryPane` is the
   one place that keeps the grid's selection in step with it, so the inspector
   beside the viewer always describes what is on screen and closing scrolls
-  the grid back to it. "Open in canvas" — the `\.openLibraryItem` action, on
+  the grid back to it. "Open in Canvas" — the `\.openLibraryItem` action, on
   the cell's menu, the sidebar wall, and the inspector's own button — is
   unchanged; the viewer answers to the twin `\.viewLibraryItem` instead.
 
@@ -554,7 +578,11 @@ Four directories, by what a file is rather than what screen it is on:
   launch crashed at 38 s; on, it made its picture in 144 s. The system's
   indeterminate spinner stayed on screen through that run and is fine. There is
   no context menu and nothing to drag, because there is no file yet; a click
-  still tucks the prompt away.
+  still tucks the prompt away. The capsule's `StepSegments` ride its top edge
+  inset by `ZephraChrome.capsuleRadius`, on the lip too, so the corners' curve
+  clips no segment; `StopButton` beside Generate is a bordered "Stop" in
+  safelight; the size menu and the seed count show their chevrons, and the
+  count says what it counts ("4 seeds").
   `Canvas/RunningRunInspector` is the column beside it: prompt, model, size,
   the step of how many, seed, elapsed and left — the last two from the pace
   `store.state` already measures rather than a clock of the view's own — and
@@ -754,7 +782,12 @@ it. Empty, the well is a `Menu` whose primary action opens
 search field and a grid of the whole library — what was made here and what was
 imported to start from, everything but Recently Deleted — newest first; filled, the same
 two choices — "From Library…" and "Choose File…" — sit in a context menu
-beside Clear. Both states also take a drop of a `LibraryItemReference`, the
+beside Clear. The sheet's grid walks with the arrow keys: `ReferencePickerKeyboard`
+runs the same `LibraryCursor` arithmetic as the library grid over one section of
+the matches, with `GridColumns.count` (in `Support/`, shared with `LibraryGrid`
+and tested) saying what a row holds, and a down arrow in the search field hands
+the keyboard to the grid, on the first picture when nothing is picked; the cells
+share the row's width so the gaps are one 10 pt everywhere. Both states also take a drop of a `LibraryItemReference`, the
 same in-app drag type an album row accepts, so dragging a picture from the
 grid or the sidebar's wall onto the well works the way dropping a Finder file
 already did.
@@ -1058,7 +1091,7 @@ model that cannot happen. There is no metered-network refusal either: the size
 is on the screen before the download starts, so whether to spend it on a hotspot
 is the user's call. A download that breaks is tried again by `DownloadRetry` in
 `ZephraCore`, five times with a doubling pause, and each file resumes from its
-`.incomplete` bytes, so a retry and a later Try again both continue rather than
+`.incomplete` bytes, so a retry and a later Try Again both continue rather than
 start over. Only a missing repository, a missing file, or a 4xx that is not a
 timeout or a rate limit stops the retrying early.
 
@@ -1366,6 +1399,12 @@ the re-sync procedure, and the running patch log. Any change inside
 ## Conventions
 
 - Conventional Commits for all git messages.
+- Wording follows macOS: US spelling in user-facing strings ("Favorites"),
+  Title Case for push buttons and menu items ("Open in Canvas", "Reveal in
+  Finder" is the one verb for the Finder), sentence case for toggles, captions
+  and the sidebar's list labels. Code identifiers are exempt and keep their
+  spelling — `isFavourite`, `toggleFavourite`, `FavouriteToggle` — because no
+  user sees them and renaming the engine's API would buy nothing.
 - Swift 6 strict concurrency in our code. The vendored `ZImageKit` package
   stays in Swift 5 language mode so its 49 upstream files compile untouched.
 - Every package pins the same exact `mlx-swift` and `swift-transformers`
@@ -1432,7 +1471,11 @@ the re-sync procedure, and the running patch log. Any change inside
   button while a person keeps working; `--dump [depth]` prints the tree for finding titles.
   The terminal needs Accessibility in System Settings > Privacy & Security. Together with the
   background launch (`open -g --env ZEPHRA_PREVIEW_STATE=settings build/Debug/Zephra.app`)
-  and the titled screenshot, this is how a Settings tab is photographed hands-off.
+  and the titled screenshot, this is how a Settings tab is photographed hands-off; the tab
+  strip's controls are `AXButton`s titled after their tab, so `ax-press.swift Performance`
+  switches tabs. Append `--args -ApplePersistenceIgnoreState YES` to the launch when no window
+  appears: the one `Window` scene restores the last session's state, and a session that quit
+  with the window closed restores it closed, which a preview build cannot reopen by itself.
 - `make bench ARGS="--size 1024 --steps 9 --runs 3 --json"` measures load, s/step, and peak memory
   headlessly; benchmark on an idle machine, Release only. `--reference IMAGE` measures the
   editing path on a model that has one.

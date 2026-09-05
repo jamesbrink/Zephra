@@ -2,11 +2,16 @@ import AppKit
 import SwiftUI
 import ZephraEngine
 
-/// One library image, letterboxed full size, with `LibraryViewerBar` over the top.
+/// One library image, letterboxed full size, with `LibraryViewerBar` above it.
 ///
-/// The thumbnail already baked for the grid stands in until the full-resolution bytes are
-/// decoded, off the main actor: a library picture can be a good deal larger than anything the
-/// grid ever asks `LibraryThumbnail` for, and nothing in this app decodes on the main actor.
+/// The bar is stacked above the picture rather than laid over it as a safe-area inset, so the
+/// picture is fitted to the height it actually has; inset, it was laid out for the pane's
+/// whole height and its top ran under the bar.
+///
+/// `ViewerPlaceholder` — the grid's thumbnail at the picture's own aspect — stands in until
+/// the full-resolution bytes are decoded, off the main actor: a library picture can be a good
+/// deal larger than anything the grid ever asks `LibraryThumbnail` for, and nothing in this
+/// app decodes on the main actor.
 /// `item` changing — which happens every time a step lands on a new one, `LibraryPane` handing
 /// down a new value rather than this view moving itself — is what restarts the decode; `.task`
 /// keyed on its id is what notices.
@@ -25,19 +30,21 @@ struct LibraryViewer: View {
     @State private var image: NSImage?
 
     var body: some View {
-        picture
-            .modifier(LibraryViewerNavigation())
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.canvasBackground)
-            .safeAreaInset(edge: .top, spacing: 0) { LibraryViewerBar() }
-            .contextMenu { LibraryItemMenu(items: [item], selection: selection) }
-            .draggable(item)
-            // Keyed by what the scan fingerprints the file by, not by its path alone: an id
-            // is a path, and a picture rewritten in place keeps its path while its pixels
-            // change, which the index notices and the viewer would otherwise not.
-            .task(id: "\(item.id)|\(item.fileSize)|\(item.contentModifiedAt.timeIntervalSince1970)") {
-                await decode()
-            }
+        VStack(spacing: 0) {
+            LibraryViewerBar()
+            picture
+                .modifier(LibraryViewerNavigation())
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contextMenu { LibraryItemMenu(items: [item], selection: selection) }
+                .draggable(item)
+        }
+        .background(Color.canvasBackground)
+        // Keyed by what the scan fingerprints the file by, not by its path alone: an id
+        // is a path, and a picture rewritten in place keeps its path while its pixels
+        // change, which the index notices and the viewer would otherwise not.
+        .task(id: "\(item.id)|\(item.fileSize)|\(item.contentModifiedAt.timeIntervalSince1970)") {
+            await decode()
+        }
     }
 
     @ViewBuilder
@@ -49,8 +56,7 @@ struct LibraryViewer: View {
                 .aspectRatio(contentMode: .fit)
                 .accessibilityLabel(item.prompt.isEmpty ? item.fileName : item.prompt)
         } else {
-            LibraryThumbnail(item: item)
-                .accessibilityHidden(true)
+            ViewerPlaceholder(item: item)
         }
     }
 

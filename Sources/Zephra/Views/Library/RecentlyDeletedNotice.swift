@@ -23,7 +23,7 @@ struct RecentlyDeletedNotice: View {
                 Spacer(minLength: 12)
                 HStack(spacing: 8) {
                     Button("Put Back") { index.restore(selection.ids) }
-                    Button("Delete permanently", role: .destructive) { index.delete(selection.ids) }
+                    Button("Delete Permanently", role: .destructive) { index.delete(selection.ids) }
                 }
                 .controlSize(.small)
                 .disabled(selection.ids.isEmpty)

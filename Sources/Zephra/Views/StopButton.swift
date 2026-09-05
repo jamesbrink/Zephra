@@ -3,6 +3,10 @@ import ZephraEngine
 
 /// The way out of a running generation. Safelight amber, and only on screen while there is
 /// something to stop.
+///
+/// A bordered button that says "Stop" rather than a filled square: a square with no word
+/// beside Generate read as a decoration, and the prominent style drew it in the window's
+/// grey rather than in amber. The word and the symbol take the safelight colour directly.
 struct StopButton: View {
     @Environment(GenerationStore.self) private var store
 
@@ -11,13 +15,13 @@ struct StopButton: View {
             Button {
                 store.cancel()
             } label: {
-                Image(systemName: "stop.fill")
-                    .frame(minWidth: 18)
+                Label("Stop", systemImage: "stop.fill")
+                    .labelStyle(.titleAndIcon)
+                    .foregroundStyle(Color.safelight)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
             .controlSize(.large)
             .tint(.safelight)
-            .foregroundStyle(Color.black.opacity(0.78))
             .disabled(store.state == .cancelling)
             // ⌘. belongs to ZephraCommands. A shortcut declared in two places is one stray
             // SwiftUI change away from stopping twice.

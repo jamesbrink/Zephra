@@ -143,6 +143,14 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   of any size well enough to be worth the simplicity of skipping the rest of
   `LibraryQuery` for now.
 
+## Wording: left out on purpose
+
+- **A strings catalog.** Every user-facing string is a literal in the view that shows
+  it, in US spelling and macOS casing (see "Conventions" in AGENTS.md). A
+  `Localizable.xcstrings` with `String(localized:)` at the hundred-odd literals is a
+  day's mechanical work, and it was left until after the wording pass so the catalog
+  is made once from settled strings rather than twice.
+
 ## Live preview: left out on purpose
 
 - **Latent-to-RGB factor tables.** The cheap way to show a run in progress is a 16x3

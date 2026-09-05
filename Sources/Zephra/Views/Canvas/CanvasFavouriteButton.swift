@@ -16,7 +16,7 @@ struct CanvasFavouriteButton: View {
 
     var body: some View {
         if let item {
-            Button(item.isFavourite ? "Remove from Favourites" : "Add to Favourites") {
+            Button(item.isFavourite ? "Remove from Favorites" : "Add to Favorites") {
                 index.toggleFavourite([item.id])
             }
         }

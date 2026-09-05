@@ -20,9 +20,7 @@ struct SizeMenu: View {
                 }
             }
         } label: {
-            Text(store.settings.size.label)
-                .font(.callout)
-                .monospacedDigit()
+            Text(store.settings.size.label).font(.callout).monospacedDigit() + MenuChevron.text
         }
         .menuStyle(.button)
         .buttonStyle(.accessoryBar)

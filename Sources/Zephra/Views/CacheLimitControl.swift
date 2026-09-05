@@ -37,7 +37,7 @@ struct CacheLimitControl: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
-            Button("Reset to recommended") { cacheLimitMB = recommended }
+            Button("Reset to Recommended") { cacheLimitMB = recommended }
                 .disabled(InferenceTuning.clampedMB(cacheLimitMB) == recommended)
         }
         .onAppear { apply() }

@@ -18,7 +18,7 @@ import ZephraEngine
 ///
 /// What opening an image means is decided here and not in the Library pane. The inspector is
 /// a sibling of the pane inside `WorkspaceDetail`, not a view inside the pane, so an action
-/// handed down from the pane never reaches the inspector's own "Open in canvas" — it silently
+/// handed down from the pane never reaches the inspector's own "Open in Canvas" — it silently
 /// took the environment's default and did nothing. Handed down from here, every place that
 /// asks for it — the cell's menu, the sidebar's wall, and the inspector's own button — gets the
 /// same one. The grid's double-click and Return ask for the other thing a picture can mean:

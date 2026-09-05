@@ -50,7 +50,7 @@ struct ModelsSettings: View {
         .confirmationDialog(
             "Permanently delete model?", isPresented: isConfirming, presenting: pendingDeletion
         ) { item in
-            Button("Delete permanently", role: .destructive) { delete(item) }
+            Button("Delete Permanently", role: .destructive) { delete(item) }
         } message: { item in
             Text(consequence(of: item))
         }

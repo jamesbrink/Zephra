@@ -3,7 +3,7 @@ import ZephraEngine
 
 /// What can be done to several images at once, at the foot of the inspector.
 ///
-/// "Open in canvas" is shown and disabled rather than left out: the button is in the same place
+/// "Open in Canvas" is shown and disabled rather than left out: the button is in the same place
 /// whatever is selected, and its being greyed says why — a canvas shows one picture, and there
 /// is more than one here.
 ///
@@ -19,7 +19,7 @@ struct MultipleSelectionActions: View {
         Grid(horizontalSpacing: 8, verticalSpacing: 8) {
             GridRow {
                 Button {} label: {
-                    Text("Open in canvas").frame(maxWidth: .infinity)
+                    Text("Open in Canvas").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
@@ -31,7 +31,7 @@ struct MultipleSelectionActions: View {
                 Button {
                     for item in variations { store.queueVariation(of: item) }
                 } label: {
-                    Text("Queue \(variations.count) variations").frame(maxWidth: .infinity)
+                    Text("Queue \(variations.count) Variations").frame(maxWidth: .infinity)
                 }
                 .disabled(variations.isEmpty || !canQueue)
                 Button {

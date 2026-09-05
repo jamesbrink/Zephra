@@ -26,7 +26,7 @@ struct ModelStorageRow: View {
                 .help(inUse ? "In use. Choose another model first." : "Permanently delete these model files")
         }
         .contextMenu {
-            Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([item.url]) }
+            Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting([item.url]) }
         }
     }
 
@@ -36,8 +36,12 @@ struct ModelStorageRow: View {
         item.location.isEmpty ? state : "\(state) · \(item.location)"
     }
 
+    /// A partial download is promised a resumption only where one can happen: the app's own
+    /// folder is written to, the hub cache is only ever read (see `ModelStorageItem.Origin`).
     private var state: String {
         switch item.kind {
+        case .download where !item.isComplete && item.origin == .hubCache:
+            "Partial download left by hf; Zephra reads this cache and never writes it"
         case .download where !item.isComplete:
             "Partial download, resumed when the model is chosen"
         case .download where item.modelIDs.count > 1:
@@ -70,6 +74,13 @@ struct ModelStorageRow: View {
                 url: URL(filePath: "/tmp/z"), location: "Downloads/mzbac--Z-Image-Turbo-8bit",
                 modelIDs: ["z"], isComplete: false),
             inUse: true
+        ) {}
+        ModelStorageRow(
+            item: ModelStorageItem(
+                name: "Z-Image Turbo · 8-bit", kind: .download,
+                url: URL(filePath: "/tmp/hub"), location: "~/.cache/huggingface/hub/models/mzbac/Z-Image-Turbo-8bit",
+                modelIDs: ["z"], isComplete: false, origin: .hubCache),
+            inUse: false
         ) {}
     }
     .formStyle(.grouped)

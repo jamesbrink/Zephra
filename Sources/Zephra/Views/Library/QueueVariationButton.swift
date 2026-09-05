@@ -1,7 +1,7 @@
 import SwiftUI
 import ZephraEngine
 
-/// "Queue a variation": the same request again, with a fresh seed.
+/// "Queue a Variation": the same request again, with a fresh seed.
 ///
 /// Disabled for an imported picture, which carries no request to repeat, and while the engine
 /// cannot take work — a queue drained during a download or a load would swap models under
@@ -14,7 +14,7 @@ struct QueueVariationButton: View {
 
     var body: some View {
         Button { store.queueVariation(of: item) } label: {
-            Text("Queue a variation").frame(maxWidth: .infinity)
+            Text("Queue a Variation").frame(maxWidth: .infinity)
         }
         .disabled(!canQueue)
     }

@@ -14,7 +14,9 @@ struct CanvasEmptyState: View {
     var body: some View {
         VStack(spacing: 10) {
             Text("Describe an image to begin.")
-                .font(.system(size: 22))
+                // The system's title, 22 pt at the default size, so it follows the type
+                // size the person chose rather than standing at a number of its own.
+                .font(.title)
                 .fontDesign(.serif)
                 .foregroundStyle(.secondary)
             Text(hint)

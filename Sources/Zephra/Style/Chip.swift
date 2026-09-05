@@ -47,7 +47,7 @@ struct Chip: View {
 #Preview("Chips") {
     HStack(spacing: 6) {
         Chip("All", isSelected: true)
-        Chip("Favourites")
+        Chip("Favorites")
         Chip("Qwen")
         Chip("street at night") {}
     }
