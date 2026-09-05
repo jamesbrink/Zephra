@@ -77,6 +77,16 @@ RELEASE_APP    := $(BUILD)/Release/Zephra.app
 RELEASE_ZIP    := $(BUILD)/Zephra.zip
 RELEASE_DMG    := $(BUILD)/Zephra.dmg
 
+# The version stamped into the app. project.yml holds the defaults an ordinary build gets;
+# `make release VERSION=0.2.0 BUILD_NUMBER=42` overrides them on the xcodebuild command line
+# (MARKETING_VERSION, CURRENT_PROJECT_VERSION), which is how the release workflow sets the
+# marketing version from its dispatch input and the build number from the run number. Either
+# may be given alone. VERSION must be MAJOR.MINOR.PATCH and BUILD_NUMBER a positive integer;
+# `build` refuses anything else before xcodebuild runs, so a stray "v" never reaches a bundle.
+VERSION      ?=
+BUILD_NUMBER ?=
+VERSION_FLAGS := $(if $(VERSION),MARKETING_VERSION=$(VERSION)) $(if $(BUILD_NUMBER),CURRENT_PROJECT_VERSION=$(BUILD_NUMBER))
+
 .PHONY: doctor gen build run bench quantize quantize-qwen quantize-flux2 prefetch prefetch-qwen prefetch-flux2 open clean lint-layers logs screenshot test test-app test-mlx test-backend icon signed-build release notarize notarized-release
 
 # What a fresh Mac needs before `make build` can work, each with its fix printed.
@@ -87,7 +97,11 @@ gen:
 	xcodegen generate --spec project.yml
 
 build: gen
-	$(XCB) -scheme $(SCHEME) -configuration $(CONFIG) build
+	@if [ -n "$(VERSION)" ] && ! echo "$(VERSION)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
+	  echo "VERSION must be MAJOR.MINOR.PATCH, got '$(VERSION)'"; exit 1; fi
+	@if [ -n "$(BUILD_NUMBER)" ] && ! echo "$(BUILD_NUMBER)" | grep -Eq '^[1-9][0-9]*$$'; then \
+	  echo "BUILD_NUMBER must be a positive integer, got '$(BUILD_NUMBER)'"; exit 1; fi
+	$(XCB) -scheme $(SCHEME) -configuration $(CONFIG) $(VERSION_FLAGS) build
 
 run: build
 	open -a "$(APP)"
@@ -162,7 +176,7 @@ icon:
 # Build and sign the app for distribution. If present, SIGNING_CONFIG is sourced
 # before signing so a local machine can keep its identity selection in Documents.
 signed-build:
-	$(MAKE) CONFIG=Release build
+	$(MAKE) CONFIG=Release VERSION="$(VERSION)" BUILD_NUMBER="$(BUILD_NUMBER)" build
 	@set -a; \
 	if [ -f "$(SIGNING_CONFIG)" ]; then . "$(SIGNING_CONFIG)"; fi; \
 	set +a; \
@@ -171,7 +185,8 @@ signed-build:
 	./scripts/sign-release.sh "$(RELEASE_APP)"
 
 # Package the signed app as a ZIP and a signed DMG. Notarization is separate;
-# distribution signatures use Apple secure timestamps.
+# distribution signatures use Apple secure timestamps. VERSION and BUILD_NUMBER
+# (above) stamp the bundle; without them the build carries project.yml's defaults.
 release: signed-build
 	rm -f "$(RELEASE_ZIP)"
 	ditto -c -k --keepParent "$(RELEASE_APP)" "$(RELEASE_ZIP)"

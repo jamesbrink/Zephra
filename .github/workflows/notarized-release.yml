@@ -16,6 +16,13 @@ name: Notarized Release
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: >-
+          Marketing version to stamp the app with (MAJOR.MINOR.PATCH, e.g. 0.2.0).
+          Becomes MARKETING_VERSION; the build number is the workflow run number.
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -27,6 +34,13 @@ jobs:
     timeout-minutes: 300
 
     env:
+      # The version the app is stamped with (project.yml holds the defaults an ordinary
+      # build gets). The marketing version is the dispatch input; the build number is the
+      # run number, which GitHub only ever increases for a workflow, so CFBundleVersion is
+      # monotonic across releases without anyone editing a file. A re-run of the same run
+      # keeps its number, which is right: it is the same version built again.
+      VERSION: ${{ inputs.version }}
+      BUILD_NUMBER: ${{ github.run_number }}
       DEVELOPER_ID_APPLICATION_P12_BASE64: ${{ secrets.DEVELOPER_ID_APPLICATION_P12_BASE64 }}
       DEVELOPER_ID_APPLICATION_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_APPLICATION_P12_PASSWORD }}
       APPLE_API_KEY_P8_BASE64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
@@ -36,6 +50,17 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v5
+
+      # Refused here, before an hour of gates, rather than by `make build` at the end; the
+      # Makefile applies the same rule for a local `make release VERSION=...`.
+      - name: Check the version input
+        run: |
+          set -euo pipefail
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "version must be MAJOR.MINOR.PATCH, got '$VERSION'" >&2
+            exit 1
+          fi
+          echo "Building Zephra $VERSION ($BUILD_NUMBER)"
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -103,7 +128,7 @@ jobs:
           echo "NOTARY_KEY=$api_key" >>"$GITHUB_ENV"
 
       - name: Build signed DMG and ZIP
-        run: make release SIGNING_CONFIG=/dev/null
+        run: make release SIGNING_CONFIG=/dev/null VERSION="$VERSION" BUILD_NUMBER="$BUILD_NUMBER"
 
       - name: Notarize and staple
         run: make notarize SIGNING_CONFIG=/dev/null
@@ -111,7 +136,7 @@ jobs:
       - name: Upload notarized DMG and ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: Zephra-${{ github.sha }}
+          name: Zephra-${{ inputs.version }}-${{ github.run_number }}
           path: |
             build/Zephra.dmg
             build/Zephra.zip
