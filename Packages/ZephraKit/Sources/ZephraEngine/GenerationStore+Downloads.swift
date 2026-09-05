@@ -19,7 +19,7 @@ extension GenerationStore {
     }
 
     public func resumeDownload(_ model: ModelDescriptor) {
-        guard !isChangingModelDirectory, !isShuttingDown, !deletionInProgress, let registry else { return }
+        guard !isChangingModelDirectory, !isChangingImageDirectory, !isShuttingDown, !deletionInProgress, let registry else { return }
         if model.id == descriptor.id, !isDraining, !isUpscaling, !isSwappingModel, !isStoppingPreparation {
             retry()
         } else { _ = downloads.start(model, registry: registry, locations: locations) }
@@ -65,7 +65,7 @@ extension GenerationStore {
     }
 
     public func modelStorageIsInUse(_ item: ModelStorageItem) -> Bool {
-        if isChangingModelDirectory || isShuttingDown || deletionInProgress { return true }
+        if isChangingModelDirectory || isChangingImageDirectory || isShuttingDown || deletionInProgress { return true }
         if let loadedDirectory {
             let parent = item.url.resolvingSymlinksInPath().standardizedFileURL.path
             let child = loadedDirectory.resolvingSymlinksInPath().standardizedFileURL.path

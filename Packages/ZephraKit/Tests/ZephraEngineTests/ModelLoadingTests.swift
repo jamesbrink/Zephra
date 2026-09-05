@@ -39,6 +39,7 @@ struct ModelLoadingTests {
 
         store.cancel()
         await bootstrap.value
+        await store.settle()
         #expect(store.state == .idle)
         #expect(bed.control.settings.generations == 0, "warm-up should never have started")
 

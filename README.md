@@ -177,12 +177,12 @@ with a progress readout while that happens.
   one model, and steps go back to the new model's own default when you switch to a different
   model — nine steps of Z-Image's schedule and nine of Qwen-Image's four-step distillation
   are not the same request. The lock keeps the seed across runs; unlocked, every run gets a
-  fresh one. Images save to `~/Pictures/Zephra` with the seed in the file name; if a write
+  fresh one. Images save to `~/Pictures/Zephra` by default, with the seed in the file name; if a write
   fails, a notice sits over the prompt until an image saves, and the picture stays on the
   canvas either way.
 - The sidebar's wall is today's work in one flow, newest run first: a batch's seeds sit
   together, a dashed square stands for each seed still to come, and "Today in Library" at
-  the foot counts them. Everything ever made is in `~/Pictures/Zephra`, and the
+  the foot counts them. Images are in the library folder (`~/Pictures/Zephra` by default), and the
   Library reads that folder rather than the app keeping a list of its own. The record of
   what made an image — prompt, size, steps, seed, model, and how long it took — lives inside
   the PNG itself, so moving, renaming, or copying a file to another Mac keeps it, and
@@ -190,7 +190,7 @@ with a progress readout while that happens.
   album membership go into the same file, under a second keyword, so they travel with the
   picture too. A PNG that Zephra did not make carries no record and is ignored. Right-click
   a thumbnail for Save as, Copy, Reveal in Finder, Upscale, and Delete; Delete (⌘⌫ for the
-  image on the canvas) moves the file to `~/Pictures/Zephra/Recently Deleted`, where it
+  image on the canvas) moves the file to `Recently Deleted` inside the selected library folder, where it
   waits thirty days before it is thrown away for good. In that collection the menu offers
   Put Back and Delete Immediately instead.
 - Settings holds the appearance — System, Light, or Dark, applied to every window as the
@@ -618,3 +618,20 @@ Z-Image base, runtime LoRA, and the upscaler's follow-ups.
 
 Proprietary — all rights reserved. See `LICENSE`. Third-party components are
 used under their own licenses; see `THIRD_PARTY_NOTICES.md`.
+
+### Image library location
+
+Settings > General > Images offers **Open**, **Change…**, and **Use Default** for the
+library folder. The default is `~/Pictures/Zephra`. After choosing a folder, select
+**Move Images** to migrate existing images, albums, sources, and Recently Deleted,
+or **Keep in Place** to leave them untouched and display the selected folder’s
+library. Choose the old folder again to return to its images. New generations and
+upscales save to the selected folder, which is remembered across launches.
+
+Folder changes wait for image writes and pause library edits; finish generation,
+queued work, and upscaling first. Migration verifies copied files before removing
+originals, preserves embedded metadata and deletion dates, and leaves unrelated
+files alone. When moving data, choose a folder without existing images or library
+metadata; merging existing libraries is not supported and nothing is overwritten.
+A failed move keeps the old location selected; if only removal of an original fails, the complete destination is selected and the
+retained original is reported.

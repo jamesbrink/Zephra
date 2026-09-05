@@ -10,7 +10,9 @@ struct BuildStateTests {
     @Test("a family that packs its download reports building between downloading and loading")
     func buildingIsItsOwnState() async throws {
         let bed = EngineTestBed()
-        bed.control.update { $0.buildEvents = 3; $0.buildDelay = .milliseconds(40) }
+        let gate = BackendGate()
+        defer { Task { await gate.open() } }
+        bed.control.update { $0.buildEvents = 3; $0.buildGate = { await gate.wait() } }
         let store = bed.store(descriptor: ModelCatalog.flux2Klein4bit)
         store.warmsUpAfterLoad = false
         let task = Task { await store.bootstrap() }
@@ -26,6 +28,7 @@ struct BuildStateTests {
             }
             try await Task.sleep(for: .milliseconds(5))
         }
+        await gate.open()
         await task.value
         #expect(sawBuilding, "the store showed .building while the mock packed")
         #expect(store.state == .ready)
@@ -45,7 +48,9 @@ struct BuildStateTests {
     @Test("stopping during a build abandons it and returns to idle")
     func cancelDuringBuild() async throws {
         let bed = EngineTestBed()
-        bed.control.update { $0.buildEvents = 50; $0.buildDelay = .milliseconds(20) }
+        let gate = BackendGate()
+        defer { Task { await gate.open() } }
+        bed.control.update { $0.buildEvents = 3; $0.buildGate = { await gate.wait() } }
         let store = bed.store(descriptor: ModelCatalog.flux2Klein4bit)
         store.warmsUpAfterLoad = false
         let task = Task { await store.bootstrap() }
@@ -54,6 +59,7 @@ struct BuildStateTests {
             try await Task.sleep(for: .milliseconds(5))
         }
         store.cancel()
+        await gate.open()
         await task.value
         await store.settle()
         #expect(store.state == .idle)

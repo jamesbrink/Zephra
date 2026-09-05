@@ -13,6 +13,7 @@ nonisolated enum DownloadExercise {
         var registry = BackendRegistry()
         for model in ModelCatalog.all { registry.register(model.backend) { _ in DownloadExerciseBackend() } }
         return GenerationStore(descriptor: ModelCatalog.flux2Klein4bit, registry: registry,
+            outputDirectory: AppSettings.imageLibrary().root,
             locations: AppSettings.modelLocations(),
             downloads: ModelDownloads(transfers: ModelTransfers(downloader: ModelDownloader(host: url))))
     }

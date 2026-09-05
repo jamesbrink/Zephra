@@ -14,9 +14,16 @@ struct ReferenceChoiceTests {
         try #require(store.descriptor.capabilities.supportsReferenceImage)
         let slow = Data([1]), quick = Data([2])
 
-        store.adoptReference { try? await Task.sleep(for: .milliseconds(200)); return slow }
+        let release = AsyncStream<Void>.makeStream()
+        store.adoptReference {
+            for await _ in release.stream {}
+            return slow
+        }
+        let earlier = store.referenceRead
         store.adoptReference { quick }
-        try await Task.sleep(for: .milliseconds(400))
+        await store.referenceRead?.value
+        release.continuation.finish()
+        await earlier?.value
 
         #expect(store.settings.referenceImage == quick)
     }
@@ -28,10 +35,16 @@ struct ReferenceChoiceTests {
         await store.bootstrap()
         try #require(store.descriptor.capabilities.supportsReferenceImage)
 
-        store.adoptReference { try? await Task.sleep(for: .milliseconds(200)); return Data([1]) }
+        let release = AsyncStream<Void>.makeStream()
+        store.adoptReference {
+            for await _ in release.stream {}
+            return Data([1])
+        }
+        let earlier = store.referenceRead
         let ticket = store.claimReference()
         store.useAsReference(nil, ticket: ticket)
-        try await Task.sleep(for: .milliseconds(400))
+        release.continuation.finish()
+        await earlier?.value
 
         #expect(store.settings.referenceImage == nil)
         #expect(store.referenceChoice == ticket, "the slow read took no number of its own after")
@@ -45,11 +58,11 @@ struct ReferenceChoiceTests {
         store.settings.prompt = "a lighthouse"
         try #require(store.canGenerate)
 
-        store.adoptReference { try? await Task.sleep(for: .milliseconds(200)); return Data([1]) }
+        store.adoptReference { Data([1]) }
         #expect(store.isAdoptingReference)
         #expect(!store.canGenerate)
         #expect(!store.canQueue)
-        try await Task.sleep(for: .milliseconds(400))
+        await store.referenceRead?.value
 
         #expect(!store.isAdoptingReference)
         #expect(store.canGenerate)

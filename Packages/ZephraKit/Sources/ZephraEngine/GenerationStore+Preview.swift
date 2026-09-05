@@ -1,3 +1,4 @@
+import Foundation
 import ZephraCore
 
 /// A store that only pretends, for SwiftUI previews and for the screenshot builds driven by
@@ -25,9 +26,10 @@ extension GenerationStore {
         queue: [QueuedGeneration] = [],
         livePreview: GenerationPreview? = nil,
         following: Bool? = nil,
-        swappingModel: Bool = false
+        swappingModel: Bool = false,
+        outputDirectory: URL? = nil
     ) -> GenerationStore {
-        let store = GenerationStore(descriptor: descriptor, registry: nil, output: nil)
+        let store = GenerationStore(descriptor: descriptor, registry: nil, output: outputDirectory)
         store.state = state
         store.isSwappingModel = swappingModel
         store.history = images.isEmpty ? image.map { [$0] } ?? [] : images

@@ -1,0 +1,25 @@
+# Configurable image library
+
+Keep `~/Pictures/Zephra` as the default. General > Images gains Open, Change…, and Use Default, matching Models. A native folder picker is followed by Move Images / Keep in Place / Cancel. Explain that keeping files leaves the old library untouched and displays the selected folder's library; switching back restores access. Persist only successful changes and use the same root for generation, upscaling, indexing, and subsequent launches.
+
+The engine coordinates the change while generation, queued work, upscaling, and another folder change are gated. Drain outstanding image saves, deletes, annotation/album writes and scans before migration. Pause index mutations and watches; reject stale scan results; switch the existing observable index to the new root, rebuild watches and refresh. Reset stale canvas/history/viewer/selection paths and album scope on success. Failures keep the original root usable and resume watches.
+
+Migration is Foundation-only and off the main actor. Move the library contents including embedded metadata, album manifests, Sources, and Recently Deleted with its retention manifest. Never overwrite a destination entry. Preflight path overlap, symbolic links, writable/mounted destination, conflicts and free space. Copy into a private staging directory, verify bytes, publish without overwriting, and only then remove verified originals. Failure before complete publication keeps all originals; cleanup failures after publication adopt the complete destination and report retained originals. Unrelated source files should remain untouched; migration selects Zephra-owned images and metadata. Refuse merging into a destination that already contains images or library metadata, even when filenames differ: incoming manifests may refer to existing filenames or album IDs. Ask for an empty image-library destination rather than discard, rename, or combine metadata.
+
+Tests cover keep, move, default/reset, no-op, collisions, nested/aliased paths, metadata preservation, missing/unwritable destinations, copy/publication/cleanup failures, busy gates, pending writes, stale scans, and saving/indexing after a switch. Build the macOS app and perform native Settings UAT using temporary library fixtures, with preferences restored afterward. Run `make test`, `make lint-layers`, and app build. Obtain independent plan review before implementation and final diff review before merge. Use a conventional feature commit, verify CI on the final head, merge into main, and push.
+
+## Plan review
+
+Independent review approved the approach with these required refinements: chain every generation and upscale save (the existing task slot only tracked the newest); gate delete/open and all index mutations as well as Generate; drain independently invoked scans and reject stale results by an epoch; pause watch callbacks and automatic trash purging; cancel old canvas reads. Recognize both generation and source PNG records and retain unrelated files even within managed subfolders. Keep filenames and trash manifests intact, revalidate originals before removal, and explicitly report any verified copies retained after a publication failure. These refinements are part of implementation and regression coverage.
+
+## Validation and final review
+
+- Independent final review found no blocking defects, including a follow-up review of mounted-volume checks and the narrow macOS system-symlink exception.
+- `make test`: all 424 tests across 75 suites passed together, covering upscale output/indexing after a switch, returning to a prior library, default location, and no-op behavior. A fixed-delay reference-choice test exposed by the loaded host was made deterministic with release gates and task completion; the reviewer approved that test-only fix.
+- `make test-mlx`: all seven package schemes passed, totaling 224 tests.
+- `make build CONFIG=Debug` and a final incremental rebuild succeeded; `make lint-layers` and `git diff --check` passed.
+- Native Settings UAT used a temporary library and the Debug `settings` state, without model inference. Verified layout, default-target confirmation and Cancel, Keep in Place and switch-back, conflict refusal, successful Move Images, and persisted destination after quitting/relaunching.
+- All five migrated PNG/manifest fixture files matched their original SHA-256 digests; original owned files were removed while unrelated and conflicting files stayed unchanged. Library UI retained favourites, tags, album membership, and Recently Deleted. Adding another file at the destination updated the live library count through its new folder watcher.
+- Original app preferences were restored and compared with the saved pre-UAT domain. No real library files were migrated.
+
+A final safety pass added refusal of destination images even without direct filename collisions: stale deletion-manifest entries must never acquire an unrelated destination image, and album IDs must never silently merge. Regression fixtures cover that refusal with all originals and destination files intact.

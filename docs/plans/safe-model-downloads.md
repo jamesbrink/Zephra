@@ -92,3 +92,9 @@ Validation completed:
 - Native UAT used a separately signed `io.zephra.DownloadUAT` bundle and disposable roots with `scripts/download-fixture.py`. FLUX 4-bit → 8-bit shared exactly one body request; switching to Z-Image started a second independent body. Pause/Resume, shared cancellation, Retry, foreground Cancel, Quit, relaunch, and moving the models folder during a transfer all passed. Recorded resume offsets included 2,293,760 and 5,636,096 bytes. Explicit Cancel removed the unfinished writable repository and preserved the completed shared release.
 - 111 native tests pass: 36 MLX/quantization, 44 Z-Image backend, 21 Qwen backend, and 10 FLUX backend. The MLX test submits asynchronous GPU work and drains it through the runtime seam.
 - UAT deliberately used fake model bytes with the real networking, engine, and UI paths. It did not run a full-weight quantization or warm-up. Tiny MLX tests cover device synchronization separately; the historical crash attribution remains a hypothesis.
+
+## Integration with the image-library folder change
+
+Before publication, `main` advanced to `f9212ae`. The merge preserves both features' admission guards and extends shutdown settlement to image-library migration through final index adoption. Model deletion and folder transactions cannot overwrite each other's settlement. The integration and its deterministic cancellation/build test updates received independent approval.
+
+The integrated branch passes all 443 Foundation tests in 76 suites with `make test`, layer checks, whitespace checks, and a fresh Debug app build. Native UAT on that build confirmed the configured disposable image library, concurrent Qwen release/adapter transfers, and clean Quit while downloading. The previously passed 111 native backend/MLX tests cover unchanged backend/runtime code.

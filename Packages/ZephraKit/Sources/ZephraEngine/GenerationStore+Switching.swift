@@ -12,7 +12,7 @@ extension GenerationStore {
     /// takes effect for whatever is generated next. Nothing is persisted here: which model was
     /// chosen is the app's business.
     public func switchModel(to descriptor: ModelDescriptor) {
-        guard !isChangingModelDirectory, !isShuttingDown, !deletionInProgress, descriptor.id != self.descriptor.id else { return }
+        guard !isChangingModelDirectory, !isChangingImageDirectory, !isShuttingDown, !deletionInProgress, descriptor.id != self.descriptor.id else { return }
         logger.info("model chosen: \(descriptor.id, privacy: .public)")
         adopt(descriptor)
         if let registry { _ = downloads.start(descriptor, registry: registry, locations: locations) }

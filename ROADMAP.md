@@ -164,3 +164,11 @@ Left out of the first pass on purpose, each a small change to one file unless no
   because builds and resident weights share the same large Metal allocator.
 - Coalesce differing file-pattern requests for the same repository revision. Identical
   dependency sets share now; differing sets serialize until current readers finish.
+
+## Image library location: left out on purpose
+
+- **Merging existing libraries.** Folder migration
+  refuses destinations containing images or album/deletion metadata. A merge
+  needs explicit choices for duplicate pictures, album identities, and deletion dates.
+  For now, move into an empty folder, or keep both libraries in place and switch
+  between their folders in Settings.

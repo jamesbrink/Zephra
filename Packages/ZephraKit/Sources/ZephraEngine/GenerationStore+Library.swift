@@ -11,6 +11,7 @@ extension GenerationStore {
     /// when a variation is asked for, which is an explicit act. A second open supersedes the
     /// first, so clicking down a row of thumbnails does not queue up a row of reads.
     public func open(_ item: LibraryItem) async {
+        guard !isChangingImageDirectory else { return }
         // Looking at something else is what stops the canvas following the run. Said here
         // rather than when the bytes arrive, so a slow read does not leave the run's frames
         // playing under a picture that is on its way.
@@ -46,7 +47,7 @@ extension GenerationStore {
     /// models under the load that is already running and cancel it. The prompt tested is the
     /// record's rather than the one in the field, because that is the one about to run.
     public func queueVariation(of item: LibraryItem) {
-        guard !isChangingModelDirectory, let record = item.provenance.record,
+        guard !isChangingModelDirectory && !isChangingImageDirectory, let record = item.provenance.record,
               record.settings().isReadyToGenerate,
               state.acceptsGeneration || isDraining
         else { return }

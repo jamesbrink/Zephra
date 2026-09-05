@@ -8,17 +8,18 @@ extension GenerationStore {
 
     /// True when a generation can start right now: the engine is ready and there is a prompt.
     public var canGenerate: Bool {
-        !isChangingModelDirectory && !isShuttingDown && !deletionInProgress && state.acceptsGeneration && settings.isReadyToGenerate && !isAdoptingReference
+        !isChangingModelDirectory && !isChangingImageDirectory && !isShuttingDown && !deletionInProgress && state.acceptsGeneration && settings.isReadyToGenerate && !isAdoptingReference
     }
 
     /// True when `generate()` will do something: start now, or queue behind the running one.
     public var canQueue: Bool {
-        !isChangingModelDirectory && !isShuttingDown && !deletionInProgress && settings.isReadyToGenerate && (state.acceptsGeneration || isDraining) && !isAdoptingReference
+        !isChangingModelDirectory && !isChangingImageDirectory && !isShuttingDown && !deletionInProgress && settings.isReadyToGenerate && (state.acceptsGeneration || isDraining) && !isAdoptingReference
     }
 
     /// Shows an earlier image on the canvas and adopts its settings, so the obvious next move
     /// is to tweak one thing and generate a variation.
     public func select(_ image: GeneratedImage) {
+        guard !isChangingImageDirectory else { return }
         stopFollowingRun()
         // The settings about to be adopted include the picture's own reference, or none; a
         // library read still on its way was for the settings being replaced.

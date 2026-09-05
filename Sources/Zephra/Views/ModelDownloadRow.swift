@@ -23,11 +23,11 @@ struct ModelDownloadRow: View {
                     Button("Cancel download") { store.pauseDownload(download.id, discard: true) }.disabled(!canStop)
                 case .paused:
                     Button("Resume") { store.resumeDownload(download.model) }
-                        .disabled(store.isChangingModelDirectory || store.isStoppingPreparation || store.isShuttingDown)
+                        .disabled(store.isChangingModelDirectory || store.isChangingImageDirectory || store.isStoppingPreparation || store.isShuttingDown)
                     Button("Cancel download") { store.pauseDownload(download.id, discard: true) }.disabled(!canStop)
                 case .cancelled, .failed:
                     Button(download.status == .paused ? "Resume" : "Retry") { store.resumeDownload(download.model) }
-                        .disabled(store.isChangingModelDirectory || store.isStoppingPreparation || store.isShuttingDown)
+                        .disabled(store.isChangingModelDirectory || store.isChangingImageDirectory || store.isStoppingPreparation || store.isShuttingDown)
                 case .completed: EmptyView()
                 }
             }

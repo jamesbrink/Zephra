@@ -29,6 +29,7 @@ final class MockBackendControl: Sendable {
         var buildEvents = 0
         /// How long each build event pretends to take, so a test can cancel during a build.
         var buildDelay: Duration = .zero
+        var buildGate: (@Sendable () async -> Void)?
         /// The settings of the last generation the backend was asked for, so a test can assert
         /// what actually reached it rather than what the store thinks it sent.
         var lastSettings: GenerationSettings?

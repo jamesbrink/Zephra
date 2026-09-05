@@ -73,6 +73,7 @@ final class MockBackend: ImageGenerationBackend {
                     component: "transformer", completedComponents: step,
                     totalComponents: dials.buildEvents,
                     fraction: Double(step) / Double(dials.buildEvents)))
+            await dials.buildGate?()
         }
         return localPath.appending(path: "built")
     }
