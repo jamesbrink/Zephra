@@ -5,7 +5,7 @@ import ZephraEngine
 /// What can be done to a picture this session made that the library has not indexed yet.
 ///
 /// `LibraryItemMenu` is the menu every indexed image wears; this is the handful of the same
-/// actions that still make sense before there is a `LibraryItem` to hand it — favourite, save,
+/// actions that still make sense before there is a `LibraryItem` to hand it — favourite, export,
 /// copy, reveal, use as reference, delete — worded and ordered to match. Once the folder scan
 /// catches up, `CanvasInspector`'s lookup finds the file and the picture's menu becomes
 /// `LibraryItemMenu` instead; this one is only ever shown in the moment before that.
@@ -18,7 +18,7 @@ struct FreshImageMenu: View {
     var body: some View {
         CanvasFavouriteButton(image: image)
         Divider()
-        Button("Save as…") { ImageExport.saveAs(image) }
+        Button("Export…") { ImageExport.saveAs(image) }
         Button("Copy") { ImageExport.copyToPasteboard(image) }
         Button("Reveal in Finder") { ImageExport.revealInFinder(image) }
         if store.descriptor.capabilities.supportsReferenceImage {

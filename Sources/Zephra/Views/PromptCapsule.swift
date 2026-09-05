@@ -8,11 +8,7 @@ struct PromptCapsule: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            StepSegments(
-                total: store.settings.steps,
-                completed: store.state.denoisingProgress?.step ?? 0,
-                isRunning: store.state.denoisingProgress != nil
-            )
+            StepSegments(progress: store.stepProgress)
             // One width for the prompt, the divider and the settings, so the reference well
             // lines up with the Generate button even when the settings row is the widest.
             SharedWidthRows(spacing: 12) {

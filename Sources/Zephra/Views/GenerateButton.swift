@@ -6,9 +6,10 @@ import ZephraEngine
 /// row is just pressing it several times. Beside it, `BatchCountControl` decides how many seeds
 /// one press is worth.
 ///
-/// The shortcut is written on the button rather than left to the menu bar, because Return in
-/// the prompt now breaks the line instead of starting the work: somebody who has just typed a
-/// prompt needs to be told what to press, at the moment they are looking for it.
+/// The chord is written on the button as text, because Return in the prompt breaks the line
+/// instead of starting the work: somebody who has just typed a prompt needs to be told what to
+/// press, at the moment they are looking for it. It is only text: the shortcut itself belongs
+/// to `ZephraCommands`, which is the one owner of every chord in the app.
 struct GenerateButton: View {
     @Environment(GenerationStore.self) private var store
     @AppStorage(AppSettings.batchCount) private var count = AppSettings.initialBatchCount
@@ -30,7 +31,8 @@ struct GenerateButton: View {
         // The primary action never abbreviates itself. Without this the row squeezes the label
         // before it squeezes the space beside the settings, and "Generate" becomes "Gen…".
         .fixedSize()
-        .keyboardShortcut(.return, modifiers: .command)
+        // ⌘⏎ belongs to ZephraCommands. A shortcut declared in two places is one stray
+        // SwiftUI change away from queueing twice.
         .disabled(!store.canQueue)
         .help(helpText)
     }

@@ -24,11 +24,7 @@ struct PromptLip: View {
             workspace.promptTucked = false
         } label: {
             VStack(spacing: 0) {
-                StepSegments(
-                    total: store.settings.steps,
-                    completed: store.state.denoisingProgress?.step ?? 0,
-                    isRunning: store.state.denoisingProgress != nil
-                )
+                StepSegments(progress: store.stepProgress)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.up")
                     .font(.caption2)

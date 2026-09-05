@@ -39,7 +39,9 @@ struct CanvasStateView: View {
 
     @ViewBuilder
     private var messageBlock: some View {
-        if let title = store.state.title(for: store.descriptor) {
+        if let title = store.state.title(
+            for: store.descriptor, availability: store.availability[store.descriptor.id]
+        ) {
             Text(title)
                 .font(.title3)
                 .foregroundStyle(.primary)

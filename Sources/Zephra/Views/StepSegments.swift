@@ -4,31 +4,28 @@ import SwiftUI
 /// filled left to right as the steps land.
 ///
 /// Deliberately unanimated: each segment is a step that actually happened, so it appears the
-/// instant that step reports, and a smoothed bar would be a prettier lie.
+/// instant that step reports, and a smoothed bar would be a prettier lie. The count is the run
+/// in flight's, worked out once in `StepProgress` rather than read from the slider here.
 struct StepSegments: View {
-    /// How many steps this generation will run.
-    let total: Int
-    /// How many of them have finished.
-    let completed: Int
-    /// Whether a generation is running at all; segments are invisible the rest of the time.
-    let isRunning: Bool
+    /// How far the run has got, and how many steps it has.
+    let progress: StepProgress
 
     var body: some View {
         HStack(spacing: 2) {
-            ForEach(0..<max(total, 1), id: \.self) { index in
+            ForEach(0..<max(progress.total, 1), id: \.self) { index in
                 Rectangle()
-                    .fill(index < completed ? AnyShapeStyle(Color.safelight) : AnyShapeStyle(.quaternary))
+                    .fill(index < progress.completed ? AnyShapeStyle(Color.safelight) : AnyShapeStyle(.quaternary))
             }
         }
         .frame(height: 3)
-        .opacity(isRunning ? 1 : 0)
+        .opacity(progress.isRunning ? 1 : 0)
         .accessibilityElement()
-        .accessibilityLabel("Step \(completed) of \(total)")
+        .accessibilityLabel("Step \(progress.completed) of \(progress.total)")
     }
 }
 
 #Preview("Mid generation") {
-    StepSegments(total: 9, completed: 4, isRunning: true)
+    StepSegments(progress: StepProgress(completed: 4, total: 9, isRunning: true))
         .frame(width: 320)
         .padding()
 }

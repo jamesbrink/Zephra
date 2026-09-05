@@ -366,7 +366,7 @@ as an index, and it is Foundation only, so `make test` covers all of it.
   a window. `ImageFacts` formats the seven rows the inspector shows.
 - Export copies the file, never the bytes in memory, once a picture has one:
   the file is where the favourite, the tags, the albums and the upscale record
-  were written, and `ImageExport.exportData(for:)` reads it for Save as, Copy
+  were written, and `ImageExport.exportData(for:)` reads it for Export, Copy
   and a drag alike, embedding the record into the session's bytes only before
   the save has landed. Every copy goes through `ExportPlan`
   (`Sources/Zephra/Support/`), a pure plan of copies, collisions and files
@@ -410,13 +410,34 @@ Four directories, by what a file is rather than what screen it is on:
   preference is applied by `AppearanceApplier`, set on `NSApp` from the
   composition root rather than as a colour scheme on a scene, so the Settings
   window, the menus, and the alerts change with the main window.
+  `CommandTarget` is what the menu bar's file commands — Export, Copy, Reveal,
+  Delete, Use as Reference, Upscale — are about: the canvas's picture while the
+  canvas pane is showing one (not while it follows a run, which has no file
+  yet), the grid's focused selection filtered to the sections on screen, and
+  otherwise nothing, which greys them all out; there is no fallback from an
+  empty library selection to the picture hidden behind it. `StepProgress` is
+  the step bar's reading — the loop's own total once it reports, the run in
+  flight's steps before that, the next run's only with nothing running — read
+  through `GenerationStore.stepProgress` by the capsule, its lip and the
+  running card, so the bar never counts the slider.
 - `Views/` — one subfolder per surface (`Canvas/`, `Library/`,
   `Library/Inspector/`, `Library/Viewer/`, `ReferencePicker/`, `Sidebar/`,
   `Sidebar/Timeline/`, `Toolbar/`); the prompt capsule, its controls, the
   commands, and Settings
   sit at the top of `Views/` because they belong to no one surface. The
   three-stored-property rule is what keeps them small; a view that needs a
-  fourth wants a subview. `Sidebar/CanvasSidebar` is the canvas sidebar,
+  fourth wants a subview. A keyboard shortcut has one owner, the menu bar
+  (`ZephraCommands`, `WorkspaceCommands`, `LibraryCommands`,
+  `ThumbnailSizeCommands`); a button that shows a chord shows it as text, the
+  way `GenerateButton` writes ⌘⏎, and never declares it too, because a chord
+  declared twice is one stray SwiftUI change from firing twice. Return in the
+  library belongs to the grid's `LibraryOpenCommand` alone. The only
+  `.keyboardShortcut` outside the menu bar are a sheet's own `.defaultAction`
+  and `.cancelAction`, which is a key loop of its own. File > "Stop
+  Generating" is `EngineState.stopCommandTitle`, so the item names what it
+  stops ("Cancel Download", "Stop Building", …), and File > "Export…" (⇧⌘E)
+  is what was "Save as…": the picture is already on the disk, and nothing is
+  a document with changes to keep. `Sidebar/CanvasSidebar` is the canvas sidebar,
   which builds today's runs once and hands them to `Sidebar/Timeline/` — a
   card per run still waiting, the running run's card in amber, and under those
   the wall of today's pictures in small squares — and to the "Today in

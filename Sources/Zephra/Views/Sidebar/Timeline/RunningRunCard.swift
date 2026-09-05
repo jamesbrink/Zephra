@@ -38,11 +38,7 @@ struct RunningRunCard: View {
                     .font(.callout)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                StepSegments(
-                    total: store.running?.settings.steps ?? 0,
-                    completed: store.state.denoisingProgress?.step ?? 0,
-                    isRunning: store.state.denoisingProgress != nil
-                )
+                StepSegments(progress: store.stepProgress)
             }
         }
         .padding(.horizontal, 10)

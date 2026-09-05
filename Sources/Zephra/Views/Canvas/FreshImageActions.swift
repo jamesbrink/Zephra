@@ -14,7 +14,7 @@ struct FreshImageActions: View {
     var body: some View {
         Grid(horizontalSpacing: 8, verticalSpacing: 8) {
             GridRow {
-                button("Save as…") { ImageExport.saveAs(image) }
+                button("Export…") { ImageExport.saveAs(image) }
                 button("Copy") { ImageExport.copyToPasteboard(image) }
             }
             GridRow {

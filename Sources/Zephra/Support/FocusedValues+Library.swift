@@ -5,7 +5,7 @@ import ZephraEngine
 ///
 /// Two selections rather than one, because "the library is showing" and "the grid has the
 /// keyboard" are different questions and the menu bar needs both. A command that acts on files
-/// — Save as, Copy, Reveal, Delete, Select All — must mean the library only while the grid is
+/// — Export, Copy, Reveal, Delete, Select All — must mean the library only while the grid is
 /// where the typing would go. ⌘A while the cursor is in the sidebar's search field means the
 /// text, and ⌘⌫ there means the line; a scene-wide binding would take both away.
 ///

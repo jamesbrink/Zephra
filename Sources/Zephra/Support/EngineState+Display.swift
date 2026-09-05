@@ -2,10 +2,11 @@ import Foundation
 import ZephraCore
 import ZephraEngine
 
-/// The words the canvas and the window subtitle use for each engine state.
+/// The words the canvas, the window subtitle and the File menu use for each engine state.
 ///
 /// Copy rules: sentence case, active verbs, the same verb through the flow, and every
-/// failure names a cause and a remedy. Nothing here apologises.
+/// failure names a cause and a remedy. Nothing here apologises. The second line under a
+/// headline — counts, rates, pace — is `EngineState+Detail`.
 extension EngineState {
     /// The window subtitle: the state in a word, plus the measurement that matters while it runs.
     var subtitle: String {
@@ -46,17 +47,38 @@ extension EngineState {
         }
     }
 
+    /// What the File menu's ⌘. item says it will stop, so the menu names the thing rather
+    /// than offering a bare "Cancel" over a download, a build and a generation alike. Title
+    /// Case, because it is a menu item. A state with nothing to stop still says "Stop
+    /// Generating", which is the item's resting name while it is greyed out.
+    var stopCommandTitle: String {
+        switch self {
+        case .downloading: "Cancel Download"
+        case .building: "Stop Building"
+        case .checkingModel, .loading, .warmingUp: "Stop Loading"
+        case .upscaling: "Stop Upscaling"
+        case .idle, .ready, .generating, .cancelling, .failed: "Stop Generating"
+        }
+    }
+
     /// The headline the canvas shows, or nil when the canvas needs no headline.
-    func title(for descriptor: ModelDescriptor) -> String? {
+    ///
+    /// The model is named by `fullName`, the way the toolbar and the subtitle name it: the
+    /// variant is what is being fetched or built, and "Z-Image Turbo" over a window whose
+    /// toolbar says "Z-Image Turbo · 8-bit" reads as a different model. `availability` is what
+    /// the disk said before the download began, and is where the size comes from when the
+    /// transfer has not listed itself yet.
+    func title(for descriptor: ModelDescriptor, availability: ModelAvailability?) -> String? {
         switch self {
         case .idle:
-            "\(descriptor.displayName) isn't loaded yet."
+            "\(descriptor.fullName) isn't loaded yet."
         case .checkingModel, .loading:
             "Preparing model…"
-        case .downloading:
-            "\(descriptor.displayName) needs a one-time \(ByteCount.gigabytes(descriptor.downloadBytes)) download."
+        case .downloading(let event):
+            "\(descriptor.fullName) needs a one-time "
+                + "\(ByteCount.gigabytes(Self.transferBytes(event, availability, descriptor))) download."
         case .building:
-            "Building the \(descriptor.variantName ?? "packed") variant of \(descriptor.displayName). This happens once."
+            "Building \(descriptor.fullName). This happens once."
         case .warmingUp:
             "Warming up…"
         case .upscaling:
@@ -70,27 +92,24 @@ extension EngineState {
         }
     }
 
-    /// The second line under the headline: file counts while downloading, pace while generating.
-    var detail: String? {
-        switch self {
-        case .downloading(let event):
-            Self.downloadDetail(event)
-        case .building(let event):
-            Self.buildDetail(event)
-        case .generating(let event):
-            Self.generationDetail(event)
-        case .upscaling(let event):
-            "Tile \(event.completedTiles) of \(event.totalTiles)"
-        default:
-            nil
+    /// The bytes the download headline states: what is actually being fetched, not the
+    /// catalog's figure for a Mac with nothing.
+    ///
+    /// The event's own total first, because it is the sum of the files the transfer listed
+    /// after the descriptor's globs and after what was already on disk was counted — a cached
+    /// Qwen-Image release with its adapter missing lists 1.7 GB, not 59.4. Before the listing
+    /// lands, what availability said the disk was missing, which every backend fills from
+    /// `ModelLocations.bytesToFetch` by the same rule. Only then the catalog's `transferBytes`,
+    /// which is the release plus its adapters, since a Mac with nothing fetches both.
+    private static func transferBytes(
+        _ event: DownloadProgressEvent, _ availability: ModelAvailability?, _ descriptor: ModelDescriptor
+    ) -> Int64 {
+        if let total = event.totalBytes, total > 0 { return total }
+        switch availability {
+        case .needsDownload(let bytes), .needsDownloadAndBuild(let bytes): return bytes
+        case .available, .needsBuild, .missing, nil: return descriptor.transferBytes
         }
     }
-
-    /// Whether the detail line is a measurement, which is set in a monospaced face.
-    ///
-    /// Every state that has a detail line at all reports a count, a rate, or a percentage, so
-    /// there is one answer rather than a second list to keep in step with `detail`.
-    var detailIsMeasurement: Bool { detail != nil }
 
     /// How far along a download or a build is, for the bar under the headline, or nil when the
     /// state has no bar.
@@ -109,51 +128,5 @@ extension EngineState {
               case .denoising(let step, let total) = event.phase
         else { return nil }
         return (step, total)
-    }
-
-    private static func downloadDetail(_ event: DownloadProgressEvent) -> String {
-        var parts = ["File \(event.completedFiles) of \(event.totalFiles)"]
-        if let rate = event.bytesPerSecond, rate > 0 {
-            parts.append("\(Int64(rate).formatted(.byteCount(style: .file)))/s")
-        }
-        parts.append("\(Int((event.fraction * 100).rounded()))%")
-        return parts.joined(separator: " · ")
-    }
-
-    private static func buildDetail(_ event: BuildProgressEvent) -> String {
-        let parts = [
-            "Packing the \(event.component)",
-            "\(event.completedComponents) of \(event.totalComponents)",
-            "\(Int((event.fraction * 100).rounded()))%",
-        ]
-        return parts.joined(separator: " · ")
-    }
-
-    /// What the running generation is doing right now, in a few words and without the pace:
-    /// what the empty canvas says while the first frame is on its way.
-    var generationPhase: String? {
-        guard case .generating(let event) = self else { return nil }
-        return Self.phaseText(event.phase)
-    }
-
-    private static func phaseText(_ phase: GenerationPhase) -> String {
-        switch phase {
-        case .preparing: "Preparing"
-        case .encodingText: "Reading the prompt"
-        case .denoising(let step, let total): "Step \(step) of \(total)"
-        case .decoding: "Developing the image"
-        case .saving: "Saving"
-        }
-    }
-
-    private static func generationDetail(_ event: GenerationProgressEvent) -> String {
-        var parts = [phaseText(event.phase)]
-        if let pace = event.secondsPerStep {
-            parts.append(String(format: "%.1f s/step", pace))
-        }
-        if let left = event.estimatedSecondsRemaining, left >= 1 {
-            parts.append("~\(Int(left.rounded())) s left")
-        }
-        return parts.joined(separator: " · ")
     }
 }

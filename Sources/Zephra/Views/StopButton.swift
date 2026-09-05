@@ -19,7 +19,8 @@ struct StopButton: View {
             .tint(.safelight)
             .foregroundStyle(Color.black.opacity(0.78))
             .disabled(store.state == .cancelling)
-            .keyboardShortcut(".", modifiers: .command)
+            // ⌘. belongs to ZephraCommands. A shortcut declared in two places is one stray
+            // SwiftUI change away from stopping twice.
             .help(store.state == .cancelling ? "Stopping after this step" : "Stop after this step and clear the queue")
             .accessibilityLabel("Stop generating")
         }

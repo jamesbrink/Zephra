@@ -3,49 +3,22 @@ import SwiftUI
 import ZephraCore
 import ZephraEngine
 
-/// Where Save as, Copy, Reveal and Delete actually land.
+/// Where Export, Copy, Reveal, Delete, Use as Reference and Upscale actually land.
 ///
-/// The four of them ask the same question and act on the same two answers, so the question is
-/// asked once. The wording follows the answer too: "Delete Image" over one picture on the
-/// canvas, "Delete 4 Images" over four in the grid, and "Delete 4 Images Immediately" inside
-/// Recently Deleted, where it is the end of them.
+/// All of them ask the same question and act on the same answers, so the question is asked
+/// once, in `CommandTarget`. The wording follows the answer too: "Delete Image" over one
+/// picture on the canvas, "Delete 4 Images" over four in the grid.
 extension ZephraCommands {
-    /// What the file commands are about right now.
-    enum Target {
-        /// The image on the canvas, which may not have reached the disk yet.
-        case canvas(GeneratedImage?)
-        /// Images chosen in the library grid, which are files.
-        case library([LibraryItem])
-
-        /// Whether there is nothing to act on, which is what greys all four out.
-        var isEmpty: Bool {
-            switch self {
-            case .canvas(let image): image == nil
-            case .library(let items): items.isEmpty
-            }
-        }
-
-        var saveTitle: String { count > 1 ? "Save \(count) Images as…" : "Save as…" }
-
-        var copyTitle: String { count > 1 ? "Copy \(count) Images" : "Copy Image" }
-
-        var deleteTitle: String { count > 1 ? "Delete \(count) Images" : "Delete Image" }
-
-        private var count: Int {
-            switch self {
-            case .canvas: 1
-            case .library(let items): items.count
-            }
-        }
-    }
-
-    /// The library's selection while the grid has the keyboard, and the canvas otherwise.
-    var target: Target {
-        guard let grid, let index = libraryIndex, !grid.ids.isEmpty else {
-            return .canvas(store.current)
-        }
-        let chosen = index.sections.flatMap(\.items).filter { grid.contains($0.id) }
-        return chosen.isEmpty ? .canvas(store.current) : .library(chosen)
+    /// What the file commands are about right now: the canvas's picture while the canvas pane
+    /// is showing one, the grid's selection while the grid has the keyboard, and otherwise
+    /// nothing. Never the canvas's picture from behind the library.
+    var target: CommandTarget {
+        CommandTarget.resolve(
+            pane: workspace.pane,
+            isShowingRun: store.isShowingRun,
+            current: store.current,
+            gridSelection: grid?.ids,
+            sections: libraryIndex?.sections ?? [])
     }
 
     /// The picture the two Upscale items act on: the one image chosen in the grid, or the one on
@@ -56,13 +29,40 @@ extension ZephraCommands {
     /// larger copy of something on its way out would be the wrong offer entirely.
     var upscaleSource: UpscaleSource? {
         switch target {
+        case .none:
+            return nil
         case .canvas(let image):
-            return image.map(UpscaleSource.image)
-        case .library(let items):
-            guard items.count == 1, let item = items.first,
-                  libraryIndex?.query.scope != .recentlyDeleted
+            return .image(image)
+        case .library:
+            guard let item = target.singleItem, libraryIndex?.query.scope != .recentlyDeleted
             else { return nil }
             return .file(item.url)
+        }
+    }
+
+    /// Whether Use as Reference has one picture to take and a model that reads one.
+    var canUseAsReference: Bool {
+        guard store.descriptor.capabilities.supportsReferenceImage else { return false }
+        switch target {
+        case .none: return false
+        case .canvas: return true
+        case .library: return target.singleItem != nil
+        }
+    }
+
+    /// Puts the one picture the commands are about into the reference well, the way the
+    /// inspector's own button does — a library picture also brings the canvas up, since that
+    /// is where the well is.
+    func useAsReference() {
+        switch target {
+        case .none:
+            return
+        case .canvas(let image):
+            ReferenceAdoption.adopt(image, into: store)
+        case .library:
+            guard let item = target.singleItem else { return }
+            ReferenceAdoption.adopt(item, into: store)
+            workspace.pane = .canvas
         }
     }
 
@@ -75,31 +75,34 @@ extension ZephraCommands {
 
     func save() {
         switch target {
-        case .canvas(let image): if let image { ImageExport.saveAs(image) }
+        case .none: return
+        case .canvas(let image): ImageExport.saveAs(image)
         case .library(let items): ImageExport.saveAs(files: items.map(\.url))
         }
     }
 
     func copy() {
         switch target {
-        case .canvas(let image): image.map { ImageExport.copyToPasteboard($0) }
+        case .none: return
+        case .canvas(let image): ImageExport.copyToPasteboard(image)
         case .library(let items): ImageExport.copyToPasteboard(files: items.map(\.url))
         }
     }
 
     func reveal() {
         switch target {
-        case .canvas(let image): image.map { ImageExport.revealInFinder($0) }
+        case .none: return
+        case .canvas(let image): ImageExport.revealInFinder(image)
         case .library(let items): ImageExport.revealInFinder(files: items.map(\.url))
         }
     }
 
-    /// On the canvas the file goes to the Trash, so nothing is asked: it is undoable in the
-    /// Finder. In the library it goes to Recently Deleted, or, from inside that, for good —
-    /// and that last one does ask. `LibraryIndex.delete(_:)` is the one place that decides.
+    /// Both ways go to Recently Deleted, so nothing is asked — except from inside Recently
+    /// Deleted, where `LibraryIndex.delete(_:)` is the end of them and does ask.
     func delete() {
         switch target {
-        case .canvas(let image): image.map { store.delete($0.id) }
+        case .none: return
+        case .canvas(let image): store.delete(image.id)
         case .library(let items): libraryIndex?.delete(Set(items.map(\.id)))
         }
     }
