@@ -992,11 +992,13 @@ run where that stopped happening shows up rather than being guessed at.
 Measured on an M4 Max at 1024, four steps, seed 42, tiled at 64: 10243 MB peak
 streamed against 30473 MB resident in the same session, 1409 MB live between runs,
 16.15 GB read per step, and the streamed image byte for byte the resident one
-(`cmp` on the two PNGs). The step time was not recorded: the machine was busy, and
-the resident run itself came in at six times the catalog's figure. On bender, the
-16 GB M4 mini, the SSD reads 1.6 GB/s in one stream, so a step's read is about ten
-seconds; its step time is still to be measured there, which needs the 21.6 GB
-variant on a disk with 17 GB free.
+(`cmp` on the two PNGs). The step time was not recorded there: the machine was
+busy, and the resident run itself came in at six times the catalog's figure. On
+bender, the 16 GB M4 mini (12.7 GB working set), the same variant streamed: 7954 MB
+peak and 29.7 s a step at 1024 (123 s a picture), 5447 MB and 7.1 s a step at 512,
+the latter read-bound at 2.3 GB/s from its SSD, and swap did not move across either
+run. `dd` reads that SSD at 1.6 GB/s in one stream; MLX's four-thread reader does
+better.
 
 What decides it: `ModelDescriptor.streamedPeakBytes`, zero for a family that cannot
 stream, is the measured peak with the weights streamed and the decode tiled;

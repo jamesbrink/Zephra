@@ -480,8 +480,10 @@ few of its sixty blocks at a time, and the text encoder's layers the same way on
 picture; the embeddings, the projections and the autoencoder stay resident. Measured on an
 M4 Max at 1024², four steps, the peak falls from 30.5 GB resident to 10.2 GB streamed, 1.4 GB
 stays live between pictures, each step reads 16.1 GB, and the image is byte for byte the
-resident one. The price is the read: on a 16 GB M4 mini's 1.6 GB/s SSD that is about ten
-seconds a step, which hides under a base GPU's own step time at 1024² and does not at 512².
+resident one. On a 16 GB M4 mini, the Mac this is for, a 1024² picture takes 123 s (29.7 s a
+step, peak 7.9 GB, swap untouched) and a 512² one 28 s (7.1 s a step), the latter read-bound
+at 2.3 GB/s from the SSD. The price is that read: it hides under a base GPU's own step time at
+1024² and does not at 512².
 The picker says "Streams from disk" where it applies; Settings > Performance has the three-way
 control, Automatic streaming only a model that would otherwise page; and
 `make bench ARGS="--model qwen-image-2512-4bit --stream"` reports the bytes read per step and

@@ -67,8 +67,10 @@ extension ModelCatalog {
         // session, 1409 MB live between runs, 16.15 GB read per step, and the image byte for
         // byte the resident one. The peak is the text encoder's pass, the transformer's
         // three-block window with its activations, and the decode's tile, none of which
-        // depends on the machine; the step time does, and is not recorded here because the
-        // machine was not idle (see README's Performance section).
+        // depends on the machine. On the 16 GB M4 mini this is for (12.7 GB working set):
+        // 7954 MB peak and 29.7 s a step at 1024, 5447 MB and 7.1 s a step at 512, the
+        // latter read-bound at 2.3 GB/s from its SSD; swap did not move. The larger figure
+        // is kept, since the peak is what the budget is checked against.
         streamedPeakBytes: 10_250_000_000,
         // diffusers' QwenImagePipeline keeps the first 512 hidden states of the prompt
         // (`max_sequence_length`, its default); the tokenizer would allow 1024, but nothing
