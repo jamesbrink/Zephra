@@ -2,13 +2,15 @@ import SwiftUI
 import ZephraEngine
 
 /// Every image in the library, narrowed only by the sheet's own search text — scope `.all`,
-/// newest first, the same order the library grid defaults to — laid out at a fixed 120 pt so
-/// the picker never grows or shrinks the way the library's own slider does.
+/// newest first, the same order the library grid defaults to — in cells of at least 120 pt
+/// that share the row's width, so the gaps are the one 10 pt everywhere rather than the
+/// leftover the adaptive grid would otherwise spread between fixed squares.
 ///
-/// Clicking a cell chooses it; a second click, or Return from the sheet's own "Use" button,
-/// confirms it. The double-tap gesture is declared first for the same reason `LibraryCell`'s
-/// is: SwiftUI offers a tap to whichever gesture was attached first, so a single-tap handler
-/// written before the double-tap one would swallow the first half of every double-click.
+/// Clicking a cell chooses it, and so do the arrow keys through `ReferencePickerKeyboard`; a
+/// second click, or Return from the sheet's own "Use" button, confirms it. The double-tap
+/// gesture is declared first for the same reason `LibraryCell`'s is: SwiftUI offers a tap to
+/// whichever gesture was attached first, so a single-tap handler written before the
+/// double-tap one would swallow the first half of every double-click.
 struct ReferencePickerGrid: View {
     /// What is typed, and what is chosen so far.
     let selection: ReferencePickerSelection
@@ -18,20 +20,35 @@ struct ReferencePickerGrid: View {
     @Environment(LibraryIndex.self) private var index
 
     private static let edge: CGFloat = 120
+    private static let spacing: CGFloat = 10
+    private static let inset: CGFloat = 12
 
     var body: some View {
-        ScrollView {
-            if matches.isEmpty {
-                ContentUnavailableView.search(text: selection.text)
-                    .frame(maxWidth: .infinity, minHeight: 240)
-            } else {
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: Self.edge, maximum: .infinity), spacing: 10)],
-                    spacing: 10
-                ) {
-                    ForEach(matches) { item in cell(item) }
+        let matches = matches
+        ScrollViewReader { proxy in
+            ScrollView {
+                if matches.isEmpty {
+                    ContentUnavailableView.search(text: selection.text)
+                        .frame(maxWidth: .infinity, minHeight: 240)
+                } else {
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: Self.edge, maximum: .infinity), spacing: Self.spacing)],
+                        spacing: Self.spacing
+                    ) {
+                        ForEach(matches) { item in cell(item) }
+                    }
+                    .padding(Self.inset)
                 }
-                .padding(12)
+            }
+            .modifier(ReferencePickerKeyboard(selection: selection, matches: matches))
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: {
+                selection.columns = GridColumns.count(
+                    width: $0, edge: Self.edge, spacing: Self.spacing, inset: Self.inset)
+            }
+            // An arrow key can pick a cell that has scrolled away; a click cannot, and a
+            // scroll to what is already on screen moves nothing.
+            .onChange(of: selection.item?.id) { _, id in
+                if let id { proxy.scrollTo(id) }
             }
         }
         .modifier(ReferencePickerThumbnails())
@@ -47,7 +64,7 @@ struct ReferencePickerGrid: View {
 
     private func cell(_ item: LibraryItem) -> some View {
         LibraryThumbnail(item: item)
-            .frame(width: Self.edge, height: Self.edge)
+            .id(item.id)
             .clipShape(RoundedRectangle(cornerRadius: ZephraChrome.thumbnailRadius, style: .continuous))
             .overlay {
                 if selection.item?.id == item.id {
@@ -60,7 +77,7 @@ struct ReferencePickerGrid: View {
             .onTapGesture(count: 2) { confirm(item) }
             .onTapGesture(count: 1) { selection.item = item }
             .accessibilityLabel(item.prompt.isEmpty ? item.fileName : item.prompt)
-            .accessibilityAddTraits(.isButton)
+            .accessibilityAddTraits(selection.item?.id == item.id ? [.isButton, .isSelected] : .isButton)
     }
 
     /// Everything made here and everything imported to start from, newest first, matched on

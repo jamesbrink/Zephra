@@ -99,6 +99,23 @@ struct LibraryCursorTests {
         #expect(both.ids == Self.ids("a0", "b1", "b2"))
     }
 
+    @Test("one section with no headings moves by the column count, as the reference picker's grid does")
+    func flatGrid() {
+        let flat = [LibrarySection(day: .distantPast, items: (0..<7).map { Self.item("a\($0)") })]
+        func move(_ direction: LibraryCursor.Direction, from name: String?) -> LibraryItem.ID? {
+            let anchor = name.map(Self.id)
+            return LibraryCursor.move(
+                direction, in: flat, columns: 3, selection: anchor.map { [$0] } ?? [], anchor: anchor
+            )?.reveal
+        }
+        #expect(move(.down, from: "a1") == Self.id("a4"), "three columns")
+        #expect(move(.up, from: "a4") == Self.id("a1"))
+        #expect(move(.down, from: "a5") == nil, "the last row has nowhere to go")
+        #expect(move(.right, from: "a6") == nil)
+        #expect(move(.down, from: nil) == Self.id("a0"), "with nothing picked, the first arrow picks the first")
+        #expect(move(.left, from: nil) == Self.id("a6"), "or the last, coming from that end")
+    }
+
     @Test("select all takes everything on screen, and an empty grid moves nowhere")
     func selectAllAndEmptyGrids() {
         let all = LibraryCursor.selectAll(in: Self.sections)
