@@ -118,18 +118,24 @@ function Features({ id }: { id: string }) {
       <footer>
         <Brand />
         <span>© 2026 James Brink. All rights reserved.</span>
+        <details className="website-privacy">
+          <summary>
+            Privacy <span aria-hidden="true">+</span>
+          </summary>
+          <div className="privacy-content">
+            <p>
+              Your creativity stays on your Mac. Zephra does not collect your
+              prompts, images, or app activity.
+            </p>
+            <p>
+              We use Google Analytics cookies to understand how visitors use
+              this website and improve the experience. This includes page
+              visits, download clicks, and general device and region
+              information. We do not use this data for personalized advertising.
+            </p>
+          </div>
+        </details>
       </footer>
-      <details className="website-privacy">
-        <summary>Website privacy</summary>
-        <p>
-          This production website uses Google Analytics cookies to measure
-          visits, scrolling, and download clicks, including browser, device, and
-          approximate region information. Advertising personalization is
-          disabled. Download clicks do not indicate completed downloads or
-          installations. Website analytics does not collect your prompts,
-          images, or activity in the Zephra app.
-        </p>
-      </details>
     </>
   );
 }
