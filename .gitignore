@@ -16,3 +16,7 @@ xcuserdata/
 # macOS
 .DS_Store
 .claude/
+
+# Reference downloads the fixture dumpers cache beside themselves.
+Packages/*/Tools/.cache/
+Packages/*/.cache/
