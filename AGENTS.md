@@ -982,7 +982,12 @@ Makefile targets:
   `mirror-flux2-4bit` and `mirror-flux2-8bit` are the four variants alone, each
   skipped when its stamp is already there unless `FORCE=1`; `mirror-index` rewrites the
   index by itself; `mirror-sync` pushes the directory to `MIRROR_BUCKET`
-  (`s3://name[/prefix]`) with `aws s3 sync --delete`. The default `MIRROR_DIR` is
+  (`s3://zephra-assets-urandom-io/models` by default) with `aws s3 sync --delete`, files
+  first and `index.json` last, under the `MIRROR_PROFILE` AWS profile (`dev.urandom.io`;
+  empty in CI, where the `github-actions-zephra` OIDC role is assumed instead). The bucket
+  and its CloudFront host, `zephra-assets.urandom.io`, are Terraform-managed in the
+  `urandom.io` repository's `modules/zephra`; the repository's Actions variables
+  `AWS_ROLE_ARN`, `AWS_REGION`, `ZEPHRA_ASSETS_BUCKET` and `ZEPHRA_ASSETS_HOST` name them. The default `MIRROR_DIR` is
   `ZephraMirror` beside the Qwen source on the external volume, since the four variants
   are 42 GB. The releases are read from where the quantize targets read them, so set
   `MODELS_DIR` and `QWEN_MODELS` the same way. This is the supply side of a CDN source

@@ -56,8 +56,12 @@ FLUX2_OUT     ?= $(MODELS_DIR)/flux2-klein-4b-$(BITS)bit
 # `aws s3 sync "$(MIRROR_DIR)" s3://bucket/ --delete` mirrors it. The default is the external
 # volume beside the Qwen source: four variants are 42 GB, which does not belong on a boot volume.
 # A variant already stamped there is skipped; FORCE=1 rebuilds it.
-MIRROR_DIR    ?= $(QWEN_MODELS)/ZephraMirror
-MIRROR_BUCKET ?=
+# The bucket and the CloudFront host in front of it are Terraform-managed in the urandom.io
+# repository (modules/zephra); the app will read https://zephra-assets.urandom.io/models/.
+# MIRROR_PROFILE is the local AWS profile; CI assumes the github-actions-zephra role instead.
+MIRROR_DIR     ?= $(QWEN_MODELS)/ZephraMirror
+MIRROR_BUCKET  ?= s3://zephra-assets-urandom-io/models
+MIRROR_PROFILE ?= dev.urandom.io
 MIRROR_IDS    := z-image-turbo-4bit qwen-image-2512-4bit flux2-klein-4b-4bit flux2-klein-4b-8bit
 # One download directory per repository, named as the app names it: <org>--<repo>.
 ZIMAGE_8BIT_DIR := $(DOWNLOADS)/$(subst /,--,$(MODEL))
@@ -189,12 +193,16 @@ endef
 mirror-index:
 	swift scripts/mirror-index.swift "$(MIRROR_DIR)" $(MIRROR_IDS)
 
-# Push the mirror to the bucket named by MIRROR_BUCKET (s3://name or s3://name/prefix).
-# --delete keeps the bucket the mirror's image; without it a variant renamed here would
-# linger there. Nothing but the mirror directory is read.
+# Push the mirror to MIRROR_BUCKET (s3://name/prefix) under MIRROR_PROFILE, or under whatever
+# credentials the environment holds when MIRROR_PROFILE is empty (CI). --delete keeps the
+# prefix the mirror's image; without it a variant renamed here would linger there, which is
+# also why the prefix is `models` and not the bucket root. Nothing but the mirror directory
+# is read, and index.json goes last so a client never sees an index ahead of its files.
 mirror-sync:
-	@test -n "$(MIRROR_BUCKET)" || { echo "set MIRROR_BUCKET=s3://bucket[/prefix]"; exit 2; }
-	aws s3 sync "$(MIRROR_DIR)" "$(MIRROR_BUCKET)" --delete --exclude ".DS_Store"
+	@test -n "$(MIRROR_BUCKET)" || { echo "set MIRROR_BUCKET=s3://bucket/prefix"; exit 2; }
+	aws $(if $(MIRROR_PROFILE),--profile "$(MIRROR_PROFILE)") s3 sync "$(MIRROR_DIR)" "$(MIRROR_BUCKET)" \
+	  --delete --exclude ".DS_Store" --exclude "index.json"
+	aws $(if $(MIRROR_PROFILE),--profile "$(MIRROR_PROFILE)") s3 cp "$(MIRROR_DIR)/index.json" "$(MIRROR_BUCKET)/index.json"
 
 
 test:
