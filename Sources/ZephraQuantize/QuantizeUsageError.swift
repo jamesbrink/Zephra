@@ -10,6 +10,8 @@ enum QuantizeUsageError: Error, LocalizedError {
     case undistilledUnderCatalogName(directory: String)
     /// `--no-lora` and `--lora` were both given.
     case adapterContradiction
+    /// `--lora` was given for a family whose plan merges no adapter.
+    case adapterNotRead(family: String)
 
     var errorDescription: String? {
         switch self {
@@ -29,6 +31,8 @@ enum QuantizeUsageError: Error, LocalizedError {
             """
         case .adapterContradiction:
             "--no-lora and --lora cannot both be given"
+        case .adapterNotRead(let family):
+            "\(family) merges no adapter; --lora would be silently dropped, so it is refused"
         }
     }
 

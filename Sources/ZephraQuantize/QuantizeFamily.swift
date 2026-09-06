@@ -1,5 +1,6 @@
 import Foundation
 import ZephraBackendFlux2
+import ZephraBackendLTX2
 import ZephraBackendQwenImage
 import ZephraBackendZImage
 import ZephraCore
@@ -14,6 +15,7 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
     case zImage = "z-image"
     case qwenImage = "qwen-image"
     case flux2 = "flux2"
+    case ltx2 = "ltx2"
 
     /// Every value `--family` accepts, for the usage text.
     static var names: String { allCases.map(\.rawValue).joined(separator: "|") }
@@ -25,6 +27,7 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
         case .zImage: "z-image-turbo-4bit"
         case .qwenImage: "qwen-image-2512-4bit"
         case .flux2: "flux2-klein-4b-4bit"
+        case .ltx2: "ltx-2.5-distilled-4bit"
         }
     }
 
@@ -34,6 +37,7 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
         case .zImage: "Tongyi-MAI/Z-Image-Turbo"
         case .qwenImage: "Qwen/Qwen-Image-2512"
         case .flux2: "black-forest-labs/FLUX.2-klein-4B"
+        case .ltx2: "mlx-community/ltx-2.5-mlx"
         }
     }
 
@@ -52,6 +56,9 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
     ///
     /// FLUX.2 klein holds its three shared modulation linears whole and omits the text encoder
     /// layers past the last one the transformer reads.
+    ///
+    /// LTX-2.5 omits its audio stream and holds its two embeddings at eight bits; it merges no
+    /// adapter, so `adapters` is refused rather than silently dropped.
     ///
     /// `adapters` are merged into whichever component the family adapts, which for every family
     /// here is the diffusion transformer.
@@ -76,6 +83,17 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
         case .flux2:
             Flux2QuantizationPlan.plan(
                 transformer: transformer, textEncoder: textEncoder, adapters: adapters)
+        case .ltx2:
+            if !adapters.isEmpty {
+                throw QuantizeUsageError.adapterNotRead(family: rawValue)
+            }
+            return LTX2QuantizationPlan.plan(
+                transformer: transformer,
+                textEncoder: textEncoder,
+                embeddings: transformer.bits < 8
+                    ? try QuantizationPrecision(bits: 8, groupSize: transformer.groupSize)
+                    : transformer
+            )
         }
     }
 }

@@ -75,8 +75,9 @@ struct ModelCatalogTests {
         #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo4bit, physicalMemory: memory) == .fits)
         // 23.5 GB untiled is over the 19.3 GB budget; 17.7 GB tiled is under it.
         #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo8bit, physicalMemory: memory) == .fitsTiled)
-        // Both Z-Image variants, both klein variants, and Qwen-Image streamed.
-        #expect(ModelCatalog.fitting(physicalMemory: memory).count == 5)
+        // Both Z-Image variants, both klein variants, Qwen-Image streamed, and LTX-2.5 exactly
+        // (its estimated 20 GB peak is over the 19.3 GB budget, so streamed, until measured).
+        #expect(ModelCatalog.fitting(physicalMemory: memory).count == 6)
         #expect(ModelCatalog.fit(ModelCatalog.qwenImage2512_4bit, physicalMemory: memory) == .fitsStreamed)
     }
 
@@ -112,6 +113,7 @@ struct ModelCatalogTests {
                 ModelCatalog.flux2Klein8bit,
                 ModelCatalog.zImageTurbo4bit,
                 ModelCatalog.qwenImage2512_4bit,
+                ModelCatalog.ltx2Distilled4bit,
             ],
             "the order is what a picker shows and what default(fitting:) walks, so a model that needs a larger Mac than the ones before it goes last; klein 4-bit sits before 8-bit so a 16 GB Mac lands on it by construction rather than by a measurement within a gigabyte of the budget"
         )
@@ -140,6 +142,35 @@ struct ModelCatalogTests {
         // The root single-file checkpoint is 7.75 GB this loader never reads.
         #expect(!patterns.contains("*") && !patterns.contains("*.safetensors"))
         #expect(patterns.contains("vae/*") && patterns.contains("transformer/*"))
+    }
+
+    @Test("the LTX-2.5 entry is video only, built from the ungated mirror pack, and makes clips")
+    func ltx2IsVideoOnly() {
+        let descriptor = ModelCatalog.ltx2Distilled4bit
+        #expect(descriptor.backend == .ltx2)
+        #expect(descriptor.isBuiltLocally && descriptor.isPublishedPrebuilt)
+        #expect(descriptor.streamedPeakBytes > 0, "a 22B model streams on the Macs that cannot hold it")
+        #expect(descriptor.capabilities.producesVideo)
+        #expect(descriptor.capabilities.frameBounds == 9...121)
+        #expect(descriptor.capabilities.defaultFrames == 49)
+        #expect(descriptor.capabilities.stepBounds == 8...8)
+        #expect(descriptor.capabilities.guidanceBounds == 0...0)
+        #expect(!descriptor.capabilities.supportsReferenceImage)
+        #expect(descriptor.maxPromptTokens == 1024)
+        guard case .huggingFace(let repoID, _, let patterns) = descriptor.source else {
+            Issue.record("LTX-2.5 downloads from the hub")
+            return
+        }
+        // Lightricks' repositories are gated; the catalog names the ungated redistribution.
+        #expect(repoID == "mlx-community/ltx-2.5-mlx")
+        #expect(patterns.contains("transformer-distilled.safetensors"))
+        #expect(!patterns.contains { $0.contains("audio") || $0.contains("vocoder") || $0.contains("upscaler") })
+        #expect(patterns.contains("LICENSE.md"), "the LTX-2.x license travels with the weights")
+        for frames in [9, 49, 121] {
+            var settings = GenerationSettings.defaults(for: descriptor)
+            settings.frames = frames
+            #expect(descriptor.capabilities.clamp(settings).frames == frames)
+        }
     }
 
     @Test("the Qwen-Image entry downloads a release and an adapter, and builds from both")
