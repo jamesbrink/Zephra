@@ -69,6 +69,13 @@ public nonisolated final class QwenImageBackend: ImageGenerationBackend {
             }
             let here = LocalSnapshot.qwenImageRelease.downloadedRelease(of: descriptor, in: locations)
             if let here, locations.missingAdapters(of: descriptor).isEmpty { return here }
+            // Published ready-made, the variant is fetched instead of the release and adapter
+            // it is packed from; nil means the mirror has not got it, and those come next.
+            if let prebuilt = try await acquisition.fetchPrebuilt(
+                descriptor, into: locations, onProgress: onProgress)
+            {
+                return try LocalSnapshot.qwenImage.verified(prebuilt, descriptor: descriptor)
+            }
             let fetched = try await acquisition.fetch(
                 descriptor, into: locations, release: here, onProgress: onProgress)
             return try LocalSnapshot.qwenImageRelease.verified(fetched, descriptor: descriptor)

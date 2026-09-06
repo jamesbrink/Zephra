@@ -7,10 +7,11 @@ import ZephraSnapshot
 extension QwenImageBackend {
     /// Whether the weights are on this Mac, read from the disk alone.
     ///
-    /// Three answers, because three things can be true. The packed variant is there, so it
-    /// loads. The release and its adapter are here but the variant is not, so loading means a
-    /// build and no network. Or they are not, and loading means both — which for this model is
-    /// fifty-nine gigabytes, so saying it up front rather than starting is the whole point.
+    /// Four answers. The packed variant is there, so it loads. The release and its adapter are
+    /// here but the variant is not, so loading means a build and no network. Neither is here
+    /// and the variant is published, so loading means the 21.6 GB it occupies. Or it is not,
+    /// and loading means both — which for this model is fifty-nine gigabytes and a build, so
+    /// saying it up front rather than starting is the whole point.
     nonisolated(nonsending) public func availability(
         of descriptor: ModelDescriptor,
         locations: ModelLocations
@@ -32,6 +33,7 @@ extension QwenImageBackend {
             if release != nil, locations.missingAdapters(of: descriptor).isEmpty {
                 return .needsBuild
             }
+            if descriptor.isPublishedPrebuilt { return .needsDownload(bytes: descriptor.builtBytes) }
             return .needsDownloadAndBuild(
                 bytes: locations.bytesToFetch(for: descriptor, releasePresent: release != nil))
         }

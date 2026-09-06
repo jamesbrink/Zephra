@@ -17,4 +17,11 @@ public struct TransferAcquisition: ModelAcquisition {
     ) async throws -> URL {
         try await pool.fetch(id, descriptor, locations, release: release, onProgress: onProgress)
     }
+
+    public func fetchPrebuilt(
+        _ descriptor: ModelDescriptor, into locations: ModelLocations,
+        onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
+    ) async throws -> URL? {
+        try await pool.fetchPrebuilt(id, descriptor, locations, onProgress: onProgress)
+    }
 }

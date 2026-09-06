@@ -76,7 +76,8 @@ public enum ModelCatalog {
         capabilities: zImageTurboCapabilities,
         // Measured: what `make quantize` writes at four bits, group 64 — 6.7 GB against the
         // 13.3 GB of the published eight-bit build.
-        builtBytes: 6_700_000_000
+        builtBytes: 6_700_000_000,
+        mirror: mirror
     )
 
     /// Every known model, in the order a picker should list them.

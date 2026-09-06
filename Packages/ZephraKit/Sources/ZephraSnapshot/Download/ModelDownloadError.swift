@@ -25,14 +25,21 @@ public enum ModelDownloadError: Error, Hashable, Sendable {
     case interrupted(reason: String)
     /// The listing named a path that would land outside the download's own folder.
     case unsafePath(path: String)
+    /// The file arrived whole at the listed size and its digest was not the listed one.
+    case checksumMismatch(path: String)
+    /// The mirror's index could not be read: the host did not answer, or answered with an
+    /// error. Permanent on purpose — the mirror is a shortcut, and the release path behind it
+    /// is the retry, so nothing waits through five tries for a host that is down.
+    case mirrorUnavailable(reason: String)
 
     /// Whether another try could end differently. A missing repository or file and a refusal
     /// are answers; anything else is an accident worth a pause and another go.
     public var isPermanent: Bool {
         switch self {
-        case .repositoryNotFound, .fileNotFound, .unreadableListing, .nothingMatched, .unsafePath: true
+        case .repositoryNotFound, .fileNotFound, .unreadableListing, .nothingMatched, .unsafePath,
+             .mirrorUnavailable: true
         case .refused(let status, _): DownloadRetry.isPermanentStatus(status)
-        case .interrupted: false
+        case .interrupted, .checksumMismatch: false
         }
     }
 
@@ -53,6 +60,10 @@ public enum ModelDownloadError: Error, Hashable, Sendable {
             reason
         case .unsafePath(let path):
             "The repository names a file outside its own folder (\(path)), which Zephra will not write."
+        case .checksumMismatch(let path):
+            "\(path) did not match its published checksum; it will be fetched again."
+        case .mirrorUnavailable(let reason):
+            "The model mirror could not be read: \(reason)"
         }
     }
 }

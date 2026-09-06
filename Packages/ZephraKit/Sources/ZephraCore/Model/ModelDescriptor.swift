@@ -51,6 +51,15 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
     /// is transferred, and the packed copy is written beside it. Non-zero is also what tells the
     /// engine that loading this model means building it first.
     public let builtBytes: Int64
+    /// Where a copy of the packed variant is published, or nil when the only way to have it is
+    /// to pack it here.
+    ///
+    /// Set on a variant that is built locally, it turns "download the release, then build"
+    /// into "download the variant": the same bytes `build` would have written, fetched
+    /// instead, and the release never lands on the Mac. The release stays on the descriptor
+    /// because it is still the truth about where the weights came from and the way to build
+    /// the variant when the mirror has not got it.
+    public let mirror: ModelMirror?
 
     /// Creates a descriptor for one model variant.
     public init(
@@ -68,7 +77,8 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
         maxPromptTokens: Int,
         capabilities: ModelCapabilities,
         builtBytes: Int64 = 0,
-        adapters: [ModelAdapter] = []
+        adapters: [ModelAdapter] = [],
+        mirror: ModelMirror? = nil
     ) {
         self.id = id
         self.displayName = displayName
@@ -85,10 +95,16 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
         self.capabilities = capabilities
         self.builtBytes = builtBytes
         self.adapters = adapters
+        self.mirror = mirror
     }
 
     /// Whether loading this model means packing its download into a local variant first.
     public var isBuiltLocally: Bool { builtBytes > 0 && source.requiresDownload }
+
+    /// Whether the packed variant can be fetched ready-made rather than built: a variant that
+    /// would otherwise be built here, and a mirror that publishes it. `builtBytes` is then what
+    /// choosing the model transfers, not `transferBytes`.
+    public var isPublishedPrebuilt: Bool { mirror != nil && isBuiltLocally }
 
     /// Every byte choosing this model would transfer: the release, and every adapter merged
     /// into it. This, not `downloadBytes`, is what a picker states, because both are fetched

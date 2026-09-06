@@ -18,6 +18,9 @@ struct TransferClaim: Sendable {
             parts.append(RepositoryDownload(repoID: adapter.repoID, revision: adapter.revision,
                 patterns: [adapter.file], destination: locations.adapter(adapter)))
         }
+        // The variant's own directory is claimed too when a mirror publishes it, so two
+        // requests for one model share the one fetch and nothing else writes there meanwhile.
+        if let prebuilt = RepositoryDownload.prebuilt(model, in: locations) { parts.append(prebuilt) }
         for group in Dictionary(grouping: parts, by: { Self.path($0.destination) }).values {
             guard Set(group.map(\.revision)).count == 1, Set(group.map(\.repoID)).count == 1 else {
                 throw BackendError.downloadFailed("One model requests incompatible revisions in the same folder.")
@@ -30,7 +33,8 @@ struct TransferClaim: Sendable {
         Dictionary(grouping: parts, by: { path($0.destination) }).values.map { group in
             let first = group[0]
             return RepositoryDownload(repoID: first.repoID, revision: first.revision,
-                patterns: Array(Set(group.flatMap(\.patterns))).sorted(), destination: first.destination)
+                patterns: Array(Set(group.flatMap(\.patterns))).sorted(), destination: first.destination,
+                origin: first.origin)
         }.sorted { path($0.destination) < path($1.destination) }
     }
 

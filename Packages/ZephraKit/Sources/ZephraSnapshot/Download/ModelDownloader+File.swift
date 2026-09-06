@@ -15,13 +15,12 @@ extension ModelDownloader {
     /// stays an `.incomplete` and the next try picks it up.
     func fetch(
         _ file: RepositoryFile,
-        from repoID: String,
-        revision: String,
-        into destination: URL,
+        of part: RepositoryDownload,
         on session: URLSession,
         tally: inout DownloadTally,
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
     ) async throws {
+        let destination = part.destination
         // The listing is the hub's word, not ours: a path with a `..` in it, or one that does
         // not end up under the destination once standardized, would write wherever it liked.
         // The download's folder is the one place Zephra writes, so anything else is refused.
@@ -48,12 +47,12 @@ extension ModelDownloader {
             have = 0
         }
         if file.bytes > 0, have == file.bytes {
+            try verify(file, at: partial, tally: &tally)
             try replace(partial, with: target)
             return
         }
 
-        let url = host.appending(path: "\(repoID)/resolve/\(revision)/\(file.path)")
-        var request = request(url)
+        var request = request(url(of: file, in: part))
         let validator = Self.validator(of: partial)
         if have > 0 {
             request.setValue("bytes=\(have)-", forHTTPHeaderField: "Range")
@@ -108,7 +107,29 @@ extension ModelDownloader {
             throw ModelDownloadError.interrupted(
                 reason: "\(file.path) ended early, at \(written) bytes of \(file.bytes).")
         }
+        try verify(file, at: partial, tally: &tally)
         try replace(partial, with: target)
+    }
+
+    /// Where `file` is served from: the hub's `resolve` path, or the mirror's directory.
+    func url(of file: RepositoryFile, in part: RepositoryDownload) -> URL {
+        switch part.origin {
+        case .huggingFace: host.appending(path: "\(part.repoID)/resolve/\(part.revision)/\(file.path)")
+        case .mirror(let mirror, _): mirror.file(file.path, of: part.repoID)
+        }
+    }
+
+    /// Checks a whole partial against the digest the listing gave, when it gave one. A file
+    /// that does not match is not the file: it goes, and the transfer is the accident that
+    /// `interrupted` names, so the retry fetches it again from nothing.
+    private func verify(_ file: RepositoryFile, at partial: URL, tally: inout DownloadTally) throws {
+        guard let expected = file.sha256 else { return }
+        guard try FileDigest.sha256(of: partial) == expected.lowercased() else {
+            let have = Self.size(of: partial) ?? file.bytes
+            try Self.discardPartial(partial, of: file)
+            tally.discard(have)
+            throw ModelDownloadError.checksumMismatch(path: file.path)
+        }
     }
 
     /// Appends the body to `partial` as it arrives, checking between chunks so a person who

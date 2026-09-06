@@ -29,7 +29,7 @@ Sources/ZephraQuantize (tool)─→ ZephraCore, ZephraSnapshot, ZephraQuantizati
                                 every ZephraBackend<Family>
 
 Shared, by what a file actually touches:
-  ZephraKit/ZephraSnapshot     Foundation only  — the model downloader, local snapshot
+  ZephraKit/ZephraSnapshot     Foundation, CryptoKit — the model downloader, local snapshot
                                                   checks, the hub cache read as a fallback,
                                                   what the models occupy on disk
   ZephraKit/ZephraTestSupport  Foundation, ZephraCore — Scratch, the filesystem test
@@ -807,6 +807,35 @@ so the picker says what choosing the model will cost. The packed variant lives
 at `locations.built(descriptor)`, which is `<models>/<descriptor.id>` — the
 naming every locally built variant already follows. The packer's `shouldContinue`
 hook is what makes a build stoppable between tensors.
+
+**A built variant that is published ready-made** is the shortcut in front of that
+case, and every locally built entry takes it. `ModelDescriptor.mirror` names a
+`ModelMirror`, the one static directory `ModelCatalog.mirror` points at
+(`https://zephra-assets.urandom.io/models`, the `models/` prefix of the
+`zephra-assets-urandom-io` bucket, written by `make mirror` and synced by
+`make mirror-sync`), and `isPublishedPrebuilt` is that plus `isBuiltLocally`. A
+backend that has neither the packed variant nor the release asks
+`ModelAcquisition.fetchPrebuilt` before it asks `fetch`: the downloader reads the
+mirror's `index.json`, takes the variant's file list only when the index's
+`source` is word for word what `PackedProvenance.identity` stamps for this
+catalog's descriptor, fetches the files into the built directory's `.partial`
+sibling as a `RepositoryDownload` whose `origin` is `.mirror` — the same lane,
+`Range` resume, space reservation and single writer as a release, through
+`ModelTransfers` in the app — checks each against the index's SHA-256 before it is
+renamed into place (`checksumMismatch` discards it and the retry fetches it
+again), and moves the directory to `locations.built(descriptor)` when the last
+file is down. `build` then finds the variant and packs nothing, so the release
+never lands on the Mac; availability says `.needsDownload(bytes: builtBytes)`
+rather than `.needsDownloadAndBuild`. The mirror is a shortcut and never a
+dependency: `fetchPrebuilt` answers nil for any reason at all — no mirror on the
+descriptor, no index, a variant not listed or listed as packed from something
+else, a host that is down, a transfer broken past its retries, no room — and the
+backend goes on to the release and the build exactly as before, with a line in
+the log and nothing on screen. An index that cannot be read is
+`mirrorUnavailable`, permanent on purpose, so a mirror that is down costs one
+request and not five tries. The release stays on the descriptor because it is
+still where the weights came from and the way to build them when the mirror has
+not got them. `ModelDownloaderTests+Mirror` pins all of it against the stub hub.
 
 Three pieces of that job are written once, because they are the same job
 whatever is being packed. `SnapshotBuild` in `ZephraQuantization` writes into a

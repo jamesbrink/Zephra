@@ -44,8 +44,12 @@ build compiles MLX's Metal kernels and can take several minutes with little outp
 Use `make build` to build without launching, or `make open` to work in Xcode.
 
 On a fresh launch, Zephra chooses the first catalog model that fits the GPU's
-memory budget. Selecting a model downloads any missing weights and, for most
-variants, builds a quantized copy before loading. The window shows progress
+memory budget. Selecting a model downloads any missing weights. The quantized
+variants are fetched ready-made from Zephra's own mirror
+(`zephra-assets.urandom.io`) when it has them, so a 4-bit Z-Image Turbo is a
+6.7 GB download rather than a 32.9 GB release and a build; when the mirror has
+not got a variant, or cannot be reached, the release is downloaded and the
+variant built here as before, without asking. The window shows progress
 throughout; later loads reuse the files.
 
 Optional downloads ahead of launch:

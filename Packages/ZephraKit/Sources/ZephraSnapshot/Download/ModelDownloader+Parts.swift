@@ -45,15 +45,16 @@ extension ModelDownloader {
         for (part, files) in work {
             for file in files {
                 try Task.checkCancellation()
-                try await fetch(
-                    file, from: part.repoID, revision: part.revision, into: part.destination,
-                    on: session, tally: &tally, onProgress: onProgress)
+                try await fetch(file, of: part, on: session, tally: &tally, onProgress: onProgress)
                 tally.finishFile()
                 if let event = tally.report(force: true) { onProgress(event) }
             }
             partsLeft[Self.folder(part.destination), default: 1] -= 1
             guard partsLeft[Self.folder(part.destination)] == 0 else { continue }
             try Task.checkCancellation()
+            // A mirror part was never pinned: its identity is the stamp among its files, and
+            // the caller renames the whole directory into place once it is down.
+            guard part.origin == .huggingFace else { continue }
             // Every file of this folder is down at the commit it was pinned to: the pin goes,
             // the commit is written down for the next transfer into this folder to compare
             // against, and the directory is a finished download from here on.
@@ -98,6 +99,10 @@ extension ModelDownloader {
     ) async throws -> [(part: RepositoryDownload, files: [RepositoryFile])] {
         var work: [(part: RepositoryDownload, files: [RepositoryFile])] = []
         for named in parts {
+            if case .mirror(let mirror, let identity) = named.origin {
+                work.append((named, try await listing(of: named.repoID, identity: identity, on: mirror, session)))
+                continue
+            }
             let part = named.pinned(to: try await pinnedRevision(for: named, on: session))
             let listed = try await listing(of: part.repoID, revision: part.revision, on: session)
             guard !listed.isEmpty else {

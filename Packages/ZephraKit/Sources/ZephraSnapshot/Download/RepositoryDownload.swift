@@ -15,19 +15,28 @@ public struct RepositoryDownload: Hashable, Sendable {
     public let patterns: [String]
     /// The directory its files land in, flat, named as the repository names them.
     public let destination: URL
+    /// Where it is read from. A mirror part keeps the shape — `repoID` is the variant's id,
+    /// `revision` the word "prebuilt" — so the pool that keys its writers on this type and
+    /// the messages that name a part need learn nothing new.
+    public let origin: DownloadOrigin
 
     /// Names one repository's share of a download.
-    public init(repoID: String, revision: String = "main", patterns: [String], destination: URL) {
+    public init(
+        repoID: String, revision: String = "main", patterns: [String], destination: URL,
+        origin: DownloadOrigin = .huggingFace
+    ) {
         self.repoID = repoID
         self.revision = revision
         self.patterns = patterns
         self.destination = destination
+        self.origin = origin
     }
 
     /// The same download at the commit `revision` names now, so every listing and every file
     /// request of one transfer speaks of the same files.
     public func pinned(to revision: String) -> RepositoryDownload {
         RepositoryDownload(
-            repoID: repoID, revision: revision, patterns: patterns, destination: destination)
+            repoID: repoID, revision: revision, patterns: patterns, destination: destination,
+            origin: origin)
     }
 }

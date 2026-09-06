@@ -34,6 +34,10 @@ final class StubHub: URLProtocol, @unchecked Sendable {
         var etag: String?
         /// The commit the repository's branch names right now.
         var sha = "stub-sha"
+        /// What a mirror's `index.json` says, served for any path ending in it; nil is a mirror
+        /// with no index, which answers 404. A mirror's files are looked up in `files` by their
+        /// whole path after the host (`models/<id>/<path>`), since a mirror has no `resolve`.
+        var index: Data?
     }
 
     /// One request as the stub saw it.
@@ -86,7 +90,9 @@ final class StubHub: URLProtocol, @unchecked Sendable {
                     ifRange: request.value(forHTTPHeaderField: "If-Range")))
             return state.behaviour
         }
-        if url.path(percentEncoded: false).contains("/revision/") {
+        if url.path(percentEncoded: false).hasSuffix("/index.json") {
+            serveIndex(url, behaviour)
+        } else if url.path(percentEncoded: false).contains("/revision/") {
             serveRevision(url, behaviour)
         } else if url.path(percentEncoded: false).contains("/api/models/") {
             serveListing(url, behaviour)
@@ -102,6 +108,17 @@ final class StubHub: URLProtocol, @unchecked Sendable {
         }
         let body = try! JSONSerialization.data(withJSONObject: ["sha": behaviour.sha])
         finish(url, status: 200, headers: ["Content-Type": "application/json"], body: body)
+    }
+
+    /// `<mirror>/index.json`: what the mirror holds, or 404 when it has no index.
+    private func serveIndex(_ url: URL, _ behaviour: Behaviour) {
+        if let status = behaviour.listingStatus, status != 200 {
+            return finish(url, status: status, headers: [:], body: Data())
+        }
+        guard let index = behaviour.index else {
+            return finish(url, status: 404, headers: [:], body: Data())
+        }
+        finish(url, status: 200, headers: ["Content-Type": "application/json"], body: index)
     }
 
     private func serveListing(_ url: URL, _ behaviour: Behaviour) {
@@ -129,12 +146,14 @@ final class StubHub: URLProtocol, @unchecked Sendable {
             return finish(url, status: status, headers: [:], body: Data())
         }
         // `/<org>/<repo>/resolve/<revision>/<path>`: everything after the revision is the file.
+        // A mirror's file has no `resolve`, and is keyed by its whole path.
         let path = url.path(percentEncoded: false)
-        guard let marker = path.range(of: "/resolve/") else {
-            return finish(url, status: 404, headers: [:], body: Data())
+        let name: String
+        if let marker = path.range(of: "/resolve/") {
+            name = path[marker.upperBound...].split(separator: "/").dropFirst().joined(separator: "/")
+        } else {
+            name = String(path.dropFirst())
         }
-        let name = path[marker.upperBound...].split(separator: "/").dropFirst()
-            .joined(separator: "/")
         guard let body = behaviour.files[name] else {
             return finish(url, status: 404, headers: [:], body: Data())
         }

@@ -59,9 +59,11 @@ FLUX2_OUT     ?= $(MODELS_DIR)/flux2-klein-4b-$(BITS)bit
 # The bucket and the CloudFront host in front of it are Terraform-managed in the urandom.io
 # repository (modules/zephra); the app will read https://zephra-assets.urandom.io/models/.
 # MIRROR_PROFILE is the local AWS profile; CI assumes the github-actions-zephra role instead.
-MIRROR_DIR     ?= $(QWEN_MODELS)/ZephraMirror
-MIRROR_BUCKET  ?= s3://zephra-assets-urandom-io/models
-MIRROR_PROFILE ?= dev.urandom.io
+MIRROR_DIR          ?= $(QWEN_MODELS)/ZephraMirror
+MIRROR_BUCKET       ?= s3://zephra-assets-urandom-io/models
+MIRROR_PROFILE      ?= dev.urandom.io
+MIRROR_DISTRIBUTION ?= E14XJ2G91C9S6D
+MIRROR_AWS          := aws $(if $(MIRROR_PROFILE),--profile "$(MIRROR_PROFILE)")
 MIRROR_IDS    := z-image-turbo-4bit qwen-image-2512-4bit flux2-klein-4b-4bit flux2-klein-4b-8bit
 # One download directory per repository, named as the app names it: <org>--<repo>.
 ZIMAGE_8BIT_DIR := $(DOWNLOADS)/$(subst /,--,$(MODEL))
@@ -198,11 +200,14 @@ mirror-index:
 # prefix the mirror's image; without it a variant renamed here would linger there, which is
 # also why the prefix is `models` and not the bucket root. Nothing but the mirror directory
 # is read, and index.json goes last so a client never sees an index ahead of its files.
+# is read, and index.json goes last so a client never sees an index ahead of its files; the
+# CloudFront invalidation then drops the cached copy of the one key that changes in place.
 mirror-sync:
 	@test -n "$(MIRROR_BUCKET)" || { echo "set MIRROR_BUCKET=s3://bucket/prefix"; exit 2; }
-	aws $(if $(MIRROR_PROFILE),--profile "$(MIRROR_PROFILE)") s3 sync "$(MIRROR_DIR)" "$(MIRROR_BUCKET)" \
-	  --delete --exclude ".DS_Store" --exclude "index.json"
-	aws $(if $(MIRROR_PROFILE),--profile "$(MIRROR_PROFILE)") s3 cp "$(MIRROR_DIR)/index.json" "$(MIRROR_BUCKET)/index.json"
+	$(MIRROR_AWS) s3 sync "$(MIRROR_DIR)" "$(MIRROR_BUCKET)" --delete --exclude ".DS_Store" --exclude "index.json"
+	$(MIRROR_AWS) s3 cp "$(MIRROR_DIR)/index.json" "$(MIRROR_BUCKET)/index.json"
+	@test -z "$(MIRROR_DISTRIBUTION)" || $(MIRROR_AWS) cloudfront create-invalidation \
+	  --distribution-id "$(MIRROR_DISTRIBUTION)" --paths "/models/index.json" --output text --query 'Invalidation.Id'
 
 
 test:

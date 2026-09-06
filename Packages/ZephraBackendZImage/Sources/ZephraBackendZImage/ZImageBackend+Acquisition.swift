@@ -41,6 +41,14 @@ extension ZImageBackend {
             let check = LocalSnapshot.zImage(for: descriptor)
             let here = check.downloadedRelease(of: descriptor, in: locations)
             if let here, locations.missingAdapters(of: descriptor).isEmpty { return here }
+            // The four-bit variant is published ready-made: it is fetched instead of the
+            // release it is packed from, and nil means the mirror has not got it. The
+            // eight-bit model has no mirror, and the call answers nil at once.
+            if let prebuilt = try await acquisition.fetchPrebuilt(
+                descriptor, into: locations, onProgress: onProgress)
+            {
+                return try LocalSnapshot.zImage.verified(prebuilt, descriptor: descriptor)
+            }
             let fetched = try await acquisition.fetch(
                 descriptor, into: locations, release: here, onProgress: onProgress)
             return try check.verified(fetched, descriptor: descriptor)

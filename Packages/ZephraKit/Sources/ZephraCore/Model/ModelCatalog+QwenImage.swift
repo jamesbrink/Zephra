@@ -82,7 +82,8 @@ extension ModelCatalog {
         capabilities: qwenImage2512Capabilities,
         // Measured: what `make quantize-qwen` writes, 16.2 GB of transformer and the rest.
         builtBytes: 21_600_000_000,
-        adapters: [qwenImage2512Lightning]
+        adapters: [qwenImage2512Lightning],
+        mirror: mirror
     )
 
     /// What the distilled Qwen-Image variant accepts.

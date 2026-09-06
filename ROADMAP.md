@@ -46,15 +46,14 @@ is distributed until the app is ready to ship.
    `ZEPHRA_WIRED_LIMIT_MB` both count 2^20 today and each says so in a comment, which is
    two places to keep agreeing.
 
-7. **A CDN source for packed variants.** `make mirror` writes every locally built
-   variant into a bucket-shaped directory with an `index.json` of paths, sizes and
-   SHA-256s. The app side is a third `ModelSource` case: fetch `index.json`, then the
-   variant's files straight into `locations.built(descriptor)` with the downloader's
-   `Range` resume and checksum verification, and answer availability without
-   `.needsBuild`. Saves about 127 GB of disk and 82 GB of transfer over all five entries
-   installed today (the bf16 releases are 140 GB and never loaded), and the build minutes
-   with them. Licensing first: Z-Image, Qwen-Image and klein are Apache 2.0, so hosting
-   packed derivatives needs attribution and nothing more.
+7. **A CDN source for packed variants** (shipped: `ModelDescriptor.mirror`,
+   `ModelAcquisition.fetchPrebuilt`, `make mirror` and `make mirror-sync`). Saves about
+   127 GB of disk and 82 GB of transfer over all five entries installed today. Left out
+   for now: a Settings row saying where a variant came from (mirror or built here), a
+   `mirror` field in the record, and any way to prefer building over fetching. Z-Image,
+   Qwen-Image and klein are Apache 2.0, so hosting the packed derivatives needs the
+   attribution `THIRD_PARTY_NOTICES.md` already carries and nothing more; a model under a
+   licence with redistribution terms (LTX-2.5) would need the licence beside its files.
 8. **LTX-2.5 video.** Researched, not started; `docs/research/ltx-2.5.md` has the
    checkpoints, the measured Apple Silicon footprints, and the fit against the seam. The
    model port is the smaller half: the output type (MP4 with audio, no PNG chunks) cuts

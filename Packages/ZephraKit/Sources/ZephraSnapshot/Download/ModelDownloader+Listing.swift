@@ -1,4 +1,5 @@
 import Foundation
+import ZephraCore
 
 extension ModelDownloader {
     /// Every file in `repoID` at `revision`, following the hub's paging to the end.
@@ -18,6 +19,27 @@ extension ModelDownloader {
             files += try RepositoryListing.files(in: data)
             next = RepositoryListing.nextPage(after: response)
         }
+        return files
+    }
+
+    /// The files of the variant `id` as the mirror's index lists them, provided the index
+    /// says it was packed as `identity` describes. A variant the index has not got, or has as
+    /// something else, is `nothingMatched`; an index that cannot be read at all, for whatever
+    /// reason, is `mirrorUnavailable`. `fetchPrebuilt` reads every one of them as "build it
+    /// here", so a mirror that is down costs one failed request and nothing on screen.
+    func listing(
+        of id: String, identity: [String], on mirror: ModelMirror, _ session: URLSession
+    ) async throws -> [RepositoryFile] {
+        let data: Data
+        do {
+            (data, _) = try await load(mirror.index, on: session, repoID: id)
+        } catch let error as ModelDownloadError {
+            throw ModelDownloadError.mirrorUnavailable(reason: error.reason)
+        }
+        guard let files = try MirrorIndex.decode(data).files(of: id, matching: identity) else {
+            throw ModelDownloadError.nothingMatched(repoID: id)
+        }
+        guard !files.isEmpty else { throw ModelDownloadError.nothingMatched(repoID: id) }
         return files
     }
 

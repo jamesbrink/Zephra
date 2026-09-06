@@ -5,9 +5,10 @@ import ZephraSnapshot
 extension Flux2Backend {
     /// Whether `descriptor` can be loaded now, answered from the disk alone.
     ///
-    /// Three answers, because three things can be true of this family. The packed variant is
+    /// Four answers, because four things can be true of this family. The packed variant is
     /// there, so it loads. The release is on this Mac but the variant is not, so loading means
-    /// a build and no network. Or neither is there, and loading means both.
+    /// a build and no network. Neither is there and the variant is published, so loading means
+    /// a download of `builtBytes`. Or neither is there and it is not, and loading means both.
     nonisolated(nonsending) public func availability(
         of descriptor: ModelDescriptor,
         locations: ModelLocations
@@ -27,6 +28,7 @@ extension Flux2Backend {
             if release != nil, locations.missingAdapters(of: descriptor).isEmpty {
                 return .needsBuild
             }
+            if descriptor.isPublishedPrebuilt { return .needsDownload(bytes: descriptor.builtBytes) }
             return .needsDownloadAndBuild(
                 bytes: locations.bytesToFetch(for: descriptor, releasePresent: release != nil))
         }

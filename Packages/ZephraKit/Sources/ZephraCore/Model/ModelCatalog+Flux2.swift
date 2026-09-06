@@ -56,7 +56,8 @@ extension ModelCatalog {
         capabilities: flux2KleinCapabilities,
         // Measured: 5,365,936,128 bytes written by the build, 2.70 GB of transformer, 2.49 GB
         // of the encoder's first 27 layers and embedding, and the 168 MB autoencoder verbatim.
-        builtBytes: 5_370_000_000
+        builtBytes: 5_370_000_000,
+        mirror: mirror
     )
 
     /// FLUX.2 klein 4B at eight-bit precision, built the same way from the same download.
@@ -82,7 +83,8 @@ extension ModelCatalog {
         maxPromptTokens: 512,
         capabilities: flux2KleinCapabilities,
         // Measured: 8,572,731,392 bytes written by the build.
-        builtBytes: 8_570_000_000
+        builtBytes: 8_570_000_000,
+        mirror: mirror
     )
 
     /// What the distilled klein accepts.

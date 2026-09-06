@@ -10,8 +10,9 @@ extension ZImageBackend {
     /// Four answers, because the family has two shapes of model. The eight-bit variant is
     /// published in the format the loader reads, so its download is either here or a download
     /// away. The four-bit variant is packed here from the bf16 release, so it is here, or a
-    /// build away, or a download and a build away. Nothing downloads and nothing disturbs what
-    /// is loaded, so a picker can label the whole catalog for free.
+    /// build away, or — published ready-made — a download of its own 6.7 GB away, or, when
+    /// the mirror has not got it, a download and a build away. Nothing downloads and nothing
+    /// disturbs what is loaded, so a picker can label the whole catalog for free.
     nonisolated(nonsending) public func availability(
         of descriptor: ModelDescriptor,
         locations: ModelLocations
@@ -40,6 +41,7 @@ extension ZImageBackend {
             if release != nil, locations.missingAdapters(of: descriptor).isEmpty {
                 return descriptor.isBuiltLocally ? .needsBuild : .available
             }
+            if descriptor.isPublishedPrebuilt { return .needsDownload(bytes: descriptor.builtBytes) }
             let bytes = locations.bytesToFetch(for: descriptor, releasePresent: release != nil)
             return descriptor.isBuiltLocally
                 ? .needsDownloadAndBuild(bytes: bytes)
