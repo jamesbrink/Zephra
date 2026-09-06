@@ -85,6 +85,10 @@ targets:
         product: ZephraBackendLTX2
       - package: ZephraUpscaleRealESRGAN
         product: ZephraUpscaleRealESRGAN
+      # Linked by name: SwiftUI's VideoPlayer lives in an AVKit overlay whose superclass is
+      # resolved at runtime, and without the framework in the link the first clip on the
+      # canvas aborts with "failed to demangle superclass of VideoPlayerView".
+      - sdk: AVKit.framework
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.zephra.Zephra
