@@ -426,9 +426,24 @@ as an index, and it is Foundation only, so `make test` covers all of it.
   else's picture, and drops the stale entry rather than the picture; Delete
   Immediately forgets the entry too, so a later file under that name gets its
   own thirty days. Nothing is unlinked on the user's behalf before then.
+- A clip is its poster. LTX-2.5 hands back `GeneratedMedia.video`: the MP4 and
+  its first frame as a PNG, and the library indexes the PNG exactly as it
+  indexes a picture — the record inside it carries `frameCount` and `frameRate`,
+  which is all that says it is a clip — with the MP4 beside it under the same
+  stem. `VideoSidecar` is the one rule for where the MP4 lives; the record never
+  names the file, because Put Back may rename both. Everything that moves a PNG
+  moves the pair: `ImageLibrary.write` (the MP4 first, so a scan never lists a
+  clip whose file is not there), `moveToRecentlyDeleted`,
+  `restoreFromRecentlyDeleted` (stepping both around a collision), `discard`
+  (which the purge and Delete Immediately go through), and the migration's
+  inventory. `LibraryItem.videoURL` and `videoSeconds` answer from the record;
+  `LibraryItem.exportURL` in the app target is the clip for a clip and the
+  picture otherwise, and Export, Copy, Share, drag and Reveal all go through it.
+  Upscale is offered for pictures only. `ImageLibraryVideoTests` pins the pairs.
 - `LibrarySelection` holds what is chosen; `LibraryCursor` is the pure
   arithmetic of moving through a grid, so keyboard navigation is tested without
-  a window. `ImageFacts` formats the seven rows the inspector shows.
+  a window. `ImageFacts` formats the rows the inspector shows, the clip's Length
+  among them.
 - Export copies the file, never the bytes in memory, once a picture has one:
   the file is where the favourite, the tags, the albums and the upscale record
   were written, and `ImageExport.exportData(for:)` reads it for Export, Copy
@@ -617,6 +632,21 @@ Four directories, by what a file is rather than what screen it is on:
   `WorkspaceDetail`'s `HStack` (the pane, its `Divider`, and the inspector)
   stays inside the top one too, so the sidebar, the pane, and the inspector
   all start below the strip rather than the divider cutting through it.
+
+  A clip plays where its poster would be: `Canvas/ClipPlayerView`, AVKit's
+  `VideoPlayer` over the MP4 beside the poster, looping and muted, on the canvas
+  once the save has landed and `fileURL` says where (the poster shows until
+  then) and in the library viewer for any item with a `videoURL`; it pauses
+  while a run is in flight, since only the run moves on this canvas. AVKit is
+  linked by name in `project.yml`: SwiftUI's player resolves its superclass at
+  runtime, and without the framework in the link the first clip aborted the app.
+  `Style/VideoBadge` is the clip's mark on a grid cell and a sidebar square, in
+  the corner `UpscaleBadge` uses, since a picture is one or the other. The
+  capsule shows `DurationControl` — whole seconds, each the frame count on the
+  model's ladder nearest to it — only when `frameBounds` is a range, and hides
+  `StepsControl` when `stepBounds` is a single value, the way it already hides
+  guidance: a slider over one value is not a slider, and LTX-2.5's eight steps
+  are the checkpoint's. The inspector's Length row comes from `ImageFacts`.
 
   Every picture in the app wears the same right-click menu: `LibraryItemMenu`
   for anything indexed — the grid, the sidebar wall, the library viewer, and
