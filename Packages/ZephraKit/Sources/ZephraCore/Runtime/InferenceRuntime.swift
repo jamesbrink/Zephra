@@ -38,6 +38,11 @@ public protocol InferenceRuntime: Sendable {
     /// readout should show, and the only way to see what an environment variable set at launch
     /// left behind.
     func vaeTileSize() -> Int?
+
+    /// Whether the GPU is an M5 or later, for the one caption that has to say why klein runs
+    /// its transformer in float32 there (see `GPUGeneration` in `ZephraMLX`). False where no
+    /// GPU runtime answers.
+    func isM5ClassGPU() -> Bool
 }
 
 extension InferenceRuntime {
@@ -49,4 +54,7 @@ extension InferenceRuntime {
 
     /// A runtime that never streams has nothing to report.
     public func weightStreamReading() -> WeightStreamReading? { nil }
+
+    /// A runtime without a GPU is on no generation of it.
+    public func isM5ClassGPU() -> Bool { false }
 }

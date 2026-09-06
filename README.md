@@ -96,7 +96,8 @@ with a progress readout while that happens.
 
 ## Using it
 
-- Zephra is one window (⌘W closes it; the Dock icon brings it back), plus Settings. The
+- Zephra is one window (⌘W closes it; the Dock icon brings it back, and every launch opens
+  it), plus Settings. The
   window is a sidebar and one of two panes, and the sidebar changes with the pane. On
   Canvas (⌘1) it is the session: the search field (⌘F) over today's runs — what is waiting,
   what is being rendered, and the images as they come out. On Library (⌘2) it is the search
@@ -367,7 +368,8 @@ it departs from those ports on purpose. The transformer runs in bfloat16, except
 M5-class GPU, where the app runs it in float32 at about three times the step time:
 mlx-swift up to 0.31.6 miscompiles a bfloat16 split-K matmul there, and no release
 carries the fix yet. The gate is unverified, since none of the project's Macs is an
-M5; `ZEPHRA_DIT_DTYPE=f32` or `bf16` overrides it either way, on any Mac.
+M5; `ZEPHRA_DIT_DTYPE=f32` or `bf16` overrides it either way, on any Mac. On an M5,
+Settings > Performance says so under GPU memory, so the slower step is not a mystery.
 
 ### Z-Image-Turbo
 

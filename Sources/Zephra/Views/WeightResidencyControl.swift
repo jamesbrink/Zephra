@@ -11,6 +11,7 @@ import ZephraEngine
 struct WeightResidencyControl: View {
     @Environment(GenerationStore.self) private var store
     @Environment(\.memoryBudget) private var budget
+    @Environment(\.weightResidencyOverride) private var override
     @AppStorage(AppSettings.weightResidency) private var mode = AppSettings.initialWeightResidency
 
     var body: some View {
@@ -45,7 +46,8 @@ struct WeightResidencyControl: View {
     }
 
     private func apply() {
-        store.setWeightResidencyPolicy(AppSettings.residencyPolicy(mode: mode, budget: budget))
+        store.setWeightResidencyPolicy(
+            AppSettings.residencyPolicy(mode: mode, budget: budget, override: override))
     }
 }
 

@@ -72,6 +72,10 @@ struct ZephraApp: App {
                 }
         }
         .defaultSize(width: 1200, height: 840)
+        // A session that quit with the window closed used to restore it closed, and a
+        // launch with no window and nothing to click but the Dock is not a launch: the one
+        // window is presented on every launch whatever the last session left behind.
+        .defaultLaunchBehavior(.presented)
         .windowToolbarStyle(.unified)
         .commands {
             ZephraCommands(store: store, workspace: workspace)
@@ -88,6 +92,7 @@ struct ZephraApp: App {
                 .environment(index)
                 .environment(\.inferenceRuntime, runtime)
                 .environment(\.memoryBudget, Self.budget)
+                .environment(\.weightResidencyOverride, Self.environment.weightResidency)
         }
         // The window takes each tab's own height (`SettingsTab.height`), shrinking as well
         // as growing, rather than standing at the tallest tab's for all four.
@@ -126,7 +131,8 @@ struct ZephraApp: App {
             runtime: runtime
         )
         store.memoryBudget = budget
-        store.weightResidencyPolicy = AppSettings.residencyPolicy(budget: budget)
+        store.weightResidencyPolicy = AppSettings.residencyPolicy(
+            budget: budget, override: environment.weightResidency)
         store.vaeTilingPolicy = AppSettings.tilingPolicy(budget: budget)
         return store
     }

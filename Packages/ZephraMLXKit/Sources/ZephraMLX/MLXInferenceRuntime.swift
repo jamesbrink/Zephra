@@ -18,6 +18,8 @@ public struct MLXInferenceRuntime: InferenceRuntime {
 
     public func synchronize() { MLXRuntime.synchronize() }
 
+    public func isM5ClassGPU() -> Bool { GPUGeneration.isM5Class }
+
     public func setCacheLimit(bytes: Int) {
         MLXRuntime.configure(cacheLimitBytes: bytes, memoryLimitBytes: nil)
     }

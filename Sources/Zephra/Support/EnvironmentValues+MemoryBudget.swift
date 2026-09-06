@@ -9,4 +9,8 @@ import ZephraCore
 /// view that never had one gets the GPU-less fallback, which is what previews see.
 extension EnvironmentValues {
     @Entry var memoryBudget = MemoryBudget(physicalMemory: ProcessInfo.processInfo.physicalMemory)
+    /// The launch's `ZEPHRA_WEIGHT_RESIDENCY`, handed down the same way so the Performance
+    /// tab's picker applies the same override the store runs under. Nil, the usual case,
+    /// means the preference decides.
+    @Entry var weightResidencyOverride: WeightResidency? = nil
 }

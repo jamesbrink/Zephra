@@ -449,8 +449,10 @@ The app is one window — a `Window("Zephra", id: "main")` scene, not a
 `WindowGroup` — beside Settings. Everything a window would own (`WorkspaceSelection`,
 the caches, the canvas's `current`) is app-wide state built once in `ZephraApp`, so
 a second window would only mirror the first; ⌘W closes it and a click on the Dock
-icon brings it back, with the Window menu listing it by itself. Per-window state is
-a ROADMAP item.
+icon brings it back, with the Window menu listing it by itself, and
+`.defaultLaunchBehavior(.presented)` opens it on every launch, so a session that quit
+with the window closed does not come back with none. Per-window state is a ROADMAP
+item.
 
 Four directories, by what a file is rather than what screen it is on:
 
@@ -1360,7 +1362,9 @@ raises. The app reads it once at launch (`GPUMemoryBudget`, from the runtime and
 the sysctl) and hands it down as an environment value and to the store; MLX's
 memory limit and wired limit are set from it too, so a resident model is kept in
 Metal's residency set rather than left for the OS to page. Settings >
-Performance shows the figure and, when the chosen model would run with the limit
+Performance shows the figure — and, on an M5-class GPU only, `GPUPrecisionNote` saying that
+klein runs float32 there and why, read through `InferenceRuntime.isM5ClassGPU()`, the one
+question about the GPU's generation the app target can ask — and, when the chosen model would run with the limit
 raised and does not run now, the exact command with a Copy button: the app never
 runs `sudo`, and a change to the sysctl is seen at the next launch. A budget
 built from RAM alone, which the tests and a GPU-less build use, assumes four
@@ -1524,11 +1528,11 @@ limits — is read **once at launch**, into `InferenceEnvironment` (`ZephraCore/
 the composition root (`ZephraApp.swift`) or by `ZephraBench/main.swift`, and handed down as a
 value: the kits take what they need on their requests, the backends hold the rest as instance
 state, and nothing below the root reads `ProcessInfo`. Changing a variable after launch
-changes nothing. (`ZephraQuantize` honours none of them, so it reads nothing.) The one
-reader outside the root is `AppSettings.residencyPolicy(mode:budget:)`, which applies
-`ZEPHRA_WEIGHT_RESIDENCY` itself because the Performance tab's picker has to show the same
-override the store runs under; `InferenceEnvironment.weightResidency` carries the value for
-anything else that wants it.
+changes nothing. (`ZephraQuantize` honours none of them, so it reads nothing.)
+`ZEPHRA_WEIGHT_RESIDENCY` reaches the Performance tab's picker the same way: the root hands
+`InferenceEnvironment.weightResidency` down as the `\.weightResidencyOverride` environment
+value, and `AppSettings.residencyPolicy(mode:budget:override:)` is pure, so the picker applies
+the same override the store runs under without a second read of the process environment.
 
 - `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|starting|queued|watching|batch|library|viewer|picker|downloading|building|failed`
   launches a Debug build frozen in that state with no model, for screenshots (`make screenshot`).
@@ -1567,9 +1571,10 @@ anything else that wants it.
   background launch (`open -g --env ZEPHRA_PREVIEW_STATE=settings build/Debug/Zephra.app`)
   and the titled screenshot, this is how a Settings tab is photographed hands-off; the tab
   strip's controls are `AXButton`s titled after their tab, so `ax-press.swift Performance`
-  switches tabs. Append `--args -ApplePersistenceIgnoreState YES` to the launch when no window
-  appears: the one `Window` scene restores the last session's state, and a session that quit
-  with the window closed restores it closed, which a preview build cannot reopen by itself.
+  switches tabs. The one `Window` scene is presented on every launch
+  (`.defaultLaunchBehavior(.presented)`), so a session that quit with the window closed no
+  longer comes back without one; `--args -ApplePersistenceIgnoreState YES` on the launch is
+  still the way to drop the last session's window frame and pane.
 - `make bench ARGS="--size 1024 --steps 9 --runs 3 --json"` measures load, s/step, and peak memory
   headlessly; benchmark on an idle machine, Release only. `--reference IMAGE` measures the
   editing path on a model that has one.

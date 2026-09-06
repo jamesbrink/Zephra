@@ -19,6 +19,7 @@ struct PerformanceSettings: View {
                 GPUMemoryRow()
                 CacheLimitControl()
                 WeightResidencyControl()
+                GPUPrecisionNote()
             }
             Section("Image decoding") {
                 VAETilingControl()
