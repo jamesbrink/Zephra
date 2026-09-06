@@ -1,0 +1,18 @@
+import Foundation
+import ZephraTestSupport
+
+extension SnapshotUnderTest {
+    /// The `mlx-community/ltx-2.5-mlx` release on this Mac, or the variant packed from it, for the
+    /// tests that read the real tokenizer or the shard headers. `LTX2_SNAPSHOT` names one
+    /// somewhere else (`TEST_RUNNER_LTX2_SNAPSHOT` under `xcodebuild test`).
+    static let ltx2 = SnapshotUnderTest(
+        repository: "mlx-community/ltx-2.5-mlx", environmentVariable: "LTX2_SNAPSHOT")
+
+    /// Where the tokenizer files are in whichever layout was found: the release keeps them
+    /// beside Gemma's weights in `gemma4-12b-ltx-v1/`, the packed variant under `text_encoder/`.
+    var ltx2TokenizerDirectory: URL? {
+        guard let directory else { return nil }
+        return ["gemma4-12b-ltx-v1", "text_encoder"].map { directory.appending(path: $0) }
+            .first { FileManager.default.fileExists(atPath: $0.appending(path: "tokenizer.json").path(percentEncoded: false)) }
+    }
+}

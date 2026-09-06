@@ -1,6 +1,4 @@
 import Foundation
-import Hub
-import Tokenizers
 
 /// Gemma 4's tokenizer, read from the `tokenizer.json` beside the text encoder's weights, with
 /// the three rules LTX-2.5's encoder applies on top of it.
@@ -10,31 +8,26 @@ import Tokenizers
 /// post-processor adds nothing and a Gemma 3 habit of trusting it would leave every prompt one
 /// token short. The ids are cut to `maxLength` keeping the *front* (the tokenizer's default
 /// truncation side, measured against the real checkpoint) and padded to it on the *left*.
+///
+/// The encoding itself is `LTX2BytePairEncoding`, ours, with the file's added tokens matched
+/// literally first so `<bos>` typed into a prompt is the token and not five characters.
 public struct LTX2Tokenizer {
     /// Positions every prompt is padded or cut to.
     public static let maxLength = 1024
 
-    private let tokenizer: any Tokenizer
+    private let vocabulary: LTX2TokenizerVocabulary
     /// The id every prompt begins with.
     public let bosTokenID: Int
     /// The id a prompt is padded with.
     public let padTokenID: Int
 
-    /// Loads the tokenizer from a directory holding `tokenizer.json` and `tokenizer_config.json`.
+    /// Loads the tokenizer from a directory holding `tokenizer.json`.
     public init(directory: URL, bosTokenID: Int = 2, padTokenID: Int = 0) throws {
-        let configURL = directory.appending(path: "tokenizer_config.json")
-        let dataURL = directory.appending(path: "tokenizer.json")
-        for url in [configURL, dataURL]
-        where !FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) {
+        let url = directory.appending(path: "tokenizer.json")
+        guard FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) else {
             throw LTX2TokenizerError.missingFile(url)
         }
-        do {
-            tokenizer = try AutoTokenizer.from(
-                tokenizerConfig: try HubApi().configuration(fileURL: configURL),
-                tokenizerData: try HubApi().configuration(fileURL: dataURL))
-        } catch {
-            throw LTX2TokenizerError.malformed(dataURL, reason: String(describing: error))
-        }
+        vocabulary = try LTX2TokenizerVocabulary(contentsOf: url)
         self.bosTokenID = bosTokenID
         self.padTokenID = padTokenID
     }
@@ -42,8 +35,7 @@ public struct LTX2Tokenizer {
     /// The ids for `prompt` the encoder reads before padding: stripped, `<bos>` first, at most
     /// `maxLength` long.
     public func encode(_ prompt: String) -> [Int] {
-        var ids = tokenizer.encode(
-            text: prompt.trimmingCharacters(in: .whitespacesAndNewlines), addSpecialTokens: true)
+        var ids = tokenize(prompt.trimmingCharacters(in: .whitespacesAndNewlines))
         if ids.first != bosTokenID { ids.insert(bosTokenID, at: 0) }
         return Array(ids.prefix(Self.maxLength))
     }
@@ -64,8 +56,37 @@ public struct LTX2Tokenizer {
         )
     }
 
-    /// The text for `ids`, for checking what was encoded.
+    /// The text for `ids`, for checking what was encoded: `▁` back to a space, byte tokens back
+    /// to their bytes.
     public func decode(_ ids: [Int]) -> String {
-        tokenizer.decode(tokens: ids)
+        var bytes: [UInt8] = []
+        for id in ids {
+            guard let token = vocabulary.tokens[id] else { continue }
+            if let byte = vocabulary.byteTokens.firstIndex(of: id) {
+                bytes.append(UInt8(byte))
+            } else {
+                bytes += token.replacingOccurrences(of: "\u{2581}", with: " ").utf8
+            }
+        }
+        return String(decoding: bytes, as: UTF8.self)
+    }
+
+    /// Added tokens first, byte-pair encoding over the stretches between them.
+    private func tokenize(_ text: String) -> [Int] {
+        var ids: [Int] = []
+        var rest = Substring(text)
+        var plain = ""
+        while let scalar = rest.unicodeScalars.first {
+            if let match = vocabulary.added.first(where: { rest.hasPrefix($0.text) }) {
+                if !plain.isEmpty { ids += LTX2BytePairEncoding.encode(plain, with: vocabulary); plain = "" }
+                ids.append(match.id)
+                rest = rest.dropFirst(match.text.count)
+            } else {
+                plain.unicodeScalars.append(scalar)
+                rest = Substring(rest.unicodeScalars.dropFirst())
+            }
+        }
+        if !plain.isEmpty { ids += LTX2BytePairEncoding.encode(plain, with: vocabulary) }
+        return ids
     }
 }
