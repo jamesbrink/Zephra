@@ -204,8 +204,8 @@ mirror-index:
 # CloudFront invalidation then drops the cached copy of the one key that changes in place.
 mirror-sync:
 	@test -n "$(MIRROR_BUCKET)" || { echo "set MIRROR_BUCKET=s3://bucket/prefix"; exit 2; }
-	$(MIRROR_AWS) s3 sync "$(MIRROR_DIR)" "$(MIRROR_BUCKET)" --delete --exclude ".DS_Store" --exclude "index.json"
-	$(MIRROR_AWS) s3 cp "$(MIRROR_DIR)/index.json" "$(MIRROR_BUCKET)/index.json"
+	$(MIRROR_AWS) s3 sync "$(MIRROR_DIR)" "$(MIRROR_BUCKET)" --delete --exclude ".DS_Store" --exclude "index.json" --no-progress
+	$(MIRROR_AWS) s3 cp "$(MIRROR_DIR)/index.json" "$(MIRROR_BUCKET)/index.json" --no-progress
 	@test -z "$(MIRROR_DISTRIBUTION)" || $(MIRROR_AWS) cloudfront create-invalidation \
 	  --distribution-id "$(MIRROR_DISTRIBUTION)" --paths "/models/index.json" --output text --query 'Invalidation.Id'
 
