@@ -3,8 +3,9 @@
 Zephra may ship commercially, so where each of its own model implementations
 came from is a legal question and not only a technical one. This file records
 the answers while they are still checkable. `Packages/QwenImageKit` is a
-clean-room port; `Packages/Flux2Kit` is a translation with attribution. The
-two claims are different, and each section says which it is making.
+clean-room port; `Packages/Flux2Kit` and `Packages/LTX2Kit` are translations
+with attribution. The claims are different, and each section says which it is
+making.
 
 # `Packages/QwenImageKit`
 
@@ -192,3 +193,79 @@ The claim to defend is narrower than the Qwen-Image one: every file in
 sources, each credited in `THIRD_PARTY_NOTICES.md`, and nothing in it derives
 from a GPL-licensed or unlicensed source. The git history shows each component
 landing with its `diffusers` fixture.
+
+# `Packages/LTX2Kit`
+
+## The short version
+
+`Packages/LTX2Kit` is a translation with attribution, the way `Packages/Flux2Kit`
+is. The reference implementations are Apache-2.0 — the LTX-2 modules in
+`huggingface/diffusers` and the Gemma 4 model in `huggingface/transformers` —
+and every fixture in `Tests/LTX2Tests/Fixtures` is dumped from them by
+`Tools/dump_reference.py`. Two MLX ports were read as cross-checks and credited
+in `THIRD_PARTY_NOTICES.md`; no code was taken from either. **The official
+`Lightricks/LTX-2` repository states no license for its code**: it was run to
+confirm the audio-free forward and nothing in it was copied. No GPL-licensed
+source was consulted.
+
+The weights are not permissively licensed. The LTX-2.x Community License
+Agreement (revenue gate, non-compete, derivative terms) is quoted in
+`THIRD_PARTY_NOTICES.md` and reproduced there in full; the packed variant
+carries the pack's `LICENSE.md`.
+
+## What was used
+
+| Reference | License | What was taken |
+|---|---|---|
+| `mlx-community/ltx-2.5-mlx` configs and headers | LTX-2.x Community | Every architectural constant and every tensor name: the transformer's 48 blocks, 32 heads of 128, the 9-row block modulation table, the connector's 8 blocks and 128 registers, Gemma 4's 48 layers with eight full-attention layers that share their key and value projection, the decoder's stage plan and per-channel statistics. Lightricks' own repositories are gated and were never fetched. |
+| `huggingface/diffusers` | Apache 2.0 | The reference behaviour of the transformer block (`LTX2VideoTransformerBlock`), the audio-video rotary embedding, the text connectors and the video autoencoder, and every fixture for them. |
+| `huggingface/transformers` | Apache 2.0 | The reference behaviour of `Gemma4TextModel`: the four sandwich norms, `layer_scalar`, the per-head query and key norms, the scale-free value norm, attention scaling of 1, the rotate-half rotary layout with a partial factor on the full-attention layers, and the per-layer-type masks; and every fixture for it. |
+| `dgrauet/ltx-2-mlx` | MIT | Read for the pack's key names, its bidirectionally verified decoder stage plan (zeros spatial padding, non-causal), and its block-streaming and decode-tiling design. No code was taken. |
+| `xocialize/ltx-2-mlx-swift` | Apache 2.0 | Read for the tokenizer's missing BOS, the front-truncation rule, the float32 aggregate projection, the kernel-compilation warm-up, and its measured envelopes. No code was taken. |
+| `Lightricks/LTX-2` | unstated | Run, not read for copying: `LTXModel(video, audio=None)` confirmed the video-only forward this port implements, and its `DISTILLED_SIGMA_VALUES` and ancestral sampler constants were checked against diffusers'. |
+
+## What was not
+
+- `Lightricks/LTX-2.5` and `Lightricks/LTX-2.5-Diffusers`: gated; never fetched.
+- `xocialize/ltx-2.5-granules` and any other redistribution: not opened.
+
+## Where this port departs from its sources, on purpose
+
+- **Video only.** The transformer runs the official `audio=None` forward: the
+  audio stream, the audio-to-video cross-attention and its conditioners are
+  omitted from the pack and from the module tree. The video output differs from
+  the audio-video model's by the cross-attention term that is gone; fixtures are
+  dumped the same way. `LTX2Block` keeps the seam for the audio stream
+  (`ROADMAP.md`).
+- **The decoder computes in bfloat16**, the dtype the pack ships it in, where
+  Zephra's other autoencoders stay float32. The reference decodes in bfloat16;
+  parity was measured at 8e-6 in float32 on the doll's-house fixture.
+- **The rotary frequency ladder is Double on the CPU** (`frequencies_precision:
+  float64` in the pack's config); the outer product with positions is float32,
+  as in the reference. Nothing is shared with `ZephraMLX.RotaryFrequencies`,
+  whose construction is the geometric ladder klein and Qwen-Image use.
+- **The aggregate projection runs float32** with float32 scales left uncast:
+  188160 products summed in bfloat16 lose the prompt (the Swift port's finding).
+  Every other packed layer's scales are cast to the stream's dtype at load.
+- **The tokenizer is our own byte-pair encoder** over the pack's
+  `tokenizer.json`: swift-transformers 0.1.24 splits by grapheme cluster and
+  turns emoji joined with a zero-width joiner into bytes, and Swift `String`
+  keys merge canonically equivalent tokens, so the vocabulary is keyed by UTF-8
+  bytes. Ids are pinned against Hugging Face's `tokenizers` for twelve prompts.
+- **The first-frame marker is added unconditionally**, as the official pipelines
+  do (`_first_frame_keyframes_mask`); diffusers 0.40.0 carries the parameter but
+  no way to apply it in `forward`, so the fixture wraps the input projection to
+  match the official behaviour.
+- **No temporal chunking of the decode** yet; at 768 x 512 x 49 the peak
+  intermediate is a fraction of a gigabyte, and it matters past about 121
+  frames at 1024 (`ROADMAP.md`).
+- **No M5 gate**: the stream is bfloat16 on every GPU (see
+  `LTX2ActivationPrecision`).
+
+## If this ever needs re-checking
+
+The claim to defend: every file in `Packages/LTX2Kit` was written by Zephra
+from Apache-2.0 references, with MIT- and Apache-licensed ports read and
+credited, and nothing in it derives from a GPL-licensed or unlicensed source.
+The git history shows each component landing with its fixture, and
+`WeightKeyCoverageTests` pins the pack's key set against the module trees.
