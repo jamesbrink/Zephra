@@ -282,3 +282,20 @@ The selected icon is the flowing copper Z in `design/branding/zephyr/`. Run
 icons and flat marks from the approved PNG masters. The app uses the dark tile
 as its standard Finder/Dock icon; the website switches the flat mark with its
 appearance. The DMG file and mounted volume inherit the app's compiled icon.
+
+## Website and public downloads
+
+The product website is https://zephra.urandom.io. Iterations go to ChatGPT Sites
+first; **deploy to production** means AWS. From this repository:
+
+- `make deploy-production` builds the static site, uploads it to the website
+  bucket, invalidates CloudFront, and verifies the public files.
+- `make publish-release VERSION=0.1.0 BUILD_NUMBER=<unique-number>` builds and
+  notarizes the app, publishes an immutable DMG to the assets bucket, verifies
+  the public download, and updates the website's download manifest.
+- `make release-upload` publishes and verifies an already notarized local DMG.
+
+Use Node 22+ and run `npm ci` in `product-mockups` first. Local AWS commands use
+`dev.urandom.io`; CI uses the existing OIDC role. The manual **Deploy production
+website** workflow invokes the same Make target; no push automatically deploys.
+See `product-mockups/README.md` for destinations and `docs/releases/` for checks.

@@ -347,3 +347,26 @@ lint-layers:
 	@! grep -rlnE 'repeatForever|repeatCount\(|TimelineView\(\.animation|phaseAnimator|keyframeAnimator' Sources/Zephra --include='*.swift' \
 	  || (echo "ANIMATION VIOLATION: the app target runs a repeating animation; the GPU is the model's while it works (see RunPlaceholderView)"; exit 1)
 	@echo "layers ok"
+
+# ChatGPT Sites is the iteration environment; production means the AWS website.
+WEBSITE_PROFILE      ?= dev.urandom.io
+WEBSITE_BUCKET       ?= zephra-site-urandom-io
+WEBSITE_DISTRIBUTION ?= ETNI7JSPHMJRF
+WEBSITE_URL          ?= https://zephra.urandom.io
+.PHONY: website-build deploy-production
+website-build:
+	cd product-mockups && ZEPHRA_STATIC_EXPORT=1 npm run build
+
+deploy-production: website-build
+	WEBSITE_PROFILE="$(WEBSITE_PROFILE)" WEBSITE_BUCKET="$(WEBSITE_BUCKET)" \
+	WEBSITE_DISTRIBUTION="$(WEBSITE_DISTRIBUTION)" WEBSITE_URL="$(WEBSITE_URL)" \
+	./scripts/deploy-website.sh
+
+# macOS-only: validates notarization before upload, then verifies the public download.
+RELEASE_PROFILE ?= dev.urandom.io
+.PHONY: release-upload publish-release
+release-upload:
+	RELEASE_PROFILE="$(RELEASE_PROFILE)" ./scripts/publish-download.sh
+
+publish-release: notarized-release
+	$(MAKE) release-upload

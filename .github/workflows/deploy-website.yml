@@ -1,0 +1,27 @@
+name: Deploy production website
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: zephra-production-website
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: product-mockups/package-lock.json
+      - run: npm ci
+        working-directory: product-mockups
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::042506291754:role/service-role/github-actions-zephra
+          aws-region: us-west-2
+      - run: make deploy-production WEBSITE_PROFILE=

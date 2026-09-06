@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import release from './release.json';
 import { Switch } from '@/components/ui/switch';
 import {
   ArrowUpRight,
@@ -108,11 +109,10 @@ function Features({ id }: { id: string }) {
             An internet connection is needed for model downloads.
           </p>
         </div>
-        <span className="preview-label">
-          In development
-          <br />
-          Public download coming later
-        </span>
+        <div className="preview-label">
+          <a className="button" href={release.url}>Download for Mac <ArrowDown size={17} /></a>
+          <p>Version {release.version} · Apple Silicon · Notarized DMG</p>
+        </div>
       </section>
       <footer>
         <Brand />
@@ -144,8 +144,8 @@ export default function Page() {
             your Mac. Powerful models. Native controls. Everything stays with
             you.
           </p>
-          <a className="button" href="#dark-features">
-            Explore Zephra <ArrowDown size={17} />
+          <a className="button" href={release.url}>
+            Download for Mac <ArrowDown size={17} />
           </a>
           <span className="compatibility">
             Built for Apple Silicon · Powered by MLX

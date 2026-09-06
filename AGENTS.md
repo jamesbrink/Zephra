@@ -1692,3 +1692,10 @@ the same override the store runs under without a second read of the process envi
 
 - In shell tooling, use `/bin/ls` rather than the interactive `ls` — the
   shell's `ls` function can hang on this volume.
+
+## Website deployment destinations
+
+Website iterations and modifications go to ChatGPT Sites first. When James says
+"deploy to production", deploy the website to AWS with `make deploy-production`.
+The website bucket is `zephra-site-urandom-io`; notarized app releases belong in
+`zephra-assets-urandom-io/releases/`. Keep both deployments on the same page source.
