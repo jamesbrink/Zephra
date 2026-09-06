@@ -44,11 +44,23 @@ QWEN_OUT    ?= $(MODELS_DIR)/qwen-image-2512-4bit
 # `make quantize-flux2` is the same build by hand, for benchmarking and for a machine whose copy
 # of the release lives elsewhere (set FLUX2_SOURCE). The root `flux-2-klein-4b.safetensors` is
 # Black Forest Labs' own single-file format, 7.75 GB the loader never reads, so it is excluded.
-# The output directory follows BITS, so `make quantize-flux2 BITS=8` lands in flux2-klein-4b-8bit.
+# The output directory follows BITS, so `make quantize-flux2 quantize-ltx2 BITS=8` lands in flux2-klein-4b-8bit.
 FLUX2_MODEL   := black-forest-labs/FLUX.2-klein-4B
 FLUX2_EXCLUDE := --exclude "flux-2-klein-4b.safetensors" --exclude "*.jpg"
 FLUX2_SOURCE  ?=
 FLUX2_OUT     ?= $(MODELS_DIR)/flux2-klein-4b-$(BITS)bit
+# LTX-2.5 is built by the app on first load from the ungated mlx-community bf16 pack (the
+# Lightricks repositories are gated, and Zephra sends no token). Only the four files the
+# video-only variant reads are fetched: the distilled transformer, the connector, the Gemma 4
+# encoder with its tokenizer, and the convolutional video decoder; 69 GB, so LTX_MODELS defaults
+# to the external volume the way QWEN_MODELS does. `make quantize-ltx2` is the same build by hand.
+LTX2_MODEL   := mlx-community/ltx-2.5-mlx
+LTX2_INCLUDE := --include "config.json" --include "embedded_config.json" --include "LICENSE.md" \
+                --include "transformer-distilled.safetensors" --include "connector.safetensors" \
+                --include "vae_decoder.safetensors" --include "gemma4-12b-ltx-v1/*"
+LTX2_MODELS  ?= /Volumes/ExternalStorage/Models/ZephraModels
+LTX2_SOURCE  ?= $(LTX2_MODELS)/Downloads/$(subst /,--,$(LTX2_MODEL))
+LTX2_OUT     ?= $(MODELS_DIR)/ltx-2.5-distilled-$(BITS)bit
 # `make mirror` builds every variant the app packs on first load into one directory that can be
 # synced to a bucket as it stands: one directory per catalog id, exactly what
 # `locations.built(descriptor)` holds on a Mac (provenance stamp included), plus an index.json
@@ -64,7 +76,8 @@ MIRROR_BUCKET       ?= s3://zephra-assets-urandom-io/models
 MIRROR_PROFILE      ?= dev.urandom.io
 MIRROR_DISTRIBUTION ?= E14XJ2G91C9S6D
 MIRROR_AWS          := aws $(if $(MIRROR_PROFILE),--profile "$(MIRROR_PROFILE)")
-MIRROR_IDS    := z-image-turbo-4bit qwen-image-2512-4bit flux2-klein-4b-4bit flux2-klein-4b-8bit
+MIRROR_IDS    := z-image-turbo-4bit qwen-image-2512-4bit flux2-klein-4b-4bit flux2-klein-4b-8bit \
+                 ltx-2.5-distilled-4bit
 # One download directory per repository, named as the app names it: <org>--<repo>.
 ZIMAGE_8BIT_DIR := $(DOWNLOADS)/$(subst /,--,$(MODEL))
 ZIMAGE_BASE_DIR := $(DOWNLOADS)/$(subst /,--,$(BASE_MODEL))
@@ -104,7 +117,7 @@ VERSION      ?=
 BUILD_NUMBER ?=
 VERSION_FLAGS := $(if $(VERSION),MARKETING_VERSION=$(VERSION)) $(if $(BUILD_NUMBER),CURRENT_PROJECT_VERSION=$(BUILD_NUMBER))
 
-.PHONY: doctor gen build run bench quantize quantize-qwen quantize-flux2 mirror mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-index mirror-sync prefetch prefetch-qwen prefetch-flux2 open clean lint-layers vendored-diff logs screenshot test test-app test-mlx test-backend icon signed-build release notarize notarized-release
+.PHONY: doctor gen build run bench quantize quantize-qwen quantize-flux2 quantize-ltx2 mirror mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-ltx2 mirror-index mirror-sync prefetch prefetch-qwen prefetch-flux2 prefetch-ltx2 open clean lint-layers vendored-diff logs screenshot test test-app test-mlx test-backend icon signed-build release notarize notarized-release
 
 # What a fresh Mac needs before `make build` can work, each with its fix printed.
 doctor:
@@ -163,12 +176,23 @@ quantize-flux2: gen
 	  --source-name $(FLUX2_MODEL) --bits $(BITS) --group-size $(GROUP_SIZE) \
 	  --out "$(FLUX2_OUT)" $(ARGS)
 
+# The LTX-2.5 pack from LTX2_SOURCE into LTX2_OUT: the video-only 4-bit variant the catalog
+# names. `make prefetch-ltx2` fetches the source first when it is not there.
+quantize-ltx2: gen
+	@mkdir -p "$(BUILD)"; $(XCB) -scheme ZephraQuantize -configuration Release build >"$(BUILD)/ZephraQuantize-build.log" 2>&1 \
+	  || { tail -40 "$(BUILD)/ZephraQuantize-build.log"; echo "ZephraQuantize failed to build; full log in $(BUILD)/ZephraQuantize-build.log"; exit 1; }
+	@test -f "$(LTX2_SOURCE)/transformer-distilled.safetensors" || $(MAKE) prefetch-ltx2
+	"$(QUANTIZE)" --family ltx2 \
+	  --source "$(LTX2_SOURCE)" \
+	  --source-name $(LTX2_MODEL) --bits $(BITS) --group-size $(GROUP_SIZE) \
+	  --out "$(LTX2_OUT)" $(ARGS)
+
 # The mirror: one directory per packed variant, named for its catalog id so ZephraQuantize
 # checks the volume for that entry's builtBytes and stamps its provenance, then index.json.
 # Each variant is its own target, so one can be rebuilt alone; the sources are the same
 # releases the quantize targets read (ZIMAGE_BASE_DIR and FLUX2_DIR are fetched if absent,
 # QWEN_SOURCE and QWEN_LORA must already be there).
-mirror: mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-index
+mirror: mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-ltx2 mirror-index
 
 mirror-z-image:
 	@$(call mirror_variant,z-image-turbo-4bit,quantize QUANT_OUT="$(MIRROR_DIR)/z-image-turbo-4bit" BITS=4)
@@ -181,6 +205,9 @@ mirror-flux2-4bit:
 
 mirror-flux2-8bit:
 	@$(call mirror_variant,flux2-klein-4b-8bit,quantize-flux2 FLUX2_OUT="$(MIRROR_DIR)/flux2-klein-4b-8bit" BITS=8)
+
+mirror-ltx2:
+	@$(call mirror_variant,ltx-2.5-distilled-4bit,quantize-ltx2 LTX2_OUT="$(MIRROR_DIR)/ltx-2.5-distilled-4bit" BITS=4)
 
 # Skips a variant whose provenance stamp is already in the mirror, unless FORCE=1; the packer
 # would otherwise empty and rewrite it. $(1) is the catalog id, $(2) the quantize invocation.
@@ -301,6 +328,11 @@ prefetch-qwen:
 # The klein release into the app's own folder, which is where it looks before it downloads.
 prefetch-flux2:
 	hf download $(FLUX2_MODEL) $(FLUX2_EXCLUDE) --local-dir "$(FLUX2_DIR)"
+
+# The four LTX-2.5 files the video-only build reads, into LTX2_MODELS' Downloads folder as the
+# app would name it; point MODELS_DIR at that volume and the app finds them.
+prefetch-ltx2:
+	hf download $(LTX2_MODEL) $(LTX2_INCLUDE) --local-dir "$(LTX2_SOURCE)"
 
 open: gen
 	open $(PROJECT)

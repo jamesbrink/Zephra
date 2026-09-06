@@ -6,8 +6,17 @@ import Foundation
 /// exceptions followed by what happens to everything else. That ordering is the whole interface:
 /// put the narrow rules first.
 public struct QuantizedComponent: Hashable, Sendable {
-    /// The subdirectory the component's shards live in, in both the source and the output.
+    /// The subdirectory the component is written to, and where its shards are read from unless
+    /// `sourceDirectory` or `sourceFiles` says otherwise.
     public let directoryName: String
+    /// The release's directory for this component when it is not named `directoryName`: the
+    /// LTX-2.5 pack keeps its Gemma encoder under `gemma4-12b-ltx-v1/`, which the build writes
+    /// out as `text_encoder/`. Nil means the two names agree. Its configs are copied too.
+    public let sourceDirectory: String?
+    /// The component's shards, as paths relative to the release root, for a release that keeps
+    /// them beside each other at the top rather than in a directory each; empty means "every
+    /// safetensors file in the source directory".
+    public let sourceFiles: [String]
     /// Exceptions, most specific first.
     public let rules: [WeightPrecisionRule]
     /// What happens to a tensor no rule claims, or nil to leave the rest of the component alone.
@@ -30,16 +39,37 @@ public struct QuantizedComponent: Hashable, Sendable {
     /// otherwise.
     public init(
         directoryName: String,
+        sourceDirectory: String? = nil,
+        sourceFiles: [String] = [],
         rules: [WeightPrecisionRule] = [],
         fallback: QuantizationPrecision?,
         omitted: [NamePattern] = [],
         adapters: [URL] = []
     ) {
         self.directoryName = directoryName
+        self.sourceDirectory = sourceDirectory
+        self.sourceFiles = sourceFiles
         self.rules = rules
         self.fallback = fallback
         self.omitted = omitted
         self.adapters = adapters
+    }
+
+    /// Where the component's shards and sidecar files are read from under `release`.
+    public func sourceDirectoryURL(in release: URL) -> URL {
+        release.appending(path: sourceDirectory ?? directoryName)
+    }
+
+    /// The shard files to read under `release`: the named ones, else every safetensors file in
+    /// the source directory, in name order.
+    public func shards(in release: URL) throws -> [URL] {
+        guard sourceFiles.isEmpty else {
+            return sourceFiles.map { release.appending(path: $0) }
+        }
+        return try FileManager.default
+            .contentsOfDirectory(at: sourceDirectoryURL(in: release), includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "safetensors" }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
 
     /// Whether this tensor is left out of the build entirely.

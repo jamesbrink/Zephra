@@ -49,17 +49,20 @@ public struct ComponentQuantization {
 
     /// Converts the component and returns a manifest entry per packed layer.
     public func run() throws -> [QuantizationManifest.Layer] {
-        let sourceDirectory = source.appending(path: component.directoryName)
+        let sourceDirectory = component.sourceDirectoryURL(in: source)
         guard FileManager.default.fileExists(
             atPath: sourceDirectory.path(percentEncoded: false))
         else {
             throw QuantizationError.missingComponent(
                 name: component.directoryName, directory: sourceDirectory)
         }
-        let shards = try Self.shards(in: sourceDirectory)
+        let shards = try component.shards(in: source)
         guard !shards.isEmpty else {
             throw QuantizationError.noShards(
                 name: component.directoryName, directory: sourceDirectory)
+        }
+        for shard in shards where !FileManager.default.fileExists(atPath: shard.path(percentEncoded: false)) {
+            throw QuantizationError.noShards(name: component.directoryName, directory: shard)
         }
 
         let writer = QuantizedShardWriter(

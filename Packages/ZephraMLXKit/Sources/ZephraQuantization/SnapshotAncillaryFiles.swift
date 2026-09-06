@@ -8,15 +8,17 @@ import Foundation
 public enum SnapshotAncillaryFiles {
     /// Mirrors the non-weight parts of `source` into `destination`, following `plan`.
     public static func copy(from source: URL, to destination: URL, plan: QuantizationPlan) throws {
+        // Keyed by the directory the release keeps a component in, which is where its configs
+        // are; they land in the directory the plan writes the component to.
         let packed = Dictionary(
-            uniqueKeysWithValues: plan.components.map { ($0.directoryName, $0) })
+            uniqueKeysWithValues: plan.components.map { ($0.sourceDirectory ?? $0.directoryName, $0) })
         for entry in try contents(of: source) {
             let name = entry.lastPathComponent
             if entry.hasDirectoryPath {
                 if plan.verbatimDirectories.contains(name) {
                     try copyItem(at: entry, to: destination.appending(path: name))
-                } else if packed[name] != nil {
-                    try copyConfigs(named: name, from: entry, to: destination)
+                } else if let component = packed[name] {
+                    try copyConfigs(named: component.directoryName, from: entry, to: destination)
                 }
             } else if name != "quantization.json", entry.pathExtension != "safetensors" {
                 try copyItem(at: entry, to: destination.appending(path: name))
