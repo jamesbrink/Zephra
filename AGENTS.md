@@ -1654,8 +1654,10 @@ frames in 63.4 s at 7.0 s a step, 17521 MB live and 21787 MB peak, loading in
 which says the peak is the load's (the float32 scales before their cast) and not
 the decode's. Streamed, both stacks: 8369 MB peak and 4103 MB live, 8.09 GB
 read per step at 1.19 GB/s, 6.6 s a step (the same pace: the M4 Max's SSD keeps
-up), and a poster byte for byte the resident run's. The first run made a
-coherent picture. `make bench ARGS="--model
+up), and a poster byte for byte the resident run's. On bender, the 16 GB M4
+mini, the same streamed clip: 8284 MB peak, 4103 MB live, 25.5 s a step and 232 s
+a clip, read-bound at 0.32 GB/s straight after the variant landed from the mirror
+(a rerun on an idle disk is owed). The first run made a coherent picture. `make bench ARGS="--model
 ltx-2.5-distilled-4bit --size 768x512 --frames 49"` is the run; the clip is
 written as `.mp4` beside its poster.
 

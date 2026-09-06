@@ -98,7 +98,8 @@ models remain selectable even when a smaller image size may be needed.
 Historical timings at 1024×1024 include about 29 seconds for FLUX.2 klein
 (four steps, M4 Max) and 123 seconds for streamed Qwen-Image (four steps, 16 GB
 M4 mini). LTX-2.5 makes a two-second 768×512 clip (49 frames, eight steps) in
-63 seconds on an M4 Max, 7.0 seconds a step. These are reference measurements, not current performance claims:
+63 seconds on an M4 Max, 7.0 seconds a step, and in 232 seconds streamed on the
+16 GB M4 mini. These are reference measurements, not current performance claims:
 some recorded results predate dtype corrections, and Z-Image timings were taken
 on a busy machine. Re-measure on an idle Mac with the [benchmark tool](#development).
 Catalog source comments retain the measurement context.

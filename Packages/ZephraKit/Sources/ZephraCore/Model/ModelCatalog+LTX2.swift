@@ -53,7 +53,10 @@ extension ModelCatalog {
         tiledPeakBytes: 21_790_000_000,
         // Measured the same way with both stacks streamed: 8369 MB peak and 4103 MB live,
         // 8.09 GB read per step at 1.19 GB/s, 6.6 s a step — the same pace as resident on an
-        // M4 Max, whose SSD keeps up — and a poster byte for byte the resident run's.
+        // M4 Max, whose SSD keeps up — and a poster byte for byte the resident run's. On the
+        // 16 GB M4 mini (12.1 GB working set): 8284 MB peak, 4103 MB live, 25.5 s a step and
+        // 232 s a clip, read-bound at 0.32 GB/s straight after the variant landed from the
+        // mirror; that read rate is the one figure here worth a rerun on an idle disk.
         streamedPeakBytes: 8_370_000_000,
         // Gemma is padded to 1024 tokens and the connector reads every position.
         maxPromptTokens: 1024,
