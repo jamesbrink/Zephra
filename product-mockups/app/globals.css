@@ -1,6 +1,6 @@
-@import 'tailwindcss';
-@import 'tw-animate-css';
-@import 'shadcn/tailwind.css';
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -22,7 +22,7 @@ html {
 }
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 16px;
 }
 a {
@@ -72,7 +72,7 @@ p {
   min-height: 100vh;
   color-scheme: dark;
 }
-.safelight[data-theme='light'] {
+.safelight[data-theme="light"] {
   --background: #faf9f6;
   --foreground: #262725;
   --muted: #60655f;
@@ -147,14 +147,14 @@ p {
   cursor: pointer;
   padding: 10px 0;
 }
-.theme-control [data-slot='switch'] {
+.theme-control [data-slot="switch"] {
   background: var(--border);
   cursor: pointer;
 }
-.theme-control [data-slot='switch'][data-checked] {
+.theme-control [data-slot="switch"][data-checked] {
   background: var(--accent);
 }
-.theme-control [data-slot='switch-thumb'] {
+.theme-control [data-slot="switch-thumb"] {
   background: var(--background);
 }
 .eyebrow {
@@ -382,14 +382,7 @@ p {
   font-size: 14px;
   color: var(--muted);
 }
-.preview-label {
-  margin-left: auto;
-  font-size: 13px;
-  line-height: 1.7;
-  color: var(--muted);
-  text-align: right;
-  flex-shrink: 0;
-}
+
 footer {
   max-width: 1224px;
   margin: auto;
@@ -436,9 +429,6 @@ footer > span {
   }
   .requirements {
     flex-wrap: wrap;
-  }
-  .preview-label {
-    margin-left: 0;
   }
 }
 @media (max-width: 650px) {
@@ -523,9 +513,7 @@ footer > span {
   .requirements > svg {
     display: none;
   }
-  .preview-label {
-    text-align: left;
-  }
+
   .requirements br {
     display: none;
   }
@@ -555,14 +543,14 @@ footer > span {
   }
 }
 
-html:has(.safelight[data-theme='light']) {
+html:has(.safelight[data-theme="light"]) {
   background: #faf9f6;
   color-scheme: light;
 }
 
 /* Zephyr: the selected flowing-Z emblem and serif wordmark. */
 .brand {
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: Georgia, "Times New Roman", serif;
   font-size: 30px;
   font-weight: 500;
 }
@@ -572,5 +560,22 @@ html:has(.safelight[data-theme='light']) {
   width: 38px;
   height: 38px;
   background-color: var(--accent);
-  mask: url('/images/mark.png') center / contain no-repeat;
+  mask: url("/images/mark.png") center / contain no-repeat;
+}
+
+.website-privacy {
+  max-width: 1224px;
+  margin: 0 auto;
+  padding: 0 24px 28px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.website-privacy summary {
+  cursor: pointer;
+  width: fit-content;
+}
+.website-privacy p {
+  max-width: 760px;
+  margin-top: 12px;
 }

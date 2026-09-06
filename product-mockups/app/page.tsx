@@ -1,8 +1,8 @@
-'use client';
+"use client";
 /* oxlint-disable next/no-img-element -- Static PNGs also deploy to S3 without an image optimization server. */
-import { useState } from 'react';
-import release from './release.json';
-import { Switch } from '@/components/ui/switch';
+import { useState } from "react";
+import release from "./release.json";
+import { Switch } from "@/components/ui/switch";
 import {
   ArrowUpRight,
   ArrowDown,
@@ -10,7 +10,7 @@ import {
   LockKeyhole,
   FolderHeart,
   Sparkles,
-} from 'lucide-react';
+} from "lucide-react";
 function Brand() {
   return (
     <a className="brand" href="#top">
@@ -75,22 +75,25 @@ function Features({ id }: { id: string }) {
             <LockKeyhole />
             <h3>Your imagination stays here.</h3>
             <p>
-              Image generation runs on your Mac. The app has no image uploads, accounts, or
-              telemetry. Download and prepare your models, then create offline.
+              Image generation runs on your Mac. The app has no image uploads,
+              accounts, or telemetry. Download and prepare your models, then
+              create offline.
             </p>
           </article>
           <article>
             <FolderHeart />
             <h3>A library that belongs to you.</h3>
             <p>
-              Favorites, tags, album membership, prompts, and seeds travel with your PNGs.
-              Your pictures are files you can take anywhere.
+              Favorites, tags, album membership, prompts, and seeds travel with
+              your PNGs. Your pictures are files you can take anywhere.
             </p>
           </article>
         </div>
       </section>
       <section className="models" id={`${id}-models`}>
-        <span className="eyebrow">THREE MODEL FAMILIES. ONE NATIVE WORKSPACE.</span>
+        <span className="eyebrow">
+          THREE MODEL FAMILIES. ONE NATIVE WORKSPACE.
+        </span>
         <div className="model-names">
           <span>Z-Image-Turbo</span>
           <span>Qwen-Image-2512</span>
@@ -111,22 +114,29 @@ function Features({ id }: { id: string }) {
             An internet connection is needed for model downloads.
           </p>
         </div>
-        <div className="preview-label">
-          <a className="button" href={release.url}>Download for Mac <ArrowDown size={17} /></a>
-          <p>Version {release.version} · Apple Silicon · Notarized DMG</p>
-        </div>
       </section>
       <footer>
         <Brand />
         <span>© 2026 James Brink. All rights reserved.</span>
       </footer>
+      <details className="website-privacy">
+        <summary>Website privacy</summary>
+        <p>
+          This production website uses Google Analytics cookies to measure
+          visits, scrolling, and download clicks, including browser, device, and
+          approximate region information. Advertising personalization is
+          disabled. Download clicks do not indicate completed downloads or
+          installations. Website analytics does not collect your prompts,
+          images, or activity in the Zephra app.
+        </p>
+      </details>
     </>
   );
 }
 export default function Page() {
   const [dark, setDark] = useState(true);
   return (
-    <main className="safelight" data-theme={dark ? 'dark' : 'light'} id="top">
+    <main className="safelight" data-theme={dark ? "dark" : "light"} id="top">
       <a className="skip-link" href="#dark-features">
         Skip to features
       </a>
