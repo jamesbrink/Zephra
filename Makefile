@@ -129,12 +129,14 @@ bench: gen
 
 # Build the 4-bit variant locally: no repository publishes Z-Image-Turbo in the manifest format
 # the vendored loader reads. The download is the slow part; the quantization itself is a minute.
+# The source is the --local-dir handed to `hf download`, not what the tool prints: 1.28 prints
+# `path=...` where older releases printed the bare path, and a build must not depend on which.
 quantize: gen
 	@mkdir -p "$(BUILD)"; $(XCB) -scheme ZephraQuantize -configuration Release build >"$(BUILD)/ZephraQuantize-build.log" 2>&1 \
 	  || { tail -40 "$(BUILD)/ZephraQuantize-build.log"; echo "ZephraQuantize failed to build; full log in $(BUILD)/ZephraQuantize-build.log"; exit 1; }
-	@set -e; source=$$(hf download $(BASE_MODEL) --exclude 'assets/*' --local-dir "$(ZIMAGE_BASE_DIR)"); \
+	hf download $(BASE_MODEL) --exclude 'assets/*' --local-dir "$(ZIMAGE_BASE_DIR)" >/dev/null
 	"$(QUANTIZE)" --family z-image \
-	  --source "$$source" \
+	  --source "$(ZIMAGE_BASE_DIR)" \
 	  --source-name $(BASE_MODEL) --bits $(BITS) --group-size $(GROUP_SIZE) \
 	  --out "$(QUANT_OUT)" $(ARGS)
 
@@ -154,7 +156,7 @@ quantize-flux2: gen
 	@mkdir -p "$(BUILD)"; $(XCB) -scheme ZephraQuantize -configuration Release build >"$(BUILD)/ZephraQuantize-build.log" 2>&1 \
 	  || { tail -40 "$(BUILD)/ZephraQuantize-build.log"; echo "ZephraQuantize failed to build; full log in $(BUILD)/ZephraQuantize-build.log"; exit 1; }
 	@set -e; source="$(FLUX2_SOURCE)"; \
-	if [ -z "$$source" ]; then source=$$(hf download $(FLUX2_MODEL) $(FLUX2_EXCLUDE) --local-dir "$(FLUX2_DIR)"); fi; \
+	if [ -z "$$source" ]; then hf download $(FLUX2_MODEL) $(FLUX2_EXCLUDE) --local-dir "$(FLUX2_DIR)" >/dev/null; source="$(FLUX2_DIR)"; fi; \
 	"$(QUANTIZE)" --family flux2 \
 	  --source "$$source" \
 	  --source-name $(FLUX2_MODEL) --bits $(BITS) --group-size $(GROUP_SIZE) \
