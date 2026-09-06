@@ -1,5 +1,6 @@
 'use client';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { useState } from 'react';
+import { Switch } from '@/components/ui/switch';
 import {
   ArrowUpRight,
   ArrowDown,
@@ -8,20 +9,35 @@ import {
   FolderHeart,
   Sparkles,
 } from 'lucide-react';
-const concepts = ['Safelight', 'Native', 'Atelier'];
 function Brand() {
   return (
-    <a className="brand" href="#">
-      <img src="/images/icon.png" alt="" />
+    <a className="brand" href="#top">
+      <img src="/images/icon.png" alt="" width={38} height={38} />
       Zephra
     </a>
   );
 }
-function Nav({ id }: { id: string }) {
+function Nav({
+  id,
+  dark,
+  onTheme,
+}: {
+  id: string;
+  dark: boolean;
+  onTheme: (value: boolean) => void;
+}) {
   return (
     <header className="nav">
       <Brand />
       <nav aria-label="Product">
+        <label className="theme-control">
+          <span>Dark mode</span>
+          <Switch
+            checked={dark}
+            onCheckedChange={onTheme}
+            aria-label="Dark mode"
+          />
+        </label>
         <a href={`#${id}-features`}>The app</a>
         <a href={`#${id}-models`}>Models</a>
         <a className="nav-cta" href={`#${id}-requirements`}>
@@ -93,9 +109,9 @@ function Features({ id }: { id: string }) {
           </p>
         </div>
         <span className="preview-label">
-          Product page concept
+          In development
           <br />
-          Download coming later
+          Download not yet available
         </span>
       </section>
       <footer>
@@ -105,214 +121,86 @@ function Features({ id }: { id: string }) {
     </>
   );
 }
-function Gallery() {
-  return (
-    <div className="gallery">
-      <figure>
-        <img
-          src="/images/robot.png"
-          alt="A weathered robot reading a newspaper in a sunlit park"
-        />
-        <figcaption>
-          One prompt. <span>Room to explore.</span>
-        </figcaption>
-      </figure>
-      <figure>
-        <img
-          src="/images/robot-chrome.png"
-          alt="A polished chrome robot reading on a park bench"
-        />
-        <figcaption>A different interpretation.</figcaption>
-      </figure>
-      <figure>
-        <img
-          src="/images/robot-white.png"
-          alt="A small white robot with headphones and a newspaper"
-        />
-        <figcaption>Another possibility.</figcaption>
-      </figure>
-    </div>
-  );
-}
 export default function Page() {
+  const [dark, setDark] = useState(true);
   return (
-    <Tabs defaultValue="Safelight" className="concepts">
-      <div className="concept-bar">
-        <span className="review-title">
-          ZEPHRA <span>/ PRODUCT EXPLORATIONS</span>
-        </span>
-        <TabsList
-          className="concept-picker"
-          aria-label="Choose a product page concept"
-        >
-          {concepts.map((c, i) => (
-            <TabsTrigger key={c} value={c}>
-              {`0${i + 1}`} <span>{c}</span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        <span className="review-note">Design preview · September 2026</span>
+    <main className="safelight" data-theme={dark ? 'dark' : 'light'} id="top">
+      <a className="skip-link" href="#dark-features">
+        Skip to features
+      </a>
+      <Nav id="dark" dark={dark} onTheme={setDark} />
+      <section className="dark-hero">
+        <div className="hero-copy">
+          <span className="eyebrow">
+            <span className="live-dot" /> LOCAL IMAGE GENERATION FOR MAC
+          </span>
+          <h1>
+            A little imagination.
+            <br />
+            <em>Entirely yours.</em>
+          </h1>
+          <p>
+            Turn words into images in a creative space that feels at home on
+            your Mac. Powerful models. Native controls. Everything stays with
+            you.
+          </p>
+          <a className="button" href="#dark-features">
+            Explore Zephra <ArrowDown size={17} />
+          </a>
+          <span className="compatibility">
+            Built for Apple Silicon · Powered by MLX
+          </span>
+        </div>
+        <div className="hero-art">
+          <img
+            src="/images/robot.png"
+            width={512}
+            height={512}
+            fetchPriority="high"
+            alt="An image of a curious robot enjoying a newspaper in the afternoon sun"
+          />
+          <div className="art-caption">
+            <span>“A robot reading in the afternoon sun”</span>
+            <span>FLUX.2 klein</span>
+          </div>
+          <span className="art-index">01 / A MOMENT, IMAGINED</span>
+        </div>
+      </section>
+      <div className="statement">
+        <span>YOUR MAC IS THE STUDIO.</span>
+        <p>
+          No cloud between
+          <br />
+          you and your next idea.
+        </p>
+        <span>GENERATE · EDIT · UPSCALE · COLLECT</span>
       </div>
-      <TabsContent value="Safelight">
-        <main className="safelight">
-          <Nav id="dark" />
-          <section className="dark-hero">
-            <div className="hero-copy">
-              <span className="eyebrow">
-                <span className="live-dot" /> LOCAL IMAGE GENERATION FOR MAC
-              </span>
-              <h1>
-                A little imagination.
-                <br />
-                <em>Entirely yours.</em>
-              </h1>
-              <p>
-                Turn words into images in a creative space that feels at home on
-                your Mac. Powerful models. Native controls. Everything stays
-                with you.
-              </p>
-              <a className="button" href="#dark-features">
-                Explore Zephra <ArrowDown size={17} />
-              </a>
-              <span className="compatibility">
-                Built for Apple Silicon · Powered by MLX
-              </span>
-            </div>
-            <div className="hero-art">
-              <img
-                src="/images/robot.png"
-                alt="An image of a curious robot enjoying a newspaper in the afternoon sun"
-              />
-              <div className="art-caption">
-                <span>“A robot reading in the afternoon sun”</span>
-                <span>FLUX.2 klein</span>
-              </div>
-              <span className="art-index">01 / A MOMENT, IMAGINED</span>
-            </div>
-          </section>
-          <div className="statement">
-            <span>YOUR MAC IS THE STUDIO.</span>
-            <p>
-              No cloud between
-              <br />
-              you and your next idea.
-            </p>
-            <span>GENERATE · EDIT · UPSCALE · COLLECT</span>
-          </div>
-          <section className="app-section">
-            <div>
-              <span className="eyebrow">
-                A FAMILIAR FEELING. NEW POSSIBILITIES.
-              </span>
-              <h2>
-                A canvas for
-                <br />
-                your next “what if.”
-              </h2>
-              <p>
-                Watch an image take shape with live previews. Keep ideas moving
-                with a generation queue, and find your favorites in a searchable
-                library.
-              </p>
-            </div>
-            <img
-              src="/images/app.png"
-              alt="Zephra’s native macOS workspace showing live generation, a timeline, and an image inspector"
-            />
-            <small>Zephra app · Development screenshot</small>
-          </section>
-          <Features id="dark" />
-        </main>
-      </TabsContent>
-      <TabsContent value="Native">
-        <main className="native">
-          <Nav id="native" />
-          <section className="native-hero">
-            <img
-              className="hero-icon"
-              src="/images/icon.png"
-              alt="Zephra app icon"
-            />
-            <span className="eyebrow">IMAGINATION, MEET YOUR MAC.</span>
-            <h1>
-              Big ideas.
-              <br />
-              <span>Right at home.</span>
-            </h1>
-            <p>
-              A native image studio for Apple Silicon.
-              <br />
-              Generate, edit, and organize. All on your Mac.
-            </p>
-            <a className="button" href="#native-features">
-              Meet Zephra <ArrowDown size={17} />
-            </a>
-            <div className="native-app">
-              <img
-                src="/images/app.png"
-                alt="Zephra on macOS with a live image preview and prompt controls"
-              />
-            </div>
-          </section>
-          <section className="native-gallery">
-            <span className="eyebrow">THINK IT. SEE WHERE IT GOES.</span>
-            <h2>One idea is just the beginning.</h2>
-            <Gallery />
-          </section>
-          <Features id="native" />
-        </main>
-      </TabsContent>
-      <TabsContent value="Atelier">
-        <main className="atelier">
-          <Nav id="atelier" />
-          <section className="editorial-hero">
-            <div className="editorial-title">
-              <span className="eyebrow">AN IMAGE STUDIO, ON YOUR MAC.</span>
-              <h1>
-                Make room
-                <br />
-                for <em>imagining.</em>
-              </h1>
-              <div className="editorial-bottom">
-                <p>
-                  Follow a thought somewhere unexpected. Zephra puts local image
-                  generation into a beautifully native Mac workspace.
-                </p>
-                <a
-                  className="circle-link"
-                  href="#atelier-features"
-                  aria-label="Explore Zephra"
-                >
-                  <ArrowDown />
-                </a>
-              </div>
-            </div>
-            <figure>
-              <img
-                src="/images/robot-chrome.png"
-                alt="A chrome robot lost in a newspaper under the trees"
-              />
-              <figcaption>FIG. 01 — AN AFTERNOON THAT NEVER WAS.</figcaption>
-            </figure>
-          </section>
-          <div className="editorial-band">
-            <span>Words become pictures.</span>
-            <span>Pictures become possibilities.</span>
-          </div>
-          <section className="atelier-gallery">
-            <div>
-              <span className="eyebrow">THE ART OF ANOTHER TRY</span>
-              <h2>
-                Stay curious.
-                <br />
-                Keep creating.
-              </h2>
-            </div>
-            <Gallery />
-          </section>
-          <Features id="atelier" />
-        </main>
-      </TabsContent>
-    </Tabs>
+      <section className="app-section">
+        <div>
+          <span className="eyebrow">
+            A FAMILIAR FEELING. NEW POSSIBILITIES.
+          </span>
+          <h2>
+            A canvas for
+            <br />
+            your next “what if.”
+          </h2>
+          <p>
+            Watch an image take shape with live previews. Keep ideas moving with
+            a generation queue, and find your favorites in a searchable library.
+          </p>
+        </div>
+        <img
+          src="/images/app.png"
+          width={2400}
+          height={1680}
+          loading="lazy"
+          decoding="async"
+          alt="Zephra’s native macOS workspace showing live generation, a timeline, and an image inspector"
+        />
+        <small>Zephra app · Development screenshot</small>
+      </section>
+      <Features id="dark" />
+    </main>
   );
 }

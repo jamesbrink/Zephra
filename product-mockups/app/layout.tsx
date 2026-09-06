@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import './globals.css';
 export const metadata: Metadata = {
-  title: 'Zephra — Product page concepts',
+  title: 'Zephra — Your Mac is the studio',
   description:
-    'Explore three directions for Zephra, a native macOS app for local image generation on Apple Silicon.',
+    'Generate, edit, upscale, and organize images locally on your Mac. A native image studio for Apple Silicon.',
   icons: { icon: '/images/icon.png' },
 };
 export default function RootLayout({
