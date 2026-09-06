@@ -47,7 +47,7 @@ On a fresh launch, Zephra chooses the first catalog model that fits the GPU's
 memory budget. Selecting a model downloads any missing weights. The quantized
 variants are fetched ready-made from Zephra's own mirror
 (`zephra-assets.urandom.io`) when it has them, so a 4-bit Z-Image Turbo is a
-6.7 GB download rather than a 32.9 GB release and a build; when the mirror has
+7.1 GB download rather than a 32.9 GB release and a build; when the mirror has
 not got a variant, or cannot be reached, the release is downloaded and the
 variant built here as before, without asking. The window shows progress
 throughout; later loads reuse the files.
@@ -73,7 +73,7 @@ or guarantees for every Mac. Reference-image editing can use more memory.
 | FLUX.2 klein 4B, 4-bit | 16 GB | 5.4 GB | 4.9 GB | 12.1 / 7.7 GB |
 | FLUX.2 klein 4B, 8-bit | Same source | 8.6 GB | 8.1 GB | 15.3 / 10.9 GB |
 | Z-Image-Turbo, 8-bit | 13.3 GB | — | 12.2 GB | 23.5 / 17.7 GB |
-| Z-Image-Turbo, 4-bit | 32.9 GB | 6.7 GB | 6.6 GB | 17.8 / 12.0 GB |
+| Z-Image-Turbo, 4-bit | 32.9 GB | 7.1 GB | 6.6 GB | 17.8 / 12.0 GB |
 | Qwen-Image-2512, 4-bit | 59.4 GB | 21.6 GB | 21.5 GB | 30.4 / 26.1 GB |
 
 The source download is retained alongside the built copy, so allow space for

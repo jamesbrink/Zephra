@@ -1253,7 +1253,7 @@ Second model: `z-image-turbo-4bit`, packed on the user's own Mac from the bf16
 release (`Tongyi-MAI/Z-Image-Turbo`, 32.9 GB excluding `assets/`), because no
 repository publishes four-bit Z-Image-Turbo in the manifest format the vendored
 loader reads. The app does that itself on first load, the way klein does;
-`make quantize` is the same build by hand. 6.7 GB on disk (`builtBytes`) and
+`make quantize` is the same build by hand. 7.1 GB on disk (`builtBytes`) and
 6575 MB resident, against 13.3 GB and 12236 MB for the 8-bit model. Peak follows
 the image size — 10693 MB at 512 pixels, 14599 MB at 768,
 17839 MB at 1024 — because peak is resident plus the unquantized VAE decode's

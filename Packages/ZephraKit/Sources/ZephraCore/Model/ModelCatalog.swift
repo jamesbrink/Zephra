@@ -74,9 +74,12 @@ public enum ModelCatalog {
         tiledPeakBytes: 12_010_000_000,
         maxPromptTokens: 512,
         capabilities: zImageTurboCapabilities,
-        // Measured: what `make quantize` writes at four bits, group 64 — 6.7 GB against the
-        // 13.3 GB of the published eight-bit build.
-        builtBytes: 6_700_000_000,
+        // Measured: 7,123,354,222 bytes written by `make mirror` on 2026-09-06 at four bits,
+        // group 64 — 3.8 GB of transformer, 3.0 GB of text encoder, the 164 MB autoencoder
+        // and the tokenizer — against the 13.3 GB of the published eight-bit build. The
+        // entry said 6.7 GB before this measurement; which change grew the build was not
+        // traced.
+        builtBytes: 7_130_000_000,
         mirror: mirror
     )
 

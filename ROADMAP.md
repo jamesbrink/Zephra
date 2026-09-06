@@ -77,7 +77,7 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   back to float, repack at the new width, and carry the manifest across. It also
   compounds the error of two quantizations, which is worth measuring against a
   straight 4-bit build before shipping. The bf16 source is the honest input, and
-  disk is the cost: 32.9 GB in, 6.7 GB out, and the packer spills at 4 GB resident, so
+  disk is the cost: 32.9 GB in, 7.1 GB out, and the packer spills at 4 GB resident, so
   it runs on a 16 GB Mac but wants 40 GB free.
 - **`ZephraQuantize`'s refusals are exercised by hand.** The tool has no test target:
   `QuantizeOptions.parse` exits on a bad line and `main.swift` is top-level code, so the

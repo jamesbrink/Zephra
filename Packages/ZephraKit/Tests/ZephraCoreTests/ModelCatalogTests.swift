@@ -180,10 +180,12 @@ struct ModelCatalogTests {
         let descriptor = ModelCatalog.zImageTurbo4bit
         #expect(descriptor.source.requiresDownload)
         #expect(descriptor.isBuiltLocally)
-        #expect(descriptor.builtBytes == 6_700_000_000)
+        #expect(descriptor.builtBytes == 7_130_000_000)
         #expect(descriptor.quantization == .int4)
         #expect(descriptor.fullName == "Z-Image Turbo · 4-bit")
         #expect(descriptor.adapters.isEmpty)
+        #expect(descriptor.isPublishedPrebuilt)
+        #expect(descriptor.mirror == ModelCatalog.mirror)
         #expect(descriptor.transferBytes == descriptor.downloadBytes)
         #expect(descriptor.maxPromptTokens == ModelCatalog.zImageTurbo8bit.maxPromptTokens)
         #expect(descriptor.capabilities == ModelCatalog.zImageTurbo8bit.capabilities)
@@ -258,5 +260,19 @@ struct ModelSourceTests {
     func requiresDownload() {
         #expect(ModelCatalog.zImageTurbo8bit.source.requiresDownload)
         #expect(!ModelSource.localDirectory(URL(filePath: "/tmp/x")).requiresDownload)
+    }
+}
+
+extension ModelCatalogTests {
+    @Test("every variant built locally is published on the one mirror, and nothing else is")
+    func builtVariantsArePublished() {
+        for descriptor in ModelCatalog.all {
+            #expect(descriptor.isPublishedPrebuilt == descriptor.isBuiltLocally, "\(descriptor.id)")
+            #expect((descriptor.mirror == nil) == !descriptor.isBuiltLocally, "\(descriptor.id)")
+        }
+        #expect(ModelCatalog.mirror.index.absoluteString == "https://zephra-assets.urandom.io/models/index.json")
+        #expect(
+            ModelCatalog.mirror.file("transformer/model.safetensors", of: "flux2-klein-4b-4bit").absoluteString
+                == "https://zephra-assets.urandom.io/models/flux2-klein-4b-4bit/transformer/model.safetensors")
     }
 }
