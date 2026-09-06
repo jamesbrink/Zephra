@@ -14,7 +14,7 @@ final class LTX2TextConnector: Module {
     @ParameterInfo(key: "learnable_registers") var registers: MLXArray
     @ModuleInfo(key: "transformer_1d_blocks") var blocks: [LTX2ConnectorBlock]
 
-    private let rotary: LTX2ConnectorRotaryEmbedding
+    private let rotary: LTX2RotaryEmbedding
     private let eps: Float
 
     /// The checkpoint's prefix for this module's paths.
@@ -33,7 +33,10 @@ final class LTX2TextConnector: Module {
         eps: Float = 1e-6
     ) {
         self.eps = eps
-        rotary = LTX2ConnectorRotaryEmbedding(dim: dim, heads: heads, maxPosition: maxPosition)
+        // The DiT's embedding over one axis: positions are fractions of `maxPosition`, mapped
+        // to -1...1, so a token's angle depends on where it sits in that span.
+        rotary = LTX2RotaryEmbedding(
+            heads: heads, headDim: dim / heads, maxPositions: [Double(maxPosition)], theta: 10_000)
         _registers.wrappedValue = MLXArray.zeros([registerCount, dim])
         _blocks.wrappedValue = (0..<layers).map { _ in LTX2ConnectorBlock(dim: dim, heads: heads, eps: eps) }
     }
@@ -51,11 +54,11 @@ final class LTX2TextConnector: Module {
         let isToken = (positions .< validCount)[0..., 0..., .newAxis]
         x = MLX.where(isToken, x, MLX.broadcast(bank[.newAxis, 0..., 0...], to: [batch, length, dim]))
 
-        let (cos, sin) = rotary.tables(length: length)
+        let table = rotary.table(positions: MLXArray(Array(0..<Int32(length)))[.newAxis, 0...])
         for block in blocks {
-            x = block(x, cos: cos, sin: sin)
+            x = block(x, rotary: table)
         }
-        return LTX2ConnectorBlock.norm(x, eps: eps)
+        return LTX2RMSNorm.normalize(x, eps: eps)
     }
 
     /// The real tokens moved to the front of each row, in their order, with the padding behind

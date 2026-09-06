@@ -48,7 +48,9 @@ final class FrameAppender: @unchecked Sendable {
 
     private func append(frame index: Int) throws {
         let buffer = try pixelBuffer(for: frames.frame(index))
-        let time = CMTime(value: CMTimeValue(index), timescale: CMTimeScale(frameRate.rounded()))
+        // A timescale of a thousand times the rate keeps 23.976 as well as 24 exact to the
+        // millihertz, rather than rounding the rate to a whole number.
+        let time = CMTime(value: CMTimeValue(index) * 1000, timescale: CMTimeScale((frameRate * 1000).rounded()))
         guard adaptor.append(buffer, withPresentationTime: time) else {
             throw MP4WriterError.encodingFailed(
                 adaptor.assetWriterInput.description + " refused frame \(index)")

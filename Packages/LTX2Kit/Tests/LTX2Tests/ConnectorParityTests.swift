@@ -50,7 +50,7 @@ struct ConnectorParityTests {
         #expect(theirs.subtracting(ours).isEmpty, Comment(rawValue: "unloaded: \(theirs.subtracting(ours).sorted())"))
         // And back again: a module path names the tensor the manifest and the stream know.
         #expect(
-            LTX2ConnectorWeights.checkpointName(of: "transformer_1d_blocks.1.ff.input.weight")
+            LTX2ConnectorWeights.checkpointName(of: "transformer_1d_blocks.1.ff.proj_in.weight")
                 == "connector.video_embeddings_connector.transformer_1d_blocks.1.ff.net.0.proj.weight")
         #expect(
             LTX2ConnectorWeights.checkpointName(of: "transformer_1d_blocks.0.attn1.to_out.bias")

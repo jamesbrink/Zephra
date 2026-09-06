@@ -35,6 +35,9 @@ extension GenerationRecord {
         record.batchID = nil
         record.upscaledFrom = parentFileName
         record.upscaleFactor = factor
+        // A bigger first frame is a picture, not a clip; there is no MP4 beside it.
+        record.frameCount = nil
+        record.frameRate = nil
         return record
     }
 

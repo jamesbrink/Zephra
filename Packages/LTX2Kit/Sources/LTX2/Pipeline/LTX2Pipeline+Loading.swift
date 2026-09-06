@@ -86,7 +86,6 @@ extension LTX2Pipeline {
         try decoder.load(weights: try SafetensorsShards.weights(in: snapshot.appending(path: "vae")))
 
         let result = Loaded(
-            snapshot: snapshot,
             tokenizer: try LTX2Tokenizer(directory: encoderDirectory),
             textEncoder: textEncoder, extractor: extractor, connector: connector,
             transformer: transformer, decoder: decoder, activation: activation)

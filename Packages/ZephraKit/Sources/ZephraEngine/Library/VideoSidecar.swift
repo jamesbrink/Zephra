@@ -15,8 +15,13 @@ public enum VideoSidecar {
         png.deletingPathExtension().appendingPathExtension(pathExtension)
     }
 
-    /// The clip beside `png`, or nil when there is none: the picture is just a picture.
+    /// The clip beside `png`, or nil when the picture is not a clip's poster or its clip is
+    /// not there. The poster's own record is what says it is a clip: a same-stem MP4 beside a
+    /// picture that never had one is somebody else's file, and is left alone.
     public static func existing(beside png: URL) -> URL? {
+        guard let text = try? PNGTextChunks.read(fromHeaderOf: png),
+            GenerationRecord.decode(from: text)?.isVideo == true
+        else { return nil }
         let candidate = url(beside: png)
         return FileManager.default.fileExists(atPath: candidate.path(percentEncoded: false))
             ? candidate : nil

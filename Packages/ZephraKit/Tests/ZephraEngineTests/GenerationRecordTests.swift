@@ -164,6 +164,20 @@ struct GenerationRecordTests {
         #expect(record.width == 1600 && record.height == 1200)
     }
 
+    @Test("an upscale of a clip's poster is a picture: the frames do not come along")
+    func upscaleOfAClipPoster() {
+        var parent = GenerationRecord(Self.image(prompt: "a kite"))
+        parent.frameCount = 49
+        parent.frameRate = 24
+        #expect(parent.isVideo)
+        let record = GenerationRecord.upscaled(
+            from: parent, parentFileName: "kite.png", factor: 2,
+            size: ImageSize(width: 1536, height: 1024), duration: .seconds(1))
+        #expect(!record.isVideo)
+        #expect(record.frameCount == nil && record.frameRate == nil)
+        #expect(record.prompt == "a kite")
+    }
+
     @Test("embedding a record twice changes nothing the second time")
     func idempotent() throws {
         let image = Self.image(prompt: "a lighthouse")

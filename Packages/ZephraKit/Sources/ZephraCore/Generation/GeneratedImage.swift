@@ -50,6 +50,10 @@ public struct GeneratedImage: Identifiable, Hashable, Sendable {
         self.batchID = batchID
     }
 
+    /// Whether this picture is a clip's first frame: the clip is in memory, or the settings
+    /// it was read back with ask for more than one frame.
+    public var isVideo: Bool { video != nil || settings.frames > 1 }
+
     /// A copy that knows where it now lives on disk.
     public func withFileURL(_ url: URL?) -> GeneratedImage {
         var copy = self

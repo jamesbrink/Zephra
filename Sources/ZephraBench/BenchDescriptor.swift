@@ -13,7 +13,7 @@ enum BenchDescriptor {
     static func forSnapshot(
         _ directory: URL,
         backend: BackendID,
-        size: Int,
+        size: ImageSize,
         steps: Int,
         supportsReferenceImage: Bool = false
     ) -> ModelDescriptor {
@@ -33,9 +33,9 @@ enum BenchDescriptor {
             maxPromptTokens: 1024,
             capabilities: ModelCapabilities(
                 sizeAlignment: 16,
-                sizePresets: [ImageSize(width: size, height: size)],
+                sizePresets: [size],
                 sizeBounds: 256...2048,
-                defaultSize: ImageSize(width: size, height: size),
+                defaultSize: size,
                 stepBounds: 1...50,
                 defaultSteps: steps,
                 guidanceBounds: 0...0,

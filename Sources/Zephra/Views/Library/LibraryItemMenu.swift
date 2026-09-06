@@ -71,9 +71,12 @@ struct LibraryItemMenu: View {
 
     private var urls: [URL] { items.exportURLs }
 
-    private var noun: String { items.count == 1 ? "Image" : "\(items.count) Images" }
+    /// "Clip" when every item is one, "Image" otherwise; a mixed selection is images.
+    private var kind: String { items.allSatisfy(\.isVideo) ? "Clip" : "Image" }
 
-    private var suffix: String { items.count == 1 ? "" : " \(items.count) Images" }
+    private var noun: String { items.count == 1 ? kind : "\(items.count) \(kind)s" }
+
+    private var suffix: String { items.count == 1 ? "" : " \(items.count) \(kind)s" }
 
     /// A mixed selection is made to agree, so the word is what it is about to become.
     private var favouriteTitle: String {

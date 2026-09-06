@@ -96,6 +96,38 @@ struct ImageLibraryVideoTests {
         #expect(!exists(url) && !exists(VideoSidecar.url(beside: url)))
     }
 
+    @Test("a picture beside somebody else's same-stem MP4 leaves it alone when deleted")
+    func unrelatedSidecarIsLeftAlone() throws {
+        defer { try? FileManager.default.removeItem(at: library.root) }
+        var settings = GenerationSettings.defaults(for: ModelCatalog.default)
+        settings.prompt = "x"
+        let picture = try library.write(
+            GeneratedImage(pngData: MockBackend.pngData, settings: settings, modelID: "m", duration: .seconds(1)))
+        let stranger = VideoSidecar.url(beside: picture)
+        try Data([1, 2, 3]).write(to: stranger)
+        #expect(VideoSidecar.existing(beside: picture) == nil, "a picture's record says it has no clip")
+        try library.moveToRecentlyDeleted(picture)
+        #expect(exists(stranger), "the stranger's file stays where it was")
+        // And no picture is ever written onto a stem whose MP4 is taken.
+        let next = try library.write(
+            GeneratedImage(pngData: MockBackend.pngData, settings: settings, modelID: "m", duration: .seconds(1)))
+        #expect(next.lastPathComponent != picture.lastPathComponent)
+    }
+
+    @Test("a Put Back whose poster cannot move puts the clip back beside it")
+    func failedRestoreRollsTheClipBack() throws {
+        defer { try? FileManager.default.removeItem(at: library.root) }
+        let url = try library.write(clip())
+        let deleted = try library.moveToRecentlyDeleted(url)
+        // A dangling link squats on the poster's name at home: `availableURL` does not see it
+        // (the link's target is not there), the clip moves first, and the poster's move fails.
+        try FileManager.default.createSymbolicLink(
+            at: url, withDestinationURL: library.root.appending(path: "nowhere.png"))
+        #expect(throws: (any Error).self) { try library.restoreFromRecentlyDeleted(deleted) }
+        #expect(exists(deleted) && exists(VideoSidecar.url(beside: deleted)), "the pair is still together in Recently Deleted")
+        #expect(!exists(VideoSidecar.url(beside: url)), "no clip is left beside the squatter")
+    }
+
     @Test("moving the library takes the clip along")
     func migrationCarriesTheSidecar() throws {
         defer { try? FileManager.default.removeItem(at: library.root) }

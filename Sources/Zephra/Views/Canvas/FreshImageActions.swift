@@ -26,7 +26,7 @@ struct FreshImageActions: View {
                 }
             }
             // A clip's poster is not a picture to make larger.
-            if image.settings.frames == 1 {
+            if !image.isVideo {
                 GridRow {
                     UpscaleButtons(
                         source: .image(image),

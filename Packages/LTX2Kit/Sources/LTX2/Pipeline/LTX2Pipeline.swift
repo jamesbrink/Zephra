@@ -9,7 +9,6 @@ import MLX
 public final class LTX2Pipeline {
     /// Everything a loaded model is.
     struct Loaded {
-        let snapshot: URL
         let tokenizer: LTX2Tokenizer
         let textEncoder: Gemma4TextModel
         let extractor: LTX2FeatureExtractor

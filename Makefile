@@ -44,7 +44,7 @@ QWEN_OUT    ?= $(MODELS_DIR)/qwen-image-2512-4bit
 # `make quantize-flux2` is the same build by hand, for benchmarking and for a machine whose copy
 # of the release lives elsewhere (set FLUX2_SOURCE). The root `flux-2-klein-4b.safetensors` is
 # Black Forest Labs' own single-file format, 7.75 GB the loader never reads, so it is excluded.
-# The output directory follows BITS, so `make quantize-flux2 quantize-ltx2 BITS=8` lands in flux2-klein-4b-8bit.
+# The output directory follows BITS, so `make quantize-flux2 BITS=8` lands in flux2-klein-4b-8bit.
 FLUX2_MODEL   := black-forest-labs/FLUX.2-klein-4B
 FLUX2_EXCLUDE := --exclude "flux-2-klein-4b.safetensors" --exclude "*.jpg"
 FLUX2_SOURCE  ?=

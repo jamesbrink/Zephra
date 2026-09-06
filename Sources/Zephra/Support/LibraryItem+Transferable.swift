@@ -16,9 +16,17 @@ extension LibraryItem: @retroactive Transferable {
     /// The identity first, for drops inside the app; the file after it, for everywhere else.
     nonisolated public static var transferRepresentation: some TransferRepresentation {
         ProxyRepresentation(exporting: { LibraryItemReference(id: $0.id) })
-        FileRepresentation(exportedContentType: .png) { item in
+        // A clip goes out as its MP4 and a picture as its PNG; each representation says which
+        // items it exports, so a receiver is never handed one kind labelled as the other.
+        FileRepresentation(exportedContentType: .mpeg4Movie, exporting: { item in
             SentTransferredFile(item.exportURL)
-        }
+        })
+        .exportingCondition { $0.isVideo }
+        .suggestedFileName { $0.exportURL.lastPathComponent }
+        FileRepresentation(exportedContentType: .png, exporting: { item in
+            SentTransferredFile(item.url)
+        })
+        .exportingCondition { !$0.isVideo }
         .suggestedFileName { $0.fileName }
     }
 }

@@ -31,8 +31,7 @@ extension ImageLibrary {
         let folder = directory(for: .recentlyDeleted)
         try ImageDirectoryAccess.prepareForWrite(folder)
         let sidecar = VideoSidecar.existing(beside: url)
-        let target = availableURL(
-            named: url.lastPathComponent, in: folder, withCompanion: sidecar != nil)
+        let target = availableURL(named: url.lastPathComponent, in: folder)
         let origin: LibraryCollection =
             url.deletingLastPathComponent().standardizedFileURL
                 == directory(for: .sources).standardizedFileURL ? .sources : .generated
@@ -53,7 +52,7 @@ extension ImageLibrary {
         let home = directory(for: manifest.origin(name) ?? originByHeader(url))
         try ImageDirectoryAccess.prepareForWrite(home)
         let sidecar = VideoSidecar.existing(beside: url)
-        let target = availableURL(named: name, in: home, withCompanion: sidecar != nil)
+        let target = availableURL(named: name, in: home)
         try Self.move(url, sidecar: sidecar, to: target)
         manifest.forget(name)
         try write(manifest)
@@ -75,10 +74,17 @@ extension ImageLibrary {
     /// Moves a picture to `target`, and its clip beside it under the target's stem, picture
     /// last: a clip whose poster has not moved yet is still listed where it was.
     static func move(_ url: URL, sidecar: URL?, to target: URL) throws {
+        let files = FileManager.default
         if let sidecar {
-            try FileManager.default.moveItem(at: sidecar, to: VideoSidecar.url(beside: target))
+            try files.moveItem(at: sidecar, to: VideoSidecar.url(beside: target))
         }
-        try FileManager.default.moveItem(at: url, to: target)
+        do {
+            try files.moveItem(at: url, to: target)
+        } catch {
+            // The poster stayed where it was listed; the clip goes back beside it.
+            if let sidecar { try? files.moveItem(at: VideoSidecar.url(beside: target), to: sidecar) }
+            throw error
+        }
     }
 
     /// Where a file belongs by its own header: a source record makes it a source, anything

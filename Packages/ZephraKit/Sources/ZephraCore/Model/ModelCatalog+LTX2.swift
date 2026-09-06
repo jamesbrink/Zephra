@@ -18,10 +18,10 @@ extension ModelCatalog {
         "gemma4-12b-ltx-v1/*",
     ]
 
-    /// The four weight files as the repository lists them: transformer 37,986,118,xxx,
-    /// connector 6,344,489,120, Gemma 23,815,xxx,xxx, decoder 814,xxx,xxx, plus the 32 MB
-    /// tokenizer and the configs — 68.96 GB in all.
-    static let ltx2DownloadBytes: Int64 = 68_960_000_000
+    /// The four weight files as the repository lists them — transformer 37,985,774,111,
+    /// connector 6,344,495,770, Gemma 23,814,788,105, decoder 814,349,515 — plus the
+    /// 32,169,626-byte tokenizer and the configs: 68,991,577,127 in all.
+    static let ltx2DownloadBytes: Int64 = 68_990_000_000
 
     /// LTX-2.5 distilled at four-bit precision, video only, built on this Mac from the pack the
     /// first time it is loaded.

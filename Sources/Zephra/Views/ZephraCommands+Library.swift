@@ -33,7 +33,7 @@ extension ZephraCommands {
             return nil
         case .canvas(let image):
             // A clip's poster is not a picture to make larger.
-            return image.settings.frames > 1 ? nil : .image(image)
+            return image.isVideo ? nil : .image(image)
         case .library:
             guard let item = target.singleItem, !item.isVideo,
                 libraryIndex?.query.scope != .recentlyDeleted

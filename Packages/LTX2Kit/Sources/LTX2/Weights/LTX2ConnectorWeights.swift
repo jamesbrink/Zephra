@@ -7,7 +7,7 @@ import MLX
 /// Two things differ. The checkpoint prefixes the connector `connector.video_embeddings_connector.`
 /// and the projection `connector.text_embedding_projection.`, which the trees leave off. And it
 /// numbers three layers by their position in a `Sequential` -- `net.0.proj`, `net.2`, `to_out.0`
-/// -- which the trees name instead, because MLX rebuilds a numeric path as an array when it
+/// -- which the trees name instead (`proj_in`, `proj_out`, `to_out`, the DiT's own names), because MLX rebuilds a numeric path as an array when it
 /// unflattens weights and as a dictionary when it replaces modules, so a numbered child can be
 /// loaded or packed but not both (the finding `QwenImageTransformerWeights` records).
 enum LTX2ConnectorWeights {
@@ -18,8 +18,8 @@ enum LTX2ConnectorWeights {
 
     /// Longest first, so `net.0.proj` is matched before `net.0` could be.
     private static let renames = [
-        (".net.0.proj.", ".input."),
-        (".net.2.", ".output."),
+        (".net.0.proj.", ".proj_in."),
+        (".net.2.", ".proj_out."),
         (".to_out.0.", ".to_out."),
     ]
 

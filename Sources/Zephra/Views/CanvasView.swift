@@ -46,7 +46,7 @@ struct CanvasView: View {
     private var currentImage: some View {
         if let image = store.current {
             picture(image)
-                .accessibilityLabel(image.settings.frames > 1 ? "Generated clip" : "Generated image")
+                .accessibilityLabel(image.isVideo ? "Generated clip" : "Generated image")
                 // Tucks the floating prompt away so the picture is the only thing on screen;
                 // clicking again, or any of the ways `PromptTuckHost` listens for, brings it back.
                 .onTapGesture(count: 1) { workspace.promptTucked.toggle() }
@@ -60,8 +60,8 @@ struct CanvasView: View {
     /// lands and `fileURL` arrives.
     @ViewBuilder
     private func picture(_ image: GeneratedImage) -> some View {
-        if image.settings.frames > 1, let file = image.fileURL {
-            ClipPlayerView(url: VideoSidecar.url(beside: file), paused: store.running != nil)
+        if image.isVideo, let file = image.fileURL, let clip = VideoSidecar.existing(beside: file) {
+            ClipPlayerView(url: clip, paused: store.running != nil)
                 .aspectRatio(
                     CGFloat(image.settings.size.width) / CGFloat(image.settings.size.height),
                     contentMode: .fit)

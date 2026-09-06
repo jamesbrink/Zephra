@@ -78,7 +78,7 @@ enum ImageExport {
     /// A clip that has not been saved yet is handled as its poster, the one file there is.
     private static func savedFile(of image: GeneratedImage) -> URL? {
         guard let url = image.fileURL, exists(url) else { return nil }
-        if image.settings.frames > 1, let clip = VideoSidecar.existing(beside: url) { return clip }
+        if image.isVideo, let clip = VideoSidecar.existing(beside: url) { return clip }
         return url
     }
 

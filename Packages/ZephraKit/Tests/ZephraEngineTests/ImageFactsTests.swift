@@ -20,6 +20,14 @@ struct ImageFactsTests {
         #expect(facts.took == "\(Self.number(3)) s \u{00B7} \(Self.number(3.0 / 9)) s/step")
     }
 
+    @Test("a clip's length reads as seconds, frames and rate; a picture has none")
+    func lengthOfAClip() {
+        #expect(ImageFacts.lengthLabel(frames: 49, rate: 24) == "2.0 s, 49 frames at 24 fps")
+        #expect(ImageFacts.lengthLabel(frames: 121, rate: 24) == "5.0 s, 121 frames at 24 fps")
+        let item = LibraryFilteringTests.item(prompt: "a lighthouse", seed: 1)
+        #expect(ImageFacts(item).length == nil)
+    }
+
     @Test("without a name for the model, the identifier in the file is shown")
     func unknownModelsShowTheirIdentifier() {
         let item = LibraryFilteringTests.item(prompt: "from an old build", modelID: "gone/for-good")

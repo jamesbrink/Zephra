@@ -60,7 +60,7 @@ final class Gemma4Attention: Module {
             keyNorm(keyStates).transposed(0, 2, 1, 3), cos: cos, sin: sin)
         let valueStates =
             valueProjection?(x).reshaped(batch, length, keyValueHeads, headDim) ?? keyStates
-        let values = Self.scaleFreeNorm(valueStates, eps: eps).transposed(0, 2, 1, 3)
+        let values = LTX2RMSNorm.normalize(valueStates, eps: eps).transposed(0, 2, 1, 3)
 
         let attended = MLXFast.scaledDotProductAttention(
             queries: queries, keys: keys, values: values, scale: 1, mask: mask
@@ -68,12 +68,5 @@ final class Gemma4Attention: Module {
         .transposed(0, 2, 1, 3)
         .reshaped(batch, length, heads * headDim)
         return outputProjection(attended)
-    }
-
-    /// RMS normalisation with no learned scale, which is what the values get.
-    static func scaleFreeNorm(_ x: MLXArray, eps: Float) -> MLXArray {
-        let wide = x.asType(.float32)
-        let meanSquare = MLX.mean(wide * wide, axis: -1, keepDims: true)
-        return (wide * MLX.rsqrt(meanSquare + eps)).asType(x.dtype)
     }
 }

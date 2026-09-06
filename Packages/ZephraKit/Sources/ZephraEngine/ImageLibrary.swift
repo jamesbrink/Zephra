@@ -29,11 +29,17 @@ public struct ImageLibrary: Sendable {
     @discardableResult
     public func write(_ image: GeneratedImage) throws -> URL {
         try ImageDirectoryAccess.prepareForWrite(root)
-        let url = availableURL(named: fileName(for: image), withCompanion: image.video != nil)
+        let url = availableURL(named: fileName(for: image))
         if let video = image.video {
             try video.mp4.write(to: VideoSidecar.url(beside: url), options: .atomic)
         }
-        try Self.annotated(image).write(to: url, options: .atomic)
+        do {
+            try Self.annotated(image).write(to: url, options: .atomic)
+        } catch {
+            // A clip whose poster never landed would sit in the folder unlisted for good.
+            try? FileManager.default.removeItem(at: VideoSidecar.url(beside: url))
+            throw error
+        }
         return url
     }
 
@@ -66,31 +72,29 @@ public struct ImageLibrary: Sendable {
         "zephra-\(Self.stamp(image.createdAt))-s\(image.settings.seed).png"
     }
 
-    /// A name nothing in the library root is using yet, for a picture or, with `companion`,
-    /// for a clip whose MP4 must be free under the same stem.
-    func availableURL(named name: String, withCompanion companion: Bool = false) -> URL {
-        availableURL(named: name, in: root, withCompanion: companion)
+    /// A name nothing in the library root is using yet.
+    func availableURL(named name: String) -> URL {
+        availableURL(named: name, in: root)
     }
 
     /// A name nothing in `directory` is using yet: the plain one, then `-2` through `-99`, then
     /// a UUID. The last step exists so a full run of suffixes can never make a write clobber an
     /// image. Moving an image to Recently Deleted and back needs the same rule as writing one.
-    /// With `companion` the clip's MP4 under the same stem must be free too.
-    func availableURL(named name: String, in directory: URL, withCompanion companion: Bool = false)
-        -> URL
-    {
+    /// A stem whose MP4 is taken counts as taken for a picture too, so a picture can never
+    /// land beside a clip that is not its own.
+    func availableURL(named name: String, in directory: URL) -> URL {
         let first = directory.appending(path: name)
-        guard Self.taken(first, withCompanion: companion) else { return first }
+        guard Self.taken(first) else { return first }
         let stem = first.deletingPathExtension().lastPathComponent
         for suffix in 2...99 {
             let candidate = directory.appending(path: "\(stem)-\(suffix).png")
-            if !Self.taken(candidate, withCompanion: companion) { return candidate }
+            if !Self.taken(candidate) { return candidate }
         }
         return directory.appending(path: "\(stem)-\(UUID().uuidString.lowercased()).png")
     }
 
-    private static func taken(_ url: URL, withCompanion companion: Bool) -> Bool {
-        exists(url) || (companion && exists(VideoSidecar.url(beside: url)))
+    private static func taken(_ url: URL) -> Bool {
+        exists(url) || exists(VideoSidecar.url(beside: url))
     }
 
     private static func exists(_ url: URL) -> Bool {
