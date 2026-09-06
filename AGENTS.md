@@ -1,8 +1,8 @@
 # Zephra
 
 Zephra is a native macOS app that generates images locally on Apple Silicon,
-via MLX/Metal. It runs three model families today, Z-Image-Turbo,
-Qwen-Image-2512, and FLUX.2 klein 4B, behind one backend seam.
+via MLX/Metal. It runs four model families today, Z-Image-Turbo,
+Qwen-Image-2512, FLUX.2 klein 4B, and LTX-2.5 (video), behind one backend seam.
 
 ## Priorities
 
@@ -11,8 +11,8 @@ In order:
 1. **Very clean code.** Small files, one type per file, compiler-enforced
    module boundaries, no god objects.
 2. **Extensible for more models later.** An explicit backend/model seam
-   (protocol + descriptor catalog). Z-Image-Turbo, Qwen-Image, and FLUX.2
-   klein are the implementations; the UI never touches any family's types.
+   (protocol + descriptor catalog). Z-Image-Turbo, Qwen-Image, FLUX.2 klein
+   and LTX-2.5 are the implementations; the UI never touches any family's types.
 3. **Performance on Apple Silicon**, then a nice, fully native SwiftUI UI.
 
 ## Layering rules — non-negotiable
@@ -32,6 +32,9 @@ Shared, by what a file actually touches:
   ZephraKit/ZephraSnapshot     Foundation, CryptoKit — the model downloader, local snapshot
                                                   checks, the hub cache read as a fallback,
                                                   what the models occupy on disk
+  ZephraKit/ZephraMedia        Foundation, AVFoundation — frames in, an H.264 MP4 out
+                                                  (`MP4Writer`), which a video backend and
+                                                  the app share
   ZephraKit/ZephraTestSupport  Foundation, ZephraCore — Scratch, the filesystem test
                                                   fixture, and SnapshotUnderTest, the real
                                                   snapshot a kit's suite may read
@@ -167,13 +170,14 @@ Shared, by what a file actually touches:
   a concrete backend. `ModelInventory` is the one thing it takes
   `ZephraSnapshot` for: the list Settings > Models observes, measured off the
   main actor and re-read after every deletion.
-- `ZephraBackendZImage`, `ZephraBackendQwenImage`, and `ZephraBackendFlux2`
-  (their own local packages): translate `ZephraCore` types to and from one
-  family's types. No state, no UI. Each depends on `ZephraKit`'s `ZephraCore`
-  and `ZephraSnapshot` products, on `ZephraQuantization` for its packing plan,
-  and on its own family's kit. All three also pack a download into the variant
-  they load, on first load, through the protocol's `build` step — every model in
-  the catalog but the 8-bit Z-Image is built here. This split keeps `Packages/ZephraKit` free of MLX
+- `ZephraBackendZImage`, `ZephraBackendQwenImage`, `ZephraBackendFlux2` and
+  `ZephraBackendLTX2` (their own local packages): translate `ZephraCore` types
+  to and from one family's types. No state, no UI. Each depends on `ZephraKit`'s
+  `ZephraCore` and `ZephraSnapshot` products, on `ZephraQuantization` for its
+  packing plan, and on its own family's kit; the video one takes `ZephraMedia`
+  too, for the MP4. All four also pack a download into the variant they load,
+  on first load, through the protocol's `build` step — every model in the
+  catalog but the 8-bit Z-Image is built here. This split keeps `Packages/ZephraKit` free of MLX
   dependencies, so `make test` (`swift test` there) stays fast and doesn't
   touch Metal.
 - `Packages/ZImageKit`: vendored. Edit only with a `// ZEPHRA-PATCH: <reason>`
@@ -187,6 +191,12 @@ Shared, by what a file actually touches:
   the reference says so. Never from GPL code, and never from
   `xocialize/flux2-vae-mlx-swift`, which has no license. `PROVENANCE.md` lists
   the deliberate departures; keep it true.
+- `Packages/LTX2Kit`: ours, a translation with attribution from the Apache-2.0
+  `diffusers` (the LTX-2 transformer, connectors and video autoencoder) and
+  `transformers` (Gemma 4), pinned against both by dumped fixtures, with two MLX
+  ports read as cross-checks and nothing copied from the official `Lightricks/LTX-2`
+  code, whose license is unstated. Video only: the audio stream is a seam, not a
+  module. `PROVENANCE.md` lists the departures; keep it true.
 - `ZephraUpscaleRealESRGAN` (its own local package): the Real-ESRGAN upscaler,
   a post-process beside the backends rather than one of them. It conforms to
   `ZephraCore`'s `ImageUpscaler`, takes `ZephraMLX` for the tiler, and imports
@@ -263,6 +273,16 @@ engine be tested in seconds without Metal.
   (`+ImageDirectory`, `+ModelDirectory`), and weight residency (`+Residency`).
   Add a new concern as another extension file, not as more lines in
   `GenerationStore.swift`.
+
+  What a backend hands back is `GeneratedMedia`: `.image(png:)` from the three
+  picture families, `.video(GeneratedVideo)` — the MP4, its first frame as the
+  poster PNG, the frame count and rate — from LTX-2.5. One return type rather
+  than two protocol methods, because the actor, the timer, the cancellation
+  check and the queue are the same whatever comes back; only the last step
+  reads the kind. `GenerationSettings.frames` is the clip's length (1 for a
+  picture, pinned there by `clamp` for every model whose
+  `ModelCapabilities.frameBounds` is the degenerate `1...1`), and a video
+  model's `frameAlignment` snaps it to the `1 + 8k` ladder its autoencoder makes.
 - `InferenceActor` is the only place backend code runs. It overrides
   `unownedExecutor` with a serial `DispatchQueue`: a generation is tens of
   seconds of synchronous Metal work, and on the cooperative pool that would
@@ -972,6 +992,10 @@ Makefile targets:
 - `make prefetch-flux2` — the same for the FLUX.2 klein 4B release, without the
   7.75 GB single-file checkpoint the loader never reads, so a first launch skips
   the download and goes straight to the build.
+- `make prefetch-ltx2` — the four LTX-2.5 files the video-only build reads (the
+  distilled transformer, the connector, the Gemma 4 encoder with its tokenizer,
+  the convolutional decoder; 69 GB) from the ungated `mlx-community/ltx-2.5-mlx`
+  pack into `LTX2_MODELS` (external storage by default), as the app names it.
 - `make prefetch-qwen` — download Qwen-Image-2512 and its four-step Lightning
   adapter into `QWEN_MODELS` (external storage by default; 57.7 GB does not
   belong on a boot volume, and this release is a build source rather than
@@ -1008,12 +1032,17 @@ Makefile targets:
   `~/Library/Application Support/Zephra/Models/flux2-klein-4b-4bit`
   (`FLUX2_OUT` overrides, and its default already follows `BITS`, so `BITS=8` lands
   in `flux2-klein-4b-8bit` without one). About a minute.
+- `make quantize-ltx2` — the build the app does on first load, by hand: pack the
+  LTX-2.5 pack from `LTX2_SOURCE` into
+  `~/Library/Application Support/Zephra/Models/ltx-2.5-distilled-4bit` (`LTX2_OUT`
+  overrides), fetching the source first when it is not there. 82 s once the
+  source is local; 19.3 GB out.
 - `make mirror` — build every variant the app packs on first load into one directory
   laid out for a bucket: `MIRROR_DIR/<catalog id>/`, each exactly what
   `locations.built(descriptor)` holds on a Mac, provenance stamp included, plus an
   `index.json` (`scripts/mirror-index.swift`) listing every file's path, size and
   SHA-256 and the stamp's contents. `mirror-z-image`, `mirror-qwen`,
-  `mirror-flux2-4bit` and `mirror-flux2-8bit` are the four variants alone, each
+  `mirror-flux2-4bit`, `mirror-flux2-8bit` and `mirror-ltx2` are the five variants alone, each
   skipped when its stamp is already there unless `FORCE=1`; `mirror-index` rewrites the
   index by itself; `mirror-sync` pushes the directory to `MIRROR_BUCKET`
   (`s3://zephra-assets-urandom-io/models` by default) with `aws s3 sync --delete`, files
@@ -1188,7 +1217,7 @@ No test loads model weights. The `ZephraKit` suites never touch Metal; the MLX
 packages' suites run doll's-house tensors through it, and a few of `QwenImageKit`'s
 and `Flux2Kit`'s read a real snapshot's config, tokenizer, and safetensors header
 files. `SnapshotUnderTest` in `ZephraTestSupport` is where they look, in order:
-`QWEN_IMAGE_SNAPSHOT` or `FLUX2_KLEIN_SNAPSHOT` when set; the app's own models
+`QWEN_IMAGE_SNAPSHOT`, `FLUX2_KLEIN_SNAPSHOT` or `LTX2_SNAPSHOT` when set; the app's own models
 folder, where a variant packed on this Mac (`<models>/<descriptor id>`) carries
 the configs and tokenizer and the download (`Downloads/<org>--<repo>`) is the
 release itself; then the hub cache when it holds exactly one snapshot. A test
@@ -1476,6 +1505,90 @@ The same checkpoint edits: a reference picture is fitted to at most a megapixel
 keeping its shape, trimmed to multiples of 16, encoded, and its tokens placed
 after the image being made on image index 10 of the rotary embedding's first
 axis. The schedule's shift counts only the image being made.
+
+Fifth model: `ltx-2.5-distilled-4bit` — **LTX-2.5** (Lightricks, LTX-2.x
+Community License), a 22-billion-parameter audio-video DiT of which Zephra runs
+the **video stream only**: 13.1 billion parameters across 48 blocks (video
+self-attention, cross-attention to text, and a feed-forward, each gated per head
+by `to_gate_logits`), conditioned on a Gemma 4 12B encoder — all 49 of its hidden
+states, RMS-normalised per token, laid side by side (188160 wide), projected in
+float32 to 4096 and passed through an eight-block 1-D connector whose 128 learned
+registers stand in for the padding — and decoded by a 3-D convolutional
+autoencoder (temporal x8, spatial x32, 128 latent channels). Distilled to eight
+ancestral Euler steps (`LTX2DistilledSchedule`: nine fixed sigmas, eta 1,
+re-noising drawn from `seed + 10000`) with no guidance. Frames are `1 + 8k` at
+24 fps, 9 to 121, 49 to start; sizes are multiples of 32, 768 x 512 to start.
+
+**Lightricks' own repositories are gated.** `Lightricks/LTX-2.5` and its
+diffusers layout answer 401 without a logged-in token that has clicked through
+the license, and Zephra sends no token, so the catalog names the ungated
+`mlx-community/ltx-2.5-mlx` pack instead: the same bf16 weights, one file per
+component, `LICENSE.md` beside them. The plan reads four of its files — the
+38 GB distilled transformer, the 6.3 GB connector, the 23.8 GB Gemma encoder
+with its tokenizer, the 0.8 GB decoder — 69 GB in all, and omits the audio
+autoencoder, the vocoder, the upscalers, the dev transformer and the video
+encoder by pattern. The gated case is why the packed variant is published on
+the mirror as part of first light and not afterwards: the mirror is the path
+users take, and the pack is the fallback.
+
+The pack is what the packer reads, so `QuantizedComponent` grew two fields for
+it: `sourceFiles`, shards named relative to the release root for a component the
+release keeps as one file at the top, and `sourceDirectory`, for a component the
+release keeps under another name (`gemma4-12b-ltx-v1/` is written as
+`text_encoder/`, configs and tokenizer copied along). Keys keep the pack's
+prefixes (`transformer.`, `connector.`, `vae_decoder.`, `model.language_model.`)
+and each kit module maps its paths onto them for the loader, the manifest and the
+stream. `LTX2QuantizationPlan` packs both stacks at four bits and holds the
+conditioning, the modulation tables (float32 in the pack), the gates and the norms
+whole; the two embeddings — Gemma's 262144-row token table and the 188160-wide
+aggregate projection — go to eight bits, since both are read once per prompt
+and both lose more than a block does at four. Every audio-side tensor is left
+out by one list, `audioOmitted` (`audio`, `a2v`, `v2a`, `av_ca_`), so the audio
+variant's plan is this plan without it; `LTX2TransformerWeights.audioMarkers`
+is the kit's copy of the same words. The build is 82 s once the pack is local
+and writes 19.3 GB (`builtBytes`): 8.56 GB of transformer, 1.89 of connector,
+8.00 of encoder, 0.81 of decoder copied as it is, since three-dimensional
+convolutions cannot be packed. At load the float32 scales are cast to the
+stream's dtype for every layer but the aggregate projection, which stays float32
+because 188160 products summed in bfloat16 lose the prompt.
+
+Video only is a real departure and not just a subset: the audio-to-video
+cross-attention adds a term to the video stream that the `audio=None` forward
+has not got, so this variant's pictures differ from the audio-video model's. The
+official model accepts `audio=None`, the fixtures are dumped the same way, and
+the seam for the audio stream — `LTX2Block`'s optional audio modules, the
+transformer's audio heads, a second connector stack, the audio autoencoder and
+vocoder, an audio track in `GeneratedVideo` — is written down in `ROADMAP.md`
+for Macs with the memory. Nothing else is left out of the video path except the
+first-frame conditioning that image-to-video needs (`vae_encoder`) and the
+temporal chunking of the decode, which matters past about 121 frames at 1024.
+
+The tokenizer is Zephra's own byte-pair encoder over the pack's `tokenizer.json`
+(`LTX2Tokenizer`): swift-transformers 0.1.24 splits by grapheme cluster and turns
+emoji joined by a zero-width joiner into bytes, and Swift `String` keys merge
+canonically equivalent tokens, so the vocabulary is keyed by UTF-8 bytes; the
+ids are pinned against Hugging Face's for twelve prompts. Gemma 4's tokenizer
+emits no BOS, so the encoder prepends id 2 itself, truncates keeping the front,
+and left-pads to 1024 with id 0.
+
+Both 48-layer stacks stream through `LayerWeightStream` under
+`WeightResidency.streamed`, as Qwen-Image's do; the token table, the projection,
+the connector, the conditioning heads and the decoder stay resident. The
+transformer evaluates every eight blocks when resident (`blocksPerEval`), because
+forty-eight blocks of a 22B model in one Metal command buffer can outrun the
+watchdog on a small Mac. The live preview is the first latent frame only of the
+`x - sigma * v` estimate, pooled and decoded through the same decoder
+(`LTX2LatentPreview`), so a frame costs a fraction of a step. The first forward
+after a load pays for Metal's kernel compilation, which the store's warm-up run
+absorbs.
+
+Measured on an M4 Max, seed 42, resident: the default 768 x 512 clip of 49
+frames in 63.4 s at 7.0 s a step, 17521 MB live and 21787 MB peak, loading in
+4.3 s; a 9-frame 512 x 288 clip in 10.4 s at 0.90 s a step with the same peak,
+which says the peak is the load's (the float32 scales before their cast) and not
+the decode's. The first run made a coherent picture. `make bench ARGS="--model
+ltx-2.5-distilled-4bit --size 768x512 --frames 49"` is the run; the clip is
+written as `.mp4` beside its poster.
 
 Each family's quantization plan lives in its own backend package's
 `Quantization` directory; the packer they drive is shared, in

@@ -43,15 +43,14 @@ extension ModelCatalog {
         ),
         quantization: .int4,
         downloadBytes: ltx2DownloadBytes,
-        // Estimates, to be replaced by measurements on an M4 Max at 768 x 512, 49 frames:
-        // the 19.3 GB build less the float32 scales the loader casts to bfloat16, about
-        // 17 GB resident; peak adds the attention over 6144 tokens and the decoder's
-        // intermediates at that size; streamed, the two stacks leave their non-streamed
-        // remainder — the embeddings, the projection, the conditioning and the decoder —
-        // resident.
-        residentBytes: 17_000_000_000,
-        peakBytes: 21_000_000_000,
-        tiledPeakBytes: 21_000_000_000,
+        // Measured on an M4 Max, eight steps, seed 42, at 768 x 512 and 49 frames: 17521 MB
+        // live after a generation and 21787 MB peak, the same peak a 9-frame 512 x 288 clip
+        // reached, so the peak is the load's — the float32 scales before their cast — and not
+        // the decode's. 63.4 s a clip at 7.0 s a step; the 9-frame clip took 0.90 s a step.
+        // There is no tiled decode yet, so the tiled figure is the plain one.
+        residentBytes: 17_520_000_000,
+        peakBytes: 21_790_000_000,
+        tiledPeakBytes: 21_790_000_000,
         streamedPeakBytes: 8_000_000_000,
         // Gemma is padded to 1024 tokens and the connector reads every position.
         maxPromptTokens: 1024,

@@ -132,3 +132,18 @@ streamed through `LayerWeightStream` in `ZephraBench` on halcyon, for a real ste
 - https://rapidmlx.com/docs/models/families/video
 - https://comfyui-wiki.com/en/news/2026-08-11-ltx-2-5-open-weights-release
 - https://wavespeed.ai/blog/posts/blog-ltx-2-license-commercial-use/
+
+## What shipped (2026-09-06, `feat/ltx2`)
+
+- The video-only distilled transformer at four bits, packed from the ungated
+  `mlx-community/ltx-2.5-mlx` pack: both Lightricks repositories turned out to be
+  gated (`gated: auto`, 401 without a token), which Zephra's no-token downloader
+  cannot pass. 69 GB down, 19.3 GB built in 82 s.
+- Measured on an M4 Max: 768 x 512 x 49 frames in 63.4 s (7.0 s a step), 17.5 GB
+  live, 21.8 GB peak; 512 x 288 x 9 frames in 10.4 s (0.90 s a step). The
+  estimates in the table above were pessimistic on speed and about right on memory.
+- Two facts the first look missed: every attention module is gated per head
+  (`to_gate_logits`), and the pack's Gemma 4 has eight full-attention layers that
+  share their key and value projection (`attention_k_eq_v`). Both are in the port.
+- Left for later, in `ROADMAP.md`: the audio stream (the seam is written), image-to-video,
+  two-stage and DFR refinement, temporal decode chunking.

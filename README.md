@@ -2,7 +2,8 @@
 
 A native macOS app for local image generation on Apple Silicon, powered by
 MLX and Metal. Generate and edit with **Z-Image-Turbo**, **Qwen-Image-2512**,
-and **FLUX.2 klein 4B**, then upscale with **Real-ESRGAN**.
+and **FLUX.2 klein 4B**, make short clips with **LTX-2.5**, then upscale with
+**Real-ESRGAN**.
 
 - **Local and private:** inference stays on your Mac, with no image uploads,
   accounts, or telemetry. Model downloads require an internet connection.
@@ -56,6 +57,7 @@ Optional downloads ahead of launch:
 
 ```sh
 make prefetch-flux2  # FLUX.2 klein source, shared by its 4-bit and 8-bit variants
+make prefetch-ltx2   # LTX-2.5 source (69 GB), onto external storage by default
 make prefetch       # Z-Image-Turbo 8-bit, ready to load
 ```
 
@@ -75,10 +77,16 @@ or guarantees for every Mac. Reference-image editing can use more memory.
 | Z-Image-Turbo, 8-bit | 13.3 GB | — | 12.2 GB | 23.5 / 17.7 GB |
 | Z-Image-Turbo, 4-bit | 32.9 GB | 7.1 GB | 6.6 GB | 17.8 / 12.0 GB |
 | Qwen-Image-2512, 4-bit | 59.4 GB | 21.6 GB | 21.5 GB | 30.4 / 26.1 GB |
+| LTX-2.5, 4-bit, video only | 69.0 GB | 19.3 GB | 17.5 GB | 21.8 GB at 768×512, 49 frames |
 
 The source download is retained alongside the built copy, so allow space for
 both. Qwen-Image's download includes its four-step Lightning adapter, merged
-during the build. Only Z-Image-Turbo 8-bit loads its download directly.
+during the build. Only Z-Image-Turbo 8-bit loads its download directly. LTX-2.5
+is video only for now: the transformer's audio stream is omitted from the build
+(the audio variant is on the roadmap), the download is the ungated
+`mlx-community/ltx-2.5-mlx` pack because Lightricks' own repositories are gated,
+and its weights are under the LTX-2.x Community License rather than Apache 2.0
+(see `THIRD_PARTY_NOTICES.md`).
 
 **Settings > Performance** controls tiled VAE decoding and weight residency.
 Automatic tiling reduces decode memory when the model exceeds the GPU's budget.
@@ -88,7 +96,8 @@ models remain selectable even when a smaller image size may be needed.
 
 Historical timings at 1024×1024 include about 29 seconds for FLUX.2 klein
 (four steps, M4 Max) and 123 seconds for streamed Qwen-Image (four steps, 16 GB
-M4 mini). These are reference measurements, not current performance claims:
+M4 mini). LTX-2.5 makes a two-second 768×512 clip (49 frames, eight steps) in
+63 seconds on an M4 Max, 7.0 seconds a step. These are reference measurements, not current performance claims:
 some recorded results predate dtype corrections, and Z-Image timings were taken
 on a busy machine. Re-measure on an idle Mac with the [benchmark tool](#development).
 Catalog source comments retain the measurement context.
@@ -230,13 +239,14 @@ Benchmark on an idle machine in Release:
 make bench ARGS="--size 1024 --steps 9 --runs 3 --json"
 make bench ARGS="--model qwen-image-2512-4bit --stream"
 make bench ARGS="--model flux2-klein-4b-4bit --preview"
+make bench ARGS="--model ltx-2.5-distilled-4bit --size 768x512 --frames 49"
 ```
 
-`make quantize`, `make quantize-qwen`, and `make quantize-flux2` expose the builds
+`make quantize`, `make quantize-qwen`, `make quantize-flux2` and `make quantize-ltx2` expose the builds
 the app performs on first load. The [Makefile](Makefile) documents source and
 output overrides. For Qwen, set `QWEN_MODELS` (or `QWEN_SOURCE` and `QWEN_LORA`)
 explicitly: its default is a project-specific external volume.
-`make mirror` builds all four packed variants into one directory laid out for a
+`make mirror` builds all five packed variants into one directory laid out for a
 bucket, with an `index.json` of sizes and checksums; `make mirror-sync
 MIRROR_BUCKET=s3://...` pushes it.
 
