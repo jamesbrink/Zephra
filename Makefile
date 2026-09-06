@@ -49,6 +49,16 @@ FLUX2_MODEL   := black-forest-labs/FLUX.2-klein-4B
 FLUX2_EXCLUDE := --exclude "flux-2-klein-4b.safetensors" --exclude "*.jpg"
 FLUX2_SOURCE  ?=
 FLUX2_OUT     ?= $(MODELS_DIR)/flux2-klein-4b-$(BITS)bit
+# `make mirror` builds every variant the app packs on first load into one directory that can be
+# synced to a bucket as it stands: one directory per catalog id, exactly what
+# `locations.built(descriptor)` holds on a Mac (provenance stamp included), plus an index.json
+# listing every file with its size and SHA-256. Nothing else is written there, so
+# `aws s3 sync "$(MIRROR_DIR)" s3://bucket/ --delete` mirrors it. The default is the external
+# volume beside the Qwen source: four variants are 42 GB, which does not belong on a boot volume.
+# A variant already stamped there is skipped; FORCE=1 rebuilds it.
+MIRROR_DIR    ?= $(QWEN_MODELS)/ZephraMirror
+MIRROR_BUCKET ?=
+MIRROR_IDS    := z-image-turbo-4bit qwen-image-2512-4bit flux2-klein-4b-4bit flux2-klein-4b-8bit
 # One download directory per repository, named as the app names it: <org>--<repo>.
 ZIMAGE_8BIT_DIR := $(DOWNLOADS)/$(subst /,--,$(MODEL))
 ZIMAGE_BASE_DIR := $(DOWNLOADS)/$(subst /,--,$(BASE_MODEL))
@@ -87,7 +97,7 @@ VERSION      ?=
 BUILD_NUMBER ?=
 VERSION_FLAGS := $(if $(VERSION),MARKETING_VERSION=$(VERSION)) $(if $(BUILD_NUMBER),CURRENT_PROJECT_VERSION=$(BUILD_NUMBER))
 
-.PHONY: doctor gen build run bench quantize quantize-qwen quantize-flux2 prefetch prefetch-qwen prefetch-flux2 open clean lint-layers vendored-diff logs screenshot test test-app test-mlx test-backend icon signed-build release notarize notarized-release
+.PHONY: doctor gen build run bench quantize quantize-qwen quantize-flux2 mirror mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-index mirror-sync prefetch prefetch-qwen prefetch-flux2 open clean lint-layers vendored-diff logs screenshot test test-app test-mlx test-backend icon signed-build release notarize notarized-release
 
 # What a fresh Mac needs before `make build` can work, each with its fix printed.
 doctor:
@@ -143,6 +153,49 @@ quantize-flux2: gen
 	  --source "$$source" \
 	  --source-name $(FLUX2_MODEL) --bits $(BITS) --group-size $(GROUP_SIZE) \
 	  --out "$(FLUX2_OUT)" $(ARGS)
+
+# The mirror: one directory per packed variant, named for its catalog id so ZephraQuantize
+# checks the volume for that entry's builtBytes and stamps its provenance, then index.json.
+# Each variant is its own target, so one can be rebuilt alone; the sources are the same
+# releases the quantize targets read (ZIMAGE_BASE_DIR and FLUX2_DIR are fetched if absent,
+# QWEN_SOURCE and QWEN_LORA must already be there).
+mirror: mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-index
+
+mirror-z-image:
+	@$(call mirror_variant,z-image-turbo-4bit,quantize QUANT_OUT="$(MIRROR_DIR)/z-image-turbo-4bit" BITS=4)
+
+mirror-qwen:
+	@$(call mirror_variant,qwen-image-2512-4bit,quantize-qwen QWEN_OUT="$(MIRROR_DIR)/qwen-image-2512-4bit" BITS=4)
+
+mirror-flux2-4bit:
+	@$(call mirror_variant,flux2-klein-4b-4bit,quantize-flux2 FLUX2_OUT="$(MIRROR_DIR)/flux2-klein-4b-4bit" BITS=4)
+
+mirror-flux2-8bit:
+	@$(call mirror_variant,flux2-klein-4b-8bit,quantize-flux2 FLUX2_OUT="$(MIRROR_DIR)/flux2-klein-4b-8bit" BITS=8)
+
+# Skips a variant whose provenance stamp is already in the mirror, unless FORCE=1; the packer
+# would otherwise empty and rewrite it. $(1) is the catalog id, $(2) the quantize invocation.
+define mirror_variant
+if [ -z "$(FORCE)" ] && [ -f "$(MIRROR_DIR)/$(1)/.zephra-packed-source" ]; then \
+  echo "mirror: $(1) is already built in $(MIRROR_DIR); FORCE=1 rebuilds it"; \
+else \
+  mkdir -p "$(MIRROR_DIR)" && $(MAKE) $(2); \
+fi
+endef
+
+# index.json over whatever variants the mirror holds: every file's path, size and SHA-256, so
+# a client can list a variant without a bucket listing and verify what it fetched. Run alone
+# after a hand-made change; `make mirror` runs it last.
+mirror-index:
+	swift scripts/mirror-index.swift "$(MIRROR_DIR)" $(MIRROR_IDS)
+
+# Push the mirror to the bucket named by MIRROR_BUCKET (s3://name or s3://name/prefix).
+# --delete keeps the bucket the mirror's image; without it a variant renamed here would
+# linger there. Nothing but the mirror directory is read.
+mirror-sync:
+	@test -n "$(MIRROR_BUCKET)" || { echo "set MIRROR_BUCKET=s3://bucket[/prefix]"; exit 2; }
+	aws s3 sync "$(MIRROR_DIR)" "$(MIRROR_BUCKET)" --delete --exclude ".DS_Store"
+
 
 test:
 	cd Packages/ZephraKit && swift test

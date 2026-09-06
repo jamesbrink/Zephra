@@ -974,6 +974,19 @@ Makefile targets:
   `~/Library/Application Support/Zephra/Models/flux2-klein-4b-4bit`
   (`FLUX2_OUT` overrides, and its default already follows `BITS`, so `BITS=8` lands
   in `flux2-klein-4b-8bit` without one). About a minute.
+- `make mirror` — build every variant the app packs on first load into one directory
+  laid out for a bucket: `MIRROR_DIR/<catalog id>/`, each exactly what
+  `locations.built(descriptor)` holds on a Mac, provenance stamp included, plus an
+  `index.json` (`scripts/mirror-index.swift`) listing every file's path, size and
+  SHA-256 and the stamp's contents. `mirror-z-image`, `mirror-qwen`,
+  `mirror-flux2-4bit` and `mirror-flux2-8bit` are the four variants alone, each
+  skipped when its stamp is already there unless `FORCE=1`; `mirror-index` rewrites the
+  index by itself; `mirror-sync` pushes the directory to `MIRROR_BUCKET`
+  (`s3://name[/prefix]`) with `aws s3 sync --delete`. The default `MIRROR_DIR` is
+  `ZephraMirror` beside the Qwen source on the external volume, since the four variants
+  are 42 GB. The releases are read from where the quantize targets read them, so set
+  `MODELS_DIR` and `QWEN_MODELS` the same way. This is the supply side of a CDN source
+  for packed variants (`ROADMAP.md`); the app does not read a mirror yet.
 - `make lint-layers` — enforce the layering rules above.
 - `make vendored-diff` — fetch `mzbac/zimage.swift` at the pinned commit into a
   scratch clone and fail on any hunk of `Packages/ZImageKit` that carries no

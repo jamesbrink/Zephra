@@ -46,6 +46,23 @@ is distributed until the app is ready to ship.
    `ZEPHRA_WIRED_LIMIT_MB` both count 2^20 today and each says so in a comment, which is
    two places to keep agreeing.
 
+7. **A CDN source for packed variants.** `make mirror` writes every locally built
+   variant into a bucket-shaped directory with an `index.json` of paths, sizes and
+   SHA-256s. The app side is a third `ModelSource` case: fetch `index.json`, then the
+   variant's files straight into `locations.built(descriptor)` with the downloader's
+   `Range` resume and checksum verification, and answer availability without
+   `.needsBuild`. Saves about 127 GB of disk and 82 GB of transfer over all five entries
+   installed today (the bf16 releases are 140 GB and never loaded), and the build minutes
+   with them. Licensing first: Z-Image, Qwen-Image and klein are Apache 2.0, so hosting
+   packed derivatives needs attribution and nothing more.
+8. **LTX-2.5 video.** Researched, not started; `docs/research/ltx-2.5.md` has the
+   checkpoints, the measured Apple Silicon footprints, and the fit against the seam. The
+   model port is the smaller half: the output type (MP4 with audio, no PNG chunks) cuts
+   through the library, export and inspector, and the 24 GB text encoder has to be freed
+   before the DiT loads. First step is a streamed 4-bit DiT in `ZephraBench` for a real
+   step time. The weights' community licence has a revenue gate and a non-compete clause
+   that want reading before anything ships.
+
 Deferred: **ERNIE-Image-Turbo** (eight to twelve days for legible in-image text at
 16 GB; the Mistral3 encoder is the new work), **Boogu-Image-0.1-Turbo** (a credible
 Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and

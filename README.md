@@ -232,6 +232,9 @@ make bench ARGS="--model flux2-klein-4b-4bit --preview"
 the app performs on first load. The [Makefile](Makefile) documents source and
 output overrides. For Qwen, set `QWEN_MODELS` (or `QWEN_SOURCE` and `QWEN_LORA`)
 explicitly: its default is a project-specific external volume.
+`make mirror` builds all four packed variants into one directory laid out for a
+bucket, with an `index.json` of sizes and checksums; `make mirror-sync
+MIRROR_BUCKET=s3://...` pushes it.
 
 See [Debugging hooks](AGENTS.md#debugging-hooks) for preview states, benchmark
 options, and launch-time `ZEPHRA_*` overrides.
