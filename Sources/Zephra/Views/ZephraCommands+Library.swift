@@ -32,9 +32,11 @@ extension ZephraCommands {
         case .none:
             return nil
         case .canvas(let image):
-            return .image(image)
+            // A clip's poster is not a picture to make larger.
+            return image.settings.frames > 1 ? nil : .image(image)
         case .library:
-            guard let item = target.singleItem, libraryIndex?.query.scope != .recentlyDeleted
+            guard let item = target.singleItem, !item.isVideo,
+                libraryIndex?.query.scope != .recentlyDeleted
             else { return nil }
             return .file(item.url)
         }
@@ -77,7 +79,7 @@ extension ZephraCommands {
         switch target {
         case .none: return
         case .canvas(let image): ImageExport.saveAs(image)
-        case .library(let items): ImageExport.saveAs(files: items.map(\.url))
+        case .library(let items): ImageExport.saveAs(files: items.exportURLs)
         }
     }
 
@@ -87,7 +89,7 @@ extension ZephraCommands {
         switch target {
         case .none: return []
         case .canvas(let image): return image.fileURL.map { [$0] } ?? []
-        case .library(let items): return items.map(\.url)
+        case .library(let items): return items.exportURLs
         }
     }
 
@@ -97,7 +99,7 @@ extension ZephraCommands {
         switch target {
         case .none: return
         case .canvas(let image): ImageExport.copyToPasteboard(image)
-        case .library(let items): ImageExport.copyToPasteboard(files: items.map(\.url))
+        case .library(let items): ImageExport.copyToPasteboard(files: items.exportURLs)
         }
     }
 
@@ -105,7 +107,7 @@ extension ZephraCommands {
         switch target {
         case .none: return
         case .canvas(let image): ImageExport.revealInFinder(image)
-        case .library(let items): ImageExport.revealInFinder(files: items.map(\.url))
+        case .library(let items): ImageExport.revealInFinder(files: items.exportURLs)
         }
     }
 

@@ -27,6 +27,9 @@ struct ImageFactsView: View {
         FactsTable {
             FactsRow("Model", facts.model)
             FactsRow("Size", facts.size, style: .digits)
+            if let length = facts.length {
+                FactsRow("Length", length, style: .digits)
+            }
             FactsRow("Steps", facts.steps, style: .digits)
             FactsRow("Seed", facts.seed, style: .monospaced)
             FactsRow("Took", facts.took, style: .digits)

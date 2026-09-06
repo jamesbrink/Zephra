@@ -35,7 +35,7 @@ struct MultipleSelectionActions: View {
                 }
                 .disabled(variations.isEmpty || !canQueue)
                 Button {
-                    ImageExport.revealInFinder(files: items.map(\.url))
+                    ImageExport.revealInFinder(files: items.exportURLs)
                 } label: {
                     Text("Reveal in Finder").frame(maxWidth: .infinity)
                 }

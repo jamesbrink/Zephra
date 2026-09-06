@@ -36,7 +36,10 @@ extension ImageExport {
         guard !files.isEmpty else { return }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        if files.count == 1, let data = try? Data(contentsOf: files[0]) {
+        // Only a PNG has pixels to promise; a clip goes on as its file alone.
+        if files.count == 1, files[0].pathExtension.lowercased() == "png",
+            let data = try? Data(contentsOf: files[0])
+        {
             pasteboard.writeObjects([PasteboardImage.item(png: data, file: files[0])])
         } else {
             pasteboard.writeObjects(files.map { $0 as NSURL })
@@ -73,7 +76,7 @@ extension ImageExport {
     /// file onto itself is nothing to do rather than something to refuse.
     private static func saveOne(_ file: URL) {
         let panel = NSSavePanel()
-        panel.allowedContentTypes = [.png]
+        panel.allowedContentTypes = [UTType(filenameExtension: file.pathExtension) ?? .png]
         panel.nameFieldStringValue = file.lastPathComponent
         panel.canCreateDirectories = true
         guard panel.runModal() == .OK, let destination = panel.url else { return }

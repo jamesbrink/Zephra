@@ -27,9 +27,9 @@ nonisolated final class DownloadExerciseBackend: ImageGenerationBackend {
     }
 
     func generate(_ settings: GenerationSettings,
-                  onProgress: @escaping (GenerationProgressEvent) -> Void) async throws -> Data {
+                  onProgress: @escaping (GenerationProgressEvent) -> Void) async throws -> GeneratedMedia {
         try await Task.sleep(for: .milliseconds(300))
-        return Data()
+        return .image(png: Data())
     }
 
     func unload() { loadedModelID = nil }

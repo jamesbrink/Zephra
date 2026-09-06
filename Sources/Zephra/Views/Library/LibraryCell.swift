@@ -48,6 +48,8 @@ struct LibraryCell: View {
     private var upscaled: some View {
         if let upscale = item.upscale {
             UpscaleBadge(factor: upscale.factor)
+        } else if let seconds = item.videoSeconds {
+            VideoBadge(seconds: seconds)
         }
     }
 

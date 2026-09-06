@@ -21,6 +21,8 @@ public struct ImageFacts: Hashable, Sendable {
     public let file: String
     /// What it was made larger from, and by how much, or nil when it was not an upscale.
     public let upscaled: String?
+    /// How long the clip runs and how many frames it has, or nil for a picture.
+    public let length: String?
 
     /// The facts about a library image. `modelName` is the catalog's name for it, when there is
     /// one; without it the identifier written into the file is shown, which is the honest answer
@@ -36,6 +38,9 @@ public struct ImageFacts: Hashable, Sendable {
             seconds: item.durationSeconds ?? 0, steps: item.upscale == nil ? item.steps ?? 0 : 0)
         file = item.fileName
         upscaled = item.upscale.map { "\u{00D7}\($0.factor) from \($0.parent)" }
+        length = item.provenance.record.flatMap { record in
+            record.frameCount.map { Self.lengthLabel(frames: $0, rate: record.frameRate ?? 24) }
+        }
     }
 
     /// The facts about an image in memory, which may not have reached the disk yet.
@@ -49,6 +54,13 @@ public struct ImageFacts: Hashable, Sendable {
         // A picture in memory has no record to read it from, and the library's own inspector
         // takes over the moment the scan lands, which is typically inside a second.
         upscaled = nil
+        length = image.video.map { Self.lengthLabel(frames: $0.frameCount, rate: $0.frameRate) }
+    }
+
+    /// "2.0 s, 49 frames at 24 fps": the seconds to one decimal, since a ladder of eight frames
+    /// rarely lands on a whole second.
+    static func lengthLabel(frames: Int, rate: Double) -> String {
+        String(format: "%.1f s, %d frames at %.0f fps", Double(frames) / rate, frames, rate)
     }
 
     /// How long a generation took, with what that came to per step.

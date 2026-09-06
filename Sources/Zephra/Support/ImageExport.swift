@@ -34,7 +34,7 @@ enum ImageExport {
     /// the same path the library uses, so saving it onto itself is a no-op rather than a
     /// deletion; the bytes in memory until then.
     static func saveAs(_ image: GeneratedImage) {
-        if let url = image.fileURL, exists(url) {
+        if let url = savedFile(of: image) {
             saveAs(files: [url])
             return
         }
@@ -52,7 +52,7 @@ enum ImageExport {
 
     /// Shows the image in the Finder, writing a temporary copy when it has no home yet.
     static func revealInFinder(_ image: GeneratedImage) {
-        if let url = image.fileURL, exists(url) {
+        if let url = savedFile(of: image) {
             NSWorkspace.shared.activateFileViewerSelecting([url])
             return
         }
@@ -64,13 +64,22 @@ enum ImageExport {
     /// file and the bytes ride along; the PNG bytes alone until then, with TIFF promised beside
     /// them either way (`PasteboardImage`).
     static func copyToPasteboard(_ image: GeneratedImage) {
-        if let url = image.fileURL, exists(url) {
+        if let url = savedFile(of: image) {
             copyToPasteboard(files: [url])
             return
         }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.writeObjects([PasteboardImage.item(png: exportData(for: image), file: nil)])
+    }
+
+    /// The file on disk that stands for `image`, or nil before the save lands: the picture, or
+    /// for a clip the MP4 beside its poster, which is what exporting or revealing a clip means.
+    /// A clip that has not been saved yet is handled as its poster, the one file there is.
+    private static func savedFile(of image: GeneratedImage) -> URL? {
+        guard let url = image.fileURL, exists(url) else { return nil }
+        if image.settings.frames > 1, let clip = VideoSidecar.existing(beside: url) { return clip }
+        return url
     }
 
     /// A copy in the temporary directory, used for dragging out and for revealing unsaved images.

@@ -32,18 +32,21 @@ struct InspectorActions: View {
             GridRow {
                 QueueVariationButton(item: item)
                 Button {
-                    ImageExport.revealInFinder(files: [item.url])
+                    ImageExport.revealInFinder(files: [item.exportURL])
                 } label: {
                     Text("Reveal in Finder").frame(maxWidth: .infinity)
                 }
                 .help(item.fileName)
             }
-            GridRow {
-                UpscaleButtons(source: .file(item.url))
-                    .gridCellColumns(2)
+            // An upscale makes a bigger picture out of a picture; a clip's poster is not one.
+            if !item.isVideo {
+                GridRow {
+                    UpscaleButtons(source: .file(item.url))
+                        .gridCellColumns(2)
+                }
             }
             GridRow {
-                ShareLink(item: item.url) {
+                ShareLink(item: item.exportURL) {
                     Text("Share…").frame(maxWidth: .infinity)
                 }
                 .gridCellColumns(2)

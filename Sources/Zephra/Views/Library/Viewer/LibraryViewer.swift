@@ -49,7 +49,11 @@ struct LibraryViewer: View {
 
     @ViewBuilder
     private var picture: some View {
-        if let image {
+        if let clip = item.videoURL {
+            ClipPlayerView(url: clip)
+                .aspectRatio(item.size.aspectRatio, contentMode: .fit)
+                .accessibilityLabel(item.prompt.isEmpty ? item.fileName : item.prompt)
+        } else if let image {
             Image(nsImage: image)
                 .resizable()
                 .interpolation(.medium)

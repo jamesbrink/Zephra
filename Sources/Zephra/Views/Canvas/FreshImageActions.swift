@@ -25,12 +25,15 @@ struct FreshImageActions: View {
                     button("Use as Reference") { ReferenceAdoption.adopt(image, into: store) }
                 }
             }
-            GridRow {
-                UpscaleButtons(
-                    source: .image(image),
-                    unsavedReason: image.fileURL == nil ? ImageFacts.notSaved : nil
-                )
-                    .gridCellColumns(2)
+            // A clip's poster is not a picture to make larger.
+            if image.settings.frames == 1 {
+                GridRow {
+                    UpscaleButtons(
+                        source: .image(image),
+                        unsavedReason: image.fileURL == nil ? ImageFacts.notSaved : nil
+                    )
+                        .gridCellColumns(2)
+                }
             }
         }
         .lineLimit(1)

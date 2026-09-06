@@ -49,7 +49,7 @@ struct LibraryGrid: View {
             // Plain ⌘C, through the responder chain rather than a second Copy item: the Edit
             // menu's Copy reaches this only while the grid has the keyboard, so Copy in the
             // search field still means the text there. ⇧⌘C stays the named "Copy Image".
-            .onCopyCommand { ImageExport.itemProviders(for: selected.map(\.url)) }
+            .onCopyCommand { ImageExport.itemProviders(for: selected.exportURLs) }
             // The grid is torn down while the viewer is up and rebuilt fresh the moment it
             // closes, so a selection left over from stepping through the viewer would
             // otherwise land off screen with nothing to bring it back into view.

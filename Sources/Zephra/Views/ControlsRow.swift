@@ -1,10 +1,12 @@
 import SwiftUI
 import ZephraEngine
 
-/// The settings under the prompt, each under a small label: size, steps, guidance, strength,
-/// seed. Everything that changes the next image, nothing that does not — so guidance appears
-/// only for models that respond to it, never for a distilled one like Z-Image Turbo, and
-/// strength only while a picture is in the well on a model that starts from a noised copy.
+/// The settings under the prompt, each under a small label: size, steps, length, guidance,
+/// strength, seed. Everything that changes the next image, nothing that does not — so guidance
+/// appears only for models that respond to it, never for a distilled one like Z-Image Turbo,
+/// steps only where the count is a choice (LTX-2.5's ladder is fixed), length only for a model
+/// that makes clips, and strength only while a picture is in the well on a model that starts
+/// from a noised copy.
 struct ControlsRow: View {
     var wraps = false
     @Environment(GenerationStore.self) private var store
@@ -12,7 +14,12 @@ struct ControlsRow: View {
     var body: some View {
         layout {
             ControlLabel("Size") { SizeMenu() }
-            ControlLabel("Steps") { StepsControl() }
+            if store.descriptor.capabilities.adjustsSteps {
+                ControlLabel("Steps") { StepsControl() }
+            }
+            if store.descriptor.capabilities.adjustsFrames {
+                ControlLabel("Length") { DurationControl() }
+            }
             if showsGuidance {
                 ControlLabel("Guidance") { GuidanceControl() }
             }

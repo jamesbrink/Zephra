@@ -94,6 +94,10 @@ public struct ModelCapabilities: Hashable, Sendable {
     /// than draw one, so every control reads this before it reads the bounds.
     public var adjustsGuidance: Bool { guidanceBounds.lowerBound < guidanceBounds.upperBound }
 
+    /// Whether the step count is a choice on this model, by the same rule: a checkpoint
+    /// distilled to a fixed ladder of sigmas, as LTX-2.5's is, declares one legal count.
+    public var adjustsSteps: Bool { stepBounds.lowerBound < stepBounds.upperBound }
+
     /// Whether the reference strength is a choice on this model, by the same rule.
     public var adjustsReferenceStrength: Bool {
         referenceStrengthBounds.lowerBound < referenceStrengthBounds.upperBound

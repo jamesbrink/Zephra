@@ -17,7 +17,7 @@ extension LibraryItem: @retroactive Transferable {
     nonisolated public static var transferRepresentation: some TransferRepresentation {
         ProxyRepresentation(exporting: { LibraryItemReference(id: $0.id) })
         FileRepresentation(exportedContentType: .png) { item in
-            SentTransferredFile(item.url)
+            SentTransferredFile(item.exportURL)
         }
         .suggestedFileName { $0.fileName }
     }

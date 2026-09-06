@@ -45,13 +45,28 @@ struct CanvasView: View {
     @ViewBuilder
     private var currentImage: some View {
         if let image = store.current {
-            SessionImage(request: .full(image))
-                .accessibilityLabel("Generated image")
+            picture(image)
+                .accessibilityLabel(image.settings.frames > 1 ? "Generated clip" : "Generated image")
                 // Tucks the floating prompt away so the picture is the only thing on screen;
                 // clicking again, or any of the ways `PromptTuckHost` listens for, brings it back.
                 .onTapGesture(count: 1) { workspace.promptTucked.toggle() }
                 .draggable(image)
                 .contextMenu { CanvasImageMenu(image: image) }
+        }
+    }
+
+    /// The picture itself, or the clip it is the poster of once the clip is on disk: a clip
+    /// that has not been saved yet shows its first frame, and starts playing when the save
+    /// lands and `fileURL` arrives.
+    @ViewBuilder
+    private func picture(_ image: GeneratedImage) -> some View {
+        if image.settings.frames > 1, let file = image.fileURL {
+            ClipPlayerView(url: VideoSidecar.url(beside: file), paused: store.running != nil)
+                .aspectRatio(
+                    CGFloat(image.settings.size.width) / CGFloat(image.settings.size.height),
+                    contentMode: .fit)
+        } else {
+            SessionImage(request: .full(image))
         }
     }
 

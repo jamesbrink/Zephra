@@ -24,7 +24,11 @@ struct RunTile: View {
             Button { open(item) } label: {
                 LibraryThumbnail(item: item)
                     .overlay(alignment: .topLeading) {
-                        if let upscale = item.upscale { UpscaleBadge(factor: upscale.factor) }
+                        if let upscale = item.upscale {
+                            UpscaleBadge(factor: upscale.factor)
+                        } else if let seconds = item.videoSeconds {
+                            VideoBadge(seconds: seconds)
+                        }
                     }
             }
             .buttonStyle(.plain)

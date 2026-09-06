@@ -69,7 +69,7 @@ struct LibraryItemMenu: View {
         change(ids)
     }
 
-    private var urls: [URL] { items.map(\.url) }
+    private var urls: [URL] { items.exportURLs }
 
     private var noun: String { items.count == 1 ? "Image" : "\(items.count) Images" }
 
