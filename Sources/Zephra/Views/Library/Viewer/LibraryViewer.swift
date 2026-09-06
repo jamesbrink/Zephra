@@ -43,7 +43,8 @@ struct LibraryViewer: View {
         // is a path, and a picture rewritten in place keeps its path while its pixels
         // change, which the index notices and the viewer would otherwise not.
         .task(id: "\(item.id)|\(item.fileSize)|\(item.contentModifiedAt.timeIntervalSince1970)") {
-            await decode()
+            // A clip's poster is never drawn here; the player is.
+            if item.videoURL == nil { await decode() }
         }
     }
 

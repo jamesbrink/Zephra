@@ -145,5 +145,9 @@ streamed through `LayerWeightStream` in `ZephraBench` on halcyon, for a real ste
 - Two facts the first look missed: every attention module is gated per head
   (`to_gate_logits`), and the pack's Gemma 4 has eight full-attention layers that
   share their key and value projection (`attention_k_eq_v`). Both are in the port.
+- Two corrections to the note above: Gemma 4 is published under Apache 2.0, not the Gemma
+  Terms of Use that covered Gemma 3; and the encoder is not freed before the DiT loads —
+  packed to four bits it is 8 GB, stays loaded, and streams beside the transformer under
+  `WeightResidency.streamed`, which is what puts the model on a 16 GB Mac.
 - Left for later, in `ROADMAP.md`: the audio stream (the seam is written), image-to-video,
   two-stage and DFR refinement, temporal decode chunking.

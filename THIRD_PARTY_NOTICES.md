@@ -128,7 +128,7 @@ reference was followed, and `PROVENANCE.md` lists the departures.
   names, its decoder's verified stage plan and its memory engineering; no
   code was taken.
 - **ltx-2-mlx-swift** — https://github.com/xocialize/ltx-2-mlx-swift —
-  Apache License 2.0 — a Swift MLX port read for the Gemma 4 tokenizer's
+  Copyright 2026 xocialize — Apache License 2.0 — a Swift MLX port read for the Gemma 4 tokenizer's
   missing BOS, the float32 aggregate projection, the kernel-compilation
   warm-up and its measured envelopes; no code was taken.
 
@@ -159,8 +159,8 @@ at, carries no license file and was never opened.
 - **Source:** https://github.com/huggingface/swift-transformers
 - **Copyright:** Copyright 2022 Hugging Face SAS
 - **License:** Apache License 2.0
-- **Used as:** tokenizers, a dependency of `ZImageKit`, of `QwenImageKit`, of
-  `Flux2Kit`, and of `LTX2Kit`. Zephra downloads model weights with its own client in
+- **Used as:** tokenizers, a dependency of `ZImageKit`, of `QwenImageKit`, and
+  of `Flux2Kit`; `LTX2Kit` wrote its own encoder and does not link it. Zephra downloads model weights with its own client in
   `ZephraSnapshot` and no longer resolves or fetches anything through this
   package; `ZImageKit`'s vendored resolver still links it.
 
@@ -237,8 +237,12 @@ user's own machine, which the `make quantize*` targets also do by hand.
   variant carries that file beside its weights) — the distilled transformer,
   the text connector, the video decoder and the Gemma 4 text encoder, as bf16
   safetensors converted by the mlx-community from Lightricks' release. The
-  text encoder is Google's Gemma 4 12B, fine-tuned by Lightricks; Google's
-  Gemma Terms of Use (https://ai.google.dev/gemma/terms) apply to it as well.
+  text encoder is Google's Gemma 4 12B, fine-tuned by Lightricks: Google
+  publishes Gemma 4 under the Apache License 2.0 (Copyright 2026 Google LLC;
+  https://ai.google.dev/gemma/docs/gemma_4_license — Gemma 3 and earlier were
+  under the Gemma Terms of Use, Gemma 4 is not), and Lightricks' fine-tuned
+  weights are a derivative of both, so Apache's notice and the LTX-2.x license
+  travel with them together.
   The LTX-2.x license is not a permissive one: entities with annual revenue
   of ten million dollars or more (measured with their affiliates, section 1.6)
   need a paid commercial agreement (section 2.1); Attachment A forbids, among
@@ -358,7 +362,8 @@ SOFTWARE.
 
 Applies to: swift-transformers, swift-log, swift-collections, swift-numerics,
 swift-argument-parser, metal-cpp, diffusers, transformers, ltx-2-mlx-swift,
-and the model weights listed above: Z-Image-Turbo and its 8-bit repacking, Qwen-Image-2512 with its
+Google's Gemma 4 12B (inside the LTX-2.5 text encoder), and the model weights
+listed above: Z-Image-Turbo and its 8-bit repacking, Qwen-Image-2512 with its
 Qwen2.5-VL-7B text encoder, the Qwen-Image-2512-Lightning adapter, and
 FLUX.2-klein-4B with its Qwen3-4B text encoder.
 

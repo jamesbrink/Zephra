@@ -17,9 +17,10 @@ struct UpscaleMenuItems: View {
     @Environment(GenerationStore.self) private var store
 
     var body: some View {
+        // A clip's poster is not a picture to make larger, so the items are greyed for one.
         Button("Upscale 2\u{00D7}") { store.upscale(.file(item.url), factor: 2) }
-            .disabled(!isAlone || !store.canUpscale)
+            .disabled(!isAlone || item.isVideo || !store.canUpscale)
         Button("Upscale 4\u{00D7}") { store.upscale(.file(item.url), factor: 4) }
-            .disabled(!isAlone || !store.canUpscale)
+            .disabled(!isAlone || item.isVideo || !store.canUpscale)
     }
 }

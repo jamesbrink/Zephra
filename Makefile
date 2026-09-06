@@ -52,8 +52,10 @@ FLUX2_OUT     ?= $(MODELS_DIR)/flux2-klein-4b-$(BITS)bit
 # LTX-2.5 is built by the app on first load from the ungated mlx-community bf16 pack (the
 # Lightricks repositories are gated, and Zephra sends no token). Only the four files the
 # video-only variant reads are fetched: the distilled transformer, the connector, the Gemma 4
-# encoder with its tokenizer, and the convolutional video decoder; 69 GB, so LTX_MODELS defaults
-# to the external volume the way QWEN_MODELS does. `make quantize-ltx2` is the same build by hand.
+# encoder with its tokenizer, and the convolutional video decoder; 69 GB, so LTX2_MODELS defaults
+# to the external volume the way QWEN_MODELS does. `make quantize-ltx2` is the same build by hand;
+# LTX2_OUT follows BITS, and a BITS other than 4 lands in a directory that is not a catalog id,
+# so it gets no space check and no provenance stamp.
 LTX2_MODEL   := mlx-community/ltx-2.5-mlx
 LTX2_INCLUDE := --include "config.json" --include "embedded_config.json" --include "LICENSE.md" \
                 --include "transformer-distilled.safetensors" --include "connector.safetensors" \

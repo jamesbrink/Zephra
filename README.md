@@ -10,7 +10,7 @@ and **FLUX.2 klein 4B**, make short clips with **LTX-2.5**, then upscale with
 - **Native:** SwiftUI interface with a canvas, live previews, a generation queue,
   and a searchable image library.
 - **Portable images:** prompts, seeds, favorites, tags, and album membership
-  travel with the PNG.
+  travel with the PNG; a clip's travel with its poster PNG, beside its MP4.
 
 ## Requirements
 
@@ -90,8 +90,9 @@ and its weights are under the LTX-2.x Community License rather than Apache 2.0
 
 **Settings > Performance** controls tiled VAE decoding and weight residency.
 Automatic tiling reduces decode memory when the model exceeds the GPU's budget.
-Qwen-Image also supports streaming weights from disk, enabling generation on
-16 GB Macs at the cost of disk reads each step. The picker reports these tradeoffs;
+Qwen-Image and LTX-2.5 also support streaming weights from disk, enabling
+generation on 16 GB Macs at the cost of disk reads each step (LTX-2.5 peaks at
+8.4 GB streamed against 21.8 GB resident). The picker reports these tradeoffs;
 models remain selectable even when a smaller image size may be needed.
 
 Historical timings at 1024×1024 include about 29 seconds for FLUX.2 klein
@@ -202,6 +203,7 @@ visible canvas picture. Return in the prompt inserts a newline.
 | `ZephraSnapshot` | Foundation-only downloads, snapshot validation, and disk inventory |
 | `ZephraEngine` | Generation state, inference scheduling, downloads, queue, and library |
 | `ZephraBackend<Family>` | Adapts one model kit to the shared backend protocol |
+| `ZephraMedia` | Foundation and AVFoundation: frames in, an MP4 out |
 | `ZephraMLXKit` | Shared MLX loading, quantization, streaming, and decoding |
 | `ZephraUpscaleRealESRGAN` | Independent image upscaler |
 | `Sources/Zephra` | SwiftUI app; concrete backends are registered in `ZephraApp.swift` |
@@ -210,8 +212,8 @@ Core, Snapshot, and Engine have no MLX dependency. The UI uses shared protocols
 and capabilities; only the composition root imports concrete backends and the
 upscaler. Backends never import one another.
 
-`ZImageKit` is vendored; QwenImageKit and Flux2Kit are maintained here with their
-origins documented in [PROVENANCE.md](PROVENANCE.md). See
+`ZImageKit` is vendored; QwenImageKit, Flux2Kit and LTX2Kit are maintained here
+with their origins documented in [PROVENANCE.md](PROVENANCE.md). See
 [AGENTS.md](AGENTS.md) for module boundaries, lifecycle details, and how to add
 models. [ROADMAP.md](ROADMAP.md) tracks planned work and deferred decisions.
 
@@ -245,7 +247,8 @@ make bench ARGS="--model ltx-2.5-distilled-4bit --size 768x512 --frames 49"
 `make quantize`, `make quantize-qwen`, `make quantize-flux2` and `make quantize-ltx2` expose the builds
 the app performs on first load. The [Makefile](Makefile) documents source and
 output overrides. For Qwen, set `QWEN_MODELS` (or `QWEN_SOURCE` and `QWEN_LORA`)
-explicitly: its default is a project-specific external volume.
+explicitly, and for LTX-2.5 `LTX2_MODELS`: their defaults are a project-specific
+external volume.
 `make mirror` builds all five packed variants into one directory laid out for a
 bucket, with an `index.json` of sizes and checksums; `make mirror-sync
 MIRROR_BUCKET=s3://...` pushes it.

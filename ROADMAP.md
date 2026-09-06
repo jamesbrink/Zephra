@@ -48,7 +48,8 @@ is distributed until the app is ready to ship.
 
 7. **A CDN source for packed variants** (shipped: `ModelDescriptor.mirror`,
    `ModelAcquisition.fetchPrebuilt`, `make mirror` and `make mirror-sync`). Saves about
-   127 GB of disk and 82 GB of transfer over all five entries installed today. Left out
+   127 GB of disk and 82 GB of transfer over the five picture entries installed today,
+   and another 69 GB of disk and 50 GB of transfer for LTX-2.5. Left out
    for now: a Settings row saying where a variant came from (mirror or built here), a
    `mirror` field in the record, and any way to prefer building over fetching. Z-Image,
    Qwen-Image and klein are Apache 2.0, so hosting the packed derivatives needs the
@@ -79,6 +80,15 @@ is distributed until the app is ready to ship.
      `ModelSource` for a mirror-only model should the ungated pack ever be gated too.
    - **The M5 question**: LTX runs bfloat16 on every GPU; if an M5 shows the split-K
      symptom klein works around, `ZEPHRA_DIT_DTYPE=f32` is the bisection lever.
+   - **Small things the first cut leaves out**: an exported clip carries no record (the
+     favourite, tags and albums stay in the poster PNG); Copy puts the clip's file alone on
+     the pasteboard; a clip cannot be a reference picture; the batch control queues N clips
+     as it queues N pictures; the running-run inspector shows steps but not the clip's
+     length; no `ZEPHRA_PREVIEW_STATE` stands a clip up for `make screenshot`; the warm-up
+     run is an eight-step nine-frame clip plus an MP4 encode, about ten seconds, where the
+     picture families pay for one step; an MP4 whose poster is gone sits in Recently Deleted
+     undated, since the purge walks PNGs; a clip whose MP4 was removed by hand still reads
+     as a clip (`LibraryItem.videoURL` is derived, not checked).
 
 Deferred: **ERNIE-Image-Turbo** (eight to twelve days for legible in-image text at
 16 GB; the Mistral3 encoder is the new work), **Boogu-Image-0.1-Turbo** (a credible

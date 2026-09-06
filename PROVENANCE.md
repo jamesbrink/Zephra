@@ -157,6 +157,11 @@ tests. Four were found and resolved in the reference's favour:
 
 ## Shared between the two ports, and what is not
 
+(`Packages/LTX2Kit` shares the same pieces of `ZephraMLX` — the packed loader,
+`LayerWeightStream`, `LatentPreview`'s pooling and byte packing, `PixelBuffer` —
+and none of the rotary machinery, whose construction differs; its own section
+above says so.)
+
 Both ports are written against `diffusers`, so where the reference does the
 same thing for both models the Swift is one copy in `ZephraMLX`
 (`Packages/ZephraMLXKit`), and the fixtures of each kit pin it through that

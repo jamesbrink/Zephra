@@ -76,10 +76,18 @@ enum ImageExport {
     /// The file on disk that stands for `image`, or nil before the save lands: the picture, or
     /// for a clip the MP4 beside its poster, which is what exporting or revealing a clip means.
     /// A clip that has not been saved yet is handled as its poster, the one file there is.
-    private static func savedFile(of image: GeneratedImage) -> URL? {
+    nonisolated static func savedFile(of image: GeneratedImage) -> URL? {
         guard let url = image.fileURL, exists(url) else { return nil }
         if image.isVideo, let clip = VideoSidecar.existing(beside: url) { return clip }
         return url
+    }
+
+    /// The clip's MP4 on disk, or nil for a picture and for a clip whose save has not landed.
+    nonisolated static func savedClip(of image: GeneratedImage) -> URL? {
+        guard image.isVideo, let file = savedFile(of: image), VideoSidecar.isSidecar(file) else {
+            return nil
+        }
+        return file
     }
 
     /// A copy in the temporary directory, used for dragging out and for revealing unsaved images.

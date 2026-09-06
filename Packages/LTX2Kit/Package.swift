@@ -12,8 +12,6 @@ let package = Package(
         .package(url: "https://github.com/ml-explore/mlx-swift", exact: "0.31.3"),
         // MLX work that is not this model's: the packed loader, the pixel packer, the stream.
         .package(path: "../ZephraMLXKit"),
-        // The tokenizer, pinned exactly the way mlx-swift is: every package pins one version.
-        .package(url: "https://github.com/huggingface/swift-transformers", exact: "0.1.24"),
         // SnapshotUnderTest, for the suites that read a real snapshot's files.
         .package(path: "../ZephraKit"),
     ],
@@ -25,7 +23,6 @@ let package = Package(
                 .product(name: "MLXNN", package: "mlx-swift"),
                 .product(name: "MLXFast", package: "mlx-swift"),
                 .product(name: "MLXRandom", package: "mlx-swift"),
-                .product(name: "Transformers", package: "swift-transformers"),
                 .product(name: "ZephraMLX", package: "ZephraMLXKit"),
             ]
         ),

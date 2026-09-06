@@ -7,7 +7,15 @@ enough to catch a transposed axis or a swapped modulation chunk.
 The transformer fixtures are dumped with the audio-to-video cross-attention switched off, which
 is the official model's `audio=None` forward and the only path a video-only pack runs.
 
-Regenerate with `uv run Tools/dump_reference.py --out Tests/LTX2Tests/Fixtures`. The script's
+Two files are not doll's-house dumps: `tokenizer.safetensors` is ids from the real Gemma 4
+tokenizer, which `Tools/dump_text_encoder.py` fetches from the ungated
+`mlx-community/ltx-2.5-mlx` pack into a gitignored `Tools/.cache`; and
+`vae_decoder_keys.json` is the real pack's decoder key list with shapes, read once from
+`vae_decoder.safetensors`'s header (the same way `WeightKeyCoverageTests` reads it live) and
+committed so `VAEWeightKeyTests` runs without the pack.
+
+Regenerate with `uv run Tools/dump_reference.py --out Tests/LTX2Tests/Fixtures`; `--only
+<name>` regenerates one fixture. The script's
 inline metadata pins the versions of the reference stack it runs under, and every run writes
 `versions.json` beside the fixtures with the versions it actually used, so a fixture says what
 produced it. Bump the pins and regenerate every fixture in the same commit.

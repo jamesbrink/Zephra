@@ -18,7 +18,9 @@ public enum LTX2TransformerWeights {
     private static let moduleForm = ".emb."
 
     /// The name fragments that mark a tensor as the audio lane's, or the cross-modal attention
-    /// that only runs with one. Shared with the quantization plan's omission list.
+    /// that only runs with one. `LTX2QuantizationPlan.audioOmitted` in the backend package
+    /// says the same words in its own patterns (`av_ca` there as a prefix under
+    /// `transformer.`); `WeightKeyCoverageTests` is what keeps the two agreeing.
     public static let audioMarkers = ["audio", "a2v", "v2a", "av_ca"]
 
     /// Whether `key` belongs to the audio lane.

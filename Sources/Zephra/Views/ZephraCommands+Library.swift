@@ -88,7 +88,7 @@ extension ZephraCommands {
     var shareFiles: [URL] {
         switch target {
         case .none: return []
-        case .canvas(let image): return image.fileURL.map { [$0] } ?? []
+        case .canvas(let image): return ImageExport.savedFile(of: image).map { [$0] } ?? []
         case .library(let items): return items.exportURLs
         }
     }

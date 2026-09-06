@@ -33,8 +33,9 @@ Shared, by what a file actually touches:
                                                   checks, the hub cache read as a fallback,
                                                   what the models occupy on disk
   ZephraKit/ZephraMedia        Foundation, AVFoundation — frames in, an H.264 MP4 out
-                                                  (`MP4Writer`), which a video backend and
-                                                  the app share
+                                                  (`MP4Writer`), which a video backend takes
+                                                  for its clip; the app never reads it, its
+                                                  player is AVKit's over the file
   ZephraKit/ZephraTestSupport  Foundation, ZephraCore — Scratch, the filesystem test
                                                   fixture, and SnapshotUnderTest, the real
                                                   snapshot a kit's suite may read
@@ -326,7 +327,7 @@ there has to be forwarded by name or it never reaches the canvas.
 
 Where a frame comes from: each kit has a `<Family>LatentPreview` that takes a
 latent in its loop's own packed space, unpacks it, pools it so its long edge is at
-most 32 cells, and decodes that through the family's own autoencoder with the
+most 32 cells (8 for LTX-2.5, whose cell is 32 pixels), and decodes that through the family's own autoencoder with the
 tiling skipped — `LatentPreview` in `ZephraMLX` holds the pooling and the byte
 packing for Qwen-Image and klein, and the vendored `ZImageKit` keeps its own copy
 for the same reason it keeps its own `VAETiledDecode`. Each loop calls an optional
@@ -438,8 +439,14 @@ as an index, and it is Foundation only, so `make test` covers all of it.
   (which the purge and Delete Immediately go through), and the migration's
   inventory. `LibraryItem.videoURL` and `videoSeconds` answer from the record;
   `LibraryItem.exportURL` in the app target is the clip for a clip and the
-  picture otherwise, and Export, Copy, Share, drag and Reveal all go through it.
-  Upscale is offered for pictures only. `ImageLibraryVideoTests` pins the pairs.
+  picture otherwise, and Export, Copy, Share, drag and Reveal all go through it,
+  in the library and on the canvas alike (`ImageExport.savedFile`, and a
+  `Transferable` that exports an MP4 for a saved clip and a PNG otherwise). Two
+  things a clip's export does not do yet: the record, the favourite, the tags
+  and the albums stay in the poster and do not leave with the MP4, and Copy puts
+  the file alone on the pasteboard, with no pixels and no promised TIFF
+  (`ROADMAP.md`). Upscale is offered for pictures only, at every entry point.
+  `ImageLibraryVideoTests` pins the pairs.
 - `LibrarySelection` holds what is chosen; `LibraryCursor` is the pure
   arithmetic of moving through a grid, so keyboard navigation is tested without
   a window. `ImageFacts` formats the rows the inspector shows, the clip's Length
@@ -633,17 +640,23 @@ Four directories, by what a file is rather than what screen it is on:
   stays inside the top one too, so the sidebar, the pane, and the inspector
   all start below the strip rather than the divider cutting through it.
 
-  A clip plays where its poster would be: `Canvas/ClipPlayerView`, AVKit's
-  `VideoPlayer` over the MP4 beside the poster, looping and muted, on the canvas
-  once the save has landed and `fileURL` says where (the poster shows until
-  then) and in the library viewer for any item with a `videoURL`; it pauses
-  while a run is in flight, since only the run moves on this canvas. AVKit is
-  linked by name in `project.yml`: SwiftUI's player resolves its superclass at
-  runtime, and without the framework in the link the first clip aborted the app.
+  A clip plays where its poster would be: `Canvas/ClipPlayerView`, an
+  `NSViewRepresentable` over AVKit's `AVPlayerView` with no transport controls,
+  fed by an `AVPlayerLooper`, muted, over the MP4 beside the poster — on the
+  canvas once the save has landed and `fileURL` says where (the poster shows
+  until then), and in the library viewer through `Library/Viewer/LibraryViewerClip`
+  for any item with a `videoURL`, a view of its own so `LibraryViewer` keeps its
+  three stored properties and this one watches the store. Both pause while a
+  run is in flight, since only the run moves on this canvas. SwiftUI's
+  `VideoPlayer` was tried first and rejected twice over: its controls take the
+  click that tucks the prompt, and linked only through SwiftUI it aborted the
+  first clip resolving its superclass, which is why `project.yml` still names
+  `AVKit.framework` in the app's link rather than leaving it to autolink.
   `Style/VideoBadge` is the clip's mark on a grid cell and a sidebar square, in
   the corner `UpscaleBadge` uses, since a picture is one or the other. The
-  capsule shows `DurationControl` — whole seconds, each the frame count on the
-  model's ladder nearest to it — only when `frameBounds` is a range, and hides
+  capsule shows `DurationControl` — the shortest clip, then one choice per
+  whole second, each snapped to the model's ladder (9, 25, 49, 73, 97, 121
+  frames at 24 fps) — only when `frameBounds` is a range, and hides
   `StepsControl` when `stepBounds` is a single value, the way it already hides
   guidance: a slider over one value is not a slider, and LTX-2.5's eight steps
   are the checkpoint's. The inspector's Length row comes from `ImageFacts`.
@@ -780,7 +793,10 @@ reads the model's own peak.)
 resident sizes,
 and a `ModelCapabilities` the interface draws itself from — size presets and
 bounds, step and guidance bounds, whether a negative prompt or a seed does
-anything. Every number in an entry is hand-written because every number is
+anything, and for a model that makes clips the frame bounds, default, ladder
+and rate (`frameBounds`, `defaultFrames`, `frameAlignment`, `frameRate`), a
+range in the first being what draws the length control and says the backend
+answers `GeneratedMedia.video`. Every number in an entry is hand-written because every number is
 measured; leave a comment saying where a figure came from. `ModelMenu` lists
 `ModelCatalog.all` and `GenerationStore.switchModel(to:)` does the rest.
 
@@ -799,15 +815,17 @@ measured; leave a comment saying where a figure came from. `ModelMenu` lists
    the `InferenceEnvironment` the root read once — and
    `YourBackendFactory.runtime` in the `CombinedInferenceRuntime` list beside
    it — `MLXInferenceRuntime` over the family's own `VAETileSetting`, the way
-   the three factories build theirs; no family writes a runtime type of its
+   the four factories build theirs; no family writes a runtime type of its
    own, and no kit reads an environment variable. That file is the only place
    in the app target allowed to name a concrete backend.
 
 Then the places that are not the app, each a one-line switch case or list entry:
 the package and target dependencies in `project.yml`, `MLX_PACKAGES` in the
 `Makefile` so `make test-mlx` runs its suites, `QuantizeFamily` in
-`Sources/ZephraQuantize` if the family has a packing plan, and `BenchBackends`
-in `Sources/ZephraBench` so `--model` can name it.
+`Sources/ZephraQuantize` if the family has a packing plan, `BenchBackends`
+in `Sources/ZephraBench` so `--model` can name it, and the family lists in
+`make lint-layers`, which name every family by hand and lint nothing they do
+not name.
 
 A saved choice that is no longer on the disk — a local build deleted from
 Settings > Models, or a preference carried to a Mac that never made it — is not
@@ -843,7 +861,7 @@ backend looks in the built variant, then `locations.downloads` under every
 root, then the hub cache, and only then downloads.
 
 **A model whose download is not what gets loaded** is the third case, and all
-three families now have one: FLUX.2 klein's two variants, the 4-bit Z-Image
+four families now have one: FLUX.2 klein's two variants, LTX-2.5's, the 4-bit Z-Image
 Turbo, and the 4-bit Qwen-Image. In each the release is bfloat16 and the loader
 reads a packed variant. Such a family implements
 `ImageGenerationBackend.build(_:at:locations:onProgress:)`, which the engine calls
@@ -976,8 +994,8 @@ Makefile targets:
 - `make run` — build, then open `build/Release/Zephra.app`.
 - `make open` — generate, then open the project in Xcode.
 - `make bench` — build and run `ZephraBench` (`ARGS=...` to pass flags).
-- `make test` — `swift test` in `Packages/ZephraKit` (Core, Snapshot, and
-  Engine, fast, no MLX). Anything testable without Metal belongs here.
+- `make test` — `swift test` in `Packages/ZephraKit` (Core, Snapshot, Engine
+  and Media, fast, no MLX). Anything testable without Metal belongs here.
 - `make test-app` — `xcodebuild test` of `ZephraTests`, the app target's own
   suites in `Tests/ZephraTests`, hosted inside the Debug app. The first run
   builds the Debug app, Metal kernels included, and takes minutes; after that
@@ -1081,8 +1099,8 @@ Makefile targets:
   and its CloudFront host, `zephra-assets.urandom.io`, are Terraform-managed in the
   `urandom.io` repository's `modules/zephra`; the repository's Actions variables
   `AWS_ROLE_ARN`, `AWS_REGION`, `ZEPHRA_ASSETS_BUCKET` and `ZEPHRA_ASSETS_HOST` name them. The default `MIRROR_DIR` is
-  `ZephraMirror` beside the Qwen source on the external volume, since the four variants
-  are 42 GB. The releases are read from where the quantize targets read them, so set
+  `ZephraMirror` beside the Qwen source on the external volume, since the five variants
+  are 61 GB. The releases are read from where the quantize targets read them, so set
   `MODELS_DIR` and `QWEN_MODELS` the same way. This is the supply side of a CDN source
   for packed variants (`ROADMAP.md`); the app does not read a mirror yet.
 - `make lint-layers` — enforce the layering rules above.
@@ -1211,8 +1229,9 @@ Swift Testing (`import Testing`, `@Suite`/`@Test`), never XCTest. Suites and
 tests are named as sentences about behaviour ("the revision's refs file picks
 the snapshot, not whichever is listed first"); match that when adding one.
 
-- `make test` — `ZephraCoreTests`, `ZephraSnapshotTests` and `ZephraEngineTests`,
-  seconds, no Metal.
+- `make test` — `ZephraCoreTests`, `ZephraSnapshotTests`, `ZephraEngineTests` and
+  `ZephraMediaTests` (which round-trips a clip through `AVAssetWriter`), seconds,
+  no Metal.
 - `make test-app` — `ZephraTests` in `Tests/ZephraTests`, the app target's own
   suites, hosted in the app so they can `@testable import Zephra`; Debug only,
   since Release turns `ENABLE_TESTABILITY` off. Pure interface logic belongs
@@ -1234,19 +1253,28 @@ the snapshot, not whichever is listed first"); match that when adding one.
   -only-testing:ZephraQuantizationTests/QuantizableWeightTests`. A package's
   scheme is its own name, except `ZephraMLXKit`, which ships two library
   products and so is tested through `ZephraMLXKit-Package`.
-- `QwenImageKit`'s and `Flux2Kit`'s suites check the ports against tensors
-  dumped from `diffusers` by each kit's `Tools/dump_reference.py`, whose inline
-  metadata pins the reference stack's versions and which writes
-  `Fixtures/versions.json` with what a run actually used. Adding a component
-  means adding its fixture in the same commit; that is what the clean-room
-  claim in `PROVENANCE.md` rests on. What the two ports share through
-  `ZephraMLX` is pinned by both kits' fixtures through the shared copy, and
-  `ZephraMLXTests` pins the shared pieces on doll's-house tensors of their own.
+- `QwenImageKit`'s, `Flux2Kit`'s and `LTX2Kit`'s suites check the ports against
+  tensors dumped from `diffusers` (and, for Gemma 4, `transformers`) by each
+  kit's `Tools/dump_reference.py`, whose inline metadata pins the reference
+  stack's versions and which writes `Fixtures/versions.json` with what a run
+  actually used; `LTX2Kit`'s entry point imports one sibling module per
+  component (`dump_text_encoder.py`, `dump_transformer.py`, `dump_vae.py`), any
+  of which `--only` regenerates alone, and its tokenizer fixture is ids from the
+  real Gemma tokenizer, which the dumper fetches into a gitignored
+  `Tools/.cache`. Adding a component means adding its fixture in the same
+  commit; that is what the clean-room claim in `PROVENANCE.md` rests on. What
+  the ports share through `ZephraMLX` is pinned by every kit's fixtures through
+  the shared copy, and `ZephraMLXTests` pins the shared pieces on doll's-house
+  tensors of their own. Each kit also has a `WeightKeyCoverageTests` that reads
+  the real release's safetensors headers and checks every published tensor
+  against the module trees; `LTX2Kit`'s pins the 1362 video-lane transformer
+  keys, the connector's video side and all 666 Gemma keys.
 
 No test loads model weights. The `ZephraKit` suites never touch Metal; the MLX
-packages' suites run doll's-house tensors through it, and a few of `QwenImageKit`'s
-and `Flux2Kit`'s read a real snapshot's config, tokenizer, and safetensors header
-files. `SnapshotUnderTest` in `ZephraTestSupport` is where they look, in order:
+packages' suites run doll's-house tensors through it, and a few of `QwenImageKit`'s,
+`Flux2Kit`'s and `LTX2Kit`'s read a real snapshot's config, tokenizer, and safetensors
+header files (`LTX2Kit`'s tokenizer suite is the one gated on a real snapshot, and
+accepts the pack's `gemma4-12b-ltx-v1/` or the built `text_encoder/`). `SnapshotUnderTest` in `ZephraTestSupport` is where they look, in order:
 `QWEN_IMAGE_SNAPSHOT`, `FLUX2_KLEIN_SNAPSHOT` or `LTX2_SNAPSHOT` when set; the app's own models
 folder, where a variant packed on this Mac (`<models>/<descriptor id>`) carries
 the configs and tokenizer and the download (`Downloads/<org>--<repo>`) is the
@@ -1542,8 +1570,9 @@ the **video stream only**: 13.1 billion parameters across 48 blocks (video
 self-attention, cross-attention to text, and a feed-forward, each gated per head
 by `to_gate_logits`), conditioned on a Gemma 4 12B encoder — all 49 of its hidden
 states, RMS-normalised per token, laid side by side (188160 wide), projected in
-float32 to 4096 and passed through an eight-block 1-D connector whose 128 learned
-registers stand in for the padding — and decoded by a 3-D convolutional
+float32 to 4096 and passed through an eight-block 1-D connector, built from the
+DiT's own gated attention, feed-forward, norm and rotary embedding over one
+axis, whose 128 learned registers stand in for the padding — and decoded by a 3-D convolutional
 autoencoder (temporal x8, spatial x32, 128 latent channels). Distilled to eight
 ancestral Euler steps (`LTX2DistilledSchedule`: nine fixed sigmas, eta 1,
 re-noising drawn from `seed + 10000`) with no guidance. Frames are `1 + 8k` at
@@ -1573,9 +1602,10 @@ conditioning, the modulation tables (float32 in the pack), the gates and the nor
 whole; the two embeddings — Gemma's 262144-row token table and the 188160-wide
 aggregate projection — go to eight bits, since both are read once per prompt
 and both lose more than a block does at four. Every audio-side tensor is left
-out by one list, `audioOmitted` (`audio`, `a2v`, `v2a`, `av_ca_`), so the audio
-variant's plan is this plan without it; `LTX2TransformerWeights.audioMarkers`
-is the kit's copy of the same words. The build is 82 s once the pack is local
+out by one list, `audioOmitted` (`audio`, `a2v`, `v2a`, and `av_ca_` as a prefix
+under `transformer.`), so the audio variant's plan is this plan without it;
+`LTX2TransformerWeights.audioMarkers` says the same words in the kit, and
+`WeightKeyCoverageTests` is what keeps the two agreeing. The build is 82 s once the pack is local
 and writes 19.3 GB (`builtBytes`): 8.56 GB of transformer, 1.89 of connector,
 8.00 of encoder, 0.81 of decoder copied as it is, since three-dimensional
 convolutions cannot be packed. At load the float32 scales are cast to the
@@ -1586,7 +1616,8 @@ Video only is a real departure and not just a subset: the audio-to-video
 cross-attention adds a term to the video stream that the `audio=None` forward
 has not got, so this variant's pictures differ from the audio-video model's. The
 official model accepts `audio=None`, the fixtures are dumped the same way, and
-the seam for the audio stream — `LTX2Block`'s optional audio modules, the
+the seam for the audio stream — the place on `LTX2Block` where the audio modules
+go, the
 transformer's audio heads, a second connector stack, the audio autoencoder and
 vocoder, an audio track in `GeneratedVideo` — is written down in `ROADMAP.md`
 for Macs with the memory. Nothing else is left out of the video path except the
@@ -1610,7 +1641,12 @@ watchdog on a small Mac. The live preview is the first latent frame only of the
 `x - sigma * v` estimate, pooled and decoded through the same decoder
 (`LTX2LatentPreview`), so a frame costs a fraction of a step. The first forward
 after a load pays for Metal's kernel compilation, which the store's warm-up run
-absorbs.
+absorbs — at a price the other families do not pay: the actor's one-step 512
+picture clamps to this model's eight steps and nine frames plus an MP4 encode,
+about ten seconds (`ROADMAP.md`). The decoder has no tiled path, so Automatic
+tiling changes nothing for it and `tiledPeakBytes` is the plain peak. Nothing
+tells the running-run inspector a clip's length yet; it shows the steps as it
+does for every family.
 
 Measured on an M4 Max, seed 42, resident: the default 768 x 512 clip of 49
 frames in 63.4 s at 7.0 s a step, 17521 MB live and 21787 MB peak, loading in
@@ -1793,6 +1829,12 @@ the same override the store runs under without a second read of the process envi
   does to its own `InferenceEnvironment` without the flag. Measured at 1024 pixels on an M4 Max, mean over the frames of one run: 43 ms for klein
   4-bit, 130 ms for Qwen-Image 4-bit, 192 ms for Z-Image 8-bit, against 0.5 to 8 s for the same
   models' full decodes. The machine was not idle for the last two, so those are ceilings.
+- `make bench ARGS="--model ltx-2.5-distilled-4bit --size 768x512 --frames 49"` measures a
+  clip: `--size` takes `WxH` as well as one number, `--frames` is rounded down to the model's
+  ladder and ignored by a picture model, and the clip is written to `--out` with its extension
+  changed to `.mp4` and its first frame as a PNG beside it (`BenchRunner+Output`). The report
+  carries the frame count; `--stream` works as for Qwen-Image, and `--micro` still refuses
+  every family but Z-Image.
 - `ZEPHRA_PROFILE_STEP=1` prints per-phase timings (text encode, per-step graph build, per-step
   eval, VAE decode, and Z-Image's preview decode) and MLX's active and peak allocation to stderr.
 - Precision and padding switches, for bisecting a suspected regression without a rebuild:
@@ -1815,7 +1857,8 @@ the same override the store runs under without a second read of the process envi
   chosen mid-run therefore never changes the running run's decode.
 - `ZEPHRA_WEIGHT_RESIDENCY=streamed|resident` overrides the Performance tab's streaming
   preference for one launch, and `ZEPHRA_STREAM_DEPTH=N` says how many blocks a streamed load
-  reads ahead (2 unless set; the backend hands it to `QwenImageStreaming(depth:)` at load).
+  reads ahead (2 unless set; the backend hands it to `QwenImageStreaming(depth:)` or
+  `LTX2Streaming(depth:)` at load).
   `make bench ARGS="--model qwen-image-2512-4bit --stream"` is the same with the report saying
   what one step read and how fast; `--stream-depth N` sweeps the window. A model whose family
   cannot stream loads resident whatever either says.
