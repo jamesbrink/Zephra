@@ -1,4 +1,5 @@
 'use client';
+/* oxlint-disable next/no-img-element -- Static PNGs also deploy to S3 without an image optimization server. */
 import { useState } from 'react';
 import release from './release.json';
 import { Switch } from '@/components/ui/switch';
@@ -31,9 +32,10 @@ function Nav({
     <header className="nav">
       <Brand />
       <nav aria-label="Product">
-        <label className="theme-control">
+        <label className="theme-control" htmlFor={`${id}-theme`}>
           <span>Dark mode</span>
           <Switch
+            id={`${id}-theme`}
             checked={dark}
             onCheckedChange={onTheme}
             aria-label="Dark mode"
@@ -196,7 +198,7 @@ export default function Page() {
           height={769}
           loading="lazy"
           decoding="async"
-          alt="Zephra’s maximized macOS window showing a completed copper robot image and its generation details"
+          alt="Zephra’s maximized macOS window showing completed copper robot artwork and its generation details"
         />
         <small>Zephra app · Completed image · Generated locally</small>
       </section>

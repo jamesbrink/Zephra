@@ -3,14 +3,15 @@
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 dmg="$root/build/Zephra.dmg"
-app="$root/build/Release/Zephra.app"
+metadata=$(mktemp "${TMPDIR:-/tmp}/zephra-release-metadata.XXXXXX")
+trap 'rm -f "$metadata"' EXIT
 aws_cli=(aws)
 if [[ -n ${RELEASE_PROFILE:-} ]]; then aws_cli+=(--profile "$RELEASE_PROFILE"); fi
 codesign --verify --strict "$dmg"
 xcrun stapler validate "$dmg"
-"$root/scripts/verify-dmg.sh" "$dmg"
-version=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Contents/Info.plist")
-build=$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$app/Contents/Info.plist")
+"$root/scripts/verify-dmg.sh" "$dmg" "$metadata"
+version=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$metadata")
+build=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["build"])' "$metadata")
 [[ "$version-$build" =~ ^[0-9.]+-[0-9.]+$ ]] || { echo 'release: invalid version'; exit 1; }
 name="Zephra-$version-$build.dmg"
 key="releases/$name"
@@ -21,12 +22,20 @@ sha=$(shasum -a 256 "$dmg" | awk '{print $1}')
 existing=$("${aws_cli[@]}" s3api list-objects-v2 --bucket "$bucket" --prefix "$key" \
   --query "Contents[?Key=='$key'].Key | [0]" --output text)
 if [[ "$existing" == "$key" ]]; then
-  echo "release: $key already exists; use a new build number" >&2; exit 1
+  remote_sha=$("${aws_cli[@]}" s3api head-object --bucket "$bucket" --key "$key" \
+    --query Metadata.sha256 --output text)
+  [[ "$remote_sha" == "$sha" ]] || {
+    echo "release: $key already exists with different bytes; use a new build number" >&2; exit 1;
+  }
+  echo 'release: identical installer already published; verifying it again'
+else
+  # Conditional write makes the immutable key safe even against concurrent publishers.
+  "${aws_cli[@]}" s3api put-object --bucket "$bucket" --key "$key" --body "$dmg" \
+    --if-none-match '*' --checksum-algorithm SHA256 \
+    --content-type application/x-apple-diskimage \
+    --content-disposition "attachment; filename=\"$name\"" \
+    --cache-control 'public,max-age=31536000,immutable' --metadata "sha256=$sha" >/dev/null
 fi
-"${aws_cli[@]}" s3 cp "$dmg" "s3://$bucket/$key" --only-show-errors \
-  --content-type application/x-apple-diskimage \
-  --content-disposition "attachment; filename=\"$name\"" \
-  --cache-control 'public,max-age=31536000,immutable' --metadata "sha256=$sha"
 download="$root/build/download-verification/$name"
 mkdir -p "$(dirname "$download")"
 curl --fail --location --retry 3 "$url" -o "$download"

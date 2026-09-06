@@ -1,7 +1,8 @@
 #!/bin/sh
 # Verify the actual app and installation shortcut in the final mounted installer.
 set -eu
-DMG="${1:?usage: verify-dmg.sh <path to .dmg>}"
+DMG="${1:?usage: verify-dmg.sh <path to .dmg> [metadata.json]}"
+METADATA="${2:-}"
 MOUNT=$(mktemp -d "${TMPDIR:-/tmp}/zephra-dmg-check.XXXXXX")
 cleanup() {
     hdiutil detach "$MOUNT" -quiet || true
@@ -21,4 +22,16 @@ xcrun GetFileInfo -a "$MOUNT" | grep -q C \
 codesign --verify --deep --strict --verbose=2 "$MOUNT/Zephra.app"
 xcrun stapler validate "$MOUNT/Zephra.app"
 spctl -a -t exec -vv "$MOUNT/Zephra.app"
+if [ -n "$METADATA" ]; then
+    python3 - "$MOUNT/Zephra.app/Contents/Info.plist" "$METADATA" <<'PYMETA'
+import json, plistlib, sys
+from pathlib import Path
+with open(sys.argv[1], 'rb') as source:
+    info = plistlib.load(source)
+Path(sys.argv[2]).write_text(json.dumps({
+    'version': info['CFBundleShortVersionString'],
+    'build': info['CFBundleVersion'],
+}) + '\n')
+PYMETA
+fi
 echo "verify: mounted installer app, branding, and Applications shortcut passed"
