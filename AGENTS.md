@@ -1586,7 +1586,10 @@ Measured on an M4 Max, seed 42, resident: the default 768 x 512 clip of 49
 frames in 63.4 s at 7.0 s a step, 17521 MB live and 21787 MB peak, loading in
 4.3 s; a 9-frame 512 x 288 clip in 10.4 s at 0.90 s a step with the same peak,
 which says the peak is the load's (the float32 scales before their cast) and not
-the decode's. The first run made a coherent picture. `make bench ARGS="--model
+the decode's. Streamed, both stacks: 8369 MB peak and 4103 MB live, 8.09 GB
+read per step at 1.19 GB/s, 6.6 s a step (the same pace: the M4 Max's SSD keeps
+up), and a poster byte for byte the resident run's. The first run made a
+coherent picture. `make bench ARGS="--model
 ltx-2.5-distilled-4bit --size 768x512 --frames 49"` is the run; the clip is
 written as `.mp4` beside its poster.
 

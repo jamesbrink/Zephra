@@ -51,7 +51,10 @@ extension ModelCatalog {
         residentBytes: 17_520_000_000,
         peakBytes: 21_790_000_000,
         tiledPeakBytes: 21_790_000_000,
-        streamedPeakBytes: 8_000_000_000,
+        // Measured the same way with both stacks streamed: 8369 MB peak and 4103 MB live,
+        // 8.09 GB read per step at 1.19 GB/s, 6.6 s a step — the same pace as resident on an
+        // M4 Max, whose SSD keeps up — and a poster byte for byte the resident run's.
+        streamedPeakBytes: 8_370_000_000,
         // Gemma is padded to 1024 tokens and the connector reads every position.
         maxPromptTokens: 1024,
         capabilities: ltx2Capabilities,
