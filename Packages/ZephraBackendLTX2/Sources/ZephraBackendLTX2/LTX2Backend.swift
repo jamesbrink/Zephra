@@ -1,10 +1,12 @@
 import Foundation
+import LTX2
 import ZephraCore
+import ZephraMedia
 import ZephraMLX
 
 /// Runs LTX-2.5 models through Zephra's own MLX pipeline.
 ///
-/// The instance is deliberately not Sendable: it will own an `LTX2Pipeline`, which holds MLX
+/// The instance is deliberately not Sendable: it owns an `LTX2Pipeline`, which holds MLX
 /// arrays that must stay on one thread. The engine layer confines it to a serial executor.
 ///
 /// The class is explicitly `nonisolated` so that it compiles the same way whichever target
@@ -20,6 +22,9 @@ public nonisolated final class LTX2Backend: ImageGenerationBackend {
 
     /// How the loaded weights are held: what the last load did.
     public private(set) var loadedResidency: WeightResidency?
+
+    let pipeline = LTX2Pipeline()
+    private var loadedDescriptor: ModelDescriptor?
 
     /// The switches the composition root read once: the stream's dtype override, the stream
     /// depth and how often a preview frame is made.
@@ -40,28 +45,77 @@ public nonisolated final class LTX2Backend: ImageGenerationBackend {
         self.init(environment: InferenceEnvironment(), tile: VAETileSetting())
     }
 
-    /// Reads the packed weights at `localPath` into memory. The pipeline lands with the kit;
-    /// until then a load says so rather than pretending.
+    /// Reads the packed weights at `localPath` into memory, held the way `residency` says:
+    /// streamed, both 48-layer stacks are read from disk on every pass.
     nonisolated(nonsending) public func load(
         _ descriptor: ModelDescriptor,
         at localPath: URL,
         residency: WeightResidency,
         onProgress: @escaping (GenerationProgressEvent) -> Void
     ) async throws {
-        throw BackendError.loadFailed("LTX-2.5's pipeline is not wired into this build yet.")
+        if loadedModelID != nil { unload() }
+        let streaming = residency == .streamed ? LTX2Streaming(depth: environment.streamDepth) : nil
+        do {
+            try pipeline.loadModel(
+                at: localPath,
+                activation: LTX2ActivationPrecision.resolve(environment: environment),
+                streaming: streaming
+            ) { progress in
+                onProgress(LTX2ProgressMapper.event(from: progress))
+            }
+        } catch let error as CancellationError {
+            throw error
+        } catch {
+            throw BackendError.loadFailed(error.readableMessage)
+        }
+        loadedModelID = descriptor.id
+        loadedDescriptor = descriptor
+        loadedResidency = residency
     }
 
-    /// Makes a clip from `settings`.
+    /// Makes a clip from `settings`: the frames through the pipeline, the MP4 through
+    /// `MP4Writer`, and the first frame's PNG as the poster the library indexes.
     nonisolated(nonsending) public func generate(
         _ settings: GenerationSettings,
         onProgress: @escaping (GenerationProgressEvent) -> Void
     ) async throws -> GeneratedMedia {
-        throw BackendError.loadFailed("No model is loaded.")
+        guard let descriptor = loadedDescriptor else {
+            throw BackendError.loadFailed("No model is loaded.")
+        }
+        // One throttle per run, and no hook at all when frames are switched off, so the loop
+        // skips the check; see `PreviewFrameReporter`.
+        let onPreview: LTX2Pipeline.PreviewHandler? = PreviewFrameReporter.handler(
+            interval: environment.previewInterval, onProgress: onProgress)
+        let clip: LTX2Clip
+        do {
+            clip = try pipeline.generate(
+                LTX2RequestMapper.request(for: settings, descriptor: descriptor),
+                onProgress: { progress in onProgress(LTX2ProgressMapper.event(from: progress)) },
+                onPreview: onPreview)
+        } catch let error as CancellationError {
+            throw error
+        } catch {
+            throw BackendError.generationFailed(error.readableMessage)
+        }
+        do {
+            let frames = try RGBAFrameSequence(
+                width: clip.video.width, height: clip.video.height,
+                frameCount: clip.video.frameCount, pixels: clip.video.pixels)
+            let mp4 = try await MP4Writer.encode(frames, frameRate: clip.video.frameRate)
+            return .video(
+                GeneratedVideo(
+                    poster: clip.poster, mp4: mp4, frameCount: clip.video.frameCount,
+                    frameRate: clip.video.frameRate))
+        } catch {
+            throw BackendError.generationFailed(error.readableMessage)
+        }
     }
 
     /// Releases the weights and the scratch memory MLX kept for them.
     public func unload() {
+        pipeline.unloadModel()
         loadedModelID = nil
+        loadedDescriptor = nil
         loadedResidency = nil
     }
 }

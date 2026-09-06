@@ -1,5 +1,6 @@
 import SwiftUI
 import ZephraBackendFlux2
+import ZephraBackendLTX2
 import ZephraBackendQwenImage
 import ZephraBackendZImage
 import ZephraCore
@@ -29,6 +30,7 @@ struct ZephraApp: App {
         ZImageBackendFactory.runtime,
         QwenImageBackendFactory.runtime,
         Flux2BackendFactory.runtime,
+        LTX2BackendFactory.runtime,
     ])
     private var runtime: CombinedInferenceRuntime { Self.runtime }
     /// What this Mac's GPU may keep resident, read once here from the runtime and the
@@ -120,6 +122,7 @@ struct ZephraApp: App {
         registry.register(.zImage, ZImageBackendFactory.make(environment))
         registry.register(.qwenImage, QwenImageBackendFactory.make(environment))
         registry.register(.flux2, Flux2BackendFactory.make(environment))
+        registry.register(.ltx2, LTX2BackendFactory.make(environment))
         // The upscaler is registered here for the same reason the backends are: this is the one
         // file that may name a concrete one.
         let store = GenerationStore(

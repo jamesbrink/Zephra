@@ -19,6 +19,8 @@ final class LTX2TextConnector: Module {
 
     /// The checkpoint's prefix for this module's paths.
     static let checkpointPrefix = LTX2ConnectorWeights.connectorPrefix
+    /// Blocks in LTX-2.5's connector (`connector_num_layers` in its embedded config).
+    static let defaultLayers = 8
 
     /// - Parameters:
     ///   - dim: The stream's width, 4096 for video.
