@@ -563,19 +563,55 @@ html:has(.safelight[data-theme="light"]) {
   mask: url("/images/mark.png") center / contain no-repeat;
 }
 
+footer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 18px 24px;
+}
 .website-privacy {
-  max-width: 1224px;
-  margin: 0 auto;
-  padding: 0 24px 28px;
+  grid-column: 1 / -1;
+  min-width: 0;
   color: var(--muted);
   font-size: 13px;
-  line-height: 1.6;
+  line-height: 1.65;
 }
 .website-privacy summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 44px;
   cursor: pointer;
-  width: fit-content;
+  list-style: none;
+  border-top: 1px solid var(--border);
 }
-.website-privacy p {
-  max-width: 760px;
+.website-privacy summary::-webkit-details-marker {
+  display: none;
+}
+.website-privacy summary span {
+  font-size: 20px;
+  font-weight: 300;
+}
+.website-privacy[open] summary span {
+  transform: rotate(45deg);
+}
+.website-privacy summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+.privacy-content {
+  max-width: 680px;
+  padding: 4px 0 12px;
+  overflow-wrap: anywhere;
+}
+.privacy-content p + p {
   margin-top: 12px;
+}
+@media (max-width: 650px) {
+  .website-privacy {
+    font-size: 14px;
+  }
+  .privacy-content {
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
 }
