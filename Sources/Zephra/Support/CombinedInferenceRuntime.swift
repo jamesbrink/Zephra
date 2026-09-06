@@ -56,6 +56,10 @@ struct CombinedInferenceRuntime: InferenceRuntime {
         runtimes.first?.vaeTileSize()
     }
 
+    func isM5ClassGPU() -> Bool {
+        runtimes.first?.isM5ClassGPU() ?? false
+    }
+
     func memorySnapshot() -> MemorySnapshot {
         runtimes.first?.memorySnapshot() ?? MemorySnapshot(
             activeBytes: 0, cacheBytes: 0, peakBytes: 0)
