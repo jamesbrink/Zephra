@@ -3,8 +3,11 @@ import ZephraCore
 
 /// What one benchmark invocation was asked to measure.
 struct BenchOptions: Sendable {
-    /// Both edges of the generated image, in pixels.
-    var size = 1024
+    /// The generated image's size, in pixels: `--size N` is square, `--size WxH` is not.
+    var size = ImageSize(width: 1024, height: 1024)
+    /// How many frames a clip should have, on a model that makes one, or nil for the model's
+    /// own default. A picture model clamps whatever is asked to one frame.
+    var frames: Int?
     /// Denoising steps per timed run.
     var steps = 9
     /// How many timed runs to average over, after the warm-up.
@@ -61,8 +64,9 @@ struct BenchOptions: Sendable {
             case "--help", "-h":
                 print(usage)
                 exit(0)
-            case "--size", "--steps", "--runs", "--prompt", "--out", "--model", "--backend",
-                "--snapshot", "--reference", "--strength", "--stream-depth", "--models":
+            case "--size", "--steps", "--runs", "--frames", "--prompt", "--out", "--model",
+                "--backend", "--snapshot", "--reference", "--strength", "--stream-depth",
+                "--models":
                 guard index < arguments.count else { fail("\(flag) needs a value") }
                 let value = arguments[index]
                 index += 1
@@ -76,8 +80,9 @@ struct BenchOptions: Sendable {
 
     private static func apply(_ flag: String, _ value: String, to options: inout BenchOptions) {
         switch flag {
-        case "--size": options.size = positive(value, flag)
+        case "--size": options.size = imageSize(value, flag)
         case "--steps": options.steps = positive(value, flag)
+        case "--frames": options.frames = positive(value, flag)
         case "--runs": options.runs = positive(value, flag)
         case "--prompt": options.prompt = value
         case "--out": options.output = URL(fileURLWithPath: value)
@@ -89,6 +94,16 @@ struct BenchOptions: Sendable {
         case "--stream-depth": options.streamDepth = positive(value, flag)
         case "--models": options.models = URL(fileURLWithPath: value, isDirectory: true)
         default: fail("unknown option \(flag)")
+        }
+    }
+
+    /// `N` for a square, `WxH` for anything else; both edges positive.
+    private static func imageSize(_ value: String, _ flag: String) -> ImageSize {
+        let edges = value.lowercased().split(separator: "x").map(String.init)
+        switch edges.count {
+        case 1: let edge = positive(edges[0], flag); return ImageSize(width: edge, height: edge)
+        case 2: return ImageSize(width: positive(edges[0], flag), height: positive(edges[1], flag))
+        default: fail("\(flag) wants N or WxH, not \(value)")
         }
     }
 

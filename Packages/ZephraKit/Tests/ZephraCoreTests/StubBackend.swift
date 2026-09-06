@@ -38,8 +38,8 @@ final class StubBackend: ImageGenerationBackend {
     func generate(
         _ settings: GenerationSettings,
         onProgress: @escaping (GenerationProgressEvent) -> Void
-    ) async throws -> Data {
-        Data()
+    ) async throws -> GeneratedMedia {
+        .image(png: Data())
     }
 
     func unload() {}

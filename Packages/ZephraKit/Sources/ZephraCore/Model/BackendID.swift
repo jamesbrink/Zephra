@@ -26,4 +26,7 @@ public struct BackendID: Hashable, Sendable, RawRepresentable, ExpressibleByStri
 
     /// The FLUX.2 family of text-to-image and image-editing models.
     public static let flux2 = BackendID("flux2")
+
+    /// The LTX-2 family of text-to-video models.
+    public static let ltx2 = BackendID("ltx2")
 }

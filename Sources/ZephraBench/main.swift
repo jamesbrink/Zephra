@@ -13,7 +13,7 @@ if let depth = options.streamDepth { environment.streamDepth = depth }
 if options.micro {
     // Token count for a square image: the VAE compresses 8x and the transformer patches 2x2,
     // so a 1024 px side is 64 patches (4,096 tokens), plus a caption stream padded to 64.
-    let side = options.size / 8 / 2
+    let side = options.size.width / 8 / 2
     let patches = side * side
     let family = ModelCatalog.descriptor(id: options.model)?.backend ?? options.backend ?? .zImage
     BenchBackends.microbench(family: family, tokens: patches + 64)

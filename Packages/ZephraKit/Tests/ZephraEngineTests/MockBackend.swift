@@ -103,7 +103,7 @@ final class MockBackend: ImageGenerationBackend {
     func generate(
         _ settings: GenerationSettings,
         onProgress: @escaping (GenerationProgressEvent) -> Void
-    ) async throws -> Data {
+    ) async throws -> GeneratedMedia {
         control.update { $0.generations += 1; $0.lastSettings = settings; $0.tileAtGenerate = $0.vaeTile }
         let dials = control.settings
         if let error = dials.generateError { throw error }
@@ -132,7 +132,7 @@ final class MockBackend: ImageGenerationBackend {
         onProgress(GenerationProgressEvent(phase: .decoding, fraction: 1))
         // Deliberately sleeps through a cancel: a decode is Metal work nothing interrupts.
         if dials.decodeDelay > .zero { try? await Task.sleep(for: dials.decodeDelay) }
-        return Self.pngData
+        return .image(png: Self.pngData)
     }
 
     func unload() {

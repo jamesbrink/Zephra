@@ -51,11 +51,12 @@ public protocol ImageGenerationBackend: AnyObject {
         onProgress: @escaping (GenerationProgressEvent) -> Void
     ) async throws
 
-    /// Returns PNG bytes. Must honour Task cancellation between denoising steps.
+    /// Returns the finished picture, or the finished clip with its poster. Must honour Task
+    /// cancellation between denoising steps.
     nonisolated(nonsending) func generate(
         _ settings: GenerationSettings,
         onProgress: @escaping (GenerationProgressEvent) -> Void
-    ) async throws -> Data
+    ) async throws -> GeneratedMedia
 
     /// Packs whatever `ensureAvailable` left on disk into the form `load` reads, when the two
     /// are not the same thing, and returns the directory to load from. A family whose download

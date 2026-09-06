@@ -79,7 +79,7 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
     nonisolated(nonsending) public func generate(
         _ settings: GenerationSettings,
         onProgress: @escaping (GenerationProgressEvent) -> Void
-    ) async throws -> Data {
+    ) async throws -> GeneratedMedia {
         guard let pipeline, let descriptor = loadedDescriptor, let snapshot = loadedSnapshot
         else {
             throw BackendError.loadFailed("No model is loaded.")
@@ -104,13 +104,14 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
         let previewHandler: ZImagePipeline.PreviewHandler? = PreviewFrameReporter.handler(
             interval: environment.previewInterval, onProgress: onProgress)
         do {
-            return try await pipeline.generateToMemory(
+            let png = try await pipeline.generateToMemory(
                 request,
                 progressHandler: { progress in
                     onProgress(ZImageProgressMapper.event(from: progress))
                 },
                 previewHandler: previewHandler
             )
+            return .image(png: png)
         } catch let error as CancellationError {
             throw error
         } catch {

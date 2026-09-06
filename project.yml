@@ -49,10 +49,14 @@ packages:
     path: Packages/ZephraBackendQwenImage
   ZephraBackendFlux2:
     path: Packages/ZephraBackendFlux2
+  ZephraBackendLTX2:
+    path: Packages/ZephraBackendLTX2
   ZephraUpscaleRealESRGAN:
     path: Packages/ZephraUpscaleRealESRGAN
   Flux2Kit:
     path: Packages/Flux2Kit
+  LTX2Kit:
+    path: Packages/LTX2Kit
   QwenImageKit:
     path: Packages/QwenImageKit
   ZImageKit:
@@ -77,6 +81,8 @@ targets:
         product: ZephraBackendQwenImage
       - package: ZephraBackendFlux2
         product: ZephraBackendFlux2
+      - package: ZephraBackendLTX2
+        product: ZephraBackendLTX2
       - package: ZephraUpscaleRealESRGAN
         product: ZephraUpscaleRealESRGAN
     settings:
@@ -130,6 +136,8 @@ targets:
         product: ZephraBackendQwenImage
       - package: ZephraBackendFlux2
         product: ZephraBackendFlux2
+      - package: ZephraBackendLTX2
+        product: ZephraBackendLTX2
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.zephra.ZephraBench
@@ -154,6 +162,8 @@ targets:
         product: ZephraBackendQwenImage
       - package: ZephraBackendFlux2
         product: ZephraBackendFlux2
+      - package: ZephraBackendLTX2
+        product: ZephraBackendLTX2
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.zephra.ZephraQuantize

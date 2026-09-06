@@ -32,6 +32,19 @@ public struct ModelCapabilities: Hashable, Sendable {
     public let referenceStrengthBounds: ClosedRange<Double>
     /// The strength to start from, which should keep composition while redrawing detail.
     public let defaultReferenceStrength: Double
+    /// How many frames a generation may have, on a model that makes clips.
+    ///
+    /// A single point at 1 means the model makes pictures, by the same rule as
+    /// `referenceStrengthBounds`: the interface reads the range and draws no duration control
+    /// over a single value. A video model's bounds are both of the form `1 + k * frameAlignment`.
+    public let frameBounds: ClosedRange<Int>
+    /// The frame count to start from on a model that makes clips; 1 on one that does not.
+    public let defaultFrames: Int
+    /// Legal frame counts are `1 + k * frameAlignment`: a video autoencoder compresses time by
+    /// this factor and keeps the first frame, so 8 means 1, 9, 17, 25 and so on.
+    public let frameAlignment: Int
+    /// Frames per second the model was trained to make, which is what its clips play at.
+    public let frameRate: Double
 
     /// Creates a capability set describing one model's accepted inputs.
     ///
@@ -51,7 +64,11 @@ public struct ModelCapabilities: Hashable, Sendable {
         supportsSeed: Bool,
         supportsReferenceImage: Bool = false,
         referenceStrengthBounds: ClosedRange<Double> = 1...1,
-        defaultReferenceStrength: Double = 1
+        defaultReferenceStrength: Double = 1,
+        frameBounds: ClosedRange<Int> = 1...1,
+        defaultFrames: Int = 1,
+        frameAlignment: Int = 8,
+        frameRate: Double = 24
     ) {
         self.sizeAlignment = sizeAlignment
         self.sizePresets = sizePresets
@@ -66,6 +83,10 @@ public struct ModelCapabilities: Hashable, Sendable {
         self.supportsReferenceImage = supportsReferenceImage
         self.referenceStrengthBounds = referenceStrengthBounds
         self.defaultReferenceStrength = defaultReferenceStrength
+        self.frameBounds = frameBounds
+        self.defaultFrames = defaultFrames
+        self.frameAlignment = frameAlignment
+        self.frameRate = frameRate
     }
 
     /// Whether guidance is a choice on this model. A distilled model declares a single legal
@@ -77,6 +98,12 @@ public struct ModelCapabilities: Hashable, Sendable {
     public var adjustsReferenceStrength: Bool {
         referenceStrengthBounds.lowerBound < referenceStrengthBounds.upperBound
     }
+
+    /// Whether the clip's length is a choice on this model, by the same rule.
+    public var adjustsFrames: Bool { frameBounds.lowerBound < frameBounds.upperBound }
+
+    /// Whether this model makes clips rather than pictures.
+    public var producesVideo: Bool { frameBounds.upperBound > 1 }
 
     /// Rewrites settings into the nearest form this model can run, rather than rejecting them.
     public func clamp(_ settings: GenerationSettings) -> GenerationSettings {
@@ -101,7 +128,17 @@ public struct ModelCapabilities: Hashable, Sendable {
             max(settings.referenceStrength, referenceStrengthBounds.lowerBound),
             referenceStrengthBounds.upperBound
         )
+        result.frames = constrainFrames(settings.frames)
         return result
+    }
+
+    /// The nearest legal frame count at or below `frames`, never below the lower bound: a
+    /// count between two rungs of the `1 + k * alignment` ladder rounds down, because a clip
+    /// a fraction of a second shorter is what was asked for and one longer costs more.
+    private func constrainFrames(_ frames: Int) -> Int {
+        let bounded = min(max(frames, frameBounds.lowerBound), frameBounds.upperBound)
+        let snapped = 1 + ((bounded - 1) / frameAlignment) * frameAlignment
+        return max(snapped, frameBounds.lowerBound)
     }
 
     private func constrain(_ size: ImageSize) -> ImageSize {

@@ -81,7 +81,8 @@ MLX_PACKAGES := ZephraMLXKit:ZephraMLXKit-Package QwenImageKit:QwenImageKit Zeph
                 Flux2Kit:Flux2Kit \
                 ZephraBackendZImage:ZephraBackendZImage \
                 ZephraBackendQwenImage:ZephraBackendQwenImage \
-                ZephraBackendFlux2:ZephraBackendFlux2
+                ZephraBackendFlux2:ZephraBackendFlux2 \
+                LTX2Kit:LTX2Kit ZephraBackendLTX2:ZephraBackendLTX2
 
 # Distribution signing. The build itself is ad-hoc signed (project.yml), so these
 # matter only to `make release` and `make notarize`. Leave SIGN_IDENTITY empty to
@@ -324,23 +325,23 @@ vendored-diff:
 # Layering rules from CLAUDE.md, enforced mechanically. The patterns are deliberately
 # family-agnostic: a second backend package must not need a Makefile edit to be policed.
 lint-layers:
-	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|MLX)' Sources/Zephra Sources/ZephraBench Sources/ZephraQuantize --include='*.swift' \
+	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|LTX2|MLX)' Sources/Zephra Sources/ZephraBench Sources/ZephraQuantize --include='*.swift' \
 	  || (echo "LAYER VIOLATION: app or tool target imports a model package or MLX directly"; exit 1)
 	@! grep -rlnE '^import (ZephraBackend|ZephraUpscale)' Sources/Zephra --include='*.swift' | grep -v 'ZephraApp.swift' \
 	  || (echo "LAYER VIOLATION: a backend or upscaler package is imported outside ZephraApp.swift"; exit 1)
-	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|MLX)' Packages/ZephraKit/Sources 2>/dev/null \
+	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|LTX2|MLX)' Packages/ZephraKit/Sources 2>/dev/null \
 	  || (echo "LAYER VIOLATION: ZephraKit imports a model package or MLX"; exit 1)
 	@! grep -rlnE '^import (ZephraBackend|ZephraUpscale)' Packages/ZephraBackend*/Sources 2>/dev/null \
 	  || (echo "LAYER VIOLATION: one backend package imports another, or the upscaler"; exit 1)
-	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|ZephraBackend)' Packages/ZephraUpscale*/Sources 2>/dev/null \
+	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|LTX2|ZephraBackend)' Packages/ZephraUpscale*/Sources 2>/dev/null \
 	  || (echo "LAYER VIOLATION: an upscaler package imports a model family"; exit 1)
-	@status=0; for family in ZImage QwenImage Flux2; do \
-	  others=$$(echo "ZImage QwenImage Flux2" | tr ' ' '\n' | grep -v "^$$family$$" | paste -sd'|' -); \
+	@status=0; for family in ZImage QwenImage Flux2 LTX2; do \
+	  others=$$(echo "ZImage QwenImage Flux2 LTX2" | tr ' ' '\n' | grep -v "^$$family$$" | paste -sd'|' -); \
 	  if grep -rlnE "^import ($$others)$$" Packages/ZephraBackend$$family/Sources 2>/dev/null; then \
 	    echo "LAYER VIOLATION: ZephraBackend$$family imports another family's kit"; status=1; \
 	  fi; \
 	done; exit $$status
-	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|ZephraBackend|ZephraUpscale)' Packages/ZephraMLXKit/Sources 2>/dev/null \
+	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|LTX2|ZephraBackend|ZephraUpscale)' Packages/ZephraMLXKit/Sources 2>/dev/null \
 	  || (echo "LAYER VIOLATION: ZephraMLXKit imports a model package; nothing there may depend on a family"; exit 1)
 	@! grep -rlnE '^import (SwiftUI|AppKit)' Packages/ZephraKit/Sources 2>/dev/null \
 	  || (echo "LAYER VIOLATION: UI framework imported inside ZephraKit"; exit 1)

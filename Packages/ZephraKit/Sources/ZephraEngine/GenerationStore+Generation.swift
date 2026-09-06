@@ -34,7 +34,7 @@ extension GenerationStore {
         let started = clock.now
         let pump = EngineEventPump { [weak self] event in self?.applyGenerationEvent(event) }
         do {
-            let data = try await pump.run { sink in
+            let media = try await pump.run { sink in
                 try await inference.generate(job.settings, tile: vaeTile(for: job.model), events: sink)
             }
             // Stop pressed during the decode: the backend never looked, and the bytes are not
@@ -43,7 +43,14 @@ extension GenerationStore {
                 finish()
                 return
             }
-            complete(data, job: job, duration: clock.now - started)
+            switch media {
+            case .image(let png):
+                complete(png, job: job, duration: clock.now - started)
+            case .video:
+                // The library's video seam is the next milestone; until then a clip has
+                // nowhere to go, and saying so beats writing a poster that pretends to be it.
+                fail(with: .backend(.generationFailed("This build cannot save a video yet.")))
+            }
         } catch is CancellationError {
             finish()
         } catch BackendError.cancelled {

@@ -6,10 +6,14 @@ struct BenchReport: Codable, Sendable {
     let device: String
     /// The model that was loaded, by descriptor identifier.
     let model: String
-    /// Edge length of the generated image, in pixels.
-    let size: Int
+    /// The generated image's width, in pixels.
+    let width: Int
+    /// The generated image's height, in pixels.
+    let height: Int
     /// Denoising steps per timed run.
     let steps: Int
+    /// Frames per timed run: one for a picture, the clip's length for a video model.
+    let frames: Int
     /// The step the loop actually began at, counting from one.
     ///
     /// 1 for an ordinary run. Starting from a reference picture joins the schedule partway
@@ -83,7 +87,7 @@ struct BenchReport: Codable, Sendable {
         var lines = [
             row("device", device),
             row("model", model),
-            row("image", "\(size) x \(size), \(steps) steps"),
+            row(frames > 1 ? "clip" : "image", shape),
             row("load", seconds(loadSeconds)),
         ]
         if let referencePath {
@@ -124,8 +128,13 @@ struct BenchReport: Codable, Sendable {
         lines.append(row("live memory", String(format: "%.0f MB", activeMemoryMB)))
         lines.append(row("cached", String(format: "%.0f MB", cacheMemoryMB)))
         lines.append(row("peak memory", String(format: "%.0f MB", peakMemoryMB)))
-        lines.append(row("image written", outputPath))
+        lines.append(row(frames > 1 ? "clip written" : "image written", outputPath))
         return lines.joined(separator: "\n")
+    }
+
+    private var shape: String {
+        let size = "\(width) x \(height), \(steps) steps"
+        return frames > 1 ? "\(size), \(frames) frames" : size
     }
 
     private func row(_ label: String, _ value: String) -> String {

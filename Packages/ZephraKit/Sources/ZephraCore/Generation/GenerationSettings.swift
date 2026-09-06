@@ -35,6 +35,13 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
     /// not the decoder's — so reading a value written before strength existed takes a
     /// hand-written `init(from:)`.
     public var referenceStrength: Double
+    /// How many frames to make, on models that make a clip; 1 is a picture.
+    ///
+    /// Not optional, for the same reason `referenceStrength` is not: every generation has a
+    /// frame count whether or not its model reads one, and 1 is the value that changes
+    /// nothing. `ModelCapabilities.frameBounds` says whether it applies, and `clamp` pins it
+    /// to 1 for every model that makes pictures.
+    public var frames: Int
 
     /// Creates a settings value from explicit choices.
     public init(
@@ -45,7 +52,8 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
         guidance: Double,
         seed: UInt64,
         referenceImage: Data? = nil,
-        referenceStrength: Double = 1
+        referenceStrength: Double = 1,
+        frames: Int = 1
     ) {
         self.prompt = prompt
         self.negativePrompt = negativePrompt
@@ -55,6 +63,7 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
         self.seed = seed
         self.referenceImage = referenceImage
         self.referenceStrength = referenceStrength
+        self.frames = frames
     }
 
     /// The starting point for a model: an empty prompt, its own defaults, and a fresh seed.
@@ -66,7 +75,8 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
             size: capabilities.defaultSize,
             steps: capabilities.defaultSteps,
             guidance: capabilities.defaultGuidance,
-            seed: .random(in: .min ... .max)
+            seed: .random(in: .min ... .max),
+            frames: capabilities.defaultFrames
         )
     }
 
@@ -86,6 +96,9 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
         // from nine steps to four, and on a model that conditions on the picture directly it
         // means nothing at all.
         copy.referenceStrength = descriptor.capabilities.defaultReferenceStrength
+        // A clip's length is the model's to offer: a picture model has no frames to carry
+        // over, and one video model's ladder of lengths is not another's.
+        copy.frames = descriptor.capabilities.defaultFrames
         return copy
     }
 

@@ -62,22 +62,24 @@ actor InferenceActor {
         self.locations = locations
     }
 
-    /// Produces PNG bytes, timing the denoising loop so the interface can show a countdown even
+    /// Produces the finished media, timing the denoising loop so the interface can show a countdown even
     /// when the backend reports no pace of its own. `tile` is the VAE tile this run decodes
     /// at, set here, on this queue, so the run's own model is what it applies to.
-    func generate(_ settings: GenerationSettings, tile: Int?, events: EngineEventSink) async throws -> Data {
+    func generate(_ settings: GenerationSettings, tile: Int?, events: EngineEventSink) async throws
+        -> GeneratedMedia
+    {
         guard let backend else {
             throw BackendError.loadFailed("The model has not been loaded yet.")
         }
         runtime?.setVAETileSize(tile)
         var timer = StepTimer()
-        let data = try await backend.generate(settings) { event in
+        let media = try await backend.generate(settings) { event in
             events.send(.progress(timer.annotated(event)))
         }
         // A backend looks for a cancel between steps and not after the decode; a stop that
         // landed during the decode is honoured here, so a stopped run never hands back bytes.
         try Task.checkCancellation()
-        return data
+        return media
     }
 
     /// Makes `png` `request.factor` times larger on each edge, on this same serial queue, so an

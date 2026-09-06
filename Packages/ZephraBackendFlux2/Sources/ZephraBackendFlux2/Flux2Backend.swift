@@ -72,7 +72,7 @@ public nonisolated final class Flux2Backend: ImageGenerationBackend {
     nonisolated(nonsending) public func generate(
         _ settings: GenerationSettings,
         onProgress: @escaping (GenerationProgressEvent) -> Void
-    ) async throws -> Data {
+    ) async throws -> GeneratedMedia {
         guard let descriptor = loadedDescriptor else {
             throw BackendError.loadFailed("No model is loaded.")
         }
@@ -83,13 +83,14 @@ public nonisolated final class Flux2Backend: ImageGenerationBackend {
         do {
             var request = Flux2RequestMapper.request(for: settings, descriptor: descriptor)
             request.vaeTile = tile.value
-            return try pipeline.generate(
+            let png = try pipeline.generate(
                 request,
                 onProgress: { progress in
                     onProgress(Flux2ProgressMapper.event(from: progress))
                 },
                 onPreview: onPreview
             )
+            return .image(png: png)
         } catch let error as CancellationError {
             throw error
         } catch {

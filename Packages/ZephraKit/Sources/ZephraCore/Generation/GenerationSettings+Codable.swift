@@ -9,7 +9,8 @@ import Foundation
 /// non-optional property does not fall back to its initializer's default — that fallback is a
 /// property of the memberwise initializer, not of `Decodable`. Since a missing strength means
 /// "written before strength existed", and the value that changes nothing is 1, the absent key
-/// reads as 1 rather than as a corrupt file.
+/// reads as 1 rather than as a corrupt file. `frames` reads the same way, for the same
+/// reason: a settings value written before clips existed was a picture.
 extension GenerationSettings {
     /// Spelled out because writing `init(from:)` by hand stops the compiler synthesising these
     /// too. The case names match the property names exactly, so `encode(to:)` — still
@@ -23,6 +24,7 @@ extension GenerationSettings {
         case seed
         case referenceImage
         case referenceStrength
+        case frames
     }
 
     public init(from decoder: any Decoder) throws {
@@ -36,7 +38,8 @@ extension GenerationSettings {
             seed: try container.decode(UInt64.self, forKey: .seed),
             referenceImage: try container.decodeIfPresent(Data.self, forKey: .referenceImage),
             referenceStrength: try container.decodeIfPresent(
-                Double.self, forKey: .referenceStrength) ?? 1
+                Double.self, forKey: .referenceStrength) ?? 1,
+            frames: try container.decodeIfPresent(Int.self, forKey: .frames) ?? 1
         )
     }
 }

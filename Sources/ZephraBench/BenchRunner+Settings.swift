@@ -18,6 +18,8 @@ extension BenchRunner {
         settings.prompt = prompt
         settings.size = ImageSize(width: 512, height: 512)
         settings.steps = 1
+        // The shortest clip the model makes: the warm-up pays for kernels, not for frames.
+        settings.frames = descriptor.capabilities.frameBounds.lowerBound
         settings.seed = 1
         settings.referenceImage = reference
         return descriptor.capabilities.clamp(settings)
@@ -35,8 +37,9 @@ extension BenchRunner {
     ) -> GenerationSettings {
         var settings = GenerationSettings.defaults(for: descriptor)
         settings.prompt = options.prompt
-        settings.size = ImageSize(width: options.size, height: options.size)
+        settings.size = options.size
         settings.steps = options.steps
+        if let frames = options.frames { settings.frames = frames }
         settings.seed = 42
         settings.referenceImage = reference
         settings.referenceStrength = options.referenceStrength

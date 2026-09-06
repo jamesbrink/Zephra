@@ -1,6 +1,6 @@
 extension BenchOptions {
     static let usage = """
-        usage: ZephraBench [--model ID] [--models DIR] [--size N] [--steps N] [--runs N] \
+        usage: ZephraBench [--model ID] [--models DIR] [--size N|WxH] [--steps N] [--frames N] [--runs N] \
         [--prompt TEXT] [--out PATH] [--json] [--micro] [--preview] \
         [--backend NAME --snapshot DIR] [--reference IMAGE --strength S] \
         [--stream [--stream-depth N]]
@@ -9,6 +9,11 @@ extension BenchOptions {
         --models names the folder the models live in and download into; without it the
         app's default folder is used, so pass the one Settings > Models names (the
         Makefile passes MODELS_DIR) or a run may download a model the app already has.
+        --size is one number for a square picture or WxH for anything else; a video model
+        takes the same flag for its frame size. --frames is the clip's length on a model that
+        makes one (rounded down to the model's ladder, 8k + 1 for LTX-2.5); a picture model
+        ignores it. A clip is written to --out with its extension changed to .mp4, and its
+        first frame as a PNG beside it.
         --backend and --snapshot together run a model the catalog does not carry yet, which
         is how a new family is measured before its entry can be written.
         --reference takes any picture macOS can read and measures the editing path on a

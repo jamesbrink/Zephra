@@ -20,7 +20,7 @@ enum BenchRunner {
         let descriptor =
             if let snapshot = options.snapshot, let backend = options.backend {
                 BenchDescriptor.forSnapshot(
-                    snapshot, backend: backend, size: options.size, steps: options.steps,
+                    snapshot, backend: backend, size: options.size.width, steps: options.steps,
                     supportsReferenceImage: reference != nil)
             } else {
                 ModelCatalog.descriptor(id: options.model) ?? ModelCatalog.default
@@ -64,12 +64,12 @@ enum BenchRunner {
         var previewSeconds: [Double] = []
         var lastPreview: GenerationPreview?
         var firstStep = 1
-        var image = Data()
+        var media = GeneratedMedia.image(png: Data())
         for index in 1...options.runs {
             note("run \(index) of \(options.runs)", verbose)
             let stepClock = BenchStepClock()
             let start = clock.now
-            image = try await backend.generate(settings) { event in
+            media = try await backend.generate(settings) { event in
                 stepClock.record(event)
             }
             runSeconds.append((clock.now - start).seconds)
@@ -78,7 +78,7 @@ enum BenchRunner {
             lastPreview = stepClock.lastPreview ?? lastPreview
             firstStep = stepClock.firstStep ?? 1
         }
-        try write(image, to: options.output)
+        let outputPath = try write(media, to: options.output)
         // Written beside the image, and only when frames were asked for: a frame is the one part
         // of a run whose correctness a number cannot show.
         let previewPath = try lastPreview.map {
@@ -92,8 +92,11 @@ enum BenchRunner {
         return BenchReport(
             device: runtime.deviceSummary(),
             model: descriptor.id,
-            size: settings.size.width,
+            width: settings.size.width,
+            height: settings.size.height,
             steps: settings.steps,
+            // The clamped count, so a picture model reports one frame whatever `--frames` said.
+            frames: settings.frames,
             firstStep: firstStep,
             // The clamped settings, not the options: a model that cannot read a picture, or
             // one that pins the strength at 1, should report what it actually ran.
@@ -112,7 +115,7 @@ enum BenchRunner {
             activeMemoryMB: Double(memory.activeBytes) / 1_000_000,
             cacheMemoryMB: Double(memory.cacheBytes) / 1_000_000,
             peakMemoryMB: Double(memory.peakBytes) / 1_000_000,
-            outputPath: options.output.path,
+            outputPath: outputPath,
             referencePath: settings.referenceImage == nil ? nil : options.reference?.path
         )
     }
@@ -125,10 +128,22 @@ enum BenchRunner {
         return min(8 * MemoryUnits.gibibyte, physical / 6)
     }
 
-    private static func write(_ image: Data, to url: URL) throws {
+    /// Writes the run's result and answers where. A picture goes to `url` as it is; a clip
+    /// goes to `url` with an `.mp4` extension, with its first frame as a PNG beside it, so
+    /// the poster can be looked at without a player and the path in the report is the clip.
+    private static func write(_ media: GeneratedMedia, to url: URL) throws -> String {
         let directory = url.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        try image.write(to: url)
+        switch media {
+        case .image(let png):
+            try png.write(to: url)
+            return url.path
+        case .video(let video):
+            let clip = url.deletingPathExtension().appendingPathExtension("mp4")
+            try video.mp4.write(to: clip)
+            try video.poster.write(to: url.deletingPathExtension().appendingPathExtension("png"))
+            return clip.path
+        }
     }
 
     private static func mean(_ values: [Double]) -> Double {
