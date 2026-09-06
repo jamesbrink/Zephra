@@ -2,8 +2,8 @@ import Foundation
 
 /// What can go wrong reading the tokenizer files.
 public enum LTX2TokenizerError: Error, Sendable {
-    /// One of the two JSON files is not there.
+    /// `tokenizer.json` is not there.
     case missingFile(URL)
-    /// `tokenizer.json` did not parse into a tokenizer.
+    /// `tokenizer.json` did not hold a byte-pair vocabulary, its merges, or its byte tokens.
     case malformed(URL, reason: String)
 }
