@@ -30,11 +30,13 @@ extension ImageLibrary {
     public func moveToRecentlyDeleted(_ url: URL, at date: Date = Date()) throws -> URL {
         let folder = directory(for: .recentlyDeleted)
         try ImageDirectoryAccess.prepareForWrite(folder)
-        let target = availableURL(named: url.lastPathComponent, in: folder)
+        let sidecar = VideoSidecar.existing(beside: url)
+        let target = availableURL(
+            named: url.lastPathComponent, in: folder, withCompanion: sidecar != nil)
         let origin: LibraryCollection =
             url.deletingLastPathComponent().standardizedFileURL
                 == directory(for: .sources).standardizedFileURL ? .sources : .generated
-        try FileManager.default.moveItem(at: url, to: target)
+        try Self.move(url, sidecar: sidecar, to: target)
         var manifest = recentlyDeletedManifest()
         manifest.record(target.lastPathComponent, at: date, origin: origin)
         try write(manifest)
@@ -50,8 +52,9 @@ extension ImageLibrary {
         var manifest = recentlyDeletedManifest()
         let home = directory(for: manifest.origin(name) ?? originByHeader(url))
         try ImageDirectoryAccess.prepareForWrite(home)
-        let target = availableURL(named: name, in: home)
-        try FileManager.default.moveItem(at: url, to: target)
+        let sidecar = VideoSidecar.existing(beside: url)
+        let target = availableURL(named: name, in: home, withCompanion: sidecar != nil)
+        try Self.move(url, sidecar: sidecar, to: target)
         manifest.forget(name)
         try write(manifest)
         return target
@@ -67,6 +70,15 @@ extension ImageLibrary {
         var manifest = recentlyDeletedManifest()
         manifest.forget(url.lastPathComponent)
         try write(manifest)
+    }
+
+    /// Moves a picture to `target`, and its clip beside it under the target's stem, picture
+    /// last: a clip whose poster has not moved yet is still listed where it was.
+    static func move(_ url: URL, sidecar: URL?, to target: URL) throws {
+        if let sidecar {
+            try FileManager.default.moveItem(at: sidecar, to: VideoSidecar.url(beside: target))
+        }
+        try FileManager.default.moveItem(at: url, to: target)
     }
 
     /// Where a file belongs by its own header: a source record makes it a source, anything

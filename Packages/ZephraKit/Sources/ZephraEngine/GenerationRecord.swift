@@ -72,6 +72,13 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
     public var upscaledFrom: String?
     /// How many times larger each edge was made, when this was an upscale.
     public var upscaleFactor: Int?
+    /// How many frames the clip has, when the picture is a clip's first frame; nil for a
+    /// picture. The clip itself is the MP4 beside the file under the same stem
+    /// (`VideoSidecar`), unnamed here because Put Back may rename both. Optional, so an older
+    /// build reads a newer file as it always did and the version stays 1.
+    public var frameCount: Int?
+    /// Frames per second the clip plays at, when there is one.
+    public var frameRate: Double?
 
     /// The record for a finished image.
     public init(_ image: GeneratedImage) {
@@ -92,7 +99,12 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
         batchID = image.batchID
         upscaledFrom = nil
         upscaleFactor = nil
+        frameCount = image.video?.frameCount
+        frameRate = image.video?.frameRate
     }
+
+    /// Whether the picture is a clip's first frame.
+    public var isVideo: Bool { (frameCount ?? 1) > 1 }
 
     /// What the record asks for, as a request that could be run again.
     ///
@@ -113,7 +125,8 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
             guidance: guidance,
             seed: seed,
             referenceImage: referenceImage,
-            referenceStrength: referenceStrength ?? 1
+            referenceStrength: referenceStrength ?? 1,
+            frames: frameCount ?? 1
         )
     }
 

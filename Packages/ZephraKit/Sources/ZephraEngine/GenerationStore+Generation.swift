@@ -43,14 +43,7 @@ extension GenerationStore {
                 finish()
                 return
             }
-            switch media {
-            case .image(let png):
-                complete(png, job: job, duration: clock.now - started)
-            case .video:
-                // The library's video seam is the next milestone; until then a clip has
-                // nowhere to go, and saying so beats writing a poster that pretends to be it.
-                fail(with: .backend(.generationFailed("This build cannot save a video yet.")))
-            }
+            complete(media, job: job, duration: clock.now - started)
         } catch is CancellationError {
             finish()
         } catch BackendError.cancelled {
@@ -81,13 +74,19 @@ extension GenerationStore {
     ///
     /// The batch and the model are the job's own rather than `running`'s or the store's: a
     /// cancel empties `running` and a switch moves `descriptor` before the run is over.
-    private func complete(_ data: Data, job: QueuedGeneration, duration: Duration) {
+    ///
+    /// A clip arrives as its poster and its MP4; the poster is the picture everything below
+    /// handles, and the MP4 rides along to be written beside it.
+    private func complete(_ media: GeneratedMedia, job: QueuedGeneration, duration: Duration) {
+        var video: GeneratedVideo?
+        if case .video(let clip) = media { video = clip }
         let image = GeneratedImage(
-            pngData: data,
+            pngData: media.posterPNG,
             settings: job.settings,
             modelID: job.model.id,
             duration: duration,
-            batchID: job.batchID
+            batchID: job.batchID,
+            video: video
         )
         if followsRun { current = image }
         history.insert(image, at: 0)

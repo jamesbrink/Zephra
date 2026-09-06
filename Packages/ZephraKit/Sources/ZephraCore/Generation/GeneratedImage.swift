@@ -4,8 +4,11 @@ import Foundation
 public struct GeneratedImage: Identifiable, Hashable, Sendable {
     /// Identity within a session, assigned when the image is created.
     public let id: UUID
-    /// The encoded PNG bytes.
+    /// The encoded PNG bytes: the picture, or a clip's first frame.
     public let pngData: Data
+    /// The clip this picture is the poster of, when the model made one; nil for a picture, and
+    /// nil for a clip read back from the library, whose MP4 is played from its file.
+    public let video: GeneratedVideo?
     /// The exact settings the backend ran.
     public let settings: GenerationSettings
     /// The model that produced it, as a `ModelDescriptor` identifier.
@@ -33,10 +36,12 @@ public struct GeneratedImage: Identifiable, Hashable, Sendable {
         createdAt: Date = Date(),
         duration: Duration,
         fileURL: URL? = nil,
-        batchID: UUID? = nil
+        batchID: UUID? = nil,
+        video: GeneratedVideo? = nil
     ) {
         self.id = id
         self.pngData = pngData
+        self.video = video
         self.settings = settings
         self.modelID = modelID
         self.createdAt = createdAt

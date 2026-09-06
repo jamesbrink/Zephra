@@ -46,13 +46,17 @@ public struct ImageLibraryMigration: Sendable {
                     guard GenerationRecord.decode(from: text) != nil || SourceRecord.decode(from: text) != nil
                     else { continue }
                 }
-                let path = directory.isEmpty ? url.lastPathComponent : directory + "/" + url.lastPathComponent
-                let target = destination.appending(path: path)
-                try ImageDirectoryAccess.requireDirectory(target.deletingLastPathComponent())
-                guard (try? files.attributesOfItem(atPath: target.path)) == nil else {
-                    throw ImageDirectoryError("An image or manifest already exists at \(target.path). Choose an empty folder to move this library.")
+                // A clip's MP4 travels with its poster, and is checked the same way.
+                let moving = [url] + (manifest ? [] : [VideoSidecar.existing(beside: url)].compactMap { $0 })
+                for file in moving {
+                    let path = directory.isEmpty ? file.lastPathComponent : directory + "/" + file.lastPathComponent
+                    let target = destination.appending(path: path)
+                    try ImageDirectoryAccess.requireDirectory(target.deletingLastPathComponent())
+                    guard (try? files.attributesOfItem(atPath: target.path)) == nil else {
+                        throw ImageDirectoryError("An image or manifest already exists at \(target.path). Choose an empty folder to move this library.")
+                    }
+                    found.append(try ImageMigrationFile(url: file, path: path))
                 }
-                found.append(try ImageMigrationFile(url: url, path: path))
             }
         }
         if !found.isEmpty { try requireEmptyDestinationLibrary() }

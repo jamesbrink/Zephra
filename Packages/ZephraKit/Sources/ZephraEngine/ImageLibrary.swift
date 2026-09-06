@@ -23,11 +23,16 @@ public struct ImageLibrary: Sendable {
     /// and stepping around a name that is somehow already taken.
     ///
     /// What goes on disk is the image with its `GenerationRecord` inside it, so the file is the
-    /// only thing the history needs at the next launch.
+    /// only thing the history needs at the next launch. A clip's MP4 goes beside it under the
+    /// same stem, and first: the PNG is what makes the item indexable, so a scan can never list
+    /// a clip whose file is not there yet.
     @discardableResult
     public func write(_ image: GeneratedImage) throws -> URL {
         try ImageDirectoryAccess.prepareForWrite(root)
-        let url = availableURL(named: fileName(for: image))
+        let url = availableURL(named: fileName(for: image), withCompanion: image.video != nil)
+        if let video = image.video {
+            try video.mp4.write(to: VideoSidecar.url(beside: url), options: .atomic)
+        }
         try Self.annotated(image).write(to: url, options: .atomic)
         return url
     }
@@ -61,23 +66,31 @@ public struct ImageLibrary: Sendable {
         "zephra-\(Self.stamp(image.createdAt))-s\(image.settings.seed).png"
     }
 
-    /// A name nothing in the library root is using yet.
-    func availableURL(named name: String) -> URL {
-        availableURL(named: name, in: root)
+    /// A name nothing in the library root is using yet, for a picture or, with `companion`,
+    /// for a clip whose MP4 must be free under the same stem.
+    func availableURL(named name: String, withCompanion companion: Bool = false) -> URL {
+        availableURL(named: name, in: root, withCompanion: companion)
     }
 
     /// A name nothing in `directory` is using yet: the plain one, then `-2` through `-99`, then
     /// a UUID. The last step exists so a full run of suffixes can never make a write clobber an
     /// image. Moving an image to Recently Deleted and back needs the same rule as writing one.
-    func availableURL(named name: String, in directory: URL) -> URL {
+    /// With `companion` the clip's MP4 under the same stem must be free too.
+    func availableURL(named name: String, in directory: URL, withCompanion companion: Bool = false)
+        -> URL
+    {
         let first = directory.appending(path: name)
-        guard Self.exists(first) else { return first }
+        guard Self.taken(first, withCompanion: companion) else { return first }
         let stem = first.deletingPathExtension().lastPathComponent
         for suffix in 2...99 {
             let candidate = directory.appending(path: "\(stem)-\(suffix).png")
-            if !Self.exists(candidate) { return candidate }
+            if !Self.taken(candidate, withCompanion: companion) { return candidate }
         }
         return directory.appending(path: "\(stem)-\(UUID().uuidString.lowercased()).png")
+    }
+
+    private static func taken(_ url: URL, withCompanion companion: Bool) -> Bool {
+        exists(url) || (companion && exists(VideoSidecar.url(beside: url)))
     }
 
     private static func exists(_ url: URL) -> Bool {

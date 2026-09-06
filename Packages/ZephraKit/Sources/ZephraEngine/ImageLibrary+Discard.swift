@@ -11,6 +11,15 @@ extension ImageLibrary {
     /// has already dropped the image would be worse than the delete being final, so in that
     /// case it is removed outright.
     public func discard(_ url: URL) throws {
+        // The clip first, so a failure leaves a poster that is still listed rather than a
+        // clip nothing lists.
+        if let sidecar = VideoSidecar.existing(beside: url) {
+            try Self.trashOrRemove(sidecar)
+        }
+        try Self.trashOrRemove(url)
+    }
+
+    private static func trashOrRemove(_ url: URL) throws {
         do {
             try FileManager.default.trashItem(at: url, resultingItemURL: nil)
         } catch {
