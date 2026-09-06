@@ -1,20 +1,25 @@
 # Zephra — Safelight
 
-Safelight is the selected product-page direction. One responsive layout supports
-dark and light appearances through an accessible Dark mode switch. It opens in
-dark mode. The earlier Native and Atelier layouts and comparison bar are removed.
+The selected product page supports dark and light appearances through its Dark
+mode switch. The earlier website layouts and historical app mockups are removed.
 
-Product copy is based on the Zephra README inspected on 2026-09-06. Download
-availability is explicitly a placeholder; no pricing or release date is implied.
+The product copy was checked against the current repository on 2026-09-06; see
+`CONTENT-AUDIT.md`. No public download, price, or release date is promised.
 
-Assets are copied from the user-provided Zephra project: the development
-screenshot `out/zephra-20260905-171257.png`, and the generated benchmark image `out/klein-512.png`. The historical
-`design/mock/img` placeholders are not used. The screenshot represents a development
-build, not a claim of current performance.
+## Images and identity
 
-Run `npm run dev` for local development and `npm run build` for the Sites build.
+- `public/images/app.png`: genuine Zephra window capture on 2026-09-06, showing the
+  finished copper robot image in the maximized window. No simulated generation or altered
+  app interface. The visible timing is that image's recorded run, not a benchmark
+  or performance promise.
+- `public/images/robot.png`: FLUX.2 klein 4B (4-bit) output generated through the real
+  Zephra app on 2026-09-06, 1024×1024, 4 steps, seed 4528588147396822612.
+  Both original outputs and generation metadata are in `../design/website/`.
+  Its caption is an editorial description, not a verbatim prompt.
+- The approved Zephyr originals, light/dark concept board, reusable transparent
+  masters, and prompt provenance live in `../design/branding/zephyr/`.
+  `make icon` at the repository root exports the app icons and website assets.
+  The website uses the flat mark as a theme-colored mask; favicons follow system
+  appearance. The app and DMG retain the same selected identity.
 
-Zephyr is the selected identity. The header and footer use its flat flowing Z
-with a serif wordmark, switching gold/copper with the page theme. Favicons follow
-the system appearance. Icons and marks are regenerated from the approved masters
-with `make icon` at the Zephra repository root.
+Run `npm run dev` for development and `npm run build` for the Sites build.

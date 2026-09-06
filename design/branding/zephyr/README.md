@@ -1,6 +1,6 @@
 # Zephyr identity
 
-The flowing copper Z is the selected direction from `../safelight/03-zephyr.png`.
+The flowing copper Z is the selected direction from `concept-light-dark.png`.
 These 1254×1254 PNG masters were isolated using built-in image generation:
 
 - `icon-dark.png`: charcoal tile and sculptural gold Z; canonical macOS icon.

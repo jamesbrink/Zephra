@@ -1630,7 +1630,7 @@ the same override the store runs under without a second read of the process envi
 - `make bench ARGS="--size 1024 --steps 9 --runs 3 --json"` measures load, s/step, and peak memory
   headlessly; benchmark on an idle machine, Release only. `--reference IMAGE` measures the
   editing path on a model that has one.
-- `make bench ARGS="--reference design/mock/img/a2.png --strength 0.6"` adds the strength, on a
+- `make bench ARGS="--reference /path/to/reference.png --strength 0.6"` adds the strength, on a
   model that starts from a noised copy; the report says which step the loop began at and how
   many steps actually ran, so a run that took a third of the seconds is not mistaken for a
   model that got three times faster.

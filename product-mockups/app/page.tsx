@@ -72,22 +72,22 @@ function Features({ id }: { id: string }) {
             <LockKeyhole />
             <h3>Your imagination stays here.</h3>
             <p>
-              Image generation runs on your Mac. No image uploads, accounts, or
-              telemetry. Download your models once, then create offline.
+              Image generation runs on your Mac. The app has no image uploads, accounts, or
+              telemetry. Download and prepare your models, then create offline.
             </p>
           </article>
           <article>
             <FolderHeart />
             <h3>A library that belongs to you.</h3>
             <p>
-              Favorites, tags, albums, prompts, and seeds travel with your PNGs.
+              Favorites, tags, album membership, prompts, and seeds travel with your PNGs.
               Your pictures are files you can take anywhere.
             </p>
           </article>
         </div>
       </section>
       <section className="models" id={`${id}-models`}>
-        <span className="eyebrow">THREE MODELS. ONE NATIVE WORKSPACE.</span>
+        <span className="eyebrow">THREE MODEL FAMILIES. ONE NATIVE WORKSPACE.</span>
         <div className="model-names">
           <span>Z-Image-Turbo</span>
           <span>Qwen-Image-2512</span>
@@ -111,12 +111,12 @@ function Features({ id }: { id: string }) {
         <span className="preview-label">
           In development
           <br />
-          Download not yet available
+          Public download coming later
         </span>
       </section>
       <footer>
         <Brand />
-        <span>Local image generation. Made for Mac.</span>
+        <span>© 2026 James Brink. All rights reserved.</span>
       </footer>
     </>
   );
@@ -154,14 +154,14 @@ export default function Page() {
         <div className="hero-art">
           <img
             src="/images/robot.png"
-            width={512}
-            height={512}
+            width={1024}
+            height={1024}
             fetchPriority="high"
-            alt="An image of a curious robot enjoying a newspaper in the afternoon sun"
+            alt="A copper robot reading a newspaper in warm light, generated locally with Zephra"
           />
           <div className="art-caption">
-            <span>“A robot reading in the afternoon sun”</span>
-            <span>FLUX.2 klein</span>
+            <span>A quiet moment in copper</span>
+            <span>FLUX.2 klein · Made in Zephra</span>
           </div>
           <span className="art-index">01 / A MOMENT, IMAGINED</span>
         </div>
@@ -192,13 +192,13 @@ export default function Page() {
         </div>
         <img
           src="/images/app.png"
-          width={2400}
-          height={1680}
+          width={1299}
+          height={769}
           loading="lazy"
           decoding="async"
-          alt="Zephra’s native macOS workspace showing live generation, a timeline, and an image inspector"
+          alt="Zephra’s maximized macOS window showing a completed copper robot image and its generation details"
         />
-        <small>Zephra app · Development screenshot</small>
+        <small>Zephra app · Completed image · Generated locally</small>
       </section>
       <Features id="dark" />
     </main>

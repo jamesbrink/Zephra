@@ -1,0 +1,34 @@
+[
+  {
+    "file": "zephra-20260906-123128-s16311843956241723172.png",
+    "generation": {
+      "batchID": "2D200FF5-FE21-46CB-8238-2556DBB5AC26",
+      "createdAt": "2026-09-06T19:31:28Z",
+      "durationSeconds": 13.644822875,
+      "guidance": 0,
+      "height": 1024,
+      "modelID": "flux2-klein-4b-4bit",
+      "prompt": "Editorial still life photograph of a tiny sculptural copper robot reading a folded newspaper on a warm ivory stone bench, a single olive branch casting delicate shadows, late afternoon amber sunlight, charcoal background, tactile brushed metal, quiet playful character, refined art direction, beautiful realistic materials, spacious composition, no legible text, no watermark",
+      "seed": 16311843956241723172,
+      "steps": 4,
+      "version": 1,
+      "width": 1024
+    }
+  },
+  {
+    "file": "zephra-20260906-123144-s4528588147396822612.png",
+    "generation": {
+      "batchID": "2D200FF5-FE21-46CB-8238-2556DBB5AC26",
+      "createdAt": "2026-09-06T19:31:44Z",
+      "durationSeconds": 15.384220542,
+      "guidance": 0,
+      "height": 1024,
+      "modelID": "flux2-klein-4b-4bit",
+      "prompt": "Editorial still life photograph of a tiny sculptural copper robot reading a folded newspaper on a warm ivory stone bench, a single olive branch casting delicate shadows, late afternoon amber sunlight, charcoal background, tactile brushed metal, quiet playful character, refined art direction, beautiful realistic materials, spacious composition, no legible text, no watermark",
+      "seed": 4528588147396822612,
+      "steps": 4,
+      "version": 1,
+      "width": 1024
+    }
+  }
+]

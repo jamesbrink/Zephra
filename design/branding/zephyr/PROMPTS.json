@@ -1,6 +1,6 @@
 {
   "mode": "built-in image_gen edits",
-  "reference": "design/branding/safelight/03-zephyr.png",
+  "reference": "design/branding/zephyr/concept-light-dark.png",
   "prompts": [
     {
       "name": "icon-dark",
