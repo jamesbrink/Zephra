@@ -52,15 +52,33 @@ is distributed until the app is ready to ship.
    for now: a Settings row saying where a variant came from (mirror or built here), a
    `mirror` field in the record, and any way to prefer building over fetching. Z-Image,
    Qwen-Image and klein are Apache 2.0, so hosting the packed derivatives needs the
-   attribution `THIRD_PARTY_NOTICES.md` already carries and nothing more; a model under a
-   licence with redistribution terms (LTX-2.5) would need the licence beside its files.
-8. **LTX-2.5 video.** Researched, not started; `docs/research/ltx-2.5.md` has the
-   checkpoints, the measured Apple Silicon footprints, and the fit against the seam. The
-   model port is the smaller half: the output type (MP4 with audio, no PNG chunks) cuts
-   through the library, export and inspector, and the 24 GB text encoder has to be freed
-   before the DiT loads. First step is a streamed 4-bit DiT in `ZephraBench` for a real
-   step time. The weights' community licence has a revenue gate and a non-compete clause
-   that want reading before anything ships.
+   attribution `THIRD_PARTY_NOTICES.md` already carries and nothing more; LTX-2.5's
+   packed variant carries the pack's `LICENSE.md` beside its files, as its licence asks.
+8. **LTX-2.5 video** (in progress on `feat/ltx2`; `docs/research/ltx-2.5.md` has the
+   reading). Shipped first: the video-only distilled transformer at four bits, packed from
+   the ungated `mlx-community/ltx-2.5-mlx` bf16 pack — Lightricks' own repositories are
+   gated and Zephra sends no token — with a poster PNG carrying the record and the MP4
+   beside it. Left out, in order of value:
+   - **Audio**, for Macs with the memory: a second catalog entry whose plan is
+     `LTX2QuantizationPlan` without `audioOmitted` plus the audio autoencoder and the
+     vocoder copied whole (0.37 GB more download). In the kit, `LTX2Block.audio` becomes
+     non-nil when its weights are present (`audio_attn1`, `audio_attn2`, `audio_ff`, the
+     two audio-video cross-attentions and their `scale_shift_table_a2v_ca_*`, gated by the
+     four `av_ca_*_adaln_single` conditioners), the transformer gains the audio patchify,
+     adaLN and projection, the feature extractor its `audio_aggregate_embed`, the connector
+     a second 2048-wide stack, and `LTX2AudioDecoder` plus a BigVGAN `LTX2Vocoder` are
+     ported with diffusers fixtures. `GeneratedVideo` gains an audio track and `MP4Writer`
+     appends it before the frames (appending it after deadlocks `AVAssetWriter`).
+     `ModelCapabilities.producesAudio` lets the player unmute. The video output of the
+     audio variant differs from the video-only one: the audio-to-video cross-attention
+     adds a term the video-only forward has not got.
+   - **Image-to-video**: needs `vae_encoder.safetensors` (0.64 GB) and first-frame
+     conditioning through `referenceImage`.
+   - **A duration head**, two-stage and DFR refinement, the 8-bit variant, temporal
+     chunking of the decode past ~121 frames at 1024, the prompt enhancer, and a
+     `ModelSource` for a mirror-only model should the ungated pack ever be gated too.
+   - **The M5 question**: LTX runs bfloat16 on every GPU; if an M5 shows the split-K
+     symptom klein works around, `ZEPHRA_DIT_DTYPE=f32` is the bisection lever.
 
 Deferred: **ERNIE-Image-Turbo** (eight to twelve days for legible in-image text at
 16 GB; the Mistral3 encoder is the new work), **Boogu-Image-0.1-Turbo** (a credible

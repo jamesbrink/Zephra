@@ -43,21 +43,24 @@ extension ModelCatalog {
         ),
         quantization: .int4,
         downloadBytes: ltx2DownloadBytes,
-        // Estimates from the tensor sizes, to be replaced by measurements on an M4 Max at
-        // 768 x 512, 49 frames: 7.0 GB of 4-bit transformer, 1.6 GB of connector and
-        // projection, 6.5 GB of 4-bit encoder with an 8-bit token table, and the 0.8 GB
-        // decoder in bfloat16. Peak adds the attention over 6144 tokens and the decoder's
+        // Estimates, to be replaced by measurements on an M4 Max at 768 x 512, 49 frames:
+        // the 19.3 GB build less the float32 scales the loader casts to bfloat16, about
+        // 17 GB resident; peak adds the attention over 6144 tokens and the decoder's
         // intermediates at that size; streamed, the two stacks leave their non-streamed
-        // remainder resident.
-        residentBytes: 16_500_000_000,
-        peakBytes: 20_000_000_000,
-        tiledPeakBytes: 20_000_000_000,
+        // remainder — the embeddings, the projection, the conditioning and the decoder —
+        // resident.
+        residentBytes: 17_000_000_000,
+        peakBytes: 21_000_000_000,
+        tiledPeakBytes: 21_000_000_000,
         streamedPeakBytes: 8_000_000_000,
         // Gemma is padded to 1024 tokens and the connector reads every position.
         maxPromptTokens: 1024,
         capabilities: ltx2Capabilities,
-        // Estimate, see above; measured by the first `make quantize-ltx2`.
-        builtBytes: 16_000_000_000,
+        // Measured: 19,263,078,400 bytes written by the first `make quantize-ltx2` in 82 s —
+        // 8.56 GB of transformer (480 four-bit linears with float32 scales and biases, the
+        // conditioning whole), 1.89 GB of connector with its 8-bit projection, 8.00 GB of
+        // encoder with its 8-bit token table, and the 0.81 GB decoder copied as it is.
+        builtBytes: 19_270_000_000,
         mirror: mirror
     )
 
