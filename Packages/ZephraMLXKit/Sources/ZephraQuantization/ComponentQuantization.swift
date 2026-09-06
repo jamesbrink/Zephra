@@ -50,8 +50,9 @@ public struct ComponentQuantization {
     /// Converts the component and returns a manifest entry per packed layer.
     public func run() throws -> [QuantizationManifest.Layer] {
         let sourceDirectory = component.sourceDirectoryURL(in: source)
-        guard FileManager.default.fileExists(
-            atPath: sourceDirectory.path(percentEncoded: false))
+        // A component whose shards are named has no directory of its own to be missing.
+        guard component.sourceFiles.isEmpty == false
+            || FileManager.default.fileExists(atPath: sourceDirectory.path(percentEncoded: false))
         else {
             throw QuantizationError.missingComponent(
                 name: component.directoryName, directory: sourceDirectory)

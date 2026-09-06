@@ -69,10 +69,10 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
     ) throws -> QuantizationPlan {
         switch self {
         case .zImage:
-            ZImageQuantizationPlan.plan(
+            return ZImageQuantizationPlan.plan(
                 transformer: transformer, textEncoder: textEncoder, adapters: adapters)
         case .qwenImage:
-            QwenImageQuantizationPlan.plan(
+            return QwenImageQuantizationPlan.plan(
                 transformer: transformer,
                 textEncoder: textEncoder,
                 modulation: transformer.bits < 8
@@ -81,7 +81,7 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
                 adapters: adapters
             )
         case .flux2:
-            Flux2QuantizationPlan.plan(
+            return Flux2QuantizationPlan.plan(
                 transformer: transformer, textEncoder: textEncoder, adapters: adapters)
         case .ltx2:
             if !adapters.isEmpty {
