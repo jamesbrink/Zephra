@@ -936,12 +936,17 @@ Makefile targets:
   (`MLX_PACKAGES` in the Makefile, written `directory:scheme`). Slower, needs
   `xcodebuild`. `make test-backend` is kept as an alias. Keep `make test`
   MLX-free.
-- `make icon` — re-render `AppIcon.appiconset` from `scripts/make-icon.swift`.
+- `make icon` — resize the approved Zephyr PNG masters in `design/branding/zephyr/`
+  into `AppIcon.appiconset` and the website icons/marks with `scripts/make-icon.swift`.
+  The dark master is the standard Finder/Dock icon; both appearances are retained
+  for the website. Do not replace the selected artwork with a procedural glyph.
 - `make signed-build` — build Release and sign the app with a Developer ID
   Application identity. Sources `~/Documents/Zephra Signing/signing.env` when present.
 - `make release` — build Release, sign with a Developer ID Application identity
   (hardened runtime, secure timestamp), verify, and package `build/Zephra.zip` plus
-  signed `build/Zephra.dmg` with an Applications shortcut. Secure timestamping
+  signed `build/Zephra.dmg` with an Applications shortcut. The DMG file and mounted
+  volume use the app's compiled `AppIcon.icns`; `verify-dmg.sh` checks the volume
+  icon matches the bundled app and that the volume custom-icon flag is set. Secure timestamping
   needs Apple's server. `SIGN_IDENTITY` overrides the auto-detected certificate.
   `VERSION=MAJOR.MINOR.PATCH` and `BUILD_NUMBER=<positive integer>` stamp the
   bundle (`MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`, passed to `xcodebuild`

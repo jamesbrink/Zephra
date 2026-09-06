@@ -8,6 +8,6 @@ Each contains light and dark app icons plus matching logo lockups.
   more intricate at small sizes.
 - `03-zephyr.png`: flowing organic Z; expressive silhouette and flat emblem.
 
-These are exploration boards, not production icon exports. The existing website
-and macOS app icon remain unchanged pending a selection. Full generation and edit
-prompts are retained in `PROMPTS.md`.
+Zephyr (03) is selected. Production masters and their integration notes are in
+`../zephyr/`; these original exploration boards remain as design history.
+Full generation and edit prompts are retained in `PROMPTS.md`.

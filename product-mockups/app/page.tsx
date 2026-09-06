@@ -12,7 +12,7 @@ import {
 function Brand() {
   return (
     <a className="brand" href="#top">
-      <img src="/images/icon.png" alt="" width={38} height={38} />
+      <span className="brand-mark" aria-hidden="true" />
       Zephra
     </a>
   );

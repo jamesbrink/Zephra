@@ -13,7 +13,12 @@ hdiutil attach "$DMG" -readonly -nobrowse -mountpoint "$MOUNT" -quiet
 [ -d "$MOUNT/Zephra.app" ] || { echo "verify: installer is missing Zephra.app"; exit 1; }
 [ -L "$MOUNT/Applications" ] && [ "$(readlink "$MOUNT/Applications")" = /Applications ] \
     || { echo "verify: installer is missing the Applications shortcut"; exit 1; }
+[ -f "$MOUNT/.VolumeIcon.icns" ] \
+    && cmp -s "$MOUNT/.VolumeIcon.icns" "$MOUNT/Zephra.app/Contents/Resources/AppIcon.icns" \
+    || { echo "verify: volume and app icons do not match"; exit 1; }
+xcrun GetFileInfo -a "$MOUNT" | grep -q C \
+    || { echo "verify: volume custom-icon flag is missing"; exit 1; }
 codesign --verify --deep --strict --verbose=2 "$MOUNT/Zephra.app"
 xcrun stapler validate "$MOUNT/Zephra.app"
 spctl -a -t exec -vv "$MOUNT/Zephra.app"
-echo "verify: mounted installer app and Applications shortcut passed"
+echo "verify: mounted installer app, branding, and Applications shortcut passed"

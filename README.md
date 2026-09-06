@@ -274,3 +274,11 @@ artifacts. It does not run on pushes or publish a GitHub release.
 
 Proprietary; all rights reserved. See [LICENSE](LICENSE). Third-party components
 are covered by their own licenses in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+### Zephyr branding
+
+The selected icon is the flowing copper Z in `design/branding/zephyr/`. Run
+`make icon` to regenerate every macOS app-icon size and the website's light/dark
+icons and flat marks from the approved PNG masters. The app uses the dark tile
+as its standard Finder/Dock icon; the website switches the flat mark with its
+appearance. The DMG file and mounted volume inherit the app's compiled icon.

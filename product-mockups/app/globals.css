@@ -559,3 +559,18 @@ html:has(.safelight[data-theme='light']) {
   background: #faf9f6;
   color-scheme: light;
 }
+
+/* Zephyr: the selected flowing-Z emblem and serif wordmark. */
+.brand {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 30px;
+  font-weight: 500;
+}
+.brand-mark {
+  display: block;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  background-color: var(--accent);
+  mask: url('/images/mark.png') center / contain no-repeat;
+}
