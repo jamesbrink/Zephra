@@ -33,7 +33,12 @@ public enum LTX2FirstFramePixels {
                     space: CGColorSpaceCreateDeviceRGB(),
                     bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)
             else { return false }
-            context.interpolationQuality = .high
+            // Plain bilinear, not `.high`'s anti-aliased downsample: diffusers' condition
+            // pipeline (`pipeline_ltx2_condition.py`, resizing a keyframe) deliberately skips
+            // `VideoProcessor.preprocess_video`, whose PIL resize applies an anti-aliasing
+            // pre-filter, and reproduces the original LTX-2.X code's plain `F.interpolate(...,
+            // mode="bilinear")` instead. `.default` is CoreGraphics' own bilinear, matching that.
+            context.interpolationQuality = .default
             context.draw(image, in: Self.fill(image, width: width, height: height))
             return true
         }
