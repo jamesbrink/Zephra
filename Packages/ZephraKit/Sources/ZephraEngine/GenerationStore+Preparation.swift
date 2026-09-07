@@ -48,6 +48,8 @@ extension GenerationStore {
             loadedDirectory = directory
             loadedResidency = residency
             loadedDescriptor = model
+            // A load that lands on the chosen model is what a picture's choice was waiting for.
+            if model.id == descriptor.id { modelAwaitsGenerate = false }
             transition(to: .ready)
         } catch {
             // Even a failed load may have allocated weights. Settle them before releasing

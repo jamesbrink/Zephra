@@ -42,12 +42,12 @@ public final class GenerationStore {
     /// The model whose weights are resident right now, or nil while none are. It trails
     /// `descriptor` whenever a switch is waiting for the queue to drain.
     public internal(set) var loadedDescriptor: ModelDescriptor?
-    /// True when `descriptor` was taken from a picture — a square on the sidebar's wall, the
-    /// running card — rather than chosen in the menu, and the loaded model is to stay put until
-    /// a generation asks for the chosen one. Looking at pictures made by three models must not
-    /// swap weights three times; pressing Generate is what does. Cleared by every explicit
-    /// choice: a menu pick, Generate, a variation.
+    /// True when `descriptor` was taken from a picture rather than chosen, and the loaded model
+    /// stays put until Generate asks for the chosen one; see `GenerationStore+Interaction`.
     public internal(set) var modelAwaitsGenerate = false
+    /// True while the capsule holds a picture's settings (`select(_:)`) rather than the user's
+    /// own, which is when the running card puts the run's back; see `watchRun()`.
+    var capsuleHoldsPicture = false
     /// The directory those weights were read from, so a settings row can tell the one copy
     /// that is in use from a duplicate of the same model elsewhere. Nil while none are.
     public internal(set) var loadedDirectory: URL?
@@ -60,29 +60,24 @@ public final class GenerationStore {
     /// needs. The queue accepts more work throughout.
     public internal(set) var isSwitchingForQueue = false
     /// True from the moment a model swap is asked for until the new model has loaded or the
-    /// swap was stopped. While it is true the state passes through `.idle` without meaning
-    /// "nothing to do", so nothing else may start a load.
+    /// swap was stopped; the state passes through `.idle` meanwhile, so nothing else may load.
     public internal(set) var isSwappingModel = false
-    /// Called with the file an image was just written to, once it is on disk, so the app can
-    /// hand the library index that one file rather than rescanning the folder for it.
+    /// Called with the file an image was just written to, so the app can hand the library index
+    /// that one file rather than rescanning the folder for it.
     public var onImageSaved: (@MainActor (URL) -> Void)?
-    /// Called with the file an image was moved out of when it was deleted from the filmstrip, so
-    /// the app can tell the library index about it without waiting for a folder watch.
+    /// Called with the file an image deleted from the filmstrip was moved out of, so the app
+    /// can tell the library index without waiting for a folder watch.
     public var onImageDeleted: (@MainActor (URL) -> Void)?
-    /// The most recent thing the library could not do for this store — an image that could not
-    /// be opened, so far — or nil when the last one worked.
+    /// The most recent thing the library could not do for this store, or nil when it worked.
     public internal(set) var lastLibraryFailure: LibraryFailure?
     /// Whether a load ends with a throwaway generation that pays the kernel-compilation cost
-    /// up front. The engine has no idea where the answer comes from; the app sets it from the
-    /// user's preference before it calls `bootstrap()`.
+    /// up front; the app sets it from the user's preference before it calls `bootstrap()`.
     public var warmsUpAfterLoad = true
-    /// What this Mac's GPU may keep resident, which is what a fallback model is chosen by. The
-    /// engine cannot ask the GPU itself; the app sets it from the runtime before `bootstrap()`,
-    /// and until then the answer is the fraction of RAM a GPU-less budget assumes.
+    /// What this Mac's GPU may keep resident, which is what a fallback model is chosen by; the
+    /// app sets it from the runtime before `bootstrap()`, else a GPU-less budget's share of RAM.
     public var memoryBudget = MemoryBudget(physicalMemory: ProcessInfo.processInfo.physicalMemory)
-    /// Where the weights of the next model loaded should live, from the user's preference and
-    /// the budget. Set through `setWeightResidencyPolicy(_:)` once the store is running, which
-    /// reloads a model already up the other way; set directly before `bootstrap()`.
+    /// Where the weights of the next model loaded should live. Set through
+    /// `setWeightResidencyPolicy(_:)` once running, which reloads a model up the other way.
     public var weightResidencyPolicy = WeightResidencyPolicy(
         mode: .automatic,
         budget: MemoryBudget(physicalMemory: ProcessInfo.processInfo.physicalMemory))
@@ -91,8 +86,7 @@ public final class GenerationStore {
     public var vaeTilingPolicy = VAETilingPolicy(
         mode: .automatic,
         budget: MemoryBudget(physicalMemory: ProcessInfo.processInfo.physicalMemory))
-    /// How the loaded model's weights are held, for the Performance tab and the loading text.
-    /// Nil while nothing is loaded.
+    /// How the loaded model's weights are held, for the Performance tab; nil while none are.
     public internal(set) var loadedResidency: WeightResidency?
     /// Progress while model files and their destination are being changed.
     public internal(set) var modelDirectoryProgress: String?
@@ -111,8 +105,7 @@ public final class GenerationStore {
     static let historyLimit = 24
 
     // Machinery, not surface: internal rather than private so the extensions can reach them.
-    /// Which backend runs which model family, or nil for a preview store, which has none and so
-    /// never loads, generates, or reaches a model at all.
+    /// Which backend runs which model family; nil for a preview store, which never loads.
     let registry: BackendRegistry?
     /// How to build the one upscaler, or nil for a build that carries none — a preview store,
     /// or a tool. Nil is what greys every Upscale button, with no other rule needed.

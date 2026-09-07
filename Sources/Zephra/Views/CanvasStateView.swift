@@ -1,4 +1,5 @@
 import SwiftUI
+import ZephraCore
 import ZephraEngine
 
 /// What the canvas says when it is not simply showing a picture: the download, the load,
@@ -37,11 +38,13 @@ struct CanvasStateView: View {
         .padding(.bottom, workspace.promptTucked ? 24 : 128)
     }
 
+    /// The model the headline is about: the one being prepared, since a picture picked up
+    /// from the sidebar meanwhile moves `descriptor` without moving the load.
+    private var model: ModelDescriptor { store.modelInUse ?? store.descriptor }
+
     @ViewBuilder
     private var messageBlock: some View {
-        if let title = store.state.title(
-            for: store.descriptor, availability: store.availability[store.descriptor.id]
-        ) {
+        if let title = store.state.title(for: model, availability: store.availability[model.id]) {
             Text(title)
                 .font(.title3)
                 .foregroundStyle(.primary)

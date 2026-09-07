@@ -12,11 +12,17 @@ extension GenerationStore {
     /// takes effect for whatever is generated next. Nothing is persisted here: which model was
     /// chosen is the app's business.
     public func switchModel(to descriptor: ModelDescriptor) {
-        guard acceptsWork, descriptor.id != self.descriptor.id else { return }
+        // Picking the model the menu already shows is a choice too when that model was a
+        // picture's and is waiting to be loaded: it is the one way to say "load it now".
+        guard acceptsWork, descriptor.id != self.descriptor.id || modelAwaitsGenerate else { return }
         logger.info("model chosen: \(descriptor.id, privacy: .public)")
-        adopt(descriptor)
-        // A pick in the menu is the explicit choice a picture's adoption was waiting for.
+        if descriptor.id != self.descriptor.id { adopt(descriptor) }
+        // A pick in the menu is the explicit choice a picture's adoption was waiting for, and
+        // a picture still being read for the capsule must not land on top of it.
         modelAwaitsGenerate = false
+        capsuleHoldsPicture = false
+        openTask?.cancel()
+        openTask = nil
         if let registry { _ = downloads.start(descriptor, registry: registry, locations: locations) }
         guard !isDraining, !isUpscaling, queue.isEmpty else { return }
         // Picking the model that is loaded — back from a picture's — has nothing to swap.

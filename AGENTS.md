@@ -308,9 +308,11 @@ Generate — or asking for a variation — starts *following the run*, and openi
 selecting any other picture stops. A result is published to `current` only while
 `followsRun`; one that lands while the user is looking elsewhere still enters
 history, the wall and the library, and leaves the canvas where it is.
-`watchRun()` follows again and puts the run's own settings back in the capsule,
-clamped to the model the capsule is on; `isShowingRun` is "following, and
-something is running", and `hasPicture` in the app target is
+`watchRun()` follows again and, when a picture picked up from the sidebar has
+replaced the capsule's settings and model since (`capsuleHoldsPicture`), puts
+the run's own back — a capsule the user has been working in, a model picked
+mid-run or the next prompt being typed, it leaves alone; `isShowingRun` is
+"following, and something is running", and `hasPicture` in the app target is
 `current != nil || isShowingRun`, so the inspector has something to describe
 from the moment a run starts. Two ways onto the canvas from the library, told
 apart by what they do to the capsule: `open(_ item:)` only looks, so the grid's
@@ -871,11 +873,23 @@ on an empty queue, which otherwise brings the loaded model in line with the
 chosen one when a run ends, leaves it alone while the flag is up. Every
 explicit choice clears the flag: Generate (the drain then swaps to the first
 entry's model as it always did), a pick in the menu (`switchModel`, which
-swaps nothing when the pick is the model already loaded), a variation. The
-running card's `watchRun()` restores the run's model the same way, which is
-the loaded one, so nothing waits. A picture from a model this build has
+swaps nothing when the pick is the model already loaded, and which takes a
+pick of the model the menu already shows as "load it now" when that model is
+waiting — the one way a person has to say so), a variation, and a load that
+lands on the chosen model. `retry()` over another model's weights — a run on
+them failed, and a picture's model was chosen since — goes through `reload`
+so the old lease goes back rather than a bare load leaving it held, and
+Resume on a download row takes the retry branch only while nothing is
+loaded. A menu pick cancels a square's read still in flight, so the read
+never lands on top of it. The running card's `watchRun()` restores the run's
+model the same way, which is the loaded one, so nothing waits. While the
+flag is up, the Generate button's tooltip says what pressing it loads or
+downloads first, and the canvas headline, the window subtitle and the
+background notice name `modelInUse` — the loaded model, or the one on its
+way in — rather than the chosen one. A picture from a model this build has
 dropped keeps the current model and takes its schedule, clamped, as a
-variation of one does. `DeferredModelTests` pins all of it.
+variation of one does. `DeferredModelTests` and `DeferredModelEdgeTests` pin
+all of it.
 
 `InferenceActor` keeps one backend at a time and rebuilds it whenever a
 descriptor names a different family, so the old weights are always released

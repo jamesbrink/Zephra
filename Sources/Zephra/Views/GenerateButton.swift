@@ -1,4 +1,5 @@
 import SwiftUI
+import ZephraCore
 import ZephraEngine
 
 /// The primary action. It never changes its word: Generate starts an image when the engine is
@@ -43,8 +44,23 @@ struct GenerateButton: View {
         }
         // canQueue rather than isBusy: while a picture is being made larger nothing may be
         // queued at all, so a disabled button must not offer to queue anything behind it.
-        guard store.canQueue, store.state.isBusy else { return "Generate an image" }
-        return "Queue this prompt behind the current image"
+        guard store.canQueue, store.state.isBusy else { return "Generate an image" + loadNote }
+        return "Queue this prompt behind the current image" + loadNote
+    }
+
+    /// What pressing Generate costs first when the chosen model is a picture's and not the one
+    /// loaded: the size is on the screen before the download starts, here as everywhere else.
+    private var loadNote: String {
+        guard store.modelAwaitsGenerate else { return "" }
+        let name = store.descriptor.fullName
+        switch store.availability[store.descriptor.id] {
+        case .needsDownload(let bytes), .needsDownloadAndBuild(let bytes):
+            return ". Downloads \(ByteCount.gigabytes(bytes)) for \(name) first"
+        case .needsBuild:
+            return ". Builds \(name) first"
+        default:
+            return ". Loads \(name) first"
+        }
     }
 }
 

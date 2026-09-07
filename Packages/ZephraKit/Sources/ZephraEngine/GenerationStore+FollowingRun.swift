@@ -23,20 +23,21 @@ extension GenerationStore {
     /// else. What the running card in the sidebar does when it is clicked.
     ///
     /// The next frame lands in `livePreview` as it would have anyway, and the run's result is
-    /// published to the canvas because `followsRun` is true by the time it arrives. The run's
-    /// own settings and model come back into the capsule too, so the card is a run to pick up
-    /// again the way a square on the wall is, and not only a picture to watch: clicking away
-    /// onto an earlier picture adopted that picture's settings and model, and coming back
-    /// undoes it. The run's model is the loaded one, so nothing waits for Generate; with
-    /// nothing running there is nothing to restore.
+    /// published to the canvas because `followsRun` is true by the time it arrives. When a
+    /// picture has been picked up meanwhile — a square on the wall, which put its settings and
+    /// its model in the capsule — the run's own come back, so the card is the way back to the
+    /// run and not only to its frames. A capsule the user has been working in is left alone:
+    /// a model picked in the menu mid-run and the next prompt being typed are not a picture's
+    /// to undo. The run's model is the loaded one, so nothing waits for Generate.
     public func watchRun() {
         startFollowingRun()
-        guard let running else { return }
+        guard let running, capsuleHoldsPicture else { return }
         // The run's settings carry its own reference, or none; a library read still on its
         // way was for the settings being replaced, as in `select(_:)`.
         _ = claimReference()
         adoptForGenerate(running.model)
         settings = running.settings
+        capsuleHoldsPicture = false
     }
 
     /// Starts following, which is what every explicit "make me an image now" does.

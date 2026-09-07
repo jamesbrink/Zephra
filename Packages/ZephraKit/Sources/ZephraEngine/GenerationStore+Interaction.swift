@@ -36,6 +36,7 @@ extension GenerationStore {
         // library read still on its way was for the settings being replaced.
         _ = claimReference()
         current = image
+        capsuleHoldsPicture = true
         if let known = ModelCatalog.descriptor(id: image.modelID) {
             adoptForGenerate(known)
             settings = image.settings
@@ -53,8 +54,10 @@ extension GenerationStore {
 
     /// The model whose weights are resident, or the one on its way in: a picture chosen while
     /// the launch's model is still warming up must wait for Generate as it would a moment
-    /// later, and must not be the model remembered for the next launch either.
-    var modelInUse: ModelDescriptor? { loadedDescriptor ?? preparingModel }
+    /// later, and must not be the model remembered for the next launch either. What the
+    /// canvas's headline and a background notice name while something is being prepared, since
+    /// `descriptor` may by then be a picture's.
+    public var modelInUse: ModelDescriptor? { loadedDescriptor ?? preparingModel }
 
     /// The model the next launch should open on: the one chosen, unless the choice is only a
     /// picture's and is waiting for Generate, in which case the one in use — a picture looked

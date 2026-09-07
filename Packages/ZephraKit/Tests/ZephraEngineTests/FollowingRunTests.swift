@@ -363,3 +363,102 @@ struct DeferredModelTests {
         await store.settle()
     }
 }
+
+/// What the review of the deferred model found and pinned.
+@Suite("a picture's model, at the edges")
+@MainActor
+struct DeferredModelEdgeTests {
+    private let other = ModelCatalog.zImageTurbo4bit
+
+    private func picture(of model: ModelDescriptor) -> GeneratedImage {
+        GeneratedImage(
+            pngData: Data([1]), settings: .defaults(for: model), modelID: model.id,
+            duration: .seconds(1))
+    }
+
+    @Test("Try Again after a failed run swaps to the picture's model and gives the old lease back")
+    func retryAfterAFailureSwaps() async throws {
+        let bed = EngineTestBed()
+        bed.control.update { $0.stepDelay = .zero; $0.generateError = .generationFailed("kernel panic") }
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        store.settings.prompt = "a lighthouse"
+        store.generate()
+        while store.isRunning { await store.settle() }
+        guard case .failed = store.state else { Issue.record("the run did not fail"); return }
+        store.select(picture(of: other))
+        #expect(store.modelAwaitsGenerate)
+
+        store.retry()
+        await store.settle()
+
+        #expect(store.loadedDescriptor?.id == other.id)
+        #expect(bed.control.settings.unloads == 1, "the old model's weights went back first")
+        #expect(!store.modelAwaitsGenerate, "the load landed on the chosen model")
+        #expect(store.state == .ready)
+    }
+
+    @Test("picking the chosen-but-unloaded model in the menu is what loads it")
+    func pickingTheWaitingModelLoadsIt() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        store.select(picture(of: other))
+        #expect(store.modelAwaitsGenerate)
+
+        store.switchModel(to: other)
+        await store.settle()
+
+        #expect(!store.modelAwaitsGenerate)
+        #expect(store.loadedDescriptor?.id == other.id)
+        #expect(store.state == .ready)
+    }
+
+    @Test("watching the run leaves a capsule the user has been working in alone")
+    func watchRunLeavesTheUsersCapsule() async throws {
+        let bed = EngineTestBed()
+        bed.control.update { $0.stepDelay = .milliseconds(10) }
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        store.settings.prompt = "a lighthouse"
+        store.generate()
+        try await bed.waitForStep()
+        store.switchModel(to: other)
+        store.settings.prompt = "the next one"
+        store.stopFollowingRun()
+
+        store.watchRun()
+
+        #expect(store.isShowingRun)
+        #expect(store.descriptor.id == other.id, "the menu pick stands")
+        #expect(store.settings.prompt == "the next one", "and so does the prompt")
+        while store.isDraining || store.isSwappingModel { await store.settle() }
+        await store.settle()
+        #expect(store.loadedDescriptor?.id == other.id, "the pick landed when the run ended")
+    }
+
+    @Test("a menu pick made while a square's file is still being read wins")
+    func menuPickBeatsARead() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        try bed.library.write(LibraryAnnotationTests.image(seed: 11, prompt: "a harbour"))
+        let item = try #require(LibraryScan(library: bed.library).rescan().first)
+        store.settings.prompt = "a lighthouse"
+
+        let read = Task { await store.select(item) }
+        // The click's task has started and is waiting on the file by the time a menu pick
+        // could follow it; the yield stands for the event loop's turn between the two.
+        try await Task.sleep(for: .milliseconds(1))
+        store.switchModel(to: other)
+        await read.value
+        await store.settle()
+
+        #expect(store.descriptor.id == other.id)
+        #expect(store.settings.prompt == "a lighthouse", "the read was abandoned")
+    }
+}

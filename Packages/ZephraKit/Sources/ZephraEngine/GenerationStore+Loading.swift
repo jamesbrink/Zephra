@@ -54,6 +54,13 @@ extension GenerationStore {
         }
         // A swap passes through .idle while the old weights go back; only the swap may load.
         if isSwappingModel, !asSwap { return nil }
+        // Another model's weights are up — a generation on it failed, and a picture's model
+        // has been chosen since — so this is a swap, not a load: the old lease goes back
+        // first, or Settings > Models would show it in use for the rest of the session.
+        if let loadedDescriptor, loadedDescriptor.id != model.id, !asSwap {
+            reload(model, thenDrain: false)
+            return switchTask
+        }
         // Retry after a generation failure: the weights are up and the lease is held, so
         // there is nothing to fetch, build or load. Answer ready and touch neither the pool
         // nor the actor; a second borrow of the same request could never be given back.

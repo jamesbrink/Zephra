@@ -9,7 +9,9 @@ struct BackgroundNoticeObserver: ViewModifier {
 
     func body(content: Content) -> some View {
         content.onChange(of: store.state) { old, new in
-            let model = store.descriptor.fullName
+            // The model whose state moved, which is the one in use; a picture's choice may
+            // have moved `descriptor` elsewhere meanwhile.
+            let model = (store.modelInUse ?? store.descriptor).fullName
             if let notice = BackgroundNotice.transition(from: old, to: new, model: model) {
                 BackgroundNotices.post(notice)
             }

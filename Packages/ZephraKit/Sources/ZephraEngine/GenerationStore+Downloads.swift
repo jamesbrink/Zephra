@@ -22,7 +22,11 @@ extension GenerationStore {
 
     public func resumeDownload(_ model: ModelDescriptor) {
         guard acceptsWork, let registry else { return }
-        if model.id == descriptor.id, !isDraining, !isUpscaling, !isSwappingModel, !isStoppingPreparation {
+        // Retry is the load itself, and only while nothing is loaded: with another model up
+        // and this one merely chosen, a retry would answer ready and resume nothing.
+        if model.id == descriptor.id, loadedDescriptor == nil, !isDraining, !isUpscaling,
+            !isSwappingModel, !isStoppingPreparation
+        {
             retry()
         } else { _ = downloads.start(model, registry: registry, locations: locations) }
     }

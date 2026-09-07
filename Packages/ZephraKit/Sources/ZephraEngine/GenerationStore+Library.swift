@@ -83,6 +83,7 @@ extension GenerationStore {
         _ = claimReference()
         descriptor = model
         modelAwaitsGenerate = false
+        capsuleHoldsPicture = false
         settings = request
         queue.append(QueuedGeneration(model: model, settings: request))
         if isDraining {
