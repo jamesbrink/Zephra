@@ -60,7 +60,9 @@ fi
 # first load from a 16 GB release in the models folder, plus 5.4 GB (4-bit) or 8.6 GB (8-bit) of
 # packed variant beside it, and running out of disk half-way through the build is the bad
 # outcome worth a line here. The figures are the catalog's `downloadBytes` and `builtBytes`.
-free_gb=$(df -g "$HOME" | awk 'NR == 2 { print $4 }')
+# POSIX `df -P -k`, not `df -g`: the latter is BSD-only, and a Nix or Homebrew coreutils `df`
+# ahead of /bin on PATH rejects it.
+free_gb=$(df -P -k "$HOME" | awk 'NR == 2 { printf "%d", $4 / 1048576 }')
 if [ -n "$free_gb" ] && [ "$free_gb" -lt 40 ]; then
     printf 'note  %s GB free on the home volume; FLUX.2 klein wants about 22 GB (16 GB release plus the packed variant); the release is a row in Settings > Models once the build is done\n' "$free_gb"
 fi
