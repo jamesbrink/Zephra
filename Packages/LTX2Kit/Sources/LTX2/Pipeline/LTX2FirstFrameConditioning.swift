@@ -52,6 +52,15 @@ public enum LTX2FirstFrameConditioning {
 
     /// The picture put back where the mask is exactly 1, after the step has moved everything.
     /// A mask that holds nothing at full strength leaves the sample alone.
+    ///
+    /// `mask .>= 1` is an exact float comparison on purpose, not a tolerance the reference
+    /// happens to need: re-imposing is meant only for the frame held exactly, which is
+    /// `strength == 1` here and the interface's `referenceStrength == 0` before
+    /// `LTX2RequestMapper` inverts it — the default, and the one end of the slider a person
+    /// picks by landing on it rather than by arithmetic that could round short. `1 - 0` is exact
+    /// in floating point, so that mask is exactly 1 with no accumulated error to guard against,
+    /// and the slider's other steps (0.05 apart, `referenceStrengthBounds: 0.0...0.9`) land at
+    /// `strength` no closer to 1 than 0.95, comfortably clear of this comparison.
     public static func imposed(_ sample: MLXArray, clean: MLXArray, mask: MLXArray) -> MLXArray {
         MLX.where(mask .>= 1, clean, sample)
     }
