@@ -1426,7 +1426,12 @@ the snapshot, not whichever is listed first"); match that when adding one.
   selection — and nothing that needs a window. The scheme's test action sets
   `ZEPHRA_PREVIEW_STATE=ready`, so the host launches frozen with no model. The
   test target takes `ZephraTestSupport` for `Scratch`, and its files default to
-  the main actor the way the app's do. One suite:
+  the main actor the way the app's do. A test that needs a media file reads
+  one committed under `Tests/ZephraTests/Fixtures` (a resource folder of the
+  target, found through the test bundle) and never writes one with
+  `AVAssetWriter` inside the host: a writer run there left CoreMedia's threads
+  parked after the suite, the frozen host never exited, and `make test-app`
+  waited on it for good. `ClipFramesTests` is the example. One suite:
   `make test-app` with `-only-testing:ZephraTests/ExportPlanTests` appended to
   the `xcodebuild` line, or from Xcode.
 - One suite or test:
