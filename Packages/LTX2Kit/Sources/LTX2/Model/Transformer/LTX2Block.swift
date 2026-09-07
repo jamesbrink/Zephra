@@ -54,7 +54,7 @@ final class LTX2Block: Module {
         rotary: LTX2RotaryTable,
         textMask: MLXArray? = nil
     ) -> MLXArray {
-        let rows = Self.rows(table, conditioning.modulation, as: hidden.dtype)
+        let rows = Self.rows(table, conditioning, as: hidden.dtype)
         let promptRows = Self.rows(promptTable, conditioning.prompt, as: hidden.dtype)
         var x = hidden
 
@@ -74,5 +74,27 @@ final class LTX2Block: Module {
     static func rows(_ table: MLXArray, _ modulation: MLXArray, as dtype: DType) -> [MLXArray] {
         let summed = (table.asType(.float32) + modulation.asType(.float32)).asType(dtype)
         return (0..<table.shape[0]).map { summed[0..., 0..., $0, 0...] }
+    }
+
+    /// The same, per token, when a first frame is held: the step's own rows everywhere and the
+    /// held frame's over the marked tokens. Without a held frame this is the line above and
+    /// nothing else, so a text-to-video run computes exactly what it computed before.
+    static func rows(
+        _ table: MLXArray, _ conditioning: LTX2BlockConditioning, as dtype: DType
+    ) -> [MLXArray] {
+        let plain = rows(table, conditioning.modulation, as: dtype)
+        guard let conditioned = conditioning.conditioned, let marker = conditioning.marker
+        else { return plain }
+        return blended(plain, rows(table, conditioned, as: dtype), marker: marker)
+    }
+
+    /// One row picked per token: the held frame's where `marker` is true, the step's elsewhere.
+    ///
+    /// Chosen row by row rather than over the whole `[batch, 1, rows, dim]` table, because
+    /// selecting before the rows are split broadcasts all nine of them to every token at once —
+    /// a quarter of a gigabyte a block on a 768 x 512 clip. Row by row each result is one
+    /// activation, `[1, tokens, dim]`, which is what the block is about to multiply anyway.
+    static func blended(_ plain: [MLXArray], _ held: [MLXArray], marker: MLXArray) -> [MLXArray] {
+        zip(plain, held).map { MLX.where(marker, $1, $0) }
     }
 }

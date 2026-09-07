@@ -226,11 +226,82 @@ def dump_model(out: pathlib.Path) -> None:
     print(f"transformer_model: {len(tensors)} tensors")
 
 
+def dump_conditioned(out: pathlib.Path) -> None:
+    """The same model with a first frame held, and the conditioning arithmetic around it.
+
+    Holding a frame is a per-token noise level. `timestep` becomes `[1, tokens]` with the first
+    latent frame's tokens at `sigma * (1 - strength)` and the rest at `sigma`, while the scalar
+    `sigma` kwarg the prompt's own adaLN reads stays what it was; the reference is handed exactly
+    that and decides for itself which modulation is per-token and which is not, rather than being
+    fed a modulation tensor computed here.
+
+    Two strengths: 1, where the frame is held exactly and the difference from the plain forward
+    is largest, and 0.6, where the field takes two values neither of which is the plain sigma's.
+
+    The step arithmetic beside it is `pipeline_ltx2_condition.py`'s, and it is the whole of what
+    a conditioned step does around the model: `x0 = sample - v * sigma` at the **scalar** sigma,
+    the blend into `x0` space (never velocity space, which is what the reference's own comment
+    warns about), and the conversion back. The sampler step that follows is not dumped: the
+    reference pipeline drives a `FlowMatchEulerDiscreteScheduler` and this port walks LTX-2.5's
+    own ancestral Euler ladder, which `LTX2DistilledScheduleTests` pins separately, so a
+    scheduler step dumped here would pin the wrong one.
+    """
+    model = _model()
+    tensors = _weights(model, "model.")
+    inputs = _inputs()
+    latent = torch.randn(1, TOKENS, VIDEO["in_channels"])
+    sigma = torch.tensor([0.725])
+    marked = HEIGHT * WIDTH
+    model.proj_in = _MarkedPatchify(model.proj_in, model.keyframes_abs_pos_embedding, marked)
+
+    mask = torch.zeros(1, TOKENS, 1)
+    mask[:, :marked] = 1.0
+    for strength in (1.0, 0.6):
+        timestep = (sigma[:, None] * 1000) * (1 - mask[..., 0] * strength)  # [1, tokens]
+        with torch.no_grad():
+            video, _ = model(
+                hidden_states=latent,
+                audio_hidden_states=torch.randn(1, 4, AUDIO["audio_in_channels"]),
+                encoder_hidden_states=inputs["text"],
+                audio_encoder_hidden_states=inputs["audio_text"],
+                # The audio lane keeps the scalar, as the reference's own image-to-video
+                # pipeline passes it: without that it is handed the video's per-token field and
+                # tries to modulate four audio tokens with twenty-four video ones.
+                timestep=timestep, audio_timestep=sigma * 1000, sigma=sigma * 1000,
+                num_frames=FRAMES, height=HEIGHT, width=WIDTH, fps=FPS, audio_num_frames=4,
+                isolate_modalities=True, return_dict=False,
+            )
+        label = f"{strength:g}".replace(".", "_")
+        tensors[f"out.tokens.{label}"] = video.contiguous()
+
+    # The blend, at the one strength that is not all-or-nothing.
+    torch.manual_seed(3)
+    velocity = torch.randn(1, TOKENS, VIDEO["out_channels"])
+    clean = torch.randn(1, TOKENS, VIDEO["out_channels"])
+    strength_mask = mask * 0.6
+    scalar = float(sigma.item())
+    x0 = latent - velocity * scalar
+    x0_conditioned = x0 * (1 - strength_mask) + clean * strength_mask
+    velocity_back = (latent - x0_conditioned) / scalar
+
+    tensors.update({
+        "in.tokens": latent, "in.text": inputs["text"], "in.sigma": sigma,
+        "in.marked": torch.tensor([marked], dtype=torch.int32),
+        "in.velocity": velocity, "in.clean": clean, "in.mask": strength_mask,
+        "out.x0": x0.contiguous(),
+        "out.x0_conditioned": x0_conditioned.contiguous(),
+        "out.velocity": velocity_back.contiguous(),
+    })
+    save_file(tensors, str(out / "transformer_conditioned.safetensors"))
+    print(f"transformer_conditioned: {len(tensors)} tensors")
+
+
 DUMPERS = {
     "rope": dump_rope,
     "timestep": dump_timestep,
     "transformer_block": dump_block,
     "transformer_model": dump_model,
+    "transformer_conditioned": dump_conditioned,
 }
 
 
