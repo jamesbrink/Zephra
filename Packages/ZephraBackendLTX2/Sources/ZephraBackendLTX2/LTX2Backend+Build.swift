@@ -25,7 +25,7 @@ extension LTX2Backend {
             return try LocalSnapshot.ltx2.verified(
                 candidates.first ?? locations.built(descriptor), descriptor: descriptor)
         case .huggingFace:
-            if let packed = LocalSnapshot.ltx2.packedVariant(of: descriptor, in: locations) {
+            if let packed = LTX2PackedVariant.find(of: descriptor, in: locations) {
                 return packed
             }
             if let here = LocalSnapshot.ltx2Release.downloadedRelease(of: descriptor, in: locations) {
@@ -53,7 +53,7 @@ extension LTX2Backend {
         onProgress: @escaping @Sendable (BuildProgressEvent) -> Void
     ) async throws -> URL {
         guard descriptor.isBuiltLocally else { return localPath }
-        if let packed = LocalSnapshot.ltx2.packedVariant(of: descriptor, in: locations) {
+        if let packed = LTX2PackedVariant.find(of: descriptor, in: locations) {
             return packed
         }
         try ModelDirectoryAccess.prepare(locations.root)

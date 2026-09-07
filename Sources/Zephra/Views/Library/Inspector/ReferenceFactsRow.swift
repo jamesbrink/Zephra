@@ -95,14 +95,22 @@ struct ReferenceFactsRow: View {
         facts.referenceOrigin.flatMap(index.item(named:))
     }
 
+    /// Puts the old picture down first and checks for cancellation after every await: the
+    /// selection can move while a read is in flight, `.task(id:)` cancels this task but not
+    /// the detached read or the decode it awaits, and a slow source landing after a quick one
+    /// would put the wrong picture beside the new selection's facts.
     private func loadThumbnail() async {
+        thumbnail = nil
+        let png: Data?
         switch source {
         case .library(let item, _):
-            let png = await Task.detached(priority: .userInitiated) { item.referenceImage }.value
-            guard let png else { return }
-            thumbnail = await cache.referenceThumbnail(png)
+            png = await Task.detached(priority: .userInitiated) { item.referenceImage }.value
         case .bytes(let data, _):
-            thumbnail = await cache.referenceThumbnail(data)
+            png = data
         }
+        guard !Task.isCancelled, let png else { return }
+        let made = await cache.referenceThumbnail(png)
+        guard !Task.isCancelled else { return }
+        thumbnail = made
     }
 }

@@ -77,7 +77,7 @@ or guarantees for every Mac. Reference-image editing can use more memory.
 | Z-Image-Turbo, 8-bit | 13.3 GB | — | 12.2 GB | 23.5 / 17.7 GB |
 | Z-Image-Turbo, 4-bit | 32.9 GB | 7.1 GB | 6.6 GB | 17.8 / 12.0 GB |
 | Qwen-Image-2512, 4-bit | 59.4 GB | 21.6 GB | 21.5 GB | 30.4 / 26.1 GB |
-| LTX-2.5, 4-bit, video only | 69.0 GB | 19.3 GB | 17.5 GB | 21.8 GB at 768×512, 49 frames |
+| LTX-2.5, 4-bit, video only | 69.6 GB | 19.8 GB | 18.2 GB | 22.4 GB at 768×512, 49 frames |
 
 The source download is retained alongside the built copy, so allow space for
 both. Qwen-Image's download includes its four-step Lightning adapter, merged

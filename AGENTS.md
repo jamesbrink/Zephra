@@ -1229,8 +1229,8 @@ Makefile targets:
 - `make quantize-ltx2` — the build the app does on first load, by hand: pack the
   LTX-2.5 pack from `LTX2_SOURCE` into
   `~/Library/Application Support/Zephra/Models/ltx-2.5-distilled-4bit` (`LTX2_OUT`
-  overrides), fetching the source first when it is not there. 82 s once the
-  source is local; 19.3 GB out.
+  overrides), fetching the source first when it is not there. 88 s once the
+  source is local; 19.8 GB out, the video encoder copied beside the decoder.
 - `make mirror` — build every variant the app packs on first load into one directory
   laid out for a bucket: `MIRROR_DIR/<catalog id>/`, each exactly what
   `locations.built(descriptor)` holds on a Mac, provenance stamp included, plus an
@@ -1869,11 +1869,15 @@ tiling changes nothing for it and `tiledPeakBytes` is the plain peak. Nothing
 tells the running-run inspector a clip's length yet; it shows the steps as it
 does for every family.
 
-Measured on an M4 Max, seed 42, resident: the default 768 x 512 clip of 49
-frames in 63.4 s at 7.0 s a step, 17521 MB live and 21787 MB peak, loading in
-4.3 s; a 9-frame 512 x 288 clip in 10.4 s at 0.90 s a step with the same peak,
-which says the peak is the load's (the float32 scales before their cast) and not
-the decode's. Streamed, both stacks: 8369 MB peak and 4103 MB live, 8.09 GB
+Measured on an M4 Max, seed 42, resident, with the video encoder loaded: the
+default 768 x 512 clip of 49 frames in 63.4 s at 7.0 s a step, 18159 MB live and
+22425 MB peak, loading in 4.8 s (17521 MB and 21787 MB before the encoder was
+part of the load, so the encoder is the 638 MB between); a 9-frame 512 x 288 clip
+in 10.4 s at 0.90 s a step with the same peak, which says the peak is the load's
+(the float32 scales before their cast) and not the decode's. Holding a first
+frame costs nothing the bench can see: 65.6 s at strength 0 and 68.8 s at 0.6 on
+a busy machine, the same peak, and the text-to-video poster byte for byte what it
+was before the encoder was loaded. Streamed, both stacks: 8369 MB peak and 4103 MB live, 8.09 GB
 read per step at 1.19 GB/s, 6.6 s a step (the same pace: the M4 Max's SSD keeps
 up), and a poster byte for byte the resident run's. On bender, the 16 GB M4
 mini, the same streamed clip: 8284 MB peak, 4103 MB live, 25.5 s a step and 232 s

@@ -47,16 +47,18 @@ extension ModelCatalog {
         ),
         quantization: .int4,
         downloadBytes: ltx2DownloadBytes,
-        // Measured on an M4 Max, eight steps, seed 42, at 768 x 512 and 49 frames: 17521 MB
-        // live after a generation and 21787 MB peak, the same peak a 9-frame 512 x 288 clip
-        // reached, so the peak is the load's — the float32 scales before their cast — and not
-        // the decode's. 63.4 s a clip at 7.0 s a step; the 9-frame clip took 0.90 s a step.
-        // There is no tiled decode yet, so the tiled figure is the plain one. The video
-        // encoder a held first frame is read by adds 0.64 GB of bf16 weights to all three
-        // figures; they have not been re-measured with it loaded.
-        residentBytes: 17_520_000_000,
-        peakBytes: 21_790_000_000,
-        tiledPeakBytes: 21_790_000_000,
+        // Measured on an M4 Max, eight steps, seed 42, at 768 x 512 and 49 frames, with the
+        // video encoder resident: 18159 MB live after a generation and 22425 MB peak. Before
+        // the encoder was loaded the same run measured 17521 MB and 21787 MB, so the encoder is
+        // the 638 MB between them and the peak is still the load's — the float32 scales before
+        // their cast — and not the decode's, which a 9-frame 512 x 288 clip reaching the same
+        // peak already said. 63.4 s a clip at 7.0 s a step; holding a first frame costs
+        // nothing measurable (65.6 s at strength 0, 68.8 s at 0.6, on a busy machine) and the
+        // peak does not move. There is no tiled decode yet, so the tiled figure is the plain
+        // one.
+        residentBytes: 18_160_000_000,
+        peakBytes: 22_430_000_000,
+        tiledPeakBytes: 22_430_000_000,
         // Measured the same way with both stacks streamed: 8369 MB peak and 4103 MB live,
         // 8.09 GB read per step at 1.19 GB/s, 6.6 s a step — the same pace as resident on an
         // M4 Max, whose SSD keeps up — and a poster byte for byte the resident run's. On the
@@ -67,13 +69,12 @@ extension ModelCatalog {
         // Gemma is padded to 1024 tokens and the connector reads every position.
         maxPromptTokens: 1024,
         capabilities: ltx2Capabilities,
-        // Measured: 19,263,078,400 bytes written by the first `make quantize-ltx2` in 82 s —
-        // 8.56 GB of transformer (480 four-bit linears with float32 scales and biases, the
-        // conditioning whole), 1.89 GB of connector with its 8-bit projection, 8.00 GB of
-        // encoder with its 8-bit token table, and the 0.81 GB decoder copied as it is. Plus
-        // the video encoder's 637,885,335 bytes, copied as it is for the same reason:
-        // 19,900,963,735 in all. Arithmetic, to be re-measured.
-        builtBytes: 19_910_000_000,
+        // Measured: 19,843,588,073 bytes written by `make quantize-ltx2` in 88 s — 8.56 GB of
+        // transformer (480 four-bit linears with float32 scales and biases, the conditioning
+        // whole), 1.89 GB of connector with its 8-bit projection, 8.00 GB of text encoder with
+        // its 8-bit token table, and the autoencoder's two files, the 0.81 GB decoder and the
+        // 0.64 GB encoder, copied as they are into one shard.
+        builtBytes: 19_850_000_000,
         mirror: mirror
     )
 

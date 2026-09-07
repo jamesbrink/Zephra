@@ -21,7 +21,7 @@ extension LTX2Backend {
             let missing = LocalSnapshot.ltx2.missingEntry(in: candidates[0]) ?? "its weights"
             return .missing(reason: "Not built yet: \(missing) is missing. Run `make quantize-ltx2`.")
         case .huggingFace:
-            if LocalSnapshot.ltx2.packedVariant(of: descriptor, in: locations) != nil {
+            if LTX2PackedVariant.find(of: descriptor, in: locations) != nil {
                 return .available
             }
             let release = LocalSnapshot.ltx2Release.downloadedRelease(of: descriptor, in: locations)
