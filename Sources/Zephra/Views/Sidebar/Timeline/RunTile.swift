@@ -8,20 +8,24 @@ import ZephraEngine
 /// timeline's tile: a run's row is laid out once and then filled in, rather than growing a
 /// square at a time as the seeds land.
 ///
-/// An indexed picture opens on the canvas without adopting its settings, through the same
-/// `openLibraryItem` action the library grid and the inspector use, and wears the same
-/// `LibraryItemMenu` the grid does — every image in the app is meant to, and `LibraryItemMenu`
-/// takes no selection to move when there is none, which is the sidebar's case.
+/// A square is a run to pick up again, whichever kind it is: an indexed picture goes onto the
+/// canvas *with* its settings through `GenerationStore.select(_:)`, the way a fresh one does
+/// through `FilmstripThumbnail`, so the prompt, the size and the seed land in the capsule and
+/// the running card puts the run's own back. That is the one place a click on a picture adopts
+/// its settings without being asked; the library grid's "Open in Canvas" only looks. Every
+/// square wears the same `LibraryItemMenu` the grid does — every image in the app is meant to,
+/// and `LibraryItemMenu` takes no selection to move when there is none, which is the sidebar's
+/// case.
 struct RunTile: View {
     /// What this square stands for.
     let tile: TimelineTile
 
-    @Environment(\.openLibraryItem) private var open
+    @Environment(GenerationStore.self) private var store
 
     var body: some View {
         switch tile {
         case .item(let item):
-            Button { open(item) } label: {
+            Button { Task { await store.select(item) } } label: {
                 LibraryThumbnail(item: item)
                     .overlay(alignment: .topLeading) {
                         if let upscale = item.upscale {

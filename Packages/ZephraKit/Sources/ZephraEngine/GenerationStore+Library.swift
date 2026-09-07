@@ -11,6 +11,27 @@ extension GenerationStore {
     /// when a variation is asked for, which is an explicit act. A second open supersedes the
     /// first, so clicking down a row of thumbnails does not queue up a row of reads.
     public func open(_ item: LibraryItem) async {
+        await show(item) { store, image in store.current = image }
+    }
+
+    /// Shows a library image on the canvas *and* adopts its settings, the way `select(_:)` does
+    /// for a picture this session made: what the canvas sidebar's wall does, where every square
+    /// is a run to pick up again — the prompt, the size, the seed and the picture it was edited
+    /// from land in the capsule, so the obvious next move is to tweak one thing and generate.
+    ///
+    /// The settings are adopted when the bytes arrive, not when the square is clicked, because
+    /// they are read out of the file with the picture; a click on the running card or another
+    /// square in between cancels the read and nothing is adopted.
+    public func select(_ item: LibraryItem) async {
+        await show(item) { store, image in store.select(image) }
+    }
+
+    /// The read behind `open(_:)` and `select(_:)`: off the main actor, superseding any read
+    /// still in flight, and publishing through `publish` when the bytes are back.
+    private func show(
+        _ item: LibraryItem,
+        publish: @escaping @MainActor (GenerationStore, GeneratedImage) -> Void
+    ) async {
         guard !isChangingImageDirectory else { return }
         // Looking at something else is what stops the canvas following the run. Said here
         // rather than when the bytes arrive, so a slow read does not leave the run's frames
@@ -26,7 +47,7 @@ extension GenerationStore {
                 return
             }
             lastLibraryFailure = nil
-            current = image
+            publish(self, image)
         }
         openTask = task
         await task.value

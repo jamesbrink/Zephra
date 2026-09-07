@@ -161,3 +161,68 @@ struct FollowingRunTests {
         }
     }
 }
+
+/// The sidebar's wall and its running card are both a run to pick up again, so both move the
+/// capsule's settings, not only the canvas.
+@Suite("picking a run up again from the sidebar")
+@MainActor
+struct SidebarSelectionTests {
+    @Test("selecting a library picture shows it and adopts its settings; opening only shows it")
+    func selectAdoptsAndOpenDoesNot() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        await store.bootstrap()
+        try bed.library.write(LibraryAnnotationTests.image(seed: 11, prompt: "a harbour"))
+        let item = try #require(LibraryScan(library: bed.library).rescan().first)
+        store.settings.prompt = "a lighthouse"
+
+        await store.open(item)
+        #expect(store.current?.settings.prompt == "a harbour")
+        #expect(store.settings.prompt == "a lighthouse", "looking adopts nothing")
+
+        await store.select(item)
+        #expect(store.current?.settings.prompt == "a harbour")
+        #expect(store.settings.prompt == "a harbour")
+        #expect(store.settings.seed == 11)
+        #expect(!store.followsRun)
+    }
+
+    @Test("watching the run again puts the run's own settings back in the capsule")
+    func watchRunRestoresTheRunsSettings() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        bed.control.update { $0.stepDelay = .milliseconds(10) }
+        await store.bootstrap()
+        store.settings.prompt = "a lighthouse"
+        store.settings.seed = 7
+        var earlierSettings = store.settings
+        earlierSettings.prompt = "a harbour"
+        earlierSettings.seed = 11
+        let earlier = GeneratedImage(
+            pngData: Data([1, 2, 3]), settings: earlierSettings, modelID: store.descriptor.id,
+            duration: .seconds(1))
+
+        store.generate()
+        try await bed.waitForStep()
+        store.select(earlier)
+        #expect(store.settings.prompt == "a harbour")
+        #expect(store.settings.seed == 11)
+
+        store.watchRun()
+        #expect(store.isShowingRun)
+        #expect(store.settings.prompt == "a lighthouse")
+        #expect(store.settings.seed == 7)
+        await store.settle()
+    }
+
+    @Test("with nothing running, watching again changes no settings")
+    func watchRunWithNothingRunning() async {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        await store.bootstrap()
+        store.settings.prompt = "a lighthouse"
+
+        store.watchRun()
+        #expect(store.settings.prompt == "a lighthouse")
+    }
+}

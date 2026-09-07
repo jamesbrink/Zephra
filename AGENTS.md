@@ -308,9 +308,16 @@ Generate — or asking for a variation — starts *following the run*, and openi
 selecting any other picture stops. A result is published to `current` only while
 `followsRun`; one that lands while the user is looking elsewhere still enters
 history, the wall and the library, and leaves the canvas where it is.
-`watchRun()` follows again, `isShowingRun` is "following, and something is
-running", and `hasPicture` in the app target is `current != nil || isShowingRun`,
-so the inspector has something to describe from the moment a run starts. The
+`watchRun()` follows again and puts the run's own settings back in the capsule,
+clamped to the model the capsule is on; `isShowingRun` is "following, and
+something is running", and `hasPicture` in the app target is
+`current != nil || isShowingRun`, so the inspector has something to describe
+from the moment a run starts. Two ways onto the canvas from the library, told
+apart by what they do to the capsule: `open(_ item:)` only looks, so the grid's
+"Open in Canvas" never replaces the prompt being written, and `select(_ item:)`
+adopts the picture's settings as `select(_ image:)` does for a session's own,
+which is what every square on the canvas sidebar's wall does — a square is a run
+to pick up again, and the running card is the way back to the one in flight. The
 upscale result follows the same rule by the one test it can apply: it takes the
 canvas only when the canvas was showing its parent, or was showing nothing.
 
@@ -738,8 +745,11 @@ Four directories, by what a file is rather than what screen it is on:
   strength even with the model running; the dim to 60 % went with the frames,
   which say "this is not the new one" properly.
   `Sidebar/Timeline/RunningRunCard` is the way back: a button calling
-  `watchRun()`, still amber, wearing the accent ring the wall's squares wear
-  when the canvas is showing the run — and no square wears it meanwhile —
+  `watchRun()`, which also puts the run's settings back in the capsule after a
+  square on the wall (`RunTile`, through `GenerationStore.select(_ item:)`)
+  replaced them with its picture's, still amber, wearing the accent ring the
+  wall's squares wear when the canvas is showing the run — and no square wears
+  it meanwhile —
   with `RunPreviewThumbnail`, the newest frame at 36 pt, at its leading edge,
   so a run is worth glancing at while you are looking at something else.
   `GenerationPreview.makeImage()` in `Support/` is the one place bytes become
