@@ -1824,8 +1824,8 @@ and both lose more than a block does at four. Every audio-side tensor is left
 out by one list, `audioOmitted` (`audio`, `a2v`, `v2a`, and `av_ca_` as a prefix
 under `transformer.`), so the audio variant's plan is this plan without it;
 `LTX2TransformerWeights.audioMarkers` says the same words in the kit, and
-`WeightKeyCoverageTests` is what keeps the two agreeing. The build is 82 s once the pack is local
-and writes 19.9 GB (`builtBytes`, arithmetic since the encoder was added): 8.56 GB
+`WeightKeyCoverageTests` is what keeps the two agreeing. The build is 88 s once the pack is local
+and writes 19.84 GB (`builtBytes`, measured: 19,843,588,073 bytes): 8.56 GB
 of transformer, 1.89 of connector, 8.00 of Gemma, and the 0.81 GB video decoder
 and 0.64 GB video encoder copied as they are, since three-dimensional convolutions
 cannot be packed. At load the float32 scales are cast to the
