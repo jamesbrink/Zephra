@@ -905,8 +905,10 @@ downloads first, and the canvas headline, the window subtitle and the
 background notice name `modelInUse` — the loaded model, or the one on its
 way in — rather than the chosen one. A picture from a model this build has
 dropped keeps the current model and takes its schedule, clamped, as a
-variation of one does. `DeferredModelTests` and `DeferredModelEdgeTests` pin
-all of it.
+variation of one does. `GenerationStore.animate(origin:read:)` chooses the
+clip model by exactly this rule, so Animate never swaps weights either; see
+"Starting from a picture". `DeferredModelTests` and `DeferredModelEdgeTests` pin
+all of it, `AnimateTests` the animation's half.
 
 `InferenceActor` keeps one backend at a time and rebuilds it whenever a
 descriptor names a different family, so the old weights are always released
@@ -1266,6 +1268,29 @@ For the models where it does apply:
 - `GenerationRecord.referenceStrength` records what ran, beside
   `referenceBytes`. Nil when there was no picture; 1 when the model conditioned
   on it directly, which is how a klein edit says it had no distance to travel.
+- `GenerationSettings.referenceOrigin`, recorded as `GenerationRecord`'s field
+  of the same name, is the library **file name** the picture came out of — nil
+  for a file chooser pick or a drop, and a name rather than a path for the
+  reason the record lives inside the PNG. `useAsReference` and `adoptReference`
+  take it beside the picture, clearing the picture clears it, and `clamp` drops
+  it wherever it drops the picture; `LibraryIndex.item(named:)` is the lookup
+  back to the file, Recently Deleted excluded. `ImageFacts` shows it beside
+  `referenceStrength` and the raw `referenceStrengthValue`, since LTX-2.5's
+  scale runs the other way and its 0 is a phrase rather than a number.
+
+Animating a picture is the third thing a picture can be, and it is one call:
+`GenerationStore.animate(origin:read:)` picks whichever catalog entry makes
+clips *and* reads a picture (`ModelCatalog.animator(among:)` — a capability
+question, so the engine still names no family), chooses it without loading it,
+sets the clip's length to that model's default, and reads the picture through
+the same numbered choice every other door into the well uses. The prompt is
+kept: the person is animating this picture with their prompt, which is what
+tells Animate apart from a variation. `canAnimate` is `acceptsWork` and this
+build having such a model, which is what the interface shows or hides the
+button by. The size follows the picture in `useAsReference` rather than in
+`animate` — on a model that makes clips a picture landing in the well moves
+`settings.size` to `ModelCapabilities.preset(nearestAspect:)` of the picture's
+own pixels — so a drop, the picker, Use as Reference and Animate all agree.
 
 Each backend package decodes the bytes to a `CGImage` in its own
 `ReferenceImageDecoding` — a small file duplicated per package, because no backend
