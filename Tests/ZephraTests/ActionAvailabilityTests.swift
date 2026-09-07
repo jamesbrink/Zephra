@@ -8,15 +8,32 @@ import ZephraCore
 /// Why "Use as Reference" or "Animate" is disabled, when it is.
 @Suite("why an action button is disabled")
 struct ActionAvailabilityTests {
+    /// Every model the catalog ships reads a picture now, so the model that does not has to be
+    /// built rather than borrowed, as `ReferenceImageTests` does.
+    private static let textOnly = ModelCapabilities(
+        sizeAlignment: 64,
+        sizePresets: [ImageSize(width: 1024, height: 1024)],
+        sizeBounds: 512...1024,
+        defaultSize: ImageSize(width: 1024, height: 1024),
+        stepBounds: 1...9,
+        defaultSteps: 9,
+        guidanceBounds: 0...0,
+        defaultGuidance: 0,
+        supportsNegativePrompt: false,
+        supportsSeed: true,
+        supportsReferenceImage: false
+    )
+
     @Test("Use as Reference names the model as the reason, or says nothing once it is live")
     func referenceReason() {
         #expect(
-            ActionAvailability.referenceDisabledReason(
-                capabilities: ModelCatalog.flux2Klein4bit.capabilities)
+            ActionAvailability.referenceDisabledReason(capabilities: Self.textOnly)
                 == "This model does not read a picture")
-        #expect(
-            ActionAvailability.referenceDisabledReason(
-                capabilities: ModelCatalog.zImageTurbo8bit.capabilities) == "")
+        for model in ModelCatalog.all {
+            #expect(
+                ActionAvailability.referenceDisabledReason(capabilities: model.capabilities) == "",
+                "\(model.id) reads a picture")
+        }
     }
 
     @Test("a picture always has a source; a clip has one once it is on disk or in memory")
