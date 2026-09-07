@@ -473,11 +473,15 @@ struct DeferredModelEdgeTests {
         let item = try #require(LibraryScan(library: bed.library).rescan().first)
         store.settings.prompt = "a lighthouse"
 
+        // The pick has to land while the square's read is still in flight. A sleep of a
+        // millisecond raced a warm disk and lost when this suite ran alone, so the read is
+        // held on purpose until the pick has been made: the semaphore is the file's slowness.
+        let gate = DispatchSemaphore(value: 0)
+        store.beforeLibraryRead = { gate.wait() }
         let read = Task { await store.select(item) }
-        // The click's task has started and is waiting on the file by the time a menu pick
-        // could follow it; the yield stands for the event loop's turn between the two.
-        try await Task.sleep(for: .milliseconds(1))
+        while store.openTask == nil { await Task.yield() }
         store.switchModel(to: other)
+        gate.signal()
         await read.value
         await store.settle()
 

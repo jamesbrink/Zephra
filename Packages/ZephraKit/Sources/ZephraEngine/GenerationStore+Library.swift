@@ -38,7 +38,11 @@ extension GenerationStore {
         // playing under a picture that is on its way.
         stopFollowingRun()
         openTask?.cancel()
+        let holdRead = beforeLibraryRead
         let task = Task { [weak self] in
+            // A test's hold on the read, so a choice made while the file is still being read
+            // can be exercised without racing a warm disk; nil everywhere else.
+            holdRead?()
             let opened = await Self.read(item)
             guard !Task.isCancelled, let self else { return }
             guard let image = opened else {

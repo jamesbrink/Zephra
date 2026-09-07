@@ -954,8 +954,9 @@ lands on the chosen model. `retry()` over another model's weights — a run on
 them failed, and a picture's model was chosen since — goes through `reload`
 so the old lease goes back rather than a bare load leaving it held, and
 Resume on a download row takes the retry branch only while nothing is
-loaded. A menu pick cancels a square's read still in flight, so the read
-never lands on top of it. The running card's `watchRun()` restores the run's
+loaded. A menu pick cancels a square's read still in flight, and abandons
+a picture still on its way into the well (an Animate whose read has not
+landed), so neither lands on top of it. The running card's `watchRun()` restores the run's
 model the same way, which is the loaded one, so nothing waits. While the
 flag is up, the Generate button's tooltip says what pressing it loads or
 downloads first, and the canvas headline, the window subtitle and the

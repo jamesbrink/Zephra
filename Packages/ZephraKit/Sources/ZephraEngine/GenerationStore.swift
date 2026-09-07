@@ -126,6 +126,8 @@ public final class GenerationStore {
     @ObservationIgnored var saveTask: Task<Void, Never>?
     @ObservationIgnored var libraryTask: Task<Void, Never>?
     @ObservationIgnored var openTask: Task<Void, Never>?
+    /// A test's hold on a library read, run before the file is read; nil outside tests.
+    @ObservationIgnored var beforeLibraryRead: (@Sendable () -> Void)?
     @ObservationIgnored var upscaleTask: Task<Void, Never>?
 
     /// Images deleted from the filmstrip before their save landed; `attach` moves the file on

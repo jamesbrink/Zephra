@@ -151,6 +151,30 @@ struct AnimateTests {
         #expect(store.capsuleHoldsPicture == capsuleBefore)
     }
 
+    @Test("a model picked in the menu while the picture is still being read wins over the animation")
+    func aMenuPickBeatsAReadStillInFlight() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        let other = ModelCatalog.flux2Klein4bit
+        let picture = Self.landscape
+
+        store.animate(with: Self.video, origin: nil) {
+            try? await Task.sleep(for: .milliseconds(150))
+            return picture
+        }
+        #expect(store.isAdoptingReference)
+        store.switchModel(to: other)
+        #expect(!store.isAdoptingReference, "the pick abandoned the read")
+        try await Task.sleep(for: .milliseconds(300))
+        await store.settle()
+
+        #expect(store.descriptor.id == other.id, "the later choice stands")
+        #expect(store.settings.referenceImage == nil, "the animation's picture never landed")
+        #expect(store.settings.frames == 1)
+    }
+
     @Test("this build ships a model that animates a picture, and the catalog names which")
     func theCatalogHasOne() async throws {
         let bed = EngineTestBed()

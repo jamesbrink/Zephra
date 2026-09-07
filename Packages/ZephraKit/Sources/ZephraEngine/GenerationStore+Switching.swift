@@ -18,11 +18,15 @@ extension GenerationStore {
         logger.info("model chosen: \(descriptor.id, privacy: .public)")
         if descriptor.id != self.descriptor.id { adopt(descriptor) }
         // A pick in the menu is the explicit choice a picture's adoption was waiting for, and
-        // a picture still being read for the capsule must not land on top of it.
+        // a picture still being read for the capsule must not land on top of it. Nor may a
+        // picture still on its way into the well: an Animate whose read lands after the pick
+        // would choose its clip model over the one just picked, so the pick takes the ticket and
+        // the read is abandoned where it stands.
         modelAwaitsGenerate = false
         capsuleHoldsPicture = false
         openTask?.cancel()
         openTask = nil
+        _ = claimReference()
         if let registry { _ = downloads.start(descriptor, registry: registry, locations: locations) }
         guard !isDraining, !isUpscaling, queue.isEmpty else { return }
         // Picking the model that is loaded — back from a picture's — has nothing to swap.
