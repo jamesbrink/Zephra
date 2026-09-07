@@ -9,6 +9,12 @@ import ZephraEngine
 /// Over an empty canvas the words sit on the graphite; over a picture they get a floating
 /// panel, because a download's progress or a failure's remedy drawn straight onto a photograph
 /// cannot be read.
+///
+/// One state steps aside: a model that simply is not loaded, over a picture, is a note and not
+/// an event. A person who opened a picture from the sidebar opened it to look at it, and a
+/// panel across its middle saying the model is not up reads as the picture failing to open;
+/// the panel sits at the top edge instead, remedy and all, and the picture is what the canvas
+/// shows. A download, a build or a failure stays centred, since those are what is happening.
 struct CanvasStateView: View {
     @Environment(GenerationStore.self) private var store
     @Environment(WorkspaceSelection.self) private var workspace
@@ -35,8 +41,14 @@ struct CanvasStateView: View {
         .multilineTextAlignment(.center)
         .frame(maxWidth: 460)
         // Room for the floating capsule, or just the lip once the prompt has tucked away.
-        .padding(.bottom, workspace.promptTucked ? 24 : 128)
+        .padding(.bottom, stepsAside ? 0 : workspace.promptTucked ? 24 : 128)
+        .padding(.top, stepsAside ? 20 : 0)
+        .frame(maxHeight: .infinity, alignment: stepsAside ? .top : .center)
     }
+
+    /// Whether the message sits at the top edge rather than over the picture: not loaded, with
+    /// a picture to look at.
+    private var stepsAside: Bool { store.state == .idle && store.current != nil }
 
     /// The model the headline is about: the one being prepared, since a picture picked up
     /// from the sidebar meanwhile moves `descriptor` without moving the load.

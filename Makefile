@@ -405,3 +405,13 @@ release-upload:
 
 publish-release: notarized-release
 	$(MAKE) release-upload
+
+# The whole pre-release ship, as it is done until further notice: the version stays at
+# project.yml's 0.1.0 and the build number is the UTC minute the build started
+# (YYYYMMDDHHMM), which is unique, sorts, and reads as a date; then the site is redeployed so
+# its Download button names the new file. See "Releases" in AGENTS.md.
+RELEASE_STAMP := $(shell date -u +%Y%m%d%H%M)
+.PHONY: ship
+ship:
+	$(MAKE) publish-release VERSION=0.1.0 BUILD_NUMBER=$(RELEASE_STAMP)
+	$(MAKE) deploy-production

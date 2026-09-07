@@ -653,7 +653,11 @@ Four directories, by what a file is rather than what screen it is on:
   `Canvas/CanvasInspector` the picture on the canvas, which is the library's
   own inspector once the file is indexed and `FreshImageInspector` until then.
   An empty canvas shows `CanvasEmptyState`, with the last three prompts from
-  the index (`RecentPrompts`, nothing persisted) as chips. On Liquid Glass
+  the index (`RecentPrompts`, nothing persisted) as chips. `CanvasStateView`
+  is what the canvas says otherwise, centred, and in a floating panel when a
+  picture is under it; the one state that steps aside is a model that simply
+  is not loaded over a picture, which sits at the top edge with its Load
+  Model button so a picture opened from the sidebar is seen and not covered. On Liquid Glass
   the window toolbar floats over content by default, so `RootView` forces
   its background visible (`.toolbarBackgroundVisibility(.visible, for:
   .windowToolbar)`), making it an opaque full-width strip with a hairline
@@ -1089,6 +1093,21 @@ Makefile targets:
   the keychain profile named by `NOTARY_PROFILE`.
 - `make notarized-release` — produce the notarized DMG and ZIP; packaging and
   notarization run sequentially even with `make -j`.
+- `make ship` — the whole pre-release ship in one go, and **how releases are
+  done until further notice**: no version bumps. Zephra is pre-release, so
+  every build is `0.1.0`, `project.yml`'s default, and what tells one build
+  from another is the build number, the UTC minute the build started
+  (`YYYYMMDDHHMM`, `date -u +%Y%m%d%H%M`), so the file is
+  `Zephra-0.1.0-<stamp>.dmg`. `ship` runs `publish-release` with those two,
+  which builds, signs, notarizes both packages, uploads the DMG to the
+  releases prefix of the assets bucket under that immutable name and verifies
+  the public download, writing `product-mockups/app/release.json`; then
+  `deploy-production`, so the site's Download button names the new file.
+  Commit `release.json` afterwards. The upload refuses a name that already
+  exists with other bytes, which is why the stamp is a minute and not a day;
+  a stray build published under another version is deleted from the bucket
+  by hand (`aws s3 rm`), never overwritten. When a version bump is wanted,
+  the user says so; nothing here bumps one.
 - `make prefetch` — download the default model weights with `hf download`
   into `$(MODELS_DIR)/Downloads/mzbac--Z-Image-Turbo-8bit`, which is where the
   app itself would have written them, so a first launch finds them. Set
