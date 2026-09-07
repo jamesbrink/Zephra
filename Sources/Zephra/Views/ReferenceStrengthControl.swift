@@ -37,7 +37,7 @@ struct ReferenceStrengthControl: View {
                     .foregroundStyle(.secondary)
                     .frame(minWidth: 32, alignment: .leading)
             }
-            .help("How much of the picture to keep. Lower keeps more of it.")
+            .help(ReferenceRole(capabilities: capabilities).strengthHelp)
             .accessibilityLabel("Reference strength")
         }
     }

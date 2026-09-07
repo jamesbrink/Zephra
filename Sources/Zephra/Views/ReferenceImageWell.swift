@@ -97,26 +97,28 @@ struct ReferenceImageWell: View {
                 Divider()
                 Button("Clear") { ReferenceAdoption.use(nil, into: store) }
             }
-            .accessibilityLabel("Reference image")
+            .accessibilityLabel(role.filledWellAccessibilityLabel)
     }
 
     private var empty: some View {
         Button {
             isPickerPresented = true
         } label: {
-            ReferencePlaceholder(isTargeted: isTargeted)
+            ReferencePlaceholder(title: role.wellCaption, isTargeted: isTargeted)
         }
         .buttonStyle(.plain)
         .contextMenu {
             Button("From Library…") { isPickerPresented = true }
             Button("Choose File…") { chooseFile() }
         }
-        .help("Choose a picture to edit, or drop one here")
-        .accessibilityLabel("Add a reference image")
+        .help(role.emptyWellHelp)
+        .accessibilityLabel(role.emptyWellHelp)
     }
 
+    private var role: ReferenceRole { ReferenceRole(capabilities: store.descriptor.capabilities) }
+
     private func chooseFile() {
-        guard let url = ReferenceImagePicker.choose() else { return }
+        guard let url = ReferenceImagePicker.choose(role: role) else { return }
         store.adoptReference { ReferenceImageEncoder.pngData(contentsOf: url) }
     }
 }

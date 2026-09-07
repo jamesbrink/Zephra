@@ -4,10 +4,10 @@ import ZephraEngine
 /// The menu bar. Every one of these has a visible twin in the window; the menu exists so the
 /// shortcuts are discoverable and so the Mac behaves like a Mac.
 ///
-/// Export, Share, Copy, Reveal, Delete, Use as Reference and Upscale mean different things depending
-/// on where you are standing, so each of them asks `target` (a `CommandTarget`) rather than
-/// reaching for the canvas: the grid's selection while the grid has the keyboard, the canvas's
-/// picture while the canvas is showing one, and nothing otherwise. The grid's focus rather than
+/// Export, Share, Copy, Reveal, Delete, Use as Reference, Animate and Upscale mean different
+/// things depending on where you are standing, so each of them asks `target` (a `CommandTarget`)
+/// rather than reaching for the canvas: the grid's selection while the grid has the keyboard,
+/// the canvas's picture while the canvas is showing one, and nothing otherwise. The grid's focus rather than
 /// the library pane's presence, because ⌘⌫ in a text field means the line and a scene-wide
 /// binding would take that away; and nothing rather than the canvas behind the library, because
 /// a command that acted on a picture nobody can see would be acting on a guess.
@@ -67,6 +67,9 @@ struct ZephraCommands: Commands {
             Button("Clear Reference") { ReferenceAdoption.use(nil, into: store) }
                 .keyboardShortcut("r", modifiers: [.command, .option, .shift])
                 .disabled(store.settings.referenceImage == nil)
+            Button(target.animateTitle) { animate() }
+                .keyboardShortcut("a", modifiers: [.command, .option])
+                .disabled(!canAnimateTarget)
             Divider()
             Button("Upscale 2\u{00D7}") { upscale(2) }
                 .keyboardShortcut("u", modifiers: [.command, .option])

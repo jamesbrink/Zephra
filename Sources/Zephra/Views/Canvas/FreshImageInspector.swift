@@ -24,7 +24,7 @@ struct FreshImageInspector: View {
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                ImageFactsView(facts: facts, edited: image.settings.referenceImage != nil)
+                ImageFactsView(facts: facts, reference: reference)
                 Spacer(minLength: 8)
                 FreshImageActions(image: image)
             }
@@ -40,10 +40,19 @@ struct FreshImageInspector: View {
             )
     }
 
+    private var descriptor: ModelDescriptor? { ModelCatalog.descriptor(id: image.modelID) }
+
     private var facts: ImageFacts {
-        ImageFacts(
-            image, modelName: ModelCatalog.descriptor(id: image.modelID)?.fullName,
-            seedFormat: seedFormat)
+        ImageFacts(image, modelName: descriptor?.fullName, seedFormat: seedFormat)
+    }
+
+    /// The session's own bytes are already in memory, unlike a library item's, so there is no
+    /// file to read off the main actor here — only the decode, which `ReferenceFactsRow` still
+    /// does through `ImageCache`.
+    private var reference: ReferenceFactsRow.Source? {
+        guard let bytes = image.settings.referenceImage else { return nil }
+        let role = descriptor.map { ReferenceRole(capabilities: $0.capabilities) } ?? .reference
+        return .bytes(bytes, role: role)
     }
 }
 

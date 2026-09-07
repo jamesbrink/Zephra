@@ -42,6 +42,15 @@ extension InterfacePreview {
         case .ready where name == "tucked": PreviewImages.sample()
         case .ready where isEditingBuild:
             PreviewImages.sample(reference: PreviewImages.referencePNG())
+        case .ready where name == "clip":
+            // The catalog's own LTX-2.5 entry, not `PreviewModel.video`, so the inspector's
+            // `ReferenceRole` — read from the record's model, not the store's chosen one —
+            // resolves to a real `producesVideo` model and shows "First frame" rather than
+            // falling back to `.reference` for a model the catalog does not carry.
+            PreviewImages.sample(
+                reference: PreviewImages.referencePNG(),
+                frames: ModelCatalog.ltx2Distilled4bit.capabilities.defaultFrames,
+                modelID: ModelCatalog.ltx2Distilled4bit.id)
         // Over a picture, because that is where these two have to stay legible: a model
         // chosen from the menu downloads, or fails to, with the last image still up.
         case .downloading, .failed: PreviewImages.sample()
@@ -60,7 +69,7 @@ extension InterfacePreview {
     static var requestedState: EngineState? {
         #if DEBUG
         switch name {
-        case "settings", "ready", "image", "editing", "tucked", "batch", "library", "viewer", "picker":
+        case "settings", "ready", "image", "editing", "tucked", "batch", "library", "viewer", "picker", "clip":
             return .ready
         case "generating":
             return .generating(GenerationProgressEvent(

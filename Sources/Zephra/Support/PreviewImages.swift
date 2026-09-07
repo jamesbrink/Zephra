@@ -7,10 +7,16 @@ import ZephraEngine
 /// to letterbox. Nothing here reaches the model or the network.
 enum PreviewImages {
     /// A finished image record wrapping a drawn gradient, for previews of the done state.
+    ///
+    /// `frames` past 1 is what `GeneratedImage.isVideo` reads, for the `clip` screenshot build:
+    /// there is no drawn MP4 behind it, only a poster, so the canvas shows the picture rather
+    /// than `ClipPlayerView` — the same as a real clip before its file has landed.
     static func sample(
         size: ImageSize = ImageSize(width: 1024, height: 1024),
         prompt: String = "A lighthouse at dusk, fog rolling in over black rocks",
-        reference: Data? = nil
+        reference: Data? = nil,
+        frames: Int = 1,
+        modelID: String = ModelCatalog.default.id
     ) -> GeneratedImage {
         GeneratedImage(
             pngData: gradientPNG(size: size),
@@ -20,9 +26,10 @@ enum PreviewImages {
                 steps: 9,
                 guidance: 0,
                 seed: 8_123_447_209_115_662,
-                referenceImage: reference
+                referenceImage: reference,
+                frames: frames
             ),
-            modelID: ModelCatalog.default.id,
+            modelID: modelID,
             duration: .seconds(19) + .milliseconds(400)
         )
     }

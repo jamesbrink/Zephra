@@ -5,9 +5,9 @@ import ZephraEngine
 /// Launches the app frozen in one engine state, with no model and no network, so the
 /// interface can be screenshotted and inspected on its own.
 ///
-/// Set `ZEPHRA_PREVIEW_STATE` to `ready`, `image`, `editing`, `tucked`, `generating`, `starting`,
-/// `queued`, `watching`, `batch`, `library`, `viewer`, `picker`, `downloading`, `building`, or `failed`
-/// before launching. `settings` uses the configured library on disk with a frozen engine for
+/// Set `ZEPHRA_PREVIEW_STATE` to `ready`, `image`, `editing`, `tucked`, `clip`, `generating`,
+/// `starting`, `queued`, `watching`, `batch`, `library`, `viewer`, `picker`, `downloading`,
+/// `building`, or `failed` before launching. `settings` uses the configured library on disk with a frozen engine for
 /// folder-change UAT; point `imagesDirectory` at a temporary fixture first. Debug builds only; in Release this is inert.
 ///
 /// This half is what the composition root calls. `InterfacePreview+Frozen.swift` is how each
@@ -28,13 +28,16 @@ enum InterfacePreview {
         case "generating", "starting", "queued", "watching":
             return runningStore(state: state, seeds: name == "queued" ? 3 : 2)
         default:
-            // The editing and picker previews run against an invented model that reads a
+            // The editing, picker and clip previews run against an invented model that reads a
             // reference, so the well beside the prompt is there to be screenshotted.
-            let descriptor = isEditingBuild ? PreviewModel.editing : ModelCatalog.default
+            let descriptor: ModelDescriptor =
+                if isEditingBuild { PreviewModel.editing }
+                else if name == "clip" { PreviewModel.video }
+                else { ModelCatalog.default }
             let store = GenerationStore.preview(
                 state: state, image: frozenImage(for: state), descriptor: descriptor,
                 swappingModel: name == "downloading")
-            if isEditingBuild {
+            if isEditingBuild || name == "clip" {
                 // Through the same door the interface uses, so the frozen window shows the
                 // strength a dropped picture really gets rather than the 1 that means none.
                 store.useAsReference(PreviewImages.referencePNG())

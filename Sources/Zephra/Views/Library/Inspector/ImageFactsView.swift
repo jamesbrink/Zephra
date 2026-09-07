@@ -13,15 +13,15 @@ import ZephraEngine
 /// in and where the lines fall — which is why it takes the facts rather than either kind of
 /// image, and the canvas and the library each hand it theirs.
 ///
-/// The Reference row says only that there was one. Showing the picture would mean reading the
-/// whole file to get at its second chunk, and this view is drawn for whatever is selected as
-/// the selection moves; "Use as Reference" is where that read belongs, off the main actor and
-/// only when it is asked for.
+/// The reference row is `ReferenceFactsRow`, drawn only when `reference` names a source: a
+/// thumbnail, the role's own label and the strength, read off the main actor and only for the
+/// image actually on screen.
 struct ImageFactsView: View {
     /// The lines to show, already formatted.
     let facts: ImageFacts
-    /// Whether it was made from a picture rather than from noise, which adds a line.
-    let edited: Bool
+    /// The picture this one started from, and the role it played, or nil when it was made
+    /// from noise.
+    let reference: ReferenceFactsRow.Source?
 
     var body: some View {
         FactsTable {
@@ -33,8 +33,8 @@ struct ImageFactsView: View {
             FactsRow("Steps", facts.steps, style: .digits)
             FactsRow("Seed", facts.seed, style: .monospaced)
             FactsRow("Took", facts.took, style: .digits)
-            if edited {
-                FactsRow("Reference", "Edited from a picture")
+            if let reference {
+                ReferenceFactsRow(facts: facts, source: reference)
             }
             if let upscaled = facts.upscaled {
                 FactsRow("Upscaled", upscaled)
@@ -44,7 +44,10 @@ struct ImageFactsView: View {
 }
 
 #Preview("Facts") {
-    ImageFactsView(facts: ImageFacts(PreviewImages.library(count: 1).items[0]), edited: true)
+    let item = PreviewImages.library(count: 1).items[0]
+    ImageFactsView(facts: ImageFacts(item), reference: .library(item, role: .startFrom))
         .padding(18)
         .frame(width: 320)
+        .environment(ImageCache())
+        .environment(LibraryIndex.preview(count: 1))
 }

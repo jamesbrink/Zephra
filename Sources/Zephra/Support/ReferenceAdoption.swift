@@ -62,4 +62,33 @@ enum ReferenceAdoption {
     static func use(_ png: Data?, into store: GenerationStore) {
         store.useAsReference(png, ticket: store.claimReference())
     }
+
+    /// Sets the next generation up to animate a picture the session still holds in memory, or
+    /// its clip's last frame when it is one — never the picture it started from, unlike
+    /// `adopt(_:into:)` above: Animate means exactly the picture in front of you, and handing
+    /// back an edit's source would animate the wrong one. `FreshImageMenu` and
+    /// `FreshImageActions` both call this, so the rule lives once.
+    @MainActor
+    static func animate(_ image: GeneratedImage, into store: GenerationStore) {
+        store.animate(origin: image.fileURL?.lastPathComponent) {
+            if image.isVideo, let fileURL = image.fileURL {
+                return ClipFrames.lastFrame(of: VideoSidecar.url(beside: fileURL))
+            }
+            return ReferenceImageEncoder.pngData(from: image.pngData)
+        }
+    }
+
+    /// The same rule over a `LibraryItem`: its own bytes, or its clip's last frame, read off the
+    /// main actor — never `item.referenceImage`, which is what makes `adopt(_:into:)` hand back
+    /// an edit's source instead of the edit itself. `AnimateButton` and the menu bar's Animate
+    /// command both call this.
+    @MainActor
+    static func animate(_ item: LibraryItem, into store: GenerationStore) {
+        store.animate(origin: item.fileName) {
+            if item.isVideo, let videoURL = item.videoURL {
+                return ClipFrames.lastFrame(of: videoURL)
+            }
+            return ReferenceImageEncoder.pngData(contentsOf: item.url)
+        }
+    }
 }

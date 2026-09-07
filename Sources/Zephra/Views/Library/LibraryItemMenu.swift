@@ -40,6 +40,8 @@ struct LibraryItemMenu: View {
                     .disabled(items.count > 1)
                 UseAsReferenceButton(item: first)
                     .disabled(items.count > 1)
+                AnimateButton(item: first)
+                    .disabled(items.count > 1)
                 UpscaleMenuItems(item: first, isAlone: items.count == 1)
                 Divider()
                 Button(favouriteTitle) { act { index.toggleFavourite($0) } }

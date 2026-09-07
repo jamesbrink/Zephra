@@ -1,5 +1,4 @@
 import SwiftUI
-import ZephraCore
 import ZephraEngine
 
 /// The primary action. It never changes its word: Generate starts an image when the engine is
@@ -52,15 +51,7 @@ struct GenerateButton: View {
     /// loaded: the size is on the screen before the download starts, here as everywhere else.
     private var loadNote: String {
         guard store.modelAwaitsGenerate else { return "" }
-        let name = store.descriptor.fullName
-        switch store.availability[store.descriptor.id] {
-        case .needsDownload(let bytes), .needsDownloadAndBuild(let bytes):
-            return ". Downloads \(ByteCount.gigabytes(bytes)) for \(name) first"
-        case .needsBuild:
-            return ". Builds \(name) first"
-        default:
-            return ". Loads \(name) first"
-        }
+        return ModelLoadNote.text(for: store.descriptor, store: store)
     }
 }
 

@@ -35,6 +35,44 @@ enum PreviewModel {
         )
     )
 
+    /// A model that makes clips from a picture, the way LTX-2.5 does, for the `clip` screenshot
+    /// build.
+    static let video = ModelDescriptor(
+        id: "preview-video",
+        displayName: "Preview Model",
+        variantName: "video",
+        backend: "preview",
+        source: .localDirectory(URL(filePath: "/tmp/preview-model")),
+        quantization: .int4,
+        downloadBytes: 0,
+        residentBytes: 8_000_000_000,
+        peakBytes: 20_000_000_000,
+        tiledPeakBytes: 20_000_000_000,
+        maxPromptTokens: 1024,
+        capabilities: ModelCapabilities(
+            sizeAlignment: 32,
+            sizePresets: [
+                ImageSize(width: 768, height: 512),
+                ImageSize(width: 512, height: 768),
+            ],
+            sizeBounds: 256...1024,
+            defaultSize: ImageSize(width: 768, height: 512),
+            stepBounds: 8...8,
+            defaultSteps: 8,
+            guidanceBounds: 0...0,
+            defaultGuidance: 0,
+            supportsNegativePrompt: false,
+            supportsSeed: true,
+            supportsReferenceImage: true,
+            referenceStrengthBounds: 0.0...0.9,
+            defaultReferenceStrength: 0,
+            frameBounds: 9...121,
+            defaultFrames: 49,
+            frameAlignment: 8,
+            frameRate: 24
+        )
+    )
+
     /// A model that edits a picture handed in beside the prompt, the way FLUX.2 klein does, with
     /// none of the controls it does not read.
     static let editing = ModelDescriptor(

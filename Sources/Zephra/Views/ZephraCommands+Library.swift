@@ -3,7 +3,7 @@ import SwiftUI
 import ZephraCore
 import ZephraEngine
 
-/// Where Export, Share, Copy, Reveal, Delete, Use as Reference and Upscale actually land.
+/// Where Export, Share, Copy, Reveal, Delete, Use as Reference, Animate and Upscale actually land.
 ///
 /// All of them ask the same question and act on the same answers, so the question is asked
 /// once, in `CommandTarget`. The wording follows the answer too: "Delete Image" over one
@@ -49,6 +49,31 @@ extension ZephraCommands {
         case .none: return false
         case .canvas: return true
         case .library: return target.singleItem != nil
+        }
+    }
+
+    /// Whether Animate has one picture or clip to take and this build ships a model that reads
+    /// one. Excluded inside Recently Deleted, the same as the two Upscale items: animating
+    /// something on its way out is the wrong offer.
+    var canAnimateTarget: Bool {
+        guard store.canAnimate, target.singlePicture != nil else { return false }
+        if case .library = target { return libraryIndex?.query.scope != .recentlyDeleted }
+        return true
+    }
+
+    /// Sets the next generation up to animate the one picture or clip the commands are about,
+    /// the way the inspector's own button does — a library picture also brings the canvas up,
+    /// since that is where the run will show.
+    func animate() {
+        switch target {
+        case .none:
+            return
+        case .canvas(let image):
+            ReferenceAdoption.animate(image, into: store)
+        case .library:
+            guard let item = target.singleItem else { return }
+            ReferenceAdoption.animate(item, into: store)
+            workspace.pane = .canvas
         }
     }
 

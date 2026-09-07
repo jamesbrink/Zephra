@@ -10,8 +10,8 @@ import ZephraEngine
 /// grid of two columns so they are the same width whatever they say; a lone last button takes
 /// the whole row rather than sitting off to one side.
 ///
-/// "Use as Reference" appears only on a model that reads one, so a build running Z-Image alone
-/// never shows a button that could not do anything. Opening is left out when the image is the
+/// "Use as Reference" and "Animate" show disabled rather than hidden when the model, or this
+/// build, cannot take them — the macOS convention. Opening is left out when the image is the
 /// one already on the canvas, which is what the inspector beside the canvas is describing.
 struct InspectorActions: View {
     /// The image the buttons act on.
@@ -51,11 +51,9 @@ struct InspectorActions: View {
                 }
                 .gridCellColumns(2)
             }
-            if store.descriptor.capabilities.supportsReferenceImage {
-                GridRow {
-                    UseAsReferenceButton(item: item)
-                        .gridCellColumns(2)
-                }
+            GridRow {
+                UseAsReferenceButton(item: item)
+                AnimateButton(item: item)
             }
         }
         .lineLimit(1)

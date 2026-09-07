@@ -3,8 +3,9 @@ import ZephraCore
 import ZephraEngine
 
 /// The things to do with a picture the session holds in memory, at the foot of the inspector:
-/// the same four the picture's own context menu offers, as buttons of one width on a grid of
-/// two columns, the way `InspectorActions` lays out the library's.
+/// the same actions the picture's own context menu offers, as buttons of one width on a grid of
+/// two columns, the way `InspectorActions` lays out the library's. "Use as Reference" and
+/// "Animate" show disabled rather than hidden when the model, or this build, cannot take them.
 struct FreshImageActions: View {
     /// The picture the buttons act on.
     let image: GeneratedImage
@@ -21,9 +22,15 @@ struct FreshImageActions: View {
                 button("Reveal in Finder") { ImageExport.revealInFinder(image) }
                     .disabled(image.fileURL == nil)
                     .help(image.fileURL?.lastPathComponent ?? ImageFacts.notSaved)
-                if store.descriptor.capabilities.supportsReferenceImage {
-                    button("Use as Reference") { ReferenceAdoption.adopt(image, into: store) }
+                    .gridCellColumns(2)
+            }
+            GridRow {
+                button("Use as Reference") { ReferenceAdoption.adopt(image, into: store) }
+                    .disabled(!store.descriptor.capabilities.supportsReferenceImage)
+                button(image.isVideo ? "Animate from Last Frame" : "Animate") {
+                    ReferenceAdoption.animate(image, into: store)
                 }
+                .disabled(!store.canAnimate)
             }
             // A clip's poster is not a picture to make larger.
             if !image.isVideo {

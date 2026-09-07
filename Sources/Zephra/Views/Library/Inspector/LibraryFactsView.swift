@@ -15,13 +15,19 @@ struct LibraryFactsView: View {
     @Environment(\.seedFormat) private var seedFormat
 
     var body: some View {
-        ImageFactsView(facts: facts, edited: item.provenance.record?.referenceBytes != nil)
+        ImageFactsView(facts: facts, reference: reference)
     }
 
+    private var descriptor: ModelDescriptor? { item.modelID.flatMap(ModelCatalog.descriptor(id:)) }
+
     private var facts: ImageFacts {
-        ImageFacts(
-            item, modelName: item.modelID.flatMap(ModelCatalog.descriptor(id:))?.fullName,
-            seedFormat: seedFormat)
+        ImageFacts(item, modelName: descriptor?.fullName, seedFormat: seedFormat)
+    }
+
+    private var reference: ReferenceFactsRow.Source? {
+        guard item.provenance.record?.referenceBytes != nil else { return nil }
+        let role = descriptor.map { ReferenceRole(capabilities: $0.capabilities) } ?? .reference
+        return .library(item, role: role)
     }
 }
 

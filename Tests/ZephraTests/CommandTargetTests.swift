@@ -76,4 +76,29 @@ struct CommandTargetTests {
         #expect(CommandTarget.canvas(picture).deleteTitle == "Delete Image")
         #expect(CommandTarget.none.copyTitle == "Copy Image")
     }
+
+    @Test("singlePicture answers the one canvas picture or library item, and nothing for none or several")
+    func singlePictureIsOneImageOrItem() {
+        let one = CommandTarget.resolve(
+            pane: .library, isShowingRun: false, current: nil, gridSelection: [firstItem.id], sections: sections)
+        #expect(one.singlePicture == firstItem.isVideo)
+        #expect(CommandTarget.canvas(picture).singlePicture == picture.isVideo)
+        #expect(CommandTarget.none.singlePicture == nil)
+        let four = CommandTarget.library(Array(sections.flatMap(\.items).prefix(4)))
+        #expect(four.singlePicture == nil)
+    }
+
+    @Test("Animate's title names a clip by its last frame, and a picture plainly")
+    func animateTitleNamesAClip() {
+        let clip = GeneratedImage(
+            pngData: picture.pngData,
+            settings: GenerationSettings(
+                prompt: "", size: picture.settings.size, steps: 1, guidance: 0, seed: 1, frames: 49),
+            modelID: picture.modelID,
+            duration: .seconds(1))
+        #expect(clip.isVideo)
+        #expect(CommandTarget.canvas(clip).animateTitle == "Animate from Last Frame")
+        #expect(CommandTarget.canvas(picture).animateTitle == "Animate")
+        #expect(CommandTarget.none.animateTitle == "Animate")
+    }
 }

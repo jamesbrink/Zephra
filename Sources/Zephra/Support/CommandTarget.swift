@@ -59,6 +59,18 @@ enum CommandTarget: Equatable {
         return items.first
     }
 
+    /// Whether there is exactly one picture or clip to act on, and whether it is a clip — the
+    /// canvas's picture (`GeneratedImage.isVideo` reads its own settings, so a clip's poster
+    /// answers true before it is indexed too) or the one item chosen in the grid. Nil for none
+    /// and for several, the same as `singleItem`; the wrapped value is whether it is a clip.
+    var singlePicture: Bool? {
+        switch self {
+        case .none: return nil
+        case .canvas(let image): return image.isVideo
+        case .library: return singleItem?.isVideo
+        }
+    }
+
     /// "Export" rather than "Save as": nothing is a document with changes to keep, and the
     /// picture is already on the disk. Title Case, because these are menu items.
     var exportTitle: String { count > 1 ? "Export \(count) Images…" : "Export…" }
@@ -68,4 +80,9 @@ enum CommandTarget: Equatable {
     var shareTitle: String { count > 1 ? "Share \(count) Images…" : "Share…" }
 
     var deleteTitle: String { count > 1 ? "Delete \(count) Images" : "Delete Image" }
+
+    /// "Animate from Last Frame" over a clip, since its poster is only the frame it starts on;
+    /// "Animate" otherwise, for one picture or for no target at all, which is what greys the
+    /// item out regardless of what its title says.
+    var animateTitle: String { singlePicture == true ? "Animate from Last Frame" : "Animate" }
 }

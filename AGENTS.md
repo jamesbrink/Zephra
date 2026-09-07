@@ -566,15 +566,35 @@ Four directories, by what a file is rather than what screen it is on:
   composition root rather than as a colour scheme on a scene, so the Settings
   window, the menus, and the alerts change with the main window.
   `CommandTarget` is what the menu bar's file commands — Export, Share, Copy,
-  Reveal, Delete, Use as Reference, Upscale — are about: the canvas's picture while the
+  Reveal, Delete, Use as Reference, Animate, Upscale — are about: the canvas's picture while the
   canvas pane is showing one (not while it follows a run, which has no file
   yet), the grid's focused selection filtered to the sections on screen, and
   otherwise nothing, which greys them all out; there is no fallback from an
-  empty library selection to the picture hidden behind it. `StepProgress` is
+  empty library selection to the picture hidden behind it. `singlePicture` is
+  the one question Animate reads beyond what Use as Reference does: nil for
+  none or for several, and otherwise whether the one picture or clip is a
+  clip, which is what `animateTitle` says "Animate from Last Frame" from —
+  and `ZephraCommands+Library`'s `canAnimateTarget` excludes Recently Deleted
+  the same way the two Upscale items do. `StepProgress` is
   the step bar's reading — the loop's own total once it reports, the run in
   flight's steps before that, the next run's only with nothing running — read
   through `GenerationStore.stepProgress` by the capsule, its lip and the
-  running card, so the bar never counts the slider.
+  running card, so the bar never counts the slider. `ReferenceRole`
+  (`Support/`) is the one place every string a reference picture's role
+  changes — the well's caption and help, its accessibility label, the open
+  panel's message, the strength slider's help, and the inspector's row label
+  — is spelled, derived from a model's `ModelCapabilities`
+  (`.firstFrame` when it makes clips, `.startFrom` when it adjusts reference
+  strength, `.reference` otherwise, in that order, since LTX-2.5 is both a
+  clip model and a strength-adjusting one and the clip reading wins).
+  `ReferenceImageWell`, `ReferenceStrengthControl` and `ReferenceImagePicker`
+  all read it from `store.descriptor.capabilities`; `ReferencePlaceholder`
+  itself stays a plain view in `Style/` that only takes the words it is given.
+  `ModelLoadNote` (`Support/`) is what `GenerateButton`'s tooltip and
+  `AnimateButton`'s share: what pressing Generate costs first when the model
+  that would run is not the one resident, read against an arbitrary target
+  rather than only `store.descriptor`, since Animate's tooltip has to say
+  this before Animate has been pressed and the clip model chosen.
 - `Views/` — one subfolder per surface (`Canvas/`, `Library/`,
   `Library/Inspector/`, `Library/Viewer/`, `ReferencePicker/`, `Sidebar/`,
   `Sidebar/Timeline/`, `Toolbar/`); the prompt capsule, its controls, the
@@ -634,7 +654,24 @@ Four directories, by what a file is rather than what screen it is on:
   `LibraryFactsView`, `FreshImageInspector` and `SharedFactsView`, and the
   running run's column — reads that one value. Nothing on disk follows it:
   the record, the file name and the search key keep the number, and the
-  search key carries the label too (`SeedFormatTests`). `Support/BackgroundNotice` is what a change of engine
+  search key carries the label too (`SeedFormatTests`).
+  `ImageFactsView`'s reference row is `ReferenceFactsRow`
+  (`Library/Inspector/`): the source model's own `ReferenceRole` label
+  ("First frame", "Started from", "Edited from"), a 40 pt thumbnail, the
+  strength ("Strength 0.60", or "Held exactly" for a clip whose strength is
+  0), and a "Show Source" button when `ImageFacts.referenceOrigin` names a
+  file `LibraryIndex.item(named:)` still finds. `LibraryFactsView` and
+  `FreshImageInspector` each work out the role from the *record's* model —
+  `ModelCatalog.descriptor(id:)?.capabilities`, not the model currently
+  chosen in the picker — and hand `ImageFactsView` a `ReferenceFactsRow.Source`
+  naming either a `LibraryItem` or bytes already in memory; `ImageFactsView`
+  itself stays at two stored properties, facts and that optional source. The
+  thumbnail is never read on the main actor: `LibraryItem.referenceImage` is
+  a synchronous whole-file read, so `ReferenceFactsRow` runs it inside a
+  detached task started from `.task(id:)` and hands the bytes to
+  `ImageCache.referenceThumbnail(_:)` for the decode, the same door
+  `ReferenceThumbnail` uses for the well; a session's own picture already has
+  its bytes in memory and only needs that decode. `Support/BackgroundNotice` is what a change of engine
   state is worth telling the Mac about while another app is in front: a
   download that ended in a build, a load or a ready model finished, one that
   ended in a failure failed, and one the person stopped says nothing; it is a
@@ -712,6 +749,26 @@ Four directories, by what a file is rather than what screen it is on:
   on the canvas is; deleting it from either fires
   `LibraryIndex.onRecentlyDeleted`, which `GenerationStore.forget(fileAt:)`
   answers by stepping the canvas to the next image in history.
+
+  Animate sits beside Use as Reference everywhere a single picture's actions
+  are offered — `LibraryItemMenu`, `FreshImageMenu`, `InspectorActions`,
+  `FreshImageActions`, and the menu bar's own Animate item (⌥⌘A) — and both
+  show **disabled rather than hidden** when the model, or this build, cannot
+  take them, the macOS convention: a build with no clip model still shows
+  Animate, greyed. `AnimateButton` (`Views/Library/`) is `LibraryItemMenu`'s
+  and `InspectorActions`'s button, titled "Animate" for a picture and
+  "Animate from Last Frame" for a clip (`item.isVideo`); `FreshImageMenu` and
+  `FreshImageActions` wire the same rule inline, since neither has a
+  `LibraryItem` to hand the button. Both paths go through
+  `ReferenceAdoption.animate(_:into:)`, one overload per kind of picture,
+  never `adopt(_:into:)`: an edit hands back its own source under `adopt`,
+  which is right for "use this as a reference" and wrong for Animate, which
+  means exactly the picture in front of you. A clip's last frame — what
+  Animate reads instead of the poster, since the poster is only the first
+  frame — is `ClipFrames.lastFrame(of:)` (`Support/`): `AVAssetImageGenerator`
+  asked for the frame a step before the asset's duration, tolerant a step
+  either side, its bytes re-encoded through `ReferenceImageEncoder` like
+  every other door into the well.
 
   A double-click in the grid, or Return on the selection, no longer opens the
   canvas — it opens `Library/Viewer/LibraryViewer`, the picture full size in
@@ -1934,7 +1991,7 @@ changes nothing. (`ZephraQuantize` honours none of them, so it reads nothing.)
 value, and `AppSettings.residencyPolicy(mode:budget:override:)` is pure, so the picker applies
 the same override the store runs under without a second read of the process environment.
 
-- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|generating|starting|queued|watching|batch|library|viewer|picker|downloading|building|failed`
+- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|clip|generating|starting|queued|watching|batch|library|viewer|picker|downloading|building|failed`
   launches a Debug build frozen in that state with no model, for screenshots (`make screenshot`).
   `tucked` is `image` with the canvas's floating prompt slid down to its lip.
   `viewer` opens the library pane on its first image full size; `picker` runs the
@@ -1942,6 +1999,16 @@ the same override the store runs under without a second read of the process envi
   `InterfacePreview.wantsReferencePicker` — the one flag the well reads on its own,
   since a `@State` local to a view cannot be set from the composition root the way
   `workspace.viewing` can.
+  `clip` stands the store up on `PreviewModel.video` — an invented model that makes clips
+  and reads a picture, for the well, the length control and the strength slider — with the
+  well filled and the canvas showing `PreviewImages.sample(frames:modelID:)` stamped with
+  the catalog's own `ModelCatalog.ltx2Distilled4bit` rather than the invented model: the
+  inspector's `ReferenceRole` reads the *record's* model, and an id the catalog does not
+  carry would fall back to `.reference` ("Edited from") instead of "First frame". `frames`
+  past 1 is what makes `GeneratedImage.isVideo` true; there is no drawn MP4 behind it, only
+  a poster, so the canvas shows the picture rather than `ClipPlayerView` — the same as a
+  real clip before its file has landed, and legible enough for the well's caption and the
+  inspector's "First frame" row.
   `generating`, `queued` and `watching` all stand a run up with a made-up frame from it, so
   the live preview is on screen without a model: the first two are following the run, and
   `watching` is the one that is not — the model working while an earlier picture stays on the
