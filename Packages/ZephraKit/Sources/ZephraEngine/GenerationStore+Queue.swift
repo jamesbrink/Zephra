@@ -23,13 +23,16 @@ extension GenerationStore {
 
     /// Takes the next queued generation and runs it, swapping models first if it needs a model
     /// other than the one loaded. With the queue empty, brings the loaded model in line with the
-    /// chosen one, so a switch made mid-run lands as soon as the run is over.
+    /// chosen one, so a switch made mid-run lands as soon as the run is over — unless the
+    /// choice is a picture's and waits for Generate, when the loaded model stays.
     func drain() {
         // Closed during a deletion too; `deleteModelStorage` drains again on its way out.
         guard acceptsWork else { return }
         guard let next = queue.first else {
             isSwitchingForQueue = false
-            if descriptor.id != loadedDescriptor?.id { reload(descriptor, thenDrain: false) }
+            if descriptor.id != loadedDescriptor?.id, !modelAwaitsGenerate {
+                reload(descriptor, thenDrain: false)
+            }
             return
         }
         if next.model.id == loadedDescriptor?.id {

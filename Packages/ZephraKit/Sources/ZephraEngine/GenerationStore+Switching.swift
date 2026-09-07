@@ -15,8 +15,12 @@ extension GenerationStore {
         guard acceptsWork, descriptor.id != self.descriptor.id else { return }
         logger.info("model chosen: \(descriptor.id, privacy: .public)")
         adopt(descriptor)
+        // A pick in the menu is the explicit choice a picture's adoption was waiting for.
+        modelAwaitsGenerate = false
         if let registry { _ = downloads.start(descriptor, registry: registry, locations: locations) }
         guard !isDraining, !isUpscaling, queue.isEmpty else { return }
+        // Picking the model that is loaded — back from a picture's — has nothing to swap.
+        guard descriptor.id != loadedDescriptor?.id || state != .ready else { return }
         reload(descriptor, thenDrain: false)
     }
 

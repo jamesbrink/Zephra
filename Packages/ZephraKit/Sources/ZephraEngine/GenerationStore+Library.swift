@@ -82,6 +82,7 @@ extension GenerationStore {
         // its way was for the settings being replaced, as in `select(_:)`.
         _ = claimReference()
         descriptor = model
+        modelAwaitsGenerate = false
         settings = request
         queue.append(QueuedGeneration(model: model, settings: request))
         if isDraining {

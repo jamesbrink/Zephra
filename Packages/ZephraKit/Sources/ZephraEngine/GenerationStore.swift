@@ -42,6 +42,12 @@ public final class GenerationStore {
     /// The model whose weights are resident right now, or nil while none are. It trails
     /// `descriptor` whenever a switch is waiting for the queue to drain.
     public internal(set) var loadedDescriptor: ModelDescriptor?
+    /// True when `descriptor` was taken from a picture — a square on the sidebar's wall, the
+    /// running card — rather than chosen in the menu, and the loaded model is to stay put until
+    /// a generation asks for the chosen one. Looking at pictures made by three models must not
+    /// swap weights three times; pressing Generate is what does. Cleared by every explicit
+    /// choice: a menu pick, Generate, a variation.
+    public internal(set) var modelAwaitsGenerate = false
     /// The directory those weights were read from, so a settings row can tell the one copy
     /// that is in use from a duplicate of the same model elsewhere. Nil while none are.
     public internal(set) var loadedDirectory: URL?

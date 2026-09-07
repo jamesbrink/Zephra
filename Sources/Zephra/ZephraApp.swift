@@ -57,9 +57,11 @@ struct ZephraApp: App {
                 .applyingAppearancePreference()
                 // Remembered here rather than in the menu, so a model the engine stepped onto
                 // by itself — the saved one having gone from the disk — is the one the next
-                // launch opens on. The tiled decode is not decided here: the store chooses it
-                // for each run's own model as the run starts; see `GenerationStore+Tiling`.
-                .onChange(of: store.descriptor, initial: true) { _, model in
+                // launch opens on; and `rememberedModel` rather than `descriptor`, so a model
+                // only looked at through a picture on the sidebar, never loaded, is not. The
+                // tiled decode is not decided here: the store chooses it for each run's own
+                // model as the run starts; see `GenerationStore+Tiling`.
+                .onChange(of: store.rememberedModel, initial: true) { _, model in
                     AppSettings.write(model.id, to: AppSettings.selectedModelID)
                 }
                 .task {

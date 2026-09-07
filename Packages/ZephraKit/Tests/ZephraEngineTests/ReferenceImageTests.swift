@@ -126,8 +126,8 @@ struct ReferenceImageTests {
         #expect(store.settings.referenceImage == Self.picture)
     }
 
-    @Test("selecting an edited image on a model that cannot read a picture adopts everything but the picture")
-    func selectingOnAPlainModelDropsThePicture() async throws {
+    @Test("selecting an edited image on a plain model chooses the model that made it, picture and all")
+    func selectingOnAPlainModelChoosesTheEditingModel() async throws {
         let bed = EngineTestBed()
         let store = bed.store(descriptor: Self.plain)
         store.warmsUpAfterLoad = false
@@ -139,6 +139,26 @@ struct ReferenceImageTests {
             pngData: MockBackend.pngData, settings: settings, modelID: Self.editing.id,
             createdAt: Date(), duration: .seconds(1))
         store.select(edited)
+        #expect(store.descriptor.id == Self.editing.id, "the edit runs again where it was made")
+        #expect(store.modelAwaitsGenerate, "but nothing is loaded until Generate")
+        #expect(store.settings.prompt == "an edit made elsewhere")
+        #expect(store.settings.referenceImage == Self.picture)
+    }
+
+    @Test("selecting an edit from a model this build has dropped keeps the plain model and drops the picture")
+    func selectingAnUnknownEditOnAPlainModelDropsThePicture() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store(descriptor: Self.plain)
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        var settings = GenerationSettings.defaults(for: Self.editing)
+        settings.prompt = "an edit made elsewhere"
+        settings.referenceImage = Self.picture
+        let edited = GeneratedImage(
+            pngData: MockBackend.pngData, settings: settings, modelID: "gone/for-good",
+            createdAt: Date(), duration: .seconds(1))
+        store.select(edited)
+        #expect(store.descriptor.id == Self.plain.id)
         #expect(store.settings.prompt == "an edit made elsewhere")
         #expect(store.settings.referenceImage == nil)
     }

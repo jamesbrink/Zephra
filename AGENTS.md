@@ -315,9 +315,11 @@ something is running", and `hasPicture` in the app target is
 from the moment a run starts. Two ways onto the canvas from the library, told
 apart by what they do to the capsule: `open(_ item:)` only looks, so the grid's
 "Open in Canvas" never replaces the prompt being written, and `select(_ item:)`
-adopts the picture's settings as `select(_ image:)` does for a session's own,
-which is what every square on the canvas sidebar's wall does — a square is a run
-to pick up again, and the running card is the way back to the one in flight. The
+adopts the picture's settings and chooses its model as `select(_ image:)` does
+for a session's own (see "Selecting a picture chooses its model without
+loading it" under Adding a model), which is what every square on the canvas
+sidebar's wall does — a square is a run to pick up again, and the running card
+is the way back to the one in flight. The
 upscale result follows the same rule by the one test it can apply: it takes the
 canvas only when the canvas was showing its parent, or was showing nothing.
 
@@ -853,8 +855,27 @@ loaded into a failure: `bootstrap` reads availability first and
 `GenerationStore.fallBackIfUnobtainable()` steps onto the first model this Mac
 can run and does have. A model that merely needs a download is kept, since
 choosing it chose the download. The chosen model is persisted from the
-composition root's `onChange` of `store.descriptor`, not by the menu, so the
-model the engine stepped onto is the one the next launch opens on.
+composition root's `onChange` of `store.rememberedModel`, not by the menu, so
+the model the engine stepped onto is the one the next launch opens on — and a
+model only looked at through a picture is not: `rememberedModel` is the loaded
+one while `modelAwaitsGenerate` (below) says the choice is waiting.
+
+Selecting a picture chooses its model without loading it. `select(_ image:)`
+and the sidebar's `select(_ item:)` move `descriptor` onto the model that made
+the picture, when the catalog still knows it, and take its settings wholesale
+(not clamped: a strength of 1 that says "no picture" would be pinned into the
+slider's range); the menu and the capsule then say what Generate will run,
+while `modelAwaitsGenerate` keeps the loaded weights where they are — looking
+at pictures made by three models must not swap weights three times. `drain()`
+on an empty queue, which otherwise brings the loaded model in line with the
+chosen one when a run ends, leaves it alone while the flag is up. Every
+explicit choice clears the flag: Generate (the drain then swaps to the first
+entry's model as it always did), a pick in the menu (`switchModel`, which
+swaps nothing when the pick is the model already loaded), a variation. The
+running card's `watchRun()` restores the run's model the same way, which is
+the loaded one, so nothing waits. A picture from a model this build has
+dropped keeps the current model and takes its schedule, clamped, as a
+variation of one does. `DeferredModelTests` pins all of it.
 
 `InferenceActor` keeps one backend at a time and rebuilds it whenever a
 descriptor names a different family, so the old weights are always released

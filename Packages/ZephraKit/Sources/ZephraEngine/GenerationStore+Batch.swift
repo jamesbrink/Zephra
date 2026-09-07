@@ -18,6 +18,9 @@ extension GenerationStore {
         // Asking for an image is asking to watch it being made, whatever the canvas had been
         // showing until now. Every other route into the queue leaves the canvas where it is.
         startFollowingRun()
+        // And asking for it on the chosen model is what a choice taken from a picture was
+        // waiting for; the drain swaps to it as it takes the first entry.
+        modelAwaitsGenerate = false
         let seeds = min(max(count, 1), Self.batchLimit)
         let request = descriptor.capabilities.clamp(settings)
         let batch = UUID()

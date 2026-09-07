@@ -24,18 +24,19 @@ extension GenerationStore {
     ///
     /// The next frame lands in `livePreview` as it would have anyway, and the run's result is
     /// published to the canvas because `followsRun` is true by the time it arrives. The run's
-    /// own settings come back into the capsule too, so the card is a run to pick up again the
-    /// way a square on the wall is, and not only a picture to watch: clicking away onto an
-    /// earlier picture adopted that picture's settings, and coming back undoes it. Clamped to
-    /// the model the capsule is on, since a model chosen since the run began may not read one
-    /// of them; with nothing running there is nothing to restore.
+    /// own settings and model come back into the capsule too, so the card is a run to pick up
+    /// again the way a square on the wall is, and not only a picture to watch: clicking away
+    /// onto an earlier picture adopted that picture's settings and model, and coming back
+    /// undoes it. The run's model is the loaded one, so nothing waits for Generate; with
+    /// nothing running there is nothing to restore.
     public func watchRun() {
         startFollowingRun()
         guard let running else { return }
         // The run's settings carry its own reference, or none; a library read still on its
         // way was for the settings being replaced, as in `select(_:)`.
         _ = claimReference()
-        settings = descriptor.capabilities.clamp(running.settings)
+        adoptForGenerate(running.model)
+        settings = running.settings
     }
 
     /// Starts following, which is what every explicit "make me an image now" does.

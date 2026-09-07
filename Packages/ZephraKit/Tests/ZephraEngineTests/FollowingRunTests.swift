@@ -226,3 +226,140 @@ struct SidebarSelectionTests {
         #expect(store.settings.prompt == "a lighthouse")
     }
 }
+
+/// A picture's model is chosen when the picture is, and loaded only when Generate asks.
+@Suite("a picture's model waits for Generate")
+@MainActor
+struct DeferredModelTests {
+    @Test("selecting another model's picture chooses its model without loading it")
+    func selectingChoosesWithoutLoading() async throws {
+        let bed = EngineTestBed()
+        bed.control.update { $0.stepDelay = .zero }
+        let other = ModelCatalog.zImageTurbo4bit
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        let loads = bed.control.settings.loads
+        var settings = GenerationSettings.defaults(for: other)
+        settings.prompt = "made elsewhere"
+        let picture = GeneratedImage(
+            pngData: Data([1]), settings: settings, modelID: other.id, duration: .seconds(1))
+
+        store.select(picture)
+        await store.settle()
+
+        #expect(store.descriptor.id == other.id, "the menu says what Generate will run")
+        #expect(store.modelAwaitsGenerate)
+        #expect(store.loadedDescriptor?.id == ModelCatalog.default.id, "nothing was swapped")
+        #expect(store.rememberedModel.id == ModelCatalog.default.id, "a picture looked at is not a model used")
+        #expect(bed.control.settings.loads == loads)
+        #expect(store.state == .ready)
+
+        store.generate()
+        while store.isDraining || !store.queue.isEmpty { await store.settle() }
+        await store.settle()
+
+        #expect(!store.modelAwaitsGenerate)
+        #expect(store.loadedDescriptor?.id == other.id, "Generate is what loaded it")
+        #expect(store.history.map(\.modelID) == [other.id])
+        #expect(store.rememberedModel.id == other.id)
+    }
+
+    @Test("a picture chosen while the launch's model is still loading remembers the loading one")
+    func selectingDuringALoad() async throws {
+        let bed = EngineTestBed()
+        bed.control.update { $0.loadDelay = .milliseconds(150) }
+        let other = ModelCatalog.zImageTurbo4bit
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        let loading = Task { await store.bootstrap() }
+        try await bed.waitFor(store, toReach: .loading(.preparing))
+        let picture = GeneratedImage(
+            pngData: Data([1]), settings: .defaults(for: other), modelID: other.id,
+            duration: .seconds(1))
+
+        store.select(picture)
+
+        #expect(store.descriptor.id == other.id)
+        #expect(store.modelAwaitsGenerate)
+        #expect(store.rememberedModel.id == ModelCatalog.default.id, "the one on its way in, not the picture's")
+        await loading.value
+        await store.settle()
+        #expect(store.loadedDescriptor?.id == ModelCatalog.default.id, "the load finished on its own model")
+        #expect(store.state == .ready)
+        #expect(store.rememberedModel.id == ModelCatalog.default.id)
+    }
+
+    @Test("picking the loaded model back in the menu swaps nothing")
+    func pickingTheLoadedModelBack() async throws {
+        let bed = EngineTestBed()
+        let other = ModelCatalog.zImageTurbo4bit
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        let picture = GeneratedImage(
+            pngData: Data([1]), settings: .defaults(for: other), modelID: other.id,
+            duration: .seconds(1))
+        store.select(picture)
+        let unloads = bed.control.settings.unloads
+
+        store.switchModel(to: ModelCatalog.default)
+        await store.settle()
+
+        #expect(store.descriptor.id == ModelCatalog.default.id)
+        #expect(!store.modelAwaitsGenerate)
+        #expect(bed.control.settings.unloads == unloads)
+        #expect(store.state == .ready)
+    }
+
+    @Test("a run's end does not swap to a model chosen only by a picture")
+    func aRunsEndLeavesTheLoadedModel() async throws {
+        let bed = EngineTestBed()
+        bed.control.update { $0.stepDelay = .milliseconds(10) }
+        let other = ModelCatalog.zImageTurbo4bit
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        store.settings.prompt = "a lighthouse"
+        let picture = GeneratedImage(
+            pngData: Data([1]), settings: .defaults(for: other), modelID: other.id,
+            duration: .seconds(1))
+
+        store.generate()
+        try await bed.waitForStep()
+        store.select(picture)
+        #expect(store.descriptor.id == other.id)
+        await store.settle()
+
+        #expect(store.loadedDescriptor?.id == ModelCatalog.default.id)
+        #expect(bed.control.settings.unloads == 0)
+        #expect(store.state == .ready)
+
+        store.watchRun()
+        #expect(store.descriptor.id == other.id, "with nothing running there is nothing to restore")
+    }
+
+    @Test("watching the run again puts the run's model back")
+    func watchRunRestoresTheModel() async throws {
+        let bed = EngineTestBed()
+        bed.control.update { $0.stepDelay = .milliseconds(10) }
+        let other = ModelCatalog.zImageTurbo4bit
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        store.settings.prompt = "a lighthouse"
+        let picture = GeneratedImage(
+            pngData: Data([1]), settings: .defaults(for: other), modelID: other.id,
+            duration: .seconds(1))
+
+        store.generate()
+        try await bed.waitForStep()
+        store.select(picture)
+        store.watchRun()
+
+        #expect(store.descriptor.id == ModelCatalog.default.id)
+        #expect(!store.modelAwaitsGenerate)
+        #expect(store.settings.prompt == "a lighthouse")
+        await store.settle()
+    }
+}
