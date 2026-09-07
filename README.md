@@ -92,7 +92,7 @@ and its weights are under the LTX-2.x Community License rather than Apache 2.0
 Automatic tiling reduces decode memory when the model exceeds the GPU's budget.
 Qwen-Image and LTX-2.5 also support streaming weights from disk, enabling
 generation on 16 GB Macs at the cost of disk reads each step (LTX-2.5 peaks at
-8.4 GB streamed against 21.8 GB resident). The picker reports these tradeoffs;
+9.0 GB streamed against 22.4 GB resident). The picker reports these tradeoffs;
 models remain selectable even when a smaller image size may be needed.
 
 Historical timings at 1024×1024 include about 29 seconds for FLUX.2 klein

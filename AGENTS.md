@@ -1877,9 +1877,10 @@ in 10.4 s at 0.90 s a step with the same peak, which says the peak is the load's
 (the float32 scales before their cast) and not the decode's. Holding a first
 frame costs nothing the bench can see: 65.6 s at strength 0 and 68.8 s at 0.6 on
 a busy machine, the same peak, and the text-to-video poster byte for byte what it
-was before the encoder was loaded. Streamed, both stacks: 8369 MB peak and 4103 MB live, 8.09 GB
-read per step at 1.19 GB/s, 6.6 s a step (the same pace: the M4 Max's SSD keeps
-up), and a poster byte for byte the resident run's. On bender, the 16 GB M4
+was before the encoder was loaded. Streamed, both stacks, the encoder resident since
+convolutions never stream: 9007 MB peak and 4741 MB live holding a first frame (8369
+and 4103 before the encoder), 8.09 GB read per step at 1.19 GB/s, the same pace as
+resident since the M4 Max's SSD keeps up, and a poster byte for byte the resident run's. On bender, the 16 GB M4
 mini, the same streamed clip: 8284 MB peak, 4103 MB live, 25.5 s a step and 232 s
 a clip, read-bound at 0.32 GB/s straight after the variant landed from the mirror
 (a rerun on an idle disk is owed). The first run made a coherent picture. `make bench ARGS="--model
@@ -2103,6 +2104,9 @@ the same override the store runs under without a second read of the process envi
   as soon as the model is ready: one real generation in the app itself, window and all, from a
   shell on a Mac nobody is sitting at. The bench measures the model without the window; a
   failure that needs the window on screen, as the GPU reset above did, needs this instead.
+  `ZEPHRA_REFERENCE_ON_LAUNCH=<path>` puts that picture in the well first, through
+  `adoptReference` as a drop would, and Generate waits for it to land, so with LTX-2.5 chosen
+  the pair is an image-to-video run from a shell; alone it does nothing.
   `ZEPHRA_WIRED_LIMIT_MB=N` overrides the wired limit the app sets from the working set for
   that launch (0 switches wiring off), and the bench reads the same variable together with
   `ZEPHRA_MEMORY_LIMIT_MB=N`, so a run in the app can be replayed headlessly under its limits.
