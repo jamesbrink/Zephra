@@ -1178,7 +1178,13 @@ Makefile targets:
   exists with other bytes, which is why the stamp is a minute and not a day;
   a stray build published under another version is deleted from the bucket
   by hand (`aws s3 rm`), never overwritten. When a version bump is wanted,
-  the user says so; nothing here bumps one.
+  the user says so; nothing here bumps one. When a packed variant has been
+  rebuilt under a changed plan or pattern list (`make mirror-<family>
+  FORCE=1`), `make mirror-sync` runs with the ship and not before: the
+  released app matches the mirror index's `source` to its own descriptor word
+  for word, so a mirror that moves ahead of the app sends every user of the
+  old build to the release and a local build instead. LTX-2.5's variant with
+  the video encoder is waiting in `MIRROR_DIR` for exactly that sync.
 - `make prefetch` — download the default model weights with `hf download`
   into `$(MODELS_DIR)/Downloads/mzbac--Z-Image-Turbo-8bit`, which is where the
   app itself would have written them, so a first launch finds them. Set

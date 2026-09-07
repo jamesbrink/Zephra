@@ -55,6 +55,11 @@ is distributed until the app is ready to ship.
    Qwen-Image and klein are Apache 2.0, so hosting the packed derivatives needs the
    attribution `THIRD_PARTY_NOTICES.md` already carries and nothing more; LTX-2.5's
    packed variant carries the pack's `LICENSE.md` beside its files, as its licence asks.
+   One rule the mirror imposes on a plan change: a variant's `source` in `index.json` is
+   the descriptor's identity, patterns included, and the released app matches it word for
+   word. So a rebuilt variant (LTX-2.5's, with the video encoder, since 2026-09-07) is
+   synced with `make ship` and not before, or the released app silently falls back to the
+   69 GB pack and a local build while `availability` still promises the mirror's 19.8 GB.
 8. **LTX-2.5 video** (in progress on `feat/ltx2`; `docs/research/ltx-2.5.md` has the
    reading). Shipped first: the video-only distilled transformer at four bits, packed from
    the ungated `mlx-community/ltx-2.5-mlx` bf16 pack — Lightricks' own repositories are
@@ -90,7 +95,7 @@ is distributed until the app is ready to ship.
      symptom klein works around, `ZEPHRA_DIT_DTYPE=f32` is the bisection lever.
    - **Small things the first cut leaves out**: an exported clip carries no record (the
      favourite, tags and albums stay in the poster PNG); Copy puts the clip's file alone on
-     the pasteboard; a clip cannot be a reference picture; the batch control queues N clips
+     the pasteboard; the batch control queues N clips
      as it queues N pictures; the running-run inspector shows steps but not the clip's
      length; no `ZEPHRA_PREVIEW_STATE` stands a clip up for `make screenshot`; the warm-up
      run is an eight-step nine-frame clip plus an MP4 encode, about ten seconds, where the
