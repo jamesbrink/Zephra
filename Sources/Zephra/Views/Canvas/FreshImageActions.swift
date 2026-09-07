@@ -27,10 +27,16 @@ struct FreshImageActions: View {
             GridRow {
                 button("Use as Reference") { ReferenceAdoption.adopt(image, into: store) }
                     .disabled(!store.descriptor.capabilities.supportsReferenceImage)
+                    .gridCellColumns(2)
+            }
+            // A row of its own: "Animate from Last Frame" does not fit half a column, and a
+            // button that truncates its own verb is not a button.
+            GridRow {
                 button(image.isVideo ? "Animate from Last Frame" : "Animate") {
                     ReferenceAdoption.animate(image, into: store)
                 }
                 .disabled(!store.canAnimate)
+                .gridCellColumns(2)
             }
             // A clip's poster is not a picture to make larger.
             if !image.isVideo {

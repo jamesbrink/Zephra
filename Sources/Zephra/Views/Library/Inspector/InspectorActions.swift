@@ -53,7 +53,13 @@ struct InspectorActions: View {
             }
             GridRow {
                 UseAsReferenceButton(item: item)
+                    .gridCellColumns(2)
+            }
+            // A row of its own: "Animate from Last Frame" does not fit half a column, and a
+            // button that truncates its own verb is not a button.
+            GridRow {
                 AnimateButton(item: item)
+                    .gridCellColumns(2)
             }
         }
         .lineLimit(1)
