@@ -16,8 +16,9 @@ import SwiftUI
 /// capabilities or the store. The caller owns `.help` and `.accessibilityLabel` on the button
 /// that wraps this, since those describe the action, not the shape.
 struct ReferencePlaceholder: View {
-    /// The caption under the glyph. A later milestone renames it by model role; the default
-    /// keeps every existing call site unchanged until then.
+    /// The caption under the glyph. The caller reads it from the model's `ReferenceRole` —
+    /// `ReferenceImageWell` passes `role.wellCaption`, "First frame", "Start from", or
+    /// "Reference" — and the default here is only for a call site that has not been.
     var title: String = "Reference"
     /// Whether a drop is in flight over this well right now.
     let isTargeted: Bool

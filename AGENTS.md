@@ -1073,7 +1073,7 @@ interface caps at 1024 pixels an edge before they land there.
 picture for any model without it, and the well beside the prompt shows only for
 a model that has it. The picture is persisted in a second PNG chunk beside the
 record and comes back when the image is selected. Every model the catalog ships
-reads one, in one of the two ways the next section describes.
+reads one, in one of the three ways the next section describes.
 
 The well offers three doors to a picture, and `ReferenceAdoption` in
 `Sources/Zephra/Support/` is the one place all three read the file through: a
@@ -1360,8 +1360,9 @@ sets the clip's length to that model's default, and reads the picture through
 the same numbered choice every other door into the well uses. The prompt is
 kept: the person is animating this picture with their prompt, which is what
 tells Animate apart from a variation. `canAnimate` is `acceptsWork` and this
-build having such a model, which is what the interface shows or hides the
-button by. The size follows the picture in `useAsReference` rather than in
+build having such a model, which is what the interface greys the button by,
+disabled rather than hidden the same way `supportsReferenceImage` greys Use
+as Reference. The size follows the picture in `useAsReference` rather than in
 `animate` — on a model that makes clips a picture landing in the well moves
 `settings.size` to `ModelCapabilities.preset(nearestAspect:)` of the picture's
 own pixels — so a drop, the picker, Use as Reference and Animate all agree.

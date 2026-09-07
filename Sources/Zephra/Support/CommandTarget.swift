@@ -84,5 +84,12 @@ enum CommandTarget: Equatable {
     /// "Animate from Last Frame" over a clip, since its poster is only the frame it starts on;
     /// "Animate" otherwise, for one picture or for no target at all, which is what greys the
     /// item out regardless of what its title says.
-    var animateTitle: String { singlePicture == true ? "Animate from Last Frame" : "Animate" }
+    var animateTitle: String { Self.animateTitle(forClip: singlePicture == true) }
+
+    /// The wording itself, spelled once: `AnimateButton`, `FreshImageActions`, `FreshImageMenu`
+    /// and this type's own `animateTitle` all read it, so the menu bar and every picture's own
+    /// button cannot drift apart on what Animate is called.
+    static func animateTitle(forClip isVideo: Bool) -> String {
+        isVideo ? "Animate from Last Frame" : "Animate"
+    }
 }

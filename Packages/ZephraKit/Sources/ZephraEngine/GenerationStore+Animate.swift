@@ -33,22 +33,38 @@ extension GenerationStore {
 
     /// The rule itself, over whichever model is doing the animating. Separate from the catalog
     /// lookup so it can be driven with a model this build does not ship.
+    ///
+    /// The ticket is taken now, the same as `adoptReference`, but nothing else moves until the
+    /// read lands: a missing MP4 or PNG must leave the model, the settings and the well exactly
+    /// as they were, not half-switched onto a clip that never arrived. So the model choice, the
+    /// frame count and the capsule's ownership are applied inside the read's own landing, guarded
+    /// by the same ticket `useAsReference` checks, rather than ahead of it the way `adoptReference`
+    /// itself is written for every other door into the well.
     func animate(
         with model: ModelDescriptor, origin: String?, read: @escaping @Sendable () async -> Data?
     ) {
         stopFollowingRun()
-        // Chosen, not loaded, exactly as a picture picked off the sidebar chooses its model:
-        // `adopt` moves the settings onto the new model's schedule, `adoptForGenerate` leaves
-        // the weights where they are until Generate asks for these ones.
-        if model.id != descriptor.id { adopt(model) }
-        adoptForGenerate(model)
-        settings.frames = model.capabilities.defaultFrames
-        // The capsule is the user's again, not a picture's: the running card must not put a
-        // run's settings back over the clip being set up. (Writing to `settings` says so too;
-        // this says it on purpose rather than by side effect.)
-        capsuleHoldsPicture = false
-        // Takes the ticket now. The size follows the picture when it lands, in
-        // `useAsReference`, which every other door into the well goes through as well.
-        adoptReference(origin: origin, read)
+        let ticket = claimReference()
+        referenceRead = Task { [weak self] in
+            let png = await Task.detached(priority: .userInitiated, operation: read).value
+            guard let self, !Task.isCancelled else { return }
+            defer { if referenceChoice == ticket { referenceRead = nil } }
+            // Nothing changes on a failed read, and nothing changes either if a newer choice
+            // has already superseded this one while the read was in flight.
+            guard let png, ticket == referenceChoice else { return }
+            // Chosen, not loaded, exactly as a picture picked off the sidebar chooses its model:
+            // `adopt` moves the settings onto the new model's schedule, `adoptForGenerate` leaves
+            // the weights where they are until Generate asks for these ones.
+            if model.id != descriptor.id { adopt(model) }
+            adoptForGenerate(model)
+            settings.frames = model.capabilities.defaultFrames
+            // The capsule is the user's again, not a picture's: the running card must not put a
+            // run's settings back over the clip being set up. (Writing to `settings` says so too;
+            // this says it on purpose rather than by side effect.)
+            capsuleHoldsPicture = false
+            // The size follows the picture in `useAsReference`, which every other door into the
+            // well goes through as well.
+            useAsReference(png, ticket: ticket, origin: origin)
+        }
     }
 }

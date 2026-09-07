@@ -130,6 +130,27 @@ struct AnimateTests {
         #expect(store.settings.referenceImage == nil)
     }
 
+    @Test("a read that fails leaves the model, the settings and the well untouched")
+    func aFailedReadChangesNothing() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        let chosenBefore = store.descriptor.id
+        let framesBefore = store.settings.frames
+        let capsuleBefore = store.capsuleHoldsPicture
+
+        store.animate(with: Self.video, origin: "harbour.png") { nil }
+        while store.isAdoptingReference { await Task.yield() }
+
+        #expect(store.descriptor.id == chosenBefore, "the model never half-switched")
+        #expect(!store.modelAwaitsGenerate)
+        #expect(store.settings.frames == framesBefore)
+        #expect(store.settings.referenceImage == nil)
+        #expect(store.settings.referenceOrigin == nil)
+        #expect(store.capsuleHoldsPicture == capsuleBefore)
+    }
+
     @Test("this build ships a model that animates a picture, and the catalog names which")
     func theCatalogHasOne() async throws {
         let bed = EngineTestBed()

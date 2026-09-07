@@ -101,4 +101,10 @@ struct CommandTargetTests {
         #expect(CommandTarget.canvas(picture).animateTitle == "Animate")
         #expect(CommandTarget.none.animateTitle == "Animate")
     }
+
+    @Test("the static wording every Animate button and menu item reads is the same one")
+    func animateTitleForClipIsTheOneSpelling() {
+        #expect(CommandTarget.animateTitle(forClip: true) == "Animate from Last Frame")
+        #expect(CommandTarget.animateTitle(forClip: false) == "Animate")
+    }
 }

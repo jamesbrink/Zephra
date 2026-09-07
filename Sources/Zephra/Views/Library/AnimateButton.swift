@@ -27,10 +27,14 @@ struct AnimateButton: View {
         .help(helpText)
     }
 
-    private var title: String { item.isVideo ? "Animate from Last Frame" : "Animate" }
+    private var title: String { CommandTarget.animateTitle(forClip: item.isVideo) }
 
+    /// `ActionAvailability`'s reason while the button is disabled — a `LibraryItem` is always
+    /// already on disk, so `hasSource` is always true here — and what pressing it would do
+    /// first while it is live.
     private var helpText: String {
-        guard let animator = ModelCatalog.animator() else { return "" }
+        let reason = ActionAvailability.animateDisabledReason(hasSource: true, store: store)
+        guard reason.isEmpty, let animator = ModelCatalog.animator() else { return reason }
         let subject = item.isVideo ? "this clip's last frame" : "this picture"
         return "Make a clip from \(subject)" + ModelLoadNote.text(for: animator, store: store)
     }

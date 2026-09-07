@@ -26,16 +26,20 @@ struct FreshImageActions: View {
             }
             GridRow {
                 button("Use as Reference") { ReferenceAdoption.adopt(image, into: store) }
-                    .disabled(!store.descriptor.capabilities.supportsReferenceImage)
+                    .disabled(!canUseAsReference)
+                    .help(ActionAvailability.referenceDisabledReason(
+                        capabilities: store.descriptor.capabilities))
                     .gridCellColumns(2)
             }
             // A row of its own: "Animate from Last Frame" does not fit half a column, and a
             // button that truncates its own verb is not a button.
             GridRow {
-                button(image.isVideo ? "Animate from Last Frame" : "Animate") {
+                button(CommandTarget.animateTitle(forClip: image.isVideo)) {
                     ReferenceAdoption.animate(image, into: store)
                 }
-                .disabled(!store.canAnimate)
+                .disabled(!canAnimateImage)
+                .help(ActionAvailability.animateDisabledReason(
+                    hasSource: ActionAvailability.hasAnimatableSource(image), store: store))
                 .gridCellColumns(2)
             }
             // A clip's poster is not a picture to make larger.
@@ -56,6 +60,14 @@ struct FreshImageActions: View {
         Button(action: action) {
             Text(title).frame(maxWidth: .infinity)
         }
+    }
+
+    private var canUseAsReference: Bool { store.descriptor.capabilities.supportsReferenceImage }
+
+    /// `store.canAnimate` and whether `image` itself has bytes Animate could read — a clip
+    /// whose write has not landed and whose video never reached memory either has none.
+    private var canAnimateImage: Bool {
+        store.canAnimate && ActionAvailability.hasAnimatableSource(image)
     }
 }
 

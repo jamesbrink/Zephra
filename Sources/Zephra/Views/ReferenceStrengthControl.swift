@@ -3,13 +3,18 @@ import ZephraEngine
 
 /// How much of the reference picture survives, as a slider with its value beside it.
 ///
-/// Shown only while there is a picture to apply it to, and only for a model that starts from a
-/// noised copy of one. FLUX.2 klein attends to the picture as extra tokens and renders the whole
-/// schedule from noise, so it declares a single legal strength and never shows this — the same
-/// way a distilled model hides the guidance slider.
+/// Shown only while there is a picture to apply it to, and only for a model whose
+/// `referenceStrengthBounds` is not the degenerate `1...1` — `capabilities.adjustsReferenceStrength`.
+/// FLUX.2 klein attends to the picture as extra tokens and renders the whole schedule from noise,
+/// so it declares that single legal strength and never shows this, the same way a distilled model
+/// hides the guidance slider.
 ///
-/// Lower keeps more of the picture: the strength buys that share of the model's steps, and the
-/// ones it does not buy are the ones that would have moved furthest from where it started.
+/// "Lower keeps more of the picture" is true for every role this control draws for, but what a
+/// model does with the number differs — see "Starting from a picture" in AGENTS.md. Z-Image and
+/// Qwen-Image start from a noised copy of the picture and read the slider as the share of the
+/// model's own steps the strength buys; LTX-2.5 holds the picture as a clip's first frame and
+/// reads the same slider inverted (`LTX2RequestMapper` maps it to `1 - strength`) as how far the
+/// clip may drift from it, which is why its default is 0 rather than the other two's 0.6.
 ///
 /// The bounds are checked here as well as in `ControlsRow`, for the reason `GuidanceControl`
 /// gives: switching from Z-Image to klein with a picture in the well re-evaluated this body

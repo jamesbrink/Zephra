@@ -12,6 +12,9 @@ import UniformTypeIdentifiers
 /// of it. The bytes it copies out are re-encoded through `ReferenceImageEncoder`, the one place
 /// a picture becomes what a reference is carried as, so a clip's last frame is capped and cast
 /// exactly like every other door into the well.
+///
+/// `lastFrame(ofMP4Data:)` is the same rule for a clip still in memory, with no file on disk yet
+/// to read: the generator only reads from a URL, so the bytes go through a temporary file first.
 enum ClipFrames {
     /// The clip's last frame, or nil when the asset has no readable frame there.
     nonisolated static func lastFrame(of url: URL) -> Data? {
@@ -32,6 +35,19 @@ enum ClipFrames {
         }
         guard let rawPNG = pngData(from: cgImage) else { return nil }
         return ReferenceImageEncoder.pngData(from: rawPNG)
+    }
+
+    /// The same rule over a clip's MP4 bytes still held in memory, for a picture that has not
+    /// reached the disk yet: `AVAssetImageGenerator` reads from a file, so the bytes are written
+    /// to a uniquely named temporary file first and removed again once the frame is read,
+    /// success or failure alike, rather than left for the poster's fallback to reach instead.
+    nonisolated static func lastFrame(ofMP4Data data: Data) -> Data? {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("zephra-clip-frame-\(UUID().uuidString)")
+            .appendingPathExtension("mp4")
+        defer { try? FileManager.default.removeItem(at: url) }
+        guard (try? data.write(to: url)) != nil else { return nil }
+        return lastFrame(of: url)
     }
 
     private nonisolated static func pngData(from image: CGImage) -> Data? {

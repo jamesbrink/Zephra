@@ -21,5 +21,6 @@ struct UseAsReferenceButton: View {
             Text("Use as Reference").frame(maxWidth: .infinity)
         }
         .disabled(!store.descriptor.capabilities.supportsReferenceImage)
+        .help(ActionAvailability.referenceDisabledReason(capabilities: store.descriptor.capabilities))
     }
 }

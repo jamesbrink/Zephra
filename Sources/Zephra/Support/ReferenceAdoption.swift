@@ -19,9 +19,16 @@ enum ReferenceAdoption {
     /// Adopts a picture the caller already has as a `LibraryItem` — the menu button and the
     /// picker sheet's own selection, which both came from the index and so already know
     /// whether it carries a reference of its own.
+    ///
+    /// `origin` is the SOURCE's own file name when the item hands back its source picture
+    /// (nil when that source's own record carries none), and the item's own file name
+    /// otherwise — the record is already in memory on `item.provenance`, so this costs no read
+    /// beyond the one the closure below makes anyway.
     @MainActor
     static func adopt(_ item: LibraryItem, into store: GenerationStore) {
-        store.adoptReference {
+        let record = item.provenance.record
+        let origin = record?.referenceBytes != nil ? record?.referenceOrigin : item.fileName
+        store.adoptReference(origin: origin) {
             if let source = item.referenceImage {
                 return ReferenceImageEncoder.pngData(from: source)
             }
@@ -33,10 +40,15 @@ enum ReferenceAdoption {
     /// rule as a library item: one that was itself edited from a picture hands back that
     /// picture, and the bytes are re-encoded to the reference's own cap either way, so the
     /// canvas's menu means the same thing before and after the folder scan catches up.
+    ///
+    /// `origin` follows the same rule as `adopt(_ item:into:)`: the source's own origin when
+    /// `image` hands back its source, and `image`'s own file name otherwise.
     @MainActor
     static func adopt(_ image: GeneratedImage, into store: GenerationStore) {
+        let hasSource = image.settings.referenceImage != nil
         let source = image.settings.referenceImage ?? image.pngData
-        store.adoptReference { ReferenceImageEncoder.pngData(from: source) }
+        let origin = hasSource ? image.settings.referenceOrigin : image.fileURL?.lastPathComponent
+        store.adoptReference(origin: origin) { ReferenceImageEncoder.pngData(from: source) }
     }
 
     /// Adopts a picture named only by its id — a drop of a `LibraryItemReference`, which
@@ -46,13 +58,28 @@ enum ReferenceAdoption {
     @MainActor
     static func adopt(id: LibraryItem.ID, into store: GenerationStore) {
         let url = URL(fileURLWithPath: id)
-        store.adoptReference {
+        store.adoptReference(origin: referenceOrigin(droppedFrom: url)) {
             guard let data = try? Data(contentsOf: url) else { return nil }
             if let reference = GenerationRecord.reference(in: data) {
                 return ReferenceImageEncoder.pngData(from: reference)
             }
             return ReferenceImageEncoder.pngData(from: data)
         }
+    }
+
+    /// The origin a drop of `LibraryItemReference` should carry: the dropped file's own name,
+    /// or the file it was itself edited from, when its header says it was one.
+    ///
+    /// A header read (`PNGTextChunks.read(fromHeaderOf:)`, the same fast read a library scan
+    /// makes) rather than the full read the closure above makes: `adoptReference`'s `origin`
+    /// travels with the choice and so has to be known before the read starts, unlike the bytes
+    /// themselves, which only the closure needs.
+    @MainActor
+    private static func referenceOrigin(droppedFrom url: URL) -> String? {
+        guard let text = try? PNGTextChunks.read(fromHeaderOf: url),
+            let record = GenerationRecord.decode(from: text), record.referenceBytes != nil
+        else { return url.lastPathComponent }
+        return record.referenceOrigin
     }
 
     /// Puts `png` in the well, or clears it with nil, as a choice made right now: any library
@@ -68,13 +95,25 @@ enum ReferenceAdoption {
     /// `adopt(_:into:)` above: Animate means exactly the picture in front of you, and handing
     /// back an edit's source would animate the wrong one. `FreshImageMenu` and
     /// `FreshImageActions` both call this, so the rule lives once.
+    ///
+    /// A clip's last frame comes from its saved MP4 when the file has landed, and from the clip
+    /// still held in memory (`image.video?.mp4`, through a temporary file) when it has not —
+    /// never from the poster, which is only the *first* frame and would animate the wrong end of
+    /// the clip. `ActionAvailability.hasAnimatableSource` is what greys the button in that one
+    /// remaining case, a clip with neither.
     @MainActor
     static func animate(_ image: GeneratedImage, into store: GenerationStore) {
         store.animate(origin: image.fileURL?.lastPathComponent) {
-            if image.isVideo, let fileURL = image.fileURL {
+            guard image.isVideo else {
+                return ReferenceImageEncoder.pngData(from: image.pngData)
+            }
+            if let fileURL = image.fileURL {
                 return ClipFrames.lastFrame(of: VideoSidecar.url(beside: fileURL))
             }
-            return ReferenceImageEncoder.pngData(from: image.pngData)
+            if let mp4 = image.video?.mp4 {
+                return ClipFrames.lastFrame(ofMP4Data: mp4)
+            }
+            return nil
         }
     }
 
