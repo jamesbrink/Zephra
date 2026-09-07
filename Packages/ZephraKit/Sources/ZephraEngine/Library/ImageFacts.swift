@@ -23,6 +23,18 @@ public struct ImageFacts: Hashable, Sendable {
     public let upscaled: String?
     /// How long the clip runs and how many frames it has, or nil for a picture.
     public let length: String?
+    /// How far from the reference picture the generation started, to two decimals, or nil when
+    /// there was no picture and when the strength was 1 — a model that conditions on the
+    /// picture directly had no distance to travel, and a row saying "1.00" says nothing.
+    public let referenceStrength: String?
+    /// The same number unformatted, for an interface that words some value of it specially:
+    /// LTX-2.5 runs the scale the other way and its 0 means the first frame is held exactly,
+    /// which reads as a phrase rather than as a number. `length` says which kind of picture
+    /// this is, so the caller has both halves of that question.
+    public let referenceStrengthValue: Double?
+    /// The library file the reference picture came out of, or nil when it came from a file
+    /// chooser, a drop, or nowhere at all.
+    public let referenceOrigin: String?
 
     /// The facts about a library image. `modelName` is the catalog's name for it, when there is
     /// one; without it the identifier written into the file is shown, which is the honest answer
@@ -42,6 +54,10 @@ public struct ImageFacts: Hashable, Sendable {
         length = item.provenance.record.flatMap { record in
             record.frameCount.map { Self.lengthLabel(frames: $0, rate: record.frameRate ?? 24) }
         }
+        // The record's own strength is already nil where there was no picture.
+        referenceStrengthValue = Self.reportable(item.provenance.record?.referenceStrength)
+        referenceStrength = referenceStrengthValue.map(Self.strengthLabel)
+        referenceOrigin = item.provenance.record?.referenceOrigin
     }
 
     /// The facts about an image in memory, which may not have reached the disk yet.
@@ -56,6 +72,23 @@ public struct ImageFacts: Hashable, Sendable {
         // takes over the moment the scan lands, which is typically inside a second.
         upscaled = nil
         length = image.video.map { Self.lengthLabel(frames: $0.frameCount, rate: $0.frameRate) }
+        let settings = image.settings
+        referenceStrengthValue = settings.referenceImage == nil
+            ? nil : Self.reportable(settings.referenceStrength)
+        referenceStrength = referenceStrengthValue.map(Self.strengthLabel)
+        referenceOrigin = settings.referenceImage == nil ? nil : settings.referenceOrigin
+    }
+
+    /// A strength worth showing: not one that was never recorded, and not the 1 that means the
+    /// generation had no distance to travel from its picture.
+    static func reportable(_ strength: Double?) -> Double? {
+        guard let strength, strength != 1 else { return nil }
+        return strength
+    }
+
+    /// The strength as the slider spells it, to two decimals.
+    static func strengthLabel(_ strength: Double) -> String {
+        strength.formatted(.number.precision(.fractionLength(2)))
     }
 
     /// "2.0 s, 49 frames at 24 fps": the seconds to one decimal, since a ladder of eight frames

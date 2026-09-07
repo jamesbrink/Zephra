@@ -122,6 +122,89 @@ struct ImageFactsTests {
         #expect(ImageFacts.tookLabel(seconds: 600, steps: 0) == "\(Self.number(600)) s")
     }
 
+    @Test("an edit says how far from its picture it started, and which picture that was")
+    func referenceRows() {
+        var record = Self.record()
+        record.referenceBytes = 44
+        record.referenceStrength = 0.6
+        record.referenceOrigin = "harbour-1234.png"
+        let facts = ImageFacts(Self.item(record))
+
+        #expect(facts.referenceStrength == Self.strength(0.6))
+        #expect(facts.referenceStrengthValue == 0.6)
+        #expect(facts.referenceOrigin == "harbour-1234.png")
+    }
+
+    @Test("a generation with no picture, and one that had no distance to travel, say nothing")
+    func noReferenceRows() {
+        #expect(ImageFacts(Self.item(Self.record())).referenceStrength == nil)
+        #expect(ImageFacts(Self.item(Self.record())).referenceOrigin == nil)
+
+        // What klein writes: a picture conditioned on directly, recorded at 1.
+        var direct = Self.record()
+        direct.referenceBytes = 44
+        direct.referenceStrength = 1
+        #expect(ImageFacts(Self.item(direct)).referenceStrength == nil, "1.00 says nothing")
+        #expect(ImageFacts(Self.item(direct)).referenceStrengthValue == nil)
+    }
+
+    @Test("a clip's own strength is reported as the number, for the caller to word")
+    func aClipsStrength() {
+        var record = Self.record()
+        record.referenceBytes = 44
+        record.referenceStrength = 0
+        record.frameCount = 49
+        record.frameRate = 24
+        let facts = ImageFacts(Self.item(record))
+
+        // LTX-2.5 runs the scale the other way: 0 holds the first frame exactly. The engine
+        // formats the number and says it is a clip; wording that as a phrase is the app's.
+        #expect(facts.referenceStrengthValue == 0)
+        #expect(facts.referenceStrength == Self.strength(0))
+        #expect(facts.length == "2.0 s, 49 frames at 24 fps")
+    }
+
+    @Test("a picture still in memory reads its reference rows from its settings")
+    func referenceRowsFromAnImageInMemory() {
+        var settings = GenerationSettings(
+            prompt: "make it night", size: ImageSize(width: 1024, height: 1024), steps: 9,
+            guidance: 3, seed: 42)
+        settings.referenceImage = Data([1, 2, 3])
+        settings.referenceStrength = 0.45
+        settings.referenceOrigin = "harbour-1234.png"
+        let image = GeneratedImage(
+            pngData: Data(), settings: settings, modelID: ModelCatalog.default.id,
+            duration: .seconds(3))
+        let facts = ImageFacts(image)
+
+        #expect(facts.referenceStrength == Self.strength(0.45))
+        #expect(facts.referenceOrigin == "harbour-1234.png")
+
+        settings.referenceImage = nil
+        let plain = GeneratedImage(
+            pngData: Data(), settings: settings, modelID: ModelCatalog.default.id,
+            duration: .seconds(3))
+        #expect(ImageFacts(plain).referenceStrength == nil, "no picture, nothing to report")
+        #expect(ImageFacts(plain).referenceOrigin == nil)
+    }
+
+    /// A plain generated record, for a test that then says what is different about it.
+    private static func record() -> GenerationRecord {
+        GenerationRecord(
+            GeneratedImage(
+                pngData: Data(),
+                settings: GenerationSettings(
+                    prompt: "a lighthouse", size: ImageSize(width: 1024, height: 1024), steps: 9,
+                    guidance: 3, seed: 42),
+                modelID: ModelCatalog.default.id,
+                duration: .seconds(3)))
+    }
+
+    /// The same formatting the strength row uses, so these assertions hold in any locale.
+    private static func strength(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(2)))
+    }
+
     /// One library item carrying exactly the record handed in.
     private static func item(_ record: GenerationRecord) -> LibraryItem {
         LibraryItem(

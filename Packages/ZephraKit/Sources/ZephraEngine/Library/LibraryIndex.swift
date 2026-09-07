@@ -94,6 +94,17 @@ public final class LibraryIndex {
         items.first { $0.id == id }
     }
 
+    /// One image by its file name, which is all a record names another picture by: a library
+    /// that survives being moved to another Mac holds no absolute paths, so the reference an
+    /// edit started from is recorded as a name and looked up here.
+    ///
+    /// Recently Deleted is skipped. A name reused by a picture in the trash is not the picture
+    /// the record meant, and offering to show a deleted one as the source of a live picture
+    /// would be a worse answer than none.
+    public func item(named fileName: String) -> LibraryItem? {
+        items.first { $0.collection != .recentlyDeleted && $0.url.lastPathComponent == fileName }
+    }
+
     /// How many images another query would show, for a sidebar row that is not the current one.
     /// Counting, not listing: the order of the matches is nobody's business here.
     public func count(for query: LibraryQuery) -> Int {

@@ -30,6 +30,25 @@ struct LibraryIndexTests {
         #expect(index.scanCount == scans, "no folder was listed")
     }
 
+    @Test("an image can be found by the file name a record names it with, trash aside")
+    func lookupByFileName() async throws {
+        let bed = EngineTestBed()
+        let url = try bed.library.write(LibraryAnnotationTests.image(seed: 7, prompt: "harbour"))
+        let index = bed.index()
+        index.start()
+        await index.settle()
+
+        let found = try #require(index.item(named: url.lastPathComponent))
+        #expect(found.prompt == "harbour")
+        #expect(index.item(named: "never-written.png") == nil)
+
+        index.moveToRecentlyDeleted([found.id])
+        await index.settle()
+        #expect(
+            index.item(named: url.lastPathComponent) == nil,
+            "a picture in the trash is not the source of a live one")
+    }
+
     @Test("a file deleted behind the app's back leaves the index on the next scan")
     func removedFilesLeave() async throws {
         let bed = EngineTestBed()
