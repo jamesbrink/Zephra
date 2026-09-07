@@ -24,7 +24,8 @@ extension GenerationRecord {
             seed: seed,
             referenceImage: referenceImage,
             referenceStrength: referenceStrength ?? 1,
-            referenceOrigin: referenceOrigin,
+            // An origin names the picture's source; without the picture there is nothing it is of.
+            referenceOrigin: referenceImage == nil ? nil : referenceOrigin,
             frames: frameCount ?? 1
         )
     }

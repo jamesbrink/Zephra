@@ -49,6 +49,20 @@ struct LibraryIndexTests {
             "a picture in the trash is not the source of a live one")
     }
 
+    @Test("a name shared by a generated picture and an imported source finds the generated one")
+    func nameCollisionPrefersTheGeneratedPicture() async throws {
+        let bed = EngineTestBed()
+        let generated = try bed.library.write(LibraryAnnotationTests.image(seed: 12, prompt: "made here"))
+        try LibraryScanTests.putSource(named: generated.lastPathComponent, in: bed.library)
+        let index = bed.index()
+        index.start()
+        await index.settle()
+
+        let found = try #require(index.item(named: generated.lastPathComponent))
+        #expect(found.collection == .generated)
+        #expect(found.url.standardizedFileURL == generated.standardizedFileURL)
+    }
+
     @Test("a file deleted behind the app's back leaves the index on the next scan")
     func removedFilesLeave() async throws {
         let bed = EngineTestBed()

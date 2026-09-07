@@ -58,6 +58,9 @@ extension GenerationStore {
             if model.id != descriptor.id { adopt(model) }
             adoptForGenerate(model)
             settings.frames = model.capabilities.defaultFrames
+            // Animate is a fresh clip from this picture, so its strength is the model's default
+            // even when the model was already chosen and `adopt` did not reset the schedule.
+            settings.referenceStrength = model.capabilities.defaultReferenceStrength
             // The capsule is the user's again, not a picture's: the running card must not put a
             // run's settings back over the clip being set up. (Writing to `settings` says so too;
             // this says it on purpose rather than by side effect.)

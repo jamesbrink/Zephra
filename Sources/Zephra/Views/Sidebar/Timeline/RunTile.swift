@@ -4,9 +4,8 @@ import ZephraEngine
 /// One square of a run: a picture the library knows about, or a picture this session has just
 /// made.
 ///
-/// The two draw the same size and sit in the same cell, which is the whole point of the
-/// timeline's tile: a run's row is laid out once and then filled in, rather than growing a
-/// square at a time as the seeds land.
+/// The two draw the same size and sit in the same cell, so a run's squares read as one run
+/// whether the file has been indexed yet or not.
 ///
 /// A square is a run to pick up again, whichever kind it is: an indexed picture goes onto the
 /// canvas *with* its settings through `GenerationStore.select(_:)`, the way a fresh one does

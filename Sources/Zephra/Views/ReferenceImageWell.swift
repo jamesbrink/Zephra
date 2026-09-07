@@ -18,7 +18,11 @@ struct ReferenceImageWell: View {
     /// Whether a drop is in flight over the well right now, whichever of the three types below
     /// it turns out to be. Shared across all three so the empty and the filled state agree
     /// about it, and a replacement drop over an already-filled well shows the same accent.
-    @State private var isTargeted = false
+    /// Which of the three drop destinations has a drop over it; the well is targeted while any
+    /// does, so an exit from one arriving after an enter from another cannot turn the accent off.
+    @State private var targeted: Set<Int> = []
+
+    private var isTargeted: Bool { !targeted.isEmpty }
 
     var body: some View {
         if store.descriptor.capabilities.supportsReferenceImage {
@@ -27,7 +31,7 @@ struct ReferenceImageWell: View {
                     guard let reference = references.first else { return false }
                     ReferenceAdoption.adopt(id: reference.id, into: store)
                     return true
-                } isTargeted: { isTargeted = $0 }
+                } isTargeted: { if $0 { targeted.insert(1) } else { targeted.remove(1) } }
                 // Each drop is a choice made as it is accepted and read off the main actor:
                 // `adoptReference` takes the ticket now and decodes in a detached task, so a
                 // large photo never stalls the drop and a later choice still wins. A file
@@ -36,12 +40,12 @@ struct ReferenceImageWell: View {
                     guard let url = urls.first else { return false }
                     store.adoptReference { ReferenceImageEncoder.pngData(contentsOf: url) }
                     return true
-                } isTargeted: { isTargeted = $0 }
+                } isTargeted: { if $0 { targeted.insert(2) } else { targeted.remove(2) } }
                 .dropDestination(for: Data.self) { items, _ in
                     guard let data = items.first else { return false }
                     store.adoptReference { ReferenceImageEncoder.pngData(from: data) }
                     return true
-                } isTargeted: { isTargeted = $0 }
+                } isTargeted: { if $0 { targeted.insert(3) } else { targeted.remove(3) } }
                 .sheet(isPresented: $isPickerPresented) {
                     ReferencePickerSheet { item in ReferenceAdoption.adopt(item, into: store) }
                 }

@@ -74,6 +74,25 @@ struct AnimateTests {
         #expect(!store.capsuleHoldsPicture, "the capsule is the user's, not a picture's")
     }
 
+    @Test("animating again on the clip model already chosen puts the strength back to its default")
+    func aSecondAnimateResetsTheStrength() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        store.animate(with: Self.video, origin: nil) { Self.landscape }
+        while store.isAdoptingReference { await Task.yield() }
+        store.settings.referenceStrength = 0.9
+        store.settings.frames = 9
+
+        store.animate(with: Self.video, origin: nil) { Self.portrait }
+        while store.isAdoptingReference { await Task.yield() }
+
+        #expect(store.descriptor.id == Self.video.id)
+        #expect(store.settings.referenceStrength == 0, "a fresh clip holds its picture exactly")
+        #expect(store.settings.frames == Self.video.capabilities.defaultFrames)
+    }
+
     @Test("Generate is what loads the clip model, and the backend is handed the picture")
     func generateLoadsIt() async throws {
         let bed = EngineTestBed()

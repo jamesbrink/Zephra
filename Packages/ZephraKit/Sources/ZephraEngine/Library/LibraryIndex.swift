@@ -102,7 +102,10 @@ public final class LibraryIndex {
     /// the record meant, and offering to show a deleted one as the source of a live picture
     /// would be a worse answer than none.
     public func item(named fileName: String) -> LibraryItem? {
-        items.first { $0.collection != .recentlyDeleted && $0.url.lastPathComponent == fileName }
+        // A generated picture and an imported source may share a name; the root wins, because
+        // a reference's origin is recorded from what the app made before what it was handed.
+        let live = items.filter { $0.collection != .recentlyDeleted && $0.url.lastPathComponent == fileName }
+        return live.first { $0.collection == .generated } ?? live.first
     }
 
     /// How many images another query would show, for a sidebar row that is not the current one.

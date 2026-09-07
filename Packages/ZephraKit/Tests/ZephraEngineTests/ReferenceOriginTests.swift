@@ -42,6 +42,14 @@ struct ReferenceOriginTests {
         #expect(GenerationRecord(image).referenceOrigin == nil)
     }
 
+    @Test("settings read back from a record without its picture carry no origin either")
+    func settingsWithoutThePictureCarryNoOrigin() throws {
+        let record = GenerationRecord(Self.image(origin: "harbour-1234.png"))
+        #expect(record.referenceOrigin == "harbour-1234.png")
+        #expect(record.settings(referenceImage: nil).referenceOrigin == nil)
+        #expect(record.settings(referenceImage: Self.picture).referenceOrigin == "harbour-1234.png")
+    }
+
     @Test("a record written before origins existed reads back without one")
     func olderRecordsDecode() throws {
         // The JSON an older build wrote, key for key, with no `referenceOrigin` in it.
