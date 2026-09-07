@@ -6,6 +6,9 @@ enough to catch a transposed axis or a swapped modulation chunk.
 
 The transformer fixtures are dumped with the audio-to-video cross-attention switched off, which
 is the official model's `audio=None` forward and the only path a video-only pack runs.
+`transformer_conditioned` is the same model handed a per-token `timestep`, which is how a held
+first frame reaches it; the audio lane keeps the scalar there, as the reference's own
+image-to-video pipeline passes it.
 
 Three files are not doll's-house dumps: `tokenizer.safetensors` is ids from the real Gemma 4
 tokenizer, which `Tools/dump_text_encoder.py` fetches from the ungated
