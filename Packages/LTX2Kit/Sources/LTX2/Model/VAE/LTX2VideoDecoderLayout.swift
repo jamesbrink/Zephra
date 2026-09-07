@@ -18,8 +18,9 @@ public struct LTX2VideoDecoderLayout: Hashable, Sendable {
         }
     }
 
-    /// How an upsampler between two stages stretches the clip: by `temporal` in frames and by
-    /// `spatial` on each of height and width.
+    /// How a resampler between two stages scales the clip: by `temporal` in frames and by
+    /// `spatial` on each of height and width. The encoder's layout takes the same type, running
+    /// the other way.
     public struct Stride: Hashable, Sendable {
         public let temporal: Int
         public let spatial: Int

@@ -61,6 +61,22 @@ struct WeightKeyCoverageTests {
         Self.expectNamesMatch(published: published, claimed: claimed)
     }
 
+    /// The encoder is the one file this suite may not find: a Mac that fetched the pack before
+    /// a first frame could be held has every other file and not this one, so the test is gated
+    /// on the file rather than on the release.
+    @Test(
+        "the video encoder's tree claims every tensor in its file",
+        .enabled(if: SnapshotUnderTest.ltx2.hasEncoderFile))
+    func videoEncoder() throws {
+        let release = try #require(SnapshotUnderTest.ltx2.release)
+        let published = try Self.keys(release.appending(path: "vae_encoder.safetensors"))
+        let claimed = Set(
+            LTX2VideoEncoder(.ltx25).parameters().flattened()
+                .map { LTX2VAEWeights.encoderCheckpointName(of: $0.0) })
+        #expect(published.count == 86)
+        Self.expectNamesMatch(published: published, claimed: claimed)
+    }
+
     private static func keys(_ file: URL) throws -> Set<String> {
         Set(try SafeTensorsHeader(contentsOf: file).entries.map(\.name))
     }

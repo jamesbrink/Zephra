@@ -7,12 +7,12 @@ enough to catch a transposed axis or a swapped modulation chunk.
 The transformer fixtures are dumped with the audio-to-video cross-attention switched off, which
 is the official model's `audio=None` forward and the only path a video-only pack runs.
 
-Two files are not doll's-house dumps: `tokenizer.safetensors` is ids from the real Gemma 4
+Three files are not doll's-house dumps: `tokenizer.safetensors` is ids from the real Gemma 4
 tokenizer, which `Tools/dump_text_encoder.py` fetches from the ungated
-`mlx-community/ltx-2.5-mlx` pack into a gitignored `Tools/.cache`; and
-`vae_decoder_keys.json` is the real pack's decoder key list with shapes, read once from
-`vae_decoder.safetensors`'s header (the same way `WeightKeyCoverageTests` reads it live) and
-committed so `VAEWeightKeyTests` runs without the pack.
+`mlx-community/ltx-2.5-mlx` pack into a gitignored `Tools/.cache`; and `vae_decoder_keys.json`
+and `vae_encoder_keys.json` are the real pack's key lists with shapes for the two halves of the
+autoencoder, read once from each file's header (the same way `WeightKeyCoverageTests` reads them
+live) and committed so `VAEWeightKeyTests` and `VAEEncoderWeightKeyTests` run without the pack.
 
 Regenerate with `uv run Tools/dump_reference.py --out Tests/LTX2Tests/Fixtures`; `--only
 <name>` regenerates one fixture. The script's
