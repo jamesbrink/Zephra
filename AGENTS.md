@@ -597,14 +597,24 @@ Four directories, by what a file is rather than what screen it is on:
   Generating" is `EngineState.stopCommandTitle`, so the item names what it
   stops ("Cancel Download", "Stop Building", …), and File > "Export…" (⇧⌘E)
   is what was "Save as…": the picture is already on the disk, and nothing is
-  a document with changes to keep. `SeedControl`'s label is a button: it opens
-  `SeedEntryPopover`, where a seed is typed as the number the tooltip shows or
-  as the short hex label off another picture's inspector, and `SeedEntry`
-  (`Support/`) is the one parser — digits are decimal, a hex letter, a `0x`
-  or the label's middle dot make it hex, eight hex digits are the label and
-  come back as the seed's leading half over zeros, sixteen are the whole
-  value, and any other count is refused rather than guessed at
-  (`SeedEntryTests`). `Support/BackgroundNotice` is what a change of engine
+  a document with changes to keep. `SeedControl`'s label is `SeedLabel`, a
+  button: it opens `SeedEntryPopover`, where a seed is typed as the number the
+  tooltip shows or as the short hex label off another picture's inspector,
+  and `SeedEntry` (`Support/`) is the one parser — digits are decimal, a hex
+  letter, a `0x` or the label's middle dot make it hex, eight hex digits are
+  the label and come back as the seed's leading half over zeros, sixteen are
+  the whole value, and any other count is refused rather than guessed at
+  (`SeedEntryTests`). How a seed is spelled on screen is one preference,
+  `AppSettings.seedFormat`, a `SeedFormat` in `ZephraEngine` beside
+  `shortSeedLabel`: the short hex label by default, or the whole number, set
+  in General under "Show seeds as". The root puts it in the environment as
+  `\.seedFormat` through `SeedFormatPreference`, and every seed on screen —
+  the chip, the popover's prefill (the whole value in that spelling, so
+  Return keeps the seed it had) and its hint, `ImageFacts`' Seed row through
+  `LibraryFactsView`, `FreshImageInspector` and `SharedFactsView`, and the
+  running run's column — reads that one value. Nothing on disk follows it:
+  the record, the file name and the search key keep the number, and the
+  search key carries the label too (`SeedFormatTests`). `Support/BackgroundNotice` is what a change of engine
   state is worth telling the Mac about while another app is in front: a
   download that ended in a build, a load or a ready model finished, one that
   ended in a failure failed, and one the person stopped says nothing; it is a

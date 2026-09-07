@@ -16,6 +16,7 @@ import ZephraEngine
 /// two lines show a dash, which is true.
 struct RunningRunInspector: View {
     @Environment(GenerationStore.self) private var store
+    @Environment(\.seedFormat) private var seedFormat
 
     var body: some View {
         ScrollView {
@@ -46,7 +47,7 @@ struct RunningRunInspector: View {
             FactsRow("Model", modelName)
             FactsRow("Size", settings.size.label, style: .digits)
             FactsRow("Steps", steps, style: .digits)
-            FactsRow("Seed", settings.seed.shortSeedLabel, style: .monospaced)
+            FactsRow("Seed", seedFormat.label(settings.seed), style: .monospaced)
             FactsRow("Elapsed", elapsed, style: .digits)
             FactsRow("Left", remaining, style: .digits)
         }

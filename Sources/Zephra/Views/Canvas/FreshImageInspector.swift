@@ -11,6 +11,7 @@ import ZephraEngine
 struct FreshImageInspector: View {
     /// The picture on the canvas.
     let image: GeneratedImage
+    @Environment(\.seedFormat) private var seedFormat
 
     var body: some View {
         ScrollView {
@@ -40,7 +41,9 @@ struct FreshImageInspector: View {
     }
 
     private var facts: ImageFacts {
-        ImageFacts(image, modelName: ModelCatalog.descriptor(id: image.modelID)?.fullName)
+        ImageFacts(
+            image, modelName: ModelCatalog.descriptor(id: image.modelID)?.fullName,
+            seedFormat: seedFormat)
     }
 }
 

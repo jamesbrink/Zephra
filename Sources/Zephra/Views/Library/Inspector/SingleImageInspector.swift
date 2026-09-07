@@ -1,5 +1,4 @@
 import SwiftUI
-import ZephraCore
 import ZephraEngine
 
 /// One image, at length: the picture, what it was asked for, how it was made, and what has
@@ -26,7 +25,7 @@ struct SingleImageInspector: View {
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                ImageFactsView(facts: facts, edited: item.provenance.record?.referenceBytes != nil)
+                LibraryFactsView(item: item)
                 TagChips(ids: [item.id], tags: item.tags)
                 AlbumChips(ids: [item.id], albums: albums)
                 Spacer(minLength: 8)
@@ -52,12 +51,6 @@ struct SingleImageInspector: View {
                     .padding(10)
                     .shadow(color: .black.opacity(ZephraChrome.shadowOpacity), radius: 4, y: 1)
             }
-    }
-
-    /// The catalog's name for the model when this build still ships it, and the identifier
-    /// written into the file when it does not — which is the honest answer, not a blank.
-    private var facts: ImageFacts {
-        ImageFacts(item, modelName: item.modelID.flatMap(ModelCatalog.descriptor(id:))?.fullName)
     }
 
     /// The albums it is in, in the sidebar's order, named by the manifest rather than by the

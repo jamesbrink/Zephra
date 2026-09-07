@@ -1,16 +1,24 @@
 import SwiftUI
 import ZephraEngine
 
-/// Typing a seed in, over the seed label: the whole number, or the short label off another
-/// picture's inspector. Return keeps it and closes; Escape closes without.
+/// Typing a seed in, over the seed label: the whole number, the whole value in hex, or the
+/// short label off another picture's inspector. Return keeps it and closes; Escape closes
+/// without.
 ///
 /// What counts as a seed is `SeedEntry`'s business, so the rule is tested rather than read off
 /// the field. Nothing is written to the store until Return, and a value the parser refuses
-/// leaves the field up with the reason under it rather than keeping some guess.
+/// leaves the field up with the reason under it rather than keeping some guess. The field
+/// opens on `initialText`, the current seed spelled the way Settings spells seeds — the
+/// whole value, not the label, so Return with nothing typed keeps the seed it had.
 struct SeedEntryPopover: View {
     @Binding var isPresented: Bool
-    @State private var text = ""
+    @State private var text: String
     @Environment(GenerationStore.self) private var store
+
+    init(isPresented: Binding<Bool>, initialText: String) {
+        _isPresented = isPresented
+        _text = State(initialValue: initialText)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -19,26 +27,14 @@ struct SeedEntryPopover: View {
                 .font(.body.monospaced())
                 .frame(width: 220)
                 .onSubmit(commit)
-            Text(hint)
-                .font(.caption)
-                .foregroundStyle(isValid ? .secondary : Color.red)
+            SeedEntryHint(text: text)
         }
         .padding(12)
-        .onAppear { text = String(store.settings.seed) }
         .onExitCommand { isPresented = false }
     }
 
-    private var parsed: UInt64? { SeedEntry.parse(text) }
-
-    private var isValid: Bool { text.isEmpty || parsed != nil }
-
-    private var hint: String {
-        if let parsed { return "Press Return to use \(parsed.shortSeedLabel)." }
-        return text.isEmpty ? "The seed as a number, or its short label." : "Not a seed."
-    }
-
     private func commit() {
-        guard let parsed else { return }
+        guard let parsed = SeedEntry.parse(text) else { return }
         store.settings.seed = parsed
         isPresented = false
     }

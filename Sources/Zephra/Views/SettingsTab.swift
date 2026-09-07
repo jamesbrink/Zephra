@@ -38,14 +38,15 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     /// How tall the tab's content stands, in points, under the tab strip.
     ///
     /// Measured from the tabs as built: General is the appearance picker, the images folder
-    /// row and the seed toggle with a heading each; Performance is the warm-up toggle, the
+    /// row, and the seed toggle, the seed spelling picker with its caption and the
+    /// notification toggle, with a heading each; Performance is the warm-up toggle, the
     /// four-row GPU memory group, the tiling picker and the live readout, all of which must
     /// be on screen at once, since a page that scrolls hides the very reading it is there to
     /// show; Models and About scroll, so theirs is the height the longest Settings pane on
     /// the Mac usually takes, which is what the window was before.
     var height: CGFloat {
         switch self {
-        case .general: 300
+        case .general: 380
         case .performance: 820
         case .models: 620
         case .about: 620

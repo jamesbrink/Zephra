@@ -10,6 +10,7 @@ import ZephraEngine
 struct SharedFactsView: View {
     /// The images being described together.
     let items: [LibraryItem]
+    @Environment(\.seedFormat) private var seedFormat
 
     /// What is shown where the images disagree.
     private static let mixed = "Multiple"
@@ -19,7 +20,7 @@ struct SharedFactsView: View {
             FactsRow("Model", shared { modelName(of: $0) })
             FactsRow("Size", shared { ImageFacts($0).size }, style: .digits)
             FactsRow("Steps", shared { ImageFacts($0).steps }, style: .digits)
-            FactsRow("Seed", shared { ImageFacts($0).seed }, style: .monospaced)
+            FactsRow("Seed", shared { ImageFacts($0, seedFormat: seedFormat).seed }, style: .monospaced)
             FactsRow("Took", shared { ImageFacts($0).took }, style: .digits)
         }
     }

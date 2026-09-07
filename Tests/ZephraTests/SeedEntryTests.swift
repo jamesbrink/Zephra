@@ -1,4 +1,6 @@
 import Testing
+import ZephraEngine
+
 @testable import Zephra
 
 @Suite("Reading a typed seed")
@@ -16,6 +18,14 @@ struct SeedEntryTests {
         #expect(SeedEntry.parse(seed.shortSeedLabel) == 0x7A3F_9C2E_0000_0000)
         #expect(SeedEntry.parse("7a3f9c2e") == 0x7A3F_9C2E_0000_0000)
         #expect(SeedEntry.parse("7A3F 9C2E") == 0x7A3F_9C2E_0000_0000)
+    }
+
+    @Test("what the popover is prefilled with parses back to the same seed under either spelling")
+    func exactTextRoundTrips() {
+        for seed: UInt64 in [0, 0x2A, 0x7A3F_9C2E_1234_5678, .max] {
+            #expect(SeedEntry.parse(SeedFormat.hex.exactText(seed)) == seed)
+            #expect(SeedEntry.parse(SeedFormat.decimal.exactText(seed)) == seed)
+        }
     }
 
     @Test("sixteen hex digits are the whole seed, with or without 0x")

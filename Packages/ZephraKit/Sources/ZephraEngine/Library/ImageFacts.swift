@@ -13,7 +13,7 @@ public struct ImageFacts: Hashable, Sendable {
     public let size: String
     /// How many denoising steps ran.
     public let steps: String
-    /// The seed, as the short label the rest of the interface shows.
+    /// The seed, spelled the way the `SeedFormat` it was built with spells seeds.
     public let seed: String
     /// How long it took, and what that was per step.
     public let took: String
@@ -26,12 +26,13 @@ public struct ImageFacts: Hashable, Sendable {
 
     /// The facts about a library image. `modelName` is the catalog's name for it, when there is
     /// one; without it the identifier written into the file is shown, which is the honest answer
-    /// for an image made by a model this build no longer carries.
-    public init(_ item: LibraryItem, modelName: String? = nil) {
+    /// for an image made by a model this build no longer carries. `seedFormat` is the
+    /// preference the inspector reads; the short label unless the interface says otherwise.
+    public init(_ item: LibraryItem, modelName: String? = nil, seedFormat: SeedFormat = .hex) {
         model = modelName ?? item.modelID ?? Self.unknown
         size = Self.label(item.size)
         steps = Self.stepsLabel(item.steps)
-        seed = Self.seedLabel(item.seed)
+        seed = Self.seedLabel(item.seed, as: seedFormat)
         // An upscale's seconds are the network's, not the steps', so the per-step figure that
         // would follow from the parent's step count is left off.
         took = Self.tookLabel(
@@ -44,11 +45,11 @@ public struct ImageFacts: Hashable, Sendable {
     }
 
     /// The facts about an image in memory, which may not have reached the disk yet.
-    public init(_ image: GeneratedImage, modelName: String? = nil) {
+    public init(_ image: GeneratedImage, modelName: String? = nil, seedFormat: SeedFormat = .hex) {
         model = modelName ?? image.modelID
         size = Self.label(image.settings.size)
         steps = Self.stepsLabel(image.settings.steps)
-        seed = Self.seedLabel(image.settings.seed)
+        seed = Self.seedLabel(image.settings.seed, as: seedFormat)
         took = Self.tookLabel(seconds: image.duration.seconds, steps: image.settings.steps)
         file = image.fileURL?.lastPathComponent ?? Self.notSaved
         // A picture in memory has no record to read it from, and the library's own inspector
@@ -85,9 +86,9 @@ public struct ImageFacts: Hashable, Sendable {
     }
 
     /// The seed, for the same reason: no seed was drawn when no denoising loop ran.
-    static func seedLabel(_ seed: UInt64?) -> String {
+    static func seedLabel(_ seed: UInt64?, as format: SeedFormat) -> String {
         guard let seed, seed > 0 else { return unknown }
-        return seed.shortSeedLabel
+        return format.label(seed)
     }
 
     /// A middle dot, the separator the rest of the interface uses between facts.

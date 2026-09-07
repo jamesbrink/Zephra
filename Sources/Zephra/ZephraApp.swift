@@ -44,6 +44,7 @@ struct ZephraApp: App {
         // click and lists itself under the Window menu; see ROADMAP for per-window state.
         Window("Zephra", id: "main") {
             RootView()
+                .modifier(SeedFormatPreference())
                 .environment(store)
                 .environment(cache)
                 .environment(workspace)

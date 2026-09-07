@@ -1,5 +1,6 @@
 import Foundation
 import ZephraCore
+import ZephraEngine
 
 /// The keys and starting values behind every `@AppStorage` in the app, in one place so a
 /// preference is never spelled two different ways.
@@ -35,6 +36,8 @@ enum AppSettings {
     static let libraryThumbnailEdge = "libraryThumbnailEdge"
     /// How many seeds one press of Generate queues.
     static let batchCount = "batchCount"
+    /// How a seed is written wherever one is shown, as a `SeedFormat` raw value.
+    static let seedFormat = "seedFormat"
     /// Whether the app follows the Mac's appearance or fixes its own, as an `AppearanceMode`
     /// raw value.
     static let appearance = "appearance"
@@ -70,6 +73,8 @@ enum AppSettings {
     static let libraryThumbnailEdgeBounds = 96.0...320.0
     /// One image per press, until the user asks for more.
     static let initialBatchCount = 1
+    /// The short hex label: eight characters that fit a chip and tell two seeds apart.
+    static let initialSeedFormat = SeedFormat.hex
     /// The Mac's own appearance, until the user picks one.
     static let initialAppearance = AppearanceMode.system
 
