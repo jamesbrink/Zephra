@@ -5,9 +5,9 @@ import ZephraEngine
 /// A run still waiting its turn: what it will draw, how many and how big, and a cross that
 /// takes the whole run back out of the queue.
 ///
-/// No squares under it. Nothing in a waiting run has started, so a row of dashed places would
-/// only say "four" at eighty points a piece; the count says it in a word, and the places appear
-/// on the wall when the run does.
+/// No squares under it. Nothing in a waiting run has started, so a row of squares would only
+/// say "four" at eighty points a piece; the count says it in a word, and the squares appear on
+/// the wall as the run's seeds finish.
 ///
 /// The cross removes every seed of the run rather than one of them. A run is what was asked
 /// for, so it is what can be taken back; removing four seeds one at a time was never a thing
@@ -46,7 +46,7 @@ struct WaitingRunCard: View {
 
     /// The size, and the count before it when there is more than one seed to make.
     private var detail: String {
-        let seeds = run.tiles.count
+        let seeds = run.seedCount
         return seeds > 1
             ? "\(seeds) seeds \(ImageFacts.separator) \(run.size.label)"
             : run.size.label

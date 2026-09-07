@@ -648,9 +648,13 @@ Four directories, by what a file is rather than what screen it is on:
   card per run still waiting, the running run's card in amber, and under those
   the wall of today's pictures in small squares — and to the "Today in
   Library" bar pinned at its foot. `SessionTimeline` in `ZephraEngine` works
-  out the runs and lays the wall as one flow, newest run first with the
-  running run's dashed places at its head (a block per run ended every batch's
-  row early and made the wall ragged); nothing here filters, groups, or sorts. The inspector is `WorkspaceInspector`, a
+  out the runs and lays the wall as one flow, newest run first, of finished
+  pictures only (a block per run ended every batch's row early and made the
+  wall ragged); a seed still to come has no square there at all, only the
+  running card's own step segments above the wall, and its finished squares
+  join the wall at the running run's head, adjacent, the moment they land.
+  `TimelineRun.seedCount` is what a waiting run's card counts instead, since
+  it has no tiles yet to count. Nothing here filters, groups, or sorts. The inspector is `WorkspaceInspector`, a
   fixed column `WorkspaceDetail` puts beside whichever pane is up, under the
   toolbar rather than splitting it, and only when it has something to
   describe: always in the library, on the canvas only while a picture is

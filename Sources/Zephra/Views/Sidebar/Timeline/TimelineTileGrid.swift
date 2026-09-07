@@ -1,8 +1,8 @@
 import SwiftUI
 import ZephraEngine
 
-/// Today's pictures as a wall of small squares, newest run first, with a dashed place for each
-/// seed still to come at the top of it.
+/// Today's pictures as a wall of small squares, newest run first. Finished pictures only — a
+/// seed still to come has no square here; the running card above the wall is where that shows.
 ///
 /// One wall for the whole day rather than a grid per run, and one flow rather than a block per
 /// run. A run of one picture in a grid of its own left two thirds of the row empty and put a
@@ -51,9 +51,8 @@ struct TimelineTileGrid: View {
     let run = PreviewImages.run(of: 2)
     let singles = PreviewImages.library(count: 5).items
     List {
-        TimelineTileGrid(
-            tiles: run.map { .fresh($0) } + [.pending(2), .pending(3)] + singles.map { .item($0) })
-        .listRowBackground(Color.clear)
+        TimelineTileGrid(tiles: run.map { .fresh($0) } + singles.map { .item($0) })
+            .listRowBackground(Color.clear)
     }
     .listStyle(.sidebar)
     .frame(width: 280, height: 360)

@@ -25,13 +25,25 @@ struct TimelineWallTests {
         ])
     }
 
-    @Test("the running run's dashed places lead the wall")
-    func runningRunLeads() {
+    @Test("a running run with no finished seeds yet puts no place on the wall")
+    func runningRunWithNothingFinishedHoldsNoPlace() {
         let run = Fixtures.queue(batch: UUID(), count: 1)
         let older = Fixtures.item(prompt: "a harbour", at: 10)
         let runs = SessionTimeline.build(
             items: [older], history: [], queue: [], running: run[0], isToday: { _ in true })
 
-        #expect(SessionTimeline.wall(of: runs) == [.pending(0), .item(older)])
+        #expect(SessionTimeline.wall(of: runs) == [.item(older)])
+    }
+
+    @Test("the running run's finished squares lead the wall, adjacent, with no place held")
+    func runningRunsFinishedSquaresLead() {
+        let batch = UUID()
+        let run = Fixtures.queue(batch: batch, count: 2)
+        let finished = Fixtures.image(batch: batch, at: 10, url: nil)
+        let older = Fixtures.item(prompt: "a harbour", at: 5)
+        let runs = SessionTimeline.build(
+            items: [older], history: [finished], queue: [], running: run[1], isToday: { _ in true })
+
+        #expect(SessionTimeline.wall(of: runs) == [.fresh(finished), .item(older)])
     }
 }

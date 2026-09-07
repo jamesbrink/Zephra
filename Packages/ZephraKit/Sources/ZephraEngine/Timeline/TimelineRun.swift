@@ -17,7 +17,7 @@ public struct TimelineRun: Identifiable, Hashable, Sendable {
     public let size: ImageSize
     /// The model that ran it, as a `ModelDescriptor` identifier.
     public let modelID: String
-    /// Its seeds in order: the images oldest first, then a place for each one still to come.
+    /// Its finished images, oldest first. A seed still to come has no tile.
     public let tiles: [TimelineTile]
     /// Whether one of its seeds is being rendered right now. At most one run is.
     public let isRunning: Bool
@@ -49,7 +49,10 @@ public struct TimelineRun: Identifiable, Hashable, Sendable {
     }
 
     /// How many of its seeds have produced an image, which is what the header counts.
-    public var finishedCount: Int {
-        tiles.count { if case .pending = $0 { false } else { true } }
-    }
+    public var finishedCount: Int { tiles.count }
+
+    /// How many seeds this run has in all: the finished ones, the ones still queued behind it,
+    /// and the one being rendered right now, if any. What a waiting run's card counts, since it
+    /// has no tiles of its own to count instead.
+    public var seedCount: Int { tiles.count + queuedIDs.count + (isRunning ? 1 : 0) }
 }

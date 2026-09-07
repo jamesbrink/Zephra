@@ -6,27 +6,53 @@ import ZephraCore
 
 @Suite("The session timeline")
 struct SessionTimelineTests {
-    @Test("a place still to be filled becomes a fresh image, then an indexed one, without moving")
-    func placeholderIsFilledInPlace() {
+    @Test("a run with nothing finished yet has no tile at all, and a seed still to come never gets one")
+    func nothingFinishedIsNoTile() {
         let batch = UUID()
         let run = Fixtures.queue(batch: batch, count: 2)
 
         let queued = SessionTimeline.build(
             items: [], history: [], queue: [run[1]], running: run[0], isToday: { _ in true })
         #expect(queued.count == 1)
-        #expect(queued[0].tiles == [.pending(0), .pending(1)])
+        #expect(queued[0].tiles.isEmpty)
         #expect(queued[0].isRunning)
 
         let image = Fixtures.image(batch: batch, at: 10, url: nil)
         let landed = SessionTimeline.build(
             items: [], history: [image], queue: [], running: run[1], isToday: { _ in true })
-        #expect(landed[0].tiles == [.fresh(image), .pending(1)])
+        #expect(landed[0].tiles == [.fresh(image)], "the seed still running has no tile of its own")
+    }
+
+    @Test("seedCount counts the finished tiles, what's still queued behind, and the one running")
+    func seedCountCoversWhatHasNotFinishedYet() {
+        let batch = UUID()
+        let run = Fixtures.queue(batch: batch, count: 3)
+
+        let waiting = SessionTimeline.build(
+            items: [], history: [], queue: run, running: nil, isToday: { _ in true })
+        #expect(waiting[0].seedCount == 3, "nothing has started, so every seed is still queued")
+
+        let image = Fixtures.image(batch: batch, at: 10, url: nil)
+        let inFlight = SessionTimeline.build(
+            items: [], history: [image], queue: [run[2]], running: run[1], isToday: { _ in true })
+        #expect(inFlight[0].seedCount == 3, "one finished, one running, one still behind it")
+    }
+
+    @Test("a fresh image becomes an indexed one without moving")
+    func freshImageSettlesInPlace() {
+        let batch = UUID()
+        let run = Fixtures.queue(batch: batch, count: 2)
+
+        let image = Fixtures.image(batch: batch, at: 10, url: nil)
+        let landed = SessionTimeline.build(
+            items: [], history: [image], queue: [], running: run[1], isToday: { _ in true })
+        #expect(landed[0].tiles == [.fresh(image)])
 
         let saved = image.withFileURL(Fixtures.url("seed-0"))
         let item = Fixtures.item(from: saved)
         let settled = SessionTimeline.build(
             items: [item], history: [saved], queue: [], running: run[1], isToday: { _ in true })
-        #expect(settled[0].tiles == [.item(item), .pending(1)])
+        #expect(settled[0].tiles == [.item(item)])
     }
 
     @Test("a file with no run of its own joins the neighbours it was plainly made with")

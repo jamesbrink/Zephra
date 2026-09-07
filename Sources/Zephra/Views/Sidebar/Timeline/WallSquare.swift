@@ -11,8 +11,7 @@ import ZephraEngine
 /// honoured, and a fourth stored property for a twelfth of a second is not worth it. The
 /// ring is the same one the library
 /// grid draws round a selected cell, a point outside the square, so "this one is on the
-/// canvas" looks the same in both places. A place still to be filled takes neither: there is
-/// nothing to press and nothing to show.
+/// canvas" looks the same in both places.
 struct WallSquare: View {
     /// What this square stands for.
     let tile: TimelineTile
@@ -24,16 +23,8 @@ struct WallSquare: View {
     var body: some View {
         RunTile(tile: tile)
             .modifier(WallSquareChrome(isHovered: isHovered, isShowing: isShowing))
-            .onHover { over in
-                guard isPressable else { return }
-                isHovered = over
-            }
+            .onHover { over in isHovered = over }
             .accessibilityAddTraits(isShowing ? .isSelected : [])
-    }
-
-    private var isPressable: Bool {
-        if case .pending = tile { return false }
-        return true
     }
 }
 
@@ -41,7 +32,6 @@ struct WallSquare: View {
     HStack(spacing: 4) {
         WallSquare(tile: .item(PreviewImages.library(count: 1).items[0]), isShowing: true)
         WallSquare(tile: .fresh(PreviewImages.sample()), isShowing: false)
-        WallSquare(tile: .pending(2), isShowing: false)
     }
     .frame(width: 248)
     .padding()

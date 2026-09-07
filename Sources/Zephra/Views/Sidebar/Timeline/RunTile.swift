@@ -1,10 +1,10 @@
 import SwiftUI
 import ZephraEngine
 
-/// One square of a run: a picture the library knows about, a picture this session has just
-/// made, or the place one is still to take.
+/// One square of a run: a picture the library knows about, or a picture this session has just
+/// made.
 ///
-/// The three draw the same size and sit in the same cell, which is the whole point of the
+/// The two draw the same size and sit in the same cell, which is the whole point of the
 /// timeline's tile: a run's row is laid out once and then filled in, rather than growing a
 /// square at a time as the seeds land.
 ///
@@ -41,17 +41,14 @@ struct RunTile: View {
             .contextMenu { LibraryItemMenu(items: [item]) }
         case .fresh(let image):
             FilmstripThumbnail(image: image)
-        case .pending:
-            PendingThumbnail()
         }
     }
 }
 
-#Preview("The three tiles") {
+#Preview("The two tiles") {
     HStack(spacing: 6) {
         RunTile(tile: .item(PreviewImages.library(count: 1).items[0]))
         RunTile(tile: .fresh(PreviewImages.sample()))
-        RunTile(tile: .pending(2))
     }
     .frame(width: 240)
     .padding()

@@ -9,9 +9,10 @@ import ZephraCore
 ///
 /// Two image sources on purpose. `LibraryIndex` lags `GenerationStore.history` by a debounced
 /// folder scan, so a picture that has just landed would blink out of the run for a second if
-/// only the index were read. A `.fresh` tile takes the placeholder's spot the instant the image
+/// only the index were read. A `.fresh` tile takes the wall's square the instant the image
 /// exists and becomes an `.item` when the index catches up; matching is by file path, which is
-/// the one thing both sides agree on.
+/// the one thing both sides agree on. A seed still to come has no tile at all — the wall holds
+/// finished pictures only.
 public enum SessionTimeline {
     /// Today's runs, in the order the sidebar lists them: waiting runs with the last-queued on
     /// top, then the one being rendered, then the finished ones newest first.
@@ -57,20 +58,15 @@ public enum SessionTimeline {
         return ordered + finished.filter { !ordered.contains($0) }
     }
 
-    /// One run's row: its images oldest first, then a place for each seed still to come.
-    ///
-    /// The order inside a run never changes. Images are laid out by when they were made, which
-    /// is the order the seeds were queued in, and the places still to be filled go on the end in
-    /// the same order, so a placeholder becomes a picture without anything sliding sideways.
+    /// One run's row: its finished images, oldest first. A seed still to come has no tile; the
+    /// running card above the wall is what says a run has more coming.
     private static func run(
         id: UUID,
         seeds: [Seed],
         queued: [QueuedGeneration],
         running: QueuedGeneration?
     ) -> TimelineRun {
-        let pending = (queued + (running.map { [$0] } ?? [])).sorted { $0.batchIndex < $1.batchIndex }
         let tiles = seeds.sorted { $0.createdAt < $1.createdAt }.map(\.tile)
-            + pending.map { TimelineTile.pending($0.batchIndex) }
         let spoken = running ?? queued.first
         return TimelineRun(
             id: id,

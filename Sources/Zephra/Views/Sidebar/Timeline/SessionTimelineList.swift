@@ -6,9 +6,9 @@ import ZephraEngine
 ///
 /// Top to bottom it reads future, present, past: the runs still waiting as cards, the run being
 /// rendered in amber with its step segments, and under those the wall of today's pictures. The
-/// wall starts with the running run's own squares, so a seed lands where its dashed place was
-/// and nothing below it moves — and when the run is over its squares are simply the newest on
-/// the wall, which is where they already were.
+/// wall holds finished pictures only — a seed still to come has no square there, only the
+/// running card's own step segments — and a finished seed joins the wall at the running run's
+/// head, which is where the run's squares already sit once it is over.
 ///
 /// It is also what let the strip under the prompt capsule go. That strip pushed the capsule up
 /// the moment a run started, so the picture jumped every time you pressed Generate.
