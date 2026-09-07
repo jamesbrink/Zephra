@@ -309,9 +309,10 @@ selecting any other picture stops. A result is published to `current` only while
 `followsRun`; one that lands while the user is looking elsewhere still enters
 history, the wall and the library, and leaves the canvas where it is.
 `watchRun()` follows again and, when a picture picked up from the sidebar has
-replaced the capsule's settings and model since (`capsuleHoldsPicture`), puts
-the run's own back — a capsule the user has been working in, a model picked
-mid-run or the next prompt being typed, it leaves alone; `isShowingRun` is
+replaced the capsule's settings and model since (`capsuleHoldsPicture`, which
+any edit to `settings` clears), puts the run's own back — a capsule the user
+has been working in, a model picked mid-run or a prompt typed since, it leaves
+alone; `isShowingRun` is
 "following, and something is running", and `hasPicture` in the app target is
 `current != nil || isShowingRun`, so the inspector has something to describe
 from the moment a run starts. Two ways onto the canvas from the library, told

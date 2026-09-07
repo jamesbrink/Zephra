@@ -14,8 +14,9 @@ public final class GenerationStore {
     /// This session's images, newest first, capped at 24. What was made before this launch is
     /// the library's business, not the store's: `LibraryIndex` reads the folder.
     public internal(set) var history: [GeneratedImage] = []
-    /// What the next generation will use. Edited directly by the UI.
-    public var settings: GenerationSettings
+    /// What the next generation will use. Edited directly by the UI — and an edit means the
+    /// capsule is the user's again, not a picture's, so the running card leaves it alone.
+    public var settings: GenerationSettings { didSet { capsuleHoldsPicture = false } }
     /// The model the next generation will use. Change it with `switchModel(to:)`; queued
     /// generations keep the model they were queued for.
     public internal(set) var descriptor: ModelDescriptor

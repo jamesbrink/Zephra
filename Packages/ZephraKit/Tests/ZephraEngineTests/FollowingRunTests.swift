@@ -383,6 +383,7 @@ struct DeferredModelEdgeTests {
         let store = bed.store()
         store.warmsUpAfterLoad = false
         await store.bootstrap()
+        let oldLease = try #require(store.acquiredModel)
         store.settings.prompt = "a lighthouse"
         store.generate()
         while store.isRunning { await store.settle() }
@@ -395,6 +396,7 @@ struct DeferredModelEdgeTests {
 
         #expect(store.loadedDescriptor?.id == other.id)
         #expect(bed.control.settings.unloads == 1, "the old model's weights went back first")
+        #expect(!store.downloads.isRetained(oldLease.id), "and its lease with them")
         #expect(!store.modelAwaitsGenerate, "the load landed on the chosen model")
         #expect(store.state == .ready)
     }
@@ -414,6 +416,27 @@ struct DeferredModelEdgeTests {
         #expect(!store.modelAwaitsGenerate)
         #expect(store.loadedDescriptor?.id == other.id)
         #expect(store.state == .ready)
+    }
+
+    @Test("typing after picking a square up makes the capsule the user's again")
+    func editingReleasesThePicture() async throws {
+        let bed = EngineTestBed()
+        bed.control.update { $0.stepDelay = .milliseconds(10) }
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        store.settings.prompt = "a lighthouse"
+        store.generate()
+        try await bed.waitForStep()
+        store.select(picture(of: other))
+        store.settings.prompt = "a new idea"
+
+        store.watchRun()
+
+        #expect(store.isShowingRun)
+        #expect(store.settings.prompt == "a new idea", "the typed prompt stays")
+        #expect(store.descriptor.id == other.id, "and Generate still goes to the picture's model")
+        await store.settle()
     }
 
     @Test("watching the run leaves a capsule the user has been working in alone")

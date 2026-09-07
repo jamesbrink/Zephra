@@ -37,7 +37,6 @@ extension GenerationStore {
         _ = claimReference()
         adoptForGenerate(running.model)
         settings = running.settings
-        capsuleHoldsPicture = false
     }
 
     /// Starts following, which is what every explicit "make me an image now" does.

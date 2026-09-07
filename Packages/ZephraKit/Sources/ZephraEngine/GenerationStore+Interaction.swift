@@ -36,13 +36,14 @@ extension GenerationStore {
         // library read still on its way was for the settings being replaced.
         _ = claimReference()
         current = image
-        capsuleHoldsPicture = true
         if let known = ModelCatalog.descriptor(id: image.modelID) {
             adoptForGenerate(known)
             settings = image.settings
         } else {
             settings = descriptor.capabilities.clamp(image.settings.onSchedule(of: descriptor))
         }
+        // After the assignment, which clears it: the settings are a picture's until edited.
+        capsuleHoldsPicture = true
     }
 
     /// Makes `model` the one the next generation uses without loading it, and says so, unless

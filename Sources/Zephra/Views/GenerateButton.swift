@@ -40,7 +40,7 @@ struct GenerateButton: View {
 
     private var helpText: String {
         if count > 1 {
-            return "Queue \(count) seeds of this prompt"
+            return "Queue \(count) seeds of this prompt" + loadNote
         }
         // canQueue rather than isBusy: while a picture is being made larger nothing may be
         // queued at all, so a disabled button must not offer to queue anything behind it.
