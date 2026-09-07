@@ -2,10 +2,10 @@ import Foundation
 import MLX
 import ZephraMLX
 
-/// A small picture of a clip still being made: its first frame, decoded from a pooled copy of
+/// A small picture of a clip still being made: one frame of it, decoded from a pooled copy of
 /// the run's estimate of the finished latent.
 ///
-/// The first latent frame only, because it is the one frame the decoder can make on its own:
+/// One latent frame only, because it is the one frame the decoder can make on its own:
 /// each temporal doubling drops its leading frame, so `F' = 1` decodes to exactly one pixel
 /// frame, and every further latent frame would cost eight more decoded ones nobody looks at.
 /// Pooled to `cellLimit` cells on the long edge, because a cell here is 32 pixels rather than
@@ -22,15 +22,21 @@ public struct LTX2LatentPreview: Sendable {
     /// RGBA8, row-major, opaque.
     public let pixels: Data
 
-    /// Decodes the first frame of `latent`, `[1, channels, frames, height, width]` in the
-    /// loop's normalised space, through `decoder`.
-    public static func make(latent: MLXArray, decoder: LTX2VideoDecoder) -> LTX2LatentPreview {
-        let first = latent[0..., 0..., 0]  // [1, channels, height, width]
-        let pooled = LatentPreview.pooled(first, by: poolingFactor(height: first.dim(2), width: first.dim(3)))
+    /// Decodes one frame of `latent`, `[1, channels, frames, height, width]` in the loop's
+    /// normalised space, through `decoder`.
+    ///
+    /// `frame` is 0 for an ordinary run. A run holding a picture as its first frame asks for
+    /// the next one instead: frame 0 there is the picture that was handed in, unchanged at
+    /// every step, and would say nothing about how the clip is coming along.
+    public static func make(
+        latent: MLXArray, decoder: LTX2VideoDecoder, frame: Int = 0
+    ) -> LTX2LatentPreview {
+        let one = latent[0..., 0..., frame]  // [1, channels, height, width]
+        let pooled = LatentPreview.pooled(one, by: poolingFactor(height: one.dim(2), width: one.dim(3)))
         let video = decoder.decode(pooled.expandedDimensions(axis: 2))  // [1, 1, h, w, 3]
-        let frame = video[0..., 0].asType(.float32)  // [1, h, w, 3]
+        let picture = video[0..., 0].asType(.float32)  // [1, h, w, 3]
         return LTX2LatentPreview(
-            width: frame.dim(2), height: frame.dim(1), pixels: LatentPreview.rgba8(frame))
+            width: picture.dim(2), height: picture.dim(1), pixels: LatentPreview.rgba8(picture))
     }
 
     /// How much to pool a latent of this size by, so its long edge comes in under `cellLimit`;

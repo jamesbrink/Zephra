@@ -82,13 +82,19 @@ extension LTX2Pipeline {
                 checkpointName: LTX2TransformerWeights.checkpointName(of:))
         }
 
+        // Both halves of the autoencoder are packed into one `vae` component and read from one
+        // dictionary; each sanitizer takes the tensors under its own file's prefix.
+        let vae = try SafetensorsShards.weights(in: snapshot.appending(path: "vae"))
         let decoder = LTX2VideoDecoder(.ltx25)
-        try decoder.load(weights: try SafetensorsShards.weights(in: snapshot.appending(path: "vae")))
+        try decoder.load(weights: vae)
+        let videoEncoder = LTX2VideoEncoder(.ltx25)
+        try videoEncoder.load(weights: vae)
 
         let result = Loaded(
             tokenizer: try LTX2Tokenizer(directory: encoderDirectory),
             textEncoder: textEncoder, extractor: extractor, connector: connector,
-            transformer: transformer, decoder: decoder, activation: activation)
+            transformer: transformer, decoder: decoder, encoder: videoEncoder,
+            activation: activation)
         LTX2ResidentParameters.eval(result, streamed: streaming != nil)
         loaded = result
     }

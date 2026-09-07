@@ -15,6 +15,11 @@ public final class LTX2Pipeline {
         let connector: LTX2TextConnector
         let transformer: LTX2Transformer
         let decoder: LTX2VideoDecoder
+        /// The other half of the autoencoder, read only when a first frame is held. 0.64 GB of
+        /// bf16 against the model's 19 GB, so it is loaded with everything else rather than on
+        /// demand: a module rebuilt when a picture arrives would have to keep its shard mapped
+        /// for the pipeline's whole life to have anything to fill itself from.
+        let encoder: LTX2VideoEncoder
         /// The dtype the stream runs in.
         let activation: DType
     }
@@ -55,8 +60,11 @@ public final class LTX2Pipeline {
         let text = try encodePrompt(request.prompt, maxTokens: request.maxPromptTokens, with: loaded)
         let layout = LTX2LatentLayout(
             pixelFrames: request.frames, pixelWidth: request.width, pixelHeight: request.height)
+        let held = try request.firstFrame.map {
+            try LTX2HeldFirstFrame($0, layout: layout, encoder: loaded.encoder)
+        }
         let latent = try denoise(
-            text: text, layout: layout, request: request, with: loaded,
+            text: text, layout: layout, request: request, held: held, with: loaded,
             onProgress: onProgress, onPreview: onPreview)
         onProgress(LTX2GenerationProgress(stage: .decoding))
         let video = loaded.decoder.decode(latent.asType(loaded.decoder.dtype))

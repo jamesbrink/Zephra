@@ -8,4 +8,6 @@ public enum LTX2PipelineError: Error, Equatable, Sendable {
     case unalignedSize(width: Int, height: Int, alignment: Int)
     /// A frame count that is not `1 + 8k`, which the autoencoder cannot make.
     case unalignedFrames(frames: Int, alignment: Int)
+    /// A first frame that CoreGraphics would not draw into a bitmap of the clip's size.
+    case unreadableFirstFrame
 }

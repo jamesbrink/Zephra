@@ -18,6 +18,7 @@ enum LTX2ResidentParameters {
         let always = loaded.extractor.parameters().flattenedValues()
             + loaded.connector.parameters().flattenedValues()
             + loaded.decoder.parameters().flattenedValues()
+            + loaded.encoder.parameters().flattenedValues()
         guard streamed else {
             MLX.eval(
                 always + loaded.textEncoder.parameters().flattenedValues()

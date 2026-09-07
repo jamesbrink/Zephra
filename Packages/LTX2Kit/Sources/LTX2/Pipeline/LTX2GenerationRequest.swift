@@ -1,7 +1,10 @@
 import Foundation
 
 /// One clip to make: what the backend asks the pipeline for.
-public struct LTX2GenerationRequest: Hashable, Sendable {
+///
+/// Not `Hashable`: a held first frame is a `CGImage`, which has no useful equality, and nothing
+/// asked a request whether it equalled another one.
+public struct LTX2GenerationRequest: Sendable {
     /// What the clip should show.
     public var prompt: String
     /// Pixels across, a multiple of 32.
@@ -16,10 +19,13 @@ public struct LTX2GenerationRequest: Hashable, Sendable {
     public var seed: UInt64
     /// How many tokens the prompt is padded or truncated to.
     public var maxPromptTokens: Int
+    /// A picture to hold as the clip's first frame, or nil for ordinary text-to-video.
+    public var firstFrame: LTX2FirstFrame?
 
     public init(
         prompt: String, width: Int, height: Int, frames: Int, frameRate: Double = 24,
-        seed: UInt64, maxPromptTokens: Int = LTX2Tokenizer.maxLength
+        seed: UInt64, maxPromptTokens: Int = LTX2Tokenizer.maxLength,
+        firstFrame: LTX2FirstFrame? = nil
     ) {
         self.prompt = prompt
         self.width = width
@@ -28,5 +34,6 @@ public struct LTX2GenerationRequest: Hashable, Sendable {
         self.frameRate = frameRate
         self.seed = seed
         self.maxPromptTokens = maxPromptTokens
+        self.firstFrame = firstFrame
     }
 }
