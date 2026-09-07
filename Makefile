@@ -381,6 +381,8 @@ lint-layers:
 	  || (echo "LAYER VIOLATION: UI framework imported inside ZephraKit"; exit 1)
 	@! grep -rlnE 'repeatForever|repeatCount\(|TimelineView\(\.animation|phaseAnimator|keyframeAnimator' Sources/Zephra --include='*.swift' \
 	  || (echo "ANIMATION VIOLATION: the app target runs a repeating animation; the GPU is the model's while it works (see RunPlaceholderView)"; exit 1)
+	@! grep -rlnE 'hoverWash' Sources/Zephra --include='*.swift' | grep -vE 'WallSquareChrome\.swift|ZephraChrome\+Washes\.swift' \
+	  || (echo "HIT-TEST VIOLATION: the hover wash is laid over a button outside WallSquareChrome, where allowsHitTesting(false) keeps it from taking the click"; exit 1)
 	@echo "layers ok"
 
 # ChatGPT Sites is the iteration environment; production means the AWS website.

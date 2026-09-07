@@ -583,7 +583,13 @@ Four directories, by what a file is rather than what screen it is on:
   animations for `LibraryPane`, `LibraryGridKeyboard` the arrow keys for
   `LibraryGrid`, each honouring Reduce Motion, as `WorkspaceDetail` and
   `PromptTuckOverlay` do with `.animation(reduceMotion ? nil : .snappy,
-  value:)`; the wall's hover wash does not fade at all. `focusEffectDisabled()`
+  value:)`; the wall's hover wash does not fade at all. The wall's hover wash and its selection ring are `WallSquareChrome`, and both are
+  `allowsHitTesting(false)`: a filled shape in an overlay is what the pointer hits, and the
+  wash is up exactly when the pointer is over the square, so without that every click on the
+  wall landed on the wash and the tile's button never fired — while an accessibility press,
+  which goes straight to the action, still worked, so hands-off UAT did not catch it.
+  `WallSquareChromeTests` clicks a hosted button through the chrome with a real mouse event,
+  and `make lint-layers` keeps `hoverWash` out of every other file. `focusEffectDisabled()`
   on the library grid, the reference picker's grid and the viewer is the one
   exemption from the system's focus ring, deliberate: a ring round a whole pane
   says nothing, and the ring round the selected cell is what shows where the
