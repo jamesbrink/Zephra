@@ -15,6 +15,10 @@ struct ReferenceImageWell: View {
     @Environment(GenerationStore.self) private var store
 
     @State private var isPickerPresented = false
+    /// Whether a drop is in flight over the well right now, whichever of the three types below
+    /// it turns out to be. Shared across all three so the empty and the filled state agree
+    /// about it, and a replacement drop over an already-filled well shows the same accent.
+    @State private var isTargeted = false
 
     var body: some View {
         if store.descriptor.capabilities.supportsReferenceImage {
@@ -23,7 +27,7 @@ struct ReferenceImageWell: View {
                     guard let reference = references.first else { return false }
                     ReferenceAdoption.adopt(id: reference.id, into: store)
                     return true
-                }
+                } isTargeted: { isTargeted = $0 }
                 // Each drop is a choice made as it is accepted and read off the main actor:
                 // `adoptReference` takes the ticket now and decodes in a detached task, so a
                 // large photo never stalls the drop and a later choice still wins. A file
@@ -32,12 +36,12 @@ struct ReferenceImageWell: View {
                     guard let url = urls.first else { return false }
                     store.adoptReference { ReferenceImageEncoder.pngData(contentsOf: url) }
                     return true
-                }
+                } isTargeted: { isTargeted = $0 }
                 .dropDestination(for: Data.self) { items, _ in
                     guard let data = items.first else { return false }
                     store.adoptReference { ReferenceImageEncoder.pngData(from: data) }
                     return true
-                }
+                } isTargeted: { isTargeted = $0 }
                 .sheet(isPresented: $isPickerPresented) {
                     ReferencePickerSheet { item in ReferenceAdoption.adopt(item, into: store) }
                 }
@@ -60,10 +64,21 @@ struct ReferenceImageWell: View {
 
     /// The picture itself is `ReferenceThumbnail`, which decodes it off the main actor and
     /// holds the square until it lands; this only frames it and hangs the controls on it.
+    ///
+    /// A replacement drop is legal here too, so the filled state answers `isTargeted` with the
+    /// same accent stroke the empty well does — the well's shape is one thing wearing two
+    /// pictures, not two different targets.
     private var filled: some View {
         ReferenceThumbnail()
             .frame(width: 64, height: 64)
             .clipShape(RoundedRectangle(cornerRadius: ZephraChrome.wellRadius, style: .continuous))
+            .overlay {
+                if isTargeted {
+                    RoundedRectangle(cornerRadius: ZephraChrome.wellRadius, style: .continuous)
+                        .strokeBorder(Color.accentColor, lineWidth: 1)
+                        .allowsHitTesting(false)
+                }
+            }
             .overlay(alignment: .topTrailing) {
                 Button {
                     ReferenceAdoption.use(nil, into: store)
@@ -89,7 +104,7 @@ struct ReferenceImageWell: View {
         Button {
             isPickerPresented = true
         } label: {
-            ReferencePlaceholder()
+            ReferencePlaceholder(isTargeted: isTargeted)
         }
         .buttonStyle(.plain)
         .contextMenu {

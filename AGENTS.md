@@ -516,7 +516,9 @@ Four directories, by what a file is rather than what screen it is on:
   `badgeBackdrop` for a glyph on a picture, `safelightWash` and
   `safelightTint` for the run's surfaces, `hoverWash` over a wall square under
   the pointer, `warningWash` and `warningStroke`
-  for `ChromePanel`'s warning, `captionShadowOpacity`), `ChromePanel`, `Chip`,
+  for `ChromePanel`'s warning, `wellFill`, `wellFillHovered` and
+  `wellFillTargeted` for the reference well's empty drop target and
+  `wellDash` for its dashed hairline (`ReferencePlaceholder`), `captionShadowOpacity`), `ChromePanel`, `Chip`,
   `SectionHeader`, `CountBadge`, `KeyValueRow`, `WrappingHStack`, `ModelDot`;
   `FactsRow` and `FactsTable`, the one line and the one column every inspector's
   facts are drawn from; `SearchFieldChrome`, the modifier that dresses the
