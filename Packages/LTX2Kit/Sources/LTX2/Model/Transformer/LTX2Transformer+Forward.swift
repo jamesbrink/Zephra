@@ -82,14 +82,22 @@ extension LTX2Transformer {
     /// model's own two-row table (shift first, then scale), then the projection to latents.
     ///
     /// With a `marker` the embedded timestep is a batch of two — the step's sigma and the held
-    /// frame's — and the two rows are chosen per token exactly as a block's nine are.
+    /// frame's, exactly two rows because one held frame is what `callAsFunction` concatenates —
+    /// and the two rows are chosen per token exactly as a block's nine are. Without a `marker`
+    /// `embedded` is the ordinary `[batch, 1, dim]` timestep embedding, batch meaning the
+    /// request's own batch of prompts, so it is expanded and passed through whole: picking
+    /// batch element 0, as the conditioned path does, would silently drop every generation past
+    /// the first in a batch greater than one.
     private func head(_ x: MLXArray, embedded: MLXArray, marker: MLXArray?) -> MLXArray {
-        var rows = LTX2Block.rows(outputTable, Self.embedding(embedded, at: 0), as: x.dtype)
+        var rows: [MLXArray]
         if let marker {
+            rows = LTX2Block.rows(outputTable, Self.embedding(embedded, at: 0), as: x.dtype)
             rows = LTX2Block.blended(
                 rows,
                 LTX2Block.rows(outputTable, Self.embedding(embedded, at: 1), as: x.dtype),
                 marker: marker)
+        } else {
+            rows = LTX2Block.rows(outputTable, embedded.expandedDimensions(axis: 2), as: x.dtype)
         }
         let normed = MLXFast.layerNorm(x, weight: nil, bias: nil, eps: configuration.normEps)
         return output(normed * (1 + rows[1]) + rows[0])
