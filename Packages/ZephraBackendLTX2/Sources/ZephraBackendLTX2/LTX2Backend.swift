@@ -89,7 +89,7 @@ public nonisolated final class LTX2Backend: ImageGenerationBackend {
         let clip: LTX2Clip
         do {
             clip = try pipeline.generate(
-                LTX2RequestMapper.request(for: settings, descriptor: descriptor),
+                try LTX2RequestMapper.request(for: settings, descriptor: descriptor),
                 onProgress: { progress in onProgress(LTX2ProgressMapper.event(from: progress)) },
                 onPreview: onPreview)
         } catch let error as CancellationError {

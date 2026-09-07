@@ -94,12 +94,16 @@ struct BenchReport: Codable, Sendable {
             lines.insert(row("reference", referencePath), at: 3)
         }
         if let referenceStrength {
+            // The step arithmetic is only worth printing when steps were actually skipped. A
+            // model that holds the picture as a clip's first frame, or conditions on it
+            // directly, walks the whole ladder, and saying "from step 1 of 8 (8 steps ran)"
+            // beside a strength invites the reading that a strength always shortens a run.
+            let entered = String(
+                format: ", from step %d of %d (%d steps ran)", firstStep, steps, effectiveSteps)
             lines.insert(
                 row(
                     "strength",
-                    String(
-                        format: "%.2f, from step %d of %d (%d steps ran)",
-                        referenceStrength, firstStep, steps, effectiveSteps)),
+                    String(format: "%.2f", referenceStrength) + (firstStep > 1 ? entered : "")),
                 at: 4)
         }
         for (index, value) in runSeconds.enumerated() {

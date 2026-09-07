@@ -7,12 +7,25 @@ import ZephraTestSupport
 
 @Suite("the LTX-2.5 snapshot shapes")
 struct LocalSnapshotLTX2Tests {
-    @Test("the release list names the four weight files and the tokenizer, and nothing audio")
+    @Test("the release list names the five weight files and the tokenizer, and nothing audio")
     func releaseEntries() {
         let entries = LocalSnapshot.ltx2Release.requiredEntries
         #expect(entries.contains("transformer-distilled.safetensors"))
         #expect(entries.contains("gemma4-12b-ltx-v1/tokenizer.json"))
+        // A pack fetched before a first frame could be held has every other file and not this
+        // one, and must read as a download to finish rather than as a release to build from.
+        #expect(entries.contains("vae_encoder.safetensors"))
         #expect(!entries.contains { $0.contains("audio") || $0.contains("vocoder") })
+    }
+
+    @Test("a built directory names no source file, because the packer writes none of them")
+    func builtNamesNoSourceFile() {
+        // The packer writes each component as `model*.safetensors`; a rule naming the release's
+        // own `vae_encoder.safetensors` would read every fresh build as unbuilt. What catches a
+        // variant packed before the encoder was fetched is `PackedProvenance.identity`, which
+        // carries the descriptor's file patterns.
+        #expect(!LocalSnapshot.ltx2.requiredEntries.contains { $0.contains("vae_encoder") })
+        #expect(LocalSnapshot.ltx2.requiredEntries.contains("vae"))
     }
 
     @Test("a built directory is incomplete until the manifest lands")

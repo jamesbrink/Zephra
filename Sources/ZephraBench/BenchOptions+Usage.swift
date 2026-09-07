@@ -18,14 +18,18 @@ extension BenchOptions {
         is how a new family is measured before its entry can be written.
         --reference takes any picture macOS can read and measures the editing path on a
         model that has one; the picture's own pixels add tokens, so its size is part of what
-        is being measured.
-        --strength (0 to 1, default 0.6) says how far from that picture to start, on a model
-        that starts from a noised copy of it: it buys that share of the steps, truncated and
-        never fewer than one, so 0.6 of nine steps runs five and small values keep most of
-        the picture. Such a model clamps it into its own bounds (0.1 to 0.9), so 0 and 1 are
-        never what runs; a model that conditions on the picture directly, as FLUX.2 klein
-        does, pins it at 1 and ignores it. The report, not this flag, says the strength that
-        ran and the step it began at.
+        is being measured. On LTX-2.5 it is the clip's first frame instead, and the picture
+        is scaled to cover the clip and cropped to the middle.
+        --strength (0 to 1, default 0.6) says how much of that picture to throw away, and
+        what a model does with it depends on how it reads a picture. One that starts from a
+        noised copy buys that share of the steps, truncated and never fewer than one, so 0.6
+        of nine steps runs five and small values keep most of the picture; it clamps the
+        flag into its own bounds (0.1 to 0.9), so 0 and 1 are never what runs. FLUX.2 klein
+        conditions on the picture directly, pins it at 1 and ignores it. LTX-2.5 holds the
+        picture as the clip's first frame and reads the flag the other way round, as 1 minus
+        how strongly to hold it: 0, its default, holds the frame exactly, its bound of 0.9
+        barely holds it at all, and the whole ladder runs either way. The report, not this
+        flag, says the strength that ran and the step it began at.
         --preview turns on the live preview frames the app shows while a run is going and
         reports what they cost: how many were made and the mean milliseconds one took. The
         last frame is written beside --out as <stem>.preview.png, because a frame unpacked on

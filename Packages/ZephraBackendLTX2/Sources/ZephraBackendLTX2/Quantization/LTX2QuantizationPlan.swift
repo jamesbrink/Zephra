@@ -7,7 +7,8 @@ import ZephraQuantization
 /// The release keeps one file per component at its root and the Gemma encoder in a directory
 /// of its own, so every component names its source; the build writes the usual one directory
 /// per component. Keys keep the release's prefixes (`transformer.`, `connector.`,
-/// `vae_decoder.`, `model.language_model.`) and the kit maps its module paths onto them.
+/// `vae_decoder.`, `vae_encoder.`, `model.language_model.`) and the kit maps its module paths
+/// onto them.
 ///
 /// Video only: every audio-side tensor is omitted, not copied, by `audioOmitted` — the audio
 /// stream's blocks, the audio connector and projection, and the four audio-video cross-attention
@@ -80,11 +81,14 @@ public enum LTX2QuantizationPlan {
                     ] + WeightPrecisionRule.normsAndEmbeddings,
                     fallback: textEncoder
                 ),
-                // Three-dimensional convolutions cannot be packed; the decoder is copied as it
-                // is, into a directory of its own so the loader finds it where every family's is.
+                // Three-dimensional convolutions cannot be packed; both halves of the
+                // autoencoder are copied as they are, into one directory so the loader finds
+                // them where every family's autoencoder is. The encoder is what reads a
+                // picture held as the clip's first frame; the two files' tensors are told
+                // apart by the prefix each carries.
                 QuantizedComponent(
                     directoryName: "vae",
-                    sourceFiles: ["vae_decoder.safetensors"],
+                    sourceFiles: ["vae_decoder.safetensors", "vae_encoder.safetensors"],
                     fallback: nil
                 ),
             ],

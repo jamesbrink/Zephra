@@ -17,6 +17,10 @@ struct LTX2QuantizationPlanTests {
         #expect(plan.components.map(\.directoryName) == ["transformer", "connector", "text_encoder", "vae"])
         #expect(component("transformer").sourceFiles == ["transformer-distilled.safetensors"])
         #expect(component("text_encoder").sourceDirectory == "gemma4-12b-ltx-v1")
+        // Both halves of the autoencoder, copied as they are: three-dimensional convolutions
+        // cannot be packed, and the encoder is what reads a held first frame.
+        #expect(
+            component("vae").sourceFiles == ["vae_decoder.safetensors", "vae_encoder.safetensors"])
         #expect(component("vae").fallback == nil)
     }
 
