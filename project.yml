@@ -113,6 +113,11 @@ targets:
     platform: macOS
     sources:
       - path: Tests/ZephraTests
+        excludes:
+          - Fixtures
+      - path: Tests/ZephraTests/Fixtures
+        type: folder
+        buildPhase: resources
     dependencies:
       - target: Zephra
       - package: ZephraKit
