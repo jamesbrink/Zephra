@@ -12,7 +12,8 @@ extension GenerationRecord {
     ///
     /// The strength comes back with it, defaulting to 1 — no reference, or a model that never
     /// had a distance to travel — so a variation of an edit repeats the edit rather than
-    /// quietly becoming a stronger one.
+    /// quietly becoming a stronger one. The origin comes back beside it, so a variation of an
+    /// edit still says which library picture it started from.
     public func settings(referenceImage: Data? = nil) -> GenerationSettings {
         GenerationSettings(
             prompt: prompt,
@@ -23,6 +24,7 @@ extension GenerationRecord {
             seed: seed,
             referenceImage: referenceImage,
             referenceStrength: referenceStrength ?? 1,
+            referenceOrigin: referenceOrigin,
             frames: frameCount ?? 1
         )
     }

@@ -24,6 +24,7 @@ extension GenerationSettings {
         case seed
         case referenceImage
         case referenceStrength
+        case referenceOrigin
         case frames
     }
 
@@ -39,6 +40,7 @@ extension GenerationSettings {
             referenceImage: try container.decodeIfPresent(Data.self, forKey: .referenceImage),
             referenceStrength: try container.decodeIfPresent(
                 Double.self, forKey: .referenceStrength) ?? 1,
+            referenceOrigin: try container.decodeIfPresent(String.self, forKey: .referenceOrigin),
             frames: try container.decodeIfPresent(Int.self, forKey: .frames) ?? 1
         )
     }

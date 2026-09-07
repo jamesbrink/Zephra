@@ -56,6 +56,13 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
     /// copy of it. Nil when there was no reference, and 1 on a model that conditions on the
     /// picture directly and so has no such distance to record.
     public var referenceStrength: Double?
+    /// The library file name the reference picture came out of, when it came from the library,
+    /// and nil when it came from a file chooser, a drop, or nowhere at all.
+    ///
+    /// A name rather than a path, for the reason the whole record is inside the PNG: a library
+    /// that survives being moved to another Mac cannot hold absolute paths. Optional, so an
+    /// older build reads a newer file as it always did and the version stays 1.
+    public var referenceOrigin: String?
     /// Which press of Generate produced the image, when it was one of several seeds, and nil
     /// otherwise.
     ///
@@ -96,6 +103,8 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
         referenceBytes = image.settings.referenceImage?.count
         referenceStrength = image.settings.referenceImage == nil
             ? nil : image.settings.referenceStrength
+        referenceOrigin = image.settings.referenceImage == nil
+            ? nil : image.settings.referenceOrigin
         batchID = image.batchID
         upscaledFrom = nil
         upscaleFactor = nil

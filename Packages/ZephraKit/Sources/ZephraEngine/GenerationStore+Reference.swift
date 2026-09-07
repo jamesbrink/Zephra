@@ -19,10 +19,11 @@ extension GenerationStore {
     }
 
     /// Puts `pngData` in on behalf of the choice numbered `ticket`, unless a newer choice has
-    /// been made since the number was taken.
-    public func useAsReference(_ pngData: Data?, ticket: Int) {
+    /// been made since the number was taken. `origin` is the library file name it came out of,
+    /// when it came from the library.
+    public func useAsReference(_ pngData: Data?, ticket: Int, origin: String? = nil) {
         guard ticket == referenceChoice else { return }
-        useAsReference(pngData)
+        useAsReference(pngData, origin: origin)
     }
 
     /// Whether a picture is still on its way into the well. Generate waits for it: a request
@@ -33,14 +34,20 @@ extension GenerationStore {
     /// been made in the meantime. Nil from the read leaves whatever was there alone. The read
     /// may await — a drop's provider delivers when it likes — and Generate waits on it either
     /// way, through `isAdoptingReference`.
-    public func adoptReference(_ read: @escaping @Sendable () async -> Data?) {
+    ///
+    /// `origin` travels with the choice rather than with the bytes, because it is known when
+    /// the choice is made — a library door knows the file it opened; a drop and a file chooser
+    /// pass nil — and the read that follows knows only pixels.
+    public func adoptReference(
+        origin: String? = nil, _ read: @escaping @Sendable () async -> Data?
+    ) {
         let ticket = claimReference()
         referenceRead = Task { [weak self] in
             let png = await Task.detached(priority: .userInitiated, operation: read).value
             guard let self, !Task.isCancelled else { return }
             defer { if referenceChoice == ticket { referenceRead = nil } }
             guard let png else { return }
-            useAsReference(png, ticket: ticket)
+            useAsReference(png, ticket: ticket, origin: origin)
         }
     }
 
@@ -53,18 +60,31 @@ extension GenerationStore {
     /// A picture arriving also settles the strength, because the 1 that a picture-less request
     /// carries is outside the range a model that starts from a picture will accept: a slider
     /// bound to it would open pinned past its own maximum. Taking the picture out puts the 1
-    /// back, so a text-to-image request says what it means again.
-    public func useAsReference(_ pngData: Data?) {
+    /// back, so a text-to-image request says what it means again, and takes the origin with
+    /// it — where a picture came from is a fact about the picture.
+    ///
+    /// On a model that makes clips the size follows the picture, to the offered preset nearest
+    /// its shape. A clip is the picture moving, so opening a portrait photograph at a landscape
+    /// default would crop or letterbox it before a frame was made; and it is done here rather
+    /// than in `animate` so Use as Reference, a drop, the picker and the well's own doors all
+    /// agree.
+    public func useAsReference(_ pngData: Data?, origin: String? = nil) {
         let capabilities = descriptor.capabilities
         let picture = capabilities.supportsReferenceImage ? pngData : nil
         settings.referenceImage = picture
-        guard picture != nil else {
+        guard let picture else {
+            settings.referenceOrigin = nil
             settings.referenceStrength = 1
             return
         }
+        settings.referenceOrigin = origin
         let bounds = capabilities.referenceStrengthBounds
         if !bounds.contains(settings.referenceStrength) {
             settings.referenceStrength = capabilities.defaultReferenceStrength
         }
+        guard capabilities.producesVideo, let size = PNGImageSize.read(from: picture),
+              let preset = capabilities.preset(nearestAspect: size)
+        else { return }
+        settings.size = preset
     }
 }

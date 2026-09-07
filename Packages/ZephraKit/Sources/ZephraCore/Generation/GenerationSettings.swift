@@ -35,6 +35,14 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
     /// not the decoder's — so reading a value written before strength existed takes a
     /// hand-written `init(from:)`.
     public var referenceStrength: Double
+    /// The library file name the reference picture came out of, when it came from the library,
+    /// and nil when it came from a file chooser or a drop.
+    ///
+    /// A name and not a path, for the reason the record it is written into is inside the PNG: a
+    /// library that survives being moved to another Mac cannot hold absolute paths. It is
+    /// provenance for the person looking at the result — "this started from that picture" —
+    /// and nothing reads it to find the file except an interface offering to show it.
+    public var referenceOrigin: String?
     /// How many frames to make, on models that make a clip; 1 is a picture.
     ///
     /// Not optional, for the same reason `referenceStrength` is not: every generation has a
@@ -53,6 +61,7 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
         seed: UInt64,
         referenceImage: Data? = nil,
         referenceStrength: Double = 1,
+        referenceOrigin: String? = nil,
         frames: Int = 1
     ) {
         self.prompt = prompt
@@ -63,6 +72,7 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
         self.seed = seed
         self.referenceImage = referenceImage
         self.referenceStrength = referenceStrength
+        self.referenceOrigin = referenceOrigin
         self.frames = frames
     }
 

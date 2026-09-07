@@ -16,6 +16,9 @@ extension ModelCapabilities {
         }
         if !supportsReferenceImage {
             result.referenceImage = nil
+            // Where the picture came from is only ever a fact about the picture: dropping one
+            // and keeping the other would leave a request claiming provenance it has not got.
+            result.referenceOrigin = nil
         }
         // Bounded whether or not there is a picture. Nothing reads the strength without one,
         // so the 1 a text-to-image request carries becomes this model's upper bound and means
