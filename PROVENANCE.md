@@ -223,10 +223,10 @@ carries the pack's `LICENSE.md`.
 | Reference | License | What was taken |
 |---|---|---|
 | `mlx-community/ltx-2.5-mlx` configs and headers | LTX-2.x Community | Every architectural constant and every tensor name: the transformer's 48 blocks, 32 heads of 128, the 9-row block modulation table, the connector's 8 blocks and 128 registers, Gemma 4's 48 layers with eight full-attention layers that share their key and value projection, the decoder's stage plan and per-channel statistics. Lightricks' own repositories are gated and were never fetched. |
-| `huggingface/diffusers` | Apache 2.0 | The reference behaviour of the transformer block (`LTX2VideoTransformerBlock`), the audio-video rotary embedding, the text connectors and the video autoencoder, and every fixture for them. |
+| `huggingface/diffusers` | Apache 2.0 | The reference behaviour of the transformer block (`LTX2VideoTransformerBlock`), the audio-video rotary embedding, the text connectors and both halves of the video autoencoder, and every fixture for them; and the first-frame conditioning of `pipeline_ltx2_image2video.py` and `pipeline_ltx2_condition.py` — the per-token timestep, the conditioning mask, and the blend in `x0` space around each step. |
 | `huggingface/transformers` | Apache 2.0 | The reference behaviour of `Gemma4TextModel`: the four sandwich norms, `layer_scalar`, the per-head query and key norms, the scale-free value norm, attention scaling of 1, the rotate-half rotary layout with a partial factor on the full-attention layers, and the per-layer-type masks; and every fixture for it. |
-| `dgrauet/ltx-2-mlx` | MIT | Read for the pack's key names, its bidirectionally verified decoder stage plan (zeros spatial padding, non-causal), and its block-streaming and decode-tiling design. No code was taken. |
-| `xocialize/ltx-2-mlx-swift` | Apache 2.0 | Read for the tokenizer's missing BOS, the front-truncation rule, the float32 aggregate projection, the kernel-compilation warm-up, and its measured envelopes. No code was taken. |
+| `dgrauet/ltx-2-mlx` | MIT | Read for the pack's key names, its bidirectionally verified decoder stage plan (zeros spatial padding, non-causal), the encoder's stage plan and space-to-depth downsampler, and its block-streaming and decode-tiling design. No code was taken. |
+| `xocialize/ltx-2-mlx-swift` | Apache 2.0 | Read for the tokenizer's missing BOS, the front-truncation rule, the float32 aggregate projection, the kernel-compilation warm-up, its measured envelopes, and its re-imposition of a fully held frame after each step. No code was taken. |
 | `Lightricks/LTX-2` | unstated | Run, not read for copying: `LTXModel(video, audio=None)` confirmed the video-only forward this port implements, and its `DISTILLED_SIGMA_VALUES` and ancestral sampler constants were checked against diffusers'. |
 
 ## What was not
@@ -261,6 +261,38 @@ carries the pack's `LICENSE.md`.
   do (`_first_frame_keyframes_mask`); diffusers 0.40.0 carries the parameter but
   no way to apply it in `forward`, so the fixture wraps the input projection to
   match the official behaviour.
+- **The first frame is encoded as it is.** The reference image-to-video
+  pipeline re-compresses the picture through H.264 at CRF 18 before encoding
+  it, so the model sees the artefacts it was trained beside. This port skips
+  that, as the MLX Swift port does; whether it is worth adding is a
+  `ROADMAP.md` item and not a claim either way.
+- **The encoder takes the mean and nothing else.** `conv_out` writes 129
+  channels, of which the first 128 are the latent's mean and the last is a
+  log-variance the reference broadcasts into a diagonal Gaussian. Both official
+  pipelines encode with `sample_mode: "argmax"`, so the mean is what is taken
+  and the extra channel is dropped rather than sampled from; there is no seeded
+  draw here to reproduce.
+- **The encoder's statistics are renamed at the door.** The pack calls them
+  `_mean_of_means` and `_std_of_means`; mlx-swift's parameter filter drops any
+  key beginning with an underscore, so a tree spelling them that way would load
+  them, normalise correctly, and then be invisible to `parameters()` — to the
+  streams, to anything that walks the tree, and to the key check that exists to
+  notice a statistic that never loaded. `LTX2VAEWeights` renames both ways and
+  `VAEEncoderWeightKeyTests` pins the rename against the real header.
+- **The per-token noise level is two sigmas and a marker**, not a
+  `[tokens, rows, dim]` field. The reference embeds each token's own timestep;
+  one held frame gives that field exactly two values, so both are computed as
+  one batch of two sigmas and chosen per token after the nine-row table is
+  split. Choosing before the split would broadcast all nine rows to every
+  token — a quarter of a gigabyte a block at 768 x 512 — where row by row each
+  result is one activation the block is about to multiply anyway.
+- **A fully held frame is re-imposed after the step.** The condition pipeline
+  has no blend after the sampler; its image-to-video sibling instead slices the
+  held frame out of the sample and never steps it, which at strength 1 is the
+  same thing. This port keeps one code path and puts the picture back where the
+  mask is exactly 1, so an ancestral step's fresh noise cannot drift a frame
+  that was meant to stay. A partially held frame is left stepped, as the
+  reference leaves it.
 - **No temporal chunking of the decode** yet; at 768 x 512 x 49 the peak
   intermediate is a fraction of a gigabyte, and it matters past about 121
   frames at 1024 (`ROADMAP.md`).

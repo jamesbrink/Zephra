@@ -73,8 +73,16 @@ is distributed until the app is ready to ship.
      `ModelCapabilities.producesAudio` lets the player unmute. The video output of the
      audio variant differs from the video-only one: the audio-to-video cross-attention
      adds a term the video-only forward has not got.
-   - **Image-to-video**: needs `vae_encoder.safetensors` (0.64 GB) and first-frame
-     conditioning through `referenceImage`.
+   - **More than one held frame**: image-to-video holds the *first* frame and nothing
+     else. The same mask holds a last frame, or a keyframe at any latent frame, if the
+     interface grows a way to say which; a strength that ramps across frames rather than
+     standing at one value per frame is the other half of that. The transformer's
+     per-token noise level already carries as many distinct values as the mask has.
+   - **The first frame is not re-compressed**: the reference image-to-video pipeline puts
+     the picture through H.264 at CRF 18 before encoding it, so the model sees the
+     compression artefacts it was trained beside. This port encodes the picture as it is,
+     as the MLX Swift port does. Worth measuring against a re-compressed first frame before
+     deciding it matters.
    - **A duration head**, two-stage and DFR refinement, the 8-bit variant, temporal
      chunking of the decode past ~121 frames at 1024, the prompt enhancer, and a
      `ModelSource` for a mirror-only model should the ungated pack ever be gated too.

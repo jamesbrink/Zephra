@@ -1208,7 +1208,7 @@ Release, never Debug — Debug has Metal validation and full debug info on.
 
 ## Starting from a picture
 
-Every model Zephra ships can take a reference picture, and they take it in two
+Every model Zephra ships can take a reference picture, and they take it in three
 different ways. The difference is the whole of this section, because the setting
 looks identical from the interface and means something else underneath.
 
@@ -1223,17 +1223,28 @@ looks identical from the interface and means something else underneath.
   needs: encode the picture, noise it to the level some step expects, and resume
   from there. How far down to resume is a real choice, and it is
   `GenerationSettings.referenceStrength`.
+- **Holding it as the first frame.** LTX-2.5 makes clips, and its autoencoder is
+  causal in time, so one picture encodes to one latent frame that means what it
+  would at the head of a longer clip. The picture is put there and the model is
+  told, per token, that those tokens are less noisy than the ones it is making;
+  the rest of the clip is generated around it. How strongly to hold it is a real
+  choice too, and it is the same `referenceStrength` read the other way round —
+  see "Fifth model" for the whole of it, and `LTX2RequestMapper` for the one
+  place the inversion happens.
 
 `referenceStrength` is a plain `Double`, not an optional, because every
 generation has one whether or not its model reads it, and 1 is the value that
 changes nothing. `ModelCapabilities.referenceStrengthBounds` says whether it
 applies at all: a degenerate `1...1` means it does not, the way `guidanceBounds`
 of `0...0` means guidance does not, and `clamp` pins it there. klein declares
-`1...1`; Z-Image and Qwen-Image declare `0.1...0.9` with a default of `0.6`. So
+`1...1`; Z-Image and Qwen-Image declare `0.1...0.9` with a default of `0.6`;
+LTX-2.5 declares `0.0...0.9` with a default of `0`, because 0 there means the
+first frame is held exactly rather than "the picture is returned unchanged". So
 the interface can decide whether to draw a slider by reading the range, without
-knowing which family it is looking at.
+knowing which family it is looking at, and "lower keeps more of the picture" is
+true of all three whatever the backend does with it.
 
-For the models where it does apply:
+For the models that start from a noised copy:
 
 - Strength reads as "how much of the picture to throw away". 1 discards it
   entirely and is the ordinary text-to-image path; 0 would return it unchanged.
@@ -1380,7 +1391,7 @@ the snapshot, not whichever is listed first"); match that when adding one.
   tensors of their own. Each kit also has a `WeightKeyCoverageTests` that reads
   the real release's safetensors headers and checks every published tensor
   against the module trees; `LTX2Kit`'s pins the 1362 video-lane transformer
-  keys, the connector's video side and all 666 Gemma keys.
+  keys, the connector's video side, all 666 Gemma keys and the video encoder's 86.
 
 No test loads model weights. The `ZephraKit` suites never touch Metal; the MLX
 packages' suites run doll's-house tensors through it, and a few of `QwenImageKit`'s,
@@ -1684,21 +1695,58 @@ by `to_gate_logits`), conditioned on a Gemma 4 12B encoder — all 49 of its hid
 states, RMS-normalised per token, laid side by side (188160 wide), projected in
 float32 to 4096 and passed through an eight-block 1-D connector, built from the
 DiT's own gated attention, feed-forward, norm and rotary embedding over one
-axis, whose 128 learned registers stand in for the padding — and decoded by a 3-D convolutional
-autoencoder (temporal x8, spatial x32, 128 latent channels). Distilled to eight
+axis, whose 128 learned registers stand in for the padding — and coded by a 3-D convolutional
+autoencoder (temporal x8, spatial x32, 128 latent channels), both halves of it.
+Distilled to eight
 ancestral Euler steps (`LTX2DistilledSchedule`: nine fixed sigmas, eta 1,
 re-noising drawn from `seed + 10000`) with no guidance. Frames are `1 + 8k` at
 24 fps, 9 to 121, 49 to start; sizes are multiples of 32, 768 x 512 to start.
+
+**It makes a clip from a picture.** The autoencoder's encoder is causal in time —
+the first frame repeated at the front of every convolution and nothing at the
+back — so one picture encodes to one latent frame that means what it would at the
+head of a longer clip, and that frame is what a reference picture is held as.
+`LTX2VideoEncoder` mirrors the decoder (patch-4 patchify, 4/6/4/2/2 blocks at
+128/256/512/1024/1024 with a space-to-depth downsampler between each pair) and is
+0.64 GB of the pack's 69, loaded with everything else. Its `conv_out` writes 129
+channels and only the mean's 128 are taken, which is the `sample_mode: "argmax"`
+both official pipelines encode with, and its per-channel statistics are a
+different pair from the decoder's under different names.
+
+Holding the frame is one thing to the transformer and three to the loop.
+`LTX2Transformer.callAsFunction` gains `firstFrameStrength`, and with it the
+video adaLN and the output head see a **per-token** noise level,
+`sigma * (1 - mask)`, while the prompt's own adaLN keeps the scalar sigma; one
+held frame gives that field exactly two values, so both are computed as one batch
+of two sigmas and chosen per token by the marker the keyframe embedding already
+builds, row by row after the nine-row table is split. `LTX2FirstFrameConditioning`
+is the rest: the loop starts from `noise * (1 - mask) + clean * mask`, and each
+step converts the velocity to the finished-latent estimate at the step's
+**scalar** sigma, blends the picture into that estimate — never into the velocity,
+which the reference's own comment insists on — and converts back. A frame held at
+strength 1 is put back after the step, which is what the official image-to-video
+pipeline does by slicing it out and never stepping it; a partly held one is left
+stepped. The schedule does not change: the same nine sigmas either way. The live
+preview of a held run shows the frame *after* the held one, since frame 0 is the
+picture that was handed in.
+
+**The strength runs the other way**, and `LTX2RequestMapper` is the one place it
+is inverted. The interface's `referenceStrength` reads as "how much of the picture
+to throw away" everywhere; here the loop wants how strongly to *hold* it, so it is
+`1 - strength`. The entry declares `referenceStrengthBounds: 0.0...0.9` with a
+default of 0, so the default holds the frame exactly, which is what
+image-to-video means, and 0.9 holds it barely. A bound of 1 is not offered: at 1
+the frame is not held at all, which is text-to-video with an ignored picture.
 
 **Lightricks' own repositories are gated.** `Lightricks/LTX-2.5` and its
 diffusers layout answer 401 without a logged-in token that has clicked through
 the license, and Zephra sends no token, so the catalog names the ungated
 `mlx-community/ltx-2.5-mlx` pack instead: the same bf16 weights, one file per
-component, `LICENSE.md` beside them. The plan reads four of its files — the
+component, `LICENSE.md` beside them. The plan reads five of its files — the
 38 GB distilled transformer, the 6.3 GB connector, the 23.8 GB Gemma encoder
-with its tokenizer, the 0.8 GB decoder — 69 GB in all, and omits the audio
-autoencoder, the vocoder, the upscalers, the dev transformer and the video
-encoder by pattern. The gated case is why the packed variant is published on
+with its tokenizer, the 0.8 GB video decoder and the 0.64 GB video encoder a held
+first frame is read by — 69.6 GB in all, and omits the audio autoencoder, the
+vocoder, the upscalers and the dev transformer by pattern. The gated case is why the packed variant is published on
 the mirror as part of first light and not afterwards: the mirror is the path
 users take, and the pack is the fallback.
 
@@ -1707,9 +1755,11 @@ it: `sourceFiles`, shards named relative to the release root for a component the
 release keeps as one file at the top, and `sourceDirectory`, for a component the
 release keeps under another name (`gemma4-12b-ltx-v1/` is written as
 `text_encoder/`, configs and tokenizer copied along). Keys keep the pack's
-prefixes (`transformer.`, `connector.`, `vae_decoder.`, `model.language_model.`)
-and each kit module maps its paths onto them for the loader, the manifest and the
-stream. `LTX2QuantizationPlan` packs both stacks at four bits and holds the
+prefixes (`transformer.`, `connector.`, `vae_decoder.`, `vae_encoder.`,
+`model.language_model.`) and each kit module maps its paths onto them for the
+loader, the manifest and the stream — the one real rename being the encoder's
+statistics, which the pack spells `_mean_of_means` and `_std_of_means` and
+mlx-swift's parameter filter would drop for the leading underscore. `LTX2QuantizationPlan` packs both stacks at four bits and holds the
 conditioning, the modulation tables (float32 in the pack), the gates and the norms
 whole; the two embeddings — Gemma's 262144-row token table and the 188160-wide
 aggregate projection — go to eight bits, since both are read once per prompt
@@ -1718,9 +1768,10 @@ out by one list, `audioOmitted` (`audio`, `a2v`, `v2a`, and `av_ca_` as a prefix
 under `transformer.`), so the audio variant's plan is this plan without it;
 `LTX2TransformerWeights.audioMarkers` says the same words in the kit, and
 `WeightKeyCoverageTests` is what keeps the two agreeing. The build is 82 s once the pack is local
-and writes 19.3 GB (`builtBytes`): 8.56 GB of transformer, 1.89 of connector,
-8.00 of encoder, 0.81 of decoder copied as it is, since three-dimensional
-convolutions cannot be packed. At load the float32 scales are cast to the
+and writes 19.9 GB (`builtBytes`, arithmetic since the encoder was added): 8.56 GB
+of transformer, 1.89 of connector, 8.00 of Gemma, and the 0.81 GB video decoder
+and 0.64 GB video encoder copied as they are, since three-dimensional convolutions
+cannot be packed. At load the float32 scales are cast to the
 stream's dtype for every layer but the aggregate projection, which stays float32
 because 188160 products summed in bfloat16 lose the prompt.
 
@@ -1733,8 +1784,9 @@ go, the
 transformer's audio heads, a second connector stack, the audio autoencoder and
 vocoder, an audio track in `GeneratedVideo` — is written down in `ROADMAP.md`
 for Macs with the memory. Nothing else is left out of the video path except the
-first-frame conditioning that image-to-video needs (`vae_encoder`) and the
-temporal chunking of the decode, which matters past about 121 frames at 1024.
+temporal chunking of the decode, which matters past about 121 frames at 1024,
+and the H.264 re-compression the reference puts a held first frame through
+before encoding it (`ROADMAP.md`).
 
 The tokenizer is Zephra's own byte-pair encoder over the pack's `tokenizer.json`
 (`LTX2Tokenizer`): swift-transformers 0.1.24 splits by grapheme cluster and turns
