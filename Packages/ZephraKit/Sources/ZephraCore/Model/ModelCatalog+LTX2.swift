@@ -5,9 +5,13 @@ import Foundation
 extension ModelCatalog {
     /// The files the video-only build reads from the ungated `mlx-community` bf16 pack: the
     /// distilled transformer, the text connector, the Gemma 4 encoder with its tokenizer and
-    /// config, the convolutional video decoder, and the pack's own configs and license. The
-    /// audio autoencoder, the vocoder, the two upscalers, the dev transformer, the diffusion
-    /// decoder and the video encoder are left out by pattern rather than fetched and ignored.
+    /// config, the convolutional video decoder and encoder, and the pack's own configs and
+    /// license. The audio autoencoder, the vocoder, the two upscalers, the dev transformer and
+    /// the diffusion decoder are left out by pattern rather than fetched and ignored.
+    ///
+    /// The video *encoder* is fetched because a first frame is held by encoding the picture:
+    /// image-to-video is the one thing this family does with a reference picture, and the
+    /// encoder is the half of the autoencoder that reads one.
     ///
     /// Lightricks' own repositories are gated: a download needs a logged-in token, and Zephra
     /// sends none. This pack is the same bf16 weights redistributed under the LTX-2.x Community
@@ -15,13 +19,13 @@ extension ModelCatalog {
     static let ltx2Patterns = [
         "config.json", "embedded_config.json", "LICENSE.md",
         "transformer-distilled.safetensors", "connector.safetensors", "vae_decoder.safetensors",
-        "gemma4-12b-ltx-v1/*",
+        "vae_encoder.safetensors", "gemma4-12b-ltx-v1/*",
     ]
 
-    /// The four weight files as the repository lists them — transformer 37,985,774,111,
-    /// connector 6,344,495,770, Gemma 23,814,788,105, decoder 814,349,515 — plus the
-    /// 32,169,626-byte tokenizer and the configs: 68,991,577,127 in all.
-    static let ltx2DownloadBytes: Int64 = 68_990_000_000
+    /// The five weight files as the repository lists them — transformer 37,985,774,111,
+    /// connector 6,344,495,770, Gemma 23,814,788,105, decoder 814,349,515, encoder
+    /// 637,885,335 — plus the 32,169,626-byte tokenizer and the configs: 69,629,462,462 in all.
+    static let ltx2DownloadBytes: Int64 = 69_630_000_000
 
     /// LTX-2.5 distilled at four-bit precision, video only, built on this Mac from the pack the
     /// first time it is loaded.
@@ -47,7 +51,9 @@ extension ModelCatalog {
         // live after a generation and 21787 MB peak, the same peak a 9-frame 512 x 288 clip
         // reached, so the peak is the load's — the float32 scales before their cast — and not
         // the decode's. 63.4 s a clip at 7.0 s a step; the 9-frame clip took 0.90 s a step.
-        // There is no tiled decode yet, so the tiled figure is the plain one.
+        // There is no tiled decode yet, so the tiled figure is the plain one. The video
+        // encoder a held first frame is read by adds 0.64 GB of bf16 weights to all three
+        // figures; they have not been re-measured with it loaded.
         residentBytes: 17_520_000_000,
         peakBytes: 21_790_000_000,
         tiledPeakBytes: 21_790_000_000,
@@ -64,8 +70,10 @@ extension ModelCatalog {
         // Measured: 19,263,078,400 bytes written by the first `make quantize-ltx2` in 82 s —
         // 8.56 GB of transformer (480 four-bit linears with float32 scales and biases, the
         // conditioning whole), 1.89 GB of connector with its 8-bit projection, 8.00 GB of
-        // encoder with its 8-bit token table, and the 0.81 GB decoder copied as it is.
-        builtBytes: 19_270_000_000,
+        // encoder with its 8-bit token table, and the 0.81 GB decoder copied as it is. Plus
+        // the video encoder's 637,885,335 bytes, copied as it is for the same reason:
+        // 19,900,963,735 in all. Arithmetic, to be re-measured.
+        builtBytes: 19_910_000_000,
         mirror: mirror
     )
 
@@ -93,7 +101,17 @@ extension ModelCatalog {
         defaultGuidance: 0,
         supportsNegativePrompt: false,
         supportsSeed: true,
-        supportsReferenceImage: false,
+        supportsReferenceImage: true,
+        // The strength runs the other way here, and the inversion is the backend's
+        // (`LTX2RequestMapper`). Everywhere else in Zephra strength is "how much of the
+        // picture to throw away" on a model that starts from a noised copy of it; LTX-2.5
+        // does not start from the picture, it *holds* it as the clip's first frame, and what
+        // the loop wants is the opposite number — how strongly to hold it, `1 - strength`. So
+        // 0, the default, holds the frame exactly, which is what image-to-video means, and
+        // 0.9 lets the model redraw almost all of it. A bound of 1 is not offered: at 1 the
+        // frame is not held at all, which is text-to-image with an ignored picture.
+        referenceStrengthBounds: 0.0...0.9,
+        defaultReferenceStrength: 0,
         frameBounds: 9...121,
         defaultFrames: 49,
         frameAlignment: 8,

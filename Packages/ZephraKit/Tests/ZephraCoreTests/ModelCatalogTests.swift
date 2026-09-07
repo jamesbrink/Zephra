@@ -155,7 +155,13 @@ struct ModelCatalogTests {
         #expect(descriptor.capabilities.defaultFrames == 49)
         #expect(descriptor.capabilities.stepBounds == 8...8)
         #expect(descriptor.capabilities.guidanceBounds == 0...0)
-        #expect(!descriptor.capabilities.supportsReferenceImage)
+        // A picture is held as the clip's first frame, and the strength is inverted by the
+        // backend: 0, the default, holds it exactly. So the range is offered from 0 and stops
+        // short of 1, where the frame would not be held at all.
+        #expect(descriptor.capabilities.supportsReferenceImage)
+        #expect(descriptor.capabilities.referenceStrengthBounds == 0.0...0.9)
+        #expect(descriptor.capabilities.defaultReferenceStrength == 0)
+        #expect(descriptor.capabilities.adjustsReferenceStrength)
         #expect(descriptor.maxPromptTokens == 1024)
         guard case .huggingFace(let repoID, _, let patterns) = descriptor.source else {
             Issue.record("LTX-2.5 downloads from the hub")
@@ -164,6 +170,9 @@ struct ModelCatalogTests {
         // Lightricks' repositories are gated; the catalog names the ungated redistribution.
         #expect(repoID == "mlx-community/ltx-2.5-mlx")
         #expect(patterns.contains("transformer-distilled.safetensors"))
+        #expect(
+            patterns.contains("vae_encoder.safetensors"),
+            "the first frame a clip is held from is encoded by the autoencoder's own encoder")
         #expect(!patterns.contains { $0.contains("audio") || $0.contains("vocoder") || $0.contains("upscaler") })
         #expect(patterns.contains("LICENSE.md"), "the LTX-2.x license travels with the weights")
         for frames in [9, 49, 121] {

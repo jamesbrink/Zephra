@@ -50,16 +50,17 @@ FLUX2_EXCLUDE := --exclude "flux-2-klein-4b.safetensors" --exclude "*.jpg"
 FLUX2_SOURCE  ?=
 FLUX2_OUT     ?= $(MODELS_DIR)/flux2-klein-4b-$(BITS)bit
 # LTX-2.5 is built by the app on first load from the ungated mlx-community bf16 pack (the
-# Lightricks repositories are gated, and Zephra sends no token). Only the four files the
+# Lightricks repositories are gated, and Zephra sends no token). Only the five files the
 # video-only variant reads are fetched: the distilled transformer, the connector, the Gemma 4
-# encoder with its tokenizer, and the convolutional video decoder; 69 GB, so LTX2_MODELS defaults
+# encoder with its tokenizer, and the convolutional video decoder and encoder; 69 GB, so LTX2_MODELS defaults
 # to the external volume the way QWEN_MODELS does. `make quantize-ltx2` is the same build by hand;
 # LTX2_OUT follows BITS, and a BITS other than 4 lands in a directory that is not a catalog id,
 # so it gets no space check and no provenance stamp.
 LTX2_MODEL   := mlx-community/ltx-2.5-mlx
 LTX2_INCLUDE := --include "config.json" --include "embedded_config.json" --include "LICENSE.md" \
                 --include "transformer-distilled.safetensors" --include "connector.safetensors" \
-                --include "vae_decoder.safetensors" --include "gemma4-12b-ltx-v1/*"
+                --include "vae_decoder.safetensors" --include "vae_encoder.safetensors" \
+                --include "gemma4-12b-ltx-v1/*"
 LTX2_MODELS  ?= /Volumes/ExternalStorage/Models/ZephraModels
 LTX2_SOURCE  ?= $(LTX2_MODELS)/Downloads/$(subst /,--,$(LTX2_MODEL))
 LTX2_OUT     ?= $(MODELS_DIR)/ltx-2.5-distilled-$(BITS)bit
@@ -331,7 +332,7 @@ prefetch-qwen:
 prefetch-flux2:
 	hf download $(FLUX2_MODEL) $(FLUX2_EXCLUDE) --local-dir "$(FLUX2_DIR)"
 
-# The four LTX-2.5 files the video-only build reads, into LTX2_MODELS' Downloads folder as the
+# The five LTX-2.5 files the video-only build reads, into LTX2_MODELS' Downloads folder as the
 # app would name it; point MODELS_DIR at that volume and the app finds them.
 prefetch-ltx2:
 	hf download $(LTX2_MODEL) $(LTX2_INCLUDE) --local-dir "$(LTX2_SOURCE)"
