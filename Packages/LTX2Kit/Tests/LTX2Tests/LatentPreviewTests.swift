@@ -36,4 +36,36 @@ struct LatentPreviewTests {
         let whole = LTX2Frames.video(decoder.decode(latent[0..., 0..., 0..<1]), frameRate: 24)
         #expect(preview.pixels == whole.frame(0))
     }
+
+    @Test("frame 1 is that latent frame decoded alone, not frame 0 again")
+    func secondFrameAgrees() throws {
+        // The held-run path in LTX2Pipeline+Denoise asks for frame 1 — "the frame after the held
+        // one", since frame 0 there is the picture handed in and would say nothing about the run.
+        let fixture = try Fixture.load("vae_decoder")
+        let decoder = try VAEDecoderParityTests.loaded(fixture)
+        let latent = try #require(fixture["vae_decoder.in.latent"])  // [1, 4, 2, 2, 3], two latent frames
+        let preview = LTX2LatentPreview.make(latent: latent, decoder: decoder, frame: 1)
+        let whole = LTX2Frames.video(decoder.decode(latent[0..., 0..., 1..<2]), frameRate: 24)
+        #expect(preview.pixels == whole.frame(0))
+        // And it is not what frame 0 decodes to, so a preview that quietly fell back to 0 would
+        // be caught here.
+        let frameZero = LTX2LatentPreview.make(latent: latent, decoder: decoder, frame: 0)
+        #expect(frameZero.pixels != preview.pixels)
+    }
+
+    @Test("a one-latent-frame clip's held-run frame index clamps in range rather than running off")
+    func heldRunFrameStaysInRangeOnAOneFrameLatent() throws {
+        // `LTX2Pipeline+Denoise` computes the held-run preview's frame as
+        // `Swift.min(1, layout.frames - 1)`, which is 0 rather than the out-of-range 1 an
+        // unclamped "the frame after the held one" would ask for once there is only one latent
+        // frame to begin with (a one-frame clip, held exactly).
+        let fixture = try Fixture.load("vae_decoder")
+        let decoder = try VAEDecoderParityTests.loaded(fixture)
+        let oneFrameLatent = try #require(fixture["vae_decoder.in.latent"])[0..., 0..., 0..<1]
+        let clampedFrame = Swift.min(1, 1 - 1)
+        #expect(clampedFrame == 0)
+        let preview = LTX2LatentPreview.make(latent: oneFrameLatent, decoder: decoder, frame: clampedFrame)
+        let whole = LTX2Frames.video(decoder.decode(oneFrameLatent[0..., 0..., 0..<1]), frameRate: 24)
+        #expect(preview.pixels == whole.frame(0))
+    }
 }
