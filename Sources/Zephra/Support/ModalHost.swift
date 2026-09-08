@@ -47,15 +47,26 @@ enum ModalHost {
     /// candidate is tested, the last one included: unwrapping a key sheet to its parent and
     /// then falling through would otherwise offer that same parent again.
     static var window: NSWindow? {
-        if let host = hosting(NSApp.keyWindow) { return host }
-        if let host = hosting(NSApp.mainWindow) { return host }
+        // Whether the question has a window of its own is asked first, and separately from
+        // whether that window can take a sheet. They are different questions and collapsing
+        // them sends the panel to the wrong place: a picker sheet open on the main window with
+        // Settings also open would reject the main window as occupied and then find Settings in
+        // the scan, hanging a file panel about the canvas off the Settings window, possibly on
+        // another Space. So a window that owns the question is committed to — as a sheet host
+        // when it is free, and as application-modal when it is not — and the scan is only for
+        // the case with no owner at all, which a single-window app reaches whenever Command W
+        // has closed it.
+        if let owner = originating(NSApp.keyWindow) ?? originating(NSApp.mainWindow) {
+            return free(owner) ? owner : nil
+        }
         return NSApp.windows.first { $0.isVisible && $0.canBecomeKey && free($0) }
     }
 
-    private static func hosting(_ window: NSWindow?) -> NSWindow? {
+    /// The window a question raised right now belongs to, free or not: the one given, or the
+    /// window it is a sheet on, since a sheet's question is really its parent's.
+    private static func originating(_ window: NSWindow?) -> NSWindow? {
         guard let window, window.isVisible else { return nil }
-        let host = window.sheetParent ?? window
-        return free(host) ? host : nil
+        return window.sheetParent ?? window
     }
 
     /// Whether a window can take a sheet right now: it is not one itself, and is not already
