@@ -20,7 +20,7 @@ public enum UpscaleError: Error, Sendable, Hashable, LocalizedError {
         case let .failed(reason):
             "The image couldn't be upscaled. \(reason)"
         case .cancelled:
-            "Upscaling was cancelled."
+            "Upscaling was canceled."
         }
     }
 }

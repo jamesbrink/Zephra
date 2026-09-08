@@ -50,7 +50,7 @@ struct ModelDownloadRow: View {
         case .queued: "Waiting for a download slot or shared files"
         case .downloading: "Downloading"
         case .paused: "Paused — partial files kept"
-        case .cancelled: "Cancelled"
+        case .cancelled: "Canceled"
         case .completed: "Available on this Mac"
         case .failed(let reason): reason
         }

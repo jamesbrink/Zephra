@@ -22,7 +22,7 @@ struct LibraryEmptyState: View {
         switch index.query.scope {
         case .all: index.query.modelID == nil && index.query.tag == nil
             ? "No images yet" : "Nothing matches"
-        case .favourites: "No favourites yet"
+        case .favourites: "No favorites yet"
         case .lastSevenDays: "Nothing this week"
         case .album: "This album is empty"
         case .recentlyDeleted: "Nothing deleted"

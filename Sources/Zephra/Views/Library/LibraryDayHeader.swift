@@ -45,7 +45,7 @@ struct LibraryDayHeader: View {
     private var detail: String {
         let count = section.items.count
         let noun = index.query.scope == .favourites
-            ? (count == 1 ? "favourite" : "favourites")
+            ? (count == 1 ? "favorite" : "favorites")
             : (count == 1 ? "image" : "images")
         return "\(count) \(noun)"
     }

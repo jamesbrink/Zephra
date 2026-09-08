@@ -48,7 +48,7 @@ struct ScopeChips: View {
         .environment(WorkspaceSelection(pane: .canvas))
 }
 
-#Preview("Narrowed to favourites") {
+#Preview("Narrowed to favorites") {
     ScopeChips()
         .padding()
         .frame(width: 280)

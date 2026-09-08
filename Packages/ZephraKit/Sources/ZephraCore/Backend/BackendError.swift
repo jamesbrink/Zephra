@@ -30,7 +30,7 @@ public enum BackendError: Error, Sendable, Hashable, LocalizedError {
         case let .invalidSettings(reason):
             "These settings won't run: \(reason)"
         case .cancelled:
-            "Generation was cancelled."
+            "Generation was canceled."
         }
     }
 }
