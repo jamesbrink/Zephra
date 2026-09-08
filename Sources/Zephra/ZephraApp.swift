@@ -44,42 +44,39 @@ struct ZephraApp: App {
         // click and lists itself under the Window menu; see ROADMAP for per-window state.
         Window("Zephra", id: "main") {
             RootView()
-                // The floor under the window, so dragging it narrower or shorter cannot crush
-                // the sidebar and the inspector down to nothing between them. A bare
+                // The floor under the window, so dragging it in cannot crush the panes to
+                // nothing between the sidebar and the inspector. A bare
                 // `.frame(minWidth:minHeight:)` on the scene's content is not the trap that bit
                 // Settings: that was `.windowResizability(.contentSize)` taking the content's
                 // *maximum* as the window's, compounded by a `TabView` whose per-tab state
                 // stripped the resizable flag back off (`SettingsWindowFrame`). Neither applies
-                // here — nothing below calls `.windowResizability`, and `RootView` has no
-                // comparable per-tab churn — so the window stays freely resizable and
-                // maximisable above the floor.
+                // here, so the window stays freely resizable and maximisable above the floor.
                 //
-                // width = 240 (`WorkspaceSplitView`'s own sidebar minimum) + 584 (the canvas
-                //   pane's own least-useful width: `PromptEditor`'s preview width of 420 — the
-                //   same figure as its measured `restingHeight` of 76, so a considered number —
-                //   beside `ReferenceImageWell`'s real 64-point frame, across `PromptRow`'s real
-                //   12-point spacing, inside `PromptCapsule`'s 16-point-a-side padding, inside
-                //   `CanvasOverlay`'s 28-point-a-side `horizontalPadding`: 420+64+12+2×16+2×28.
-                //   The library pane needs less — two columns of `ThumbnailSize.medium` (192)
-                //   plus `LibraryGrid`'s own gutters is only 308 — so the canvas figure binds.)
-                //   + 320 (`WorkspaceDetail.inspectorWidth`) + 2 (the two hairline dividers
-                //   `NavigationSplitView` and `WorkspaceDetail`'s `HStack` each draw) = 1146.
-                // height = 52 (the unified toolbar strip with the title and subtitle both
-                //   showing, measured with Accessibility against the real window: `AXToolbar`'s
-                //   own reported height) + 238 (the prompt capsule and the floating overlay's
-                //   trailing margin below it, measured the same way at two different window
-                //   widths and matching to the point both times) + 400 (the least a picture
-                //   needs to read as a picture and not a strip — this app's own figure twice
-                //   over, since `LibraryEmptyState` and `CanvasEmptyState` each settled on a
-                //   400-point preview height independently) = 690.
-                // Both are under the 1200x840 the window opens at, so the floor only bites on a
-                // drag down, never on an ordinary launch. It is the worst case, sidebar and
-                // inspector both showing, not the least ever needed — hiding either
-                // (Control-Command-S, the inspector toggle) leaves this static floor unable to
-                // shrink to match, which is the safe side of that tradeoff: a hidden-chrome
-                // window is left with more room than it strictly needs, and 1146x690 is still an
-                // ordinary size to be stuck at, not a crushed one.
-                .frame(minWidth: 1146, minHeight: 690)
+                // The figure is what the window may be *dragged to*, which is not what a
+                // comfortable three-column layout wants — the same distinction Settings needed
+                // between `openingHeight` and `minimumHeight`, and for the same reason. A floor
+                // built from the full layout came to 1146x690 (240 sidebar + 584 canvas pane +
+                // 320 inspector + 2 dividers, and 52 toolbar + 238 capsule + 400 picture), and
+                // a minimum that large cannot fit a supported Mac running a larger-text scaled
+                // resolution such as 1024x640 — the window could then never be made to fit its
+                // own screen, controls stranded off the edge, which is worse than a cramped
+                // pane and is exactly the bug the Settings floor had.
+                //
+                // So the floor is the least the window is still *usable* at, and it leans on
+                // the two pieces of chrome a person can put away: 240 (`WorkspaceSplitView`'s
+                // sidebar minimum) + 320 (`WorkspaceDetail.inspectorWidth`) + 320 for the pane
+                // between them, which is a shade over the library's own measured floor of 308
+                // — two columns of `ThumbnailSize.medium` (192) plus `LibraryGrid`'s gutters.
+                // The canvas pane wants 584 to lay its prompt capsule out properly and does not
+                // get it here; at the floor the answer is Control-Command-S or the inspector
+                // toggle, either of which hands the pane 320 points back. Height is the
+                // measured 52-point toolbar strip plus the measured 238-point capsule and its
+                // margin, leaving 270 of picture — less than the 400 an empty state wants, and
+                // still a picture rather than a strip.
+                //
+                // 880x560 fits a 1024x640 screen with its menu bar removed, and sits well under
+                // the 1200x840 the window opens at, so the floor only bites on a drag down.
+                .frame(minWidth: 880, minHeight: 560)
                 // Every `@AppStorage` in the window binds through the one store, which is
                 // `UserDefaults.standard` for an ordinary launch and a throwaway suite under
                 // `FreshStart`; Settings takes it too, below.

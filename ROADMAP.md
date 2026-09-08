@@ -261,11 +261,24 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
 ## The window's floor: left out on purpose
 
 - **A floor that follows what is actually on screen.** `ZephraApp` sets one minimum
-  for the window, and it assumes the sidebar and the inspector are both showing —
-  the worst case. Hiding either (⌃⌘S, the inspector toggle) leaves the window unable
-  to shrink to what it then needs. The safe direction, but not the right one: a
-  dynamic floor means lifting `WorkspaceSplitView`'s `columns` and the inspector's
-  visibility into state the composition root can read, and neither is there today.
+  for the window and it cannot see what is showing, so it is the least the window is
+  *usable* at rather than the least it ever needs: 880x560, which assumes the sidebar
+  and the inspector are both out and leaves the canvas pane 320 points, well under
+  the 584 its prompt capsule wants laid out properly. At the floor the answer is ⌃⌘S
+  or the inspector toggle, either of which hands the pane those 320 points back.
+
+  The first attempt was the other way round — a floor built from the full
+  three-column layout, 1146x690 — and it was wrong in a way worth remembering,
+  because it is the same mistake the Settings window had: a minimum larger than a
+  supported screen. A Mac on a larger-text scaled resolution such as 1024x640 could
+  never have made the window fit, controls stranded off the edge, which is worse than
+  a cramped pane. A floor is about what may be dragged to, not about what is
+  comfortable, and both windows now say so in their own comments.
+
+  A floor that actually followed the chrome would mean lifting `WorkspaceSplitView`'s
+  `columns` and the inspector's visibility into state the composition root can read,
+  and neither is there today. It would buy a little room back at the bottom end; it
+  would not change the rule above.
 
 ## Live preview: left out on purpose
 
