@@ -459,6 +459,9 @@ deploy-production: website-build
 
 # macOS-only: validates notarization before upload, then verifies the public download.
 RELEASE_PROFILE ?= dev.urandom.io
+# What `publish-download.sh` rewrites with the URL, version, build and SHA-256 of the upload,
+# and what the website's Download button reads. The one file a ship changes in the repo.
+RELEASE_MANIFEST := product-mockups/app/release.json
 .PHONY: release-upload publish-release
 release-upload:
 	RELEASE_PROFILE="$(RELEASE_PROFILE)" ./scripts/publish-download.sh
@@ -469,9 +472,32 @@ publish-release: notarized-release
 # The whole pre-release ship, as it is done until further notice: the version stays at
 # project.yml's 0.1.0 and the build number is the UTC minute the build started
 # (YYYYMMDDHHMM), which is unique, sorts, and reads as a date; then the site is redeployed so
-# its Download button names the new file. See "Releases" in AGENTS.md.
+# its Download button names the new file, and the manifest that says which file that is
+# is committed and pushed, because a shipped release whose manifest sits dirty in a working
+# copy is a release nobody else can reproduce. See "Releases" in AGENTS.md.
+#
+# Old releases are deliberately NOT cleaned up here. They are removed by hand now and then
+# (`aws --profile $(RELEASE_PROFILE) s3 rm s3://.../releases/<file>`); the bucket has no
+# versioning, so a delete is permanent and does not belong in an automated path.
 RELEASE_STAMP := $(shell date -u +%Y%m%d%H%M)
-.PHONY: ship
+.PHONY: ship release-commit
 ship:
 	$(MAKE) publish-release VERSION=0.1.0 BUILD_NUMBER=$(RELEASE_STAMP)
 	$(MAKE) deploy-production
+	$(MAKE) release-commit
+
+# Commits and pushes the one file the ship rewrote. Only that path is staged, so whatever else
+# is in the working copy is left alone and never rides along in a release commit. The stamp in
+# the message is read back out of the manifest rather than from RELEASE_STAMP, so it names the
+# build that was actually uploaded even if the ship crossed a minute boundary.
+release-commit:
+	@if git diff --quiet -- "$(RELEASE_MANIFEST)"; then \
+	  echo "release-commit: $(RELEASE_MANIFEST) is unchanged, nothing to commit"; \
+	  exit 0; \
+	fi; \
+	stamp=$$(python3 -c 'import json;print(json.load(open("$(RELEASE_MANIFEST)"))["build"])'); \
+	branch=$$(git rev-parse --abbrev-ref HEAD); \
+	git add "$(RELEASE_MANIFEST)" && \
+	git commit -m "chore(release): publish Zephra-0.1.0-$$stamp" && \
+	git push origin "$$branch" && \
+	echo "release-commit: pushed $$branch"
