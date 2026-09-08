@@ -7,6 +7,11 @@ import ZephraEngine
 /// steps only where the count is a choice (LTX-2.5's ladder is fixed), length only for a model
 /// that makes clips, and strength only while a picture is in the well on a model that starts
 /// from a noised copy.
+///
+/// Live while the model works, like the prompt above them: a run carries its own settings
+/// (`QueuedGeneration`), so nothing here can reach the one in flight, and Generate queues the
+/// next one with whatever the row says. The row once greyed out for every busy state, which
+/// left a person able to type the next prompt but not to move the next strength.
 struct ControlsRow: View {
     var wraps = false
     @Environment(GenerationStore.self) private var store
@@ -28,7 +33,6 @@ struct ControlsRow: View {
             }
             ControlLabel("Seed") { SeedControl() }
         }
-        .disabled(store.state.isBusy)
     }
 
     private var layout: AnyLayout {

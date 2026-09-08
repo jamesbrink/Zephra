@@ -7,14 +7,18 @@ import ZephraEngine
 /// and the subtitle are `EngineState+Display`.
 extension EngineState {
     /// The second line under the headline, or nil when the state has nothing to measure.
-    var detail: String? {
+    var detail: String? { detail(clip: false) }
+
+    /// The second line, worded for a clip when the run in flight makes one: its latents are
+    /// developed into frames and the frames encoded, where a picture is developed and saved.
+    func detail(clip: Bool) -> String? {
         switch self {
         case .downloading(let event):
             Self.downloadDetail(event)
         case .building(let event):
             Self.buildDetail(event)
         case .generating(let event):
-            Self.generationDetail(event)
+            Self.generationDetail(event, clip: clip)
         case .upscaling(let event):
             "Tile \(event.completedTiles) of \(event.totalTiles)"
         default:
@@ -22,11 +26,15 @@ extension EngineState {
         }
     }
 
-    /// What the running generation is doing right now, in a few words and without the pace:
-    /// what the empty canvas says while the first frame is on its way.
-    var generationPhase: String? {
+    /// What the running generation is doing right now, in a few words and without the pace.
+    var generationPhase: String? { generationPhase(clip: false) }
+
+    /// The phase worded for the kind of run: what the empty canvas says while the first frame
+    /// is on its way, and what the finishing note over the last frame says once the steps are
+    /// done.
+    func generationPhase(clip: Bool) -> String? {
         guard case .generating(let event) = self else { return nil }
-        return Self.phaseText(event.phase)
+        return Self.phaseText(event.phase, clip: clip)
     }
 
     private static func downloadDetail(_ event: DownloadProgressEvent) -> String {
@@ -47,18 +55,21 @@ extension EngineState {
         return parts.joined(separator: " · ")
     }
 
-    private static func phaseText(_ phase: GenerationPhase) -> String {
+    private static func phaseText(_ phase: GenerationPhase, clip: Bool) -> String {
         switch phase {
         case .preparing: "Preparing"
         case .encodingText: "Reading the prompt"
         case .denoising(let step, let total): "Step \(step) of \(total)"
-        case .decoding: "Developing the image"
-        case .saving: "Saving"
+        case .decoding: clip ? "Developing the clip" : "Developing the image"
+        case .saving: clip ? "Encoding the clip" : "Saving"
         }
     }
 
-    private static func generationDetail(_ event: GenerationProgressEvent) -> String {
-        var parts = [phaseText(event.phase)]
+    /// The phase, with the pace and the countdown while the loop is what is running: a decode
+    /// has no pace, and "Developing the clip · 7.0 s/step" would read as though it had.
+    private static func generationDetail(_ event: GenerationProgressEvent, clip: Bool) -> String {
+        var parts = [phaseText(event.phase, clip: clip)]
+        guard case .denoising = event.phase else { return parts[0] }
         if let pace = event.secondsPerStep {
             parts.append(String(format: "%.1f s/step", pace))
         }

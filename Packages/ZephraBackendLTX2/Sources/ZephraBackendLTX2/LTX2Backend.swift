@@ -104,7 +104,9 @@ public nonisolated final class LTX2Backend: ImageGenerationBackend {
             // The one suspension in a backend's `generate` after its decode: the writer runs on
             // its own queue, so the inference executor is free while the clip is encoded. The
             // store admits nothing else meanwhile; a caller that assumed `generate` never
-            // suspends after the decode would be wrong here.
+            // suspends after the decode would be wrong here. Reported as the saving phase, so
+            // the interface can say the decode is over and the frames are being written.
+            onProgress(GenerationProgressEvent(phase: .saving, fraction: 1))
             let mp4 = try await MP4Writer.encode(frames, frameRate: clip.video.frameRate)
             return .video(
                 GeneratedVideo(

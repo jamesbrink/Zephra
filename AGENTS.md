@@ -720,9 +720,9 @@ Four directories, by what a file is rather than what screen it is on:
   fed by an `AVPlayerLooper`, muted, over the MP4 beside the poster — on the
   canvas once the save has landed and `fileURL` says where (the poster shows
   until then), and in the library viewer through `Library/Viewer/LibraryViewerClip`
-  for any item with a `videoURL`, a view of its own so `LibraryViewer` keeps its
-  three stored properties and this one watches the store. Both pause while a
-  run is in flight, since only the run moves on this canvas. SwiftUI's
+  for any item with a `videoURL`. Both play on while a run is in flight: H.264
+  decode is the media engine's work and not the GPU's, and a clip that stopped
+  the moment Generate was pressed read as broken. SwiftUI's
   `VideoPlayer` was tried first and rejected twice over: its controls take the
   click that tucks the prompt, and linked only through SwiftUI it aborted the
   first clip resolving its superclass, which is why `project.yml` still names
@@ -803,11 +803,26 @@ Four directories, by what a file is rather than what screen it is on:
   launch crashed at 38 s; on, it made its picture in 144 s. The system's
   indeterminate spinner stayed on screen through that run and is fine. There is
   no context menu and nothing to drag, because there is no file yet; a click
-  still tucks the prompt away. The capsule's `StepSegments` ride its top edge
+  still tucks the prompt away. The run is not over when the steps are: the
+  backend reports `.decoding` while the latents are developed and, for a clip,
+  `.saving` while the frames are encoded, tens of seconds on a 121-frame clip,
+  and the last frame sits still meanwhile. `EngineState.isFinishing` is that
+  stretch, and everything that reads the run reads it: `StepProgress` keeps
+  the bar up and full, `Canvas/FinishingNote` floats the phase with the
+  system spinner at the top of the frame (after a second, so a half-second
+  decode flashes nothing), the inspector's Steps row says "8 of 8" and its
+  Left row says the phase, and `StepTimer` lets the loop's pace ride on those
+  events so Elapsed keeps its figure. The phase is worded for the kind of run
+  (`detail(clip:)`, `generationPhase(clip:)`, `subtitle(for:clip:)`, from
+  `GenerationStore.runMakesClip`): "Developing the clip" and "Encoding the
+  clip" against "Developing the image" and "Saving". The capsule's `StepSegments` ride its top edge
   inset by `ZephraChrome.capsuleRadius`, on the lip too, so the corners' curve
   clips no segment; `StopButton` beside Generate is a bordered "Stop" in
   safelight; the size menu and the seed count show their chevrons, and the
-  count says what it counts ("4 seeds"). The tuck is `Canvas/PromptTuckHost`'s,
+  count says what it counts ("4 seeds"). The controls under the prompt stay
+  live while the model works, as the prompt does: a run carries its own
+  settings, so a size, seed or strength moved mid-run is the next run's, and
+  Generate queues it. The tuck is `Canvas/PromptTuckHost`'s,
   and it is visual only: `PromptTuckOverlay` slides the capsule under a lip and
   the prompt's text view stays first responder underneath it — the host hands
   it the caret as the prompt tucks and never takes the keyboard itself — so
@@ -2009,7 +2024,7 @@ changes nothing. (`ZephraQuantize` honours none of them, so it reads nothing.)
 value, and `AppSettings.residencyPolicy(mode:budget:override:)` is pure, so the picker applies
 the same override the store runs under without a second read of the process environment.
 
-- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|clip|generating|starting|queued|watching|batch|library|viewer|picker|downloading|building|failed`
+- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|clip|generating|starting|queued|watching|finishing|batch|library|viewer|picker|downloading|building|failed`
   launches a Debug build frozen in that state with no model, for screenshots (`make screenshot`).
   `tucked` is `image` with the canvas's floating prompt slid down to its lip.
   `viewer` opens the library pane on its first image full size; `picker` runs the
@@ -2031,7 +2046,9 @@ the same override the store runs under without a second read of the process envi
   the live preview is on screen without a model: the first two are following the run, and
   `watching` is the one that is not — the model working while an earlier picture stays on the
   canvas, which is what the running card's ring being off says. `starting` is the same run at
-  its first step with no frame yet, which is where `RunPlaceholderView` shows.
+  its first step with no frame yet, which is where `RunPlaceholderView` shows. `finishing` is
+  a clip run after its last step, the latents being developed: the bar full and
+  `FinishingNote` over the frame.
   `downloading` and `failed` sit over a picture, since that is where they must stay
   legible, and `failed` is a download that gave up.
 - Debug only: `ZEPHRA_DOWNLOAD_TEST_HUB=http://127.0.0.1:<port>` uses the real

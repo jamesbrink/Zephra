@@ -6,26 +6,24 @@ import SwiftUI
 /// reaches the canvas — the prompt tuck, the context menu, the viewer's double-click — the
 /// way a click on a picture does. SwiftUI's `VideoPlayer` draws controls that take the click.
 ///
-/// It pauses while the model works: decoding H.264 is the media engine's job and not the
-/// GPU's, but a clip going round while a run is in flight is one more thing moving, and the
-/// rule on this canvas is that only the run moves.
+/// It plays on while the model works. Decoding H.264 is the media engine's job and not the
+/// GPU's, so it costs the run nothing the app can measure, and a clip that stopped the moment
+/// Generate was pressed read as the clip being broken rather than as the run being under way.
 struct ClipPlayerView: NSViewRepresentable {
     /// The MP4 to play.
     let url: URL
-    /// Whether to hold still, which the canvas sets while the model works.
-    var paused = false
 
     func makeNSView(context: Context) -> AVPlayerView {
         let view = AVPlayerView()
         view.controlsStyle = .none
         view.videoGravity = .resizeAspect
         view.player = context.coordinator.player
-        context.coordinator.play(url, paused: paused)
+        context.coordinator.play(url)
         return view
     }
 
     func updateNSView(_ view: AVPlayerView, context: Context) {
-        context.coordinator.play(url, paused: paused)
+        context.coordinator.play(url)
     }
 
     static func dismantleNSView(_ view: AVPlayerView, coordinator: Coordinator) {
@@ -43,12 +41,14 @@ struct ClipPlayerView: NSViewRepresentable {
 
         init() { player.isMuted = true }
 
-        func play(_ url: URL, paused: Bool) {
+        /// Plays `url`, starting the loop over only when it is a different clip: `updateNSView`
+        /// runs on every rebuild of the canvas, and a loop rebuilt each time would never get going.
+        func play(_ url: URL) {
             if self.url != url {
                 self.url = url
                 looper = AVPlayerLooper(player: player, templateItem: AVPlayerItem(url: url))
             }
-            paused ? player.pause() : player.play()
+            player.play()
         }
 
         func stop() {

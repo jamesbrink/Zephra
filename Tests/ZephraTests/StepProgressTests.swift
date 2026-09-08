@@ -29,6 +29,18 @@ struct StepProgressTests {
         #expect(reading == StepProgress(completed: 2, total: 4, isRunning: true))
     }
 
+    @Test("the bar stays up and full from the last step until the result lands")
+    func theBarStaysFullWhileFinishing() {
+        let developing = StepProgress(
+            state: .generating(GenerationProgressEvent(phase: .decoding, fraction: 1)),
+            running: settings(steps: 8), next: settings(steps: 9))
+        #expect(developing == StepProgress(completed: 8, total: 8, isRunning: true))
+        let encoding = StepProgress(
+            state: .generating(GenerationProgressEvent(phase: .saving, fraction: 1)),
+            running: settings(steps: 8), next: settings(steps: 9))
+        #expect(encoding == StepProgress(completed: 8, total: 8, isRunning: true))
+    }
+
     @Test("with nothing running the count is the next run's, and the bar is not showing")
     func idleCountsTheNextRun() {
         let reading = StepProgress(state: .ready, running: nil, next: settings(steps: 9))

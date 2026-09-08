@@ -75,6 +75,23 @@ struct StepTimerTests {
         let decoding = GenerationProgressEvent(phase: .decoding, fraction: 1)
         #expect(timer.annotated(decoding, at: start) == decoding)
         #expect(timer.secondsPerStep == nil)
+        let encoding = GenerationProgressEvent(phase: .encodingText, fraction: 0)
+        #expect(timer.annotated(encoding, at: start) == encoding)
+    }
+
+    @Test("the loop's pace rides along on the decode and the save, without counting them as steps")
+    func thePaceRidesIntoTheFinish() {
+        var timer = StepTimer()
+        _ = timer.annotated(event(step: 1), at: start)
+        _ = timer.annotated(event(step: 2), at: start.advanced(by: .milliseconds(250)))
+        let decoding = timer.annotated(
+            GenerationProgressEvent(phase: .decoding, fraction: 1), at: start.advanced(by: .seconds(9)))
+        #expect(isClose(decoding.secondsPerStep, 0.25), "the pace is the loop's, not the decode's")
+        #expect(decoding.estimatedSecondsRemaining == nil, "a decode is not counted down")
+        let saving = timer.annotated(
+            GenerationProgressEvent(phase: .saving, fraction: 1), at: start.advanced(by: .seconds(12)))
+        #expect(isClose(saving.secondsPerStep, 0.25))
+        #expect(isClose(timer.secondsPerStep, 0.25), "neither phase was a step boundary")
     }
 
     private func event(step: Int) -> GenerationProgressEvent {

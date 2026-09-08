@@ -72,27 +72,38 @@ struct RunningRunInspector: View {
         (store.running?.model ?? store.descriptor).fullName
     }
 
-    /// The step being worked on out of the run's total, or the total alone before the loop has
-    /// reported: the prompt is still being read, and no step has happened yet.
+    /// The step being worked on out of the run's total; every step once the loop is done and
+    /// the result is being finished; or the total alone before the loop has reported, when the
+    /// prompt is still being read and no step has happened yet.
     private var steps: String {
-        guard let progress = store.state.denoisingProgress else { return String(settings.steps) }
-        return "\(progress.step) of \(progress.total)"
+        if let progress = store.state.denoisingProgress {
+            return "\(progress.step) of \(progress.total)"
+        }
+        if store.state.isFinishing { return "\(settings.steps) of \(settings.steps)" }
+        return String(settings.steps)
     }
 
     /// How long the loop has been running, as the steps that have finished at the pace they
     /// took. A step is reported as it begins, so the one named is not finished yet; the text
     /// encode before them is not counted either, because it is not measured.
     private var elapsed: String {
-        guard let progress = store.state.denoisingProgress, let pace = secondsPerStep else {
+        guard let pace = secondsPerStep else { return ImageFacts.unknown }
+        let finished: Int
+        if let progress = store.state.denoisingProgress {
+            finished = max(0, progress.step - 1)
+        } else if store.state.isFinishing {
+            finished = settings.steps
+        } else {
             return ImageFacts.unknown
         }
-        let finished = max(0, progress.step - 1)
         return ImageFacts.tookLabel(seconds: Double(finished) * pace, steps: finished)
     }
 
     /// The engine's own countdown, never rounded down to nothing: a run with a second left has
-    /// a second left, and "0 s" on a picture that has not appeared reads as a stall.
+    /// a second left, and "0 s" on a picture that has not appeared reads as a stall. Once the
+    /// steps are done there is nothing to count down, and the row says what is left to do.
     private var remaining: String {
+        if let phase = store.finishingPhase { return phase }
         guard case .generating(let event) = store.state,
               let left = event.estimatedSecondsRemaining
         else { return ImageFacts.unknown }

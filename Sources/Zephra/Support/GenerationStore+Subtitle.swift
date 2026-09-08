@@ -13,7 +13,7 @@ extension GenerationStore {
         // model loads moves the choice, and the bar is about the load.
         let phase = isSwappingModel && state == .idle
             ? "Switching to \(descriptor.fullName)…"
-            : state.subtitle(for: modelInUse ?? descriptor)
+            : state.subtitle(for: modelInUse ?? descriptor, clip: runMakesClip)
         guard !queue.isEmpty else { return phase }
         return "\(phase) · \(queue.count) queued"
     }

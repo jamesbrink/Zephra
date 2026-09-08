@@ -57,11 +57,11 @@ struct CanvasView: View {
 
     /// The picture itself, or the clip it is the poster of once the clip is on disk: a clip
     /// that has not been saved yet shows its first frame, and starts playing when the save
-    /// lands and `fileURL` arrives.
+    /// lands and `fileURL` arrives. It plays on while the model works on the next one.
     @ViewBuilder
     private func picture(_ image: GeneratedImage) -> some View {
         if image.isVideo, let file = image.fileURL, let clip = VideoSidecar.existing(beside: file) {
-            ClipPlayerView(url: clip, paused: store.running != nil)
+            ClipPlayerView(url: clip)
                 .aspectRatio(
                     CGFloat(image.settings.size.width) / CGFloat(image.settings.size.height),
                     contentMode: .fit)
@@ -73,12 +73,19 @@ struct CanvasView: View {
     /// The run being watched. Until its first frame arrives there is only the shape it will
     /// fill, so `RunPlaceholderView` sits in it: something is happening, and this is what. It
     /// goes the moment there is a picture to look at instead; the step count itself stays on
-    /// the capsule's edge and in the toolbar, where it already was.
+    /// the capsule's edge and in the toolbar, where it already was. Once the steps are done
+    /// the frames stop and the last one sits still while the latents are decoded, so
+    /// `FinishingNote` says so over it; a run with no frames has the placeholder saying it.
     private var runInFlight: some View {
         LivePreviewView(preview: store.livePreview, size: runSize)
             .overlay {
                 if store.livePreview == nil {
-                    RunPlaceholderView(phase: store.state.generationPhase)
+                    RunPlaceholderView(phase: store.state.generationPhase(clip: store.runMakesClip))
+                }
+            }
+            .overlay(alignment: .top) {
+                if let phase = store.finishingPhase, store.livePreview != nil {
+                    FinishingNote(phase: phase).padding(.top, 20)
                 }
             }
             .onTapGesture(count: 1) { workspace.promptTucked.toggle() }

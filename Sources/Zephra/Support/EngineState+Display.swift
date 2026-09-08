@@ -9,12 +9,16 @@ import ZephraEngine
 /// headline — counts, rates, pace — is `EngineState+Detail`.
 extension EngineState {
     /// The window subtitle: the state in a word, plus the measurement that matters while it runs.
-    var subtitle: String {
+    var subtitle: String { subtitle(clip: false) }
+
+    /// The subtitle, worded for a clip when the run in flight makes one: a clip is developed
+    /// and encoded where a picture is developed and saved.
+    func subtitle(clip: Bool) -> String {
         switch self {
         case .ready: "Ready"
         case .failed: "Failed"
         default:
-            if let detail {
+            if let detail = detail(clip: clip) {
                 "\(statusLabel) · \(detail.prefix(1).lowercased() + detail.dropFirst())"
             } else {
                 statusLabel
@@ -24,8 +28,8 @@ extension EngineState {
 
     /// The window subtitle, naming the model while it is being fetched. Which model is on its
     /// way is worth knowing there and nowhere else: every other state is about the one loaded.
-    func subtitle(for descriptor: ModelDescriptor) -> String {
-        guard case .downloading = self else { return subtitle }
+    func subtitle(for descriptor: ModelDescriptor, clip: Bool = false) -> String {
+        guard case .downloading = self else { return subtitle(clip: clip) }
         guard let detail else { return "Downloading \(descriptor.fullName)" }
         return "Downloading \(descriptor.fullName) · \(detail.prefix(1).lowercased() + detail.dropFirst())"
     }
@@ -128,5 +132,16 @@ extension EngineState {
               case .denoising(let step, let total) = event.phase
         else { return nil }
         return (step, total)
+    }
+
+    /// Whether every step has landed and the run is being finished: the latents decoded, a
+    /// clip's frames encoded. The pace says nothing about how long that takes, so nothing
+    /// counts it down; the interface says what is happening instead.
+    var isFinishing: Bool {
+        guard case .generating(let event) = self else { return false }
+        switch event.phase {
+        case .decoding, .saving: return true
+        case .preparing, .encodingText, .denoising: return false
+        }
     }
 }

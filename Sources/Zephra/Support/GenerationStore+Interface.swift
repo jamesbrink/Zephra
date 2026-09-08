@@ -17,6 +17,17 @@ extension GenerationStore {
         StepProgress(state: state, running: running?.settings, next: settings)
     }
 
+    /// Whether the run in flight makes a clip, which is what its phases are worded for.
+    var runMakesClip: Bool { (running?.settings.frames ?? 1) > 1 }
+
+    /// What the run is doing once its last step has landed, in words, or nil while the loop is
+    /// still running. The canvas puts it over the last frame with a spinner, because the frames
+    /// have stopped coming and nothing else on the canvas moves for what can be tens of seconds.
+    var finishingPhase: String? {
+        guard state.isFinishing else { return nil }
+        return state.generationPhase(clip: runMakesClip)
+    }
+
     /// Applies the launch preferences, then loads the model. The root view's only entry point.
     func bootstrapFromInterface() async {
         warmsUpAfterLoad = AppSettings.flag(AppSettings.warmUpOnLaunch)

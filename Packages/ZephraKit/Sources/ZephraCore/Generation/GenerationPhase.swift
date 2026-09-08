@@ -8,6 +8,6 @@ public enum GenerationPhase: Hashable, Sendable {
     case denoising(step: Int, of: Int)
     /// Turning latents into pixels.
     case decoding
-    /// Writing the finished image to disk.
+    /// Writing the finished image to disk, or encoding a clip's decoded frames into its MP4.
     case saving
 }

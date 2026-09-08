@@ -16,7 +16,8 @@ extension InterfacePreview {
     /// other two are following, so the canvas is the run's own frames and `current` is nothing.
     static func runningStore(state: EngineState, seeds: Int) -> GenerationStore {
         let watching = name == "watching"
-        let flight = queuedRun(of: seeds, steps: stepCount(of: state))
+        let flight = queuedRun(
+            of: seeds, steps: stepCount(of: state), frames: name == "finishing" ? 49 : 1)
         let store = GenerationStore.preview(
             state: state,
             image: watching ? PreviewImages.sample() : nil,
@@ -89,6 +90,11 @@ extension InterfacePreview {
                 fraction: 0.75,
                 secondsPerStep: 8.2
             ))
+        case "finishing":
+            // A clip's last step has landed and its latents are being developed: the bar full,
+            // the note over the frame, the pace still on the event for the inspector's Elapsed.
+            return .generating(GenerationProgressEvent(
+                phase: .decoding, fraction: 1, secondsPerStep: 7.0))
         case "downloading":
             return .downloading(DownloadProgressEvent(
                 completedFiles: 3,

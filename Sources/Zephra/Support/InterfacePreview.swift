@@ -6,7 +6,7 @@ import ZephraEngine
 /// interface can be screenshotted and inspected on its own.
 ///
 /// Set `ZEPHRA_PREVIEW_STATE` to `ready`, `image`, `editing`, `tucked`, `clip`, `generating`,
-/// `starting`, `queued`, `watching`, `batch`, `library`, `viewer`, `picker`, `downloading`,
+/// `starting`, `queued`, `watching`, `finishing`, `batch`, `library`, `viewer`, `picker`, `downloading`,
 /// `building`, or `failed` before launching. `settings` uses the configured library on disk with a frozen engine for
 /// folder-change UAT; point `imagesDirectory` at a temporary fixture first. Debug builds only; in Release this is inert.
 ///
@@ -25,7 +25,7 @@ enum InterfacePreview {
             let store = GenerationStore.preview(state: state, images: run)
             store.settings = run[0].settings
             return store
-        case "generating", "starting", "queued", "watching":
+        case "generating", "starting", "queued", "watching", "finishing":
             return runningStore(state: state, seeds: name == "queued" ? 3 : 2)
         default:
             // The editing, picker and clip previews run against an invented model that reads a
@@ -97,14 +97,15 @@ enum InterfacePreview {
     /// A run of `count` seeds of one prompt, the first of which is the one being rendered.
     /// Shared with the `#Preview`s of the queue, so the frozen window and the previews of its
     /// parts are showing the same thing.
-    static func queuedRun(of count: Int = 3, steps: Int = 4) -> [QueuedGeneration] {
+    static func queuedRun(of count: Int = 3, steps: Int = 4, frames: Int = 1) -> [QueuedGeneration] {
         let batch = UUID()
         let settings = GenerationSettings(
             prompt: "a red bicycle against a limestone wall",
             size: ImageSize(width: 1024, height: 1024),
             steps: steps,
             guidance: 0,
-            seed: 8_123_447_209_115_662
+            seed: 8_123_447_209_115_662,
+            frames: frames
         )
         return (0..<count).map { index in
             var seeded = settings

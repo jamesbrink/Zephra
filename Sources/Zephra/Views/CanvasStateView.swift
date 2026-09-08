@@ -67,7 +67,7 @@ struct CanvasStateView: View {
                 .tint(.safelight)
                 .frame(width: 260)
         }
-        if let detail = store.state.detail {
+        if let detail = store.state.detail(clip: store.runMakesClip) {
             Text(detail)
                 .font(.callout)
                 .monospaced()

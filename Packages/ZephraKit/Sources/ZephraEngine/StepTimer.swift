@@ -38,12 +38,19 @@ struct StepTimer {
     /// the next step's own report, and counting that gap would halve the pace on screen. Its
     /// decode stays inside the step it follows: the remaining steps will carry frames too, so
     /// that is the pace the person is really waiting at.
+    ///
+    /// The phases after the loop, the decode and the save, are not timed either, but the pace
+    /// the loop ran at rides along on them: it is what the inspector's Elapsed is worked out
+    /// from, and a figure that went blank the moment the steps were done read as a stall.
     mutating func annotated(
         _ event: GenerationProgressEvent,
         at instant: ContinuousClock.Instant = ContinuousClock.now
     ) -> GenerationProgressEvent {
-        guard case .denoising = event.phase else { return event }
-        if event.preview == nil { tick(at: instant) }
+        switch event.phase {
+        case .denoising: if event.preview == nil { tick(at: instant) }
+        case .decoding, .saving: break
+        case .preparing, .encodingText: return event
+        }
         guard event.secondsPerStep == nil, let secondsPerStep else { return event }
         return GenerationProgressEvent(
             phase: event.phase,
