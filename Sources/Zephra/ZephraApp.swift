@@ -11,7 +11,7 @@ import ZephraUpscaleRealESRGAN
 /// know which backend it is built on.
 @main
 struct ZephraApp: App {
-    @NSApplicationDelegateAdaptor(AppTermination.self) private var termination
+    @NSApplicationDelegateAdaptor(AppLifecycle.self) private var termination
     // Not private: `ZephraApp+Library.swift` wires these four together once the window is up.
     @State var store = ZephraApp.makeStore()
     @State private var cache = ImageCache()

@@ -23,7 +23,12 @@ extension ZephraApp {
         thumbnails.sweep()
         store.onImageSaved = { url in
             index.insert(fileAt: url)
-            BackgroundNotices.post(.imageSaved(url))
+            // The image was attached its file before this was called, so the one at this URL
+            // is in the session's history; an image the history has let go is named only as
+            // saved.
+            let image = store.history.first { $0.fileURL == url }
+            BackgroundNotices.post(
+                .imageSaved(prompt: image?.settings.prompt ?? "", isClip: image?.isVideo ?? false))
         }
         store.onImageDeleted = { _ in Task { await index.rescanNow() } }
         // The reverse direction: a delete made through the index — the grid, the viewer, the

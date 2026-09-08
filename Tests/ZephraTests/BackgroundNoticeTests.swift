@@ -35,10 +35,26 @@ struct BackgroundNoticeTests {
         #expect(BackgroundNotice.transition(from: .loading(.preparing), to: .ready, model: "M") == nil)
     }
 
-    @Test("a saved image is named by its file, without the extension")
+    @Test("a saved image is named by its prompt, and a clip is called one")
     func savedImage() {
-        let notice = BackgroundNotice.imageSaved(URL(filePath: "/x/a-cat-42.png"))
+        let notice = BackgroundNotice.imageSaved(prompt: "a cat on a limestone wall", isClip: false)
         #expect(notice.title == "Image Saved")
-        #expect(notice.body == "a-cat-42")
+        #expect(notice.body == "a cat on a limestone wall")
+        let clip = BackgroundNotice.imageSaved(prompt: "the cat turns", isClip: true)
+        #expect(clip.title == "Clip Saved")
+    }
+
+    @Test("the banner's prompt is one line, cut at a word, and never empty")
+    func promptSummary() {
+        #expect(BackgroundNotice.summary(of: "  a cat\n\non   a wall ") == "a cat on a wall")
+        #expect(BackgroundNotice.summary(of: "") == "Saved to your library.")
+        #expect(BackgroundNotice.summary(of: "\n \t") == "Saved to your library.")
+        let long = Array(repeating: "word", count: 40).joined(separator: " ")
+        let summary = BackgroundNotice.summary(of: long)
+        #expect(summary.hasSuffix("…"))
+        #expect(summary.count <= BackgroundNotice.summaryLength + 1)
+        #expect(!summary.contains("wor…"), "cut at a word, not through one")
+        let oneWord = String(repeating: "x", count: 140)
+        #expect(BackgroundNotice.summary(of: oneWord) == String(repeating: "x", count: 100) + "…")
     }
 }

@@ -248,7 +248,7 @@ the well: a variation replaces the settings outright and cancels that read.
 All UI storage deletion goes through `GenerationStore.deleteModelStorage`, which
 checks active requests/residency/queued work and closes new admission while deleting.
 Folder changes close download admission, pause every request and await file closure.
-`AppTermination` defers normal Quit while `GenerationStore.shutdown` settles tasks,
+`AppLifecycle` defers normal Quit while `GenerationStore.shutdown` settles tasks,
 then `LibraryIndex.shutdown` stops watching and drains its write chain and scans (store
 first, because the store's last save inserts into the index), then the runtime seam
 synchronizes Metal before allowing process teardown.
@@ -506,7 +506,14 @@ a second window would only mirror the first; ⌘W closes it and a click on the D
 icon brings it back, with the Window menu listing it by itself, and
 `.defaultLaunchBehavior(.presented)` opens it on every launch, so a session that quit
 with the window closed does not come back with none. Per-window state is a ROADMAP
-item.
+item. It is one process too: `Support/SingleInstance`, from `AppLifecycle`'s
+`applicationWillFinishLaunching`, brings a copy already running forward and exits
+before a window is up. The system launches an app by bundle identifier when a
+notification is clicked and takes whichever copy LaunchServices has registered,
+which beside a `make run` build is often the Debug one, and two Zephras over one
+library would write over each other. A `ZEPHRA_PREVIEW_STATE` launch is exempt,
+since the screenshot builds and the app-hosted tests run beside a real one on
+purpose; `SingleInstanceTests` pins the rule.
 
 Four directories, by what a file is rather than what screen it is on:
 
@@ -678,7 +685,10 @@ Four directories, by what a file is rather than what screen it is on:
   pure function over two states, pinned by `BackgroundNoticeTests`, and
   `BackgroundNoticeObserver` on `RootView` feeds it every transition. A saved
   image is the other notice, posted from the `onImageSaved` wiring in
-  `ZephraApp+Library`. `BackgroundNotices.post` is the one place
+  `ZephraApp+Library`, titled "Image Saved" or "Clip Saved" and carrying the
+  prompt folded to one line and cut at a word (`BackgroundNotice.summary`),
+  since the file name is a stamp and a seed and says nothing to a person who
+  walked away. `BackgroundNotices.post` is the one place
   `UNUserNotificationCenter` is touched: it posts only when `NSApp` is not
   active and the General toggle (`AppSettings.backgroundNotifications`)
   allows, and asks permission the first time it has something to say rather

@@ -1,10 +1,16 @@
 import AppKit
 
-/// AppKit can defer Quit; SwiftUI's scene disappearance cannot wait for file/GPU work.
+/// The two moments SwiftUI's scenes cannot handle for the app: its launch, where a second copy
+/// stands down for the one already running, and Quit, which AppKit can defer while the store
+/// and the index settle their file and GPU work but a scene's disappearance cannot wait for.
 @MainActor
-final class AppTermination: NSObject, NSApplicationDelegate {
+final class AppLifecycle: NSObject, NSApplicationDelegate {
     var shutdown: (@MainActor () async -> Void)?
     private var stopping = false
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        SingleInstance.yieldToRunningCopy()
+    }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let shutdown else { return .terminateNow }
