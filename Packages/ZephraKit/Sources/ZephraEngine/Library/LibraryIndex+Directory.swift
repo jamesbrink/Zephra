@@ -23,7 +23,9 @@ extension LibraryIndex {
         for watch in watches.values { watch.cancel() }
         watches.removeAll()
         await work?.value
-        for task in activeScans.values { await task.value }
+        // What each scan found is deliberately dropped: this is a wait for the folder to be
+        // quiet, and whatever a scan still in flight read belongs to the folder being left.
+        for task in activeScans.values { _ = await task.value }
         isScanning = false
     }
 

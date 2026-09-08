@@ -23,33 +23,33 @@ struct ClipFramesTests {
     }
 
     @Test("the last frame is the clip's last colour, not its first")
-    func lastNotFirst() throws {
-        let png = try #require(ClipFrames.lastFrame(of: try Self.fixture))
+    func lastNotFirst() async throws {
+        let png = try #require(await ClipFrames.lastFrame(of: try Self.fixture))
         let pixel = try #require(Self.averagePixel(of: png))
         #expect(pixel.blue > pixel.red, "the last frame was written blue, not red")
     }
 
     @Test("a clip still in memory reads its last frame the same way")
-    func lastFrameOfDataInMemory() throws {
+    func lastFrameOfDataInMemory() async throws {
         let mp4 = try Data(contentsOf: try Self.fixture)
-        let png = try #require(ClipFrames.lastFrame(ofMP4Data: mp4))
+        let png = try #require(await ClipFrames.lastFrame(ofMP4Data: mp4))
         let pixel = try #require(Self.averagePixel(of: png))
         #expect(pixel.blue > pixel.red)
     }
 
     @Test("a file with no video track has no last frame")
-    func noVideoTrack() throws {
+    func noVideoTrack() async throws {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("clip-frames-\(UUID().uuidString)")
             .appendingPathExtension("mp4")
         try Data("not a real clip".utf8).write(to: url)
         defer { try? FileManager.default.removeItem(at: url) }
-        #expect(ClipFrames.lastFrame(of: url) == nil)
+        #expect(await ClipFrames.lastFrame(of: url) == nil)
     }
 
     @Test("bytes that are not a clip at all have no last frame either")
-    func notAClipAtAll() {
-        #expect(ClipFrames.lastFrame(ofMP4Data: Data("not a real clip".utf8)) == nil)
+    func notAClipAtAll() async {
+        #expect(await ClipFrames.lastFrame(ofMP4Data: Data("not a real clip".utf8)) == nil)
     }
 
     /// The whole picture scaled down to one pixel, which for a solid-colour frame is that

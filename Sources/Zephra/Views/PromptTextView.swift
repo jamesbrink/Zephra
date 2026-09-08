@@ -68,8 +68,16 @@ struct PromptTextView: NSViewRepresentable {
         context.coordinator.parent = self
         guard let textView = scroll.documentView as? NSTextView else { return }
         // Only when the two differ: writing the same string back would drop the selection
-        // under the caret on every keystroke.
-        if textView.string != text { textView.string = text }
+        // under the caret on every keystroke. When they do differ the store has replaced the
+        // prompt — picking a picture from the sidebar adopts its settings — and the coordinator's
+        // stack still holds the edits that made the *old* text, so an Undo afterwards would
+        // splice one of them into text it was never typed in. The replacement is not itself an
+        // undoable edit, so the stack goes with the text it belonged to. Assigning `string`
+        // sends no `textDidChange`, which is what keeps this from writing back to the binding.
+        if textView.string != text {
+            textView.string = text
+            context.coordinator.forgetEdits()
+        }
         if isFocused, let window = textView.window, window.firstResponder !== textView {
             window.makeFirstResponder(textView)
         }
@@ -92,6 +100,12 @@ struct PromptTextView: NSViewRepresentable {
 
         func undoManager(for view: NSTextView) -> UndoManager? {
             undo
+        }
+
+        /// Drops every edit on the stack, for a prompt the store has replaced wholesale: the
+        /// actions on it name ranges of text that is no longer there.
+        func forgetEdits() {
+            undo.removeAllActions()
         }
     }
 }

@@ -17,8 +17,12 @@ extension ZephraChrome {
     /// first frame.
     static let safelightTint = Color.safelight.opacity(0.18)
     /// What lifts a square on the sidebar's wall while the pointer is over it: the wash that
-    /// says it can be pressed.
-    static let hoverWash = Color.white.opacity(0.12)
+    /// says it can be pressed. `Color.primary` rather than white, because this one lies over a
+    /// picture: white over a bright thumbnail in Light appearance was the one affordance the
+    /// wall has and was next to invisible. In Dark appearance `primary` is white, so nothing
+    /// there changes. A shade stronger than `wellFillHovered`, which lies over a flat fill and
+    /// needs less to read as a lift.
+    static let hoverWash = Color.primary.opacity(0.12)
     /// The fill of a panel that carries a warning.
     static let warningWash = Color.safelight.opacity(0.12)
     /// The edge of that panel.

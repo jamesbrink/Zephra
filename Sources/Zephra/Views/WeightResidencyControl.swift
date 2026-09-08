@@ -8,9 +8,14 @@ import ZephraEngine
 /// says what that costs: a read of the whole model per step. Automatic streams only a model
 /// that would otherwise page on this Mac, and only one whose family can. The choice reaches
 /// the store as the picker moves; a model already loaded the other way is reloaded.
+///
+/// The budget is read off the store rather than out of the environment, where the other GPU
+/// rows read theirs. Both carry the same figure — the root sets one from the other — and this
+/// is the one row that hands a policy *back*: computed against the store's own budget it cannot
+/// be a policy weighed on a different number from the one the store picks a fallback model by.
+/// It also leaves the view at the three stored properties a view is allowed.
 struct WeightResidencyControl: View {
     @Environment(GenerationStore.self) private var store
-    @Environment(\.memoryBudget) private var budget
     @Environment(\.weightResidencyOverride) private var override
     @AppStorage(AppSettings.weightResidency) private var mode = AppSettings.initialWeightResidency
 
@@ -47,7 +52,8 @@ struct WeightResidencyControl: View {
 
     private func apply() {
         store.setWeightResidencyPolicy(
-            AppSettings.residencyPolicy(mode: mode, budget: budget, override: override))
+            AppSettings.residencyPolicy(
+                mode: mode, budget: store.memoryBudget, override: override))
     }
 }
 

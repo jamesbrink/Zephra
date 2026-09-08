@@ -13,26 +13,33 @@ import UniformTypeIdentifiers
 /// a picture becomes what a reference is carried as, so a clip's last frame is capped and cast
 /// exactly like every other door into the well.
 ///
+/// Both entry points are `async` because AVFoundation's own are: loading a property off an asset
+/// and generating an image are `load(.duration)` and `image(at:)`, and the synchronous pair they
+/// replace is deprecated as far back as macOS 13. Nothing about the seam changes —
+/// `GenerationStore.animate(origin:read:)` already takes an `async` closure and runs it off the
+/// main actor, which is where these were being called from — and both stay `nonisolated`, so the
+/// decode never lands on the main actor.
+///
 /// `lastFrame(ofMP4Data:)` is the same rule for a clip still in memory, with no file on disk yet
 /// to read: the generator only reads from a URL, so the bytes go through a temporary file first.
 enum ClipFrames {
     /// The clip's last frame, or nil when the asset has no readable frame there.
-    nonisolated static func lastFrame(of url: URL) -> Data? {
+    nonisolated static func lastFrame(of url: URL) async -> Data? {
         // One step at LTX-2.5's frame rate, the only clip model this build ships. A `nonisolated`
         // function cannot read a stored static property under `SWIFT_DEFAULT_ACTOR_ISOLATION`, so
         // this is a local rather than a type-level constant.
         let frameStep = CMTime(value: 1, timescale: 24)
         let asset = AVURLAsset(url: url)
-        let duration = asset.duration
-        guard duration.isValid, duration > .zero else { return nil }
+        // A file with no track to read a duration off throws rather than answering zero, which
+        // is the same nil as a duration that is there and empty.
+        guard let duration = try? await asset.load(.duration), duration.isValid, duration > .zero
+        else { return nil }
         let target = max(duration - frameStep, .zero)
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
         generator.requestedTimeToleranceBefore = frameStep
         generator.requestedTimeToleranceAfter = .zero
-        guard let cgImage = try? generator.copyCGImage(at: target, actualTime: nil) else {
-            return nil
-        }
+        guard let cgImage = try? await generator.image(at: target).image else { return nil }
         guard let rawPNG = pngData(from: cgImage) else { return nil }
         return ReferenceImageEncoder.pngData(from: rawPNG)
     }
@@ -41,13 +48,13 @@ enum ClipFrames {
     /// reached the disk yet: `AVAssetImageGenerator` reads from a file, so the bytes are written
     /// to a uniquely named temporary file first and removed again once the frame is read,
     /// success or failure alike, rather than left for the poster's fallback to reach instead.
-    nonisolated static func lastFrame(ofMP4Data data: Data) -> Data? {
+    nonisolated static func lastFrame(ofMP4Data data: Data) async -> Data? {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("zephra-clip-frame-\(UUID().uuidString)")
             .appendingPathExtension("mp4")
         defer { try? FileManager.default.removeItem(at: url) }
         guard (try? data.write(to: url)) != nil else { return nil }
-        return lastFrame(of: url)
+        return await lastFrame(of: url)
     }
 
     private nonisolated static func pngData(from image: CGImage) -> Data? {

@@ -108,10 +108,10 @@ enum ReferenceAdoption {
                 return ReferenceImageEncoder.pngData(from: image.pngData)
             }
             if let fileURL = image.fileURL {
-                return ClipFrames.lastFrame(of: VideoSidecar.url(beside: fileURL))
+                return await ClipFrames.lastFrame(of: VideoSidecar.url(beside: fileURL))
             }
             if let mp4 = image.video?.mp4 {
-                return ClipFrames.lastFrame(ofMP4Data: mp4)
+                return await ClipFrames.lastFrame(ofMP4Data: mp4)
             }
             return nil
         }
@@ -125,7 +125,7 @@ enum ReferenceAdoption {
     static func animate(_ item: LibraryItem, into store: GenerationStore) {
         store.animate(origin: item.fileName) {
             if item.isVideo, let videoURL = item.videoURL {
-                return ClipFrames.lastFrame(of: videoURL)
+                return await ClipFrames.lastFrame(of: videoURL)
             }
             return ReferenceImageEncoder.pngData(contentsOf: item.url)
         }
