@@ -19,7 +19,14 @@ final class LinearStack: Module {
     }
 }
 
-@Suite("Streaming a layer stack from its shards")
+// `.serialized` because `WeightStreamMeter` is one process-wide slot and three tests in here
+// run a pass that writes it. Swift Testing runs a suite's tests in parallel by default, so
+// "the meter holds the pass this stream just recorded" was only ever true by luck: another
+// test's pass would land in the meter in between, and the assertion failed on `seconds` while
+// `bytes` matched, since every stack in this file streams the same number of bytes. The stream
+// records one value into both its own `lastPass` and the meter, so with the tests serialized
+// the two really are the same reading.
+@Suite("Streaming a layer stack from its shards", .serialized)
 struct LayerWeightStreamTests {
     static let width = 1024
     static let count = 12

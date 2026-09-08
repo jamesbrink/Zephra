@@ -243,3 +243,30 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
 - Peak memory was previously attributed to weight loading reading shards fully before applying
   them. Instrumenting MLX's allocator shows loading is entirely lazy and reaches 7.2 GB. The peak
   is the VAE decode at 1024 pixels, which alone took the process from 16.4 GB to 26.5 GB.
+
+## Vendored code that Zephra links but never runs
+
+The September 2026 audit looked for dead code across the whole app and found none
+in our own sources. Roughly a third of the 10,946 lines here, though, is upstream
+work this app has no path into. It stays, because the vendoring policy is to keep
+the copy close to `mzbac/zimage.swift` so a re-sync is a diff and not a merge, and
+`make vendored-diff` only works while that is true. It is written down because it
+is license surface and audit surface for a commercial ship, and because "unused"
+is worth knowing before someone reads it as a feature that exists:
+
+- `Pipeline/ZImageControlPipeline.swift` and
+  `Model/Transformer/ZImageControlTransformer2D.swift` — the ControlNet pipeline.
+  Nothing outside this package names either type.
+- `LoRA/` in its entirety. Zephra merges adapters at build time in
+  `ZephraQuantization`'s packer, so no adapter reaches the runtime and
+  `LoRALinear`, `LoRAKeyMapper`, `LoRAApplicator` and `LoRAWeightLoader` are
+  never constructed. Runtime LoRA is a roadmap item; if it lands it will be
+  built on the shared packer's own path, not on this.
+- `Model/TextEncoder/Vision/` — Qwen2.5-VL's vision tower. Text-to-image supplies
+  token ids and an attention mask and no pixels, which is why the port loads
+  neither the ViT's weights nor `lm_head`; `WeightKeyCoverageTests` asserts that
+  rather than leaving it assumed.
+- `Weights/WeightsAudit.swift` — a diagnostic with no caller.
+
+Anything here becoming reachable is a real change to what the app does, and wants
+a `ZEPHRA-PATCH` note and an entry in the patch log above like any other.

@@ -120,7 +120,7 @@ VERSION      ?=
 BUILD_NUMBER ?=
 VERSION_FLAGS := $(if $(VERSION),MARKETING_VERSION=$(VERSION)) $(if $(BUILD_NUMBER),CURRENT_PROJECT_VERSION=$(BUILD_NUMBER))
 
-.PHONY: doctor gen build run run-fresh bench quantize quantize-qwen quantize-flux2 quantize-ltx2 mirror mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-ltx2 mirror-index mirror-sync prefetch prefetch-qwen prefetch-flux2 prefetch-ltx2 open clean lint-layers vendored-diff logs screenshot test test-app test-mlx test-backend icon signed-build release notarize notarized-release
+.PHONY: doctor gen build run run-fresh bench quantize quantize-qwen quantize-flux2 quantize-ltx2 mirror mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-ltx2 mirror-index mirror-sync prefetch prefetch-qwen prefetch-flux2 prefetch-ltx2 open clean lint-layers lint-size vendored-diff logs screenshot test test-app test-mlx test-backend icon signed-build release notarize notarized-release
 
 # What a fresh Mac needs before `make build` can work, each with its fix printed.
 doctor:
@@ -408,7 +408,40 @@ lint-layers:
 	  || (echo "ANIMATION VIOLATION: the app target runs a repeating animation; the GPU is the model's while it works (see RunPlaceholderView)"; exit 1)
 	@! grep -rlnE 'hoverWash' Sources/Zephra --include='*.swift' | grep -vE 'WallSquareChrome\.swift|ZephraChrome\+Washes\.swift' \
 	  || (echo "HIT-TEST VIOLATION: the hover wash is laid over a button outside WallSquareChrome, where allowsHitTesting(false) keeps it from taking the click"; exit 1)
+# US spelling in user-facing strings, which AGENTS.md asks for and six shipped literals
+# had drifted from -- "6 favourites" under a sidebar row reading Favorites among them.
+# Whole lines, not `grep -o`: the match alone loses the context that tells a doc comment
+# from code, and every remaining occurrence in the tree is in a comment. Identifiers are
+# exempt on purpose (isFavourite, FavouriteToggle) since no user sees them, and so is
+# LibraryScope, whose "favourites" is the stable spelling written into preferences --
+# changing that one would orphan every saved scope.
+	@! grep -rnE '"[^"]*([Ff]avourite|[Cc]olour|[Cc]entre|[Bb]ehaviour|[Ll]icence|[Oo]rganise|[Aa]nalyse|[Nn]ormalise|[Cc]ancelled)[^"]*"' \
+	  Sources/Zephra Packages/ZephraKit/Sources Packages/ZephraMLXKit/Sources --include='*.swift' 2>/dev/null \
+	  | grep -vE ':[0-9]+: *(///|//|\*)' | grep -v '#Preview' | grep -v 'LibraryScope\.swift' \
+	  || (echo "SPELLING VIOLATION: a user-facing string is in British spelling; AGENTS.md asks for US spelling on screen (identifiers are exempt)"; exit 1)
+# The type-name ban from AGENTS.md's code rules. PromptLayoutManager is the one documented
+# exception: it is an NSLayoutManager subclass and keeps AppKit's own name.
+	@! grep -rnE '(struct|class|enum|actor|protocol) [A-Za-z]*(Manager|Helper|Utils|Utility|Service)\b' \
+	  Sources Packages --include='*.swift' 2>/dev/null \
+	  | grep -v 'Packages/ZImageKit' | grep -v 'PromptLayoutManager' \
+	  || (echo "NAMING VIOLATION: name a type for what it is, not Manager/Helper/Utils/Service (AGENTS.md)"; exit 1)
 	@echo "layers ok"
+
+# Advisory, never a gate: the 150-line figure in AGENTS.md is a target to split before,
+# not a limit to fail on, and a file a few lines over is usually carrying a comment that
+# earns its place. Printed so the drift stays visible.
+#
+# The three-stored-properties-per-view rule is deliberately NOT linted. It cannot be
+# checked honestly by grep -- telling a stored property from a computed one or from a
+# local inside a function needs the parser, and every regex tried for it flagged
+# CacheLimitControl's `bounds`, PromptTuckOverlay's `tucked` and LibraryGridKeyboard's
+# `outcome`, none of which are stored. A rule that cries wolf is worse than one a
+# reviewer applies by eye.
+lint-size:
+	@find Sources Packages -name '*.swift' | grep -v ZImageKit | grep -v '/Tests/' \
+	  | grep -v '\.build' | xargs wc -l 2>/dev/null | sort -rn \
+	  | awk '$$1 > 150 && $$2 != "total" { print "  over 150 lines: " $$1 "\t" $$2 }'
+	@echo "size advisory done"
 
 # ChatGPT Sites is the iteration environment; production means the AWS website.
 WEBSITE_PROFILE      ?= dev.urandom.io

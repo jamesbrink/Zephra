@@ -225,6 +225,48 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   day's mechanical work, and it was left until after the wording pass so the catalog
   is made once from settled strings rather than twice.
 
+  This section used to claim the US-spelling half was already true. It was not: the
+  September 2026 audit found six shipped literals in British spelling, the worst of
+  them a day heading counting "6 favourites" directly under a sidebar row reading
+  Favorites. `make lint-layers` enforces it now rather than the prose promising it.
+
+## Menu shortcuts: left out on purpose
+
+- **Two Edit menu items carry ⌘A.** `CommandGroupPlacement.pasteboard` synthesizes
+  Select All, and `LibraryCommands` adds "Select All Images" after it. At most one is
+  ever enabled, because the built-in is nil-targeted at `selectAll:` and disables
+  itself when nothing in the responder chain implements that selector — which nothing
+  under `LibraryGrid` does — so ours is the one that fires. That works, and it rests
+  on SwiftUI's internal responder implementation rather than on anything we control.
+
+  Every way out costs more than it buys, which is why the duplicate stays. A
+  responder-chain `selectAll:` cannot be reached from a shim in the grid's
+  `.background`: nil-targeted dispatch walks first responder, then its superviews,
+  then the window, and never siblings, so getting into that chain means re-hosting
+  the grid inside an `NSHostingView`. `.onKeyPress` would make the chord work while
+  leaving every menu item showing it greyed, which inverts the reason the menu bar
+  carries these at all. And `CommandGroup(replacing: .pasteboard)` means re-declaring
+  Cut, Copy, Paste and Delete without AppKit's validation, permanently enabled and
+  silently inert in every text field in the app. `ZephraCommands`' Copy Image dodges
+  the same collision by taking ⇧⌘C instead, but Select All has no second chord anyone
+  would look for. Revisit if a SwiftUI release ever implements `selectAll:` on its
+  focusable view, at which point ⌘A over the grid stops working and nothing catches it.
+
+- **⌘. reaches Stop Generating while the prompt has the caret**, because an
+  `NSTextView` maps it to `cancelOperation:` and a menu key equivalent is matched
+  first. Kept deliberately: a global Stop is worth more than cancelling field editing.
+  ⌘⌫ was the same class of collision and was not acceptable, since it deleted the
+  picture; see `CommandTarget.whileTyping(_:)`.
+
+## The window's floor: left out on purpose
+
+- **A floor that follows what is actually on screen.** `ZephraApp` sets one minimum
+  for the window, and it assumes the sidebar and the inspector are both showing —
+  the worst case. Hiding either (⌃⌘S, the inspector toggle) leaves the window unable
+  to shrink to what it then needs. The safe direction, but not the right one: a
+  dynamic floor means lifting `WorkspaceSplitView`'s `columns` and the inspector's
+  visibility into state the composition root can read, and neither is there today.
+
 ## Live preview: left out on purpose
 
 - **Latent-to-RGB factor tables.** The cheap way to show a run in progress is a 16x3

@@ -223,7 +223,22 @@ Code rules:
   discipline (see `Packages/ZImageKit/VENDORED.md`).
 
 Run `make lint-layers` before every commit. It greps for forbidden imports
-across the layers above and fails the build if any are found.
+across the layers above and fails the build if any are found, and beside those
+it enforces four smaller rules that had each drifted at least once: no repeating
+animation in the app target, `hoverWash` named only where `allowsHitTesting(false)`
+keeps it off a button, US spelling in user-facing string literals, and the
+`Manager`/`Helper`/`Utils`/`Service` type-name ban with `PromptLayoutManager` as
+its one documented exception. The spelling rule matches whole lines rather than
+`grep -o`, since the match alone cannot tell a doc comment from code, and it skips
+`LibraryScope`, whose `"favourites"` is the stable spelling written into
+preferences — the one place the British word is correct.
+
+`make lint-size` is advisory and never a gate: it lists the files over the
+150-line target so the drift stays visible. The three-stored-properties-per-view
+rule is deliberately not linted at all — telling a stored property from a computed
+one or from a local inside a function needs the parser, and every regex tried for
+it flagged properties that were neither. A rule that cries wolf is worse than one
+a reviewer applies by eye.
 
 ## Download lifecycle
 
@@ -558,7 +573,24 @@ Four directories, by what a file is rather than what screen it is on:
   the inspector is open, and the labels those enums draw themselves with.
   `WorkspaceSelection` is one `@Observable`, injected by the composition root
   and persisted through `AppSettings`.
-- `Support/` — caches, exports, pickers, previews. The thumbnail pipeline lives
+- `Support/` — caches, exports, pickers, previews. `ModalHost` is where every
+  alert and every file panel in the app is raised: it answers with the window to
+  hang a sheet from — the key window, which is already the Settings window when a
+  Settings row raised the panel, so there is nothing to detect — and wraps
+  `beginSheetModal`, keeping `runModal()` only as the fallback for the case with
+  no window at all, which a single-window app reaches whenever ⌘W has closed it.
+  A question about a window belongs on that window. `NSAlert` rather than
+  SwiftUI's `.alert` is still right, and for the reason it always was — a menu
+  command is not a view and has nowhere to hang a presentation binding — but that
+  was never a reason to run one application-modal. `ModalHost.warning` is also
+  the one place button order and key equivalents are decided, because `NSAlert`
+  gives the *first* button added the Return key and `hasDestructiveAction` only
+  tints: Return confirmed the destructive answer in four places until the audit.
+  Reordering is not the fix and the rule is written down there once — for a
+  two-button alert `["Cancel", "Delete"]` leaves Return on nothing at all, since
+  a button titled Cancel takes Escape and never Return — so a three-answer
+  question is reordered and a two-answer one has Return lifted off the dangerous
+  button instead. The thumbnail pipeline lives
   here: `ThumbnailKey` names a baked file by path, mtime, size and edge,
   `ThumbnailFolder` is an actor that bakes off the main thread, four at a time
   through a gate that hands a finished bake's slot straight to the next waiter
@@ -639,10 +671,17 @@ Four directories, by what a file is rather than what screen it is on:
   says nothing, and the ring round the selected cell is what shows where the
   keyboard is — which is why an arrow key with nothing selected selects an end
   of the grid (`LibraryCursor`) rather than doing nothing. `SettingsView` is
-  four tabs, and `SettingsTab` says how wide the window opens and how tall each
+  three tabs, and `SettingsTab` says how wide the window opens and how tall each
   tab stands: the window opens 520 points wide at the tab's own height rather
-  than standing at the tallest tab's for all four, and Escape does not close it,
-  which is what every Settings window on the Mac does. Those figures are a floor
+  than standing at the tallest tab's for all three, and Escape does not close it,
+  which is what every Settings window on the Mac does. The height a tab opens at
+  is no longer also the least the window may be dragged to — `minimumHeight` is,
+  one number for all three. Those were the same value until the audit, and the
+  taller job made the window unshrinkable: Performance's 820 points of content
+  plus 88 of chrome is 908, against 876 usable on a 13-inch MacBook Air M1, which
+  Sequoia still runs on, so the tab could not be made to fit at all. AppKit clamps
+  a window to the screen's visible frame on open and can only do that when the
+  minimum it is holding to actually fits. Those figures are a floor
   and an opening size, not a fixed frame: the window resizes, keeps whatever size
   a person gave it as they step between tabs, and grows only for a tab whose
   floor is taller. `SettingsWindowFrame` is what says so, because no scene
@@ -665,11 +704,13 @@ Four directories, by what a file is rather than what screen it is on:
   (the parser, with `NoticesParser` behind it, reading exactly the Markdown the
   file uses and keeping its fenced NOTICE and license texts verbatim) and
   `NoticesView`. Neither opens at launch nor is restored. `AboutCommands` points
-  the application menu's About item at the first; Settings > About
-  (`AboutSettings`) shows the same facts in the tab's shape with the same two
-  buttons, and no longer lays the notices out inline, since a tab that opened on
-  seven hundred lines of license text read as legal text where a person expected
-  to learn what the app was. The notices file is written so it reads right in
+  the application menu's About item at the first, and `HelpCommands` replaces the
+  Help menu SwiftUI would otherwise synthesize — which carried one item leading to
+  a help book that does not exist — with Zephra Help opening the website and
+  Acknowledgments opening that second window. There is no Settings > About: a
+  fourth tab once showed the same facts with the same two buttons, and a Settings
+  tab duplicating a window that already exists is not what any other Mac app does,
+  so it went. The notices file is written so it reads right in
   the app too: it names no `LICENSE` file, because none is bundled — the app's
   own terms are the copyright line's "All rights reserved" until terms are
   decided (`ROADMAP.md`). A keyboard shortcut has one owner, the menu bar
@@ -2193,7 +2234,10 @@ the same override the store runs under without a second read of the process envi
   `make bench ARGS="--model qwen-image-2512-4bit --stream"` is the same with the report saying
   what one step read and how fast; `--stream-depth N` sweeps the window. A model whose family
   cannot stream loads resident whatever either says.
-- `ZEPHRA_GENERATE_ON_LAUNCH=<prompt>` presses Generate with that prompt and the saved settings
+- `ZEPHRA_GENERATE_ON_LAUNCH=<prompt>` (Debug builds only; in Release it is inert, the same
+  rule `ZEPHRA_PREVIEW_STATE` follows and for the same reason — a shipped, signed Zephra has no
+  business starting a generation unattended because a stray variable happened to be set)
+  presses Generate with that prompt and the saved settings
   as soon as the model is ready: one real generation in the app itself, window and all, from a
   shell on a Mac nobody is sitting at. The bench measures the model without the window; a
   failure that needs the window on screen, as the GPU reset above did, needs this instead.
