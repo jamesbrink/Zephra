@@ -37,15 +37,31 @@ enum ModalHost {
     /// The window a sheet should hang from, or nil when there is none and the question has to
     /// stand on its own. A sheet that is itself key answers with the window it is attached to,
     /// since a sheet cannot host a sheet.
+    ///
+    /// A window already showing one answers nil, and that case is load-bearing rather than
+    /// tidy: "Choose File…" in `ReferencePickerSheet` is raised from inside a sheet on the
+    /// main window, so the window this would otherwise pick is the very one the picker is
+    /// attached to. AppKit does not refuse a second sheet there, it *queues* it — it would
+    /// appear only once the picker closed, and the caller is awaiting the panel before closing
+    /// anything, so the button would read as dead until the picker was cancelled by hand. Every
+    /// candidate is tested, the last one included: unwrapping a key sheet to its parent and
+    /// then falling through would otherwise offer that same parent again.
     static var window: NSWindow? {
         if let host = hosting(NSApp.keyWindow) { return host }
         if let host = hosting(NSApp.mainWindow) { return host }
-        return NSApp.windows.first { $0.isVisible && $0.canBecomeKey && !$0.isSheet }
+        return NSApp.windows.first { $0.isVisible && $0.canBecomeKey && free($0) }
     }
 
     private static func hosting(_ window: NSWindow?) -> NSWindow? {
         guard let window, window.isVisible else { return nil }
-        return window.sheetParent ?? window
+        let host = window.sheetParent ?? window
+        return free(host) ? host : nil
+    }
+
+    /// Whether a window can take a sheet right now: it is not one itself, and is not already
+    /// showing one.
+    private static func free(_ window: NSWindow) -> Bool {
+        !window.isSheet && window.attachedSheet == nil
     }
 
     /// Asks `alert` as a sheet on `window`, and answers which button was pressed.
