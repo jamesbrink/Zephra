@@ -7,7 +7,7 @@ extension AppSettings {
     /// How the stored preference and this machine's memory budget decide the VAE tile, for
     /// the composition root, which has to answer the question outside a picker.
     static func tilingPolicy(budget: MemoryBudget) -> VAETilingPolicy {
-        let stored = UserDefaults.standard.string(forKey: vaeTiling)
+        let stored = store.string(forKey: vaeTiling)
         return VAETilingPolicy(
             mode: stored.flatMap(VAETilingMode.init(rawValue:)) ?? initialVAETiling,
             budget: budget
@@ -20,7 +20,7 @@ extension AppSettings {
     /// `InferenceEnvironment` at the root the way every other switch is, and it wins over the
     /// preference for that one launch, the way `ZEPHRA_VAE_TILE` does for the tile.
     static func residencyPolicy(budget: MemoryBudget, override: WeightResidency?) -> WeightResidencyPolicy {
-        let stored = UserDefaults.standard.string(forKey: weightResidency)
+        let stored = store.string(forKey: weightResidency)
         return residencyPolicy(
             mode: stored.flatMap(WeightResidencyMode.init(rawValue:)) ?? initialWeightResidency,
             budget: budget, override: override)

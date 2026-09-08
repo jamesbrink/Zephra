@@ -5,6 +5,21 @@ import ZephraEngine
 /// The keys and starting values behind every `@AppStorage` in the app, in one place so a
 /// preference is never spelled two different ways.
 enum AppSettings {
+    /// Where every preference below is read and written.
+    ///
+    /// `UserDefaults.standard` for an ordinary launch, and a suite of its own under
+    /// `FreshStart`, so a launch pretending to be a new Mac neither reads a person's
+    /// preferences nor writes over them. Resolved once: the store cannot change under a
+    /// running app. Views bind through it because the composition root hands it to
+    /// `.defaultAppStorage`, and the code that reads a preference outside a view reads it
+    /// here.
+    static let store: UserDefaults = {
+        guard FreshStart.current != nil,
+              let suite = UserDefaults(suiteName: FreshStart.defaultsSuite)
+        else { return .standard }
+        return suite
+    }()
+
     /// The prompt text, restored on the next launch.
     static let lastPrompt = "lastPrompt"
     /// Whether every run picks a fresh seed instead of repeating the last one.
@@ -81,12 +96,15 @@ enum AppSettings {
     /// Where models are kept right now, for the composition root, which has to answer the
     /// question before any view exists. An unset or empty path is the app's own folder.
     static func modelLocations() -> ModelLocations {
-        let defaults = UserDefaults.standard
+        let defaults = store
         let stored = defaults.string(forKey: modelsDirectory) ?? ""
         let previous = (defaults.stringArray(forKey: previousModelsDirectories) ?? [])
             .map { URL(filePath: $0, directoryHint: .isDirectory) }
+        // An unset preference is the app's own folder, or the fresh start's when this launch
+        // is pretending to be a new Mac; a folder the user picked is theirs either way.
         let root = stored.isEmpty
-            ? ModelLocations.default.root : URL(filePath: stored, directoryHint: .isDirectory)
+            ? (FreshStart.current?.models ?? ModelLocations.default.root)
+            : URL(filePath: stored, directoryHint: .isDirectory)
         return ModelLocations(root: root, previous: previous)
     }
 
@@ -95,7 +113,7 @@ enum AppSettings {
     /// path so that a later change of default is picked up.
     static func recordModelsDirectory(_ new: URL?, leaving old: URL) {
         let locations = proposedModelLocations(new, leaving: old)
-        let defaults = UserDefaults.standard
+        let defaults = store
         defaults.set(locations.previous.map { $0.path(percentEncoded: false) }, forKey: previousModelsDirectories)
         defaults.set(new?.path(percentEncoded: false) ?? "", forKey: modelsDirectory)
     }
@@ -114,19 +132,19 @@ enum AppSettings {
     /// and so cannot use `@AppStorage`. An unset key falls back to the same starting value the
     /// views use, so a preference means one thing everywhere.
     static func flag(_ key: String) -> Bool {
-        UserDefaults.standard.object(forKey: key) as? Bool ?? initialValue(of: key)
+        store.object(forKey: key) as? Bool ?? initialValue(of: key)
     }
 
     /// A stored whole number as it stands right now, for the same reason `flag(_:)` exists.
     static func integer(_ key: String) -> Int {
-        UserDefaults.standard.object(forKey: key) as? Int ?? initialInteger(of: key)
+        store.object(forKey: key) as? Int ?? initialInteger(of: key)
     }
 
     /// Stores one preference from outside a view, for state an `@Observable` owns rather than
     /// an `@AppStorage`. The reading half of the same pair is `flag(_:)` for a switch and
     /// `UserDefaults` for a raw value that is parsed back into its own type.
     static func write(_ value: some Sendable, to key: String) {
-        UserDefaults.standard.set(value, forKey: key)
+        store.set(value, forKey: key)
     }
 
     private static func initialValue(of key: String) -> Bool {

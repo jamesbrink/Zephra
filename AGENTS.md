@@ -518,9 +518,17 @@ item. It is one process too: `Support/SingleInstance`, from `AppLifecycle`'s
 before a window is up. The system launches an app by bundle identifier when a
 notification is clicked and takes whichever copy LaunchServices has registered,
 which beside a `make run` build is often the Debug one, and two Zephras over one
-library would write over each other. A `ZEPHRA_PREVIEW_STATE` launch is exempt,
-since the screenshot builds and the app-hosted tests run beside a real one on
-purpose; `SingleInstanceTests` pins the rule.
+library would write over each other. A launch that owns neither folder is exempt —
+the `ZEPHRA_PREVIEW_STATE` screenshot builds and the app-hosted tests, which run
+beside a real one on purpose, and a `ZEPHRA_FRESH_START` one, which has a models
+folder, a library and a preferences domain of its own; `SingleInstanceTests` pins
+the rule. `FreshStart` (`Support/`) is that launch: `AppSettings.store` is the one
+`UserDefaults` every preference is read and written through, `UserDefaults.standard`
+ordinarily and a throwaway suite under a fresh start, handed to the views by
+`.defaultAppStorage` at the root, and the two folder defaults answer with the fresh
+directory's `Models` and `Images` in place of Application Support and
+`~/Pictures/Zephra`. The Hugging Face cache is deliberately not redirected: it is a
+read-only fallback a real new Mac may equally have. `make run-fresh` asks for it.
 
 Four directories, by what a file is rather than what screen it is on:
 
@@ -1168,6 +1176,13 @@ Makefile targets:
 - `make build` — generate, then `xcodebuild` the `Zephra` scheme
   (`CONFIG=Release` by default).
 - `make run` — build, then open `build/Release/Zephra.app`.
+- `make run-fresh` — the same build launched as a Mac that has never run Zephra:
+  `ZEPHRA_FRESH_START` points it at `build/fresh`, and its preferences (a suite of
+  its own), its models folder and its image library all live under there, so
+  nothing a person has downloaded, generated or set is read or written. The
+  directory is emptied first; `FRESH_RESET=0` keeps it, which is how a session is
+  resumed without fetching gigabytes again, and `FRESH_DIR` points it somewhere
+  with room. It runs beside a real Zephra, since it shares no folder with one.
 - `make open` — generate, then open the project in Xcode.
 - `make bench` — build and run `ZephraBench` (`ARGS=...` to pass flags).
 - `make test` — `swift test` in `Packages/ZephraKit` (Core, Snapshot, Engine
@@ -2080,6 +2095,10 @@ the same override the store runs under without a second read of the process envi
   `FinishingNote` over the frame.
   `downloading` and `failed` sit over a picture, since that is where they must stay
   legible, and `failed` is a download that gave up.
+- `ZEPHRA_FRESH_START=<directory>` launches the app as a Mac that has never run it: its
+  preferences go to a suite of their own, its models folder is `<directory>/Models` and its
+  library `<directory>/Images`, and the single-instance guard lets it run beside a real
+  Zephra. `make run-fresh` is the way in; `FreshStart` in `Support/` is the whole of it.
 - Debug only: `ZEPHRA_DOWNLOAD_TEST_HUB=http://127.0.0.1:<port>` uses the real
   downloader and UI with an unloaded exercise backend for disposable HTTP fixtures.
   Use a separate bundle identifier/preferences domain and models folder. No such hook

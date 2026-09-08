@@ -46,7 +46,7 @@ extension ZephraApp {
     /// still runs at a smaller one, and that is the user's call to make. Whether it is still
     /// on the disk is the store's to find out, at bootstrap, from the backend.
     static func savedModel(fitting budget: MemoryBudget) -> ModelDescriptor {
-        let saved = UserDefaults.standard.string(forKey: AppSettings.selectedModelID)
+        let saved = AppSettings.store.string(forKey: AppSettings.selectedModelID)
         return saved.flatMap(ModelCatalog.descriptor(id:))
             ?? ModelCatalog.default(fitting: budget)
     }

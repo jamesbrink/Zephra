@@ -57,7 +57,7 @@ struct InferenceTuning {
     /// The stored preference as bytes, clamped into the machine's bounds. An unset or absurd
     /// stored value falls back to the recommendation, so a preference can never brick a launch.
     static func storedCacheLimitBytes() -> Int {
-        let stored = UserDefaults.standard.object(forKey: AppSettings.cacheLimitMB) as? Int
+        let stored = AppSettings.store.object(forKey: AppSettings.cacheLimitMB) as? Int
         let megabytes = stored ?? recommendedCacheLimitMB
         return clampedMB(megabytes) * bytesPerMB
     }

@@ -76,7 +76,7 @@ final class WorkspaceSelection {
 
     /// The window as it was left last time, or the canvas over everything on a first launch.
     init() {
-        let defaults = UserDefaults.standard
+        let defaults = AppSettings.store
         pane = defaults.string(forKey: AppSettings.workspacePane)
             .flatMap(WorkspacePane.init(rawValue:)) ?? .canvas
         query = LibraryQuery(

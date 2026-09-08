@@ -44,6 +44,10 @@ struct ZephraApp: App {
         // click and lists itself under the Window menu; see ROADMAP for per-window state.
         Window("Zephra", id: "main") {
             RootView()
+                // Every `@AppStorage` in the window binds through the one store, which is
+                // `UserDefaults.standard` for an ordinary launch and a throwaway suite under
+                // `FreshStart`; Settings takes it too, below.
+                .defaultAppStorage(AppSettings.store)
                 .modifier(SeedFormatPreference())
                 .environment(store)
                 .environment(cache)
@@ -92,6 +96,7 @@ struct ZephraApp: App {
 
         Settings {
             SettingsView()
+                .defaultAppStorage(AppSettings.store)
                 .environment(store)
                 .environment(inventory)
                 .environment(index)
