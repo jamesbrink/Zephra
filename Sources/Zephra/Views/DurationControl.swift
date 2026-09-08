@@ -56,9 +56,7 @@ struct DurationControl: View {
 
     /// "2 s · 49 frames", with the seconds to one decimal only when they are not whole.
     static func label(frames: Int, rate: Double) -> String {
-        let seconds = Double(frames) / rate
-        let whole = seconds.rounded() == seconds
-        return String(format: whole ? "%.0f s · %d frames" : "%.1f s · %d frames", seconds, frames)
+        "\(DurationLabel.text(seconds: Double(frames) / rate, fraction: true)) · \(frames) frames"
     }
 }
 

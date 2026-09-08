@@ -102,6 +102,8 @@ struct ZephraApp: App {
         // The window takes each tab's own height (`SettingsTab.height`), shrinking as well
         // as growing, rather than standing at the tallest tab's for all four.
         .windowResizability(.contentSize)
+
+        AboutScenes()
     }
 
     /// Builds the one store the window observes.

@@ -1,7 +1,7 @@
 # Third-Party Notices
 
-Zephra is proprietary software (see `LICENSE`) that incorporates the
-following third-party components. Each is used under its own license. The
+Zephra is proprietary software, copyright James Brink, all rights reserved. It
+incorporates the following third-party components. Each is used under its own license. The
 copyright notices required by those licenses are listed per component, the
 NOTICE file that Apache-2.0 requires reproducing follows, and the full license
 texts appear once per license type at the end of this file.
@@ -51,7 +51,7 @@ texts appear once per license type at the end of this file.
 `Packages/QwenImageKit` is Zephra's own code, not a vendored copy of anything.
 It is a clean-room MLX Swift implementation of Qwen-Image-2512, written from
 the model's published configuration files and from these references, and it is
-covered by Zephra's own `LICENSE`:
+covered by Zephra's own license:
 
 - **diffusers** — https://github.com/huggingface/diffusers — Copyright 2024
   The HuggingFace Team — Apache License 2.0 — the reference implementation the
@@ -77,7 +77,7 @@ copyright notice above covers it.
 
 `Packages/Flux2Kit` is Zephra's own code, an MLX Swift implementation of
 FLUX.2 klein 4B written in the same style as `QwenImageKit` and covered by
-Zephra's own `LICENSE`. Unlike `QwenImageKit` it is not clean-room: it was
+Zephra's own license. Unlike `QwenImageKit` it is not clean-room: it was
 translated with attribution from two MIT-licensed Swift ports and the
 Apache-2.0 reference, none of which restricts proprietary use. Its behaviour
 is pinned against `diffusers`, not against either port, which is what makes
@@ -109,7 +109,7 @@ written from the second port and from `diffusers`.
 `Packages/LTX2Kit` is Zephra's own code, an MLX Swift implementation of
 LTX-2.5's video path — the distilled transformer's video stream, the Gemma 4
 text encoder, the text connector and the convolutional video decoder — written
-in the same style as `Flux2Kit` and covered by Zephra's own `LICENSE`. It was
+in the same style as `Flux2Kit` and covered by Zephra's own license. It was
 translated with attribution from the Apache-2.0 reference implementations in
 `diffusers` and `transformers`, and its behaviour is pinned against them by
 tensors dumped from both (see `Packages/LTX2Kit/Tools/dump_reference.py`). Two
@@ -140,7 +140,7 @@ copied from it.
 
 `Packages/ZephraUpscaleRealESRGAN` is Zephra's own code, an MLX Swift
 implementation of the compact Real-ESRGAN network (SRVGGNetCompact) written
-from the reference architecture file and covered by Zephra's own `LICENSE`.
+from the reference architecture file and covered by Zephra's own license.
 It is the app's Upscale 2x / 4x, a post-process beside the image models.
 
 - **Real-ESRGAN** — https://github.com/xinntao/Real-ESRGAN — Copyright (c)

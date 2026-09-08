@@ -62,18 +62,6 @@ struct NoticesDocumentTests {
         #expect(document.blocks == [.listItem(text: "**Source:** `Packages/ZImageKit`", indent: 0)])
     }
 
-    @Test("the plain text carries no Markdown: no stars, backticks or heading marks, bullets instead")
-    func plainTextHasNoMarkdown() {
-        let text = NoticesDocument.parse(Self.sample).plainText
-        #expect(!text.contains("*"))
-        #expect(!text.contains("`"))
-        #expect(!text.contains("#"))
-        #expect(text.hasPrefix("THIRD-PARTY NOTICES\n\nZephra incorporates"))
-        #expect(text.contains("\u{2022} Source: https://github.com/ml-explore/mlx-swift"))
-        #expect(text.contains("    \u{2022} mlx — MIT"))
-        #expect(text.hasSuffix("MIT License\n   indented line kept"))
-    }
-
     @Test("a heading mark without a space after it is text, not a heading")
     func hashWithoutSpaceIsText() {
         let document = NoticesDocument.parse("#hashtag")

@@ -74,7 +74,7 @@ extension EngineState {
             parts.append(String(format: "%.1f s/step", pace))
         }
         if let left = event.estimatedSecondsRemaining, left >= 1 {
-            parts.append("~\(Int(left.rounded())) s left")
+            parts.append("~\(DurationLabel.text(seconds: left)) left")
         }
         return parts.joined(separator: " · ")
     }

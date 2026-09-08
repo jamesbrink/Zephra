@@ -172,6 +172,14 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
 - **A filmstrip of thumbnails along the bottom**, the way Photos and Preview both
   offer, instead of only the bar's "n of N" and the prev/next buttons.
 
+## About: left out on purpose
+
+- **A License Agreement button.** The About window has Acknowledgments and Website;
+  Xcode's has License Agreement beside them. Zephra's own terms are the copyright
+  line's "All rights reserved" for now, and no `LICENSE` file is bundled — the
+  repository's is for the source. When terms for the app are decided, they become a
+  bundled resource and a third button opening them the way Acknowledgments does.
+
 ## One window: left out on purpose
 
 - **A second window, with state of its own.** The app is one `Window` scene: the

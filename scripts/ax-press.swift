@@ -7,6 +7,10 @@
 //        swift ax-press.swift --dump [depth]       print the tree, for finding those titles
 //
 // The terminal running this needs Accessibility in System Settings > Privacy & Security.
+// With two Zephras up — a person's, and a `ZEPHRA_PREVIEW_STATE` launch beside it — set
+// ZEPHRA_PID to the one to drive; otherwise the first registered copy is taken.
+// Menu items count as controls: `ax-press.swift "About Zephra" AXMenuItem` runs the item
+// without opening the menu.
 // Exit status: 0 pressed, 1 not found or Zephra not running, 2 usage.
 import AppKit
 import ApplicationServices
@@ -17,8 +21,10 @@ guard let command = arguments.first else {
     print("usage: ax-press.swift \"<title>\" [role] | --dump [depth]")
     exit(2)
 }
-guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first else {
-    print("ax-press: Zephra is not running")
+let wantedPID = ProcessInfo.processInfo.environment["ZEPHRA_PID"].flatMap { pid_t($0) }
+let copies = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+guard let app = copies.first(where: { wantedPID == nil || $0.processIdentifier == wantedPID }) else {
+    print("ax-press: Zephra is not running\(wantedPID.map { " as pid \($0)" } ?? "")")
     exit(1)
 }
 let application = AXUIElementCreateApplication(app.processIdentifier)

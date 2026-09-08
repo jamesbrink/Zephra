@@ -462,7 +462,13 @@ as an index, and it is Foundation only, so `make test` covers all of it.
 - `LibrarySelection` holds what is chosen; `LibraryCursor` is the pure
   arithmetic of moving through a grid, so keyboard navigation is tested without
   a window. `ImageFacts` formats the rows the inspector shows, the clip's Length
-  among them.
+  among them. Every span of seconds on screen — the countdown in the
+  window subtitle and the running-run inspector, Elapsed, how long a run took, a
+  clip's length in the inspector, the capsule and the badge — is a
+  `DurationLabel` (`ZephraCore`): "45 s", "1 min 20 s", "12 min", "1 hr 5 min",
+  with a decimal under a minute only where a fraction is a real answer (a clip's
+  0.4 s). A per-step pace is a rate, not a span, and keeps its seconds
+  ("7.0 s/step").
 - Export copies the file, never the bytes in memory, once a picture has one:
   the file is where the favourite, the tags, the albums and the upscale record
   were written, and `ImageExport.exportData(for:)` reads it for Export, Copy
@@ -500,7 +506,8 @@ as an index, and it is Foundation only, so `make test` covers all of it.
 ## The app target's shape
 
 The app is one window — a `Window("Zephra", id: "main")` scene, not a
-`WindowGroup` — beside Settings. Everything a window would own (`WorkspaceSelection`,
+`WindowGroup` — beside Settings and the two windows About leads to (`AboutScenes`,
+below). Everything a window would own (`WorkspaceSelection`,
 the caches, the canvas's `current`) is app-wide state built once in `ZephraApp`, so
 a second window would only mirror the first; ⌘W closes it and a click on the Dock
 icon brings it back, with the Window menu listing it by itself, and
@@ -627,13 +634,25 @@ Four directories, by what a file is rather than what screen it is on:
   four tabs, and `SettingsTab` says how tall each stands: the window follows the
   tab (`.windowResizability(.contentSize)` on the scene) rather than standing at
   the tallest tab's height for all four, and Escape does not close it, which is
-  what every Settings window on the Mac does. `AboutSettings` lays
-  `THIRD_PARTY_NOTICES.md` out through `NoticesDocument` in `Support/` — the
-  parser, with `NoticesParser` behind it, reading exactly the Markdown the file
-  uses and keeping its fenced NOTICE and license texts verbatim — and
-  `NoticesView`; `AboutCommands` points the application menu's About item at
-  `AboutPanel`, the standard panel with the same document as plain-text
-  credits, so one parser feeds two renderers. A keyboard shortcut has one owner, the menu bar
+  what every Settings window on the Mac does. About is two windows of its own rather than the
+  standard panel, the Mac's own pattern (Xcode's and most apps'): `AboutScenes`
+  declares `Window("About Zephra", id: "about")` — `Views/About/AboutView`, the
+  icon, name, version line, what Zephra is in two sentences (`AppFacts` in
+  `Support/`, the one place those strings, the website and the bundle's version
+  and copyright are read), an Acknowledgments… button and a Website button, and
+  the copyright — and `Window("Acknowledgments", id: "acknowledgments")`, which
+  lays `THIRD_PARTY_NOTICES.md` out whole through `NoticesDocument` in `Support/`
+  (the parser, with `NoticesParser` behind it, reading exactly the Markdown the
+  file uses and keeping its fenced NOTICE and license texts verbatim) and
+  `NoticesView`. Neither opens at launch nor is restored. `AboutCommands` points
+  the application menu's About item at the first; Settings > About
+  (`AboutSettings`) shows the same facts in the tab's shape with the same two
+  buttons, and no longer lays the notices out inline, since a tab that opened on
+  seven hundred lines of license text read as legal text where a person expected
+  to learn what the app was. The notices file is written so it reads right in
+  the app too: it names no `LICENSE` file, because none is bundled — the app's
+  own terms are the copyright line's "All rights reserved" until terms are
+  decided (`ROADMAP.md`). A keyboard shortcut has one owner, the menu bar
   (`ZephraCommands`, `WorkspaceCommands`, `LibraryCommands`,
   `ThumbnailSizeCommands`); a button that shows a chord shows it as text, the
   way `GenerateButton` writes ⌘⏎, and never declares it too, because a chord
@@ -2083,7 +2102,10 @@ the same override the store runs under without a second read of the process envi
   background launch (`open -g --env ZEPHRA_PREVIEW_STATE=settings build/Debug/Zephra.app`)
   and the titled screenshot, this is how a Settings tab is photographed hands-off; the tab
   strip's controls are `AXButton`s titled after their tab, so `ax-press.swift Performance`
-  switches tabs. The one `Window` scene is presented on every launch
+  switches tabs. Menu items are controls too (`ax-press.swift "About Zephra"
+  AXMenuItem` runs the item without opening the menu), and with a person's Zephra up beside
+  the preview launch, `ZEPHRA_PID=<pid>` says which copy to drive; the titled screenshot
+  needs no such hint, since only the preview copy has that window. The one `Window` scene is presented on every launch
   (`.defaultLaunchBehavior(.presented)`), so a session that quit with the window closed no
   longer comes back without one; `--args -ApplePersistenceIgnoreState YES` on the launch is
   still the way to drop the last session's window frame and pane.

@@ -99,15 +99,16 @@ struct RunningRunInspector: View {
         return ImageFacts.tookLabel(seconds: Double(finished) * pace, steps: finished)
     }
 
-    /// The engine's own countdown, never rounded down to nothing: a run with a second left has
-    /// a second left, and "0 s" on a picture that has not appeared reads as a stall. Once the
+    /// The engine's own countdown, as a person reads it ("~1 min 20 s") and never rounded
+    /// down to nothing: a run with a second left has a second left, and "0 s" on a picture
+    /// that has not appeared reads as a stall. Once the
     /// steps are done there is nothing to count down, and the row says what is left to do.
     private var remaining: String {
         if let phase = store.finishingPhase { return phase }
         guard case .generating(let event) = store.state,
               let left = event.estimatedSecondsRemaining
         else { return ImageFacts.unknown }
-        return "~\(max(1, Int(left.rounded()))) s"
+        return "~\(DurationLabel.text(seconds: max(1, left)))"
     }
 
     private var secondsPerStep: Double? {

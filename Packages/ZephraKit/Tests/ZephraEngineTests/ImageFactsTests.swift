@@ -17,12 +17,13 @@ struct ImageFactsTests {
         #expect(facts.steps == "9")
         #expect(facts.seed == "ABCD\u{00B7}1234")
         #expect(facts.file == item.fileName)
-        #expect(facts.took == "\(Self.number(3)) s \u{00B7} \(Self.number(3.0 / 9)) s/step")
+        #expect(facts.took == "3 s \u{00B7} \(Self.number(3.0 / 9)) s/step")
     }
 
     @Test("a clip's length reads as seconds, frames and rate; a picture has none")
     func lengthOfAClip() {
-        #expect(ImageFacts.lengthLabel(frames: 49, rate: 24) == "2.0 s, 49 frames at 24 fps")
+        #expect(ImageFacts.lengthLabel(frames: 49, rate: 24) == "2.0 s, 49 frames at 24 fps", "49 frames is 2.04 s, not two")
+        #expect(ImageFacts.lengthLabel(frames: 9, rate: 24) == "0.4 s, 9 frames at 24 fps")
         #expect(ImageFacts.lengthLabel(frames: 121, rate: 24) == "5.0 s, 121 frames at 24 fps")
         let item = LibraryFilteringTests.item(prompt: "a lighthouse", seed: 1)
         #expect(ImageFacts(item).length == nil)
@@ -52,7 +53,7 @@ struct ImageFactsTests {
         // The label is the seed's leading eight hex digits, so a small seed reads as zeroes.
         #expect(facts.seed == "0000\u{00B7}0000")
         #expect(facts.file == "Not saved yet")
-        #expect(facts.took == "\(Self.number(66.7)) s \u{00B7} \(Self.number(66.7 / 4)) s/step")
+        #expect(facts.took == "1 min 7 s \u{00B7} \(Self.number(66.7 / 4)) s/step")
     }
 
     @Test("a picture made larger says so, and by how much and from what")
@@ -118,8 +119,9 @@ struct ImageFactsTests {
         // Past ten minutes the figure is minutes; the per-step one stays in seconds.
         #expect(
             ImageFacts.tookLabel(seconds: 660, steps: 4)
-                == "\(Self.number(11)) min \u{00B7} \(Self.number(165)) s/step")
-        #expect(ImageFacts.tookLabel(seconds: 600, steps: 0) == "\(Self.number(600)) s")
+                == "11 min \u{00B7} \(Self.number(165)) s/step")
+        #expect(ImageFacts.tookLabel(seconds: 600, steps: 0) == "10 min")
+        #expect(ImageFacts.tookLabel(seconds: 80, steps: 0) == "1 min 20 s")
     }
 
     @Test("an edit says how far from its picture it started, and which picture that was")

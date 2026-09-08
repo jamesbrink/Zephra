@@ -91,22 +91,22 @@ public struct ImageFacts: Hashable, Sendable {
         strength.formatted(.number.precision(.fractionLength(2)))
     }
 
-    /// "2.0 s, 49 frames at 24 fps": the seconds to one decimal, since a ladder of eight frames
-    /// rarely lands on a whole second.
+    /// "2 s, 49 frames at 24 fps", the seconds to one decimal only when a ladder of eight
+    /// frames does not land on a whole one.
     static func lengthLabel(frames: Int, rate: Double) -> String {
-        String(format: "%.1f s, %d frames at %.0f fps", Double(frames) / rate, frames, rate)
+        let seconds = DurationLabel.text(seconds: Double(frames) / rate, fraction: true)
+        return String(format: "%@, %d frames at %.0f fps", seconds, frames, rate)
     }
 
     /// How long a generation took, with what that came to per step.
     ///
-    /// Minutes past ten of them, because "126.4 s" is a number to be read rather than a duration
-    /// to be felt. The per-step figure stays in seconds throughout: it is what a benchmark and a
-    /// model's page both quote.
+    /// The whole is a `DurationLabel` — "1 min 7 s" rather than "66.7 s" — with a decimal under
+    /// a minute, since a four-step run is over in a few seconds and "7 s" for 6.9 would be a
+    /// rounding the per-step figure beside it contradicts. That per-step figure stays in
+    /// seconds throughout: it is a pace, and what a benchmark and a model's page both quote.
     public static func tookLabel(seconds: Double, steps: Int) -> String {
         guard seconds > 0 else { return unknown }
-        let whole = seconds > 600
-            ? "\(number(seconds / 60)) min"
-            : "\(number(seconds)) s"
+        let whole = DurationLabel.text(seconds: seconds, fraction: true)
         guard steps > 0 else { return whole }
         return "\(whole) \(separator) \(number(seconds / Double(steps))) s/step"
     }

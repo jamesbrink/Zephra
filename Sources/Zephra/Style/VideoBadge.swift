@@ -1,4 +1,5 @@
 import SwiftUI
+import ZephraCore
 
 /// A small play glyph with the clip's length in the corner of a thumbnail, so a clip says so
 /// before it is selected: at thumbnail size its poster looks exactly like a picture.
@@ -24,10 +25,7 @@ struct VideoBadge: View {
     }
 
     /// "2 s", or "1.5 s" when the seconds are not whole.
-    private var label: String {
-        seconds.rounded() == seconds
-            ? String(format: "%.0f s", seconds) : String(format: "%.1f s", seconds)
-    }
+    private var label: String { DurationLabel.text(seconds: seconds, fraction: true) }
 }
 
 #Preview("Badges") {

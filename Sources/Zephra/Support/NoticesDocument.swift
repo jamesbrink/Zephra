@@ -3,9 +3,8 @@ import Foundation
 /// `THIRD_PARTY_NOTICES.md` read as blocks, so it can be laid out rather than shown raw.
 ///
 /// The file is the disclosure, so nothing here rewrites it: the parser only says where one
-/// block ends and the next begins, and what kind each is. One parser, two renderers —
-/// `NoticesView` draws the blocks in the About tab, and `plainText` is what the standard
-/// About panel takes as its credits, which is plain text on purpose.
+/// block ends and the next begins, and what kind each is; `NoticesView` draws the blocks in
+/// the Acknowledgments window.
 ///
 /// The subset of Markdown read is exactly what the file uses: `#` headings, `- ` list items
 /// (nested one level, continued on indented lines), paragraphs separated by blank lines,
@@ -36,34 +35,6 @@ nonisolated struct NoticesDocument: Equatable, Sendable {
             parser.take(String(line))
         }
         return NoticesDocument(blocks: parser.finish())
-    }
-
-    /// The document with its Markdown syntax gone: headings on their own line in capitals,
-    /// list items bulleted and indented, code verbatim, and a blank line between blocks.
-    var plainText: String {
-        var lines: [String] = []
-        for block in blocks {
-            switch block {
-            case .heading(_, let text):
-                lines.append(Self.stripped(text).uppercased())
-            case .listItem(let text, let indent):
-                lines.append(String(repeating: "    ", count: indent) + "\u{2022} " + Self.stripped(text))
-            case .paragraph(let text):
-                lines.append(Self.stripped(text))
-            case .code(let text):
-                lines.append(text)
-            case .rule:
-                continue
-            }
-            lines.append("")
-        }
-        return lines.joined(separator: "\n").trimmingCharacters(in: .newlines)
-    }
-
-    /// The text without its inline marks: the `**` round a bold run and the backticks round
-    /// code. Nothing else is used inline in the file.
-    static func stripped(_ text: String) -> String {
-        text.replacingOccurrences(of: "**", with: "").replacingOccurrences(of: "`", with: "")
     }
 
     /// The notices bundled with the app, parsed; or one paragraph saying where they are
