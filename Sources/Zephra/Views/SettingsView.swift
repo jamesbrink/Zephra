@@ -4,10 +4,15 @@ import ZephraEngine
 /// Preferences, in four tabs: where images land and how a run behaves, what the engine does
 /// after it loads, what the models occupy on disk, and who wrote the code Zephra stands on.
 ///
-/// The window follows the tab: each `SettingsTab` says how tall it stands, and the frame
+/// The window follows the tab: each `SettingsTab` says how tall it opens, and the frame
 /// changes with the selection, so General is a short window and Performance a tall one, the
-/// way System Settings' own panes each take their own height. The scene's
-/// `.windowResizability(.contentSize)` is what lets the window shrink as well as grow.
+/// way System Settings' own panes each take their own height.
+///
+/// That height is a floor and an opening size rather than a fixed one: the window resizes,
+/// and a person who has made it larger keeps that size when they step between tabs.
+/// `SettingsWindowFrame` is what says so — the scene modifiers cannot, for the reasons written
+/// there — and the `.frame` here is only the minimum the content itself insists on, so a tab
+/// is laid out at its own width whatever the window is doing.
 ///
 /// Escape does nothing here on purpose. On the Mac it dismisses sheets and dialogs, not
 /// windows — System Settings does not close on it — and ⌘W already does; a second
@@ -24,7 +29,13 @@ struct SettingsView: View {
                     .tag(tab)
             }
         }
-        .frame(width: 480, height: tab.height)
+        // Flexible in both axes, or SwiftUI reads the tab as a fixed-size pane and takes the
+        // resizable flag off the window for it — which is what the Models tab did, alone among
+        // the four, however often the flag was put back.
+        .frame(
+            minWidth: SettingsTab.openingWidth, maxWidth: .infinity,
+            minHeight: tab.openingHeight, maxHeight: .infinity)
+        .background(SettingsWindowFrame(size: tab.openingSize))
     }
 
     @ViewBuilder

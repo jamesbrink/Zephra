@@ -104,9 +104,12 @@ struct ZephraApp: App {
                 .environment(\.memoryBudget, Self.budget)
                 .environment(\.weightResidencyOverride, Self.environment.weightResidency)
         }
-        // The window takes each tab's own height (`SettingsTab.height`), shrinking as well
-        // as growing, rather than standing at the tallest tab's for all four.
-        .windowResizability(.contentSize)
+        // Deliberately no `.windowResizability`: every content-driven value is re-imposed on
+        // the window whenever a tab's state changes — the Models tab's inventory refresh is
+        // one — and each re-imposition took the resizable flag off again. The content is
+        // flexible in both axes (`SettingsView`), which is what leaves the window resizable,
+        // and `SettingsWindowFrame` inside the view owns the floor, the opening size and the
+        // centring, which the scene cannot say.
 
         AboutScenes()
     }

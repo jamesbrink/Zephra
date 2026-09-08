@@ -639,10 +639,22 @@ Four directories, by what a file is rather than what screen it is on:
   says nothing, and the ring round the selected cell is what shows where the
   keyboard is — which is why an arrow key with nothing selected selects an end
   of the grid (`LibraryCursor`) rather than doing nothing. `SettingsView` is
-  four tabs, and `SettingsTab` says how tall each stands: the window follows the
-  tab (`.windowResizability(.contentSize)` on the scene) rather than standing at
-  the tallest tab's height for all four, and Escape does not close it, which is
-  what every Settings window on the Mac does. About is two windows of its own rather than the
+  four tabs, and `SettingsTab` says how wide the window opens and how tall each
+  tab stands: the window opens 520 points wide at the tab's own height rather
+  than standing at the tallest tab's for all four, and Escape does not close it,
+  which is what every Settings window on the Mac does. Those figures are a floor
+  and an opening size, not a fixed frame: the window resizes, keeps whatever size
+  a person gave it as they step between tabs, and grows only for a tab whose
+  floor is taller. `SettingsWindowFrame` is what says so, because no scene
+  modifier can — `.windowResizability(.contentSize)` takes the content's maximum
+  as the window's and pinned Settings fixed, `.contentMinSize` pins it too, and
+  every content-driven value is re-imposed whenever a tab's state changes, which
+  stripped the resizable flag off again a second after the Models tab's inventory
+  refresh landed. So the window is configured from a zero-sized `NSView` inside
+  it, and the flag is *observed* rather than set: the view watches `styleMask`
+  and puts it back whenever SwiftUI takes it away, which is the one place that
+  always has the last word. The opening size and the centring happen once per
+  launch. About is two windows of its own rather than the
   standard panel, the Mac's own pattern (Xcode's and most apps'): `AboutScenes`
   declares `Window("About Zephra", id: "about")` — `Views/About/AboutView`, the
   icon, name, version line, what Zephra is in two sentences (`AppFacts` in
