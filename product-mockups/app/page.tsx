@@ -75,9 +75,9 @@ function Features({ id }: { id: string }) {
             <LockKeyhole />
             <h3>Your imagination stays here.</h3>
             <p>
-              Image generation runs on your Mac. The app has no image uploads,
-              accounts, or telemetry. Download and prepare your models, then
-              create offline.
+              Image and video generation run on your Mac. The app has no image
+              uploads, accounts, or telemetry. Download and prepare your models,
+              then create offline.
             </p>
           </article>
           <article>
@@ -85,23 +85,26 @@ function Features({ id }: { id: string }) {
             <h3>A library that belongs to you.</h3>
             <p>
               Favorites, tags, album membership, prompts, and seeds travel with
-              your PNGs. Your pictures are files you can take anywhere.
+              your PNGs. Keep a video’s MP4 and poster PNG together to take its
+              details with it.
             </p>
           </article>
         </div>
       </section>
       <section className="models" id={`${id}-models`}>
         <span className="eyebrow">
-          THREE MODEL FAMILIES. ONE NATIVE WORKSPACE.
+          FOUR MODEL FAMILIES. ONE NATIVE WORKSPACE.
         </span>
         <div className="model-names">
           <span>Z-Image-Turbo</span>
           <span>Qwen-Image-2512</span>
           <span>FLUX.2 klein 4B</span>
+          <span>LTX-2.5</span>
         </div>
         <p>
-          Choose a model to match your idea and your Mac. Generate and edit with
-          each, then finish with 2× or 4× Real-ESRGAN upscaling.
+          Generate and edit images with Z-Image-Turbo, Qwen-Image, or FLUX.2
+          klein. Create video with LTX-2.5. Finish still images with 2× or 4×
+          Real-ESRGAN upscaling.
         </p>
       </section>
       <section className="requirements" id={`${id}-requirements`}>
@@ -150,7 +153,7 @@ export default function Page() {
       <section className="dark-hero">
         <div className="hero-copy">
           <span className="eyebrow">
-            <span className="live-dot" /> LOCAL IMAGE GENERATION FOR MAC
+            <span className="live-dot" /> LOCAL AI IMAGES & VIDEO FOR MAC
           </span>
           <h1>
             A little imagination.
@@ -158,9 +161,9 @@ export default function Page() {
             <em>Entirely yours.</em>
           </h1>
           <p>
-            Turn words into images in a creative space that feels at home on
-            your Mac. Powerful models. Native controls. Everything stays with
-            you.
+            Turn words into images and short videos in a creative space that
+            feels at home on your Mac. Powerful models. Native controls.
+            Everything stays with you.
           </p>
           <a className="button" href={release.url}>
             Download for Mac <ArrowDown size={17} />
@@ -191,7 +194,7 @@ export default function Page() {
           <br />
           you and your next idea.
         </p>
-        <span>GENERATE · EDIT · UPSCALE · COLLECT</span>
+        <span>GENERATE · ANIMATE · EDIT · COLLECT</span>
       </div>
       <section className="app-section">
         <div>
@@ -217,6 +220,33 @@ export default function Page() {
           alt="Zephra’s maximized macOS window showing completed copper robot artwork and its generation details"
         />
         <small>Zephra app · Completed image · Generated locally</small>
+      </section>
+      <section className="video-feature" aria-labelledby="video-heading">
+        <div>
+          <span className="eyebrow">NOW WITH LTX-2.5</span>
+          <h2 id="video-heading">
+            Give your imagination
+            <br />
+            <em>a little motion.</em>
+          </h2>
+          <p>
+            Describe a scene and turn it into a short video. Or choose a
+            picture, select Animate, and use it as the first frame of something
+            new.
+          </p>
+        </div>
+        <div className="video-details">
+          <h3>From a still to a story.</h3>
+          <p>
+            Create clips locally on Apple Silicon, play them right in Zephra,
+            and keep them alongside your images. Export as MP4 when you’re ready
+            to share.
+          </p>
+          <p className="video-note">
+            Up to 5 seconds at 24 fps. Video generation currently produces
+            silent clips. Memory and storage needs vary by model and settings.
+          </p>
+        </div>
       </section>
       <Features id="dark" />
     </main>

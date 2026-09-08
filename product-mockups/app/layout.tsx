@@ -2,9 +2,25 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Script from "next/script";
 export const metadata: Metadata = {
-  title: "Zephra — Your Mac is the studio",
+  title: "Zephra — Local AI Image & Video Generation for Mac",
   description:
-    "Generate, edit, upscale, and organize images locally on your Mac. A native image studio for Apple Silicon.",
+    "Create AI images and short videos locally on your Mac. Animate images with LTX-2.5, edit and upscale with native tools. Built for Apple Silicon.",
+  metadataBase: new URL("https://zephra.urandom.io"),
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: "Zephra",
+    title: "Zephra — Your Mac is the studio",
+    description:
+      "Create AI images and short videos locally on Apple Silicon. Now with LTX-2.5 video and image animation.",
+  },
+  twitter: {
+    card: "summary",
+    title: "Zephra — AI Images & Video for Mac",
+    description:
+      "Generate images, animate pictures, and create short videos locally on Apple Silicon.",
+  },
   icons: {
     icon: [
       { url: "/images/icon-dark.png" },
@@ -21,6 +37,19 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "Zephra",
+              url: "https://zephra.urandom.io/",
+              description:
+                "Local AI image and video generation for Apple Silicon Macs.",
+            }),
+          }}
+        />
         {children}
         <Script src="/analytics.js" strategy="afterInteractive" />
       </body>
