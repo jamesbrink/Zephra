@@ -5,8 +5,9 @@ import Foundation
 /// folder: replace them, keep both under numbered names, or stop.
 ///
 /// Keep Both is the default, as it is in the Finder's own dialog: a stray collision should
-/// not block a batch, and the non-destructive answer is the one Return should give. Replace is
-/// a plain button rather than a destructive one, matching the Finder.
+/// not block a batch, and the non-destructive answer is the one Return should give. Being added
+/// first is what makes it the default — see the note on `ModalHost`. Replace is a plain button
+/// rather than a destructive one, matching the Finder.
 enum ExportCollisionPrompt {
     enum Choice {
         case keepBoth
@@ -14,20 +15,24 @@ enum ExportCollisionPrompt {
         case cancel
     }
 
-    /// Asks about `plan`'s collisions in `folder` and returns what was chosen.
-    static func ask(about plan: ExportPlan, in folder: URL) -> Choice {
-        let alert = NSAlert()
-        alert.messageText = headline(for: plan, in: folder)
-        alert.informativeText = explanation(for: plan)
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "Keep Both")
-        alert.addButton(withTitle: "Replace")
-        alert.addButton(withTitle: "Cancel")
-        switch alert.runModal() {
+    /// Asks about `plan`'s collisions in `folder`, as a sheet on the window the export was
+    /// started from, and returns what was chosen.
+    static func ask(about plan: ExportPlan, in folder: URL) async -> Choice {
+        switch await ModalHost.present(alert(about: plan, in: folder)) {
         case .alertFirstButtonReturn: return .keepBoth
         case .alertSecondButtonReturn: return .replace
         default: return .cancel
         }
+    }
+
+    /// The question itself, apart from the asking, so what the keyboard does to it can be
+    /// pinned without a window.
+    static func alert(about plan: ExportPlan, in folder: URL) -> NSAlert {
+        ModalHost.warning(
+            headline(for: plan, in: folder),
+            explanation(for: plan),
+            buttons: ["Keep Both", "Replace", "Cancel"]
+        )
     }
 
     /// "3 of 12 images already exist in “Exports”."

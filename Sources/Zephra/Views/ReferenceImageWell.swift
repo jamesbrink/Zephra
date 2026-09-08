@@ -122,8 +122,10 @@ struct ReferenceImageWell: View {
     private var role: ReferenceRole { ReferenceRole(capabilities: store.descriptor.capabilities) }
 
     private func chooseFile() {
-        guard let url = ReferenceImagePicker.choose(role: role) else { return }
-        store.adoptReference { ReferenceImageEncoder.pngData(contentsOf: url) }
+        Task {
+            guard let url = await ReferenceImagePicker.choose(role: role) else { return }
+            store.adoptReference { ReferenceImageEncoder.pngData(contentsOf: url) }
+        }
     }
 }
 

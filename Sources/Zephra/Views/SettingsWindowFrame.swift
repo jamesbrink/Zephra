@@ -81,9 +81,19 @@ final class WindowFrameView: NSView {
         // Watching the window this view is in now; the old watch goes with the old window, and
         // a view removed from every window watches nothing, which is why there is no `deinit`
         // (Swift 6 isolation would not let one touch this anyway).
+        // `observe` types its closure `@Sendable`, since KVO in general calls back on whichever
+        // thread wrote the property, and `styleMask` is main-actor isolated — so reading it
+        // there is a warning. `assumeIsolated` rather than a hop onto the main actor, because
+        // the thread is not in general doubt here: AppKit only permits `styleMask` to be
+        // *mutated* on the main thread, so the notification can only ever arrive on it. Stating
+        // that is both cheaper than a `Task` — which would put the flag back a turn of the run
+        // loop later, after SwiftUI had already drawn one frame without it — and honest about
+        // why it is safe, where silencing the warning would not have been.
         mask = window?.observe(\.styleMask) { window, _ in
-            guard !window.styleMask.contains(.resizable) else { return }
-            window.styleMask.insert(.resizable)
+            MainActor.assumeIsolated {
+                guard !window.styleMask.contains(.resizable) else { return }
+                window.styleMask.insert(.resizable)
+            }
         }
         applyToWindow()
     }

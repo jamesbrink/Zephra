@@ -9,9 +9,11 @@ struct ReferenceFileButton: View {
     var body: some View {
         Button("Choose File…") {
             let role = ReferenceRole(capabilities: store.descriptor.capabilities)
-            guard let url = ReferenceImagePicker.choose(role: role) else { return }
-            store.adoptReference { ReferenceImageEncoder.pngData(contentsOf: url) }
-            dismiss()
+            Task {
+                guard let url = await ReferenceImagePicker.choose(role: role) else { return }
+                store.adoptReference { ReferenceImageEncoder.pngData(contentsOf: url) }
+                dismiss()
+            }
         }
     }
 }

@@ -20,7 +20,7 @@ struct LibraryDeleteCommand: ViewModifier {
 
     private func delete() -> KeyPress.Result {
         guard !selection.ids.isEmpty else { return .ignored }
-        index.delete(selection.ids)
+        Task { await index.delete(selection.ids) }
         return .handled
     }
 }

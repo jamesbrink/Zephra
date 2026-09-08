@@ -9,13 +9,16 @@ import ZephraEngine
 extension LibraryIndex {
     /// Deletes the images, into Recently Deleted from anywhere else and for good from inside
     /// it, asking only in the second case.
-    func delete(_ ids: Set<LibraryItem.ID>) {
+    /// `async` because the second case asks first, and asking is a sheet on the window the
+    /// question is about rather than a dialog floating free of it. The first case awaits
+    /// nothing: moving to Recently Deleted never asks.
+    func delete(_ ids: Set<LibraryItem.ID>) async {
         guard !ids.isEmpty else { return }
         guard query.scope == .recentlyDeleted else {
             moveToRecentlyDeleted(ids)
             return
         }
-        guard PurgeConfirmation.confirm(count: ids.count) else { return }
+        guard await PurgeConfirmation.confirm(count: ids.count) else { return }
         purge(ids)
     }
 }

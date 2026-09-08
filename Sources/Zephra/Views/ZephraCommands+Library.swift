@@ -148,7 +148,7 @@ extension ZephraCommands {
         switch deleteTarget {
         case .none: return
         case .canvas(let image): store.delete(image.id)
-        case .library(let items): libraryIndex?.delete(Set(items.map(\.id)))
+        case .library(let items): Task { await libraryIndex?.delete(Set(items.map(\.id))) }
         }
     }
 }

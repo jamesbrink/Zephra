@@ -33,20 +33,28 @@ enum ImageExport {
     /// Asks where to put the image and writes it there: the file, once it has one, through
     /// the same path the library uses, so saving it onto itself is a no-op rather than a
     /// deletion; the bytes in memory until then.
+    ///
+    /// The panel is a sheet, so the answer arrives later; every caller is a button or a menu
+    /// item with nothing to do with the answer, so the wait is kept here rather than spread
+    /// across them.
     static func saveAs(_ image: GeneratedImage) {
+        Task { await save(image) }
+    }
+
+    private static func save(_ image: GeneratedImage) async {
         if let url = savedFile(of: image) {
-            saveAs(files: [url])
+            await save(files: [url])
             return
         }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.png]
         panel.nameFieldStringValue = suggestedFileName(for: image)
         panel.canCreateDirectories = true
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard await ModalHost.present(panel) == .OK, let url = panel.url else { return }
         do {
             try Self.exportData(for: image).write(to: url, options: .atomic)
         } catch {
-            present(error, whileTryingTo: "save this image")
+            await present(error, whileTryingTo: "save this image")
         }
     }
 
@@ -103,11 +111,11 @@ enum ImageExport {
         return url
     }
 
-    private static func present(_ error: Error, whileTryingTo action: String) {
-        let alert = NSAlert()
-        alert.messageText = "Zephra couldn't \(action)."
-        alert.informativeText = "\(error.localizedDescription) Choose another folder and try again."
-        alert.alertStyle = .warning
-        alert.runModal()
+    private static func present(_ error: Error, whileTryingTo action: String) async {
+        await ModalHost.report(
+            "Zephra couldn't \(action).",
+            "\(error.localizedDescription) Choose another folder and try again.",
+            style: .warning
+        )
     }
 }
