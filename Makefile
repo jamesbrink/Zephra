@@ -462,9 +462,14 @@ RELEASE_PROFILE ?= dev.urandom.io
 # What `publish-download.sh` rewrites with the URL, version, build and SHA-256 of the upload,
 # and what the website's Download button reads. The one file a ship changes in the repo.
 RELEASE_MANIFEST := product-mockups/app/release.json
+# The distribution in front of the assets bucket, so the ship can forget the cached copy of the
+# one key it mutates (`releases/Zephra-latest.dmg`). The same distribution the mirror uses --
+# releases and models are prefixes of one bucket behind one host.
+RELEASE_DISTRIBUTION ?= $(MIRROR_DISTRIBUTION)
 .PHONY: release-upload publish-release
 release-upload:
-	RELEASE_PROFILE="$(RELEASE_PROFILE)" ./scripts/publish-download.sh
+	RELEASE_PROFILE="$(RELEASE_PROFILE)" RELEASE_DISTRIBUTION="$(RELEASE_DISTRIBUTION)" \
+	  ./scripts/publish-download.sh
 
 publish-release: notarized-release
 	$(MAKE) release-upload
