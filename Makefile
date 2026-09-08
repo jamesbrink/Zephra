@@ -449,7 +449,16 @@ WEBSITE_BUCKET       ?= zephra-site-urandom-io
 WEBSITE_DISTRIBUTION ?= ETNI7JSPHMJRF
 WEBSITE_URL          ?= https://zephra.urandom.io
 .PHONY: website-build deploy-production
+# `npm ci` first when the tree is not there, because this runs at the end of `make ship`, after
+# twenty minutes of notarization and after the release is already public. A missing
+# `node_modules` failed the whole target with "vinext: command not found" at exactly that point,
+# leaving the DMG published and the website still naming the build before it. `ci` rather than
+# `install`, so the lockfile decides and a ship never quietly moves a dependency.
 website-build:
+	@if [ ! -d product-mockups/node_modules ]; then \
+	  echo "website-build: installing product-mockups dependencies"; \
+	  cd product-mockups && npm ci; \
+	fi
 	cd product-mockups && ZEPHRA_STATIC_EXPORT=1 npm run build
 
 deploy-production: website-build
