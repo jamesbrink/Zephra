@@ -28,10 +28,13 @@ struct ThumbnailSizeCommands: Commands {
 
     var body: some Commands {
         CommandGroup(after: .toolbar) {
-            Button("Bigger Thumbnails") { edge = bigger ?? edge }
+            // "Zoom In" and "Zoom Out" rather than the thumbnails' own name: ⌘+ and ⌘− are
+            // named that everywhere else on the Mac, and what they do here is what they do
+            // there — make what is on screen larger and smaller.
+            Button("Zoom In") { edge = bigger ?? edge }
                 .keyboardShortcut("+", modifiers: .command)
                 .disabled(selection == nil || bigger == nil)
-            Button("Smaller Thumbnails") { edge = smaller ?? edge }
+            Button("Zoom Out") { edge = smaller ?? edge }
                 .keyboardShortcut("-", modifiers: .command)
                 .disabled(selection == nil || smaller == nil)
             Divider()

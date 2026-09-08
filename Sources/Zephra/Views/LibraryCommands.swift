@@ -21,6 +21,29 @@ struct LibraryCommands: Commands {
     var body: some Commands {
         CommandGroup(after: .pasteboard) {
             Divider()
+            // Two items in this menu carry ⌘A: the one below, and the Select All SwiftUI
+            // synthesizes into the `.pasteboard` group just above it. At most one is ever
+            // enabled — the synthesized one is nil-targeted at `selectAll:` and disables itself
+            // when nothing in the responder chain implements that selector, which over the grid
+            // nothing does — so the keystroke reaches this item. That works, and it rests on
+            // that: a SwiftUI release that implemented `selectAll:` on its own focusable view
+            // would shadow this item, and the symptom would be ⌘A quietly no longer selecting
+            // anything here.
+            //
+            // Nothing better is available, and each alternative costs more than the duplicate.
+            // Putting `selectAll:` in the responder chain ourselves is the fix that would let
+            // the synthesized item simply work, but nil-targeted dispatch walks the first
+            // responder and its superviews and never a sibling, so it needs the grid re-hosted
+            // inside an `NSView` of our own. Catching ⌘A with `onKeyPress` instead leaves every
+            // Select All in the menu greyed while the chord works, which is the one thing the
+            // menu bar here exists not to do. And replacing the whole `.pasteboard` group to
+            // own the single item takes Cut, Copy, Paste and Delete with it, away from AppKit's
+            // validation and into being permanently enabled and silently inert in every text
+            // field in the app.
+            //
+            // `ZephraCommands` does dodge a synthesized chord where it can — Copy Image is
+            // ⇧⌘C, leaving plain ⌘C to the responder chain — but there is no second chord for
+            // Select All that anyone would go looking for.
             Button("Select All Images") { selectAll() }
                 .keyboardShortcut("a", modifiers: .command)
                 // The viewer publishes the grid's key so Save, Copy and Delete act on the

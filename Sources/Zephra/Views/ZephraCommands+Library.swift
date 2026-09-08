@@ -21,6 +21,12 @@ extension ZephraCommands {
             sections: libraryIndex?.sections ?? [])
     }
 
+    /// What ⌘⌫ is about, which is `target` unless the canvas's prompt has the keyboard — where
+    /// the keystroke means the line under the caret and the menu must not take it. Nothing else
+    /// here asks, because nothing else here collides with what a text view does; see
+    /// `CommandTarget.whileTyping(_:)` for why the whole target is not gated instead.
+    var deleteTarget: CommandTarget { target.whileTyping(promptHasKeyboard == true) }
+
     /// The picture the two Upscale items act on: the one image chosen in the grid, or the one on
     /// the canvas.
     ///
@@ -139,7 +145,7 @@ extension ZephraCommands {
     /// Both ways go to Recently Deleted, so nothing is asked — except from inside Recently
     /// Deleted, where `LibraryIndex.delete(_:)` is the end of them and does ask.
     func delete() {
-        switch target {
+        switch deleteTarget {
         case .none: return
         case .canvas(let image): store.delete(image.id)
         case .library(let items): libraryIndex?.delete(Set(items.map(\.id)))

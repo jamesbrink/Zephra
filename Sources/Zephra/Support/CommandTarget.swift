@@ -9,6 +9,9 @@ import ZephraEngine
 /// frames — and the library's selection counts only while the grid has the keyboard. There is
 /// deliberately no fallback from one to the other: ⌘⌫ pressed over an empty library selection
 /// must grey out rather than reach past the grid and delete whatever the canvas last showed.
+///
+/// The deletion asks one further question of its own, `whileTyping(_:)`, because ⌘⌫ is the only
+/// one of these shortcuts a text view already means something by.
 enum CommandTarget: Equatable {
     /// Nothing to act on, which is what greys every file command out.
     case none
@@ -39,6 +42,27 @@ enum CommandTarget: Equatable {
             let chosen = sections.flatMap(\.items).filter { gridSelection.contains($0.id) }
             return chosen.isEmpty ? .none : .library(chosen)
         }
+    }
+
+    /// The same target as far as ⌘⌫ is concerned, which is nothing at all while the caret is in
+    /// the prompt.
+    ///
+    /// In AppKit ⌘⌫ inside a text view is `deleteToBeginningOfLine:`, and a menu item's key
+    /// equivalent is matched before the responder chain is ever offered the keystroke — so a
+    /// scene-wide binding takes the shortcut away from the prompt for good, and the only way to
+    /// hand it back is for the item to be disabled. The library branch never had the problem,
+    /// because the grid's selection is nil while the search field has the keyboard and so the
+    /// whole target is already `.none` there; the canvas branch did, and a picture on the canvas
+    /// with the caret in the prompt went to Recently Deleted instead of the line being trimmed.
+    ///
+    /// Only the deletion asks this, and deliberately: `resolve` still answers `.canvas` while the
+    /// prompt has the keyboard, because the prompt keeps first responder even once the capsule is
+    /// tucked away (`PromptTuckHost` hands it the caret on the way down), so gating the whole
+    /// target would grey Export, Reveal, Share, Copy, Use as Reference, Animate and Upscale out
+    /// for most of the time anyone spends looking at a picture. None of those shortcuts collides
+    /// with anything a text view does; ⌘⌫ is the one that does.
+    func whileTyping(_ promptHasKeyboard: Bool) -> CommandTarget {
+        promptHasKeyboard ? .none : self
     }
 
     /// Whether there is nothing to act on.

@@ -35,6 +35,11 @@ struct PromptRow: View {
         // `PromptTuckHost` bumps this as the prompt tucks away, so the caret is in the hidden
         // editor and what is typed while the capsule is down lands here rather than nowhere.
         .onChange(of: workspace.promptFocusToken) { promptFocused = true }
+        // The menu bar's one question about this field: ⌘⌫ means the line under the caret while
+        // it is here, so the Delete item has to stand down (`CommandTarget.whileTyping(_:)`).
+        // Published from the row rather than from the editor because the row is where the focus
+        // lives, and nil rather than false so it goes away with the canvas.
+        .focusedSceneValue(\.promptHasKeyboard, promptFocused ? true : nil)
     }
 }
 

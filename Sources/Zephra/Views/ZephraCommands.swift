@@ -23,6 +23,9 @@ struct ZephraCommands: Commands {
     @FocusedValue(\.focusedLibraryGrid) var grid
     /// The library behind that selection.
     @FocusedValue(\.libraryIndex) var libraryIndex
+    /// Whether the canvas's prompt has the keyboard. Only the deletion reads it, through
+    /// `deleteTarget`: ⌘⌫ there means the line under the caret.
+    @FocusedValue(\.promptHasKeyboard) var promptHasKeyboard
     /// Making an album, published by the sidebar while the library pane is up. An action rather
     /// than a piece of state because naming the new album happens in `SidebarView`'s own state,
     /// which nothing out here can reach; nil is what greys the item out on the canvas.
@@ -52,9 +55,12 @@ struct ZephraCommands: Commands {
                 .disabled(target.isEmpty)
             Button(target.shareTitle) { share() }
                 .disabled(shareFiles.isEmpty)
-            Button(target.deleteTitle, role: .destructive) { delete() }
+            // `deleteTarget` rather than `target`: this is the one item here whose shortcut a
+            // text view already means something by, and a bound key equivalent is matched before
+            // the responder chain, so the item stands down while the prompt has the caret.
+            Button(deleteTarget.deleteTitle, role: .destructive) { delete() }
                 .keyboardShortcut(.delete, modifiers: .command)
-                .disabled(target.isEmpty)
+                .disabled(deleteTarget.isEmpty)
         }
         CommandGroup(after: .pasteboard) {
             Button(target.copyTitle) { copy() }

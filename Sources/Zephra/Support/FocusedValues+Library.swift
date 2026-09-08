@@ -11,6 +11,9 @@ import ZephraEngine
 ///
 /// The two that are about the pane rather than about the keyboard — the size shortcuts, the
 /// favourite — read the scene value, so they keep working while the inspector has the focus.
+///
+/// The canvas has one thing to say here too, `promptHasKeyboard`, and it is the same question
+/// asked from the other pane: where would the typing go.
 extension FocusedValues {
     /// The library pane's selection, published for as long as that pane is on screen.
     @Entry var librarySelection: LibrarySelection?
@@ -28,4 +31,17 @@ extension FocusedValues {
     /// Spelled `@MainActor` because that is what it is: a method on a view, published by one
     /// view and called from the menu bar, both of them on the main actor.
     @Entry var newAlbum: (@MainActor () -> Void)?
+    /// True while the canvas's prompt is first responder, and absent otherwise.
+    ///
+    /// The one thing the canvas has to say to the menu bar about the keyboard, and it is here
+    /// for the same reason the grid's focused selection is: ⌘⌫ in a text view is
+    /// `deleteToBeginningOfLine:`, and a menu item's key equivalent is matched before the
+    /// responder chain sees the keystroke. The library's half of that is answered by
+    /// `focusedLibraryGrid` going nil; the canvas's is answered here, and only the deletion
+    /// asks it (`CommandTarget.whileTyping(_:)`).
+    ///
+    /// Published as a scene value rather than a view one because the prompt's focus is
+    /// AppKit's — `PromptTextView` reports it from the responder chain — and not a SwiftUI
+    /// `@FocusState` the focused-view hierarchy would carry.
+    @Entry var promptHasKeyboard: Bool?
 }
