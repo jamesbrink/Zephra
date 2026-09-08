@@ -26,10 +26,18 @@
 	<string>public.app-category.graphics-design</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>Settings > General can set your image library to a folder on the Desktop, where Zephra saves generated pictures and reads existing ones.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>Settings > General can set your image library to a folder in Documents, where Zephra saves generated pictures and reads existing ones.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>Settings > General can set your image library to a folder in Downloads, where Zephra saves generated pictures and reads existing ones.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2026 James Brink. All rights reserved.</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>Settings > General can set your image library to a folder on a removable volume, where Zephra saves generated pictures and reads existing ones.</string>
 	<key>NSSupportsAutomaticTermination</key>
 	<false/>
 	<key>NSSupportsSuddenTermination</key>

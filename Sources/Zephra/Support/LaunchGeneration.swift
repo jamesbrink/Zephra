@@ -7,7 +7,10 @@ import ZephraEngine
 /// app itself from a shell, with the app's own window, limits and preview frames, on a Mac
 /// nobody is sitting at. The bench measures the model without the window; a failure that needs
 /// the window on screen, as a GPU reset under the canvas's compositing did, needs this instead.
-/// The variable's value is the prompt; everything else is the saved settings.
+/// The variable's value is the prompt; everything else is the saved settings. Debug builds
+/// only; in Release this is inert, the same rule `ZEPHRA_PREVIEW_STATE` follows and for the
+/// same reason — a shipped, signed Zephra has no business starting a generation, unattended,
+/// because a stray environment variable happened to be set.
 ///
 /// `ZEPHRA_REFERENCE_ON_LAUNCH=<path to a picture>` puts that picture in the well first,
 /// through the same door a drop takes (`GenerationStore.adoptReference`, so the read happens
@@ -19,19 +22,38 @@ enum LaunchGeneration {
     static let variable = "ZEPHRA_GENERATE_ON_LAUNCH"
     static let referenceVariable = "ZEPHRA_REFERENCE_ON_LAUNCH"
 
-    /// The prompt to generate on launch, or nil when the hook is not set.
-    static var prompt: String? {
-        guard let value = ProcessInfo.processInfo.environment[variable], !value.isEmpty else {
-            return nil
-        }
+    /// The prompt named in `environment`, or nil when the variable is absent or empty. Pure,
+    /// so it is tested; `prompt` is the one place it is asked of the real process environment,
+    /// and only in Debug.
+    static func resolvedPrompt(from environment: [String: String]) -> String? {
+        guard let value = environment[variable], !value.isEmpty else { return nil }
         return value
     }
 
-    /// The picture to put in the well before generating, or nil when the hook is not set.
-    static var reference: URL? {
-        guard let value = ProcessInfo.processInfo.environment[referenceVariable], !value.isEmpty
-        else { return nil }
+    /// The reference path named in `environment`, or nil when the variable is absent or empty.
+    /// Pure, for the same reason `resolvedPrompt(from:)` is.
+    static func resolvedReference(from environment: [String: String]) -> URL? {
+        guard let value = environment[referenceVariable], !value.isEmpty else { return nil }
         return URL(filePath: value)
+    }
+
+    /// The prompt to generate on launch, or nil when the hook is not set. `#if DEBUG` here,
+    /// not around the call site: `prompt` reading nil in Release is what makes `run(on:)`
+    /// inert on its own, the way `InterfacePreview.requestedState` does, so nothing outside
+    /// this file has to know the hook is Debug-only.
+    static var prompt: String? {
+        #if DEBUG
+        resolvedPrompt(from: ProcessInfo.processInfo.environment)
+        #else
+        nil
+        #endif
+    }
+
+    /// The picture to put in the well before generating, or nil when the hook is not set. This
+    /// needs no `#if DEBUG` of its own: `run(on:)` reads it only after `prompt`, which is
+    /// already nil in Release, so it is never asked.
+    static var reference: URL? {
+        resolvedReference(from: ProcessInfo.processInfo.environment)
     }
 
     /// Waits for the bootstrap to leave the model ready, puts the picture in if there is one,

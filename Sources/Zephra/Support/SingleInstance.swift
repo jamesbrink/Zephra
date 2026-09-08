@@ -1,4 +1,5 @@
 import AppKit
+import ZephraEngine
 
 /// One Zephra at a time: a launch that finds another copy of the app already running brings
 /// that one forward and exits before it has put up a window.
@@ -19,13 +20,28 @@ enum SingleInstance {
         !isolated && runningPIDs.contains { $0 != own }
     }
 
+    /// Whether this launch owns its own library and models folder rather than sharing the real
+    /// one: a frozen `ZEPHRA_PREVIEW_STATE` build, or a `ZEPHRA_FRESH_START` launch. Pure, so
+    /// it is tested on its own; `yieldToRunningCopy` is the one place it is asked for real.
+    ///
+    /// This takes `InterfacePreview.requestedState`, not `InterfacePreview.name`. `name` is the
+    /// raw `ZEPHRA_PREVIEW_STATE` environment variable, read in every build configuration;
+    /// `requestedState` is `#if DEBUG` and answers nil in Release however the variable is set.
+    /// Testing `name` stands the guard down in a shipped Release for any value of the variable
+    /// at all — the frozen preview it names is inert there, so what actually launches is an
+    /// ordinary second Zephra, wrongly believing itself isolated, over the same library and
+    /// models folder as the copy it should have yielded to.
+    static func isolated(previewState: EngineState?, freshStart: FreshStart?) -> Bool {
+        previewState != nil || freshStart != nil
+    }
+
     /// Hands this launch to the copy already running, if there is one, and exits.
     @MainActor static func yieldToRunningCopy() {
         guard let identifier = Bundle.main.bundleIdentifier else { return }
         let own = ProcessInfo.processInfo.processIdentifier
         let running = NSRunningApplication.runningApplications(withBundleIdentifier: identifier)
-        let isolated = InterfacePreview.name != nil || FreshStart.current != nil
-        guard shouldYield(runningPIDs: running.map(\.processIdentifier), own: own, isolated: isolated)
+        let isolatedLaunch = isolated(previewState: InterfacePreview.requestedState, freshStart: FreshStart.current)
+        guard shouldYield(runningPIDs: running.map(\.processIdentifier), own: own, isolated: isolatedLaunch)
         else { return }
         running.first { $0.processIdentifier != own }?.activate()
         exit(0)
