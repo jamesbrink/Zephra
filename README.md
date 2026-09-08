@@ -231,9 +231,11 @@ rather than `Zephra.xcodeproj`. Use Conventional Commits and run
 | `make test` | Core, Snapshot, and Engine tests without Metal |
 | `make test-app` | App tests hosted in the Debug app |
 | `make test-mlx` | MLX package and backend tests through Xcode |
-| `make lint-layers` | Enforce import boundaries and animation rules |
+| `make lint-layers` | Enforce import boundaries, animation, US spelling, and type-name rules |
+| `make lint-size` | List files over the 150-line target (advisory, never fails) |
 | `make vendored-diff` | Check vendored changes for `ZEPHRA-PATCH` markers |
 | `make logs` / `make screenshot` | Stream logs / capture the app window |
+| `make ship` | The whole release: build, notarize, publish, redeploy, commit the manifest |
 | `make open` / `make clean` | Open the generated Xcode project / remove build output |
 
 Benchmark on an idle machine in Release:
@@ -302,6 +304,9 @@ appearance. The DMG file and mounted volume inherit the app's compiled icon.
 The product website is https://zephra.urandom.io. Iterations go to ChatGPT Sites
 first; **deploy to production** means AWS. From this repository:
 
+- `make ship` is the whole release: build, sign, notarize, publish, redeploy the
+  site, then commit and push the download manifest. Pre-release, so it bumps no
+  version — every build is 0.1.0 and the UTC minute it started tells them apart.
 - `make deploy-production` builds the static site, uploads it to the website
   bucket, invalidates CloudFront, and verifies the public files.
 - `make publish-release VERSION=0.1.0 BUILD_NUMBER=<unique-number>` builds and
@@ -309,7 +314,15 @@ first; **deploy to production** means AWS. From this repository:
   the public download, and updates the website's download manifest.
 - `make release-upload` publishes and verifies an already notarized local DMG.
 
-Use Node 22+ and run `npm ci` in `product-mockups` first. Local AWS commands use
+The current build is always at
+https://zephra-assets.urandom.io/releases/Zephra-latest.dmg, copied there by
+each ship beside its immutable `Zephra-0.1.0-<stamp>.dmg` name, with
+`releases/latest.json` naming which build that is and its SHA-256. Superseded
+builds are deleted by hand; the bucket has no versioning, so git is the history.
+
+Node 22+. `make ship` installs `product-mockups` dependencies itself when they
+are missing, so a website build no longer fails after the DMG is already public;
+run `npm ci` there yourself for anything else. Local AWS commands use
 `dev.urandom.io`; CI uses the existing OIDC role. The manual **Deploy production
 website** workflow invokes the same Make target; no push automatically deploys.
 See `product-mockups/README.md` for destinations and `docs/releases/` for checks.

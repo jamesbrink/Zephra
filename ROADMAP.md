@@ -57,9 +57,11 @@ is distributed until the app is ready to ship.
    packed variant carries the pack's `LICENSE.md` beside its files, as its licence asks.
    One rule the mirror imposes on a plan change: a variant's `source` in `index.json` is
    the descriptor's identity, patterns included, and the released app matches it word for
-   word. So a rebuilt variant (LTX-2.5's, with the video encoder, since 2026-09-07) is
-   synced with `make ship` and not before, or the released app silently falls back to the
-   69 GB pack and a local build while `availability` still promises the mirror's 19.8 GB.
+   word. So a rebuilt variant is synced with `make ship` and not before, or the released
+   app silently falls back to the 69 GB pack and a local build while `availability` still
+   promises the mirror's 19.8 GB. LTX-2.5's variant with the video encoder was the one
+   waiting; it went with the 2026-09-08 ship, and `index.json` in the bucket is now byte
+   for byte the one in `MIRROR_DIR`, so nothing is owed.
 8. **LTX-2.5 video** (in progress on `feat/ltx2`; `docs/research/ltx-2.5.md` has the
    reading). Shipped first: the video-only distilled transformer at four bits, packed from
    the ungated `mlx-community/ltx-2.5-mlx` bf16 pack — Lightricks' own repositories are
