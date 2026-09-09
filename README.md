@@ -44,14 +44,23 @@ This generates the Xcode project, builds Release, and opens the app. The first
 build compiles MLX's Metal kernels and can take several minutes with little output.
 Use `make build` to build without launching, or `make open` to work in Xcode.
 
-On a fresh launch, Zephra chooses the first catalog model that fits the GPU's
-memory budget. Selecting a model downloads any missing weights. The quantized
-variants are fetched ready-made from Zephra's own mirror
-(`zephra-assets.urandom.io`) when it has them, so a 4-bit Z-Image Turbo is a
-7.1 GB download rather than a 32.9 GB release and a build; when the mirror has
-not got a variant, or cannot be reached, the release is downloaded and the
-variant built here as before, without asking. The window shows progress
-throughout; later loads reuse the files.
+A first launch opens on a model chooser rather than on a download: a card per
+model, each with a picture that model made, what it would actually transfer, and
+how it runs on this Mac. Nothing is fetched until a card is chosen. One card is
+marked Recommended — the first catalog model that fits the GPU's memory budget,
+or on a Mac nothing fits, the one needing the least — and any of the others can
+be chosen instead, including one this Mac would have to tile or stream to run,
+which the card says. Skipping goes straight to the canvas and leaves the choice
+for later; **Choose a Model…** there brings the screen back. A Mac that already
+has a model, from `make prefetch` or an earlier install, is not asked and opens
+on that one.
+
+Choosing a model downloads any missing weights. The quantized variants are
+fetched ready-made from Zephra's own mirror (`zephra-assets.urandom.io`) when it
+has them, so a 4-bit Z-Image Turbo is a 7.1 GB download rather than a 32.9 GB
+release and a build; when the mirror has not got a variant, or cannot be
+reached, the release is downloaded and the variant built here as before, without
+asking. The window shows progress throughout; later loads reuse the files.
 
 Optional downloads ahead of launch:
 
