@@ -47,5 +47,14 @@ swift "$SCRIPTS/set-file-icon.swift" "$ICON" "$STAGING/Zephra.dmg"
 codesign --force --timestamp --sign "$IDENTITY" "$STAGING/Zephra.dmg"
 codesign --verify --strict --verbose=2 "$STAGING/Zephra.dmg"
 mkdir -p "$(dirname "$DMG")"
-mv -f "$STAGING/Zephra.dmg" "$DMG"
+# ditto, not mv: the file icon lives in a resource fork, and a cross-device mv --
+# TMPDIR is on the boot volume, build/ need not be -- copies the data fork alone and
+# silently drops it. ditto carries forks and Finder flags across volumes.
+rm -f "$DMG"
+ditto "$STAGING/Zephra.dmg" "$DMG"
+rm -f "$STAGING/Zephra.dmg"
+xcrun GetFileInfo -a "$DMG" | grep -q C \
+    || { echo "dmg: $DMG lost its custom-icon flag on the way to its destination"; exit 1; }
+xattr "$DMG" | grep -q com.apple.ResourceFork \
+    || { echo "dmg: $DMG lost its icon resource fork on the way to its destination"; exit 1; }
 echo "dmg: $DMG"

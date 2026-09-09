@@ -1258,7 +1258,18 @@ Makefile targets:
   (hardened runtime, secure timestamp), verify, and package `build/Zephra.zip` plus
   signed `build/Zephra.dmg` with an Applications shortcut. The DMG file and mounted
   volume use the app's compiled `AppIcon.icns`; `verify-dmg.sh` checks the volume
-  icon matches the bundled app and that the volume custom-icon flag is set. Secure timestamping
+  icon matches the bundled app and that the volume custom-icon flag is set. The
+  file's own icon is a different thing from the volume's and travels differently:
+  it is a resource fork plus the custom-icon Finder flag, which is local metadata,
+  so `create-dmg.sh` copies the finished image into `build/` with `ditto` rather
+  than `mv` — `TMPDIR` is on the boot volume and `build/` need not be, and a
+  cross-device `mv` moves the data fork alone and drops the icon silently — and
+  then asserts both the flag and the fork at the destination, since that failure
+  is invisible until somebody looks at the file in the Finder. It goes no further
+  than the local file: an HTTP body and an S3 object are data forks, so the DMG a
+  user downloads wears the system's generic disk-image icon whatever we do, the
+  way every notarized Mac app's does. What reaches them is the volume's icon when
+  they mount it and the app's own in the window. Secure timestamping
   needs Apple's server. `SIGN_IDENTITY` overrides the auto-detected certificate.
   `VERSION=MAJOR.MINOR.PATCH` and `BUILD_NUMBER=<positive integer>` stamp the
   bundle (`MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`, passed to `xcodebuild`
