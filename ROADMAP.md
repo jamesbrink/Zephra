@@ -150,7 +150,17 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   count and speed do not enter it; a 48 GB Mac is recommended the 13.3 GB Z-Image
   8-bit over the 5.4 GB klein because it is listed first and fits. Whether that is
   the right first model for someone on a slow connection is a question the catalog
-  order answers today and a real recommendation would not.
+  order answers today and a real recommendation would not. Only the bottom of the
+  range is decided on anything else: a Mac nothing fits is offered the entry with the
+  smallest `leanestPeakBytes`, because there the catalog's own order named the
+  heaviest model of the six.
+- **No 8 GB Mac has been measured.** Every figure in the catalog was taken on a 16 GB
+  M4 mini or a 48 GB M4 Max, and nothing in the catalog fits an 8 GB machine's ~6.4 GB
+  working set — klein 4-bit, the leanest, wants 7.7 GB with the decode tiled. So what
+  such a Mac is recommended is the nearest thing to a run and not a claim that it runs,
+  and its card says "Needs 8 GB" beside the offer. Whether Zephra is usable at all on
+  8 GB, at a smaller size than the default with the decode tiled, is unanswered and
+  wants one measured session on the hardware.
 - **The disk is not checked for room before the download starts.** `ModelTransfers`
   reserves per-volume space when the transfer begins and fails with a reason, which is
   the same behaviour every other download path has. The chooser could say "21.6 GB,

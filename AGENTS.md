@@ -276,6 +276,15 @@ to say that was already computed and shown nowhere until a toolbar menu was foun
   `bootstrap()` that reads the disk — and stops. Nothing is fetched while the chooser
   is up. Loading is asked for here rather than on `RootView` because on a first
   launch `RootView` is not built at all and the cards still need `availability`.
+- The recommendation is `ModelCatalog.default(fitting:)`: the first catalog entry that
+  runs at its default size on this Mac, so catalog order is the editorial judgement and
+  memory is the filter — a 16 GB Mac is offered klein 4-bit where a 32 GB one is offered
+  Z-Image 8-bit. Where *nothing* fits, which is an 8 GB Mac and a machine no Zephra has
+  been measured on, it offers the entry with the smallest
+  `ModelDescriptor.leanestPeakBytes` — the tiled peak, or the streamed one where the
+  family can stream — because the plain catalog default there named the largest download
+  of the six and the one wanting the most working set. The card still says what it needs,
+  so this is the nearest thing to a run rather than a promise that it runs.
 - The cards are `ModelChoice.all(for:)` (`Support/`): every catalog entry, the ones
   that run at their default size here first (`ModelCatalog.ordered(for:)`), each
   carrying its `MemoryFit` and the sentence for it, judged once against one budget so

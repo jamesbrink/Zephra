@@ -267,11 +267,36 @@ struct ModelCatalogTests {
         #expect(ModelCatalog.default(fitting: Self.gigabytes(48)) == ModelCatalog.zImageTurbo8bit)
         #expect(ModelCatalog.default(fitting: Self.gigabytes(24)) == ModelCatalog.zImageTurbo8bit)
         #expect(ModelCatalog.default(fitting: Self.gigabytes(16)) == ModelCatalog.flux2Klein4bit)
-        // Nothing fits an 8 GB Mac, so it opens on the plain default rather than on nothing.
-        #expect(ModelCatalog.default(fitting: Self.gigabytes(8)) == ModelCatalog.default)
+        // Nothing fits an 8 GB Mac — no Zephra has been measured on one — so it opens on the
+        // model that comes nearest to running rather than on the largest download of the six.
+        #expect(ModelCatalog.default(fitting: Self.gigabytes(8)) == ModelCatalog.flux2Klein4bit)
         for gigabytes in [UInt64(8), 16, 24, 32, 48] {
             #expect(ModelCatalog.all.contains(ModelCatalog.default(fitting: Self.gigabytes(gigabytes))))
         }
+    }
+
+    @Test("a Mac nothing fits is offered the model needing the least, never the largest")
+    func aMacNothingFitsIsOfferedTheLeanest() {
+        let budget = Self.gigabytes(8)
+        #expect(ModelCatalog.fitting(budget: MemoryBudget(physicalMemory: budget)).isEmpty)
+        let offered = ModelCatalog.default(fitting: budget)
+        for model in ModelCatalog.all {
+            #expect(offered.leanestPeakBytes <= model.leanestPeakBytes)
+        }
+    }
+
+    @Test("a family that streams is judged on its streamed peak, which is the smaller one")
+    func leanestPeakTakesTheStreamedFigureWhenThereIsOne() {
+        // Qwen-Image tiles to 26.1 GB and streams in 10.3; LTX-2.5 tiles to 22.4 and streams
+        // in 9.0. Reading the tiled figure alone would rank both as heavier than they are.
+        #expect(ModelCatalog.qwenImage2512_4bit.leanestPeakBytes
+            == ModelCatalog.qwenImage2512_4bit.streamedPeakBytes)
+        #expect(ModelCatalog.ltx2Distilled4bit.leanestPeakBytes
+            == ModelCatalog.ltx2Distilled4bit.streamedPeakBytes)
+        // klein cannot stream, so its tiled peak is the whole answer.
+        #expect(ModelCatalog.flux2Klein4bit.streamedPeakBytes == 0)
+        #expect(ModelCatalog.flux2Klein4bit.leanestPeakBytes
+            == ModelCatalog.flux2Klein4bit.tiledPeakBytes)
     }
 
     @Test("every preset is aligned and inside the size bounds")

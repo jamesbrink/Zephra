@@ -4,12 +4,25 @@
 /// GPU has not been asked what it may keep, which is the tests and a build with no runtime.
 extension ModelCatalog {
     /// The model to start a Mac with this budget on: the first listed variant that runs at
-    /// its default size there, or `default` when none does.
+    /// its default size there, and where none does, the one that comes nearest to running.
     ///
     /// Without this a 16 GB Mac would open on a model its own menu marks "Needs 23 GB", load
     /// 12 GB of weights it cannot decode with, and only find the variant it can run by hand.
+    ///
+    /// The second half is for a Mac smaller than any Zephra has been measured on — 8 GB, where
+    /// nothing in the catalog fits. Naming the plain default there recommended the *largest*
+    /// download of the six and the one wanting the most working set, which is the worst answer
+    /// available; the leanest is at least the nearest thing to a run, and the picker still says
+    /// what it needs rather than promising it works.
     public static func `default`(fitting budget: MemoryBudget) -> ModelDescriptor {
-        fitting(budget: budget).first ?? zImageTurbo8bit
+        if let runs = fitting(budget: budget).first { return runs }
+        return leanest ?? zImageTurbo8bit
+    }
+
+    /// The catalog entry needing the least working set at its default size. Catalog order
+    /// breaks a tie, since `min(by:)` keeps the first of equals.
+    private static var leanest: ModelDescriptor? {
+        all.min { $0.leanestPeakBytes < $1.leanestPeakBytes }
     }
 
     /// `default(fitting:)` for a Mac whose GPU has not been asked what it may keep.

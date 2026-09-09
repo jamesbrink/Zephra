@@ -120,6 +120,16 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
         return id
     }
 
+    /// The least GPU working set this model can be run at its default size in: the tiled
+    /// decode, or the streamed weights where the family can stream, whichever is smaller.
+    ///
+    /// What a picker sorts by when it has to name a model for a Mac that nothing fits. Not the
+    /// same question as `MemoryFit`, which asks whether a model runs; this asks which of them
+    /// comes nearest to running.
+    public var leanestPeakBytes: Int64 {
+        streamedPeakBytes > 0 ? min(tiledPeakBytes, streamedPeakBytes) : tiledPeakBytes
+    }
+
     /// Family and variant together, as a model picker should label the row.
     public var fullName: String {
         guard let variantName else { return displayName }
