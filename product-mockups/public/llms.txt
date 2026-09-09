@@ -1,0 +1,15 @@
+# Zephra
+
+> Zephra is a native macOS app for local AI image and short-video generation on Apple Silicon, powered by MLX and Metal.
+
+The official website is https://zephra.urandom.io/. Zephra supports image generation and editing with Z-Image-Turbo, Qwen-Image-2512, and FLUX.2 klein 4B; video generation and image animation with LTX-2.5; and still-image upscaling with Real-ESRGAN. Video clips currently have no audio. macOS 15 or later and Apple Silicon are required. Model downloads need an internet connection; generation runs locally after models are prepared.
+
+## Product
+
+- [Product overview](https://zephra.urandom.io/index.md): Features, supported models, requirements, privacy, and the current download location in Markdown.
+- [Website](https://zephra.urandom.io/): The human-readable product page.
+
+## Downloads
+
+- [Download for Mac](https://zephra-assets.urandom.io/releases/Zephra-latest.dmg): The current macOS installer.
+- [Release metadata](https://zephra-assets.urandom.io/releases/latest.json): Current build and SHA-256 checksum.

@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description:
     "Create AI images and short videos locally on your Mac. Animate images with LTX-2.5, edit and upscale with native tools. Built for Apple Silicon.",
   metadataBase: new URL("https://zephra.urandom.io"),
-  alternates: { canonical: "/" },
+  alternates: { canonical: "/", types: { "text/markdown": "/index.md" } },
   openGraph: {
     type: "website",
     url: "/",
@@ -36,6 +36,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="describedby" href="/llms.txt" type="text/plain" />
+      </head>
       <body>
         <script
           type="application/ld+json"
