@@ -24,7 +24,21 @@ Use favorites, tags, albums, and search to organize your creations. Image prompt
 - Memory and disk space appropriate for the chosen model and settings.
 - An internet connection to download models. Prepare them before creating offline.
 
-Generation speed and memory use depend on the Mac, model, resolution, and settings.
+Generation speed and memory use depend on the Mac, model, resolution, and settings. FLUX.2 klein 4-bit is the smallest image model listed here and a starting point for a 16 GB Mac. LTX-2.5 and Qwen-Image can stream weights from disk via Settings > Performance to reduce memory use, with a potential speed tradeoff.
+
+Approximate disk sizes for 4-bit models (prepared model / including retained source files): FLUX.2 klein 5.4 / 21.4 GB; Z-Image-Turbo 7.1 / 40.0 GB; Qwen-Image 21.6 / 81.0 GB; LTX-2.5 19.8 / 89.5 GB. These are disk sizes, not RAM requirements. Prepared models are downloaded when available; otherwise Zephra downloads the source and builds locally. Allow additional space for setup and your library.
+
+## Getting started
+
+1. Open the download, drag Zephra into Applications, and launch it there.
+2. Choose an image or video model. Its first use needs a download and preparation.
+3. Write a prompt and select Generate. Once the model is ready, generation works offline.
+
+## What’s new and support
+
+The latest website release notes highlight LTX-2.5 text-to-video and image animation, local clip playback and MP4 export, and weight streaming for Qwen-Image and LTX-2.5. [Read what’s new](https://zephra.urandom.io/#whats-new).
+
+For help or to report a problem, email [Zephra support](mailto:dev.urandom.io@gmail.com).
 
 ## Privacy
 

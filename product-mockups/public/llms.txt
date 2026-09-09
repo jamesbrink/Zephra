@@ -9,6 +9,9 @@ The official website is https://zephra.urandom.io/. Zephra supports image genera
 - [Product overview](https://zephra.urandom.io/index.md): Features, supported models, requirements, privacy, and the current download location in Markdown.
 - [Website](https://zephra.urandom.io/): The human-readable product page.
 
+- [What’s new](https://zephra.urandom.io/#whats-new): Concise release highlights.
+- [Support](mailto:dev.urandom.io@gmail.com): Help and problem reports.
+
 ## Downloads
 
 - [Download for Mac](https://zephra-assets.urandom.io/releases/Zephra-latest.dmg): The current macOS installer.

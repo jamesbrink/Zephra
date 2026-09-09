@@ -1,16 +1,16 @@
-"use client";
+'use client';
 /* oxlint-disable next/no-img-element -- Static PNGs also deploy to S3 without an image optimization server. */
-import { useState } from "react";
-import release from "./release.json";
-import { Switch } from "@/components/ui/switch";
+import { useState } from 'react';
+import release from './release.json';
+import GettingStarted from './getting-started';
+import { Switch } from '@/components/ui/switch';
 import {
   ArrowUpRight,
   ArrowDown,
-  Cpu,
   LockKeyhole,
   FolderHeart,
   Sparkles,
-} from "lucide-react";
+} from 'lucide-react';
 function Brand() {
   return (
     <a className="brand" href="#top">
@@ -107,20 +107,16 @@ function Features({ id }: { id: string }) {
           Real-ESRGAN upscaling.
         </p>
       </section>
-      <section className="requirements" id={`${id}-requirements`}>
-        <Cpu />
-        <div>
-          <h3>At home on Apple Silicon.</h3>
-          <p>
-            macOS 15 or later · Memory and storage requirements vary by model.
-            <br />
-            An internet connection is needed for model downloads.
-          </p>
-        </div>
-      </section>
+      <GettingStarted id={id} />
       <footer>
         <Brand />
         <span>© 2026 James Brink. All rights reserved.</span>
+        <nav className="footer-links" aria-label="Resources">
+          <a href="#whats-new">What’s new</a>
+          <a href="mailto:dev.urandom.io@gmail.com?subject=Zephra%20support">
+            Support
+          </a>
+        </nav>
         <details className="website-privacy">
           <summary>
             Privacy <span aria-hidden="true">+</span>
@@ -145,7 +141,7 @@ function Features({ id }: { id: string }) {
 export default function Page() {
   const [dark, setDark] = useState(true);
   return (
-    <main className="safelight" data-theme={dark ? "dark" : "light"} id="top">
+    <main className="safelight" data-theme={dark ? 'dark' : 'light'} id="top">
       <a className="skip-link" href="#dark-features">
         Skip to features
       </a>
@@ -174,7 +170,9 @@ export default function Page() {
         </div>
         <div className="hero-art">
           <img
-            src="/images/robot.png"
+            src="/images/robot-1024.webp"
+            srcSet="/images/robot-480.webp 480w, /images/robot-768.webp 768w, /images/robot-1024.webp 1024w"
+            sizes="(max-width: 650px) calc(100vw - 48px), (max-width: 1320px) calc((100vw - 151px) / 2.04), 553px"
             width={1024}
             height={1024}
             fetchPriority="high"

@@ -49,3 +49,19 @@ the resulting page update to ChatGPT Sites first, then AWS production.
 
 Signed, notarized app downloads belong in the separate assets bucket under
 `releases/`; the website bucket contains only the site.
+
+## Marketing assets and product guidance
+
+The hero uses 480, 768, and 1024 px WebP derivatives of the preserved `robot.png`.
+Regenerate with `cwebp -q 82 -resize <width> <width> public/images/robot.png -o
+public/images/robot-<width>.webp`. No new artwork or generation metadata is added.
+
+The sharing card (`public/og.png`) uses the approved identity and app capture as
+imagegen references; its original and brief live in `../design/website/social/`.
+Open Graph and X metadata use the canonical AWS image URL.
+
+`app/getting-started.tsx` holds first-launch guidance, compatibility and model disk
+sizes, and concise release highlights. Check figures against `ModelCatalog*.swift`
+when models change. Keep `public/index.md` consistent and review release highlights
+when shipping; the displayed version/build track `app/release.json` automatically.
+Support goes to the owner-provided `dev.urandom.io@gmail.com` address.
