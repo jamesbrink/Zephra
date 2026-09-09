@@ -68,32 +68,12 @@ struct ModelMenu: View {
         return availability?.label
     }
 
-    /// The tooltip: how this model would run here, or why it cannot be had.
+    /// The tooltip: how this model would run here, or why it cannot be had. A model that just
+    /// fits has nothing to say about memory, so the availability's own reason stands instead.
     private func obstacle(_ model: ModelDescriptor) -> String? {
-        switch fit(model) {
-        case .fits:
-            return store.availability[model.id]?.reason
-        case .fitsTiled:
-            return "\(model.fullName) decodes in tiles on this Mac, which keeps it out of swap "
-                + "at \(sizeText(model)) for about 1 part in 255 of difference in the image."
-        case .fitsStreamed:
-            return "\(model.fullName) is more than this Mac's GPU can hold, so its weights are "
-                + "read from the disk again on every step. It runs at \(sizeText(model)), "
-                + "slower than it would if it were resident."
-        case .tight(let needed):
-            let gigabytes = Int((Double(needed) / 1_000_000_000).rounded(.up))
-            let hint = MemoryFit.wouldFitWithWiredLimitRaised(model, budget: budget)
-                ? " Raising the GPU memory limit in Settings > Performance would let it run."
-                : ""
-            return "\(model.fullName) needs a GPU working set of about \(gigabytes) GB at "
-                + "\(sizeText(model)), even with the decode tiled, and this Mac's is "
-                + "\(budgetText). A smaller size runs.\(hint)"
-        }
-    }
-
-    /// This Mac's GPU working set, for the tooltip.
-    private var budgetText: String {
-        Int(budget.gpuWorkingSet).formatted(.byteCount(style: .memory, spellsOutZero: false))
+        let fit = fit(model)
+        guard fit != .fits else { return store.availability[model.id]?.reason }
+        return fit.reason(for: model, budget: budget)
     }
 
     /// Memory never disables a row: a model that pages at its default size still runs at a
@@ -107,16 +87,7 @@ struct ModelMenu: View {
     /// A tiled row is labelled even when the Automatic policy is what turns tiling on, because
     /// a menu that quietly changed how the image is decoded would be the worse of the two.
     private func memoryNote(_ model: ModelDescriptor) -> String? {
-        switch fit(model) {
-        case .fits: nil
-        case .fitsTiled: "Tiles the decode"
-        case .fitsStreamed: "Streams from disk"
-        case .tight(let needed): "Needs \(Int((Double(needed) / 1_000_000_000).rounded(.up))) GB"
-        }
-    }
-
-    private func sizeText(_ model: ModelDescriptor) -> String {
-        "\(model.capabilities.defaultSize.width) pixels"
+        fit(model).label
     }
 
     /// How this model lands on this Mac. The budget is read once at launch and does not

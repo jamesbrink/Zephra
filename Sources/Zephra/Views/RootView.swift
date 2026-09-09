@@ -9,9 +9,11 @@ import ZephraEngine
 /// when the pane changes and the unified toolbar draws them once, beside the sidebar's edge
 /// rather than over it.
 ///
-/// Loading the model is asked for here, not in either pane, because a pane is torn down when
-/// the other one shows. A window left on the Library would otherwise come back after a
-/// relaunch with nothing ever asking for the weights.
+/// Loading the model is asked for one level up, in `WelcomeHost`, and not in either pane: a
+/// pane is torn down when the other one shows, and a window left on the Library would
+/// otherwise come back after a relaunch with nothing ever asking for the weights. It is above
+/// this view rather than on it because on a first launch this view is not built at all and the
+/// chooser still needs to know what is on disk.
 /// The window's query is also copied into the library here, for the same reason: the sidebar
 /// writes it whichever pane is showing, and the index has to be projecting the right thing by
 /// the time the Library pane is built rather than a frame afterwards.
@@ -48,10 +50,6 @@ struct RootView: View {
             workspace.query = LibraryQuery(sort: workspace.query.sort)
         }
         .onChange(of: workspace.query, initial: true) { index.query = $1 }
-        .task {
-            await store.bootstrapFromInterface()
-            await LaunchGeneration.run(on: store)
-        }
     }
 
     /// Reads the image onto the canvas and goes there. The settings are deliberately not

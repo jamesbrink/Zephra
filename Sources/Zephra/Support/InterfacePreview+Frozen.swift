@@ -72,6 +72,10 @@ extension InterfacePreview {
         switch name {
         case "settings", "ready", "image", "editing", "tucked", "batch", "library", "viewer", "picker", "clip":
             return .ready
+        case "welcome":
+            // The first-launch chooser stands in front of the workspace with nothing loaded,
+            // which is exactly what `.idle` means. `wantsWelcome` is what raises it.
+            return .idle
         case "generating":
             return .generating(GenerationProgressEvent(
                 phase: .denoising(step: 4, of: 9),

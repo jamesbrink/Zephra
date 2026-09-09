@@ -29,10 +29,29 @@ extension GenerationStore {
     }
 
     /// Applies the launch preferences, then loads the model. The root view's only entry point.
-    func bootstrapFromInterface() async {
+    ///
+    /// `loadingModel: false` reads what is on disk and stops there, for a launch that opens on
+    /// the first-launch chooser: the cards need `availability` to say what each model costs,
+    /// and a launch nobody has chosen a model on must not start a transfer.
+    func bootstrapFromInterface(loadingModel: Bool = true) async {
         warmsUpAfterLoad = AppSettings.flag(AppSettings.warmUpOnLaunch)
         await setModelLocations(AppSettings.modelLocations())
-        await bootstrap()
+        if loadingModel { await bootstrap() } else { await surveyAvailability() }
+    }
+
+    /// Loads the model picked in the first-launch chooser.
+    ///
+    /// `switchModel` refuses a pick of the model already chosen (`GenerationStore+Switching`),
+    /// which on a first launch is whatever `ModelCatalog.default(fitting:)` answered — so
+    /// pressing the recommended card would otherwise do nothing at all. That case starts the
+    /// load directly, which from `.idle` with nothing resident is the same work.
+    func chooseFirstModel(_ model: ModelDescriptor) {
+        warmsUpAfterLoad = AppSettings.flag(AppSettings.warmUpOnLaunch)
+        if model.id == descriptor.id {
+            retry()
+        } else {
+            switchModel(to: model)
+        }
     }
 
     /// Restarts a load that failed or was cancelled, honouring the same preferences.

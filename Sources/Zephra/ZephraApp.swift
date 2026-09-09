@@ -18,6 +18,10 @@ struct ZephraApp: App {
     @State var workspace = InterfacePreview.workspace() ?? WorkspaceSelection()
     @State var index = InterfacePreview.index() ?? LibraryIndex(library: AppSettings.imageLibrary())
     @State var thumbnails = ThumbnailCache()
+    /// Whether the window opens on the first-launch model chooser. Built here with everything
+    /// else the window observes, and resolved from the preference synchronously, so a launch
+    /// that has never chosen a model opens on the chooser rather than flashing the canvas.
+    @State private var welcome = WelcomeGate()
     /// What the models occupy on disk, for Settings > Models. Built here with the store so the
     /// window and Settings observe the one list.
     @State private var inventory = ModelInventory(locations: AppSettings.modelLocations())
@@ -43,7 +47,7 @@ struct ZephraApp: App {
         // above, so a second one could only mirror the first. `Window` reopens on a Dock
         // click and lists itself under the Window menu; see ROADMAP for per-window state.
         Window("Zephra", id: "main") {
-            RootView()
+            WelcomeHost()
                 // The floor under the window, so dragging it in cannot crush the panes to
                 // nothing between the sidebar and the inspector. A bare
                 // `.frame(minWidth:minHeight:)` on the scene's content is not the trap that bit
@@ -87,6 +91,7 @@ struct ZephraApp: App {
                 .environment(workspace)
                 .environment(index)
                 .environment(thumbnails)
+                .environment(welcome)
                 .environment(\.memoryBudget, Self.budget)
                 // The appearance preference is applied to the application from the main
                 // window, so it lands before the first frame and follows the picker in
@@ -99,7 +104,18 @@ struct ZephraApp: App {
                 // tiled decode is not decided here: the store chooses it for each run's own
                 // model as the run starts; see `GenerationStore+Tiling`.
                 .onChange(of: store.rememberedModel, initial: true) { _, model in
+                    // Not while the first-launch chooser is up: nothing has been chosen yet,
+                    // and writing the catalog's fallback here would make quitting on that
+                    // screen look, next launch, exactly like having answered it.
+                    guard !welcome.isShowing else { return }
                     AppSettings.write(model.id, to: AppSettings.selectedModelID)
+                }
+                // The answer itself, for the case the line above cannot see: a chooser
+                // answered with the model the store was already pointing at moves nothing, so
+                // nothing would ever be written for that session. Still one writer.
+                .onChange(of: welcome.isShowing) { _, showing in
+                    guard !showing else { return }
+                    AppSettings.write(store.rememberedModel.id, to: AppSettings.selectedModelID)
                 }
                 .task {
                     termination.shutdown = {

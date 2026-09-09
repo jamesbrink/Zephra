@@ -6,8 +6,8 @@ import ZephraEngine
 /// interface can be screenshotted and inspected on its own.
 ///
 /// Set `ZEPHRA_PREVIEW_STATE` to `ready`, `image`, `editing`, `tucked`, `clip`, `generating`,
-/// `starting`, `queued`, `watching`, `finishing`, `batch`, `library`, `viewer`, `picker`, `downloading`,
-/// `building`, or `failed` before launching. `settings` uses the configured library on disk with a frozen engine for
+/// `starting`, `queued`, `watching`, `finishing`, `batch`, `library`, `viewer`, `picker`, `welcome`,
+/// `downloading`, `building`, or `failed` before launching. `settings` uses the configured library on disk with a frozen engine for
 /// folder-change UAT; point `imagesDirectory` at a temporary fixture first. Debug builds only; in Release this is inert.
 ///
 /// This half is what the composition root calls. `InterfacePreview+Frozen.swift` is how each
@@ -56,6 +56,17 @@ enum InterfacePreview {
     static var wantsReferencePicker: Bool {
         #if DEBUG
         name == "picker"
+        #else
+        false
+        #endif
+    }
+
+    /// Whether the frozen window should open on the first-launch model chooser rather than on
+    /// the workspace, whatever this Mac's preferences say. `WelcomeGate` reads it in `init`,
+    /// since the chooser has to be up before the first frame rather than raised after it.
+    static var wantsWelcome: Bool {
+        #if DEBUG
+        name == "welcome"
         #else
         false
         #endif

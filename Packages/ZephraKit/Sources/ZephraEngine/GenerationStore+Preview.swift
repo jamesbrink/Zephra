@@ -49,6 +49,11 @@ extension GenerationStore {
 
     /// Made up, like everything else here: the chosen model reads as downloaded, a hub model as
     /// a download away, and a local variant as not built, so a picker has rows to label.
+    ///
+    /// A variant the mirror publishes ready-made is charged its packed size and not its
+    /// release's, the way the real answer is: klein transfers 5.4 GB, not the 16 GB of bf16 it
+    /// was packed from, and a screenshot of a picker quoting the release would be a screenshot
+    /// of a number the app never shows.
     private static func previewAvailability(
         current: ModelDescriptor
     ) -> [ModelDescriptor.ID: ModelAvailability] {
@@ -57,9 +62,11 @@ extension GenerationStore {
             switch model.source {
             case .huggingFace:
                 map[model.id] =
-                    model.isBuiltLocally
-                    ? .needsDownloadAndBuild(bytes: model.downloadBytes)
-                    : .needsDownload(bytes: model.downloadBytes)
+                    switch (model.isPublishedPrebuilt, model.isBuiltLocally) {
+                    case (true, _): .needsDownload(bytes: model.builtBytes)
+                    case (false, true): .needsDownloadAndBuild(bytes: model.transferBytes)
+                    case (false, false): .needsDownload(bytes: model.transferBytes)
+                    }
             case .localDirectory: map[model.id] = .missing(reason: "Not built yet; run make quantize.")
             }
         }

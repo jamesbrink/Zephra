@@ -24,8 +24,7 @@ extension GenerationStore {
     /// load takes over the inference queue, and so a saved choice that is no longer on the
     /// disk gives way to one that is instead of failing at launch.
     public func bootstrap() async {
-        await refreshAvailability()
-        fallBackIfUnobtainable()
+        await surveyAvailability()
         await load(descriptor, asSwap: false)
     }
 

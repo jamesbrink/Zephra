@@ -18,6 +18,7 @@ import ZephraEngine
 struct CanvasStateView: View {
     @Environment(GenerationStore.self) private var store
     @Environment(WorkspaceSelection.self) private var workspace
+    @Environment(WelcomeGate.self) private var welcome
 
     var body: some View {
         VStack(spacing: 12) {
@@ -79,6 +80,13 @@ struct CanvasStateView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.large)
                 .padding(.top, 4)
+        }
+        if startLabel != nil {
+            // The way back to the first-launch chooser, from the one screen a person who
+            // skipped it or cancelled its download actually lands on.
+            Button("Choose a Model\u{2026}") { welcome.reopen() }
+                .buttonStyle(.link)
+                .help("Compare the models and what each one downloads")
         }
         if store.downloads.items.contains(where: { $0.status == .downloading || $0.status == .queued }) {
             SettingsLink { Text("View downloads in Settings") }

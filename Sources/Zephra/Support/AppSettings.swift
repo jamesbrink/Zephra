@@ -31,6 +31,10 @@ enum AppSettings {
     static let backgroundNotifications = "backgroundNotifications"
     /// The `ModelDescriptor.id` chosen in the model menu, restored on the next launch.
     static let selectedModelID = "selectedModelID"
+    /// Whether the first-launch chooser has been answered, either by picking a model or by
+    /// skipping past it. Deliberately not inferred from `selectedModelID`, which the
+    /// composition root writes on every launch, first or not.
+    static let hasChosenModel = "hasChosenModel"
     /// Ceiling on the GPU scratch the runtime retains between generations, in megabytes.
     /// Unset means the recommendation `InferenceTuning` works out for this machine.
     static let cacheLimitMB = "cacheLimitMB"

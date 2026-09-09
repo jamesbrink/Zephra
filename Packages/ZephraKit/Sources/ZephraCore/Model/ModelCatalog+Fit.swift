@@ -17,6 +17,15 @@ extension ModelCatalog {
         `default`(fitting: MemoryBudget(physicalMemory: physicalMemory))
     }
 
+    /// Every model, the ones this Mac runs at their default size first, in catalog order
+    /// within each group. What a picker lists: nothing is hidden, and what is worth choosing
+    /// is at the top.
+    public static func ordered(for budget: MemoryBudget) -> [ModelDescriptor] {
+        let runs = fitting(budget: budget)
+        let ids = Set(runs.map(\.id))
+        return runs + all.filter { !ids.contains($0.id) }
+    }
+
     /// The models that run at their default size within `budget` without paging, counting
     /// the tiled VAE decode and streamed weights as available — they are what the app turns
     /// on when it matters.

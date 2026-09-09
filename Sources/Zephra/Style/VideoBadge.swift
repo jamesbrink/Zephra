@@ -21,6 +21,10 @@ struct VideoBadge: View {
         .padding(.vertical, 2)
         .background(.black.opacity(0.55), in: Capsule())
         .padding(6)
+        // Ignoring the children rather than only labelling the stack: a label on a container
+        // leaves its children in the tree, so the glyph and the duration were announced again
+        // after it — "Clip, 2.0 s, Clip, 2.0 s" wherever a badge sits inside a larger element.
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("Clip, \(label)")
     }
 

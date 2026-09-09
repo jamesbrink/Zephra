@@ -4,6 +4,14 @@ import ZephraCore
 /// Knowing what is on disk before anything is downloaded, so the interface can say "13.3 GB
 /// download" beside a model rather than finding out by starting the transfer.
 extension GenerationStore {
+    /// Reads what is on disk for every model and steps off one that cannot be had, without
+    /// loading anything: the half of `bootstrap` a picker needs before a model has been
+    /// chosen, so a first launch can say what each model costs without fetching one.
+    public func surveyAvailability() async {
+        await refreshAvailability()
+        fallBackIfUnobtainable()
+    }
+
     /// Re-reads what is on disk for every model in the catalog, without downloading anything.
     ///
     /// The check runs on the inference actor, so it waits behind whatever that actor is already

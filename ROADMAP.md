@@ -110,6 +110,52 @@ Deferred: **ERNIE-Image-Turbo** (eight to twelve days for legible in-image text 
 Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
 **Z-Image-Edit** (unreleased; would share the Z-Image backend).
 
+## First launch: left out on purpose
+
+- **The chooser lists models, not a way to fetch several.** `resumeDownload(_:)`
+  already starts a background transfer for a model that is not the selected one, so
+  checking klein and LTX-2.5 and letting both land is a small change on top of what is
+  here. It is left out because `ModelTransfers` runs two physical repository transfers
+  at a time and the first five minutes of the app are not where a queue of them
+  belongs. The way in exists today: pick one, then pick the other from the model menu.
+- **No per-model "what it is good at" beyond one line.** A card carries a sentence
+  from `ModelPortrait`, its download size and its memory verdict. Steps, native size,
+  prompt length and whether it reads a reference are all on `ModelCapabilities` and
+  none of them are shown: four more facts on a card is a spec sheet, and the decision
+  a first launch actually makes is size against what runs. A "Compare models" sheet
+  over `FactsTable` is the shape if it is ever wanted.
+- **The sample pictures are made by hand and checked in.** `scripts/make-samples.sh`
+  needs every packed variant on the Mac running it — 61 GB — so the set is regenerated
+  deliberately rather than in CI, and `ModelPortraitTests` is what catches a model
+  added without one. A model whose weights change under the same catalog id would keep
+  a stale picture until somebody reran the script; the samples are an illustration of
+  the model's hand, not a claim about a particular build. No notice is owed for them:
+  three of the four families are Apache-2.0, and LTX-2.x's community license says in
+  so many words that the licensor claims no rights in the output (Section 5).
+- **The wait after choosing is still the bare download screen.** Pressing the button
+  lands on the canvas with `CanvasStateView`'s headline, bar and Cancel — the same
+  screen a mid-session download gets. The prompt capsule is live and typing into it
+  works, but nothing says so, and `CanvasEmptyState`'s invitation is not shown until
+  the model is ready. A line under the bar saying the prompt can be written now is the
+  obvious small addition; it was left out of the chooser's change so the change stayed
+  about the choice.
+- **The chooser is not offered again after a model is downloaded.** `reopen()` is
+  wired to the canvas's idle state alone, which is where a person who skipped or
+  cancelled lands. Someone who has klein and wants to see what Qwen-Image would cost
+  reads the model menu, which says it. A Settings > Models "Add a Model" gallery over
+  the same cards is the obvious next home for it.
+- **The recommendation is memory alone.** `ModelCatalog.default(fitting:)` takes the
+  first catalog entry that runs at its default size, so the ordering in
+  `ModelCatalog.all` is the whole of the editorial judgement. Download size, step
+  count and speed do not enter it; a 48 GB Mac is recommended the 13.3 GB Z-Image
+  8-bit over the 5.4 GB klein because it is listed first and fits. Whether that is
+  the right first model for someone on a slow connection is a question the catalog
+  order answers today and a real recommendation would not.
+- **The disk is not checked for room before the download starts.** `ModelTransfers`
+  reserves per-volume space when the transfer begins and fails with a reason, which is
+  the same behaviour every other download path has. The chooser could say "21.6 GB,
+  and this volume has 12" on the card before it is pressed.
+
 ## Downloads and model storage: left out on purpose
 
 - **The 4-bit Z-Image variant is derived from the 32.9 GB bf16 release, not from the
