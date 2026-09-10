@@ -18,8 +18,9 @@ extension SnapshotUnderTest {
     }
 
     /// Whether the release on this Mac holds the spatial latent upsampler. It is the second
-    /// stage's file alone, fetched after the five the first stage runs on, so a pack can have
-    /// everything else and not it; the suite that reads its header gates on the file.
+    /// stage's file alone, not among the five the first stage runs on, so a pack fetched for
+    /// a one-stage run has everything else and not it; the suite that reads its header gates
+    /// on the file.
     var hasUpsamplerFile: Bool {
         guard let release else { return false }
         return FileManager.default.fileExists(
