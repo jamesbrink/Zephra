@@ -103,7 +103,7 @@ and its weights are under the LTX-2.x Community License rather than Apache 2.0
 Automatic tiling reduces decode memory when the model exceeds the GPU's budget.
 Qwen-Image, Wan 2.2 and LTX-2.5 also support streaming weights from disk,
 enabling generation on 16 GB Macs at the cost of disk reads each step (Wan 2.2
-peaks at 9.7 GB streamed against 15.1 GB resident, LTX-2.5 at 9.0 GB against
+peaks at 9.7 GB streamed against 15.1 GB resident, LTX-2.5 at 10.0 GB against
 23.4 GB). The picker reports these tradeoffs;
 models remain selectable even when a smaller image size may be needed.
 

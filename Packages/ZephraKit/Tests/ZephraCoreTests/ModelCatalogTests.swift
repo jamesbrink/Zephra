@@ -327,8 +327,8 @@ struct ModelCatalogTests {
 
     @Test("a family that streams is judged on its streamed peak, which is the smaller one")
     func leanestPeakTakesTheStreamedFigureWhenThereIsOne() {
-        // Qwen-Image tiles to 26.1 GB and streams in 10.3; LTX-2.5 tiles to 22.4 and streams
-        // in 9.0. Reading the tiled figure alone would rank both as heavier than they are.
+        // Qwen-Image tiles to 26.1 GB and streams in 10.3; LTX-2.5 tiles to 23.4 and streams
+        // in 10.0. Reading the tiled figure alone would rank both as heavier than they are.
         #expect(ModelCatalog.qwenImage2512_4bit.leanestPeakBytes
             == ModelCatalog.qwenImage2512_4bit.streamedPeakBytes)
         #expect(ModelCatalog.ltx2Distilled4bit.leanestPeakBytes

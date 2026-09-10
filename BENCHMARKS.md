@@ -131,6 +131,9 @@ Resident, halcyon, idle, 2026-09-10, with the encoder and the upsampler loaded,
   is there). The peak is the load's either way.
 - The load is 22 s from the external volume against 4.8 s before, which is the
   disk and not the upsampler: the variant moved to `/Volumes/ExternalStorage`.
+- Streamed, both stacks, the encoder and upsampler resident, holding a first
+  frame in two stages: 10003 MB peak, 5737 MB live, 46.1 s a clip (the
+  upsampler is the gigabyte over the 9007 MB measured before it).
 
 Earlier, resident, eight steps in one stage, with the video encoder loaded and
 no upsampler:
