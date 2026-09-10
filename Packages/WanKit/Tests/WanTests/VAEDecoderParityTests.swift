@@ -9,7 +9,7 @@ import Testing
 struct VAEDecoderParityTests {
     static let dollsHouse = VAEEncoderParityTests.dollsHouse
 
-    @Test("a two-frame latent decodes to the reference's five frames, one chunk a latent frame")
+    @Test("a three-frame latent decodes to the reference's nine frames, one chunk a latent frame")
     func decodeMatchesTheReference() throws {
         let fixture = try Fixture.load("vae_decoder")
         let autoencoder = try VAEEncoderParityTests.loaded(fixture)
@@ -18,10 +18,11 @@ struct VAEDecoderParityTests {
         let latent = try #require(fixture["in.latent"])
         let expected = try #require(fixture["out.video"]).transposed(0, 2, 3, 4, 1)
         let video = autoencoder.decode(latent)
-        #expect(video.shape == [1, 5, 64, 64, 3])
+        #expect(video.shape == [1, 9, 64, 64, 3])
         #expect(video.shape == expected.shape)
-        // 2 x 4 x 4 cells become 5 x 64 x 64 pixels: 1 + 4 (F' - 1) frames, 16 per cell.
-        #expect(Self.dollsHouse.pixelFrames(forLatentFrames: 2) == 5)
+        // 3 x 4 x 4 cells become 9 x 64 x 64 pixels: 1 + 4 (F' - 1) frames, 16 per cell. Three
+        // chunks, so the third is carried into from a chunk that was itself carried into.
+        #expect(Self.dollsHouse.pixelFrames(forLatentFrames: 3) == 9)
         let difference = Fixture.maxAbsoluteDifference(video, expected)
         // Measured at 1.3e-6 on an M4 Max: the clamp pins most pixels and the rest differ by
         // float32 accumulation order over three stages of convolutions.

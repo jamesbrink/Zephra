@@ -11,7 +11,6 @@ struct LTX2DistilledScheduleTests {
         #expect(LTX2DistilledSchedule.firstStage.count == 9)
         #expect(LTX2DistilledSchedule.firstStage.first == 1)
         #expect(LTX2DistilledSchedule.firstStage.last == 0)
-        #expect(LTX2DistilledSchedule.sigmas == LTX2DistilledSchedule.firstStage)
         let schedule = LTX2DistilledSchedule()
         #expect(schedule.sigmas == LTX2DistilledSchedule.firstStage)
         #expect(schedule.steps == 8)

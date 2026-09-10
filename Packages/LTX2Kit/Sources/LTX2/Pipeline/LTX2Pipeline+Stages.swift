@@ -27,9 +27,9 @@ extension LTX2Pipeline {
     /// of the tokens, and stage two spends three steps on the detail the upsampler cannot
     /// invent, which is most of the quality of a one-stage run at the full size for about
     /// three fifths of its step cost. A held first frame is encoded twice, once at each size,
-    /// so both stages hold the picture at their own resolution; the second stage's noising
-    /// leaves the held frame where the picture put it. The eleven steps are reported as one
-    /// count.
+    /// so both stages hold the picture at their own resolution, and the doubled, noised latent
+    /// enters the second stage with the picture blended in by its strength exactly as noise
+    /// enters the first. The eleven steps are reported as one count.
     func twoStages(
         text: MLXArray, request: LTX2GenerationRequest, with loaded: Loaded,
         onProgress: (LTX2GenerationProgress) -> Void, onPreview: PreviewHandler?
@@ -54,7 +54,10 @@ extension LTX2Pipeline {
             try LTX2HeldFirstFrame($0, layout: full, encoder: loaded.encoder)
         }
         if let heldFull {
-            start = LTX2FirstFrameConditioning.imposed(start, clean: heldFull.latent, mask: heldFull.mask)
+            // The same entry the first stage makes from noise: the picture blended in by its
+            // strength, so a partly held frame is partly held here too and a fully held one
+            // is the picture exactly.
+            start = LTX2FirstFrameConditioning.initial(noise: start, clean: heldFull.latent, mask: heldFull.mask)
         }
         MLX.eval(start)
         return try denoise(

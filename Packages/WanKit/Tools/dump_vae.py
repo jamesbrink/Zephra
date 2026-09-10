@@ -80,7 +80,11 @@ def _weights(vae, prefixes: tuple[str, ...]) -> dict[str, torch.Tensor]:
 
 
 def dump_encoder(out: pathlib.Path) -> None:
-    """The encoder side plus `quant_conv`, and two encodes: a five-frame clip and one picture.
+    """The encoder side plus `quant_conv`, and two encodes: a nine-frame clip and one picture.
+
+    Nine frames is three chunks — the first frame alone, then four, then four — which is the
+    first count that exercises the temporal downsamplers' carry from a chunk that was itself
+    carried into, the rule every later chunk of a real clip follows.
 
     The latent is the distribution's mean, `sample_mode="argmax"` in the pipeline's words: the
     first `z_dim` channels of what `quant_conv` writes, the log-variance half dropped rather than
@@ -90,7 +94,7 @@ def dump_encoder(out: pathlib.Path) -> None:
     vae = _dolls_house(seed=0)
     tensors = _weights(vae, ("encoder.", "quant_conv."))
 
-    for label, frames, latent_name in [("video", 5, "latent"), ("picture", 1, "picture_latent")]:
+    for label, frames, latent_name in [("video", 9, "latent"), ("picture", 1, "picture_latent")]:
         pixels = torch.rand(1, 3, frames, 64, 64) * 2 - 1
         with torch.no_grad():
             latent = vae.encode(pixels, return_dict=False)[0].mode()
@@ -105,7 +109,8 @@ def dump_encoder(out: pathlib.Path) -> None:
 
 
 def dump_decoder(out: pathlib.Path) -> None:
-    """The decoder side plus `post_quant_conv`, and one decode of a two-frame latent.
+    """The decoder side plus `post_quant_conv`, and one decode of a three-frame latent: three
+    chunks, so the temporal upsamplers' carry from a carried-into chunk is pinned.
 
     The latent is handed over as the decoder takes it, already denormalised; `decode` clamps
     its pixels to [-1, 1], and the fixture keeps the clamp, since the port does the same.
@@ -113,10 +118,10 @@ def dump_decoder(out: pathlib.Path) -> None:
     vae = _dolls_house(seed=1)
     tensors = _weights(vae, ("decoder.", "post_quant_conv."))
 
-    latent = torch.randn(1, 4, 2, 4, 4)
+    latent = torch.randn(1, 4, 3, 4, 4)
     with torch.no_grad():
         video = vae.decode(latent, return_dict=False)[0]
-    assert tuple(video.shape) == (1, 3, 5, 64, 64), video.shape
+    assert tuple(video.shape) == (1, 3, 9, 64, 64), video.shape
     assert video.min() >= -1 and video.max() <= 1
     tensors["in.latent"] = latent
     tensors["out.video"] = video

@@ -1041,8 +1041,11 @@ budget (tests, GPU-less builds) assumes four fifths.
 - `WanTokenizer` is Zephra's own Unigram encoder (swift-transformers aborts on
   the file's canonically equivalent pieces), pinned against Hugging Face's ids;
   `WanPromptCleaning` is the reference's `prompt_clean` without ftfy.
-- Both stacks stream under `WeightResidency.streamed`; the autoencoder decodes
-  one latent frame at a time and has no tiled path.
+- Both stacks stream under `WeightResidency.streamed`. The autoencoder runs in
+  bfloat16 (cast at load; the release is float32), decodes one latent frame at
+  a time, and tiles spatially at the engine's tile scaled to its 16-pixel cell
+  (`WanRequestMapper.vaeTile`: 32 cells for the engine's 64), each tile walking
+  every frame with a cache of its own.
 
 ### Packing plans
 

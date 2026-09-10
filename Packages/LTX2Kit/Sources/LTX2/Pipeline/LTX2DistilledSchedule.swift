@@ -22,10 +22,6 @@ public struct LTX2DistilledSchedule: Sendable, Hashable {
     /// at the first stage's sixth rung.
     public static let secondStage: [Double] = [0.909375, 0.725, 0.421875, 0.0]
 
-    /// The first stage's ladder, kept under its old name for the denoise loop, which reads it
-    /// statically until the second pass is written; a run over another ladder reads `sigmas`
-    /// on the instance.
-    public static let sigmas: [Double] = firstStage
 
     /// The ladder this schedule walks, first sigma to last.
     public let sigmas: [Double]

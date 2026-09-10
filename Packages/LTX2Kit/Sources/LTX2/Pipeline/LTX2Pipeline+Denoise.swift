@@ -42,8 +42,10 @@ extension LTX2Pipeline {
             sample = LTX2FirstFrameConditioning.initial(
                 noise: sample, clean: held.latent, mask: held.mask)
         }
+        // The first stage's key is the reference's own offset, so a one-stage clip at a seed
+        // is the clip it was; a second stage draws from an offset of its own.
         let ancestral = MLXRandom.split(
-            key: MLXRandom.key(request.seed &+ 10000 &+ UInt64(range.first)), into: total)
+            key: MLXRandom.key(request.seed &+ 10000 &+ UInt64(range.first - 1)), into: total)
         for index in 0..<total {
             try Task.checkCancellation()
             onProgress(LTX2GenerationProgress(stage: .denoising(step: range.first + index, of: range.total)))

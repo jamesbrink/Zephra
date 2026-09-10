@@ -364,6 +364,12 @@ Wan 2.2 autoencoder and Google's UMT5-XXL it carries, each recorded in
   common names and whitespace collapsed; ftfy's mojibake repair is not ported.
 - **A frame count off the `1 + 4k` ladder is a precondition**, where the
   reference drops the trailing partial chunk; the catalog clamps before it.
+- **The autoencoder runs in bfloat16**, cast at load from the release's float32,
+  and each causal 3-D convolution runs as its temporal taps of 2-D convolutions
+  one output frame at a time: the same arithmetic in another order and half the
+  bytes, for a decode that was 38 s and 25 GB of a 62 s clip in float32 and is
+  15 s and 15 GB. The fixtures pin the float32 path; the bfloat16 picture was
+  checked by eye (`BENCHMARKS.md`).
 - **The decoder returns channels-last pixels** and clamps them, as
   `LTX2VideoDecoder` does; `clip_output` is not a constructor argument in
   diffusers 0.40.0.

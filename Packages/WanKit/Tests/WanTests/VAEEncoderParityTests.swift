@@ -26,7 +26,7 @@ struct VAEEncoderParityTests {
         return autoencoder
     }
 
-    @Test("a five-frame clip encodes to the reference's two-frame latent, two chunks with the cache between")
+    @Test("a nine-frame clip encodes to the reference's three-frame latent, three chunks with the cache carried between")
     func clipMatchesTheReference() throws {
         let fixture = try Fixture.load("vae_encoder")
         let autoencoder = try Self.loaded(fixture)
@@ -35,10 +35,12 @@ struct VAEEncoderParityTests {
         let video = try #require(fixture["in.video"])
         let expected = try #require(fixture["out.latent"])
         let latent = autoencoder.encode(video)
-        #expect(latent.shape == [1, 4, 2, 4, 4])
+        #expect(latent.shape == [1, 4, 3, 4, 4])
         #expect(latent.shape == expected.shape)
-        // 5 x 64 x 64 pixels become 2 x 4 x 4 cells: 1 + (F - 1) / 4 frames, one cell per 16.
-        #expect(Self.dollsHouse.latentFrames(forPixelFrames: 5) == 2)
+        // 9 x 64 x 64 pixels become 3 x 4 x 4 cells: 1 + (F - 1) / 4 frames, one cell per 16.
+        // Three chunks, so the third is carried into from a chunk that was itself carried
+        // into, which is the rule every later chunk of a clip follows.
+        #expect(Self.dollsHouse.latentFrames(forPixelFrames: 9) == 3)
         #expect(Self.dollsHouse.spatialCompression == 16)
         let difference = Fixture.maxAbsoluteDifference(latent, expected)
         // Measured at 1.5e-7 on an M4 Max; float32 accumulation order is all that differs.

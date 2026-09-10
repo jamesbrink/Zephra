@@ -12,8 +12,8 @@ public final class WanPipeline {
         let tokenizer: WanTokenizer
         let textEncoder: UMT5TextEncoder
         let transformer: WanTransformer
-        /// Both halves: the decoder for every clip, the encoder for a held first frame. 2.8 GB
-        /// of float32 convolutions against the model's 9 GB, loaded with everything else.
+        /// Both halves: the decoder for every clip, the encoder for a held first frame. 1.4 GB
+        /// of bfloat16 convolutions against the model's 8 GB, loaded with everything else.
         let autoencoder: WanVideoAutoencoder
         /// The 48 channel means and deviations between the autoencoder and the transformer.
         let normalization: WanLatentNormalization

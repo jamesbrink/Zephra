@@ -8,7 +8,8 @@ import ZephraMLX
 ///
 /// The two halves and the two point-wise convolutions between them sit under the checkpoint's
 /// own keys, `encoder`, `decoder`, `quant_conv` and `post_quant_conv`, and the whole tree
-/// stays float32, as every other autoencoder in Zephra does. Activations are channels-last
+/// computes in the dtype its weights arrive in: float32 in the release and in the fixtures,
+/// bfloat16 as the pipeline loads it. Activations are channels-last
 /// inside; the latent crosses both doors channels-first, `[batch, channels, frames, height,
 /// width]`, because that is how every loop and every reference holds it, and pixels come in
 /// channels-first for the same reason and go out channels-last, `[batch, frames, height,

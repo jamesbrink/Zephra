@@ -19,7 +19,7 @@ struct LatentPreviewTests {
         let fixture = try Fixture.load("vae_decoder")
         let autoencoder = try VAEEncoderParityTests.loaded(fixture)
         let normalization = WanLatentNormalization(VAEDecoderParityTests.dollsHouse)
-        // 2 latent frames of 4 x 4 cells need no pooling and decode to 64 x 64.
+        // 3 latent frames of 4 x 4 cells need no pooling and decode to 64 x 64.
         let latent = try #require(fixture["in.latent"])
         let preview = WanLatentPreview.make(latent: latent, decoder: autoencoder, normalization: normalization)
         #expect(preview.width == 64)

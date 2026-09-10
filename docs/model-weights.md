@@ -500,10 +500,16 @@ as LTX-2.5's do; the token table, the patch embedding, the conditioning, the
 head and the autoencoder stay resident. The transformer evaluates every eight
 blocks when resident (`blocksPerEval`). The live preview is one latent frame of
 the finished-latent estimate, pooled to sixteen cells and decoded through the
-same decoder (`WanLatentPreview`). The decoder has no tiled path, so Automatic
-tiling changes nothing for it and `tiledPeakBytes` is the plain peak; it
-decodes one latent frame at a time with its causal cache, so the peak is the
-chunk's and not the clip's.
+same decoder (`WanLatentPreview`). The autoencoder runs in bfloat16, cast
+tensor by tensor at load from the release's float32, and every causal 3-D
+convolution runs as its temporal taps of 2-D convolutions one output frame at a
+time (`WanCausalConv3d`): float32 and MLX's 3-D convolution cost 38 s and a
+25 GB peak of a first 62 s clip, and this is 15 s and 15 GB for the same
+picture. It decodes one latent frame at a time with its causal cache, and with
+a tile it decodes in overlapping spatial tiles through `TiledDecode`, each tile
+walking every frame with a cache of its own, so `tiledPeakBytes` is the tile's
+figure; the engine's 64-cell tile is 32 of this autoencoder's cells, the same
+512 pixels (`WanRequestMapper.vaeTile`).
 
 Because it is listed before LTX-2.5 in the catalog, `ModelCatalog.animator()`
 answers with it, and Animate makes its clips here.

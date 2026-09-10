@@ -5,7 +5,7 @@ import ZephraMLX
 public nonisolated enum WanBackendFactory {
     /// The VAE tile the engine chose for the run about to start: written through `runtime`,
     /// read by every backend this factory makes. One slot per family, under a lock, as every
-    /// family has; the video decoder does not tile yet, so the value is carried and not used.
+    /// family has; the decoder tiles spatially at it, scaled to its own cell.
     private static let tile = VAETileSetting()
 
     /// A factory for fresh, idle backends running under `environment`, the switches the
