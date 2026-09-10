@@ -225,8 +225,10 @@ upscaler. Backends never import one another.
 
 `ZImageKit` is vendored; QwenImageKit, Flux2Kit and LTX2Kit are maintained here
 with their origins documented in [PROVENANCE.md](PROVENANCE.md). See
-[AGENTS.md](AGENTS.md) for module boundaries, lifecycle details, and how to add
-models. [ROADMAP.md](ROADMAP.md) tracks planned work and deferred decisions.
+[AGENTS.md](AGENTS.md) for the module boundaries and the rules, and
+[docs/](docs/README.md) for the reasoning behind each of its sections, including
+how to add models. [ROADMAP.md](ROADMAP.md) tracks planned work and deferred
+decisions.
 
 ## Development
 
