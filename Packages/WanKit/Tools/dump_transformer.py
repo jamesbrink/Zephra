@@ -15,9 +15,10 @@ three-step distilled schedule.
 
 The reference is diffusers' `WanTransformer3DModel` in the TI2V-5B configuration, shrunk to a
 doll's house: two heads of twelve, eight latent channels, a sixteen-wide text stream, two
-blocks. Every parameter is randomised, the scale-shift tables and the norms' weights included,
-which the reference initialises near zero or at one: a port that skipped one would otherwise
-pass. Weights are saved under the checkpoint's own parameter names with a `model.` prefix;
+blocks. The scale-shift tables and every norm's weight and bias are randomised, since the
+reference initialises them near zero or at one and a port that skipped one would otherwise
+pass; the linears keep their scaled default initialisation so the activations stay of order
+one. Weights are saved under the checkpoint's own parameter names with a `model.` prefix;
 `WanTransformerWeights` in Swift is the whole of the translation to the module tree, and the
 fixtures are what pin it.
 
@@ -52,8 +53,17 @@ def _model():
     torch.manual_seed(0)
     model = WanTransformer3DModel(**CONFIG).eval()
     with torch.no_grad():
-        for parameter in model.parameters():
-            parameter.normal_()
+        # The linears keep their scaled default initialisation, so activations stay of order
+        # one and a float32 tolerance means something; what the reference initialises to a
+        # constant is randomised, so a port that skipped it would be caught.
+        model.scale_shift_table.normal_()
+        for block in model.blocks:
+            block.scale_shift_table.normal_()
+            block.norm2.weight.normal_()
+            block.norm2.bias.normal_()
+            for attn in (block.attn1, block.attn2):
+                attn.norm_q.weight.normal_()
+                attn.norm_k.weight.normal_()
     return model
 
 
