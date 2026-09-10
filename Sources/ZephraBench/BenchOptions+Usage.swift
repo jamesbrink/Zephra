@@ -11,15 +11,16 @@ extension BenchOptions {
         Makefile passes MODELS_DIR) or a run may download a model the app already has.
         --size is one number for a square picture or WxH for anything else; a video model
         takes the same flag for its frame size. --frames is the clip's length on a model that
-        makes one (rounded down to the model's ladder, 8k + 1 for LTX-2.5); a picture model
+        makes one (rounded down to the model's ladder, 8k + 1 for LTX-2.5, 4k + 1 for Wan 2.2);
+        a picture model
         ignores it. A clip is written to --out with its extension changed to .mp4, and its
         first frame as a PNG beside it.
         --backend and --snapshot together run a model the catalog does not carry yet, which
         is how a new family is measured before its entry can be written.
         --reference takes any picture macOS can read and measures the editing path on a
         model that has one; the picture's own pixels add tokens, so its size is part of what
-        is being measured. On LTX-2.5 it is the clip's first frame instead, and the picture
-        is scaled to cover the clip and cropped to the middle.
+        is being measured. On LTX-2.5 and Wan 2.2 it is the clip's first frame instead, and
+        the picture is scaled to cover the clip and cropped to the middle.
         --strength (0 to 1, default 0.6) says how much of that picture to throw away, and
         what a model does with it depends on how it reads a picture. One that starts from a
         noised copy buys that share of the steps, truncated and never fewer than one, so 0.6
@@ -28,8 +29,9 @@ extension BenchOptions {
         conditions on the picture directly, pins it at 1 and ignores it. LTX-2.5 holds the
         picture as the clip's first frame and reads the flag the other way round, as 1 minus
         how strongly to hold it: 0, its default, holds the frame exactly, its bound of 0.9
-        barely holds it at all, and the whole ladder runs either way. The report, not this
-        flag, says the strength that ran and the step it began at.
+        barely holds it at all, and the whole ladder runs either way. Wan 2.2 holds the
+        frame exactly and ignores the flag. The report, not this flag, says the strength
+        that ran and the step it began at.
         --preview turns on the live preview frames the app shows while a run is going and
         reports what they cost: how many were made and the mean milliseconds one took. The
         last frame is written beside --out as <stem>.preview.png, because a frame unpacked on

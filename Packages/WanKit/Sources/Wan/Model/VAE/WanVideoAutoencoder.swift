@@ -1,6 +1,7 @@
 import Foundation
 import MLX
 import MLXNN
+import ZephraMLX
 
 /// Wan 2.2's video autoencoder, `AutoencoderKLWan` in the residual configuration: pixels to
 /// a 48-channel latent at a sixteenth of the size and a quarter of the frames, and back.
@@ -70,8 +71,25 @@ public final class WanVideoAutoencoder: Module {
     /// Decodes a latent in the autoencoder's own space, `[batch, channels, frames', height',
     /// width']`, to pixels `[batch, frames, height, width, 3]` clamped to -1 to 1, as the
     /// reference's `decode` clamps them.
-    public func decode(_ latent: MLXArray) -> MLXArray {
+    ///
+    /// With a `tile`, an edge in latent cells, the clip is decoded in overlapping spatial
+    /// tiles through `TiledDecode`, each tile walking every frame with a cache of its own, and
+    /// cross-faded where they meet: the decode's peak is then the tile's and not the clip's.
+    /// The 1 x 1 `post_quant_conv` runs first, whole, since it reads no neighbour.
+    public func decode(_ latent: MLXArray, tile: Int? = nil) -> MLXArray {
         let x = postQuantConv(latent.transposed(0, 2, 3, 4, 1).asType(dtype))
+        guard let tile, tile < max(x.dim(2), x.dim(3)) else { return decodeWhole(x) }
+        // Frames ride in the batch slot: the tiler cuts and joins axes 1 and 2 and passes the
+        // rest through, and every tile decodes to the same frame count.
+        let tiled = TiledDecode.run(x[0], tile: tile, scale: configuration.spatialCompression) { patch in
+            decodeWhole(patch[.newAxis])[0]
+        }
+        return tiled[.newAxis]
+    }
+
+    /// The whole of `x`, `[batch, frames', height', width', channels]` past the 1 x 1
+    /// convolution, one latent frame per chunk.
+    private func decodeWhole(_ x: MLXArray) -> MLXArray {
         let cache = WanFeatureCache()
         let chunks = (0..<x.dim(1)).map { frame in
             run(x[0..., frame..<(frame + 1)], cache: cache) {

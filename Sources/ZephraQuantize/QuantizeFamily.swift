@@ -2,6 +2,7 @@ import Foundation
 import ZephraBackendFlux2
 import ZephraBackendLTX2
 import ZephraBackendQwenImage
+import ZephraBackendWan
 import ZephraBackendZImage
 import ZephraCore
 import ZephraQuantization
@@ -16,6 +17,7 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
     case qwenImage = "qwen-image"
     case flux2 = "flux2"
     case ltx2 = "ltx2"
+    case wan = "wan"
 
     /// Every value `--family` accepts, for the usage text.
     static var names: String { allCases.map(\.rawValue).joined(separator: "|") }
@@ -28,6 +30,7 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
         case .qwenImage: "qwen-image-2512-4bit"
         case .flux2: "flux2-klein-4b-4bit"
         case .ltx2: "ltx-2.5-distilled-4bit"
+        case .wan: "wan-2.2-ti2v-5b-4bit"
         }
     }
 
@@ -38,6 +41,7 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
         case .qwenImage: "Qwen/Qwen-Image-2512"
         case .flux2: "black-forest-labs/FLUX.2-klein-4B"
         case .ltx2: "mlx-community/ltx-2.5-mlx"
+        case .wan: "FastVideo/FastWan2.2-TI2V-5B-FullAttn-Diffusers"
         }
     }
 
@@ -59,6 +63,9 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
     ///
     /// LTX-2.5 omits its audio stream and holds its two embeddings at eight bits; it merges no
     /// adapter, so `adapters` is refused rather than silently dropped.
+    ///
+    /// Wan 2.2 holds its conditioning and UMT5's token table at eight bits, and likewise merges
+    /// no adapter: FastWan's distillation is in the weights already.
     ///
     /// `adapters` are merged into whichever component the family adapts, which for every family
     /// here is the diffusion transformer.
@@ -91,6 +98,17 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
                 transformer: transformer,
                 textEncoder: textEncoder,
                 embeddings: transformer.bits < 8
+                    ? try QuantizationPrecision(bits: 8, groupSize: transformer.groupSize)
+                    : transformer
+            )
+        case .wan:
+            if !adapters.isEmpty {
+                throw QuantizeUsageError.adapterNotRead(family: rawValue)
+            }
+            return WanQuantizationPlan.plan(
+                transformer: transformer,
+                textEncoder: textEncoder,
+                conditioning: transformer.bits < 8
                     ? try QuantizationPrecision(bits: 8, groupSize: transformer.groupSize)
                     : transformer
             )

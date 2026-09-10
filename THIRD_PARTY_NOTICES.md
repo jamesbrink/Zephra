@@ -136,6 +136,29 @@ reference was followed, and `PROVENANCE.md` lists the departures.
 its code. It was run to cross-check the audio-free forward and nothing was
 copied from it.
 
+### Wan 2.2 port (`Packages/WanKit`)
+
+`Packages/WanKit` is Zephra's own code, an MLX Swift implementation of Wan 2.2
+TI2V-5B — the video transformer, the UMT5-XXL text encoder and its tokenizer,
+and the 2.2 video autoencoder — written in the same style as `LTX2Kit` and
+covered by Zephra's own license. It was written from the Apache-2.0 reference
+implementations in `diffusers` and `transformers` and from the release's own
+configuration files, and its behaviour is pinned against them by tensors dumped
+from both (see `Packages/WanKit/Tools/dump_reference.py`). No other port of Wan
+was read; `PROVENANCE.md` lists the departures.
+
+- **diffusers** — https://github.com/huggingface/diffusers — Copyright 2024
+  The HuggingFace Team — Apache License 2.0 — the Wan transformer, its rotary
+  embedding, the Wan autoencoder and the image-to-video pipeline's first-frame
+  conditioning the port is defined against and dumps its fixtures from.
+- **transformers** — https://github.com/huggingface/transformers — Copyright
+  2018- The Hugging Face team — Apache License 2.0 — the UMT5 encoder the
+  text encoder is defined against and dumps its fixtures from.
+- **FastVideo** — https://github.com/hao-ai-lab/FastVideo — Copyright 2025
+  the FastVideo team — Apache License 2.0 — the distribution-matching sampler
+  read for the three timesteps, the training noise shift and the re-noising
+  between steps; no code was taken.
+
 ### Real-ESRGAN upscaler (`Packages/ZephraUpscaleRealESRGAN`)
 
 `Packages/ZephraUpscaleRealESRGAN` is Zephra's own code, an MLX Swift
@@ -253,14 +276,26 @@ user's own machine, which the `make quantize*` targets also do by hand.
   repositories are gated behind a click-through of the same license, which
   Zephra cannot perform, so the catalog names this redistribution.
 
+- **FastVideo/FastWan2.2-TI2V-5B-FullAttn-Diffusers** —
+  https://huggingface.co/FastVideo/FastWan2.2-TI2V-5B-FullAttn-Diffusers —
+  Copyright 2025 the FastVideo team — License: Apache License 2.0 — the
+  three-step distilled Wan 2.2 TI2V-5B transformer, the Wan 2.2 autoencoder
+  and the UMT5-XXL text encoder with its tokenizer, in Diffusers layout.
+  FastVideo distilled it from **Wan-AI/Wan2.2-TI2V-5B-Diffusers**
+  (Copyright 2025 Alibaba Wan Team — Apache License 2.0), whose text encoder
+  is Google's UMT5-XXL (Copyright Google LLC — Apache License 2.0), so one
+  license covers every file the build reads.
+
 None of the locally built variants is downloaded and none is redistributed. The
 app derives each of them on the user's own Mac, the first time one is loaded:
 the 4-bit Z-Image variant from **Tongyi-MAI/Z-Image-Turbo** above, the
 Qwen-Image variant from **Qwen/Qwen-Image-2512** with the **Lightning** adapter
 merged into its transformer, the two FLUX.2 klein variants from
-**black-forest-labs/FLUX.2-klein-4B**, and the LTX-2.5 variant from
-**mlx-community/ltx-2.5-mlx**. The `make quantize`, `make quantize-qwen`,
-`make quantize-flux2` and `make quantize-ltx2` targets do the same builds by hand. All are written to
+**black-forest-labs/FLUX.2-klein-4B**, the LTX-2.5 variant from
+**mlx-community/ltx-2.5-mlx**, and the Wan 2.2 variant from
+**FastVideo/FastWan2.2-TI2V-5B-FullAttn-Diffusers**. The `make quantize`,
+`make quantize-qwen`, `make quantize-flux2`, `make quantize-ltx2` and
+`make quantize-wan` targets do the same builds by hand. All are written to
 the folder Settings > Models names. Each is a modified
 form of Apache-2.0 weights — for the Qwen build, of two sets of them — so the
 Apache License 2.0 that covers those covers the result too.

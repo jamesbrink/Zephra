@@ -2,9 +2,9 @@
 
 Zephra may ship commercially, so where each of its own model implementations
 came from is a legal question and not only a technical one. This file records
-the answers while they are still checkable. `Packages/QwenImageKit` is a
-clean-room port; `Packages/Flux2Kit` and `Packages/LTX2Kit` are translations
-with attribution. The claims are different, and each section says which it is
+the answers while they are still checkable. `Packages/QwenImageKit` and
+`Packages/WanKit` are clean-room ports; `Packages/Flux2Kit` and
+`Packages/LTX2Kit` are translations with attribution. The claims are different, and each section says which it is
 making.
 
 # `Packages/QwenImageKit`
@@ -306,3 +306,75 @@ from Apache-2.0 references, with MIT- and Apache-licensed ports read and
 credited, and nothing in it derives from a GPL-licensed or unlicensed source.
 The git history shows each component landing with its fixture, and
 `WeightKeyCoverageTests` pins the pack's key set against the module trees.
+
+# `Packages/WanKit`
+
+## The short version
+
+`Packages/WanKit` is a clean-room implementation in the sense `Packages/QwenImageKit`
+is: written from the release's own configuration files and from the Apache-2.0
+reference implementations in `huggingface/diffusers` (the Wan transformer, its
+rotary embedding, the Wan autoencoder, the image-to-video pipeline's first-frame
+conditioning) and `huggingface/transformers` (the UMT5 encoder), with every
+fixture in `Tests/WanTests/Fixtures` dumped from them by `Tools/dump_reference.py`.
+**No other port of Wan was read** — not `Wan-Video/Wan2.2`, not a ComfyUI or MLX
+port — and no GPL-licensed source was consulted. The one further source is
+FastVideo's own Apache-2.0 repository, read for the three timesteps, the
+training noise shift and the re-noising rule of its distribution-matching
+sampler; no code was taken from it.
+
+The weights are Apache-2.0 throughout: FastVideo's distilled checkpoint, the
+Wan 2.2 autoencoder and Google's UMT5-XXL it carries, each recorded in
+`THIRD_PARTY_NOTICES.md`.
+
+## What was used
+
+| Reference | License | What was taken |
+|---|---|---|
+| `FastVideo/FastWan2.2-TI2V-5B-FullAttn-Diffusers` configs and headers | Apache 2.0 | Every architectural constant and every tensor name: the transformer's 30 blocks of 24 heads by 128, its patch of 1 x 2 x 2 and 48 latent channels, UMT5's 24 blocks of 64 heads by 64 with 32 buckets over 128 positions, the autoencoder's 160/256 widths, `[1, 2, 4, 4]` multipliers, temporal downsampling on the last two stages, patch size 2 and the 48 published channel means and deviations. |
+| `huggingface/diffusers` | Apache 2.0 | The reference behaviour of `WanTransformer3DModel` (the per-token modulation, the across-heads RMS norm on query and key, the three-axis rotary split of 44/42/42), `AutoencoderKLWan` in its 2.2 residual layout with its causal feature cache and chunked encode and decode, and `WanImageToVideoPipeline`'s `expand_timesteps` conditioning — the first-frame mask, the per-token timestep, the imposition after each step; and every fixture for them. |
+| `huggingface/transformers` | Apache 2.0 | The reference behaviour of `UMT5EncoderModel`: the per-block relative-position bias, the bidirectional bucket function, the RMS layer norm, the gated GELU feed-forward, attention scaling of 1, and `T5Tokenizer`'s ids for the tokenizer fixture; and every fixture for it. |
+| `hao-ai-lab/FastVideo` | Apache 2.0 | Read for the DMD sampler: timesteps `1000, 757, 522`, the training noise shift of 8, `x0 = x - sigma * v` at the nearest grid sigma, and `(1 - sigma_next) * x0 + sigma_next * noise` between steps. No code was taken. |
+
+## What was not
+
+- `Wan-Video/Wan2.2` and `Wan-Video/Wan2.1`: not opened.
+- Any ComfyUI, MLX or other port of Wan: not opened.
+
+## Where this port departs from its sources, on purpose
+
+- **Image-to-video on the distilled weights.** FastWan was distilled
+  text-to-video; the first-frame conditioning is the reference pipeline's
+  `expand_timesteps` mechanism run with the DMD sampler. The two compose without
+  a change to either, and the frame is held exactly; a strength would be a
+  different mechanism.
+- **The timestep field is embedded once per distinct value** and gathered per
+  token (`WanTimestepField`), rather than the reference's `[B, seq, 6, 3072]`
+  held across every block; the arithmetic is identical and pinned by the
+  per-token fixtures.
+- **The time embedder runs in float32** with its output cast to the stream, as
+  diffusers keeps it under a bfloat16 load; the head's `scale_shift_table + temb`
+  is float32 too. Schedule sigmas are computed in `Double`.
+- **The tokenizer is Zephra's own Unigram** (`WanTokenizer`): swift-transformers
+  0.1.24 aborts on the vocabulary's canonically equivalent pieces. It follows
+  transformers 5.16.1's constructed backend (whitespace split, Metaspace, `</s>`
+  appended, no normaliser), and unknown characters become the file's `<unk>`
+  (id 3) where transformers' `T5Tokenizer` hard-codes id 2.
+- **`prompt_clean` without ftfy**: entities are unescaped from a table of
+  common names and whitespace collapsed; ftfy's mojibake repair is not ported.
+- **A frame count off the `1 + 4k` ladder is a precondition**, where the
+  reference drops the trailing partial chunk; the catalog clamps before it.
+- **The decoder returns channels-last pixels** and clamps them, as
+  `LTX2VideoDecoder` does; `clip_output` is not a constructor argument in
+  diffusers 0.40.0.
+- **Only the 2.2 residual autoencoder layout** is ported: `is_residual: false`,
+  `attn_scales`, tiling, slicing and sampling from the distribution are not.
+- **No M5 gate**: the stream is bfloat16 on every GPU (`WanActivationPrecision`).
+
+## If this ever needs re-checking
+
+The claim to defend: every file in `Packages/WanKit` was written by Zephra from
+Apache-2.0 references and the release's own configs, and nothing in it derives
+from another port. The git history shows each component landing with its
+fixture, and the three `*WeightKeyTests` suites pin the release's key sets
+against the module trees, tensor for tensor.

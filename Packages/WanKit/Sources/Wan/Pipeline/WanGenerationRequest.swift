@@ -20,10 +20,12 @@ public struct WanGenerationRequest: Sendable {
     public var seed: UInt64
     /// A picture to hold as the first frame, or nil for text to video.
     public var firstFrame: WanFirstFrame?
+    /// The decoder's tile edge in latent cells, or nil for the exact, untiled decode.
+    public var vaeTile: Int?
 
     public init(
         prompt: String, width: Int, height: Int, frames: Int, frameRate: Double = WanKit.frameRate,
-        seed: UInt64, firstFrame: WanFirstFrame? = nil
+        seed: UInt64, firstFrame: WanFirstFrame? = nil, vaeTile: Int? = nil
     ) {
         self.prompt = prompt
         self.width = width
@@ -32,5 +34,6 @@ public struct WanGenerationRequest: Sendable {
         self.frameRate = frameRate
         self.seed = seed
         self.firstFrame = firstFrame
+        self.vaeTile = vaeTile
     }
 }

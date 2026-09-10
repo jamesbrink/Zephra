@@ -51,12 +51,16 @@ packages:
     path: Packages/ZephraBackendFlux2
   ZephraBackendLTX2:
     path: Packages/ZephraBackendLTX2
+  ZephraBackendWan:
+    path: Packages/ZephraBackendWan
   ZephraUpscaleRealESRGAN:
     path: Packages/ZephraUpscaleRealESRGAN
   Flux2Kit:
     path: Packages/Flux2Kit
   LTX2Kit:
     path: Packages/LTX2Kit
+  WanKit:
+    path: Packages/WanKit
   QwenImageKit:
     path: Packages/QwenImageKit
   ZImageKit:
@@ -83,6 +87,8 @@ targets:
         product: ZephraBackendFlux2
       - package: ZephraBackendLTX2
         product: ZephraBackendLTX2
+      - package: ZephraBackendWan
+        product: ZephraBackendWan
       - package: ZephraUpscaleRealESRGAN
         product: ZephraUpscaleRealESRGAN
       # Linked by name: SwiftUI's VideoPlayer lives in an AVKit overlay whose superclass is
@@ -147,6 +153,8 @@ targets:
         product: ZephraBackendFlux2
       - package: ZephraBackendLTX2
         product: ZephraBackendLTX2
+      - package: ZephraBackendWan
+        product: ZephraBackendWan
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.zephra.ZephraBench
@@ -173,6 +181,8 @@ targets:
         product: ZephraBackendFlux2
       - package: ZephraBackendLTX2
         product: ZephraBackendLTX2
+      - package: ZephraBackendWan
+        product: ZephraBackendWan
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.zephra.ZephraQuantize

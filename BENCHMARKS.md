@@ -110,7 +110,7 @@ bf16 release (without the root single-file checkpoint). halcyon, four steps:
 
 ## LTX-2.5 4-bit, video only
 
-`ltx-2.5-distilled-4bit`, packed here from the 69.6 GB `mlx-community/ltx-2.5-mlx`
+`ltx-2.5-distilled-4bit`, packed here from the 70.6 GB `mlx-community/ltx-2.5-mlx`
 pack in 88 s once the pack is local. 19.84 GB out (`builtBytes`, measured:
 19,843,588,073 bytes): 8.56 GB of transformer, 1.89 of connector, 8.00 of Gemma,
 and the 0.81 GB video decoder and 0.64 GB video encoder copied as they are,
@@ -147,6 +147,38 @@ holding a first frame:
 - bender's run was straight after the variant landed from the mirror, and the
   first run made a coherent picture. **Owed a rerun** on an idle disk.
 - The run: `make bench ARGS="--model ltx-2.5-distilled-4bit --size 768x512 --frames 49"`.
+
+## Wan 2.2 TI2V-5B 4-bit
+
+`wan-2.2-ti2v-5b-4bit`, packed here from the 24.2 GB
+`FastVideo/FastWan2.2-TI2V-5B-FullAttn-Diffusers` release in 36 s once the release
+is local. 10.09 GB out (`builtBytes`, measured: 10,090,839,207 bytes): 3.18 GB of
+transformer (blocks at four bits, the conditioning at eight), 4.09 GB of UMT5
+(blocks at four bits, the token table at eight), the 2.83 GB autoencoder copied
+as it is in float32, and the tokenizer. Measured 2026-09-10 on halcyon, idle,
+three steps, 832 x 480 and 49 frames, the autoencoder run in bfloat16:
+
+| Weights | Seconds | s/step | Live | Peak | Load |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| resident | 31.8 | 5.41 | 7996 MB | 15079 MB | 1.8 s |
+| resident, tiled (engine tile 64) | 49.8 | 5.44 | 7996 MB | 12374 MB | |
+| streamed, both stacks | 36.0 | 6.09 | 2625 MB | 9708 MB | 0.4 s |
+| resident, holding a first frame | 37.1 | 6.24 | 7996 MB | 15079 MB | |
+
+- The peak is the decode's, not the load's (8.8 GB) and not the transformer's
+  (11.2 GB): the decoder's last stage at 240 x 416 cells of 256 channels over a
+  four-frame chunk. Three things brought it down from a first 25.5 GB and 62 s:
+  the autoencoder in bfloat16 rather than the release's float32 (38 s of decode
+  to 29, 25.5 GB to 16.1), each causal 3-D convolution run as its temporal taps
+  of 2-D convolutions (29 s to 14, since MLX's 3-D convolution unfolds on
+  Metal), and one output frame convolved at a time (20.8 GB to 15.1, since the
+  buffers of every convolution in a command buffer stay allocated until it has
+  run). The decode is still about 15 s of the 32.
+- The tile saves less here than it does the pictures, since a 512-pixel tile is
+  most of a 480-pixel frame, and costs its overlap in decode time; a 16 GB Mac
+  (12.1 GB working set) streams instead, which is both faster and smaller.
+- The run: `make bench ARGS="--model wan-2.2-ti2v-5b-4bit --size 832x480 --frames 49"`;
+  `--reference <png>` holds the picture as the first frame.
 
 ## Real-ESRGAN upscaler
 

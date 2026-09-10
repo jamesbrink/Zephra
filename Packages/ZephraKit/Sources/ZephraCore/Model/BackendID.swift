@@ -29,4 +29,7 @@ public struct BackendID: Hashable, Sendable, RawRepresentable, ExpressibleByStri
 
     /// The LTX-2 family of text-to-video models.
     public static let ltx2 = BackendID("ltx2")
+
+    /// The Wan 2.2 family of text- and image-to-video models.
+    public static let wan = BackendID("wan")
 }

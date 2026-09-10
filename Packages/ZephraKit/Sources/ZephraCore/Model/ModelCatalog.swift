@@ -91,7 +91,7 @@ public enum ModelCatalog {
     /// measurement error rather than by a decision.
     public static let all: [ModelDescriptor] = [
         zImageTurbo8bit, flux2Klein4bit, flux2Klein8bit, zImageTurbo4bit, qwenImage2512_4bit,
-        ltx2Distilled4bit,
+        wan22TI2V5B4bit, ltx2Distilled4bit,
     ]
 
     /// The model selected on first launch when nothing is known about the machine.

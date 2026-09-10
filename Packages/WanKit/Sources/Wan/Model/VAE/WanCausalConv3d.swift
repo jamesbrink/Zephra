@@ -48,7 +48,42 @@ final class WanCausalConv3d: Conv3d {
         if padding > 0 {
             input = padded(input, widths: [0, [padding, 0], 0, 0, 0])
         }
-        return super.callAsFunction(input)
+        return taps(input)
+    }
+
+    /// The convolution as two-dimensional convolutions, one per output frame and temporal tap,
+    /// summed over the taps.
+    ///
+    /// Not `Conv3d`'s own forward: MLX's three-dimensional convolution unfolds its input on
+    /// Metal, and over a decoder stage a thousand channels wide at a clip's size that is both
+    /// the slowest thing in a run and its memory peak (38 s and 25 GB of a 55 s clip at
+    /// 832 x 480). Its two-dimensional convolution runs through a GEMM, and unfolds too, so
+    /// the frames are not folded into the batch either: one output frame at a time keeps the
+    /// unfolded input to a frame's worth, which is what bounds the decode's peak. The
+    /// arithmetic is the reference's in another order. The temporal stride picks the frames;
+    /// the spatial stride and padding are the layer's own.
+    private func taps(_ input: MLXArray) -> MLXArray {
+        let depth = weight.dim(1)
+        let outputFrames = (input.dim(1) - depth) / stride.0 + 1
+        let frames = (0..<outputFrames).map { frame -> MLXArray in
+            var sum: MLXArray?
+            for tap in 0..<depth {
+                let y = conv2d(
+                    input[0..., frame * stride.0 + tap], weight[0..., tap],
+                    stride: .init((stride.1, stride.2)), padding: .init((padding.1, padding.2)),
+                    dilation: .init((dilation.1, dilation.2)), groups: groups)
+                sum = sum.map { $0 + y } ?? y
+            }
+            // Evaluated here, one frame at a time: a convolution unfolds its input on Metal,
+            // and the buffers of every convolution in one command buffer stay allocated until
+            // it has run, so twelve of them in flight over a 240 x 416 frame of 256 channels
+            // held six gigabytes. One sync a frame keeps the unfold to one frame's taps.
+            let frame = sum!
+            eval(frame)
+            return frame
+        }
+        let result = stacked(frames, axis: 1)
+        return bias.map { result + $0 } ?? result
     }
 
     /// The reference's rule for a convolution inside a block: carry the last two frames of the

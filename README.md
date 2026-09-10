@@ -2,8 +2,8 @@
 
 A native macOS app for local image generation on Apple Silicon, powered by
 MLX and Metal. Generate and edit with **Z-Image-Turbo**, **Qwen-Image-2512**,
-and **FLUX.2 klein 4B**, make short clips with **LTX-2.5**, then upscale with
-**Real-ESRGAN**.
+and **FLUX.2 klein 4B**, make short clips with **Wan 2.2** and **LTX-2.5**, then
+upscale with **Real-ESRGAN**.
 
 - **Local and private:** inference stays on your Mac, with no image uploads,
   accounts, or telemetry. Model downloads require an internet connection.
@@ -66,7 +66,8 @@ Optional downloads ahead of launch:
 
 ```sh
 make prefetch-flux2  # FLUX.2 klein source, shared by its 4-bit and 8-bit variants
-make prefetch-ltx2   # LTX-2.5 source (69 GB), onto external storage by default
+make prefetch-ltx2   # LTX-2.5 source (71 GB), onto external storage by default
+make prefetch-wan    # Wan 2.2 source (24 GB), onto external storage by default
 make prefetch       # Z-Image-Turbo 8-bit, ready to load
 ```
 
@@ -86,7 +87,7 @@ or guarantees for every Mac. Reference-image editing can use more memory.
 | Z-Image-Turbo, 8-bit | 13.3 GB | — | 12.2 GB | 23.5 / 17.7 GB |
 | Z-Image-Turbo, 4-bit | 32.9 GB | 7.1 GB | 6.6 GB | 17.8 / 12.0 GB |
 | Qwen-Image-2512, 4-bit | 59.4 GB | 21.6 GB | 21.5 GB | 30.4 / 26.1 GB |
-| LTX-2.5, 4-bit, video only | 69.6 GB | 19.8 GB | 18.2 GB | 22.4 GB at 768×512, 49 frames |
+| LTX-2.5, 4-bit, video only | 70.6 GB | 19.8 GB | 18.2 GB | 22.4 GB at 768×512, 49 frames |
 
 The source download is retained alongside the built copy, so allow space for
 both. Qwen-Image's download includes its four-step Lightning adapter, merged

@@ -34,6 +34,7 @@ MODELS_AND_SIZES=(
   "z-image-turbo-8bit 1344x768 mzbac--Z-Image-Turbo-8bit"
   "z-image-turbo-4bit 1344x768 Tongyi-MAI--Z-Image-Turbo"
   "qwen-image-2512-4bit 1664x928 Qwen--Qwen-Image-2512"
+  "wan-2.2-ti2v-5b-4bit 832x480 FastVideo--FastWan2.2-TI2V-5B-FullAttn-Diffusers"
   "ltx-2.5-distilled-4bit 768x512 mlx-community--ltx-2.5-mlx"
 )
 
@@ -51,9 +52,9 @@ for entry in "${MODELS_AND_SIZES[@]}"; do
       continue
     fi
     echo "== $id at $size"
-    # LTX makes a clip; its poster is written beside the MP4 and is what the card shows.
+    # A clip model's poster is written beside the MP4 and is what the card shows.
     frames=""
-    case "$id" in *ltx*) frames="--frames 9" ;; esac
+    case "$id" in *ltx*) frames="--frames 9" ;; *wan*) frames="--frames 9" ;; esac
     "$BENCH" --models "$MODELS" --model "$id" --size "$size" --runs 1 \
       --prompt "$PROMPT" --out "$out" $frames || { echo "-- skipped $id"; continue; }
   fi

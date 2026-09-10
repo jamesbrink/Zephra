@@ -2,6 +2,7 @@ import Foundation
 import ZephraBackendFlux2
 import ZephraBackendLTX2
 import ZephraBackendQwenImage
+import ZephraBackendWan
 import ZephraBackendZImage
 import ZephraCore
 
@@ -18,6 +19,7 @@ enum BenchBackends {
         registry.register(.qwenImage, QwenImageBackendFactory.make(environment))
         registry.register(.flux2, Flux2BackendFactory.make(environment))
         registry.register(.ltx2, LTX2BackendFactory.make(environment))
+        registry.register(.wan, WanBackendFactory.make(environment))
         return registry
     }
 
@@ -32,6 +34,7 @@ enum BenchBackends {
         case .qwenImage: QwenImageBackendFactory.runtime
         case .flux2: Flux2BackendFactory.runtime
         case .ltx2: LTX2BackendFactory.runtime
+        case .wan: WanBackendFactory.runtime
         default: ZImageBackendFactory.runtime
         }
     }

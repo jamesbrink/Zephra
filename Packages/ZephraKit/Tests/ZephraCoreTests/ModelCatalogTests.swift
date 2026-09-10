@@ -75,9 +75,11 @@ struct ModelCatalogTests {
         #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo4bit, physicalMemory: memory) == .fits)
         // 23.5 GB untiled is over the 19.3 GB budget; 17.7 GB tiled is under it.
         #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo8bit, physicalMemory: memory) == .fitsTiled)
-        // Both Z-Image variants, both klein variants, Qwen-Image streamed, and LTX-2.5
-        // streamed: its measured 21.8 GB peak is over the 19.3 GB budget.
-        #expect(ModelCatalog.fitting(physicalMemory: memory).count == 6)
+        // Both Z-Image variants, both klein variants, Qwen-Image streamed, Wan 2.2 tiled
+        // (12.4 GB under the 19.3 GB budget), and LTX-2.5 streamed: its measured 21.8 GB
+        // peak is over it.
+        #expect(ModelCatalog.fitting(physicalMemory: memory).count == 7)
+        #expect(ModelCatalog.fit(ModelCatalog.wan22TI2V5B4bit, physicalMemory: memory) == .fits)
         #expect(ModelCatalog.fit(ModelCatalog.qwenImage2512_4bit, physicalMemory: memory) == .fitsStreamed)
     }
 
@@ -113,6 +115,7 @@ struct ModelCatalogTests {
                 ModelCatalog.flux2Klein8bit,
                 ModelCatalog.zImageTurbo4bit,
                 ModelCatalog.qwenImage2512_4bit,
+                ModelCatalog.wan22TI2V5B4bit,
                 ModelCatalog.ltx2Distilled4bit,
             ],
             "the order is what a picker shows and what default(fitting:) walks, so a model that needs a larger Mac than the ones before it goes last; klein 4-bit sits before 8-bit so a 16 GB Mac lands on it by construction rather than by a measurement within a gigabyte of the budget"
@@ -144,6 +147,42 @@ struct ModelCatalogTests {
         #expect(patterns.contains("vae/*") && patterns.contains("transformer/*"))
     }
 
+    @Test("the Wan 2.2 entry is the quick clip family: three fixed steps, a first frame held exactly")
+    func wanIsTheQuickClipFamily() {
+        let descriptor = ModelCatalog.wan22TI2V5B4bit
+        #expect(descriptor.backend == .wan)
+        #expect(descriptor.isBuiltLocally && descriptor.isPublishedPrebuilt)
+        #expect(descriptor.streamedPeakBytes > 0)
+        #expect(descriptor.capabilities.producesVideo)
+        #expect(descriptor.capabilities.frameBounds == 5...121)
+        #expect(descriptor.capabilities.frameAlignment == 4)
+        #expect(descriptor.capabilities.defaultFrames == 49)
+        #expect(descriptor.capabilities.stepBounds == 3...3)
+        #expect(descriptor.capabilities.guidanceBounds == 0...0)
+        #expect(!descriptor.capabilities.supportsNegativePrompt)
+        // A picture is the first frame and stays it: no strength, so no slider.
+        #expect(descriptor.capabilities.supportsReferenceImage)
+        #expect(!descriptor.capabilities.adjustsReferenceStrength)
+        #expect(descriptor.maxPromptTokens == 512)
+        guard case .huggingFace(let repoID, _, let patterns) = descriptor.source else {
+            Issue.record("Wan 2.2 downloads from the hub")
+            return
+        }
+        #expect(repoID == "FastVideo/FastWan2.2-TI2V-5B-FullAttn-Diffusers")
+        #expect(patterns.contains("transformer/*") && patterns.contains("tokenizer/*"))
+        #expect(!patterns.contains("assets/*") && !patterns.contains("examples/*"))
+        // Listed before LTX-2.5, so Animate picks it.
+        #expect(ModelCatalog.animator() == descriptor)
+        for frames in [5, 49, 121] {
+            var settings = GenerationSettings.defaults(for: descriptor)
+            settings.frames = frames
+            #expect(descriptor.capabilities.clamp(settings).frames == frames)
+        }
+        var odd = GenerationSettings.defaults(for: descriptor)
+        odd.frames = 30
+        #expect(descriptor.capabilities.clamp(odd).frames == 29)
+    }
+
     @Test("the LTX-2.5 entry is video only, built from the ungated mirror pack, and makes clips")
     func ltx2IsVideoOnly() {
         let descriptor = ModelCatalog.ltx2Distilled4bit
@@ -173,7 +212,8 @@ struct ModelCatalogTests {
         #expect(
             patterns.contains("vae_encoder.safetensors"),
             "the first frame a clip is held from is encoded by the autoencoder's own encoder")
-        #expect(!patterns.contains { $0.contains("audio") || $0.contains("vocoder") || $0.contains("upscaler") })
+        #expect(patterns.contains("spatial_upscaler_x2_v1_1.safetensors"), "the second stage doubles the latent with it")
+        #expect(!patterns.contains { $0.contains("audio") || $0.contains("vocoder") || $0.contains("temporal") })
         #expect(patterns.contains("LICENSE.md"), "the LTX-2.x license travels with the weights")
         for frames in [9, 49, 121] {
             var settings = GenerationSettings.defaults(for: descriptor)

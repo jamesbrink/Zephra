@@ -336,15 +336,40 @@ the frame exactly, which is what image-to-video means, and 0.9 holds it barely.
 A bound of 1 is not offered: at 1 the frame is not held at all, which is
 text-to-video with an ignored picture.
 
+**Two stages** is the reference's own route to a large frame, and `LTX2StagePlan`
+in the backend decides when a clip takes it: a frame whose short edge is 512
+or more and whose edges halve onto the 32-pixel grid (multiples of 64) runs the
+eight-step ladder at half the size, doubles the latent through the pack's
+spatial upsampler, noises the doubled latent to the second ladder's top
+(`LTX2DistilledSchedule.secondStage`, `0.909375, 0.725, 0.421875, 0`) and walks
+its three steps at the full size — most of a one-stage run's quality for about
+three fifths of its step cost, since stage one runs on a quarter of the tokens.
+`LTX2LatentUpsampler` is diffusers' `LTX2LatentUpsamplerModel` in its x2
+spatial, non-rational form: a 128 to 1024 convolution, four residual blocks of
+3-D convolutions and 32-group norms, a per-frame 2-D convolution folded into a
+2 x 2 pixel shuffle, four more blocks and the projection back; it works in the
+autoencoder's own space, so `upsample` denormalises by the decoder's
+per-channel statistics on the way in and normalises on the way out. The pack
+ships it as `spatial_upscaler_x2_v1_1.safetensors`, a gigabyte of bf16 already
+in MLX's channels-last layout, and the plan copies it whole into an `upsampler`
+component; a variant packed before it was part of the build reads as unbuilt.
+A held first frame is encoded at each size, and after the noising the full-size
+picture is put back over the doubled latent's first frame. The run reports the
+eleven steps as one count (`LTX2StepRange`); the record still says the ladder's
+eight. The temporal upsampler, the rational resampler and the tone map are not
+ported. `ZEPHRA_VIDEO_STAGES=1|2` forces either for a launch.
+
 **Lightricks' own repositories are gated.** `Lightricks/LTX-2.5` and its
 diffusers layout answer 401 without a logged-in token that has clicked through
 the license, and Zephra sends no token, so the catalog names the ungated
 `mlx-community/ltx-2.5-mlx` pack instead: the same bf16 weights, one file per
-component, `LICENSE.md` beside them. The plan reads five of its files — the
+component, `LICENSE.md` beside them. The plan reads six of its files — the
 38 GB distilled transformer, the 6.3 GB connector, the 23.8 GB Gemma encoder
-with its tokenizer, the 0.8 GB video decoder and the 0.64 GB video encoder a
-held first frame is read by — 69.6 GB in all, and omits the audio autoencoder,
-the vocoder, the upscalers and the dev transformer by pattern. The gated case
+with its tokenizer, the 0.8 GB video decoder, the 0.64 GB video encoder a
+held first frame is read by, and the 1.0 GB spatial latent upscaler the second
+stage doubles the latent with — 70.6 GB in all, and omits the audio
+autoencoder, the vocoder, the temporal upscaler and the dev transformer by
+pattern. The gated case
 is why the packed variant is published on the mirror as part of first light
 and not afterwards: the mirror is the path users take, and the pack is the
 fallback.
@@ -408,6 +433,80 @@ nine frames plus an MP4 encode (`ROADMAP.md`). The decoder has no tiled path,
 so Automatic tiling changes nothing for it and `tiledPeakBytes` is the plain
 peak. Nothing tells the running-run inspector a clip's length yet; it shows the
 steps as it does for every family.
+
+### Wan 2.2 TI2V-5B: `wan-2.2-ti2v-5b-4bit`
+
+**Wan 2.2 TI2V-5B** (Alibaba's Wan team, Apache-2.0) is a 5-billion-parameter
+video DiT of 30 blocks — self-attention with an RMS norm over the whole 3072-wide
+query and key before the head split, cross-attention to the text, and a
+GELU-tanh feed-forward, each modulated per token by a six-row scale-shift table
+added to the embedded timestep — conditioned on Google's UMT5-XXL encoder (24
+blocks, a relative-position bias per block, gated GELU, no attention scaling,
+the last hidden state zeroed past the prompt and padded to 512 tokens) and coded
+by Wan 2.2's 3-D causal convolutional autoencoder (temporal x4, spatial x16, a
+pixel-unshuffle of 2 on the way in, 48 latent channels each standardised by a
+published mean and deviation). Zephra runs the checkpoint FastVideo distilled
+from it, **FastWan2.2-TI2V-5B**, with distribution matching to three steps at
+timesteps 1000, 757 and 522 on a flow-match grid shifted by 8
+(`WanDistilledSchedule`: `x0 = x - sigma * v`, then re-noised at the next sigma
+with a fresh draw from `seed + 10000`), no guidance and so no negative prompt.
+Frames are `1 + 4k` at 24 fps, 5 to 121, 49 to start; sizes are multiples of
+32 — the autoencoder's 16 times the transformer's patch of 2 — and 832 x 480 to
+start, two fifths of the trained 1280 x 704's pixels, because a step's time
+grows with the token count and this is the quick family.
+
+**It makes a clip from a picture** the way the reference's image-to-video
+pipeline does with `expand_timesteps`: the encoder is causal in time, so one
+picture encodes to one latent frame; the loop puts that frame in over the
+sample's first frame before every forward and after every step
+(`WanHeldFirstFrame.imposed`), and the transformer is told a **per-token**
+timestep, 0 over the held frame's tokens and the step's everywhere else
+(`WanTimestepField`), so the model sees a clean first frame at every step and
+generates the rest of the clip to follow it. There is no strength: the frame is
+held exactly, the entry declares `referenceStrengthBounds: 1...1`, the
+interface draws no slider, and the record's strength is 1 as for a model that
+conditions directly. The live preview of a held run shows the frame *after* the
+held one. FastWan's distillation was text-to-video; holding a first frame under
+it is the reference pipeline's mechanism applied to the distilled weights, and
+`PROVENANCE.md` says so.
+
+The release is FastVideo's Diffusers layout — `transformer/`, `text_encoder/`
+in three shards with an index, `vae/`, `tokenizer/`, each with its config —
+24.2 GB in all, ungated and Apache-2.0 throughout, so the catalog names it
+directly and the mirror is a shortcut rather than the path. Keys are the
+release's own and the kit's module paths equal them (`blocks.0.attn1.to_q`,
+`encoder.block.0.layer.0.SelfAttention.q`, `encoder.down_blocks.0...`), three
+renames apart in the transformer (`to_out.0`, `ffn.net.0.proj`, `ffn.net.2`,
+which MLXNN cannot spell; `WanTransformerWeights`), and the convolution kernels
+transposed to MLX's channels-last at load. `WanQuantizationPlan` packs both
+stacks at four bits and holds the patch embedding, the modulation tables, the
+output projection, UMT5's relative-position tables and the norms whole; the
+transformer's `condition_embedder` — the timestep and text embedders and the
+3072-by-18432 modulation projection, which decides how strongly every block
+responds — and UMT5's 256384-row token table go to eight bits. The autoencoder
+is copied as it is, float32, and the tokenizer directory whole.
+
+The tokenizer is Zephra's own Unigram encoder over the release's
+`tokenizer.json` (`WanTokenizer`): swift-transformers 0.1.24 aborts loading it
+on a duplicate key, since Swift `String` keys merge canonically equivalent
+pieces, so the vocabulary is keyed by scalars and the Viterbi walk, the
+Metaspace rule and the `</s>` are the kit's; the ids are pinned against
+Hugging Face's for thirty-one prompts. The prompt is cleaned first as the
+reference's `prompt_clean` does — entities unescaped, whitespace collapsed —
+without ftfy's mojibake repair.
+
+Both stacks stream through `LayerWeightStream` under `WeightResidency.streamed`,
+as LTX-2.5's do; the token table, the patch embedding, the conditioning, the
+head and the autoencoder stay resident. The transformer evaluates every eight
+blocks when resident (`blocksPerEval`). The live preview is one latent frame of
+the finished-latent estimate, pooled to sixteen cells and decoded through the
+same decoder (`WanLatentPreview`). The decoder has no tiled path, so Automatic
+tiling changes nothing for it and `tiledPeakBytes` is the plain peak; it
+decodes one latent frame at a time with its causal cache, so the peak is the
+chunk's and not the clip's.
+
+Because it is listed before LTX-2.5 in the catalog, `ModelCatalog.animator()`
+answers with it, and Animate makes its clips here.
 
 ### Packing plans
 
