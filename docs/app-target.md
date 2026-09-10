@@ -217,7 +217,18 @@ Four directories, by what a file is rather than what screen it is on:
   (`SeedEntryTests`). How a seed is spelled on screen is one preference,
   `AppSettings.seedFormat`, a `SeedFormat` in `ZephraEngine` beside
   `shortSeedLabel`: the short hex label by default, or the whole number, set
-  in General under "Show seeds as". The root puts it in the environment as
+  in General under "Show seeds as". `SizeMenu` is the same shape over sizes:
+  the model's presets grouped by `SizeTier` (`ZephraCore`) — Faster under
+  three quarters of the default's pixels, Larger over one and a half times,
+  Standard between — with headings only when there is more than one group,
+  then "Custom Size…", which opens `SizeEntryPopover`. A size is typed there
+  as two numbers with anything between them (`800 × 512`, `800x512`, `800 by
+  512`), a button turns the frame the other way, and `SizeEntry` (`Support/`)
+  is the one parser: it fits what was typed to the model's grid through
+  `ModelCapabilities.fit`, and `SizeEntryHint` says what Return will keep when
+  that differs from what was typed (`SizeEntryTests`). Every picture family
+  offers a 768 x 768 quick preset and LTX-2.5 a 512 x 288, so a Faster group
+  is there to be found. The root puts it in the environment as
   `\.seedFormat` through `SeedFormatPreference`, and every seed on screen —
   the chip, the popover's prefill (the whole value in that spelling, so
   Return keeps the seed it had) and its hint, `ImageFacts`' Seed row through

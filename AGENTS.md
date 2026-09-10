@@ -410,7 +410,10 @@ Rules in `Support/`:
   from `ModelCapabilities` (`.firstFrame`, `.startFrom`, `.reference`, in that
   order). `ModelLoadNote` is what Generate's and Animate's tooltips say a press
   costs first. `StepProgress` is the step bar's reading, so it never counts the
-  slider. `SeedEntry` is the one seed parser; `AppSettings.seedFormat` is how a
+  slider. `SeedEntry` is the one seed parser and `SizeEntry` the one size
+  parser (two numbers with anything between, fitted to the model's grid
+  through `ModelCapabilities.fit`); `SizeMenu` groups presets by `SizeTier`
+  and offers Custom Size… on every model. `AppSettings.seedFormat` is how a
   seed is spelled on screen, read from the environment everywhere — nothing on
   disk follows it.
 - `BackgroundNotice` is a pure function over two engine states saying what is
@@ -673,7 +676,11 @@ capability question), chooses it without loading it, sets the clip length to
 that model's default, reads the picture through the numbered choice, and keeps
 the prompt. `canAnimate` is `acceptsWork` plus such a model existing. The size
 follows the picture in `useAsReference`, not `animate`, so drop, picker, Use as
-Reference and Animate agree.
+Reference and Animate agree: on a clip model it becomes the picture's own
+shape at the pixel budget of the size in force
+(`ModelCapabilities.size(matchingAspectOf:budget:)`), or the clip model's
+default budget when Animate switched families; a picture model leaves its
+size alone.
 
 Each backend package decodes bytes to a `CGImage` in its own
 `ReferenceImageDecoding`, duplicated because no backend may import another;

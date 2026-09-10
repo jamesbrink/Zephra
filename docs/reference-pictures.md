@@ -97,8 +97,17 @@ build having such a model, which is what the interface greys the button by,
 disabled rather than hidden the same way `supportsReferenceImage` greys Use
 as Reference. The size follows the picture in `useAsReference` rather than in
 `animate` — on a model that makes clips a picture landing in the well moves
-`settings.size` to `ModelCapabilities.preset(nearestAspect:)` of the picture's
-own pixels — so a drop, the picker, Use as Reference and Animate all agree.
+`settings.size` to `ModelCapabilities.size(matchingAspectOf:budget:)`: the
+picture's own shape, at the pixel count of the size in force, rounded to the
+model's grid — so a drop, the picker, Use as Reference and Animate all agree.
+The shape rather than the nearest preset, because a clip is the picture
+moving and a 4:3 photograph at a 3:2 preset is cropped before a frame is
+made; the budget rather than a fixed size, so a person who chose a small
+frame keeps a small frame. Animate is the one exception on the budget: when
+it switches from a picture model, the clip model's own default is the budget,
+since 1024 x 1024 carried over from Z-Image would make the clip two and a half
+times the default's pixels. A picture model leaves its size alone; its
+picture is a reference for the image asked for, not the image.
 
 Each backend package decodes the bytes to a `CGImage` in its own
 `ReferenceImageDecoding` — a small file duplicated per package, because no backend
