@@ -87,7 +87,8 @@ or guarantees for every Mac. Reference-image editing can use more memory.
 | Z-Image-Turbo, 8-bit | 13.3 GB | — | 12.2 GB | 23.5 / 17.7 GB |
 | Z-Image-Turbo, 4-bit | 32.9 GB | 7.1 GB | 6.6 GB | 17.8 / 12.0 GB |
 | Qwen-Image-2512, 4-bit | 59.4 GB | 21.6 GB | 21.5 GB | 30.4 / 26.1 GB |
-| LTX-2.5, 4-bit, video only | 70.6 GB | 19.8 GB | 18.2 GB | 22.4 GB at 768×512, 49 frames |
+| Wan 2.2 TI2V-5B, 4-bit | 24.2 GB | 10.1 GB | 8.0 GB | 15.1 / 12.4 GB at 832×480, 49 frames |
+| LTX-2.5, 4-bit, video only | 70.6 GB | 20.8 GB | 19.2 GB | 23.4 GB at 768×512, 49 frames |
 
 The source download is retained alongside the built copy, so allow space for
 both. Qwen-Image's download includes its four-step Lightning adapter, merged
@@ -100,16 +101,18 @@ and its weights are under the LTX-2.x Community License rather than Apache 2.0
 
 **Settings > Performance** controls tiled VAE decoding and weight residency.
 Automatic tiling reduces decode memory when the model exceeds the GPU's budget.
-Qwen-Image and LTX-2.5 also support streaming weights from disk, enabling
-generation on 16 GB Macs at the cost of disk reads each step (LTX-2.5 peaks at
-9.0 GB streamed against 22.4 GB resident). The picker reports these tradeoffs;
+Qwen-Image, Wan 2.2 and LTX-2.5 also support streaming weights from disk,
+enabling generation on 16 GB Macs at the cost of disk reads each step (Wan 2.2
+peaks at 9.7 GB streamed against 15.1 GB resident, LTX-2.5 at 9.0 GB against
+23.4 GB). The picker reports these tradeoffs;
 models remain selectable even when a smaller image size may be needed.
 
 Historical timings at 1024×1024 include about 29 seconds for FLUX.2 klein
 (four steps, M4 Max) and 123 seconds for streamed Qwen-Image (four steps, 16 GB
-M4 mini). LTX-2.5 makes a two-second 768×512 clip (49 frames, eight steps) in
-63 seconds on an M4 Max, 7.0 seconds a step, and in 232 seconds streamed on the
-16 GB M4 mini. These are reference measurements, not current performance claims:
+M4 mini). Wan 2.2 makes a two-second 832×480 clip (49 frames, three steps) in
+32 seconds on an M4 Max, 36 streamed. LTX-2.5 makes a two-second 768×512 clip
+(49 frames) in 47 seconds on an M4 Max in two stages (69 in one), and in 232
+seconds streamed on the 16 GB M4 mini. These are reference measurements, not current performance claims:
 some recorded results predate dtype corrections, and Z-Image timings were taken
 on a busy machine. Re-measure on an idle Mac with the [benchmark tool](#development).
 [BENCHMARKS.md](BENCHMARKS.md) holds every recorded figure with the Mac it

@@ -111,12 +111,29 @@ bf16 release (without the root single-file checkpoint). halcyon, four steps:
 ## LTX-2.5 4-bit, video only
 
 `ltx-2.5-distilled-4bit`, packed here from the 70.6 GB `mlx-community/ltx-2.5-mlx`
-pack in 88 s once the pack is local. 19.84 GB out (`builtBytes`, measured:
-19,843,588,073 bytes): 8.56 GB of transformer, 1.89 of connector, 8.00 of Gemma,
-and the 0.81 GB video decoder and 0.64 GB video encoder copied as they are,
-since three-dimensional convolutions cannot be packed.
+pack in 83 s once the pack is local. 20.84 GB out (`builtBytes`, measured:
+20,839,333,747 bytes): 8.56 GB of transformer, 1.89 of connector, 8.00 of Gemma,
+the 0.81 GB video decoder and 0.64 GB video encoder copied as they are, since
+three-dimensional convolutions cannot be packed, and the 1.0 GB spatial
+upsampler copied likewise.
 
-Resident, halcyon, eight steps, with the video encoder loaded:
+Resident, halcyon, idle, 2026-09-10, with the encoder and the upsampler loaded,
+768 x 512 and 49 frames:
+
+| Stages | Seconds | s/step | Live | Peak | Load |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| two (8 at 384 x 256, then 3) | 47.4 | 3.61 over 11 | 19155 MB | 23421 MB | 22.0 s |
+| one (8 at 768 x 512) | 68.7 | 7.62 | 19155 MB | 23421 MB | 22.0 s |
+| two, holding a first frame | 49.9 | 3.80 over 11 | 19155 MB | 23421 MB | |
+
+- Two stages is what this frame takes (`LTX2StagePlan`): 31% less time for a
+  clip that reads at least as well by eye (the robot the one-stage clip lost
+  is there). The peak is the load's either way.
+- The load is 22 s from the external volume against 4.8 s before, which is the
+  disk and not the upsampler: the variant moved to `/Volumes/ExternalStorage`.
+
+Earlier, resident, eight steps in one stage, with the video encoder loaded and
+no upsampler:
 
 | Clip | Seconds | s/step | Live | Peak | Load |
 | --- | ---: | ---: | ---: | ---: | ---: |
