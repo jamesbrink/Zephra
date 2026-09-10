@@ -6,4 +6,6 @@ public enum LTX2ConfigurationError: Error, Equatable, Sendable {
     case layerTypesDoNotMatchDepth(types: Int, layers: Int)
     /// A file the pack must carry is not there.
     case missingFile(URL)
+    /// The upsampler's config asks for a head this port has not got; the reason says which.
+    case unsupportedUpsampler(String)
 }

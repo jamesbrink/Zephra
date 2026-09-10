@@ -18,7 +18,8 @@ public final class LTX2VideoDecoder: Module {
     @ModuleInfo(key: "conv_in") var convIn: LTX2VideoConv3d
     @ModuleInfo(key: "up_blocks") var upBlocks: [Module]
     @ModuleInfo(key: "conv_out") var convOut: LTX2VideoConv3d
-    @ModuleInfo(key: "per_channel_statistics") var statistics: LTX2PerChannelStatistics
+    /// The pair the latent upsampler borrows to step into the autoencoder's space and back.
+    @ModuleInfo(key: "per_channel_statistics") public private(set) var statistics: LTX2PerChannelStatistics
 
     public let layout: LTX2VideoDecoderLayout
 
