@@ -17,6 +17,16 @@ extension SnapshotUnderTest {
             atPath: release.appending(path: "vae_encoder.safetensors").path(percentEncoded: false))
     }
 
+    /// Whether the release on this Mac holds the spatial latent upsampler. It is the second
+    /// stage's file alone, not among the five the first stage runs on, so a pack fetched for
+    /// a one-stage run has everything else and not it; the suite that reads its header gates
+    /// on the file.
+    var hasUpsamplerFile: Bool {
+        guard let release else { return false }
+        return FileManager.default.fileExists(
+            atPath: release.appending(path: "spatial_upscaler_x2_v1_1.safetensors").path(percentEncoded: false))
+    }
+
     /// Where the tokenizer files are in whichever layout was found: the release keeps them
     /// beside Gemma's weights in `gemma4-12b-ltx-v1/`, the packed variant under `text_encoder/`.
     var ltx2TokenizerDirectory: URL? {

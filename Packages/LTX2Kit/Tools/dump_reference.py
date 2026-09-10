@@ -37,6 +37,7 @@ import torch
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import dump_text_encoder  # noqa: E402
 import dump_transformer  # noqa: E402
+import dump_upsampler  # noqa: E402
 import dump_vae  # noqa: E402
 
 
@@ -64,6 +65,7 @@ def main() -> None:
     dumpers.update(dump_text_encoder.DUMPERS)
     dumpers.update(dump_transformer.DUMPERS)
     dumpers.update(dump_vae.DUMPERS)
+    dumpers.update(dump_upsampler.DUMPERS)
     selected = arguments.only or list(dumpers)
     unknown = [name for name in selected if name not in dumpers]
     if unknown:

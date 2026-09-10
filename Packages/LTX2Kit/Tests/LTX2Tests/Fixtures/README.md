@@ -10,6 +10,13 @@ is the official model's `audio=None` forward and the only path a video-only pack
 first frame reaches it; the audio lane keeps the scalar there, as the reference's own
 image-to-video pipeline passes it.
 
+`latent_upsampler` is the spatial latent upsampler at eight latent and sixty-four middle
+channels, one block a stage, dumped by `Tools/dump_upsampler.py` with every parameter
+randomised, the GroupNorm affines included; `latent_upsampler_normalized` carries no weights of
+its own (the test reads them from the first, dumped from the same seed) and pins what surrounds
+the network: the upsample pipeline's denormalise before it and the generation pipeline's
+normalise after, under random per-channel statistics.
+
 Three files are not doll's-house dumps: `tokenizer.safetensors` is ids from the real Gemma 4
 tokenizer, which `Tools/dump_text_encoder.py` fetches from the ungated
 `mlx-community/ltx-2.5-mlx` pack into a gitignored `Tools/.cache`; and `vae_decoder_keys.json`
