@@ -31,7 +31,13 @@ struct TransformerParityTests {
             into: block,
             weights: WanTransformerWeights.sanitized(Fixture.weights(fixture, under: "model.")),
             manifest: nil)
-        let table = WanTransformer(Self.configuration).rotaryTable(frames: 3, height: 2, width: 2)
+        // The reference's own table, so the block is checked apart from the rotary port: the
+        // even channels of its repeated angles are the one-per-pair form the port rotates with.
+        let table = WanRotaryTable(
+            frames: 3, height: 2, width: 2,
+            frequencies: RotaryFrequencies(
+                cos: try #require(fixture["in.rotary_cos"])[0, 0..., 0, .stride(by: 2)],
+                sin: try #require(fixture["in.rotary_sin"])[0, 0..., 0, .stride(by: 2)]))
         let output = block(
             try #require(fixture["in.hidden_states"]),
             text: try #require(fixture["in.encoder_hidden_states"]),
@@ -79,6 +85,6 @@ struct TransformerParityTests {
             text: try #require(fixture["in.encoder_hidden_states"]),
             timesteps: try #require(fixture["in.timestep"]))
         #expect(output.dtype == .bfloat16)
-        #expect(Fixture.maxAbsoluteDifference(output, try #require(fixture["out.hidden_states"])) < 0.5)
+        #expect(Fixture.maxAbsoluteDifference(output, try #require(fixture["out.hidden_states"])) < 0.1)
     }
 }
