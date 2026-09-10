@@ -63,11 +63,12 @@ extension GenerationStore {
     /// back, so a text-to-image request says what it means again, and takes the origin with
     /// it — where a picture came from is a fact about the picture.
     ///
-    /// On a model that makes clips the size follows the picture, to the offered preset nearest
-    /// its shape. A clip is the picture moving, so opening a portrait photograph at a landscape
-    /// default would crop or letterbox it before a frame was made; and it is done here rather
-    /// than in `animate` so Use as Reference, a drop, the picker and the well's own doors all
-    /// agree.
+    /// On a model that makes clips the size follows the picture: its own shape, at the pixel
+    /// budget of the size in force (`size(matchingAspectOf:budget:)`). A clip is the picture
+    /// moving, so opening a portrait photograph at a landscape default would crop or letterbox
+    /// it before a frame was made; and it is done here rather than in `animate` so Use as
+    /// Reference, a drop, the picker and the well's own doors all agree. A picture model leaves
+    /// the size alone: its picture is a reference for the image asked for, not the image.
     public func useAsReference(_ pngData: Data?, origin: String? = nil) {
         let capabilities = descriptor.capabilities
         let picture = capabilities.supportsReferenceImage ? pngData : nil
@@ -83,8 +84,8 @@ extension GenerationStore {
             settings.referenceStrength = capabilities.defaultReferenceStrength
         }
         guard capabilities.producesVideo, let size = PNGImageSize.read(from: picture),
-              let preset = capabilities.preset(nearestAspect: size)
+              let frame = capabilities.size(matchingAspectOf: size, budget: settings.size.pixelCount)
         else { return }
-        settings.size = preset
+        settings.size = frame
     }
 }

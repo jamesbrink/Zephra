@@ -37,7 +37,7 @@ struct StepsControl: View {
                     .foregroundStyle(.secondary)
                     .frame(minWidth: 18, alignment: .leading)
             }
-            .help("Denoising steps")
+            .help("Denoising steps. Fewer is quicker; more adds detail.")
             .accessibilityLabel("Denoising steps")
             .accessibilityValue("\(store.settings.steps)")
         }

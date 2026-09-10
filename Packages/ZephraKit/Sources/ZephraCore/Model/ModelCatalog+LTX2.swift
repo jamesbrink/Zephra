@@ -84,17 +84,20 @@ extension ModelCatalog {
     ///
     /// Steps and guidance are the distillation's: eight sigmas fixed by the checkpoint and no
     /// classifier-free guidance, so neither is a choice. Sizes are aligned to 32, the video
-    /// autoencoder's spatial factor; 768 x 512 is the reference's one-stage default. Frames
-    /// run on the autoencoder's ladder of eight plus one: 9 to 121 at 24 fps, 49 (two
+    /// autoencoder's spatial factor; 768 x 512 is the reference's one-stage default. A step's
+    /// time grows with the token count, so the quick presets are the lever on speed: 512 x 288
+    /// is three eighths of the default's pixels and a clip in about three eighths of the time.
+    /// Frames run on the autoencoder's ladder of eight plus one: 9 to 121 at 24 fps, 49 (two
     /// seconds) to start, which is what an M4 Max makes in under a minute.
     static let ltx2Capabilities = ModelCapabilities(
         sizeAlignment: 32,
         sizePresets: [
             ImageSize(width: 768, height: 512),
-            ImageSize(width: 512, height: 288),
-            ImageSize(width: 640, height: 384),
-            ImageSize(width: 960, height: 544),
             ImageSize(width: 512, height: 768),
+            ImageSize(width: 640, height: 384),
+            ImageSize(width: 512, height: 288),
+            ImageSize(width: 288, height: 512),
+            ImageSize(width: 960, height: 544),
         ],
         sizeBounds: 256...1024,
         defaultSize: ImageSize(width: 768, height: 512),

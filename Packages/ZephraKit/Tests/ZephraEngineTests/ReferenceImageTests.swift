@@ -60,6 +60,18 @@ struct ReferenceImageTests {
         #expect(bed.control.settings.lastSettings?.referenceImage == Self.picture)
     }
 
+    @Test("a picture model keeps its size when a picture is handed in")
+    func pictureModelKeepsItsSize() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store(descriptor: Self.editing)
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        let before = store.settings.size
+        store.useAsReference(PNGImageSizeTests.png(width: 1600, height: 1000))
+        #expect(store.settings.referenceImage != nil)
+        #expect(store.settings.size == before, "a reference is for the picture asked for, not its shape")
+    }
+
     @Test("a model that cannot read a reference never sees one, even when the well was filled first")
     func plainModelNeverSeesOne() async throws {
         let bed = EngineTestBed()
