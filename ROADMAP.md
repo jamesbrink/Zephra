@@ -115,7 +115,11 @@ is distributed until the app is ready to ship.
    picks because it is listed first, and **LTX's two-stage path** (`LTX2StagePlan`: the
    eight-step ladder at half the size, the pack's spatial upsampler doubling the latent,
    three steps at the full size) for every frame of 512 or more on the short edge that
-   halves onto the grid. Left out, in order of value:
+   halves onto the grid. The mirror carries the Wan variant since 2026-09-10; its
+   LTX-2.5 entry is still the shipped build's (packed before the upsampler joined the
+   release's patterns), so the next ship runs `make mirror-ltx2 FORCE=1` and syncs, at
+   which point the shipped build falls back to the pack for LTX until updated. Left out, in
+   order of value:
    - **Fewer steps on a fixed ladder**: LTX's stage two runs a subset of the distilled
      sigmas, which says the checkpoint tolerates one; a Draft choice walking five of the
      nine from noise might be worth its speed. Unknown until someone looks at the clips,
