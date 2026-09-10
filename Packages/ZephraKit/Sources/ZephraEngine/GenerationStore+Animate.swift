@@ -55,7 +55,14 @@ extension GenerationStore {
             // Chosen, not loaded, exactly as a picture picked off the sidebar chooses its model:
             // `adopt` moves the settings onto the new model's schedule, `adoptForGenerate` leaves
             // the weights where they are until Generate asks for these ones.
-            if model.id != descriptor.id { adopt(model) }
+            if model.id != descriptor.id {
+                adopt(model)
+                // A picture model's frame says nothing about a clip's cost: 1024 × 1024 carried
+                // over from Z-Image would make the clip two and a half times the default's
+                // pixels. The clip model's own default is the budget the picture's shape is
+                // fitted to; a size chosen on the clip model itself is kept.
+                settings.size = model.capabilities.defaultSize
+            }
             adoptForGenerate(model)
             settings.frames = model.capabilities.defaultFrames
             // Animate is a fresh clip from this picture, so its strength is the model's default

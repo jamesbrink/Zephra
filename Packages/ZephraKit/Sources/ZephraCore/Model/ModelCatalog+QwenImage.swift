@@ -101,6 +101,8 @@ extension ModelCatalog {
         sizeAlignment: 16,
         sizePresets: [
             ImageSize(width: 1024, height: 1024),
+            // A quick size, a little over half the default's pixels, for a draft of a prompt.
+            ImageSize(width: 768, height: 768),
             ImageSize(width: 1328, height: 1328),
             ImageSize(width: 1664, height: 928),
             ImageSize(width: 928, height: 1664),

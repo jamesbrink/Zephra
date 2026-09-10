@@ -5,7 +5,7 @@ extension ModelCapabilities {
     /// Rewrites settings into the nearest form this model can run, rather than rejecting them.
     public func clamp(_ settings: GenerationSettings) -> GenerationSettings {
         var result = settings
-        result.size = constrain(settings.size)
+        result.size = fit(settings.size)
         result.steps = min(max(settings.steps, stepBounds.lowerBound), stepBounds.upperBound)
         result.guidance = min(
             max(settings.guidance, guidanceBounds.lowerBound),
@@ -41,7 +41,9 @@ extension ModelCapabilities {
         return max(snapped, frameBounds.lowerBound)
     }
 
-    private func constrain(_ size: ImageSize) -> ImageSize {
+    /// The nearest size on this model's grid: each edge rounded to `sizeAlignment` and held
+    /// inside `sizeBounds`. What a typed size becomes, and what every request's size becomes.
+    public func fit(_ size: ImageSize) -> ImageSize {
         let aligned = size.aligned(to: sizeAlignment)
         return ImageSize(width: bound(aligned.width), height: bound(aligned.height))
     }

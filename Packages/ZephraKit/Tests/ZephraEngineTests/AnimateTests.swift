@@ -27,7 +27,7 @@ struct AnimateTests {
         #expect(store.state == .ready)
     }
 
-    @Test("a landscape picture opens the clip landscape, and a portrait one portrait")
+    @Test("the clip takes the picture's own shape, at the frame's pixel budget")
     func theSizeFollowsThePicture() async throws {
         let bed = EngineTestBed()
         let store = bed.store()
@@ -36,11 +36,28 @@ struct AnimateTests {
 
         store.animate(with: Self.video, origin: nil) { Self.landscape }
         while store.isAdoptingReference { await Task.yield() }
-        #expect(store.settings.size == ImageSize(width: 768, height: 512))
+        // 1600 × 1000 at 768 × 512's 393,216 pixels is 793 × 496, which the grid of 32
+        // makes 800 × 512: the picture's 8:5, not the nearest preset's 3:2.
+        #expect(store.settings.size == ImageSize(width: 800, height: 512))
 
         store.animate(with: Self.video, origin: nil) { Self.portrait }
         while store.isAdoptingReference { await Task.yield() }
-        #expect(store.settings.size == ImageSize(width: 512, height: 768))
+        #expect(store.settings.size == ImageSize(width: 512, height: 800))
+    }
+
+    @Test("a smaller frame in force keeps the clip small when a picture is handed in")
+    func theBudgetIsTheFrameInForce() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        store.animate(with: Self.video, origin: nil) { Self.landscape }
+        while store.isAdoptingReference { await Task.yield() }
+        store.settings.size = ImageSize(width: 512, height: 288)
+
+        store.useAsReference(Self.portrait)
+        // 1000 × 1600 at 147,456 pixels is 304 × 486: 320 × 480 on the grid.
+        #expect(store.settings.size == ImageSize(width: 320, height: 480))
     }
 
     @Test("the picture lands in the well at the model's own strength, with where it came from")
