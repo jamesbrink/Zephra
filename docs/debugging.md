@@ -68,6 +68,9 @@ the same override the store runs under without a second read of the process envi
   `AXDescription` in the running Zephra through the accessibility tree, without activating the
   app, moving the mouse, or posting an event, so it can open Settings > Models or click a
   button while a person keeps working; `--dump [depth]` prints the tree for finding titles.
+  `swift scripts/ax-type.swift "<label>" "<text>"` is its sibling for a field: it sets the
+  value of the text field with that accessibility label and performs `AXConfirm`, what Return
+  does in it, which is how the Size menu's "Custom size" field is typed into hands-off.
   The terminal needs Accessibility in System Settings > Privacy & Security. Together with the
   background launch (`open -g --env ZEPHRA_PREVIEW_STATE=settings build/Debug/Zephra.app`)
   and the titled screenshot, this is how a Settings tab is photographed hands-off; the tab

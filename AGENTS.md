@@ -1132,7 +1132,9 @@ environment value.
 - `swift scripts/ax-press.swift "<title>" [role]` presses a control by
   `AXTitle` or `AXDescription` through the accessibility tree without
   activating the app or moving the mouse; `--dump [depth]` prints the tree and
-  `ZEPHRA_PID` picks the copy to drive. With `open -g --env
+  `ZEPHRA_PID` picks the copy to drive. `swift scripts/ax-type.swift "<label>"
+  "<text>"` sets a labelled text field's value and confirms it, which is how
+  the Size menu's custom size is typed hands-off. With `open -g --env
   ZEPHRA_PREVIEW_STATE=settings build/Debug/Zephra.app` and the titled
   screenshot, that is how a Settings tab is photographed hands-off.
 - `make bench ARGS="--size 1024 --steps 9 --runs 3 --json"` measures load,

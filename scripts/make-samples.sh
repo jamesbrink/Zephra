@@ -52,9 +52,10 @@ for entry in "${MODELS_AND_SIZES[@]}"; do
       continue
     fi
     echo "== $id at $size"
-    # A clip model's poster is written beside the MP4 and is what the card shows.
+    # A clip model's poster is written beside the MP4 and is what the card shows. Wan's first
+    # frame reads better at a second than at nine frames; LTX's does not change.
     frames=""
-    case "$id" in *ltx*) frames="--frames 9" ;; *wan*) frames="--frames 9" ;; esac
+    case "$id" in *ltx*) frames="--frames 9" ;; *wan*) frames="--frames 25" ;; esac
     "$BENCH" --models "$MODELS" --model "$id" --size "$size" --runs 1 \
       --prompt "$PROMPT" --out "$out" $frames || { echo "-- skipped $id"; continue; }
   fi

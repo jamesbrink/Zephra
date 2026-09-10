@@ -26,6 +26,7 @@ struct SizeEntryPopover: View {
                     .textFieldStyle(.roundedBorder)
                     .font(.body.monospacedDigit())
                     .frame(width: 160)
+                    .accessibilityLabel("Custom size")
                     .onSubmit(commit)
                 Button(action: swap) {
                     Image(systemName: "rectangle.portrait.rotate")
