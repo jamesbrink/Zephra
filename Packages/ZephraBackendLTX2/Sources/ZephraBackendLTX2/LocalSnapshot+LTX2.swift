@@ -19,6 +19,7 @@ extension LocalSnapshot {
     static let ltx2 = LocalSnapshot(requiredEntries: [
         "quantization.json", "transformer", "connector", "text_encoder", "vae", "upsampler",
         "text_encoder/tokenizer.json", "text_encoder/config.json", "config.json",
+        "spatial_upscaler_x2_v1_1_config.json",
     ])
 
     /// What the `mlx-community/ltx-2.5-mlx` release must hold before the packer is pointed at
@@ -32,6 +33,7 @@ extension LocalSnapshot {
         "config.json", "embedded_config.json", "LICENSE.md",
         "transformer-distilled.safetensors", "connector.safetensors", "vae_decoder.safetensors",
         "vae_encoder.safetensors", "spatial_upscaler_x2_v1_1.safetensors",
+        "spatial_upscaler_x2_v1_1_config.json",
         "gemma4-12b-ltx-v1/config.json", "gemma4-12b-ltx-v1/model.safetensors",
         "gemma4-12b-ltx-v1/tokenizer.json", "gemma4-12b-ltx-v1/tokenizer_config.json",
     ])

@@ -28,6 +28,9 @@ public final class LTX2LatentUpsampler: Module {
     @ModuleInfo(key: "final_conv") var finalConv: Conv3d
 
     public let configuration: LTX2UpsamplerConfiguration
+    /// The pack's config file for the published weights, beside them at the pack's root and at
+    /// a packed variant's.
+    public static let configFileName = "spatial_upscaler_x2_v1_1_config.json"
 
     public init(_ configuration: LTX2UpsamplerConfiguration = .x2) {
         self.configuration = configuration

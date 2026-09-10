@@ -227,7 +227,7 @@ Four directories, by what a file is rather than what screen it is on:
   is the one parser: it fits what was typed to the model's grid through
   `ModelCapabilities.fit`, and `SizeEntryHint` says what Return will keep when
   that differs from what was typed (`SizeEntryTests`). Every picture family
-  offers a 768 x 768 quick preset and LTX-2.5 a 512 x 288, so a Faster group
+  offers a 768 x 768 quick preset and LTX-2.5 a 512 x 320, so a Faster group
   is there to be found. The root puts it in the environment as
   `\.seedFormat` through `SeedFormatPreference`, and every seed on screen —
   the chip, the popover's prefill (the whole value in that spelling, so

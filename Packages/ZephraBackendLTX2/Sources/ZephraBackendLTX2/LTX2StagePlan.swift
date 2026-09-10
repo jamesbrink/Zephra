@@ -5,10 +5,11 @@ import ZephraCore
 /// Two stages is the reference's own route to a large frame: the eight-step ladder at half
 /// the size, the latent doubled by the spatial upsampler, and three steps at the full size,
 /// which is most of a one-stage run's quality for about three fifths of its step cost. It
-/// needs both edges to be multiples of 64, so the half size is on the 32-pixel grid, and a
-/// half size the model still composes sensibly at: 512 pixels on the shorter edge, so a
-/// 768 x 512 default runs its first stage at 384 x 256 and a 512 x 288 preset, already cheap,
-/// runs one stage. `ZEPHRA_VIDEO_STAGES` forces either for one launch, for measuring.
+/// needs both edges to be multiples of 64, so the half size is on the 32-pixel grid — the
+/// catalog aligns every size of this family to 64 for exactly that — and a half size the
+/// model still composes sensibly at: 512 pixels on the shorter edge, so a 768 x 512 default
+/// runs its first stage at 384 x 256 and a 512 x 320 preset, already cheap, runs one stage.
+/// `ZEPHRA_VIDEO_STAGES` forces either for one launch, for measuring.
 enum LTX2StagePlan {
     /// The shortest edge, in pixels, from which two stages are worth their upsample.
     static let twoStageEdge = 512

@@ -295,7 +295,9 @@ registers stand in for the padding — and coded by a 3-D convolutional
 autoencoder (temporal x8, spatial x32, 128 latent channels), both halves of it.
 Distilled to eight ancestral Euler steps (`LTX2DistilledSchedule`: nine fixed
 sigmas, eta 1, re-noising drawn from `seed + 10000`) with no guidance. Frames
-are `1 + 8k` at 24 fps, 9 to 121, 49 to start; sizes are multiples of 32,
+are `1 + 8k` at 24 fps, 9 to 121, 49 to start; sizes are multiples of 64 —
+the autoencoder's grid is 32, but a frame that halves onto it is what the
+two-stage path needs, and every fitted or typed size should take that path —
 768 x 512 to start.
 
 **It makes a clip from a picture.** The autoencoder's encoder is causal in time —

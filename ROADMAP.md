@@ -118,8 +118,11 @@ is distributed until the app is ready to ship.
    halves onto the grid. The mirror carries the Wan variant since 2026-09-10; its
    LTX-2.5 entry is still the shipped build's (packed before the upsampler joined the
    release's patterns), so the next ship runs `make mirror-ltx2 FORCE=1` and syncs, at
-   which point the shipped build falls back to the pack for LTX until updated. Left out, in
-   order of value:
+   which point the shipped build falls back to the pack for LTX until updated. Upgrading a
+   Mac that holds the earlier LTX variant rebuilds it whole (20.8 GB written, with the old
+   variant still on the volume for the free-space check), or re-downloads the 70 GB pack if
+   the pack was deleted; an upsampler-only top-up was not written. Left out, in order of
+   value:
    - **Fewer steps on a fixed ladder**: LTX's stage two runs a subset of the distilled
      sigmas, which says the checkpoint tolerates one; a Draft choice walking five of the
      nine from noise might be worth its speed. Unknown until someone looks at the clips,

@@ -1012,13 +1012,16 @@ budget (tests, GPU-less builds) assumes four fifths.
   peak. The warm-up run costs a full eight-step, nine-frame clip plus an MP4
   encode.
 - **Two stages** (`LTX2StagePlan`, in the backend): a frame whose short edge is
-  512 or more and whose edges halve onto the 32 grid runs the eight-step ladder
+  512 or more runs the eight-step ladder
   at half the size, doubles the latent through the pack's spatial upsampler
   (`LTX2LatentUpsampler`, the `upsampler` component, copied whole), noises it to
   the second ladder's top and walks `LTX2DistilledSchedule.secondStage` (three
   steps) at the full size; the run reports eleven steps as one count. A held
-  first frame is encoded at each size. `ZEPHRA_VIDEO_STAGES=1|2` forces either
-  for one launch. A variant packed without `upsampler` reads as unbuilt.
+  first frame is encoded at each size. The entry aligns sizes to 64 rather than
+  the autoencoder's 32 so every preset, fitted and typed size halves onto the
+  grid and takes the path. `ZEPHRA_VIDEO_STAGES=1|2` forces either for one
+  launch. A variant packed without `upsampler` and the upscaler's config reads
+  as unbuilt and is rebuilt whole; a mirror user re-fetches the whole variant.
 
 ### Wan 2.2 TI2V-5B: `wan-2.2-ti2v-5b-4bit`
 

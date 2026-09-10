@@ -89,7 +89,10 @@ extension LTX2Pipeline {
         try decoder.load(weights: vae)
         let videoEncoder = LTX2VideoEncoder(.ltx25)
         try videoEncoder.load(weights: vae)
-        let upsampler = LTX2LatentUpsampler()
+        // The pack's config sits at the root and the packer copies it there; the reader refuses
+        // any head but the one the published weights are for.
+        let upsampler = LTX2LatentUpsampler(
+            try LTX2UpsamplerConfiguration(readingFrom: snapshot.appending(path: LTX2LatentUpsampler.configFileName)))
         try upsampler.load(weights: try SafetensorsShards.weights(in: snapshot.appending(path: "upsampler")))
 
         let result = Loaded(
