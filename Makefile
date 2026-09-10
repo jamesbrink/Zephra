@@ -488,7 +488,7 @@ publish-release: notarized-release
 # (YYYYMMDDHHMM), which is unique, sorts, and reads as a date; then the site is redeployed so
 # its Download button names the new file, and the manifest that says which file that is
 # is committed and pushed, because a shipped release whose manifest sits dirty in a working
-# copy is a release nobody else can reproduce. See "Releases" in AGENTS.md.
+# copy is a release nobody else can reproduce. See "Build & run" in AGENTS.md.
 #
 # Old releases are deliberately NOT cleaned up here. They are removed by hand now and then
 # (`aws --profile $(RELEASE_PROFILE) s3 rm s3://.../releases/<file>`); the bucket has no

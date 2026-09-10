@@ -111,7 +111,8 @@ M4 mini). LTX-2.5 makes a two-second 768×512 clip (49 frames, eight steps) in
 16 GB M4 mini. These are reference measurements, not current performance claims:
 some recorded results predate dtype corrections, and Z-Image timings were taken
 on a busy machine. Re-measure on an idle Mac with the [benchmark tool](#development).
-Catalog source comments retain the measurement context.
+[BENCHMARKS.md](BENCHMARKS.md) holds every recorded figure with the Mac it
+was taken on and the reruns still owed.
 
 ### Downloads and storage
 
