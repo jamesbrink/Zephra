@@ -16,7 +16,7 @@ extension LTX2Pipeline {
     /// and biases — are cast to `activation` here, before a stream is attached, so a streamed
     /// pass hands back the cast nodes rather than the shards' float32. The feature extractor's
     /// projection is left in float32 on purpose: 188160 products summed in bfloat16 lose the
-    /// prompt. The decoder computes in the dtype its weights came in.
+    /// prompt. The decoder and the upsampler compute in the dtype their weights came in.
     public func loadModel(
         at snapshot: URL,
         activation: DType = .bfloat16,
@@ -89,12 +89,14 @@ extension LTX2Pipeline {
         try decoder.load(weights: vae)
         let videoEncoder = LTX2VideoEncoder(.ltx25)
         try videoEncoder.load(weights: vae)
+        let upsampler = LTX2LatentUpsampler()
+        try upsampler.load(weights: try SafetensorsShards.weights(in: snapshot.appending(path: "upsampler")))
 
         let result = Loaded(
             tokenizer: try LTX2Tokenizer(directory: encoderDirectory),
             textEncoder: textEncoder, extractor: extractor, connector: connector,
             transformer: transformer, decoder: decoder, encoder: videoEncoder,
-            activation: activation)
+            upsampler: upsampler, activation: activation)
         LTX2ResidentParameters.eval(result, streamed: streaming != nil)
         loaded = result
     }

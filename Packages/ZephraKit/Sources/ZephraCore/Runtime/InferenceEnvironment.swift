@@ -29,6 +29,9 @@ public struct InferenceEnvironment: Hashable, Sendable {
     public var memoryLimitBytes: Int?
     /// `ZEPHRA_CACHE_LIMIT_MB`, in bytes.
     public var cacheLimitBytes: Int?
+    /// `ZEPHRA_VIDEO_STAGES`: `1` or `2`, forcing a clip model that can refine in a second
+    /// stage to run one stage or two for one launch; nil leaves it to the size rule.
+    public var videoStages: Int?
 
     /// The values a process with nothing set runs under.
     public init(
@@ -39,7 +42,8 @@ public struct InferenceEnvironment: Hashable, Sendable {
         weightResidency: WeightResidency? = nil,
         wiredLimitBytes: Int? = nil,
         memoryLimitBytes: Int? = nil,
-        cacheLimitBytes: Int? = nil
+        cacheLimitBytes: Int? = nil,
+        videoStages: Int? = nil
     ) {
         self.vaeTile = vaeTile
         self.streamDepth = streamDepth
@@ -49,6 +53,7 @@ public struct InferenceEnvironment: Hashable, Sendable {
         self.wiredLimitBytes = wiredLimitBytes
         self.memoryLimitBytes = memoryLimitBytes
         self.cacheLimitBytes = cacheLimitBytes
+        self.videoStages = videoStages
     }
 
     /// Reads every switch out of `environment`, which is `ProcessInfo.processInfo.environment`
@@ -74,6 +79,9 @@ public struct InferenceEnvironment: Hashable, Sendable {
         values.wiredLimitBytes = bytes(environment["ZEPHRA_WIRED_LIMIT_MB"])
         values.memoryLimitBytes = bytes(environment["ZEPHRA_MEMORY_LIMIT_MB"])
         values.cacheLimitBytes = bytes(environment["ZEPHRA_CACHE_LIMIT_MB"])
+        if let stages = environment["ZEPHRA_VIDEO_STAGES"].flatMap(Int.init), (1...2).contains(stages) {
+            values.videoStages = stages
+        }
         return values
     }
 

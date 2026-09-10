@@ -12,21 +12,26 @@ extension LocalSnapshot {
     /// name, so a rule naming it would read every fresh build as unbuilt. A variant packed
     /// before the encoder was fetched is caught where it should be, by
     /// `PackedProvenance.identity`, which carries the descriptor's file patterns.
+    ///
+    /// `upsampler` is the spatial latent upscaler the second stage reads; a variant packed
+    /// before it was part of the build has every other directory and not this one, and reads
+    /// as unbuilt so the second stage never finds it missing mid-clip.
     static let ltx2 = LocalSnapshot(requiredEntries: [
-        "quantization.json", "transformer", "connector", "text_encoder", "vae",
+        "quantization.json", "transformer", "connector", "text_encoder", "vae", "upsampler",
         "text_encoder/tokenizer.json", "text_encoder/config.json", "config.json",
     ])
 
     /// What the `mlx-community/ltx-2.5-mlx` release must hold before the packer is pointed at
     /// it: the exact files the plan reads, so a download stopped between files is a download,
-    /// not a failed build. The audio autoencoder, the vocoder, the upscalers and the dev
-    /// transformer are not fetched and not required. The video encoder is: a first frame is
-    /// held by encoding the picture, and a pack fetched before that could be done has every
-    /// other file and not this one, which must read as a download to finish.
+    /// not a failed build. The audio autoencoder, the vocoder, the temporal upscaler and the
+    /// dev transformer are not fetched and not required. The video encoder and the spatial
+    /// upscaler are: a first frame is held by encoding the picture and the second stage
+    /// doubles the latent, and a pack fetched before either could be done has every other
+    /// file and not these, which must read as a download to finish.
     static let ltx2Release = LocalSnapshot(requiredEntries: [
         "config.json", "embedded_config.json", "LICENSE.md",
         "transformer-distilled.safetensors", "connector.safetensors", "vae_decoder.safetensors",
-        "vae_encoder.safetensors",
+        "vae_encoder.safetensors", "spatial_upscaler_x2_v1_1.safetensors",
         "gemma4-12b-ltx-v1/config.json", "gemma4-12b-ltx-v1/model.safetensors",
         "gemma4-12b-ltx-v1/tokenizer.json", "gemma4-12b-ltx-v1/tokenizer_config.json",
     ])

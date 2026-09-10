@@ -19,6 +19,7 @@ enum LTX2ResidentParameters {
             + loaded.connector.parameters().flattenedValues()
             + loaded.decoder.parameters().flattenedValues()
             + loaded.encoder.parameters().flattenedValues()
+            + loaded.upsampler.parameters().flattenedValues()
         guard streamed else {
             MLX.eval(
                 always + loaded.textEncoder.parameters().flattenedValues()

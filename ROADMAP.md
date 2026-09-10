@@ -90,9 +90,10 @@ is distributed until the app is ready to ship.
      compression artefacts it was trained beside. This port encodes the picture as it is,
      as the MLX Swift port does. Worth measuring against a re-compressed first frame before
      deciding it matters.
-   - **A duration head**, two-stage and DFR refinement, the 8-bit variant, temporal
-     chunking of the decode past ~121 frames at 1024, the prompt enhancer, and a
-     `ModelSource` for a mirror-only model should the ungated pack ever be gated too.
+   - **A duration head**, DFR refinement, the 8-bit variant, temporal chunking of the
+     decode past ~121 frames at 1024, the prompt enhancer, and a `ModelSource` for a
+     mirror-only model should the ungated pack ever be gated too. The two-stage path is
+     in (item 9); the temporal upsampler, the rational resampler and the tone map are not.
    - **The M5 question**: LTX runs bfloat16 on every GPU; if an M5 shows the split-K
      symptom klein works around, `ZEPHRA_DIT_DTYPE=f32` is the bisection lever.
    - **Small things the first cut leaves out**: an exported clip carries no record (the
@@ -104,6 +105,27 @@ is distributed until the app is ready to ship.
      picture families pay for one step; an MP4 whose poster is gone sits in Recently Deleted
      undated, since the purge walks PNGs; a clip whose MP4 was removed by hand still reads
      as a clip (`LibraryItem.videoURL` is derived, not checked).
+
+9. **Speed on video** (2026-09-10; the reading is in the session note behind
+   `docs/research/ltx-2.5.md`). LTX 2.3 is not faster than 2.5: both are the same 22B
+   transformer with the same eight-step distilled ladder, so the levers are elsewhere.
+   Shipped: every model offers a custom size and its presets grouped by cost, a clip takes
+   its picture's own shape at the budget in force, **Wan 2.2 TI2V-5B** (FastWan's
+   three-step distillation, Apache-2.0) as a second, smaller video family that Animate
+   picks because it is listed first, and **LTX's two-stage path** (`LTX2StagePlan`: the
+   eight-step ladder at half the size, the pack's spatial upsampler doubling the latent,
+   three steps at the full size) for every frame of 512 or more on the short edge that
+   halves onto the grid. Left out, in order of value:
+   - **Fewer steps on a fixed ladder**: LTX's stage two runs a subset of the distilled
+     sigmas, which says the checkpoint tolerates one; a Draft choice walking five of the
+     nine from noise might be worth its speed. Unknown until someone looks at the clips,
+     so `stepBounds` stays `8...8` and `StepsControl` stays hidden for it.
+   - **Wan's audio**: none; the model has none. **Wan's other sizes**: FastWan reports the
+     model runs any size with quality falling off away from 1280 x 704 at 121 frames;
+     the presets stop at the trained size and the quick ones are unmeasured for quality.
+   - **A strength for Wan's first frame**: the picture is held exactly; a held-then-released
+     first frame (the mask ramping over the first latent frames) is the same change as
+     LTX's "more than one held frame" above.
 
 Deferred: **ERNIE-Image-Turbo** (eight to twelve days for legible in-image text at
 16 GB; the Mistral3 encoder is the new work), **Boogu-Image-0.1-Turbo** (a credible

@@ -12,9 +12,11 @@ struct LTX2QuantizationPlanTests {
         plan.components.first { $0.directoryName == name }!
     }
 
-    @Test("four components, each naming where the release keeps it")
+    @Test("five components, each naming where the release keeps it")
     func components() {
-        #expect(plan.components.map(\.directoryName) == ["transformer", "connector", "text_encoder", "vae"])
+        #expect(plan.components.map(\.directoryName) == ["transformer", "connector", "text_encoder", "vae", "upsampler"])
+        #expect(component("upsampler").sourceFiles == ["spatial_upscaler_x2_v1_1.safetensors"])
+        #expect(component("upsampler").fallback == nil)
         #expect(component("transformer").sourceFiles == ["transformer-distilled.safetensors"])
         #expect(component("text_encoder").sourceDirectory == "gemma4-12b-ltx-v1")
         // Both halves of the autoencoder, copied as they are: three-dimensional convolutions

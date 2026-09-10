@@ -19,9 +19,13 @@ enum LTX2RequestMapper {
     /// strength of 1 and holds the frame exactly, and the catalog's upper bound of 0.9 becomes
     /// 0.1, barely held at all. There is no picture-less case to invert: a settings value with
     /// no picture attached is not a request to hold anything.
+    ///
+    /// Whether the clip is made in one stage or two is `LTX2StagePlan`'s answer for the size,
+    /// under `environment`'s override.
     static func request(
         for settings: GenerationSettings,
-        descriptor: ModelDescriptor
+        descriptor: ModelDescriptor,
+        environment: InferenceEnvironment = InferenceEnvironment()
     ) throws -> LTX2GenerationRequest {
         let clamped = descriptor.capabilities.clamp(settings)
         return LTX2GenerationRequest(
@@ -36,7 +40,9 @@ enum LTX2RequestMapper {
                 LTX2FirstFrame(
                     image: try ReferenceImageDecoding.cgImage(from: $0),
                     strength: Float(1 - clamped.referenceStrength))
-            }
+            },
+            twoStage: LTX2StagePlan.twoStage(
+                width: clamped.size.width, height: clamped.size.height, environment: environment)
         )
     }
 }

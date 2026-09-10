@@ -133,7 +133,7 @@ Shared, by what a file actually touches:
   `BackendRegistry` of `@Sendable` factories; this layer never names a concrete
   backend. `ModelInventory` is its one use of `ZephraSnapshot`.
 - `ZephraBackendZImage`, `ZephraBackendQwenImage`, `ZephraBackendFlux2`,
-  `ZephraBackendLTX2` (own packages): translate `ZephraCore` types to and from
+  `ZephraBackendLTX2`, `ZephraBackendWan` (own packages): translate `ZephraCore` types to and from
   one family's kit. No state, no UI. Each takes `ZephraCore`, `ZephraSnapshot`,
   `ZephraQuantization` and its own kit (`ZephraMedia` too for video), and packs a
   download into the variant it loads through the protocol's `build` step. This
@@ -147,6 +147,8 @@ Shared, by what a file actually touches:
   `xocialize/flux2-vae-mlx-swift`.
 - `Packages/LTX2Kit`: ours, from Apache-2.0 `diffusers` and `transformers`,
   pinned by dumped fixtures; nothing copied from `Lightricks/LTX-2`. Video only.
+- `Packages/WanKit`: ours, from Apache-2.0 `diffusers` and `transformers` and
+  the release's configs, pinned by dumped fixtures; no other port of Wan read.
 - Each kit's `PROVENANCE.md` lists its deliberate departures; keep it true.
 - `ZephraUpscaleRealESRGAN`: the Real-ESRGAN upscaler, an `ImageUpscaler` beside
   the backends, taking `ZephraMLX` and no family kit; no backend imports it.
@@ -530,10 +532,11 @@ saying where it came from.
    `MLXInferenceRuntime` over the family's own `VAETileSetting`. No family
    writes a runtime type of its own; no kit reads an environment variable.
 
-Then one line each in `project.yml`, `MLX_PACKAGES` in the `Makefile`,
-`QuantizeFamily` in `Sources/ZephraQuantize` (if it packs), `BenchBackends` in
-`Sources/ZephraBench`, and the family lists in `make lint-layers`, which lint
-nothing they do not name.
+Then one line each in `project.yml`, `MLX_PACKAGES` and `FAMILIES` in the
+`Makefile` (the lint's one family list), `QuantizeFamily` in
+`Sources/ZephraQuantize` (if it packs), `BenchBackends` in `Sources/ZephraBench`,
+`ModelPortrait` and `scripts/make-samples.sh` for the chooser's card, and the
+import patterns in `make lint-layers`, which lint nothing they do not name.
 
 **Choosing and loading.**
 
@@ -758,13 +761,15 @@ Makefile targets:
   when James says "deploy to production".
 - `release-upload` — `scripts/publish-download.sh`: upload the DMG, copy the
   alias, verify the public download, write `product-mockups/app/release.json`.
-- `prefetch`, `prefetch-flux2`, `prefetch-qwen`, `prefetch-ltx2` — `hf
-  download` a release to where the app would have written it (`MODELS_DIR`,
-  `QWEN_MODELS`, `LTX2_MODELS`); the Qwen and LTX ones name files explicitly
-  because those repositories ship more than the build reads.
-- `quantize`, `quantize-qwen`, `quantize-flux2`, `quantize-ltx2` — the build
-  the app does on first load, by hand, into the app's models folder
-  (`QUANT_OUT`, `QWEN_OUT`, `FLUX2_OUT`, `LTX2_OUT`; `BITS`, `GROUP_SIZE`).
+- `prefetch`, `prefetch-flux2`, `prefetch-qwen`, `prefetch-ltx2`,
+  `prefetch-wan` — `hf download` a release to where the app would have written
+  it (`MODELS_DIR`, `QWEN_MODELS`, `LTX2_MODELS`, `WAN_MODELS`); the Qwen, LTX
+  and Wan ones name files explicitly because those repositories ship more than
+  the build reads.
+- `quantize`, `quantize-qwen`, `quantize-flux2`, `quantize-ltx2`,
+  `quantize-wan` — the build the app does on first load, by hand, into the
+  app's models folder (`QUANT_OUT`, `QWEN_OUT`, `FLUX2_OUT`, `LTX2_OUT`,
+  `WAN_OUT`; `BITS`, `GROUP_SIZE`).
 - `mirror` (and `mirror-<variant>`, `mirror-index`, `mirror-sync`) — build
   every packed variant into `MIRROR_DIR` laid out for the bucket with
   `index.json`, and sync to `MIRROR_BUCKET` under `MIRROR_PROFILE` with
@@ -1006,6 +1011,38 @@ budget (tests, GPU-less builds) assumes four fifths.
   watchdog. The decoder has no tiled path, so `tiledPeakBytes` is the plain
   peak. The warm-up run costs a full eight-step, nine-frame clip plus an MP4
   encode.
+- **Two stages** (`LTX2StagePlan`, in the backend): a frame whose short edge is
+  512 or more and whose edges halve onto the 32 grid runs the eight-step ladder
+  at half the size, doubles the latent through the pack's spatial upsampler
+  (`LTX2LatentUpsampler`, the `upsampler` component, copied whole), noises it to
+  the second ladder's top and walks `LTX2DistilledSchedule.secondStage` (three
+  steps) at the full size; the run reports eleven steps as one count. A held
+  first frame is encoded at each size. `ZEPHRA_VIDEO_STAGES=1|2` forces either
+  for one launch. A variant packed without `upsampler` reads as unbuilt.
+
+### Wan 2.2 TI2V-5B: `wan-2.2-ti2v-5b-4bit`
+
+- The quick clip family: FastVideo's `FastWan2.2-TI2V-5B-FullAttn-Diffusers`,
+  Apache-2.0, ungated, in Diffusers layout; the catalog names it directly. Three
+  distribution-matched steps at timesteps 1000, 757 and 522 on a grid shifted by
+  8 (`WanDistilledSchedule`), no guidance, no negative prompt; frames are
+  `1 + 4k` at 24 fps; sizes are multiples of 32.
+- A picture is held **exactly** as the first frame, the reference's
+  `expand_timesteps` way: put in over the sample before every forward and after
+  every step (`WanHeldFirstFrame`), with the held tokens told timestep 0
+  (`WanTimestepField`). `referenceStrengthBounds` is `1...1`, so no slider.
+- Listed before LTX-2.5 in `all`, so `ModelCatalog.animator()` picks it and
+  Animate makes its clips here.
+- Keys are the release's own; the kit's module paths equal them, three renames
+  apart in the transformer (`WanTransformerWeights`). `WanQuantizationPlan`
+  packs both stacks at four bits, the `condition_embedder` and UMT5's token
+  table at eight, holds tables, norms, the patch embedding and the head whole,
+  copies the float32 autoencoder and the `tokenizer/` directory as they are.
+- `WanTokenizer` is Zephra's own Unigram encoder (swift-transformers aborts on
+  the file's canonically equivalent pieces), pinned against Hugging Face's ids;
+  `WanPromptCleaning` is the reference's `prompt_clean` without ftfy.
+- Both stacks stream under `WeightResidency.streamed`; the autoencoder decodes
+  one latent frame at a time and has no tiled path.
 
 ### Packing plans
 
@@ -1112,7 +1149,8 @@ environment value.
   allocation to stderr.
 - Precision and padding, for bisecting without a rebuild:
   `ZEPHRA_DIT_DTYPE=f32|bf16`, `ZEPHRA_PAD_PROMPT=full`,
-  `ZEPHRA_KEEP_CACHE=1`, `ZEPHRA_CACHE_LIMIT_MB=N`.
+  `ZEPHRA_KEEP_CACHE=1`, `ZEPHRA_CACHE_LIMIT_MB=N`. `ZEPHRA_VIDEO_STAGES=1|2`
+  forces LTX-2.5 to one stage or two whatever the size says.
 - `ZEPHRA_VAE_TILE=<latent tile edge>` decodes in overlapping tiles so the peak
   is set by the tile, not the image; the bench sets it on the running family's
   runtime handle. In the app it only seeds the Performance tab: `InferenceActor`

@@ -18,26 +18,36 @@ extension LTX2Pipeline {
     /// estimate each step — all `LTX2FirstFrameConditioning`, which says why in each case. The
     /// schedule itself does not change: the same nine sigmas, and the same scalar sigma at
     /// every conversion and every step.
+    ///
+    /// `schedule` is the ladder to walk and `start` the packed latent to walk it from — the
+    /// noised, doubled latent of a second stage — or nil to start from noise. `steps` is
+    /// where this stage's steps sit in the run as a whole, for the progress a two-stage run
+    /// reports as one count.
     func denoise(
         text: MLXArray,
         layout: LTX2LatentLayout,
         request: LTX2GenerationRequest,
         held: LTX2HeldFirstFrame?,
         with loaded: Loaded,
+        schedule: LTX2DistilledSchedule,
+        start: MLXArray? = nil,
+        steps: LTX2StepRange? = nil,
         onProgress: (LTX2GenerationProgress) -> Void,
         onPreview: PreviewHandler?
     ) throws -> MLXArray {
         let total = schedule.steps
-        var sample = layout.pack(MLXRandom.normal(layout.latentShape, key: MLXRandom.key(request.seed)))
-        if let held {
+        let range = steps ?? LTX2StepRange(first: 1, total: total)
+        var sample = start ?? layout.pack(MLXRandom.normal(layout.latentShape, key: MLXRandom.key(request.seed)))
+        if let held, start == nil {
             sample = LTX2FirstFrameConditioning.initial(
                 noise: sample, clean: held.latent, mask: held.mask)
         }
-        let ancestral = MLXRandom.split(key: MLXRandom.key(request.seed &+ 10000), into: total)
+        let ancestral = MLXRandom.split(
+            key: MLXRandom.key(request.seed &+ 10000 &+ UInt64(range.first)), into: total)
         for index in 0..<total {
             try Task.checkCancellation()
-            onProgress(LTX2GenerationProgress(stage: .denoising(step: index + 1, of: total)))
-            let sigma = LTX2DistilledSchedule.sigmas[index]
+            onProgress(LTX2GenerationProgress(stage: .denoising(step: range.first + index, of: range.total)))
+            let sigma = schedule.sigmas[index]
             let predicted = try loaded.transformer(
                 tokens: sample.asType(loaded.activation),
                 text: text,
@@ -66,13 +76,13 @@ extension LTX2Pipeline {
                 next = LTX2FirstFrameConditioning.imposed(next, clean: held.latent, mask: held.mask)
             }
             MLX.eval(next)
-            if let onPreview, index + 1 < total {
+            if let onPreview, range.first + index < range.total {
                 // The run's estimate of the finished clip, not the sample it is holding: the
                 // schedule is bent towards its noisy end and the sample decodes to mush until
                 // the last rungs. One elementwise operation, inside the closure for an
                 // unconditioned run, so a dropped frame costs nothing.
                 let sampled = sample
-                onPreview(index + 1, total) {
+                onPreview(range.first + index, range.total) {
                     let estimate = conditioned?.estimate
                         ?? LTX2DistilledSchedule.denoised(sampled, velocity: predicted, sigma: sigma)
                     // A held run shows the frame *after* the one being held: frame 0 is the

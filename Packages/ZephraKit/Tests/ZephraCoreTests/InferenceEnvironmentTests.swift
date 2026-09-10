@@ -13,6 +13,7 @@ struct InferenceEnvironmentTests {
         #expect(values.previewInterval == PreviewThrottle.defaultInterval)
         #expect(values.weightResidency == nil)
         #expect(values.wiredLimitBytes == nil && values.memoryLimitBytes == nil && values.cacheLimitBytes == nil)
+        #expect(values.videoStages == nil)
     }
 
     @Test("every switch is read under its documented name")
@@ -26,6 +27,7 @@ struct InferenceEnvironmentTests {
             "ZEPHRA_WIRED_LIMIT_MB": "12000",
             "ZEPHRA_MEMORY_LIMIT_MB": "30000",
             "ZEPHRA_CACHE_LIMIT_MB": "512",
+            "ZEPHRA_VIDEO_STAGES": "1",
         ])
         #expect(values.vaeTile == 64)
         #expect(values.streamDepth == 3)
@@ -35,6 +37,8 @@ struct InferenceEnvironmentTests {
         #expect(values.wiredLimitBytes == 12000 * MemoryUnits.mebibyte)
         #expect(values.memoryLimitBytes == 30000 * MemoryUnits.mebibyte)
         #expect(values.cacheLimitBytes == 512 * MemoryUnits.mebibyte)
+        #expect(values.videoStages == 1)
+        #expect(InferenceEnvironment.read(["ZEPHRA_VIDEO_STAGES": "3"]).videoStages == nil, "only one or two")
     }
 
     @Test("a preview interval of zero switches frames off; a wired limit of zero is a real zero")

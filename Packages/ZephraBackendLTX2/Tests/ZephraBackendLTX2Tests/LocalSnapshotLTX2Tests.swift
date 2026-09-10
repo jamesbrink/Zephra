@@ -15,7 +15,8 @@ struct LocalSnapshotLTX2Tests {
         // A pack fetched before a first frame could be held has every other file and not this
         // one, and must read as a download to finish rather than as a release to build from.
         #expect(entries.contains("vae_encoder.safetensors"))
-        #expect(!entries.contains { $0.contains("audio") || $0.contains("vocoder") })
+        #expect(entries.contains("spatial_upscaler_x2_v1_1.safetensors"), "the second stage doubles the latent with it")
+        #expect(!entries.contains { $0.contains("audio") || $0.contains("vocoder") || $0.contains("temporal") })
     }
 
     @Test("a built directory names no source file, because the packer writes none of them")
@@ -26,6 +27,7 @@ struct LocalSnapshotLTX2Tests {
         // carries the descriptor's file patterns.
         #expect(!LocalSnapshot.ltx2.requiredEntries.contains { $0.contains("vae_encoder") })
         #expect(LocalSnapshot.ltx2.requiredEntries.contains("vae"))
+        #expect(LocalSnapshot.ltx2.requiredEntries.contains("upsampler"))
     }
 
     @Test("a built directory is incomplete until the manifest lands")

@@ -46,7 +46,11 @@ struct LatentPreviewTests {
         let latent = try #require(fixture["vae_decoder.in.latent"])  // [1, 4, 2, 2, 3], two latent frames
         let preview = LTX2LatentPreview.make(latent: latent, decoder: decoder, frame: 1)
         let whole = LTX2Frames.video(decoder.decode(latent[0..., 0..., 1..<2]), frameRate: 24)
-        #expect(preview.pixels == whole.frame(0))
+        // To within one step of a byte: the two decodes are the same arithmetic, but Metal
+        // sums a convolution in whichever order the GPU schedules, and a value sitting on a
+        // rounding boundary lands either side of it under load.
+        let apart = zip(preview.pixels, whole.frame(0)).map { abs(Int($0) - Int($1)) }.max() ?? 0
+        #expect(apart <= 1)
         // And it is not what frame 0 decodes to, so a preview that quietly fell back to 0 would
         // be caught here.
         let frameZero = LTX2LatentPreview.make(latent: latent, decoder: decoder, frame: 0)

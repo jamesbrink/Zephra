@@ -5,9 +5,10 @@ import Foundation
 extension ModelCatalog {
     /// The files the video-only build reads from the ungated `mlx-community` bf16 pack: the
     /// distilled transformer, the text connector, the Gemma 4 encoder with its tokenizer and
-    /// config, the convolutional video decoder and encoder, and the pack's own configs and
-    /// license. The audio autoencoder, the vocoder, the two upscalers, the dev transformer and
-    /// the diffusion decoder are left out by pattern rather than fetched and ignored.
+    /// config, the convolutional video decoder and encoder, the spatial latent upscaler the
+    /// second stage doubles the latent with, and the pack's own configs and license. The audio
+    /// autoencoder, the vocoder, the temporal upscaler, the dev transformer and the diffusion
+    /// decoder are left out by pattern rather than fetched and ignored.
     ///
     /// The video *encoder* is fetched because a first frame is held by encoding the picture:
     /// image-to-video is the one thing this family does with a reference picture, and the
@@ -19,13 +20,15 @@ extension ModelCatalog {
     static let ltx2Patterns = [
         "config.json", "embedded_config.json", "LICENSE.md",
         "transformer-distilled.safetensors", "connector.safetensors", "vae_decoder.safetensors",
-        "vae_encoder.safetensors", "gemma4-12b-ltx-v1/*",
+        "vae_encoder.safetensors", "spatial_upscaler_x2_v1_1.safetensors",
+        "spatial_upscaler_x2_v1_1_config.json", "gemma4-12b-ltx-v1/*",
     ]
 
-    /// The five weight files as the repository lists them — transformer 37,985,774,111,
+    /// The six weight files as the repository lists them — transformer 37,985,774,111,
     /// connector 6,344,495,770, Gemma 23,814,788,105, decoder 814,349,515, encoder
-    /// 637,885,335 — plus the 32,169,626-byte tokenizer and the configs: 69,629,462,462 in all.
-    static let ltx2DownloadBytes: Int64 = 69_630_000_000
+    /// 637,885,335, spatial upscaler 995,745,061 — plus the 32,169,626-byte tokenizer and
+    /// the configs: 70,625,207,798 in all.
+    static let ltx2DownloadBytes: Int64 = 70_630_000_000
 
     /// LTX-2.5 distilled at four-bit precision, video only, built on this Mac from the pack the
     /// first time it is loaded.

@@ -91,6 +91,13 @@ public enum LTX2QuantizationPlan {
                     sourceFiles: ["vae_decoder.safetensors", "vae_encoder.safetensors"],
                     fallback: nil
                 ),
+                // The spatial latent upscaler the second stage doubles the latent with: a
+                // gigabyte of three-dimensional convolutions and group norms, copied as it is.
+                QuantizedComponent(
+                    directoryName: "upsampler",
+                    sourceFiles: ["spatial_upscaler_x2_v1_1.safetensors"],
+                    fallback: nil
+                ),
             ],
             verbatimDirectories: []
         )

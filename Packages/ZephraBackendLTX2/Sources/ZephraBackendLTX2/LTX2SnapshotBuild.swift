@@ -13,9 +13,9 @@ enum LTX2SnapshotBuild {
     /// Gigabytes of the release each component reads while packing, for weighting the bar: the
     /// whole 38 GB transformer file is read even though the audio half is dropped, the 6.3 GB
     /// connector likewise, the 23.8 GB Gemma encoder, and the 0.8 GB video decoder and 0.64 GB
-    /// video encoder, both copied as they are.
+    /// video encoder, both copied as they are, and the 1.0 GB spatial upscaler likewise.
     private static let componentWeights = [
-        "transformer": 38.0, "connector": 6.3, "text_encoder": 23.8, "vae": 1.45,
+        "transformer": 38.0, "connector": 6.3, "text_encoder": 23.8, "vae": 1.45, "upsampler": 1.0,
     ]
 
     /// Packs `release` into `destination` at `descriptor`'s precision.

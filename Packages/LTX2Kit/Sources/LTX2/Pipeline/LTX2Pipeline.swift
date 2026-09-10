@@ -20,14 +20,19 @@ public final class LTX2Pipeline {
         /// demand: a module rebuilt when a picture arrives would have to keep its shard mapped
         /// for the pipeline's whole life to have anything to fill itself from.
         let encoder: LTX2VideoEncoder
+        /// The spatial latent upsampler a two-stage run doubles its first stage with: 1 GB of
+        /// bf16 convolutions, loaded with everything else.
+        let upsampler: LTX2LatentUpsampler
         /// The dtype the stream runs in.
         let activation: DType
     }
 
     var loaded: Loaded?
 
-    /// The schedule every run walks; the checkpoint fixes it.
+    /// The ladder every run's first stage walks; the checkpoint fixes it.
     public let schedule = LTX2DistilledSchedule()
+    /// The shorter ladder a two-stage run's second stage walks on the doubled latent.
+    public let secondStage = LTX2DistilledSchedule(sigmas: LTX2DistilledSchedule.secondStage)
 
     public init() {}
 
@@ -56,16 +61,17 @@ public final class LTX2Pipeline {
         guard request.frames >= 1, (request.frames - 1) % alignment.frames == 0 else {
             throw LTX2PipelineError.unalignedFrames(frames: request.frames, alignment: alignment.frames)
         }
+        if request.twoStage {
+            guard request.width % (2 * alignment.width) == 0, request.height % (2 * alignment.height) == 0 else {
+                throw LTX2PipelineError.unalignedSize(
+                    width: request.width, height: request.height, alignment: 2 * alignment.width)
+            }
+        }
         onProgress(LTX2GenerationProgress(stage: .encodingPrompt))
         let text = try encodePrompt(request.prompt, maxTokens: request.maxPromptTokens, with: loaded)
-        let layout = LTX2LatentLayout(
-            pixelFrames: request.frames, pixelWidth: request.width, pixelHeight: request.height)
-        let held = try request.firstFrame.map {
-            try LTX2HeldFirstFrame($0, layout: layout, encoder: loaded.encoder)
-        }
-        let latent = try denoise(
-            text: text, layout: layout, request: request, held: held, with: loaded,
-            onProgress: onProgress, onPreview: onPreview)
+        let latent = request.twoStage
+            ? try twoStages(text: text, request: request, with: loaded, onProgress: onProgress, onPreview: onPreview)
+            : try oneStage(text: text, request: request, with: loaded, onProgress: onProgress, onPreview: onPreview)
         onProgress(LTX2GenerationProgress(stage: .decoding))
         let video = loaded.decoder.decode(latent.asType(loaded.decoder.dtype))
         MLX.eval(video)

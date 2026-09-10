@@ -21,11 +21,15 @@ public struct LTX2GenerationRequest: Sendable {
     public var maxPromptTokens: Int
     /// A picture to hold as the clip's first frame, or nil for ordinary text-to-video.
     public var firstFrame: LTX2FirstFrame?
+    /// Whether to make the clip in two stages: the first ladder at half the size, the latent
+    /// doubled by the spatial upsampler, and the second, shorter ladder at the full size. The
+    /// reference's own route to a large frame; both edges must be multiples of 64.
+    public var twoStage: Bool
 
     public init(
         prompt: String, width: Int, height: Int, frames: Int, frameRate: Double = 24,
         seed: UInt64, maxPromptTokens: Int = LTX2Tokenizer.maxLength,
-        firstFrame: LTX2FirstFrame? = nil
+        firstFrame: LTX2FirstFrame? = nil, twoStage: Bool = false
     ) {
         self.prompt = prompt
         self.width = width
@@ -35,5 +39,6 @@ public struct LTX2GenerationRequest: Sendable {
         self.seed = seed
         self.maxPromptTokens = maxPromptTokens
         self.firstFrame = firstFrame
+        self.twoStage = twoStage
     }
 }

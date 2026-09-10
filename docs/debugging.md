@@ -112,8 +112,13 @@ the same override the store runs under without a second read of the process envi
   on an M5, over its device gate), `ZEPHRA_PAD_PROMPT=full` pads prompts to
   the 512-token limit, `ZEPHRA_KEEP_CACHE=1` stops handing MLX's scratch back after a generation,
   and `ZEPHRA_CACHE_LIMIT_MB=N` overrides the benchmark's MLX cache ceiling.
+- `ZEPHRA_VIDEO_STAGES=1|2` forces LTX-2.5 to one stage or two for the launch, whatever
+  `LTX2StagePlan` would say for the size, so a one-stage and a two-stage clip of the same
+  frame can be measured against each other; a size that cannot be halved onto the grid
+  still runs one stage.
 - `ZEPHRA_VAE_TILE=<latent tile edge>` decodes the VAE in overlapping tiles and blends the seams,
-  so the decode's peak is set by the tile rather than by the image. 64 gives 512-pixel tiles and
+  so the decode's peak is set by the tile rather than by the image (Wan 2.2's autoencoder
+  reads the same edge in its own 16-pixel cells, so 64 is 512 pixels there too). 64 gives 512-pixel tiles and
   takes the 1024-pixel peak from 23.5 GB to 17.7 GB for a mean absolute pixel difference of 1 of
   255. `ZephraBench` sets it on the running family's runtime handle, so it is the tile the
   benchmark decodes at. In the app it only decides what the Performance tab reads before the

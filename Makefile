@@ -50,9 +50,10 @@ FLUX2_EXCLUDE := --exclude "flux-2-klein-4b.safetensors" --exclude "*.jpg"
 FLUX2_SOURCE  ?=
 FLUX2_OUT     ?= $(MODELS_DIR)/flux2-klein-4b-$(BITS)bit
 # LTX-2.5 is built by the app on first load from the ungated mlx-community bf16 pack (the
-# Lightricks repositories are gated, and Zephra sends no token). Only the five files the
+# Lightricks repositories are gated, and Zephra sends no token). Only the six files the
 # video-only variant reads are fetched: the distilled transformer, the connector, the Gemma 4
-# encoder with its tokenizer, and the convolutional video decoder and encoder; 69 GB, so LTX2_MODELS defaults
+# encoder with its tokenizer, the convolutional video decoder and encoder, and the spatial
+# latent upscaler; 70.6 GB, so LTX2_MODELS defaults
 # to the external volume the way QWEN_MODELS does. `make quantize-ltx2` is the same build by hand;
 # LTX2_OUT follows BITS, and a BITS other than 4 lands in a directory that is not a catalog id,
 # so it gets no space check and no provenance stamp.
@@ -60,10 +61,22 @@ LTX2_MODEL   := mlx-community/ltx-2.5-mlx
 LTX2_INCLUDE := --include "config.json" --include "embedded_config.json" --include "LICENSE.md" \
                 --include "transformer-distilled.safetensors" --include "connector.safetensors" \
                 --include "vae_decoder.safetensors" --include "vae_encoder.safetensors" \
+                --include "spatial_upscaler_x2_v1_1.safetensors" \
+                --include "spatial_upscaler_x2_v1_1_config.json" \
                 --include "gemma4-12b-ltx-v1/*"
 LTX2_MODELS  ?= /Volumes/ExternalStorage/Models/ZephraModels
 LTX2_SOURCE  ?= $(LTX2_MODELS)/Downloads/$(subst /,--,$(LTX2_MODEL))
 LTX2_OUT     ?= $(MODELS_DIR)/ltx-2.5-distilled-$(BITS)bit
+# Wan 2.2 is built by the app on first load from FastVideo's Diffusers release of the
+# three-step distilled TI2V-5B: 24 GB, so WAN_MODELS defaults to the external volume the way
+# LTX2_MODELS does. `make quantize-wan` is the same build by hand.
+WAN_MODEL    := FastVideo/FastWan2.2-TI2V-5B-FullAttn-Diffusers
+WAN_INCLUDE  := --include "model_index.json" --include "README.md" --include "scheduler/*" \
+                --include "text_encoder/*" --include "tokenizer/*" --include "transformer/*" \
+                --include "vae/*"
+WAN_MODELS   ?= /Volumes/ExternalStorage/Models/ZephraModels
+WAN_SOURCE   ?= $(WAN_MODELS)/Downloads/$(subst /,--,$(WAN_MODEL))
+WAN_OUT      ?= $(MODELS_DIR)/wan-2.2-ti2v-5b-$(BITS)bit
 # `make mirror` builds every variant the app packs on first load into one directory that can be
 # synced to a bucket as it stands: one directory per catalog id, exactly what
 # `locations.built(descriptor)` holds on a Mac (provenance stamp included), plus an index.json
@@ -80,7 +93,7 @@ MIRROR_PROFILE      ?= dev.urandom.io
 MIRROR_DISTRIBUTION ?= E14XJ2G91C9S6D
 MIRROR_AWS          := aws $(if $(MIRROR_PROFILE),--profile "$(MIRROR_PROFILE)")
 MIRROR_IDS    := z-image-turbo-4bit qwen-image-2512-4bit flux2-klein-4b-4bit flux2-klein-4b-8bit \
-                 ltx-2.5-distilled-4bit
+                 ltx-2.5-distilled-4bit wan-2.2-ti2v-5b-4bit
 # One download directory per repository, named as the app names it: <org>--<repo>.
 ZIMAGE_8BIT_DIR := $(DOWNLOADS)/$(subst /,--,$(MODEL))
 ZIMAGE_BASE_DIR := $(DOWNLOADS)/$(subst /,--,$(BASE_MODEL))
@@ -98,7 +111,8 @@ MLX_PACKAGES := ZephraMLXKit:ZephraMLXKit-Package QwenImageKit:QwenImageKit Zeph
                 ZephraBackendZImage:ZephraBackendZImage \
                 ZephraBackendQwenImage:ZephraBackendQwenImage \
                 ZephraBackendFlux2:ZephraBackendFlux2 \
-                LTX2Kit:LTX2Kit ZephraBackendLTX2:ZephraBackendLTX2
+                LTX2Kit:LTX2Kit ZephraBackendLTX2:ZephraBackendLTX2 \
+                WanKit:WanKit ZephraBackendWan:ZephraBackendWan
 
 # Distribution signing. The build itself is ad-hoc signed (project.yml), so these
 # matter only to `make release` and `make notarize`. Leave SIGN_IDENTITY empty to
@@ -120,7 +134,7 @@ VERSION      ?=
 BUILD_NUMBER ?=
 VERSION_FLAGS := $(if $(VERSION),MARKETING_VERSION=$(VERSION)) $(if $(BUILD_NUMBER),CURRENT_PROJECT_VERSION=$(BUILD_NUMBER))
 
-.PHONY: doctor gen build run run-fresh bench quantize quantize-qwen quantize-flux2 quantize-ltx2 mirror mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-ltx2 mirror-index mirror-sync prefetch prefetch-qwen prefetch-flux2 prefetch-ltx2 open clean lint-layers lint-size vendored-diff logs screenshot test test-app test-mlx test-backend icon signed-build release notarize notarized-release
+.PHONY: doctor gen build run run-fresh bench quantize quantize-qwen quantize-flux2 quantize-ltx2 quantize-wan mirror mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-ltx2 mirror-wan mirror-index mirror-sync prefetch prefetch-qwen prefetch-flux2 prefetch-ltx2 prefetch-wan open clean lint-layers lint-size vendored-diff logs screenshot test test-app test-mlx test-backend icon signed-build release notarize notarized-release
 
 # What a fresh Mac needs before `make build` can work, each with its fix printed.
 doctor:
@@ -214,12 +228,23 @@ quantize-ltx2: gen
 	  --source-name $(LTX2_MODEL) --bits $(BITS) --group-size $(GROUP_SIZE) \
 	  --out "$(LTX2_OUT)" $(ARGS)
 
+# The FastWan release from WAN_SOURCE into WAN_OUT: the 4-bit variant the catalog names.
+# `make prefetch-wan` fetches the source first when it is not there.
+quantize-wan: gen
+	@mkdir -p "$(BUILD)"; $(XCB) -scheme ZephraQuantize -configuration Release build >"$(BUILD)/ZephraQuantize-build.log" 2>&1 \
+	  || { tail -40 "$(BUILD)/ZephraQuantize-build.log"; echo "ZephraQuantize failed to build; full log in $(BUILD)/ZephraQuantize-build.log"; exit 1; }
+	@test -f "$(WAN_SOURCE)/transformer/diffusion_pytorch_model.safetensors" || $(MAKE) prefetch-wan
+	"$(QUANTIZE)" --family wan \
+	  --source "$(WAN_SOURCE)" \
+	  --source-name $(WAN_MODEL) --bits $(BITS) --group-size $(GROUP_SIZE) \
+	  --out "$(WAN_OUT)" $(ARGS)
+
 # The mirror: one directory per packed variant, named for its catalog id so ZephraQuantize
 # checks the volume for that entry's builtBytes and stamps its provenance, then index.json.
 # Each variant is its own target, so one can be rebuilt alone; the sources are the same
 # releases the quantize targets read (ZIMAGE_BASE_DIR and FLUX2_DIR are fetched if absent,
 # QWEN_SOURCE and QWEN_LORA must already be there).
-mirror: mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-ltx2 mirror-index
+mirror: mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-ltx2 mirror-wan mirror-index
 
 mirror-z-image:
 	@$(call mirror_variant,z-image-turbo-4bit,quantize QUANT_OUT="$(MIRROR_DIR)/z-image-turbo-4bit" BITS=4)
@@ -235,6 +260,9 @@ mirror-flux2-8bit:
 
 mirror-ltx2:
 	@$(call mirror_variant,ltx-2.5-distilled-4bit,quantize-ltx2 LTX2_OUT="$(MIRROR_DIR)/ltx-2.5-distilled-4bit" BITS=4)
+
+mirror-wan:
+	@$(call mirror_variant,wan-2.2-ti2v-5b-4bit,quantize-wan WAN_OUT="$(MIRROR_DIR)/wan-2.2-ti2v-5b-4bit" BITS=4)
 
 # Skips a variant whose provenance stamp is already in the mirror, unless FORCE=1; the packer
 # would otherwise empty and rewrite it. $(1) is the catalog id, $(2) the quantize invocation.
@@ -361,6 +389,9 @@ prefetch-flux2:
 prefetch-ltx2:
 	hf download $(LTX2_MODEL) $(LTX2_INCLUDE) --local-dir "$(LTX2_SOURCE)"
 
+prefetch-wan:
+	hf download $(WAN_MODEL) $(WAN_INCLUDE) --local-dir "$(WAN_SOURCE)"
+
 open: gen
 	open $(PROJECT)
 
@@ -381,26 +412,27 @@ screenshot:
 vendored-diff:
 	./scripts/vendored-diff.sh --check
 
-# Layering rules from CLAUDE.md, enforced mechanically. The patterns are deliberately
-# family-agnostic: a second backend package must not need a Makefile edit to be policed.
+# Layering rules from CLAUDE.md, enforced mechanically. FAMILIES is the one list a new family
+# is added to; the import patterns name the kits' module names, which are the same words.
+FAMILIES := ZImage QwenImage Flux2 LTX2 Wan
 lint-layers:
-	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|LTX2|MLX)' Sources/Zephra Sources/ZephraBench Sources/ZephraQuantize --include='*.swift' \
+	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|LTX2|Wan|MLX)' Sources/Zephra Sources/ZephraBench Sources/ZephraQuantize --include='*.swift' \
 	  || (echo "LAYER VIOLATION: app or tool target imports a model package or MLX directly"; exit 1)
 	@! grep -rlnE '^import (ZephraBackend|ZephraUpscale)' Sources/Zephra --include='*.swift' | grep -v 'ZephraApp.swift' \
 	  || (echo "LAYER VIOLATION: a backend or upscaler package is imported outside ZephraApp.swift"; exit 1)
-	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|LTX2|MLX)' Packages/ZephraKit/Sources 2>/dev/null \
+	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|LTX2|Wan|MLX)' Packages/ZephraKit/Sources 2>/dev/null \
 	  || (echo "LAYER VIOLATION: ZephraKit imports a model package or MLX"; exit 1)
 	@! grep -rlnE '^import (ZephraBackend|ZephraUpscale)' Packages/ZephraBackend*/Sources 2>/dev/null \
 	  || (echo "LAYER VIOLATION: one backend package imports another, or the upscaler"; exit 1)
-	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|LTX2|ZephraBackend)' Packages/ZephraUpscale*/Sources 2>/dev/null \
+	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|LTX2|Wan|ZephraBackend)' Packages/ZephraUpscale*/Sources 2>/dev/null \
 	  || (echo "LAYER VIOLATION: an upscaler package imports a model family"; exit 1)
-	@status=0; for family in ZImage QwenImage Flux2 LTX2; do \
-	  others=$$(echo "ZImage QwenImage Flux2 LTX2" | tr ' ' '\n' | grep -v "^$$family$$" | paste -sd'|' -); \
+	@status=0; for family in $(FAMILIES); do \
+	  others=$$(echo "$(FAMILIES)" | tr ' ' '\n' | grep -v "^$$family$$" | paste -sd'|' -); \
 	  if grep -rlnE "^import ($$others)$$" Packages/ZephraBackend$$family/Sources 2>/dev/null; then \
 	    echo "LAYER VIOLATION: ZephraBackend$$family imports another family's kit"; status=1; \
 	  fi; \
 	done; exit $$status
-	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|LTX2|ZephraBackend|ZephraUpscale)' Packages/ZephraMLXKit/Sources 2>/dev/null \
+	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|LTX2|Wan|ZephraBackend|ZephraUpscale)' Packages/ZephraMLXKit/Sources 2>/dev/null \
 	  || (echo "LAYER VIOLATION: ZephraMLXKit imports a model package; nothing there may depend on a family"; exit 1)
 	@! grep -rlnE '^import (SwiftUI|AppKit)' Packages/ZephraKit/Sources 2>/dev/null \
 	  || (echo "LAYER VIOLATION: UI framework imported inside ZephraKit"; exit 1)

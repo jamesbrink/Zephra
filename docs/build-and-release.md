@@ -155,7 +155,7 @@ Makefile targets:
   the download and goes straight to the build.
 - `make prefetch-ltx2` — the four LTX-2.5 files the video-only build reads (the
   distilled transformer, the connector, the Gemma 4 encoder with its tokenizer,
-  the convolutional decoder; 69 GB) from the ungated `mlx-community/ltx-2.5-mlx`
+  the convolutional decoder and encoder and the spatial upscaler; 70.6 GB) from the ungated `mlx-community/ltx-2.5-mlx`
   pack into `LTX2_MODELS` (external storage by default), as the app names it.
 - `make prefetch-qwen` — download Qwen-Image-2512 and its four-step Lightning
   adapter into `QWEN_MODELS` (external storage by default; 57.7 GB does not
