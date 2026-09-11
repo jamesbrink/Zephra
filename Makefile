@@ -149,7 +149,7 @@ VERSION      ?=
 BUILD_NUMBER ?=
 VERSION_FLAGS := $(if $(VERSION),MARKETING_VERSION=$(VERSION)) $(if $(BUILD_NUMBER),CURRENT_PROJECT_VERSION=$(BUILD_NUMBER))
 
-.PHONY: doctor gen build run run-fresh bench quantize quantize-qwen quantize-flux2 quantize-ltx2 quantize-ltx2-audio quantize-wan mirror mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-ltx2 mirror-ltx2-audio mirror-wan mirror-index mirror-sync prefetch prefetch-qwen prefetch-flux2 prefetch-ltx2 prefetch-wan open clean lint-layers lint-size vendored-diff logs screenshot screenshot-ios test test-app test-mlx test-backend test-ios build-ios run-ios icon signed-build release notarize notarized-release
+.PHONY: doctor gen build run run-fresh bench quantize quantize-qwen quantize-flux2 quantize-ltx2 quantize-ltx2-audio quantize-wan mirror mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-ltx2 mirror-ltx2-audio mirror-wan mirror-index mirror-sync prefetch prefetch-qwen prefetch-flux2 prefetch-ltx2 prefetch-wan open clean lint-layers lint-size vendored-diff logs screenshot screenshot-ios test test-app test-mlx test-backend test-ios build-ios run-ios archive-ios testflight icon signed-build release notarize notarized-release
 
 # What a fresh Mac needs before `make build` can work, each with its fix printed.
 doctor:
@@ -215,6 +215,45 @@ run-ios: build-ios
 test-ios: gen
 	$(XCB_IOS) -scheme $(IOS_SCHEME) -configuration Debug \
 	  -only-testing:ZephraMobileTests test
+
+# The phone, for TestFlight. `archive-ios` builds the Release archive a device runs; the
+# archive is signed automatically, and -allowProvisioningUpdates is what lets Xcode fetch the
+# profile rather than be handed one -- a manual profile checked into a repository is a thing
+# that expires without telling anybody.
+#
+# The stamping is a Mac ship's rule, for a Mac ship's reason: no version bumps, so the
+# marketing version stays project.yml's 0.1.0 and what tells two builds apart is the build
+# number, the UTC minute the build started. Here it is not merely a convention -- App Store
+# Connect refuses a build number it has already seen, and project.yml's default of 1 would be
+# refused by every upload after the first. VERSION and BUILD_NUMBER override either, with the
+# same shapes `build` demands, so a stray "v" never reaches a bundle.
+IOS_ARCHIVE := $(BUILD)/ZephraMobile.xcarchive
+IOS_EXPORT  := $(BUILD)/testflight
+# Recursive, not simple: RELEASE_STAMP is defined further down the file.
+IOS_VERSION       = $(if $(VERSION),$(VERSION),0.1.0)
+IOS_BUILD_NUMBER  = $(if $(BUILD_NUMBER),$(BUILD_NUMBER),$(RELEASE_STAMP))
+IOS_VERSION_FLAGS = MARKETING_VERSION=$(IOS_VERSION) CURRENT_PROJECT_VERSION=$(IOS_BUILD_NUMBER)
+
+archive-ios: gen
+	@if ! echo "$(IOS_VERSION)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
+	  echo "VERSION must be MAJOR.MINOR.PATCH, got '$(IOS_VERSION)'"; exit 1; fi
+	@if ! echo "$(IOS_BUILD_NUMBER)" | grep -Eq '^[1-9][0-9]*$$'; then \
+	  echo "BUILD_NUMBER must be a positive integer, got '$(IOS_BUILD_NUMBER)'"; exit 1; fi
+	rm -rf "$(IOS_ARCHIVE)"
+	xcodebuild archive -project "$(PROJECT)" -scheme $(IOS_SCHEME) \
+	  -destination 'generic/platform=iOS' -configuration Release \
+	  -archivePath "$(IOS_ARCHIVE)" -allowProvisioningUpdates \
+	  -derivedDataPath "$(DERIVED)" $(IOS_VERSION_FLAGS)
+	@echo "archive-ios: $(IOS_ARCHIVE) is $(IOS_VERSION) ($(IOS_BUILD_NUMBER))"
+
+# Export that archive straight up to App Store Connect, where it becomes a TestFlight build.
+# A TestFlight upload only: releasing to the store is a separate act in App Store Connect and
+# nothing here performs it. The credentials are an App Store Connect API key read from the
+# same signing.env `signed-build` sources; the script refuses by name when any of the three
+# ASC_* variables is unset. Internal testing needs no review, so a build reaches the phone as
+# soon as App Store Connect finishes processing it.
+testflight: archive-ios
+	SIGNING_CONFIG="$(SIGNING_CONFIG)" ./scripts/testflight.sh "$(IOS_ARCHIVE)" "$(IOS_EXPORT)"
 
 # The booted simulator, as a PNG under build/. The Mac's `screenshot` takes a window by its
 # CoreGraphics id; a simulator has one screen, so this takes that.

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  How `make testflight` exports the iOS archive: straight up to App Store Connect,
+  where it becomes a TestFlight build. `destination` is `upload`, never `export`,
+  so no .ipa is left lying around to be submitted by hand, and this is a TestFlight
+  upload and never an App Store submission -- releasing to the store is a separate
+  act in App Store Connect that nothing here performs.
+
+  `signingStyle` is `automatic`: the archive is signed with the development
+  identity `project.yml` names, and Xcode fetches the distribution certificate and
+  the `io.zephra.ZephraMobile` App Store profile at export time, which is what
+  `-allowProvisioningUpdates` on the command line permits it to do.
+
+  `manageAppVersionAndBuildNumber` is false because the build number is ours: a
+  ship stamps the UTC minute into `CURRENT_PROJECT_VERSION`, and Xcode silently
+  rewriting it would break the one thing that tells two builds apart.
+-->
+<plist version="1.0">
+<dict>
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>destination</key>
+	<string>upload</string>
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<key>teamID</key>
+	<string>28X9H69QGE</string>
+	<key>uploadSymbols</key>
+	<true/>
+	<key>manageAppVersionAndBuildNumber</key>
+	<false/>
+</dict>
+</plist>
