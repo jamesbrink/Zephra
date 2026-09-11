@@ -22,7 +22,10 @@ final class MobileSelection {
     var capsuleIsExpanded: Bool
 
     /// A selection that opens where this launch was told to.
-    init(tab: MobileTab = MobilePreview.tab, capsuleIsExpanded: Bool = MobilePreview.capsuleIsExpanded) {
+    init(
+        tab: MobileTab = MobilePreview.tab,
+        capsuleIsExpanded: Bool = MobilePreview.capsuleIsExpanded
+    ) {
         self.tab = tab
         self.capsuleIsExpanded = capsuleIsExpanded
     }

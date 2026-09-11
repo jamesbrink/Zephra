@@ -54,7 +54,9 @@ struct ReferenceIntentTests {
 
         await bed.take()
 
-        #expect(bed.draft.reference == nil, "a spent request does not refill a well somebody emptied")
+        #expect(
+            bed.draft.reference == nil,
+            "a spent request does not refill a well somebody emptied")
     }
 
     @Test("A picture this phone has never fetched, with no Mac in reach, leaves the well alone")
@@ -89,7 +91,8 @@ struct ReferenceIntentTests {
         let draft = PromptDraft()
 
         /// The picture in the store, under the name the Mac's library would know it by.
-        var name: String { "zephra-0001.png" }
+        static let name = "zephra-0001.png"
+        var name: String { Self.name }
 
         private let capabilities: CapabilitiesSummary
 
@@ -97,7 +100,8 @@ struct ReferenceIntentTests {
             let scratch = Scratch("ReferenceIntent")
             let catalog = LibraryCatalog(
                 libraryRoot: scratch.url("Library"), filesRoot: scratch.url("Files"))
-            await catalog.fileStore.store(Self.picture(width: 1200, height: 800), as: "zephra-0001.png")
+            await catalog.fileStore.store(
+                Self.picture(width: 1200, height: 800), as: Self.name)
             self.scratch = scratch
             self.catalog = catalog
             self.capabilities = capabilities

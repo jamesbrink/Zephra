@@ -4,14 +4,8 @@ import SwiftUI
 ///
 /// Everything a radius, a hairline or a wash could be comes from `ZephraStyle`, so the two
 /// apps are drawn from one set of numbers. What lives here is what has no counterpart on the
-/// Mac: a sheet that rises from the bottom of a phone, and the room a tab bar takes away.
+/// Mac: the room a phone's tab bar takes away, and the margin down either side of a surface.
 enum MobileChrome {
-    /// How much of the screen the prompt sheet covers when it is up: enough for the prompt,
-    /// the model and the size, and no more, so the picture behind it stays the subject.
-    static let sheetHeight: CGFloat = 0.55
-    /// The sheet at its smallest, showing the prompt's first line and the Generate button.
-    static let sheetCollapsedHeight: CGFloat = 132
-
     /// The clear space a scrolling surface leaves under its last row, so the tab bar never
     /// sits on top of something that can be pressed.
     static let tabBarInset: CGFloat = 64

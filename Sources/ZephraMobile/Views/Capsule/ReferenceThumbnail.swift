@@ -20,10 +20,7 @@ struct ReferenceThumbnail: View {
                 }
             }
             .clipped()
-            .task(id: data) {
-                let bytes = data
-                picture = await Task.detached { UIImage(data: bytes) }.value
-            }
+            .task(id: data) { picture = await DecodedPicture.from(data) }
             .accessibilityLabel("The picture this run starts from")
     }
 }

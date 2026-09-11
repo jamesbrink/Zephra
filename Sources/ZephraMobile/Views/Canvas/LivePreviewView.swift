@@ -37,10 +37,7 @@ struct LivePreviewView: View {
             .clipShape(RoundedRectangle(cornerRadius: ZephraChrome.cardRadius, style: .continuous))
             // The bytes are the frame's identity: a new decode is new bytes. Off the main
             // actor, since frames arrive several times a second while the model works.
-            .task(id: frame.jpeg) {
-                let jpeg = frame.jpeg
-                picture = await Task.detached { UIImage(data: jpeg) }.value
-            }
+            .task(id: frame.jpeg) { picture = await DecodedPicture.from(frame.jpeg) }
             .accessibilityLabel("The image being generated")
     }
 }
