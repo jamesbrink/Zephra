@@ -828,3 +828,5 @@ footer {
     flex-basis: 100%;
   }
 }
+
+.nav nav > a.guide-nav-link { display: inline-flex; align-items: center; min-height: 44px; }

@@ -19,5 +19,11 @@ for path in sorted(root.rglob('*')):
         actual = response.read()
     if hashlib.sha256(actual).digest() != hashlib.sha256(path.read_bytes()).digest():
         raise SystemExit(f'website: deployed content mismatch: {url}')
+    # Check the public chapter URL as well as the literal object key.
+    if relative.name == "index.html" and str(relative) != "index.html":
+        route_url = origin + "/" + relative.parent.as_posix() + "/"
+        with urlopen(route_url, timeout=60) as response:
+            if hashlib.sha256(response.read()).digest() != hashlib.sha256(path.read_bytes()).digest():
+                raise SystemExit(f"website: deployed route mismatch: {route_url}")
     count += 1
 print(f'website: verified {count} deployed files at {origin}')

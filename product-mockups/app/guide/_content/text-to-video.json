@@ -1,0 +1,67 @@
+{
+  "slug": "text-to-video",
+  "title": "Make a video from words",
+  "description": "Create a short scene with Wan 2.2 or LTX-2.5, including sound with the LTX audio variant.",
+  "sections": [
+    {
+      "id": "setup",
+      "title": "Set up a short first attempt",
+      "paragraphs": [],
+      "steps": [
+        "Choose Wan 2.2 or LTX-2.5 in the model menu. For audio, select LTX-2.5 “with sound.”",
+        "Clear any thumbnail from the First frame box so the scene starts from your words alone.",
+        "Keep the initial Size and choose about 2 seconds in Length. Choose 1 seed while you experiment. Longer or larger clips take more work and memory.",
+        "Write a prompt, then click Generate. Video models use fixed steps, so there is no Steps slider to tune."
+      ]
+    },
+    {
+      "id": "motion",
+      "title": "Give the scene something to do",
+      "paragraphs": [
+        "Describe the setting, a clear action, and a camera position or movement. Keep the first attempt to one shot. For LTX, a short paragraph with actions in the present tense follows its authors’ guidance."
+      ],
+      "prompt": "A close view of a paper boat on a shallow pond in morning light. The boat drifts slowly from left to right as small ripples spread around it. The camera stays still, with the boat visible throughout the shot.",
+      "links": [
+        {
+          "label": "Upstream: LTX prompting guide",
+          "url": "https://docs.ltx.io/open-source-model/usage-guides/prompting-guide"
+        }
+      ]
+    },
+    {
+      "id": "sound",
+      "title": "Add sound with LTX",
+      "paragraphs": [
+        "Choose the “with sound” variant before generating, then describe the sounds in the same prompt. For dialogue, put the short spoken line in quotation marks and say who speaks. Keep speech brief enough for the chosen Length. The generated MP4 contains the audio.",
+        "Wan and LTX “video only” produce silent files; describing sound cannot add an audio track to those variants. Existing silent clips are not given sound by switching models afterward."
+      ],
+      "prompt": "A close-up of a glass on a wooden table. A hand sets a teaspoon beside it, making a light metallic clink. The camera remains still. Quiet room ambience is heard in the background."
+    },
+    {
+      "id": "watch",
+      "title": "Watch the finished clip",
+      "paragraphs": [
+        "Wait for the full generation to finish, then play the result in Zephra and use Export… to save an MP4 copy. With an audio result, check playback volume and mute settings if you cannot hear it.",
+        "Speech, timing, and synchronization can vary. Simplify the action or shorten the spoken line if the result struggles. Zephra has no audio-upload or voice-selection control."
+      ]
+    },
+    {
+      "id": "longer",
+      "title": "Make a longer clip",
+      "paragraphs": [
+        "Length also offers longer choices that display a pass count. Zephra makes these in several connected parts and joins them into one finished clip. A pass is simply one part of that process. Start short to check your idea before committing to the longer wait.",
+        "The complete clip is saved only when all passes finish. Stop discards the unfinished run, including completed parts of that run. For changing the action between parts, extend a finished clip and write what happens next."
+      ],
+      "links": [
+        {
+          "label": "Extend a finished clip",
+          "url": "/guide/image-to-video/#extend"
+        },
+        {
+          "label": "If generation is slow",
+          "url": "/guide/settings/#memory"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "slug": "reference-images",
+  "title": "Start from an image",
+  "description": "Use a photo or drawing as the starting point for a new still image.",
+  "sections": [
+    {
+      "id": "choose",
+      "title": "Choose the right workflow",
+      "paragraphs": [
+        "Use Z-Image Turbo or Qwen-Image 2512 when you want to reinterpret a picture: explore a different style, mood, or version of a scene. For a targeted instruction such as changing one object’s color, try FLUX.2 klein and the photo-editing guide."
+      ],
+      "links": [
+        {
+          "label": "Edit a photo with FLUX",
+          "url": "/guide/photo-editing/"
+        }
+      ]
+    },
+    {
+      "id": "add",
+      "title": "Add your starting picture",
+      "paragraphs": [],
+      "steps": [
+        "Select Z-Image Turbo or Qwen-Image 2512 in the model menu.",
+        "Click Start from beside the prompt. Choose a picture from the library or use Choose File… for a local photo. You can also drop a picture into that box.",
+        "Check the thumbnail so you know which picture will be used. Zephra accepts one reference picture at a time.",
+        "Choose an output Size with the shape you want. The size menu offers choices based on the reference’s proportions; custom dimensions may be adjusted to the model’s supported sizes."
+      ]
+    },
+    {
+      "id": "generate",
+      "title": "Describe the new version",
+      "paragraphs": [],
+      "steps": [
+        "Describe the finished image you want rather than giving only an editing command.",
+        "Begin with the default Strength of 0.60 and the model’s default Steps. Click Generate.",
+        "Compare the completed result to the starting picture. Lower Strength to preserve more of its structure; raise it to allow a larger change. Keep the prompt and seed steady while comparing."
+      ],
+      "prompt": "A watercolor illustration of the garden path in the starting picture, with soft green foliage, delicate washes of color, and warm afternoon light. The path remains the main focus."
+    },
+    {
+      "id": "strength",
+      "title": "Understand Strength",
+      "paragraphs": [
+        "For these two models, Strength ranges from 0.10 to 0.90. It controls how much the starting picture is reworked. Low values may make very little change, especially with a small step count. High values may change the subject or composition substantially.",
+        "This is a whole-image transformation. It does not protect faces, text, or selected areas. Zephra does not offer a masking brush for editing only one region."
+      ]
+    },
+    {
+      "id": "again",
+      "title": "Start another experiment",
+      "paragraphs": [
+        "Use the × on the reference thumbnail to return to generation from text alone. Right-click the thumbnail for From Library…, Choose File…, or Clear.",
+        "If you want to use an edited result itself as the next starting picture, export it and choose that file. Reusing a saved edit through Use as Reference can restore its original source, which is useful for trying a different edit of the same original."
+      ],
+      "links": [
+        {
+          "label": "Organize the original and results",
+          "url": "/guide/library/"
+        }
+      ]
+    }
+  ]
+}

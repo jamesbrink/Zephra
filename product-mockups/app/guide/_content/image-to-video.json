@@ -1,0 +1,68 @@
+{
+  "slug": "image-to-video",
+  "title": "Animate an image",
+  "description": "Turn a finished image into the opening frame of a moving scene.",
+  "sections": [
+    {
+      "id": "first-frame",
+      "title": "Choose the first frame",
+      "paragraphs": [],
+      "steps": [
+        "Select Wan 2.2 or LTX-2.5. Choose LTX “with sound” if you want generated audio.",
+        "Click First frame beside the prompt and choose an image from the library or Choose File…. You can also drop a local image into the box.",
+        "Check the image’s shape against Size and begin with a short Length, such as about 2 seconds.",
+        "Alternatively, right-click a picture in Library and choose Animate. This prepares a video request; check the selected model and settings before generating."
+      ]
+    },
+    {
+      "id": "prompt",
+      "title": "Describe the movement that follows",
+      "paragraphs": [
+        "The image supplies the starting appearance. Concentrate on what should move and how the camera should behave. Wan’s official image-to-video prompting guidance emphasizes action instead of repeating static details already in the picture."
+      ],
+      "prompt": "The leaves sway gently in a light breeze. A few ripples move across the water. The camera stays in the same position, and the main subject remains in view.",
+      "links": [
+        {
+          "label": "Upstream: Wan prompting guidance",
+          "url": "https://github.com/Wan-Video/Wan2.2/blob/main/wan/utils/system_prompt.py"
+        }
+      ]
+    },
+    {
+      "id": "strength",
+      "title": "Keep the starting frame close",
+      "paragraphs": [
+        "LTX shows Strength with a first-frame image. Begin at its default of 0, which holds the conditioning frame. Raising it allows more departure from that frame; it is not a motion-speed control. Wan holds the first frame without offering a Strength slider.",
+        "The source can be resized or cropped to fit the output dimensions. Even with a held starting frame, later frames can change appearance. Keep the requested motion simple if preserving the subject is important."
+      ]
+    },
+    {
+      "id": "generate",
+      "title": "Generate and save",
+      "paragraphs": [],
+      "steps": [
+        "Click Generate and wait for the completed clip.",
+        "Play it through. If the subject changes too much, reduce the complexity of the movement, use a shorter clip, or try a new seed.",
+        "Use Export… on the video to save the MP4. Keep its poster PNG as well if you are moving the original library files and want the generation details."
+      ]
+    },
+    {
+      "id": "extend",
+      "title": "Continue a finished clip",
+      "paragraphs": [],
+      "steps": [
+        "Select a finished Zephra video and choose Extend Clip from its available actions.",
+        "Wait for the Continues from thumbnail to appear. Zephra prepares the end of that clip as the starting context.",
+        "Keep the original model and dimensions for continuity. Update the prompt to describe what happens next, and choose the length of the next part.",
+        "Click Generate. Zephra joins the continuation to the source and saves a new result; the original clip remains."
+      ],
+      "note": "Animate from Last Frame starts a separate video from the end of a clip. Extend Clip joins the new part onto the existing one. Clearing or replacing the reference leaves continuation mode.",
+      "links": [
+        {
+          "label": "Video and audio tips",
+          "url": "/guide/text-to-video/"
+        }
+      ]
+    }
+  ]
+}

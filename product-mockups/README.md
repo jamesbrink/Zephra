@@ -65,3 +65,17 @@ sizes, and concise release highlights. Check figures against `ModelCatalog*.swif
 when models change. Keep `public/index.md` consistent and review release highlights
 when shipping; the displayed version/build track `app/release.json` automatically.
 Support goes to the owner-provided `dev.urandom.io@gmail.com` address.
+
+### User guide
+
+`app/guide/` contains the guide shell and nine static chapter routes. Chapter text
+lives in `_content/*.json`; the navigation index is `chapters.json`. Keep labels and
+capabilities grounded in the app, not generic upstream tutorials. After editing
+chapters, run `node scripts/export-guide.mjs` from this directory to regenerate
+`public/guide.md`, `sitemap.xml`, and the guide links in `llms.txt`.
+
+`npm run build` regenerates guide discovery files. For AWS, the post-build script
+`prepare-static-export.mjs` validates all guide routes and moves the exported HTML
+into directories because the CloudFront viewer function
+maps `/guide/topic/` to `/guide/topic/index.html`. Each chapter has its own canonical
+URL, page title, description, and matching social metadata.

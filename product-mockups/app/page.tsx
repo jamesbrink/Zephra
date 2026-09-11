@@ -43,6 +43,7 @@ function Nav({
         </label>
         <a href={`#${id}-features`}>The app</a>
         <a href={`#${id}-models`}>Models</a>
+        <a className="guide-nav-link" href="/guide/">User guide</a>
         <a className="nav-cta" href={`#${id}-requirements`}>
           Made for Mac <ArrowUpRight size={15} />
         </a>
@@ -114,6 +115,7 @@ function Features({ id }: { id: string }) {
         <Brand />
         <span>© 2026 James Brink. All rights reserved.</span>
         <nav className="footer-links" aria-label="Resources">
+          <a href="/guide/">User guide</a>
           <a href="#whats-new">What’s new</a>
           <a href="mailto:dev.urandom.io@gmail.com?subject=Zephra%20support">
             Support

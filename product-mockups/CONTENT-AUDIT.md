@@ -37,3 +37,26 @@ without presenting an invented quotation as an exact generation prompt.
 - Video-only LTX figures updated for the spatial upsampler: 20.8 GB built / 91.5 GB with source; 23.4 GB peak / 10.0 GB streamed.
 - Avoided the stale README statement that audio is only planned; catalog and backend implementation are authoritative here. Model-family count is five; audio is a variant of LTX, not a sixth family.
 - Kept the original art and single download link. Release manifest is refreshed by the authorized notarized release publication, so the page does not advertise audio against the old download.
+
+## User guide — September 11, 2026
+
+Nine chapters plus `/guide/` cover first launch, models, prompting, starting images,
+photo edits, text-to-video/audio, image-to-video/extension, library/export/upscale,
+and settings/troubleshooting. Example prompts are original suggestions, not tested
+output claims. No new generation benchmarks or inference runs were performed.
+
+Source checks: `ModelCatalog*.swift` for actual variants/defaults; `ReferenceRole`,
+`ReferenceAdoption` and `ReferenceImageWell` for labels and original-source reuse;
+`ControlsRow`, `SeedControl`, `BatchCountControl`, `DurationControl`, `ChainPlan`,
+`GenerationStore+Extend`, `GenerationStore+Chaining`, library menu and command
+views, welcome chooser, model downloads, and performance/general settings.
+The guide distinguishes Qwen-Image from Qwen-Image-Edit, a single reference from
+upstream multi-reference tools, and LTX audio from silent variants. It does not
+advertise upstream masks, prompt enhancement, custom audio, or voice selection.
+
+Primary upstream guidance consulted: Black Forest Labs' Building a Good Prompt
+and Single-Reference Editing; Tongyi-MAI's Z-Image-Turbo model card; Qwen's
+Qwen-Image-2512 model card and official demo prompting instructions; LTX's
+open-source Prompting Guide; Wan-Video/Wan2.2 `wan/utils/system_prompt.py`.
+Direct source links appear in relevant chapters. App behavior takes precedence
+over upstream tutorials for other variants or interfaces.

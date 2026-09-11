@@ -55,3 +55,7 @@ The website uses Google Analytics cookies to understand visits, download clicks,
 ## Publisher
 
 James Brink. © 2026 James Brink. All rights reserved.
+
+## User guide
+
+[Read the Zephra user guide](https://zephra.urandom.io/guide/) for beginner-friendly instructions on images, reference photos, editing, video with sound, library workflows, and troubleshooting. A [complete Markdown edition](https://zephra.urandom.io/guide.md) is also available.
