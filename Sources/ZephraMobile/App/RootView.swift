@@ -15,6 +15,11 @@ struct RootView: View {
 
     var body: some View {
         @Bindable var selection = selection
+        // A read for its own sake, and load-bearing. `TabView` reads its selection binding
+        // inside itself, after this body has finished, while observation tracks only what the
+        // body itself touched — so without this the tab moves when somebody taps one and never
+        // when the library sends them to the canvas with a picture.
+        _ = selection.tab
         return TabView(selection: $selection.tab) {
             ForEach(MobileTab.allCases) { surface in
                 screen(surface)
