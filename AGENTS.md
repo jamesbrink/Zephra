@@ -1098,7 +1098,11 @@ Makefile targets:
   `testflight` — that archive exported straight up to App Store Connect as a
   TestFlight build, through `scripts/ExportOptions-testflight.plist` and
   `scripts/testflight.sh`, which sources `signing.env` for `ASC_KEY_PATH`,
-  `ASC_KEY_ID` and `ASC_ISSUER_ID` and refuses by name without all three.
+  `ASC_KEY_ID` and `ASC_ISSUER_ID` and refuses by name without all three. The
+  export signs **manually**, with the distribution certificate and App Store
+  profile `scripts/testflight-signing.sh` issues from that same key and
+  reinstates when they are missing, because Xcode's automatic signing wants a
+  cloud-managed certificate the team's key is refused.
   Never an App Store submission. `testflight-status` — what App Store Connect
   did with it; `ARGS=--watch` waits rather than asking once, and
   `scripts/asc-build-status.sh` also carries `attach`, `detail` and
@@ -1107,7 +1111,9 @@ Makefile targets:
 - `lint-layers` — the gate, before every commit. `lint-size` — advisory list
   of files over 150 lines.
 - `icon` — resize the approved masters in `design/branding/zephyr/`; never
-  replace the artwork with a procedural glyph.
+  replace the artwork with a procedural glyph. The phone's one square is cropped
+  out of the master's transparent margin and drawn opaque and full bleed, since
+  App Store Connect refuses an iOS icon carrying any alpha.
 - `signed-build` — Release signed with a Developer ID identity (sources
   `~/Documents/Zephra Signing/signing.env`). `release` — signed, hardened,
   timestamped app plus `build/Zephra.zip` and `build/Zephra.dmg`, the DMG's

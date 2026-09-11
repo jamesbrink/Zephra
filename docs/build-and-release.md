@@ -66,7 +66,13 @@ Makefile targets:
   **TestFlight** below.
 - `make icon` — resize the approved Zephyr PNG masters in `design/branding/zephyr/`
   into `AppIcon.appiconset` and the website icons/marks with `scripts/make-icon.swift`.
-  The phone's single 1024-pixel icon comes out of the same dark master.
+  The phone's single 1024-pixel icon comes out of the same dark master, drawn
+  the way iOS wants it rather than the way macOS does: the artwork is cropped
+  out of the master's transparent margin and drawn edge to edge over an opaque
+  fill of its own edge colour, because App Store Connect refuses a phone icon
+  with any alpha at all (error 90717, "Invalid large app icon ... can't be
+  transparent or contain an alpha channel") and iOS applies its own corner mask,
+  which is the wider radius of the two and so clips only the fill.
   The dark master is the standard Finder/Dock icon; both appearances are retained
   for the website. Do not replace the selected artwork with a procedural glyph.
 - `make signed-build` — build Release and sign the app with a Developer ID
@@ -274,10 +280,18 @@ How the companion reaches a phone. Two targets:
   `-allowProvisioningUpdates` lets Xcode fetch the profile rather than be
   handed one: a manual profile checked into a repository is a thing that
   expires without telling anybody.
-- `make testflight` — `archive-ios`, then `scripts/testflight.sh`, which
-  exports the archive through `scripts/ExportOptions-testflight.plist`. The
-  method is `app-store-connect` and the destination is `upload`, so the build
-  goes straight up and no `.ipa` is left behind to be sent by hand.
+- `make testflight` — `archive-ios`, then `scripts/testflight.sh`, which runs
+  `scripts/testflight-signing.sh` and then exports the archive through
+  `scripts/ExportOptions-testflight.plist`. The method is `app-store-connect`
+  and the destination is `upload`, so the build goes straight up and no `.ipa`
+  is left behind to be sent by hand. The export signs **manually**: see
+  **Manual distribution signing** below for why, and for what the signing
+  script makes. It also puts `/usr/bin` at the head of `PATH` for the export,
+  because packaging the `.ipa` runs `/usr/bin/rsync`, which is openrsync, and
+  openrsync starts its own server half by looking `rsync` up on `PATH`: a Nix
+  or Homebrew rsync answers that call, refuses openrsync's spelling of its
+  options, and the export dies as `Copy failed`, which names neither rsync nor
+  PATH.
 - `make testflight-status` — what App Store Connect has done with the newest
   build: its marketing version, its build number and its `processingState`,
   through `scripts/asc-build-status.sh`, which mints an ES256 token from the
@@ -298,6 +312,63 @@ How the companion reaches a phone. Two targets:
   `compliance` answers the export-compliance question by hand, for a build
   uploaded before the `Info.plist` key below was there. Internal testing needs
   no review, so attaching a valid build is the last step.
+
+### Manual distribution signing
+
+`scripts/ExportOptions-testflight.plist` says `signingStyle: manual`, names
+`Apple Distribution` as the certificate and `Zephra iOS App Store` as the
+profile, and `scripts/testflight.sh` runs `scripts/testflight-signing.sh`
+before every export to make sure both exist. The archive is still signed
+automatically, with the Apple Development identity, which needs no such thing.
+
+Automatic signing cannot work for this team. At export time Xcode asks App
+Store Connect for a **cloud-managed** distribution certificate, and the key is
+refused one: `Cloud signing permission error`, `You haven't been given access
+to cloud-managed distribution certificates`, and then `No profiles for
+'io.zephra.ZephraMobile' were found`, which reads like a missing profile and is
+not one. The refused request is in `IDEDistributionProvisioning.log` inside the
+`.xcdistributionlogs` bundle the export names: `GET .../xcbuild/v1/certificates`
+filtered to `DISTRIBUTION_MANAGED`, answered `403 FORBIDDEN_ERROR`. Only the
+Account Holder can grant that access, and a key that predates the grant may
+have to be replaced rather than edited. The same key can nevertheless *issue*
+an ordinary distribution certificate through the public API, which is the same
+certificate without the cloud's custody, so that is what we do.
+
+`scripts/testflight-signing.sh` is idempotent — with the identity in the login
+keychain and an active profile naming it, it prints what it has and stops. When
+something is missing it:
+
+- generates a 2048-bit RSA key and a CSR (`CN=Zephra iOS Distribution`),
+- `POST`s the CSR to `/v1/certificates` as a `DISTRIBUTION` certificate,
+- saves the key, the certificate and a `.p12` of the pair into
+  `~/Documents/Zephra Signing/` as `ios-distribution.{key,cer,p12}`, mode 0600,
+- imports the `.p12` into the login keychain for `codesign`, `security` and
+  `xcodebuild`, with Apple's WWDR G3 intermediate if the Mac has not got it,
+- registers or reuses the `Zephra iOS App Store` profile
+  (`IOS_APP_STORE`, the `io.zephra.ZephraMobile` bundle id, that certificate),
+  replacing one that is not `ACTIVE` or does not name the certificate, and
+  installs it under both of the folders Xcode reads profiles from.
+
+Two secrets join the signing config. `IOS_DIST_P12_PASSWORD` is appended to
+`signing.env` the first time a `.p12` is written; the `.p12` itself is the
+backup copy, so a Mac that loses its keychain re-imports rather than issuing a
+second certificate. Neither is ever printed, and nor is the API key or the
+token minted from it.
+
+Apple caps a team at **three** distribution certificates. The script refuses to
+make a fourth, naming the three with their serials and expiry dates, because
+revoking one is a person's decision and the wrong one breaks signing somewhere
+else. **To rotate**: revoke the old certificate in the Developer portal, delete
+`ios-distribution.{key,cer,p12}` and the `IOS_DIST_P12_PASSWORD` line from
+`signing.env`, delete the old identity from the login keychain, and run
+`scripts/testflight-signing.sh`; it issues a new certificate and replaces the
+profile, which no longer names a certificate that exists. A certificate lasts a
+year, and nothing warns you: `security find-identity -v -p codesigning` names
+the expiry.
+
+The API key both signs the upload and mints the App Store Connect token every
+one of these scripts uses; `scripts/asc-api.sh` is the single copy of that
+ES256 minting, shared by `testflight-signing.sh` and `asc-build-status.sh`.
 
 **It is a TestFlight upload and never an App Store submission.** Releasing a
 build to the store is a separate act performed in App Store Connect; nothing
@@ -332,25 +403,12 @@ What James does by hand, once:
 - An App Store Connect app record for `io.zephra.ZephraMobile`, named Zephra,
   under team `28X9H69QGE`. The bundle identifier is already what the target
   builds.
-- An API key with the **Admin** role (App Store Connect > Users and
-  Access > Integrations), its `.p8` saved beside the Developer ID material and
-  its key id and issuer id written into `signing.env`. A `.p8` is downloadable
-  exactly once. App Manager is not enough: the export has no distribution
-  certificate of its own and asks Xcode's cloud signing for one, and a key
-  without that access is refused it — `Cloud signing permission error`, `You
-  haven't been given access to cloud-managed distribution certificates`, and
-  then `No profiles for 'io.zephra.ZephraMobile' were found`, which reads like
-  a missing profile and is not one. The refused request is in
-  `IDEDistributionProvisioning.log` inside the `.xcdistributionlogs` bundle the
-  export names: `GET .../xcbuild/v1/certificates` filtered to
-  `DISTRIBUTION_MANAGED`, answered `403 FORBIDDEN_ERROR`. That the key reads an
-  Admin-only endpoint such as `GET /v1/users` is not proof it can sign: access
-  to cloud-managed distribution certificates is granted separately, by the
-  Account Holder, and a key that predates the grant may have to be replaced
-  rather than edited. Signing in to Xcode with the Account Holder's Apple ID is
-  the other way to the same access. Neither is worth working around by issuing
-  a distribution certificate by hand: the point of cloud signing is that
-  nothing expires in a drawer.
+- An API key with at least the **App Manager** role (App Store Connect > Users
+  and Access > Integrations), its `.p8` saved beside the Developer ID material
+  and its key id and issuer id written into `signing.env`. A `.p8` is
+  downloadable exactly once. The key issues the distribution certificate the
+  export signs with, which App Manager can do; what it cannot do is reach a
+  *cloud-managed* certificate, which is why the export does not use one.
 - The phone added to internal testing in App Store Connect, on the build's
   group. Internal TestFlight needs **no review** — a build reaches the testers
   as soon as App Store Connect finishes processing it, which is minutes.
