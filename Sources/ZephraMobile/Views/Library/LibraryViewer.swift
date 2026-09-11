@@ -22,7 +22,7 @@ struct LibraryViewer: View {
     var body: some View {
         TabView(selection: $current) {
             ForEach(entries) { entry in
-                ItemPicture(entry: entry)
+                ViewerPicture(entry: entry)
                     .tag(entry.fileName)
             }
         }

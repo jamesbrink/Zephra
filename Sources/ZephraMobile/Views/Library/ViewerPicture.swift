@@ -8,13 +8,13 @@ import SwiftUI
 /// rectangle, and a picture opened on the sofa sharpens twice within a second.
 ///
 /// A clip skips all of that and asks for its MP4, because a poster is not a clip.
-struct ItemPicture: View {
+struct ViewerPicture: View {
     /// The picture to show.
     let entry: CachedEntry
 
     @Environment(LibraryCatalog.self) private var catalog
     /// What is on screen so far: nothing, a thumbnail, or the file.
-    @State private var shown: ItemPictureState = .waiting
+    @State private var shown: ViewerPictureState = .waiting
 
     var body: some View {
         Group {
@@ -67,7 +67,7 @@ struct ItemPicture: View {
 }
 
 /// How much of one picture has arrived.
-enum ItemPictureState {
+enum ViewerPictureState {
     /// Nothing yet.
     case waiting
     /// Some bytes of a still picture: a thumbnail at first, the file in the end.
