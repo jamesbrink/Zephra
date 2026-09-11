@@ -11,12 +11,13 @@ import ZephraStyle
 struct CanvasScreen: View {
     @Environment(LinkClient.self) private var client
     @Environment(PromptDraft.self) private var draft
-    /// Whether the capsule is showing its settings. A frozen launch can open with it up, which
-    /// is the only way to photograph the controls.
-    @State private var capsuleExpanded = MobilePreview.capsuleIsExpanded
+    /// Where the phone is looking, which is where the capsule's own open-or-shut lives: a
+    /// frozen launch can open with it up, which is the only way to photograph the controls.
+    @Environment(MobileSelection.self) private var selection
 
     var body: some View {
-        NavigationStack {
+        @Bindable var selection = selection
+        return NavigationStack {
             CanvasPicture()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.horizontal, MobileChrome.sideMargin)
@@ -25,7 +26,7 @@ struct CanvasScreen: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .topBarTrailing) { ModelMenu() } }
                 .safeAreaInset(edge: .bottom, spacing: 0) {
-                    PromptCapsule(isExpanded: $capsuleExpanded)
+                    PromptCapsule(isExpanded: $selection.capsuleIsExpanded)
                 }
                 // The first snapshot is the Mac saying which model is in force and what it
                 // defaults to; `adopt` takes only that first one, so nothing here can land on
@@ -33,6 +34,16 @@ struct CanvasScreen: View {
                 .onChange(of: client.snapshot?.model.id, initial: true) { _, _ in
                     draft.adopt(client.snapshot)
                 }
+                // "Use as Reference", said over in the library and heard here.
+                .modifier(ReferenceIntentReader(fill: fill))
         }
+    }
+
+    /// Puts one picture in the well, fitted to whatever model the next press names.
+    private func fill(_ data: Data, origin: String) async {
+        guard let snapshot = client.snapshot else { return }
+        await ReferenceAdoption.adopt(
+            data, origin: origin, into: draft,
+            fitting: snapshot.model(named: draft.modelID).capabilities)
     }
 }

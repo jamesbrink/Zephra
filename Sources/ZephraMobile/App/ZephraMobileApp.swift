@@ -26,6 +26,9 @@ struct ZephraMobileApp: App {
     /// came over the link, which is why they are objects of their own beside the client.
     @State private var catalog = LibraryCatalog()
     @State private var reference = ReferenceIntent()
+    /// Where the phone is looking, which the library writes when it sends somebody to the
+    /// canvas with a picture.
+    @State private var selection = MobileSelection()
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
@@ -49,6 +52,7 @@ struct ZephraMobileApp: App {
                 .environment(draft)
                 .environment(catalog)
                 .environment(reference)
+                .environment(selection)
                 // The catalog reads what is on disk and then follows the client for the life
                 // of the app. Idempotent, so a scene rebuilt behind it starts nothing twice.
                 .task { catalog.start(client: client) }

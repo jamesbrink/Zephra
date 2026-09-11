@@ -82,4 +82,5 @@ private struct LibraryViewerTitle: View {
     )
     .environment(LibraryCatalog(libraryRoot: nil, filesRoot: nil))
     .environment(ReferenceIntent())
+    .environment(MobileSelection())
 }

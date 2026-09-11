@@ -61,4 +61,5 @@ struct LibraryViewerBar: View {
         .background(.gray)
         .environment(LibraryCatalog(libraryRoot: nil, filesRoot: nil))
         .environment(ReferenceIntent())
+        .environment(MobileSelection())
 }

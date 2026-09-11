@@ -35,7 +35,16 @@ extension LibraryCatalog {
     /// A clip is two fetches, the poster and the MP4 beside it under the same stem, and it is
     /// the MP4 that comes back — `LibraryItem.exportURL`'s rule, which is the Mac's rule.
     func file(for entry: CachedEntry) async throws -> URL {
-        let name = entry.isVideo ? Self.clipName(of: entry.fileName) : entry.fileName
+        try await url(named: entry.isVideo ? Self.clipName(of: entry.fileName) : entry.fileName)
+    }
+
+    /// One file by the name the Mac's library knows it by, as a URL on this phone.
+    ///
+    /// The name is the whole key, which is what lets the canvas and the library share a fetch:
+    /// a picture the canvas drew a moment ago is already here when the library opens it, and one
+    /// the library fetched is already here when the canvas shows it next. It is what a clip is
+    /// asked for too, since a clip's MP4 crosses under a name of its own.
+    func url(named name: String) async throws -> URL {
         if let held = await fileStore.url(for: name) { return held }
         guard let client, client.connection.isLive else { throw LibraryCacheError.offline }
         let data = try await client.file(name: name)
@@ -44,6 +53,24 @@ extension LibraryCatalog {
         }
         await measureCache()
         return url
+    }
+
+    /// One picture's bytes by name: the store, then the Mac, then the store.
+    ///
+    /// The bytes rather than the URL, for the two callers that want a picture and not a file —
+    /// the canvas, which decodes one, and the reference well, which sends one back. Nil rather
+    /// than a throw, because both draw the same rectangle either way and neither has anywhere
+    /// to put a sentence.
+    func picture(named name: String) async -> Data? {
+        if let held = await fileStore.data(for: name) { return held }
+        guard let client, client.connection.isLive else { return nil }
+        guard let data = try? await client.file(name: name) else {
+            logger.notice("A picture could not be fetched from the Mac")
+            return nil
+        }
+        await fileStore.store(data, as: name)
+        await measureCache()
+        return data
     }
 
     /// Whether one picture's file is already on this phone.

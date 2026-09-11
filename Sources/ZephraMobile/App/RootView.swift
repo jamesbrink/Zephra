@@ -7,14 +7,15 @@ import ZephraLinkClient
 /// something that happens in front of the app, not a different app.
 struct RootView: View {
     @Environment(LinkClient.self) private var client
-    /// Which surface is up. Its starting value comes from the frozen preview state, so a
-    /// screenshot build opens on the surface it was asked for.
-    @State private var tab = MobilePreview.tab
+    /// Which surface is up. It lives beside the client rather than in a `@State` here, because
+    /// the library's "Use as Reference" moves it and cannot reach a state of this view's.
+    @Environment(MobileSelection.self) private var selection
     /// What went wrong with a link opened while a Mac was already paired.
     @State private var failure: String?
 
     var body: some View {
-        TabView(selection: $tab) {
+        @Bindable var selection = selection
+        return TabView(selection: $selection.tab) {
             ForEach(MobileTab.allCases) { surface in
                 screen(surface)
                     .tabItem { Label(surface.title, systemImage: surface.symbol) }

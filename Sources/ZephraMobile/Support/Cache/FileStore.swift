@@ -34,6 +34,14 @@ actor FileStore {
         return url
     }
 
+    /// The bytes already held under this name, or nil, read on this actor rather than on the
+    /// main one: a picture off a Mac is megabytes, and reading it where the interface runs is a
+    /// dropped frame. Reading marks the file as read, exactly as `url(for:)` does.
+    func data(for fileName: String) -> Data? {
+        guard let url = url(for: fileName) else { return nil }
+        return try? Data(contentsOf: url)
+    }
+
     /// Keeps one file's bytes and answers where they landed, trimming the folder afterwards if
     /// it has grown past the budget.
     @discardableResult

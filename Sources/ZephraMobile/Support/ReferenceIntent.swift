@@ -14,8 +14,9 @@ import Observation
 /// what `GenerationSettings.referenceOrigin` is on the Mac. Fetching the PNG to send it back to
 /// the machine it came from would be megabytes over a relay to say a word.
 ///
-/// **The capsule owns the other half.** It reads `fileName`, fills its own well, and calls
-/// `clear()`. Nothing else may take it: two readers and the second gets nothing.
+/// **The canvas owns the other half.** `ReferenceIntentReader` takes the name, fetches the
+/// picture through `LibraryCatalog` — the one cache both surfaces read whole pictures out of —
+/// and fills the well. Nothing else may take it: two readers and the second gets nothing.
 @MainActor
 @Observable
 final class ReferenceIntent {

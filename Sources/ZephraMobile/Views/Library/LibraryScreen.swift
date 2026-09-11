@@ -60,4 +60,5 @@ struct LibraryScreen: View {
         .environment(MobilePreview.client() ?? MobilePreview.unpairedClient())
         .environment(LibraryCatalog(libraryRoot: nil, filesRoot: nil))
         .environment(ReferenceIntent())
+        .environment(MobileSelection())
 }

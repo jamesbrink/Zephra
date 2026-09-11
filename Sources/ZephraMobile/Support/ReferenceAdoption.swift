@@ -19,4 +19,25 @@ enum ReferenceAdoption {
         else { return }
         draft.adopt(picture, origin: origin, fitting: capabilities.capabilities)
     }
+
+    /// Takes the library's "start from this one" — a file name and nothing else — and hands the
+    /// bytes behind it to `fill`.
+    ///
+    /// The picture comes through `LibraryCatalog`, so it crosses the link once for both
+    /// surfaces: the one the library already has on disk is the one the well gets, and the one
+    /// the well fetches is the one the library draws next. The name goes on as the origin,
+    /// which is `GenerationSettings.referenceOrigin` — the provenance the Mac records beside
+    /// the run.
+    ///
+    /// The request is taken before anything is fetched, so a slow link cannot leave it to be
+    /// acted on twice; a fetch that comes back with nothing leaves the well as it was, which is
+    /// what a phone with no Mac in reach should do.
+    static func take(
+        _ intent: ReferenceIntent, from catalog: LibraryCatalog,
+        fill: (Data, String) async -> Void
+    ) async {
+        guard let name = intent.take() else { return }
+        guard let data = await catalog.picture(named: name) else { return }
+        await fill(data, name)
+    }
 }
