@@ -17,12 +17,14 @@ extension ZephraApp {
     /// keychain or its port, and a screenshot build listening on the network would be a surprise.
     func startCompanion() async {
         guard companion == nil, InterfacePreview.requestedState == nil else { return }
-        let keychain = LinkKeychain(isFreshStart: FreshStart.current != nil)
-        // Off the main actor, both reads. A keychain item whose access list no longer names
-        // this copy of the app raises a system password prompt, and `SecItemCopyMatching` does
-        // not return until somebody answers it — on the main thread that is the whole app
-        // stopped before its first window, with nothing on screen to explain why. Read here,
-        // the worst a prompt left unanswered costs is a link that has not started yet.
+        let keychain = LinkKeychain(freshStart: FreshStart.current)
+        // Off the main actor, and both reads in one pass, which is every read this launch
+        // makes: `LinkSecretCache` keeps what comes back. A keychain item whose access list no
+        // longer names this copy of the app raises a system password prompt, and
+        // `SecItemCopyMatching` does not return until somebody answers it — on the main thread
+        // that is the whole app stopped before its first window, with nothing on screen to
+        // explain why. Read here, the worst a prompt left unanswered costs is a link that has
+        // not started yet; on a build signed ad hoc there is no keychain and no prompt at all.
         let opened = await Task.detached(priority: .userInitiated) { () -> (DeviceIdentity, [PairedDevice])? in
             guard let identity = try? keychain.identity() else { return nil }
             return (identity, (try? keychain.load()) ?? [])

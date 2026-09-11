@@ -1,27 +1,34 @@
 import Foundation
 import Security
 
-/// The three Security calls behind the two properties above.
+/// The three Security calls behind the properties above.
 ///
-/// Kept apart so `LinkKeychain` reads as what it stores rather than as `CFDictionary`
+/// Kept apart so `LinkKeychainStore` reads as what it stores rather than as `CFDictionary`
 /// arithmetic. Every item is a generic password under one service, so a reinstall that clears
 /// the keychain simply unpairs every phone, which is the right answer for keys a person can see
 /// and revoke in Settings.
 ///
-/// Every query asks for the **data-protection** keychain where this build can reach one. On
-/// macOS the default is the old file-based keychain, where `kSecAttrAccessible` is not honoured:
-/// the identity and the pairings would sit there under whatever the login keychain's own unlock
-/// state happened to be, and `ThisDeviceOnly` — the whole reason a restored backup is a new Mac
-/// — would mean nothing. An item written by a build before this is found by `legacyQuery`,
-/// moved across on the first read, and deleted from where it was.
+/// Every query asks for the **data-protection** keychain. On macOS the default is the old
+/// file-based keychain, where `kSecAttrAccessible` is not honoured: the identity and the
+/// pairings would sit there under whatever the login keychain's own unlock state happened to be,
+/// and `ThisDeviceOnly` — the whole reason a restored backup is a new Mac — would mean nothing.
+/// An item written by a build before this is found by `legacyQuery`, moved across on the first
+/// read, and deleted from where it was.
 ///
-/// Reaching that keychain needs an entitlement a build signed ad hoc has not got, so which one
-/// is asked for is `LinkKeychainKind`'s answer rather than a constant. A Debug build keeps its
-/// pairings in the old keychain and says so in the log; nothing else here changes.
-extension LinkKeychain {
+/// Reaching that keychain needs an entitlement, and a build that carries a team identifier may
+/// still be refused it. That is found out here, on the first call that comes back
+/// `errSecMissingEntitlement`, which latches `LinkKeychainKind` to the legacy spelling and tries
+/// again — rather than by a probe, which would be one more keychain call in a file whose whole
+/// purpose is to make fewer of them.
+extension LinkKeychainStore {
     /// What one item holds, or nil when there is no such item.
     func read(_ account: String) throws -> Data? {
-        if let bytes = try copy(Self.query(account)) { return bytes }
+        do {
+            if let bytes = try copy(Self.query(account)) { return bytes }
+        } catch let failure as LinkKeychainFailure where failure.isMissingEntitlement {
+            LinkKeychainKind.fallBackToLegacy()
+            return try read(account)
+        }
         guard let legacy = try copy(Self.legacyQuery(account)) else { return nil }
         try write(legacy, to: account)
         try remove(Self.legacyQuery(account))
@@ -34,15 +41,23 @@ extension LinkKeychain {
         let update = [kSecValueData as String: bytes]
         let updated = SecItemUpdate(query as CFDictionary, update as CFDictionary)
         if updated == errSecSuccess { return }
+        if updated == errSecMissingEntitlement {
+            LinkKeychainKind.fallBackToLegacy()
+            return try write(bytes, to: account)
+        }
         guard updated == errSecItemNotFound else { throw LinkKeychainFailure(status: updated) }
         var item = query
         item[kSecValueData as String] = bytes
         item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         let added = SecItemAdd(item as CFDictionary, nil)
+        if added == errSecMissingEntitlement {
+            LinkKeychainKind.fallBackToLegacy()
+            return try write(bytes, to: account)
+        }
         guard added == errSecSuccess else { throw LinkKeychainFailure(status: added) }
     }
 
-    /// Removes one item, for a reset that should look like a Mac that has never linked.
+    /// Removes both items, for a reset that should look like a Mac that has never linked.
     ///
     /// Both keychains, since a Mac that linked under an older build may still have the item
     /// where that build put it.
@@ -70,20 +85,20 @@ extension LinkKeychain {
     /// Takes one item away. An item that was never there is not a failure.
     private func remove(_ query: [String: Any]) throws {
         let status = SecItemDelete(query as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else {
-            throw LinkKeychainFailure(status: status)
-        }
+        guard status == errSecSuccess || status == errSecItemNotFound
+            || status == errSecMissingEntitlement
+        else { throw LinkKeychainFailure(status: status) }
     }
 
     /// The item one account names, in the best keychain this build can reach.
     ///
-    /// The data-protection keychain where the signature allows it, and the old one where it does
-    /// not — `LinkKeychainKind` decides that once a launch. On a build that cannot reach the
-    /// data-protection keychain this is `legacyQuery`, which makes the migration below a lookup
-    /// that finds the item where it already is and moves nothing.
+    /// The data-protection keychain while this build is allowed one, and the old keychain after
+    /// it has been refused. Where the answer is the legacy spelling this is `legacyQuery`, which
+    /// makes the migration above a lookup that finds the item where it already is and moves
+    /// nothing.
     static func query(_ account: String) -> [String: Any] {
         var query = base(account)
-        guard LinkKeychainKind.current.usesDataProtection else { return query }
+        guard LinkKeychainKind.usesDataProtection else { return query }
         query[kSecUseDataProtectionKeychain as String] = true
         return query
     }
@@ -98,19 +113,5 @@ extension LinkKeychain {
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
         ]
-    }
-}
-
-/// A keychain call that did not work, with the code it gave.
-///
-/// Carried rather than swallowed: a locked keychain is not an empty list of devices, and
-/// treating it as one would quietly unpair every phone.
-struct LinkKeychainFailure: Error, LocalizedError {
-    /// The `OSStatus` the Security framework returned.
-    let status: OSStatus
-
-    var errorDescription: String? {
-        let detail = SecCopyErrorMessageString(status, nil) as String? ?? "\(status)"
-        return "The keychain could not be read or written: \(detail)"
     }
 }

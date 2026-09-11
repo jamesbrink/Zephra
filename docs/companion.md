@@ -686,24 +686,51 @@ channel's nonce is a frame's position in the stream, so the order frames are
 sealed in must be the order they leave in, and a phone on a slow link never holds
 the main actor. A blob leaves as a `blobStart` reply and the chunks behind it.
 
-**The app's side** is `Sources/Zephra/Companion/`. `LinkKeychain` keeps the
-identity and the pairings as generic passwords under `io.zephra.link`, accessible
-after first unlock and `ThisDeviceOnly` — a Mac restored from another Mac's
-backup should be a new device, not that one. Every query asks for the
-**data-protection** keychain (`kSecUseDataProtectionKeychain`), because that is
-the only one on macOS where `kSecAttrAccessible` means anything: without it the
-items sit in the file-based login keychain under whatever its own unlock state
-happens to be, and `ThisDeviceOnly` is silently nothing. An item a build before
-that wrote is found by `legacyQuery`, moved across on the first read and deleted
-from where it was; `removeAll` clears both. Reaching that keychain needs an
-entitlement only a real signing identity carries, so `LinkKeychainKind` asks once
-a launch — a delete of an account nothing writes, `errSecMissingEntitlement`
-where the answer is no — and logs which keychain is in use: a Debug build is
-signed ad hoc, keeps its pairings in the old keychain, and the migration becomes
-a lookup that moves nothing, where before this the link simply never opened a
-road. The phone's `MobileKeychain` asks for
-the same flag, which is iOS's default, so both ends read the same. A
-`ZEPHRA_FRESH_START` launch uses accounts of its own. `CompanionThumbnails` is `ThumbnailSupply` over the app's own
+**The app's side** is `Sources/Zephra/Companion/`. `LinkKeychain` is the facade
+over this Mac's identity and its pairings, and `LinkKeychainKind` decides where
+those two secrets are kept — **three** answers, one question, asked once a launch
+and logged: does this code carry a team identifier
+(`SecCodeCopySelf` and `SecCodeCopySigningInformation`, `kSecCodeInfoTeamIdentifier`)?
+
+- **Data protection** where it does. `LinkKeychainStore` keeps both as generic
+  passwords under `io.zephra.link`, accessible after first unlock and
+  `ThisDeviceOnly` — a Mac restored from another Mac's backup should be a new
+  device, not that one — and every query asks for the **data-protection**
+  keychain (`kSecUseDataProtectionKeychain`), the only one on macOS where
+  `kSecAttrAccessible` means anything: without it the items sit in the file-based
+  login keychain under whatever its own unlock state happens to be, and
+  `ThisDeviceOnly` is silently nothing. An item a build before that wrote is found
+  by `legacyQuery`, moved across on the first read and deleted from where it was;
+  `removeAll` clears both. The phone's `MobileKeychain` asks for the same flag,
+  which is iOS's default, so both ends read the same.
+- **Legacy** if that keychain refuses the entitlement after all. It is found out
+  lazily, on the first call that answers `errSecMissingEntitlement`, which latches
+  the kind for the process and tries again the old way. No probe: a probe is one
+  more keychain call, and calls are the thing being counted here.
+- **Files** where there is no team identifier, which is every `make run`, `make
+  build` and `CODE_SIGN_IDENTITY "-"` build. `LinkFileStore` keeps `identity` (the
+  raw 64 bytes) and `devices.json` under `<Application Support>/Zephra/Companion`,
+  the folder at 0700 and each file at 0600, written to a hidden sibling and renamed
+  into place. The reason is the login keychain doing its job: it identifies an app
+  by its signature, a local build has a new one every time it is built, and the
+  rebuilt app touching what the last build wrote raises the password prompt at
+  launch and on every pairing write — "Always Allow" lasting exactly until the next
+  rebuild. Under `.file` no keychain is queried at all, so no prompt can appear.
+  **Nothing is migrated out of the keychain**, deliberately: reading the item would
+  raise the very prompt this avoids, so a local build pairs its phone once more and
+  the log line says so. A Developer ID build, which has a stable designated
+  requirement, is unaffected either way.
+
+`LinkSecretCache` sits between the facade and whichever store, because a keychain
+call on a signature the keychain does not recognise is a password prompt and
+`SecItemCopyMatching` does not return until somebody answers one. It reads each
+secret **once a launch** — `startCompanion` takes both in one detached pass and
+nothing reads again, a write included — writes a pairing or a revocation straight
+through, and rate-limits what is only cosmetic: a list that differs from the stored
+one by `lastSeen` alone is written at most once a minute, the deferred value landing
+on its timer or with the next real change. A `ZEPHRA_FRESH_START` launch keeps its
+own secrets either way: accounts of its own in the keychain, a `Companion` folder
+under its throwaway root on disk. `CompanionThumbnails` is `ThumbnailSupply` over the app's own
 `ThumbnailFolder`, so a phone scrolling the library pays for each decode once and
 shares what the Mac's grid already baked. `CompanionEndpoints` is the addresses a
 code carries: the `.local` name first, then every IPv4 address on an interface

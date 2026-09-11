@@ -73,13 +73,21 @@ the same override the store runs under without a second read of the process envi
   Settings says "Live through relay" when it worked. The Mac needs its relay switch on as well
   (Settings > Companion), or there is no host in the room to reach.
 - `make logs` streams `os.Logger` output for subsystem `io.zephra`.
-- A Debug build's companion keeps its identity and pairings in the login keychain
-  (an ad-hoc signature cannot reach the data-protection keychain), so every
-  rebuild changes the signature and the next launch can stall on a keychain
-  password prompt while the app stays usable. Clear it with
+- A locally built Zephra — every `make run`, `make build` and any other ad-hoc
+  signature — keeps its companion identity and pairings in
+  `~/Library/Application Support/Zephra/Companion/` (`identity` and
+  `devices.json`), never in a keychain, because the login keychain identifies an
+  app by its signature and a local build has a new one every time it is built:
+  the old arrangement asked for the keychain password at launch and on every
+  pairing write, and "Always Allow" lasted until the next rebuild. Delete that
+  folder to forget every phone and pair again; the log line at launch names which
+  store is in use. A `ZEPHRA_FRESH_START` launch keeps its own under
+  `<directory>/Companion`.
+- A **signed** build (Developer ID, so a stable designated requirement) still
+  keeps them in the keychain under `io.zephra.link`, and touches it at most once a
+  launch. Clear it with
   `security delete-generic-password -s io.zephra.link -a identity` and the same
-  for `-a devices`, then pair again; a Developer ID build keeps a stable
-  requirement and never hits this.
+  for `-a devices`, then pair again.
 - `make screenshot` photographs the app's window by its CoreGraphics id, so it captures the
   window rather than the rectangle of screen it sits in, and it fails rather than falling back
   when there is no window: a region or full-screen grab returns whatever is in front of Zephra,

@@ -324,12 +324,15 @@ every request goes through `GenerationStore.enqueue` and the index's own
 mutations, never `settings`, `descriptor`, `index.query` or `generate(count:)`,
 and an annotation edit is made with the index's `UndoManager` lifted off, since
 the Edit menu belongs to the person at the keyboard. The app's side is
-`Sources/Zephra/Companion/`: `LinkKeychain` (the identity and the pairings, in
-the data-protection keychain where the signature reaches one and the old login
-keychain where it does not, which `LinkKeychainKind` settles once a launch and
-logs, since an ad-hoc-signed Debug build cannot reach the first and would open no
-road at all), `CompanionThumbnails`, `CompanionEndpoints`, `CompanionRoads` and
-`RelayRoad`.
+`Sources/Zephra/Companion/`: `LinkKeychain` (the identity and the pairings,
+through `LinkSecretCache`, which reads each once a launch and rate-limits a
+`lastSeen` write to once a minute, over the store `LinkKeychainKind` settles once
+a launch from this build's team identifier and logs — the data-protection
+keychain for a signed build, the legacy one lazily if that is refused, and
+`LinkFileStore` under `<Application Support>/Zephra/Companion` for an ad-hoc
+build, which queries no keychain at all and so pairs once per machine rather than
+once per rebuild), `CompanionThumbnails`, `CompanionEndpoints`, `CompanionRoads`
+and `RelayRoad`.
 
 The relay itself is in this repository now, at `Relay/link` — one Lambda file,
 its README (the wire contract as the relay states it) and its tests. Nothing
@@ -586,8 +589,9 @@ Five directories, by what a file is rather than what screen it is on:
 - `Support/` — caches, exports, pickers, previews, and the single homes for
   cross-cutting answers listed below.
 - `Companion/` — everything the link needs that is the Mac's rather than the
-  protocol's: `LinkKeychain` (the identity and the pairings), `LinkKeychainKind`,
-  `CompanionThumbnails`,
+  protocol's: `LinkKeychain` (the identity and the pairings) over
+  `LinkSecretCache` and one of `LinkKeychainStore` or `LinkFileStore`,
+  `LinkKeychainKind`, `CompanionThumbnails`,
   `CompanionEndpoints`, `CompanionRoads`, `RelayRoad` and `PairingQRCode`. The one
   place in the app target that may import `ZephraLinkTransport`, since a road is
   what it opens; `ZephraApp.swift` itself takes only `ZephraLinkHost`.
