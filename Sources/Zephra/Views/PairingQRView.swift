@@ -52,10 +52,25 @@ struct PairingQRView: View {
             Text(payload.expiresAt, style: .timer)
                 .monospacedDigit()
             Spacer()
+            Button("Copy Code") { Self.copy(payload) }
             Button("Stop") { host?.endPairing() }
         }
         .font(.caption)
         .foregroundStyle(.secondary)
+        Text("Copy Code puts the pairing link on the clipboard, which reaches an iPhone signed in to the same Apple Account through Universal Clipboard. Paste it on the phone's pairing screen.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+    }
+
+    /// The payload as its `zephra://pair` link, on the clipboard.
+    ///
+    /// The whole link rather than the bare payload: `PairingEntry.parse` takes either, and a
+    /// link is the form a person can also send themselves and tap.
+    private static func copy(_ payload: PairingPayload) {
+        guard let link = try? PairingURL.encode(payload) else { return }
+        let board = NSPasteboard.general
+        board.clearContents()
+        board.setString(link.absoluteString, forType: .string)
     }
 
     /// One payload as a picture, or nil when there is no payload or it will not encode.
