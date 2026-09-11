@@ -361,14 +361,30 @@ mutations are; nothing here invents a `version`, since the Mac decides what a
 file's fingerprint is and a guessed one would make the next sync think the cache
 was current.
 
+**The library is pulled, not pushed**, and the Library tab was empty for a whole
+afternoon on a real phone because it was not. The Mac publishes what *changed* in
+its folder and counts the folder in the snapshot; it never sends the folder. A
+phone that had just paired therefore saw a full Today tab and an empty grid until
+somebody at the Mac made or edited a picture. `LinkClient+LibraryPull` is the
+other half: every snapshot — which is every connect — starts one task that asks
+for `libraryPage` at offset 0 in pages of a hundred, newest first, one in flight
+at a time, absorbing each page into `client.library` as it arrives, so the grid
+fills a page at a time rather than after the last one. A page that is refused is
+asked for again from the same offset after `LinkBackoff`, for as long as the
+connection is live; a session ending cancels the pull and the next session's
+snapshot starts a fresh one. Nothing in it touches the Mac's store, so it keeps
+going while the Mac is generating.
+
 One rule is worth spelling out because it is not obvious. A `LibraryChange.reset`
 carries at most `CompanionPublication.resetThreshold` entries — a hundred — so a
 phone that treated every reset as the whole library would throw the rest of its
 cache away the first time somebody with two thousand pictures rescanned a
 folder. `LibrarySync.plan` still answers with the removals, because it is a pure
 function over what it was given; `LibraryCatalog` applies them only when
-`client.library.count` has reached `snapshot.libraryCount`, and keeps what it has
-otherwise.
+`client.libraryIsComplete` says the pull has read the last page, and keeps what
+it has otherwise. Counting was what it used to read — `client.library.count`
+against `snapshot.libraryCount` — and counts cannot tell a short listing from a
+complete one.
 
 Offline, browsing, searching, the viewer over anything already fetched, Share
 and Save to Photos all work. Favoriting, tagging, deleting and a fetch of

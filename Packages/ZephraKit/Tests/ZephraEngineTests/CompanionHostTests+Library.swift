@@ -136,4 +136,22 @@ struct CompanionLibraryTests {
         #expect(snapshot.libraryCount == 1, "and the snapshot counted the same folder")
         await bed.shutdown()
     }
+
+    @Test("a page past the end of the folder is empty and still says how many there are")
+    func aPagePastTheEndIsEmpty() async throws {
+        let (bed, _) = try await Self.bedWithOnePicture()
+        let phone = try await bed.pairedPhone()
+        _ = try await phone.snapshot()
+
+        let reply = try await phone.request(.libraryPage(offset: 400, limit: 100))
+
+        guard case .entries(let page) = reply else {
+            Issue.record("expected a page, got \(reply)")
+            return
+        }
+        #expect(page.entries.isEmpty)
+        #expect(page.total == 1, "the total is what the phone's pull reads to know it is done")
+        #expect(page.offset == 1, "and the offset it answers is where the folder actually ends")
+        await bed.shutdown()
+    }
 }

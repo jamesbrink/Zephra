@@ -31,8 +31,16 @@ public final class LinkClient {
     public internal(set) var snapshot: StateSnapshot?
     /// The newest frame of the run in flight, cleared whenever a run ends or the link does.
     public internal(set) var preview: PreviewFrameDTO?
-    /// The library, as far as the Mac has said.
+    /// The library, as far as the Mac has said and the phone has asked.
     public internal(set) var library: [LibraryEntry] = []
+    /// Whether `library` is the whole of the Mac's folder rather than a window onto it.
+    ///
+    /// False on every new session and true once the pull that follows a snapshot has read the
+    /// last page. It is the cache's answer to a question the counts cannot settle: the Mac sends
+    /// at most a hundred entries in a reset, so a phone comparing what it holds against
+    /// `StateSnapshot.libraryCount` cannot tell a short listing from a complete one, and a
+    /// removal applied on that comparison throws away pictures that are still there.
+    public internal(set) var libraryIsComplete = false
     /// The Mac this phone knows, or nil before it has paired with one.
     public internal(set) var pairedHost: PairedHost?
 
@@ -50,6 +58,8 @@ public final class LinkClient {
     @ObservationIgnored var blobWaiters: [UUID: CheckedContinuation<Data, any Error>] = [:]
     @ObservationIgnored var arrivedBlobs: [UUID: Data] = [:]
     @ObservationIgnored var timers: [UUID: Task<Void, Never>] = [:]
+    /// The pull reading the library across, one per session.
+    @ObservationIgnored var libraryPull: Task<Void, Never>?
     @ObservationIgnored var isFrozen = false
     /// How long a session's `OrderedInbox` holds a gap open before it calls it loss. A property
     /// rather than the constant so a suite can ask the question in milliseconds.
@@ -89,8 +99,12 @@ public final class LinkClient {
     /// behind it, so whoever waits keeps the iterator it made.
     public func sessionEndings() -> AsyncStream<Void> { endings }
 
-    /// Says the session that was live has gone. Called wherever one is let go.
-    func sessionEnded() { endingSink.yield(()) }
+    /// Says the session that was live has gone. Called wherever one is let go, which is also
+    /// where the library pull is stopped: the next session's snapshot starts a new one.
+    func sessionEnded() {
+        endLibraryPull()
+        endingSink.yield(())
+    }
 
     /// A client that shows one state and touches no network, for a preview or a screenshot.
     ///
@@ -114,6 +128,7 @@ public final class LinkClient {
         client.isFrozen = true
         client.snapshot = snapshot
         client.library = library
+        client.libraryIsComplete = true
         client.connection = connection
         client.preview = preview
         let host = DeviceIdentity()

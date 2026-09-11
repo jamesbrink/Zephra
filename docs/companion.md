@@ -536,6 +536,16 @@ step counter ticking does not resend the model list. The library is compared by
 `.reset` rather than a diff — a folder scanned wholesale is not a diff worth
 sending. The loop runs only while a session is open.
 
+**The library is pulled, not pushed.** The first pass publishes nothing and the
+snapshot carries `libraryCount` rather than the folder, so what the Mac sends
+about the library is only what *changed* after a phone arrived. The entries
+themselves the phone asks for: `libraryPage(offset:limit:)` answers a window onto
+`LibraryEntryProjection.listing`, newest first, Recently Deleted left out, the
+limit clamped to 200 and the offset clamped to the end — a page past the end is
+empty and still carries the total, which is what says a pull is finished. The
+command reads the index and nothing else, so a page is answered while the Mac is
+mid-run.
+
 Preview frames have their own path: `PreviewEncoder` turns the engine's RGBA8
 into JPEG at 0.6 off the main actor, at most ten a second, newest wins, and the
 frame is fingerprinted by its size and its first and last sixteen bytes rather
@@ -649,8 +659,9 @@ never more lines in `LinkClient.swift`.
 What it holds is what the Mac published: `snapshot`, brought up to date by
 `StateSnapshot.applying(_:)` for every delta after it; `preview`, the newest
 frame of the run in flight, cleared whenever the engine stops being busy;
-`library`, the entries the Mac has sent, reset, upserted by file name or removed;
-and `pairedHost`, the Mac this phone knows. Nothing here decides anything about a
+`library`, the entries the Mac has sent **and the ones the phone pulled**, reset,
+upserted by file name or removed; `libraryIsComplete`, whether that list is the
+whole folder; and `pairedHost`, the Mac this phone knows. Nothing here decides anything about a
 generation — the Mac clamps, the Mac queues, and the phone shows what came back.
 
 Two things are injected, and both are what make the whole session testable in
@@ -702,6 +713,24 @@ without one there is nothing to assemble it into. At most `LinkClient.blobLimit`
 `await` for it. `enqueue(_:reference:)`
 sends the picture as a blob first and names it in the request, for the reason
 `GenerationRequest` strips the bytes at all.
+
+`LinkClient+LibraryPull` is the phone's half of the library. A snapshot landing —
+which is every connect — cancels any pull in flight, sets `libraryIsComplete`
+false and starts one: `libraryPage` at offset 0 in pages of
+`LinkClient.libraryPageSize` (100), one in flight at a time, each page absorbed
+into `library` as it arrives so the grid fills progressively rather than after
+the last one. The total is re-read from every page, since the folder may move
+under a pull that takes a few seconds; a page whose entries run out at that total
+sets `libraryIsComplete` in the same step as the entries land, because a cache
+applies its removals on the strength of that flag and a turn of the main actor
+between the two is a turn where the library looks present and incomplete. A
+thrown request is not the end of it — the Mac may have been busy — so the same
+offset is asked for again after `LinkBackoff`, for as long as the connection is
+live; a session that ends cancels the pull, and the next session's snapshot
+starts a fresh one. The loop is `nonisolated`, so the only thing it runs on the
+main actor is the one mutation. Entries the phone has not got are **appended**
+rather than inserted at the front the way `LibraryChange.upserted` does: the
+pages arrive newest first, so the front is where the page before it already is.
 
 `LinkClient.frozen(snapshot:library:)` is a client for a preview or a screenshot:
 live over the LAN as far as the interface can tell, requests answering `.ok` and

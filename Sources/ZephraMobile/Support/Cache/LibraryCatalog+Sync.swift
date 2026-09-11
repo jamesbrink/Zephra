@@ -30,15 +30,17 @@ extension LibraryCatalog {
 
     /// Brings the cache into line with what the client is holding.
     ///
-    /// The removals are applied only when what the client holds covers the whole folder. The
-    /// Mac sends at most a hundred entries in a reset (`CompanionPublication.resetThreshold`),
-    /// so a phone that took every reset as gospel would throw the rest of its cache away the
-    /// first time somebody with two thousand pictures rescanned a folder — and would lose the
-    /// library offline, which is the one thing the cache is for.
+    /// The removals are applied only when what the client holds covers the whole folder, which
+    /// is `LinkClient.libraryIsComplete`: the pull that follows every connect has read the last
+    /// page. The Mac sends at most a hundred entries in a reset
+    /// (`CompanionPublication.resetThreshold`), so a phone that took every reset as gospel would
+    /// throw the rest of its cache away the first time somebody with two thousand pictures
+    /// rescanned a folder — and would lose the library offline, which is the one thing the cache
+    /// is for.
     func sync(with client: LinkClient) async {
         isLive = client.connection.isLive
         let remote = client.library
-        let whole = coversWholeLibrary(count: remote.count, client: client)
+        let whole = client.libraryIsComplete
         guard !remote.isEmpty || whole else { return }
 
         let plan = LibrarySync.plan(remote: remote, local: entries)
@@ -58,25 +60,17 @@ extension LibraryCatalog {
         await measureCache()
     }
 
-    /// Whether the list the client holds is the whole library rather than a window onto it.
-    ///
-    /// The snapshot counts the folder and the client holds what it has been sent, so the two
-    /// numbers meeting is what says nothing is missing. With no snapshot at all — a phone that
-    /// has not finished connecting — the answer is no, and nothing is forgotten.
-    private func coversWholeLibrary(count: Int, client: LinkClient) -> Bool {
-        guard let total = client.snapshot?.libraryCount else { return false }
-        return count >= total
-    }
-
     /// Waits for the client's library or its connection to be about to change.
     ///
-    /// Both in one arming, because both decide what a library surface draws: the entries are
-    /// the pictures, and the connection is whether favoriting one is offered or greyed.
+    /// All three in one arming, because all three decide what a library surface draws: the
+    /// entries are the pictures, the connection is whether favoriting one is offered or greyed,
+    /// and completeness is whether a picture the Mac no longer lists may be forgotten.
     private func awaitChange(in client: LinkClient) async {
         await withCheckedContinuation { continuation in
             withObservationTracking {
                 _ = client.library
                 _ = client.connection
+                _ = client.libraryIsComplete
             } onChange: {
                 continuation.resume()
             }

@@ -20,6 +20,9 @@ extension LinkClient {
         switch envelope.kind {
         case .snapshot:
             snapshot = decode(StateSnapshot.self, from: envelope)
+            // Every connect brings one, and it is the frame that says the session is up: the
+            // library the Mac holds is read across from here, since nothing else will send it.
+            startLibraryPull()
         case .delta:
             guard let delta = decode(StateDelta.self, from: envelope) else { return }
             snapshot = snapshot?.applying(delta)

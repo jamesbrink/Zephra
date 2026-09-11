@@ -18,6 +18,13 @@ final class FakeHost {
     var payload: Data?
     /// What the phone's next command is answered with, where `.ok` will not do.
     var reply: Reply?
+    /// The pictures this Mac's folder holds, newest first, which `libraryPage` windows onto.
+    var library: [LibraryEntry] = []
+    /// How many of the next page requests are refused, for the retry a dropped page takes.
+    var refusesPages = 0
+    /// Called as each command arrives, before it is answered, so a test can ask what the phone
+    /// was holding at the moment it asked for the next page.
+    var onCommand: (@MainActor (Command) -> Void)?
 
     private var secret: Data?
     private var known: Set<Data>
@@ -112,6 +119,7 @@ final class FakeHost {
         guard envelope.kind == .request else { return }
         let command = try envelope.decode(Command.self)
         commands.append(command)
+        onCommand?(command)
         let answer = reply ?? standing(for: command)
         try await send(.envelope(Envelope.encoding(answer, kind: .reply, inReplyTo: envelope.id)))
         if case .blob(let start) = answer, let payload {
@@ -131,9 +139,22 @@ final class FakeHost {
             return .blob(BlobStart(byteCount: payload.count, mime: "image/png"))
         case .enqueue:
             return .queued(batchID: UUID())
+        case .libraryPage(let offset, let limit):
+            guard refusesPages == 0 else {
+                refusesPages -= 1
+                return .error(LinkError(code: .busy, reason: "Not just now."))
+            }
+            return .entries(page(offset: offset, limit: limit))
         default:
             return .ok
         }
+    }
+
+    /// One window onto this Mac's folder, clamped the way the real one clamps it.
+    private func page(offset: Int, limit: Int) -> LibraryPage {
+        let start = min(max(offset, 0), library.count)
+        let end = min(start + min(max(limit, 0), 200), library.count)
+        return LibraryPage(entries: Array(library[start..<end]), offset: start, total: library.count)
     }
 
     /// One piece of a blob the phone is sending, which it announced first.

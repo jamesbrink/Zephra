@@ -92,8 +92,11 @@ extension CompanionHost {
 
     /// What changed in the library folder, by fingerprint.
     ///
-    /// Nothing is published on the first pass: the snapshot a session opens with already holds
-    /// the library, and a reset on top of it would be the same window twice.
+    /// Nothing is published on the first pass. The snapshot a session opens with carries the
+    /// folder's `libraryCount` and not the folder, and the phone reads the entries across for
+    /// itself, a page at a time, as soon as that snapshot lands
+    /// (`LinkClient.startLibraryPull`). A reset here on the first pass would be a hundred
+    /// entries the phone is already asking for, and would say nothing about the rest.
     func publishLibrary() {
         let items = LibraryEntryProjection.listing(index.items)
         let versions = items.reduce(into: [String: String]()) { map, item in

@@ -794,10 +794,14 @@ US-spelling check.
   is a cache and the Mac's folder is the truth**: nothing in it is backed up,
   clearing it loses nothing, and an entry is refetched when
   `CachedEntry.isStale(against:)` says its file moved, which is exactly the
-  three facts `LibraryEntry.version` is made of. A reset carries at most a
-  hundred entries, so `LibraryCatalog` applies its removals only once
-  `client.library` has reached `snapshot.libraryCount` — `LibrarySync.plan` is
-  pure and answers with them regardless. Browsing, searching, the viewer over
+  three facts `LibraryEntry.version` is made of. The Mac sends library
+  *changes* and counts the folder in its snapshot, so the entries themselves are
+  **pulled**: `LinkClient+LibraryPull` pages `libraryPage` after every connect, a
+  hundred at a time, one in flight, each page into `client.library` as it lands,
+  retried from the same offset after `LinkBackoff` while the session is live,
+  and `libraryIsComplete` is what says the last page arrived. A reset carries at
+  most a hundred entries, so `LibraryCatalog` applies its removals only once that
+  flag is up — `LibrarySync.plan` is pure and answers with them regardless. Browsing, searching, the viewer over
   anything fetched, Share and Save to Photos work offline; favoriting, tagging,
   deleting and an unfetched picture grey rather than failing on press.
 - The Today tab is `snapshot.today` drawn in the Mac's order. Nothing in it
