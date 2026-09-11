@@ -45,21 +45,30 @@ extension CompanionHost {
 
     /// Pictures this session has made, as one message each.
     ///
-    /// Insertions go out oldest first so a phone appending them ends with the same order the Mac
-    /// holds, which is newest first.
+    /// A row that has *changed* counts as well as one that has arrived, which is why the record
+    /// kept is the rows and not their ids: a picture is inserted with no file name and is given
+    /// one a moment later when its write lands, and that is the only thing the phone's canvas
+    /// needs to fetch the picture. `historyInserted` is already an upsert at the far end, so
+    /// sending the row again is how a change is said.
+    ///
+    /// Insertions go out oldest first so a phone applying them ends with the same order the Mac
+    /// holds, which is newest first. Everything from the deepest row that moved up to the newest
+    /// goes, not only the rows that differ: each one is re-inserted at the front, so re-sending
+    /// the rows in front of a changed one is what puts them back in front of it.
     func publishHistory() {
         let entries = HistoryEntryProjection.entries(store.history)
-        let ids = entries.map(\.id)
-        guard ids != published.history else { return }
-        let before = Set(published.history)
-        let after = Set(ids)
-        for id in published.history where !after.contains(id) {
-            broadcast(.historyRemoved(id))
+        guard entries != published.history else { return }
+        let before = Dictionary(published.history.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let after = Set(entries.map(\.id))
+        for entry in published.history where !after.contains(entry.id) {
+            broadcast(.historyRemoved(entry.id))
         }
-        for entry in entries.reversed() where !before.contains(entry.id) {
-            broadcast(.historyInserted(entry))
+        if let deepest = entries.lastIndex(where: { before[$0.id] != $0 }) {
+            for entry in entries[...deepest].reversed() {
+                broadcast(.historyInserted(entry))
+            }
         }
-        published.history = ids
+        published.history = entries
     }
 
     /// The model in force, the survey of what is on disk, and the transfers in flight.

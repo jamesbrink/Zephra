@@ -14,8 +14,13 @@ struct CompanionPublication {
     var engine: EngineStateDTO?
     var queue: [QueuedEntry] = []
     var running: QueuedEntry?
-    /// This session's pictures by identity, so an insert and a removal are a set difference.
-    var history: [UUID] = []
+    /// This session's pictures as they were last sent, newest first.
+    ///
+    /// The whole rows rather than their ids. A picture enters history with no file name and is
+    /// given one when its write lands, which changes the row without changing the list of ids —
+    /// so a record kept as ids alone would see nothing move and would never tell the phone where
+    /// the picture went, leaving its canvas empty after every run it asked for.
+    var history: [HistoryEntry] = []
     var modelID: String?
     var availability: [String: AvailabilityDTO] = [:]
     var downloads: [DownloadDTO] = []

@@ -109,6 +109,39 @@ struct CompanionHostTests {
         await bed.shutdown()
     }
 
+    @Test("the picture's file name reaches the phone once the write lands")
+    func historyRowIsSentAgainWhenItsFileNameArrives() async throws {
+        let bed = CompanionTestBed()
+        await bed.bootstrap()
+        let phone = try await bed.pairedPhone()
+        var state = try await phone.snapshot()
+
+        // The two halves of a save, apart, because that is what the bug was: a picture enters
+        // history with no file name and is given one when the write lands, and the second half
+        // changes the row without changing the list of ids.
+        var image = GeneratedImage(
+            pngData: Data([0x89, 0x50]), settings: Self.request().settings,
+            modelID: ModelCatalog.default.id, duration: .seconds(1))
+        bed.store.history = [image]
+        bed.host.publishNow()
+        let first = try await phone.waitFor { () -> HistoryEntry? in
+            for delta in (try? phone.deltas()) ?? [] { state = state.applying(delta) }
+            return state.history.first
+        }
+        #expect(first.fileName == nil, "nothing is written yet")
+
+        image = image.withFileURL(URL(filePath: "/tmp/zephra-test-lantern.png"))
+        bed.store.history = [image]
+        bed.host.publishNow()
+
+        let named = try await phone.waitFor { () -> String? in
+            for delta in (try? phone.deltas()) ?? [] { state = state.applying(delta) }
+            return state.history.first?.fileName
+        }
+        #expect(named == "zephra-test-lantern.png", "the phone has nothing to fetch without it")
+        await bed.shutdown()
+    }
+
     @Test("a submit the Mac will not take comes back with the reason it gave")
     func refusedSubmitCarriesTheReason() async throws {
         let bed = CompanionTestBed()
