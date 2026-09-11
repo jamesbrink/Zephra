@@ -54,9 +54,15 @@ struct ItemPicture: View {
 
     /// A failure that leaves a thumbnail on screen is not worth reporting: what is there is a
     /// picture, only a smaller one. A failure with nothing on screen is.
+    ///
+    /// The cache's own failures carry sentences and are shown as they are. Everything else is
+    /// a link that would not answer, and `LinkClientError`'s own description is a Swift error
+    /// number — nothing to put in front of somebody who wanted to look at a picture.
     private func fell(to error: any Error) {
         guard case .waiting = shown else { return }
-        shown = .unavailable(error.localizedDescription)
+        let sentence = (error as? LibraryCacheError)?.errorDescription
+            ?? "Your Mac could not send this one. It comes down the next time it is in reach."
+        shown = .unavailable(sentence)
     }
 }
 

@@ -33,7 +33,9 @@ struct LibraryScreen: View {
         .fullScreenCover(item: $viewing) { entry in
             LibraryViewer(entries: day(of: entry), opening: entry.fileName)
         }
-        .task { openFirstIfPhotographing() }
+        // Keyed on the count, because the catalog reads the disk and then the client before it
+        // has anything: a plain `.task` runs while the grid is still empty.
+        .task(id: catalog.entries.count) { openFirstIfPhotographing() }
     }
 
     /// The pictures the viewer pages through: the day the opened one belongs to.
