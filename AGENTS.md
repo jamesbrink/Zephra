@@ -1626,13 +1626,16 @@ environment value.
   backend; use a separate preferences domain and models folder. No such hook
   exists in Release.
 - `make logs` streams `os.Logger` output for subsystem `io.zephra`.
-- A Debug build's companion keeps its identity and pairings in the login keychain
-  (an ad-hoc signature cannot reach the data-protection keychain), so every
-  rebuild changes the signature and the next launch can stall on a keychain
-  password prompt while the app stays usable. Clear it with
-  `security delete-generic-password -s io.zephra.link -a identity` and the same
-  for `-a devices`, then pair again; a Developer ID build keeps a stable
-  requirement and never hits this.
+- A locally built Zephra (every `make run`, `make build`, any ad-hoc signature)
+  keeps its companion identity and pairings in
+  `~/Library/Application Support/Zephra/Companion/` (`identity`, `devices.json`),
+  never in a keychain: the login keychain identifies an app by its signature and
+  a local build has a new one every build, which asked for the password at
+  launch and on every pairing write. Delete the folder to forget every phone and
+  pair again; the launch log names the store in use. A signed build keeps them
+  in the keychain under `io.zephra.link`, touched at most once a launch; clear
+  with `security delete-generic-password -s io.zephra.link -a identity` and the
+  same for `-a devices`.
 - `make screenshot` photographs the window by its CoreGraphics id and fails
   rather than grabbing the screen when there is no window; `WINDOW=<title>`
   takes the window with that title (a Settings window is titled after its tab).
