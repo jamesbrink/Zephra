@@ -168,6 +168,38 @@ holding a first frame:
   first run made a coherent picture. **Owed a rerun** on an idle disk.
 - The run: `make bench ARGS="--model ltx-2.5-distilled-4bit --size 768x512 --frames 49"`.
 
+## LTX-2.5 4-bit with sound
+
+`ltx-2.5-distilled-audio-4bit`, packed here from the same pack plus its two audio files
+in 2 min 27 s once local. 25.83 GB out (`builtBytes`, measured: 25,832,161,853 bytes):
+12.55 GB of transformer (the video entry's 8.56 plus the lane), 2.58 of connector (1.89
+plus the audio stack and projection), the same 8.00 of Gemma, 1.47 of video autoencoder,
+1.01 of upsampler, and the 0.06 GB audio decoder and 0.26 GB vocoder copied whole.
+
+halcyon, idle, 2026-09-10, 768 x 512 and 49 frames in two stages, the MP4 carrying a
+stereo AAC track at 48 kHz:
+
+| Weights | Seconds | s/step | Live | Peak | Load | Read per step |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| resident | 112.8 | 6.98 over 11 | 24088 MB | 28711 MB | 29.7 s | |
+| streamed | 84.2 | 6.20 over 11 | 7455 MB | 12078 MB | 10.3 s | 11.7 GB at 1.09 GB/s |
+
+- Against the video-only entry's 69.4 s resident on the same day, the lane costs about
+  forty seconds a clip: 5.9 billion more parameters through every block, the audio
+  connector once, and the decoder and vocoder after the loop (a second or two).
+- Streamed came out faster than resident on this run, which is the machine and not the
+  model: the resident run was the first after the pack landed and paid for its cold
+  pages, and the streamed one read a warm variant. Both are one run; **owed a rerun** in
+  threes on an idle Mac.
+- The peak is the load's, as it is for the video entry: 5.3 GB over it resident and
+  2.1 GB streamed, the lane's blocks held or read and the audio pieces resident.
+- The sound follows the prompt: a dog prompt makes one bark then near-silence in one
+  stage and two barks in two, an accordion and crowd a dense track throughout; the port's
+  decoder and vocoder reproduce diffusers' on the same latent with the pack's real weights
+  to 0.001 in the waveform.
+- The run: `make bench ARGS="--model ltx-2.5-distilled-audio-4bit --size 768x512 --frames 49"`,
+  with `--stream` for the second row.
+
 ## Wan 2.2 TI2V-5B 4-bit
 
 `wan-2.2-ti2v-5b-4bit`, packed here from the 24.2 GB

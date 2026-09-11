@@ -116,16 +116,17 @@ extension ModelCatalog {
         ),
         quantization: .int4,
         downloadBytes: ltx2AudioDownloadBytes,
-        // Estimated from the video-only entry's measurements and the lane's size, to be
-        // measured: 5.86 billion more parameters at four bits is 3.3 GB more resident and a
-        // fraction more scratch, and the decoder and vocoder 0.37 GB in float32 doubled.
-        residentBytes: 23_200_000_000,
-        peakBytes: 27_500_000_000,
-        tiledPeakBytes: 27_500_000_000,
-        // Streamed, the lane's 3.5 GB more of blocks is read per step rather than held; the
-        // extra resident pieces are the audio connector and projection, the decoder and the
-        // vocoder.
-        streamedPeakBytes: 11_400_000_000,
+        // Measured on halcyon (M4 Max, 51.5 GB) on 2026-09-10, resident, 768 x 512 and 49
+        // frames in two stages: 24088 MB live after the clip and 28711 MB peak, the video
+        // entry's 19155 and 23421 plus the lane, the audio connector, the decoder and the
+        // vocoder. The decoder has no tiled path, so the tiled peak is the plain one.
+        residentBytes: 24_090_000_000,
+        peakBytes: 28_720_000_000,
+        tiledPeakBytes: 28_720_000_000,
+        // Measured streamed on halcyon on 2026-09-10, the same clip: 12078 MB peak, 7455 MB
+        // live, 11.7 GB read per step (the video entry's 8.1 plus the lane), the audio
+        // connector and projection, the decoder and the vocoder resident beside the video's.
+        streamedPeakBytes: 12_080_000_000,
         maxPromptTokens: 1024,
         capabilities: ltx2AudioCapabilities,
         // Measured by `make quantize-ltx2-audio` on 2026-09-10: 25,832,161,853 bytes, the
