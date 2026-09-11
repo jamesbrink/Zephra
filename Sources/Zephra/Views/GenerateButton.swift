@@ -13,6 +13,7 @@ import ZephraEngine
 struct GenerateButton: View {
     @Environment(GenerationStore.self) private var store
     @AppStorage(AppSettings.batchCount) private var count = AppSettings.initialBatchCount
+    @State private var frame: CGRect?
 
     var body: some View {
         Button {
@@ -35,6 +36,9 @@ struct GenerateButton: View {
         // SwiftUI change away from queueing twice.
         .disabled(!store.canQueue)
         .help(helpText)
+        // Where the button is, for `GenerateClickTests` to click it through a window.
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame = $0 }
+        .preference(key: GenerateButtonFrame.self, value: frame)
     }
 
     private var helpText: String {
