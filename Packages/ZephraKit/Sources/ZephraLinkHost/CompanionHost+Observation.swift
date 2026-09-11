@@ -18,9 +18,18 @@ extension CompanionHost {
     static let previewsPerSecond = 10.0
 
     /// Starts watching, if nothing is already.
+    ///
+    /// The first pass runs with nothing listening. A session opens on a `StateSnapshot` that is
+    /// already the whole state, so publishing it again as a dozen deltas would be the same facts
+    /// twice — and `historyInserted` twice for every picture, which a phone appending them would
+    /// show twice. So the record of what has been told is filled from the state as it stands,
+    /// and only what moves after that is sent.
     func startObserving() {
         guard observation == nil else { return }
         published = CompanionPublication()
+        isSeeding = true
+        publish()
+        isSeeding = false
         observation = Task { @MainActor [weak self] in
             while !Task.isCancelled {
                 await self?.awaitChange()
@@ -87,6 +96,7 @@ extension CompanionHost {
 
     /// Hands one delta to every session that has finished its handshake.
     func broadcast(_ delta: StateDelta) {
+        guard !isSeeding else { return }
         for session in sessions { session.send(delta) }
     }
 }

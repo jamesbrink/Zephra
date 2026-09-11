@@ -19,7 +19,7 @@ enum CompanionEndpoints {
 
     /// This Mac's addresses, for the code on screen.
     static func current(port: UInt16 = port) -> [Endpoint] {
-        (localName().map { [$0] } ?? []) + addresses()
+        (localName(port: port).map { [$0] } ?? []) + addresses()
             .prefix(PairingPayload.endpointLimit)
             .map { Endpoint(host: $0, port: port) }
     }

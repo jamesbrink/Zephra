@@ -48,6 +48,9 @@ public final class CompanionHost {
     @ObservationIgnored var observation: Task<Void, Never>?
     /// What the sessions were last told, so a delta is published for what actually moved.
     @ObservationIgnored var published = CompanionPublication()
+    /// True for the one pass that fills that record without sending any of it, which is how the
+    /// loop starts without repeating the snapshot a session has just been given.
+    @ObservationIgnored var isSeeding = false
 
     /// Builds the host over the two objects the interface observes.
     ///

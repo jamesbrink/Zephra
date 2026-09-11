@@ -68,6 +68,19 @@ struct CompanionHostTests {
         await bed.shutdown()
     }
 
+    @Test("nothing is published twice: a fresh session gets no delta repeating its snapshot")
+    func openingPublishesNothingTwice() async throws {
+        let bed = CompanionTestBed()
+        await bed.bootstrap()
+        let phone = try await bed.pairedPhone()
+        _ = try await phone.snapshot()
+
+        try await Task.sleep(for: .milliseconds(150))
+
+        #expect(try phone.deltas().isEmpty, "the snapshot was already the whole state")
+        await bed.shutdown()
+    }
+
     @Test("a submit from the phone queues without touching the capsule, and lands in history")
     func submitLeavesTheCapsuleAlone() async throws {
         let bed = CompanionTestBed()

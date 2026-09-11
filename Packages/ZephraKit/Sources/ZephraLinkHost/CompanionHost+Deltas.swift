@@ -120,6 +120,7 @@ extension CompanionHost {
            now - sent < .seconds(1 / Self.previewsPerSecond) { return }
         published.previewFingerprint = fingerprint
         published.previewSentAt = now
+        guard !isSeeding else { return }
         let engine = published.engine ?? EngineStateDTO(store.state)
         Task { @MainActor [weak self] in
             let frame = await Task.detached(priority: .utility) {

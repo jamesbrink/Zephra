@@ -34,6 +34,9 @@ public final class CompanionSession: Identifiable {
     var incoming: BlobReassembly?
     var incomingID: UUID?
     var blobs: [UUID: Data] = [:]
+    /// The order they landed in, so the one dropped when the limit is reached is the oldest and
+    /// not whichever the dictionary happened to hand back first.
+    var blobOrder: [UUID] = []
 
     private let outbound: AsyncStream<Data>
     private let sink: AsyncStream<Data>.Continuation

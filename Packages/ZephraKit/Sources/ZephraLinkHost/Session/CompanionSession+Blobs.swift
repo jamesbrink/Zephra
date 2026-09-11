@@ -27,8 +27,10 @@ extension CompanionSession {
         incoming = nil
         incomingID = nil
         blobs[chunk.blobID] = whole
-        while blobs.count > Self.blobLimit, let oldest = blobs.keys.first {
-            blobs.removeValue(forKey: oldest)
+        blobOrder.removeAll { $0 == chunk.blobID }
+        blobOrder.append(chunk.blobID)
+        while blobOrder.count > Self.blobLimit {
+            blobs.removeValue(forKey: blobOrder.removeFirst())
         }
     }
 

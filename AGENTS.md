@@ -498,7 +498,7 @@ builds, the app-hosted tests, and `ZEPHRA_FRESH_START` (`FreshStart` in
 `Support/`, which gives `AppSettings.store` a throwaway suite and its own
 `Models` and `Images` folders; the hub cache is deliberately not redirected).
 
-Four directories, by what a file is rather than what screen it is on:
+Five directories, by what a file is rather than what screen it is on:
 
 - `Style/` — the chrome drawn on top of the shared tokens. The tokens
   themselves live in `Packages/ZephraStyle`, since the iOS companion is drawn
@@ -515,6 +515,11 @@ Four directories, by what a file is rather than what screen it is on:
   persisted through `AppSettings`.
 - `Support/` — caches, exports, pickers, previews, and the single homes for
   cross-cutting answers listed below.
+- `Companion/` — everything the link needs that is the Mac's rather than the
+  protocol's: `LinkKeychain` (the identity and the pairings), `CompanionThumbnails`,
+  `CompanionEndpoints`, `CompanionRoads`, `RelayRoad` and `PairingQRCode`. The one
+  place outside `ZephraApp.swift` that may import `ZephraLinkTransport`, since a
+  road is what it opens.
 - `Views/` — one subfolder per surface; the capsule, its controls, the
   commands and Settings sit at the top because they belong to no surface.
 

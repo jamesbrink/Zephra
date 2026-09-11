@@ -66,7 +66,7 @@ extension CompanionHost {
     public func revoke(_ device: PairedDevice) async {
         devices.removeAll { $0.keys == device.keys }
         persistDevices()
-        let closing = sessions.filter { $0.peer == device.keys }
+        let closing = sessions.filter { $0.belongs(to: device.keys) }
         for session in closing {
             await session.close(
                 telling: LinkError(
