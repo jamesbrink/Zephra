@@ -92,7 +92,11 @@ is distributed until the app is ready to ship.
      Wan continues from its last frame alone: holding a run of latent frames is the
      untrained case for its base model (`TheDenk/wan2.2-video-continuation`, Apache-2.0,
      is a LoRA that trains it), and Wan's mask already takes any number of frames when
-     one is worth packing.
+     one is worth packing. Longer clips are chains of passes (`ChainPlan`, up to four);
+     left out: a Stop that keeps the passes made so far as a shorter clip (today it drops
+     them, as it drops a single run), a record field counting the passes, the batch
+     control's pending count while a chain queues its next pass, and audio across a
+     chain once LTX makes any.
    - **The first frame is not re-compressed**: the reference image-to-video pipeline puts
      the picture through H.264 at CRF 18 before encoding it, so the model sees the
      compression artefacts it was trained beside. This port encodes the picture as it is,

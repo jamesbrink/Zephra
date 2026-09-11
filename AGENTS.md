@@ -270,6 +270,14 @@ step reads the kind. `GenerationSettings.frames` is 1 for a picture, pinned by
 `clamp` where `frameBounds` is `1...1`, and snapped to `frameAlignment` for a
 video model.
 
+A length past one pass is a chain (`ChainPlan`, `GenerationStore+Chaining`):
+the store plans the passes before it clamps, so `clamp` keeps a single pass's
+bounds and no backend is asked for more than it runs; each pass but the last is
+kept in `chains`, its tail read through `clips` and the next pass queued at the
+head on the next seed; the last joins them (the source clip first when Extend
+Clip started it) and publishes one clip. `QueuedGeneration.chain` is what
+`StepProgress` reads the passes as one bar by. Stop drops the passes made.
+
 `current` is what the canvas shows, and only that (`+FollowingRun`). Generate or
 a variation starts following the run; opening or selecting any other picture
 stops. A result reaches `current` only while `followsRun`; otherwise it still
@@ -532,7 +540,8 @@ carries the `ModelSource`, the download and resident sizes, and a
 step and guidance bounds, negative prompt and seed, and for a clip model
 `frameBounds`, `defaultFrames`, `frameAlignment` and `frameRate` (a range in
 `frameBounds` draws the length control and says the backend answers
-`GeneratedMedia.video`). Every number in an entry is measured; leave a comment
+`GeneratedMedia.video`), and `continuationFrames` with
+`defaultContinuationFrames` when the family can carry a clip on. Every number in an entry is measured; leave a comment
 saying where it came from.
 
 **A new backend family** — four things in the app, then the tooling:
