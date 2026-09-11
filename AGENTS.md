@@ -82,6 +82,12 @@ Shared, by what a file actually touches:
   ZephraMLXKit/ZephraQuantization  MLX, ZephraCore, ZephraSnapshot — the streaming weight
                                                   packer, and the one descriptor build every
                                                   family runs through it
+  ZephraLink/ZephraLinkProtocol    Foundation, CryptoKit, ZephraCore, ZephraEngine — the wire
+                                                  the Mac and a future iOS app both speak: the
+                                                  frames, the state snapshot and its deltas, the
+                                                  commands, a Noise-style channel, the QR
+                                                  pairing payload and the relay's JSON; nothing
+                                                  links it yet
   ZephraMLXKit/ZephraMLX           MLX, MLXNN, ZephraCore — the packed loader, the manifest
                                                   reader, the rotary table, the pixel packer,
                                                   the tiled decode, the allocator's knobs and
@@ -171,6 +177,12 @@ Shared, by what a file actually touches:
   `Sources/Zephra/ZephraApp.swift` may import a `ZephraBackend*` or
   `ZephraUpscale*` package, to register it.
 - No backend package may import another backend package.
+- `ZephraLinkProtocol` (`Packages/ZephraLink`) is the one package an iOS app
+  links too, so what it may import is a short list rather than a short ban:
+  Foundation-level frameworks, `ZephraCore`, `ZephraEngine` and itself.
+  `ZephraEngine` is for `GenerationRecord` and `LibraryAnnotation` alone, which
+  cross the wire as themselves: they are the truth inside every PNG, and a second
+  shape of the same provenance is a second thing to keep in step.
 
 Code rules:
 
@@ -182,13 +194,32 @@ Code rules:
 - `ModelCatalog` is the only static registry in the codebase. No other singletons.
 
 Run `make lint-layers` before every commit. It fails on forbidden imports across
-the layers above, on any repeating animation in the app target, on `hoverWash`
-used anywhere but under `allowsHitTesting(false)`, on British spelling in
-user-facing string literals (except `LibraryScope`'s persisted `"favourites"`),
-and on the type-name ban. `make lint-size` is advisory only: it lists files over
-150 lines. The three-stored-properties rule is not linted; apply it by eye.
+the layers above (`ZephraLink`'s by an allow-list rather than a ban), on any
+repeating animation in the app target, on `hoverWash` used anywhere but under
+`allowsHitTesting(false)`, on British spelling in user-facing string literals
+(except `LibraryScope`'s persisted `"favourites"`), and on the type-name ban.
+`make lint-size` is advisory only: it lists files over 150 lines. The
+three-stored-properties rule is not linted; apply it by eye.
 
 Full detail: `docs/architecture.md`.
+
+## The companion link
+
+`Packages/ZephraLink/Sources/ZephraLinkProtocol` is the protocol a phone app will
+talk to this Mac over: two frame kinds, a state snapshot and its deltas, the
+commands a phone may send, a Noise-style handshake on CryptoKit with an AES-GCM
+channel counted per direction, the QR pairing payload, and the relay's routing
+JSON. No transport and no interface are in it, so both ends are tested in
+milliseconds without a socket. Nothing links it yet.
+
+Three rules it is built on. A preview frame never rides inside a state update —
+`EngineStateDTO` is scalars, and previews have a message kind of their own. A
+reference picture never rides inside a request — it crosses as a blob and
+`GenerationRequest` strips the bytes on the way in *and* on the way out. And a
+blob's chunks are accepted in order only, because the channel underneath is one
+ordered stream and a gap means loss or tampering.
+
+Full detail: `docs/companion.md`.
 
 ## First launch
 

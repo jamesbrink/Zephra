@@ -67,6 +67,9 @@ packages:
     path: Packages/QwenImageKit
   ZImageKit:
     path: Packages/ZImageKit
+  # The wire the Mac and a future iOS app share. No target links it yet.
+  ZephraLink:
+    path: Packages/ZephraLink
 
 targets:
   Zephra:
