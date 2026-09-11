@@ -403,9 +403,18 @@ build sent.
 
 `RelayFragments` is the receiving half, and it assumes nothing about order:
 invocations run concurrently, so slices are held by `m`, indexed by `i`, and
-released only when all `n` are there. A set nothing finishes is dropped after
-`lifetime` (30 s) and at most `setLimit` (8) are held at once, the oldest going
-first — a sender that stops half way through must not cost this end anything.
+released only when all `n` are there. Slices of *different* messages interleave
+for the same reason, which is what the bounds have to survive: a picture
+transfer is many 64 KiB chunks of six slices each, all in flight together, and
+against a cap of eight sets that cost sixteen frames in a burst while the relay
+logged every one of them forwarded. So a set nothing finishes is dropped after
+`lifetime` (30 s) — expiry first, since that costs nobody anything — at most
+`setLimit` (256) sets are held, and `byteLimit` (64 MiB) across all of them is
+the real memory guard, since 256 is a count and not a size. Past either the
+oldest set goes, **and every eviction is logged at info** under `link.relay`
+with the set's `m`, how many of its `n` had arrived and how long it had waited:
+a set dropped part way through is a hole in the stream above, and it was silent
+once.
 
 A `peer` event fires on a disconnect in both directions — a host leaving notifies
 its guest, a guest leaving notifies the host — and both say `left`.
@@ -443,12 +452,16 @@ is what this list is for.
 | `CompanionSession`'s writer | `companion` | the same, from the Mac |
 | `LinkClient.lost` | `link.client` | the `FrameGap`, and that the world is being asked for again |
 | `CompanionSession.stepOver` | `companion` | the `FrameGap`, and that the session carries on |
+| `RelayFragments.accept` | `link.relay` | at info: a slice set evicted before it was whole, its `m`, how many of `n` had come and its age |
 
 The relay writes the middle of that journey: one JSON line per frame in
 `/aws/lambda/zephra-link` saying whether it forwarded, dropped or failed each
 one, which is the first place to look when a counter goes missing over the relay
 rather than the LAN — the line shape and the filters are under "Logs" in
-`Relay/link/README.md`.
+`Relay/link/README.md`. Those filters are **substring** patterns
+(`--filter-pattern '"result":"no-peer"'`, `'"room":"<32 hex>"'`): the Node
+runtime prefixes each line with `<timestamp>\t<requestId>\tINFO\t`, so the line
+is not pure JSON and a JSON filter pattern matches nothing.
 
 `RelayError` tells the guest's three apart, and `NetworkLinkRoads.connectRelay`
 is where that turns into behaviour: `no host` and `room busy` are about the

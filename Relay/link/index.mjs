@@ -700,10 +700,12 @@ function verifyEd25519(data, rawPublicKey, signature) {
   }
 }
 
-// One JSON object per line, so CloudWatch Logs Insights and a metric filter can
-// both read a field out of it: `{ $.at = "send" && $.result != "forwarded" }` is
-// every frame that did not make it across. The contents of `d` and `sig` are
-// never in a line -- the relay logs the shape of a frame, never what is in it.
+// One JSON object per line, so a field can be read out of it. The Node runtime
+// prefixes the line with `<timestamp>\t<requestId>\tINFO\t`, so a JSON filter
+// pattern (`{ $.at = "send" }`) matches nothing and a substring one is what
+// works: `"result":"no-peer"`, and see "Logs" in the README. The contents of `d`
+// and `sig` are never in a line -- the relay logs the shape of a frame, never
+// what is in it.
 function logLine(fields) {
   console.log(JSON.stringify(fields));
 }

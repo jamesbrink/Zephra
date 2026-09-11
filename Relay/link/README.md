@@ -512,26 +512,41 @@ What a `result` means, by `at`:
 | `peer` | `forwarded` \| `gone` | a `peer` notice pushed; `event` is `joined` or `left` |
 | `$disconnect` | `left` \| `gone` \| `no-peer` \| `unknown` | whether the other side was told; `unknown` is a connection with no row |
 
-**Reading them.** Every frame that did not make it across, over the last hour:
+**Reading them.** A line is not pure JSON on the way out: the Node runtime
+prefixes everything `console.log` writes with
+`<timestamp>\t<requestId>\tINFO\t`, and the JSON object is what follows the last
+tab. **So a JSON filter pattern — `{ $.at = "send" }` — matches nothing**, here
+or as a metric filter, however well formed the object is. Filter on the text
+instead: a quoted pattern is a substring match, and the fields have no spaces
+around them, so `"result":"no-peer"` is exactly what is in the line.
+
+Every frame that did not make it across is several such patterns rather than one
+`!=`, so ask for the ones that matter. Dropped for want of a peer, over the last
+hour:
 
 ```bash
 aws logs filter-log-events --log-group-name /aws/lambda/zephra-link \
-  --filter-pattern '{ $.at = "send" && $.result != "forwarded" }' \
+  --filter-pattern '"result":"no-peer"' \
   --start-time $(( ($(date +%s) - 3600) * 1000 )) \
   --profile dev.urandom.io --region us-west-2 --no-cli-pager \
   --query 'events[].message' --output text
 ```
 
-The same pattern works as a metric filter. Other useful ones:
-`{ $.at = "send" && $.from = "<connectionId>" }` for one peer's whole stream,
-`{ $.result = "index-lag" }` for the eventually consistent index actually
-costing a frame, and `{ $.m = "<message id>" }` for every slice of one
-fragmented message. To watch a session as it runs:
+Other useful ones, the same way: `'"room":"<32 hex>"'` for one room's whole
+traffic, `'"from":"<connectionId>"'` for one peer's, `'"result":"index-lag"'`
+for the eventually consistent index actually costing a frame, and
+`'"m":"<message id>"'` for every slice of one fragmented message. Two substrings
+in one pattern are an AND — `'"at":"send" "result":"gone"'`. To watch one room
+as it runs, `aws logs tail` takes the same patterns:
 
 ```bash
 aws logs tail /aws/lambda/zephra-link --since 5m --follow \
+  --filter-pattern '"room":"<32 hex>"' \
   --profile dev.urandom.io --region us-west-2
 ```
+
+CloudWatch Logs Insights is the other way and does not care about the prefix:
+`parse @message '*\t{*' as _, body | filter body like '"result":"no-peer"'`.
 
 A counter missing on the phone or the Mac (`docs/companion.md`) is one end of
 this: the log line says whether the relay ever saw that frame, and if it did,
