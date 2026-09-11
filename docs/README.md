@@ -12,6 +12,7 @@ knowing why it exists. When a rule changes, change both.
 | `generation.md` | Download lifecycle, How a generation runs |
 | `library.md` | The library |
 | `app-target.md` | The app target's shape |
+| `mobile.md` | The phone |
 | `adding-a-model.md` | Adding a model or a backend |
 | `reference-pictures.md` | Starting from a picture, Upscaling |
 | `build-and-release.md` | Build & run, Tests |
