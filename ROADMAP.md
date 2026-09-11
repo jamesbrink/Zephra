@@ -570,12 +570,20 @@ Left out of the first pass on purpose, each a small change to one file unless no
   is not. A Mac that announced every reconnection would announce one every two
   hours, which is what the relay's connection lifetime makes of a phone left on a
   desk.
-- **The phone watches a live session rather than being woken by it.**
-  `LinkReconnect` asks `LinkClient.connection` every couple of seconds while the
-  session is up, because the sequence that would wake a task on an observation
-  (`Observations`) is iOS 26 and the target is 18. It is one enum read on the
-  main actor, only while the app is in front, so the cost is nothing; the day the
-  floor moves the loop should await the change instead.
+- **The phone is woken by the session ending, not by the state that says so.**
+  `LinkReconnect` awaits `LinkClient.sessionEndings()`, which every way a session
+  ends yields on, so a dead road is reconnected to at once. What is left is the
+  fallback: where that stream has finished it asks `LinkClient.connection` every
+  couple of seconds, because the sequence that would wake a task on an
+  observation (`Observations`) is iOS 26 and the target is 18. One enum read on
+  the main actor while the app is in front, so the cost is nothing; the day the
+  floor moves, both the wait and the fallback are one `for await` over the state.
+- **`RelayRoad`'s ending of a dead join's guests has no suite.** `RelayListener`
+  ending the guest its own road carried is pinned in `ZephraLinkTransportTests`
+  against the in-process relay; the same rule one level up, in the app target,
+  would need that relay fixture inside the test host, and the host is where a
+  socket left open is worst. Worth doing the day `Tests/ZephraTests` grows a road
+  fixture of its own.
 - **`MobileKeychain` has no suite.** A keychain item needs an access group, and a
   unit-test bundle hosted in the simulator's app has none, so every call answers
   `errSecMissingEntitlement` and a suite over it would be a suite over that. It

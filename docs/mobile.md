@@ -129,9 +129,14 @@ The composition root builds exactly one, and it is the only file that knows:
   or a session that dropped, `LinkBackoff`'s one, two, four, eight seconds capped
   at thirty until one works — the count reset by a live session and by the app
   coming to the front. Both call the client's own `connect()` and `disconnect()`,
-  and `connect()` is idempotent, so nothing here keeps a flag of its own; the loop watches a live session at `heartbeat` rather than waking on
-  an observation, because the sequence that would do that is iOS 26 and the phone
-  runs on 18.
+  and `connect()` is idempotent, so nothing here keeps a flag of its own. The wait
+  on a live session is `LinkClient.sessionEndings()`, which every way a session
+  ends yields on — a `peer left`, a send that failed, a road that closed — so a
+  dead session is reconnected to at once and not on the next foreground. The
+  iterator lives in `SessionEndings`, a nonisolated box, because an `AsyncStream`
+  iterator that is dropped ends the stream behind it; `heartbeat` is the fallback
+  for a stream that has finished, since waking on the observable state itself is
+  iOS 26 and the phone runs on 18.
 
 Under a frozen preview state the root builds `LinkClient.frozen` instead and no
 `LinkReconnect` at all: a client with no road under it has nothing to reconnect.
