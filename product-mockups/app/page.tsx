@@ -93,18 +93,20 @@ function Features({ id }: { id: string }) {
       </section>
       <section className="models" id={`${id}-models`}>
         <span className="eyebrow">
-          FOUR MODEL FAMILIES. ONE NATIVE WORKSPACE.
+          FIVE MODEL FAMILIES. ONE NATIVE WORKSPACE.
         </span>
         <div className="model-names">
           <span>Z-Image-Turbo</span>
           <span>Qwen-Image-2512</span>
           <span>FLUX.2 klein 4B</span>
+          <span>Wan 2.2</span>
           <span>LTX-2.5</span>
         </div>
         <p>
           Generate and edit images with Z-Image-Turbo, Qwen-Image, or FLUX.2
-          klein. Create video with LTX-2.5. Finish still images with 2× or 4×
-          Real-ESRGAN upscaling.
+          klein. Create video with Wan 2.2 or LTX-2.5, including sound with
+          LTX-2.5’s audio variant. Finish still images with 2× or 4× Real-ESRGAN
+          upscaling.
         </p>
       </section>
       <GettingStarted id={id} />
@@ -221,16 +223,17 @@ export default function Page() {
       </section>
       <section className="video-feature" aria-labelledby="video-heading">
         <div>
-          <span className="eyebrow">NOW WITH LTX-2.5</span>
+          <span className="eyebrow">WAN 2.2 + LTX-2.5 WITH SOUND</span>
           <h2 id="video-heading">
             Give your imagination
             <br />
-            <em>a little motion.</em>
+            <em>motion and sound.</em>
           </h2>
           <p>
             Describe a scene and turn it into a short video. Or choose a
             picture, select Animate, and use it as the first frame of something
-            new.
+            new. Choose LTX-2.5’s “with sound” variant to generate audio
+            alongside your video, or explore silent clips with Wan 2.2.
           </p>
         </div>
         <div className="video-details">
@@ -241,8 +244,9 @@ export default function Page() {
             to share.
           </p>
           <p className="video-note">
-            Up to 5 seconds at 24 fps. Video generation currently produces
-            silent clips. Memory and storage needs vary by model and settings.
+            Generate segments up to 5 seconds at 24 fps. LTX-2.5 offers
+            video-only and “with sound” variants; Wan 2.2 produces silent video.
+            Memory and storage needs vary by model and settings.
           </p>
         </div>
       </section>

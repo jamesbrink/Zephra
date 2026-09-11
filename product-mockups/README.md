@@ -3,7 +3,7 @@
 The selected product page supports dark and light appearances through its Dark
 mode switch. The earlier website layouts and historical app mockups are removed.
 
-The product copy was checked against the current repository on 2026-09-06; see
+The product copy was checked against the current repository on 2026-09-11; see
 `CONTENT-AUDIT.md`. The page links the verified notarized DMG recorded in `app/release.json`.
 
 ## Images and identity

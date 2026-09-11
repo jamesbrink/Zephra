@@ -4,7 +4,7 @@ import Script from 'next/script';
 export const metadata: Metadata = {
   title: 'Zephra — Local AI Image & Video Generation for Mac',
   description:
-    'Create AI images and short videos locally on your Mac. Animate images with LTX-2.5, edit and upscale with native tools. Built for Apple Silicon.',
+    'Create AI images and videos locally on your Mac. Explore Wan 2.2 and LTX-2.5 with sound, plus image editing and upscaling. Built for Apple Silicon.',
   metadataBase: new URL('https://zephra.urandom.io'),
   alternates: { canonical: '/', types: { 'text/markdown': '/index.md' } },
   openGraph: {
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     ],
     title: 'Zephra — Your Mac is the studio',
     description:
-      'Create AI images and short videos locally on Apple Silicon. Now with LTX-2.5 video and image animation.',
+      'Create AI images and short videos locally on Apple Silicon. Now with Wan 2.2 and LTX-2.5 video with sound.',
   },
   twitter: {
     card: 'summary_large_image',

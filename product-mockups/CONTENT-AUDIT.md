@@ -1,11 +1,11 @@
-# Product copy audit — 2026-09-08
+# Product copy audit — 2026-09-11
 
 Reviewed the product page against this branch's README and implementation.
 
 | Claim | Evidence / disposition |
 | --- | --- |
 | Native macOS, Apple Silicon, MLX | `project.yml` declares macOS 15 and arm64; app uses SwiftUI and registered MLX backends. |
-| Four model families | `ModelCatalog.swift`, `ModelCatalog+QwenImage.swift`, `ModelCatalog+Flux2.swift` and `ModelCatalog+LTX2.swift` enumerate the named families and multiple quantized variants. Copy now says families. |
+| Five model families | `ModelCatalog.swift`, `ModelCatalog+QwenImage.swift`, `ModelCatalog+Flux2.swift` `ModelCatalog+Wan.swift` and `ModelCatalog+LTX2.swift` enumerate the named families and multiple quantized variants. Copy now says families. |
 | Prompt and reference generation | README's reference workflow and each backend's reference handling support this; no claim of a general image editor. |
 | Live previews, queue, searchable library | `PreviewThrottle`, `GenerationStore+Queue`, `LibraryQuery+Matching`, and the app's actual UI support these features. |
 | 2× / 4× Real-ESRGAN | README and registered `ZephraUpscaleRealESRGAN` implementation; weights bundled locally. |
@@ -28,3 +28,12 @@ without presenting an invented quotation as an exact generation prompt.
 - Release highlights: current LTX-2.5, MP4 library, and weight streaming implementation; version/build come from the same manifest as the download.
 - Support email: `dev.urandom.io@gmail.com`, explicitly supplied by James in this task.
 - Social card is a promotional imagegen composition using the approved icon and genuine app capture as references, not a new app screenshot. Original image and prompt retained in `design/website/social/`.
+
+## Wan and audio update — 2026-09-11
+
+- Rebased on `origin/main` at `be9b352` before updating copy.
+- Wan 2.2 TI2V-5B: `ModelCatalog+Wan.swift`, text/reference inputs, 24 fps, up to 121 frames per segment, no audio. Built 10.1 GB; source + built 34.3 GB. Peak 15.1 GB, tiled 12.4 GB, streamed 9.7 GB at 832×480 / 49 frames.
+- LTX-2.5 with sound: `ltx2DistilledAudio4bit`, `producesAudio: true`, MP4 stereo AAC at 48 kHz. Built 25.8 GB; source + built 96.8 GB. Measured 28.7 GB peak / 12.1 GB streamed at 768×512 / 49 frames.
+- Video-only LTX figures updated for the spatial upsampler: 20.8 GB built / 91.5 GB with source; 23.4 GB peak / 10.0 GB streamed.
+- Avoided the stale README statement that audio is only planned; catalog and backend implementation are authoritative here. Model-family count is five; audio is a variant of LTX, not a sixth family.
+- Kept the original art and single download link. Release manifest is refreshed by the authorized notarized release publication, so the page does not advertise audio against the old download.
