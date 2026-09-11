@@ -85,10 +85,11 @@ the byte count and the mime; the bytes follow as chunk frames.
   channel's tag fit inside the relay's 128 KB frame with room to spare.
 - Empty data is one empty chunk, not none: a blob of nothing still has to be
   announced, sent and completed.
-- `BlobReassembly` takes chunks **in order only**. The channel underneath is a
-  single ordered stream, so a gap means loss or tampering rather than overtaking,
-  and holding out-of-order pieces would mean holding arbitrary memory for a
-  sender that never sends the missing one. A duplicate index is the same answer.
+- `BlobReassembly` takes chunks **in order only**. It is read through
+  `OrderedInbox`, which has already put an overtaken frame back where it belongs,
+  so a gap here means loss or tampering; holding out-of-order pieces at this
+  level as well would mean holding arbitrary memory for a sender that never sends
+  the missing one. A duplicate index is the same answer.
 - One blob may not exceed 64 MiB while it is being assembled, and it may not
   exceed **what it announced**: `BlobReassembly` takes the `byteCount` at
   construction, trims a claim past the cap down to it, refuses the chunk that
@@ -161,19 +162,58 @@ recorded confirm proves nothing: `HandshakeReplayTests` pins it.
 ## The channel
 
 AES-GCM under two keys, one per direction. The nonce is four zero bytes and a
-`UInt64` counter, big-endian; the counter is implicit, never sent. The additional
-authenticated data is the frame's one kind byte. A sealed frame on the wire is
-`kind || ciphertext || tag`.
+`UInt64` counter, big-endian, and the counter **is sent**, in the clear, between
+the kind byte and the ciphertext. A sealed frame on the wire is
 
-Requiring the exact next counter is what makes a replayed, lost or reordered
-frame a failure instead of something the receiver quietly accepts: it decrypts
-under the wrong nonce and the tag does not verify.
+```
+kind (1) || counter (8, big-endian) || ciphertext || tag (16)
+```
 
-One failure closes the channel for good, both ways. There is nothing to recover
-to: a frame that did not authenticate means the stream is not the one that
-started, and carrying on would let an attacker probe until something got through.
-At 2^32 frames one way the nonce space is finished and `rekeyRequired` says the
-connection has to be made again.
+The additional authenticated data is the frame's one kind byte and nothing else.
+The counter does not need to be in it: the counter *is* the nonce, so a counter
+somebody edited is a different nonce, the tag does not verify, and the frame is
+`undecipherable`. Authenticating it comes free.
+
+The counter was implicit until a live run through the relay showed why it cannot
+be. Every `send` is a separate Lambda invocation at API Gateway and those
+invocations post to the far end concurrently, so under a sustained delta stream —
+one message every 50 ms while a run goes — frames arrive overtaken. With the
+counter implicit, the first overtaken frame decrypted under the wrong nonce, the
+channel closed, and the phone lost the Mac mid-run.
+
+What the channel refuses now is anything outside a window over the stream:
+`replayed` for a counter at or below the last one released downstream, and
+`outOfWindow` for one a whole `SecureChannel.receiveWindow` (1024 frames) beyond
+it. Neither closes the channel — a duplicate is cheap to drop and a reordering is
+ordinary. **Only a frame that does not authenticate closes it**, for good, both
+ways: that means the stream is not the one that started, and carrying on would
+let an attacker probe until something got through. At 2^32 frames one way the
+nonce space is finished and `rekeyRequired` says the connection has to be made
+again.
+
+`open` hands back an `OpenedFrame` — the frame and its counter — because the
+receiver is not finished with the number.
+
+### The inbox
+
+`OrderedInbox` is the receiving half, and both `CompanionSession` and
+`LinkSession` read through it. Frames are opened as they arrive and **released in
+counter order**, so everything above it still sees one ordered stream:
+`BlobReassembly` keeps its in-order rule, and `StateDelta`s apply in the order
+they were sent.
+
+- A frame that overtook its neighbours waits, at most `frameLimit` (256) frames
+  and no longer than `hold` (500 ms). Releasing moves the channel's release point
+  on with `released(through:)`, which is what the replay check is measured from.
+- A frame that arrives after the stream moved past it is the channel's
+  `replayed`, and the session drops it with a line in the log.
+- A gap nothing fills inside `hold`, or more than `frameLimit` frames waiting on
+  one, is **loss, not reordering**: each hop is TCP under a WebSocket, so
+  overtaking is expected between hops and a hole is not. The channel is closed
+  and the session with it. The phone reconnects, and a new channel opens on a
+  snapshot of the whole state, which is the recovery.
+- The hold is `CompanionHost.frameHold` and `LinkClient.frameHold` rather than
+  the constant, so a suite asks the question in milliseconds.
 
 ## Pairing
 

@@ -48,7 +48,8 @@ extension RelayConnection {
     ///
     /// An `error` on a joined connection leaves it open, per the relay's own rules, so it is
     /// logged and the road carries on: the frame that caused it is the caller's problem, and a
-    /// sealed channel that loses a frame fails at its counter anyway.
+    /// frame that never arrives is a gap the far end's `OrderedInbox` waits out and then calls
+    /// loss.
     private func dispatch(_ message: RelayMessage) {
         switch message {
         case .send(let payload): frameContinuation.yield(payload)

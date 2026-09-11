@@ -14,13 +14,16 @@ struct LinkClientUnderTest {
     let host: FakeHost
     /// What the phone keeps between launches.
     let store: MemoryLinkKeyStore
+    /// The phone's end of the road, which a test can make reorder what it carries.
+    let road: ShufflingConnection
 
     /// A phone that has never paired, and a Mac showing a pairing code — or, with a nil secret,
     /// one showing none.
     init(secret: Data? = Data(repeating: 9, count: PairingSecret.byteCount)) {
         host = FakeHost(pairingSecret: secret)
         store = MemoryLinkKeyStore()
-        client = LinkClient(store: store, roads: Self.roads(to: host), deviceName: "A Phone")
+        road = Self.road(to: host)
+        client = LinkClient(store: store, roads: Self.roads(over: road), deviceName: "A Phone")
     }
 
     /// A phone that has paired already, and a Mac that knows it — or does not.
@@ -31,7 +34,8 @@ struct LinkClientUnderTest {
             endpoints: [Endpoint(host: "127.0.0.1", port: 7777)], roomID: host.identity.roomID,
             pairedAt: Date())
         store = MemoryLinkKeyStore(identity: device, pairedHost: paired)
-        client = LinkClient(store: store, roads: Self.roads(to: host), deviceName: "A Phone")
+        road = Self.road(to: host)
+        client = LinkClient(store: store, roads: Self.roads(over: road), deviceName: "A Phone")
     }
 
     /// The code that Mac would show.
@@ -44,11 +48,16 @@ struct LinkClientUnderTest {
             expiresAt: Date().addingTimeInterval(PairingSecret.lifetime))
     }
 
-    /// Roads that hand the phone one end of a pair and the Mac the other.
-    private static func roads(to host: FakeHost) -> MemoryLinkRoads {
+    /// The phone's end of a road whose other end the Mac is already serving.
+    private static func road(to host: FakeHost) -> ShufflingConnection {
         let (phone, mac) = MemoryLinkConnection.pair()
         host.serve(mac)
-        return MemoryLinkRoads { _ in phone }
+        return ShufflingConnection(phone)
+    }
+
+    /// Roads that hand the phone that one end, whichever road it asks for.
+    private static func roads(over road: ShufflingConnection) -> MemoryLinkRoads {
+        MemoryLinkRoads { _ in road }
     }
 }
 

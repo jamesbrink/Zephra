@@ -41,8 +41,8 @@ struct HandshakeTests {
         #expect(pair.paired)
         #expect(pair.peer == phone.publicKeys)
         let ping = Frame.envelope(Envelope(kind: .ping, body: Data("{}".utf8)))
-        #expect(try pair.mac.open(try pair.phone.seal(ping)) == ping)
-        #expect(try pair.phone.open(try pair.mac.seal(ping)) == ping)
+        #expect(try pair.mac.open(try pair.phone.seal(ping)).frame == ping)
+        #expect(try pair.phone.open(try pair.mac.seal(ping)).frame == ping)
     }
 
     @Test("A pairing secret that does not match is refused")
@@ -120,7 +120,7 @@ struct HandshakeTests {
             isKnown: { $0 == phone.publicKeys })
         #expect(!pair.paired)
         let ping = Frame.envelope(Envelope(kind: .ping, body: Data("{}".utf8)))
-        #expect(try pair.mac.open(try pair.phone.seal(ping)) == ping)
+        #expect(try pair.mac.open(try pair.phone.seal(ping)).frame == ping)
     }
 
     @Test("A protocol this Mac does not speak stops before any key is derived")

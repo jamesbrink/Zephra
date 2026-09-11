@@ -45,6 +45,10 @@ public final class CompanionHost {
     /// property rather than a constant so a suite can ask the question in milliseconds.
     @ObservationIgnored var handshakeDeadline: Duration = .seconds(10)
 
+    /// How long a session's `OrderedInbox` holds a gap open before it calls it loss. An instance
+    /// property for the same reason, and handed to each session as its channel is made.
+    @ObservationIgnored var frameHold: Duration = OrderedInbox.hold
+
     @ObservationIgnored let store: GenerationStore
     @ObservationIgnored let index: LibraryIndex
     @ObservationIgnored let thumbnails: any ThumbnailSupply

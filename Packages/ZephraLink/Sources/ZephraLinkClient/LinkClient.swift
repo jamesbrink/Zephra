@@ -51,6 +51,9 @@ public final class LinkClient {
     @ObservationIgnored var arrivedBlobs: [UUID: Data] = [:]
     @ObservationIgnored var timers: [UUID: Task<Void, Never>] = [:]
     @ObservationIgnored var isFrozen = false
+    /// How long a session's `OrderedInbox` holds a gap open before it calls it loss. A property
+    /// rather than the constant so a suite can ask the question in milliseconds.
+    @ObservationIgnored var frameHold: Duration = OrderedInbox.hold
 
     /// Takes the device's identity and its pairing out of the store, making an identity the
     /// first time there is none: a new identity every launch would look like a new device and

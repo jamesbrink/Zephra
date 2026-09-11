@@ -20,20 +20,42 @@ struct SecureChannelTests {
     @Test("Frames in order open, one after another")
     func framesInOrderOpen() throws {
         let (sender, receiver) = Self.channels()
-        for _ in 0..<5 {
-            #expect(try receiver.open(try sender.seal(Self.ping)) == Self.ping)
+        for counter in 0..<5 {
+            let opened = try receiver.open(try sender.seal(Self.ping))
+            #expect(opened.frame == Self.ping)
+            #expect(opened.counter == UInt64(counter))
+            receiver.released(through: opened.counter)
         }
         #expect(!receiver.isClosed)
     }
 
-    @Test("A gap in the stream closes the channel for good")
-    func gapClosesTheChannel() throws {
+    @Test("A frame that overtook the one before it still opens")
+    func aReorderedFrameOpens() throws {
         let (sender, receiver) = Self.channels()
-        _ = try sender.seal(Self.ping)
+        let first = try sender.seal(Self.ping)
         let second = try sender.seal(Self.ping)
-        #expect(throws: SecureChannelError.undecipherable) { try receiver.open(second) }
-        #expect(receiver.isClosed)
-        #expect(throws: SecureChannelError.closed) { try receiver.open(second) }
+        #expect(try receiver.open(second).counter == 1)
+        #expect(!receiver.isClosed, "reordering is ordinary, not a reason to stop")
+        #expect(try receiver.open(first).counter == 0)
+    }
+
+    @Test("A frame the stream has moved past is refused without closing the channel")
+    func aLateFrameIsRefused() throws {
+        let (sender, receiver) = Self.channels()
+        let sealed = try sender.seal(Self.ping)
+        let opened = try receiver.open(sealed)
+        receiver.released(through: opened.counter)
+        #expect(throws: SecureChannelError.replayed) { try receiver.open(sealed) }
+        #expect(!receiver.isClosed)
+    }
+
+    @Test("A frame a window beyond the stream is refused without closing the channel")
+    func aFrameTooFarAheadIsRefused() throws {
+        let (sender, receiver) = Self.channels()
+        for _ in 0..<2000 { _ = try sender.seal(Self.ping) }
+        let faraway = try sender.seal(Self.ping)
+        #expect(throws: SecureChannelError.outOfWindow) { try receiver.open(faraway) }
+        #expect(!receiver.isClosed)
     }
 
     @Test("A changed byte closes the channel")
@@ -41,6 +63,15 @@ struct SecureChannelTests {
         let (sender, receiver) = Self.channels()
         var sealed = try sender.seal(Self.ping)
         sealed[sealed.count - 1] ^= 0x01
+        #expect(throws: SecureChannelError.undecipherable) { try receiver.open(sealed) }
+        #expect(receiver.isClosed)
+    }
+
+    @Test("A counter somebody edited closes the channel, since the counter is the nonce")
+    func anEditedCounterClosesTheChannel() throws {
+        let (sender, receiver) = Self.channels()
+        var sealed = try sender.seal(Self.ping)
+        sealed[SecureChannel.counterByteCount] ^= 0x02
         #expect(throws: SecureChannelError.undecipherable) { try receiver.open(sealed) }
         #expect(receiver.isClosed)
     }
@@ -53,7 +84,7 @@ struct SecureChannelTests {
         #expect(throws: SecureChannelError.undecipherable) { try receiver.open(sealed) }
     }
 
-    @Test("A frame too short to hold a tag will not open")
+    @Test("A frame too short to hold a counter and a tag will not open")
     func shortFrameIsRefused() throws {
         let (_, receiver) = Self.channels()
         #expect(throws: SecureChannelError.undecipherable) {
@@ -66,6 +97,15 @@ struct SecureChannelTests {
         let (sender, _) = Self.channels()
         sender.close()
         #expect(throws: SecureChannelError.closed) { try sender.seal(Self.ping) }
+    }
+
+    @Test("The wire is the kind byte, the counter big-endian, then the sealed body")
+    func theLayoutIsKindCounterBody() throws {
+        let (sender, _) = Self.channels()
+        _ = try sender.seal(Self.ping)
+        let second = try sender.seal(Self.ping)
+        #expect(second.first == FrameCodec.envelopeKind)
+        #expect(Data(second.dropFirst().prefix(8)) == Data([0, 0, 0, 0, 0, 0, 0, 1]))
     }
 
     @Test("The nonce is four zero bytes and the counter, big-endian")
@@ -83,7 +123,9 @@ struct SecureChannelTests {
         var reassembly = BlobReassembly(blobID: chunks[0].blobID, byteCount: blob.count)
         var finished: Data?
         for chunk in chunks {
-            guard case .chunk(let read) = try receiver.open(try sender.seal(.chunk(chunk))) else {
+            let opened = try receiver.open(try sender.seal(.chunk(chunk)))
+            receiver.released(through: opened.counter)
+            guard case .chunk(let read) = opened.frame else {
                 Issue.record("a chunk came back as something else")
                 return
             }

@@ -22,6 +22,8 @@ final class FakePhone {
     private let connection: any LinkConnection
     private var initiator: HandshakeInitiator?
     private var channel: SecureChannel?
+    /// What the Mac says, in the order it sealed it, as a real phone reads it.
+    private var inbox: OrderedInbox?
     private var reader: Task<Void, Never>?
 
     /// A phone over one end of a road.
@@ -56,6 +58,7 @@ final class FakePhone {
         // The channel is set first and the confirm still goes in the clear: it is the last of
         // the three plaintext messages, and everything after it is sealed.
         channel = opened.channel
+        inbox = OrderedInbox(channel: opened.channel)
         try await sendPlaintext(opened.confirm, kind: .confirm)
     }
 
@@ -103,6 +106,14 @@ final class FakePhone {
         try await connection.send(try channel.seal(frame))
     }
 
+    /// Seals these frames in the order given and puts them on the road in another, which is what
+    /// the relay's concurrent invocations do to a run of them.
+    func send(_ frames: [Frame], arrivingAs order: [Int]) async throws {
+        guard let channel else { throw LinkFailure.notConnected }
+        let sealed = try frames.map { try channel.seal($0) }
+        for index in order { try await connection.send(sealed[index]) }
+    }
+
     /// One plaintext message out, which is only ever a handshake message.
     private func sendPlaintext(_ value: some Encodable, kind: MessageKind) async throws {
         try await connection.send(
@@ -115,7 +126,11 @@ final class FakePhone {
             guard let self else { return }
             do {
                 for try await data in connection.frames() {
-                    try record(channel.map { try $0.open(data) } ?? FrameCodec.decode(data))
+                    guard let inbox else {
+                        try record(try FrameCodec.decode(data))
+                        continue
+                    }
+                    for frame in try inbox.accept(data) { try record(frame) }
                 }
             } catch {
                 failure = error

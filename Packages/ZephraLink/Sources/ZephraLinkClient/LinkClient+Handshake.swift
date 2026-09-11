@@ -24,7 +24,31 @@ extension LinkClient {
         let (confirm, channel) = try initiator.receive(accept)
         try await sendPlaintext(Envelope.encoding(confirm, kind: .confirm), over: road)
         session.channel = channel
+        session.inbox = inbox(over: channel, for: session)
         connection = .live(kind)
+    }
+
+    /// The inbox this session reads through, with the answer to a gap it could not fill.
+    ///
+    /// Loss is the end of the session: a frame that never arrived cannot be asked for again, and
+    /// the phone's own reconnection is the recovery — it opens a new channel, and the first thing
+    /// a new channel carries is a snapshot of the whole state.
+    private func inbox(over channel: SecureChannel, for session: LinkSession) -> OrderedInbox {
+        let inbox = OrderedInbox(channel: channel, hold: frameHold)
+        inbox.onLoss { [weak self, weak session] in
+            Task { @MainActor in
+                guard let self, let session else { return }
+                await self.lost(session)
+            }
+        }
+        return inbox
+    }
+
+    /// A gap the Mac's stream never filled. The road is still open, but what it carries is no
+    /// longer the stream that started, so the session goes and the phone reconnects.
+    func lost(_ session: LinkSession) async {
+        logger.error("A frame was lost on the way here; the session is finished.")
+        await roadEnded(session, error: LinkClientError.notConnected)
     }
 
     /// Every frame one road carries, until it stops.
@@ -41,10 +65,16 @@ extension LinkClient {
     }
 
     /// One frame: plaintext while the handshake runs, sealed after it.
+    ///
+    /// A frame the inbox refuses as late or as too far ahead is dropped with a line in the log,
+    /// never a closed session: the relay is several concurrent invocations and a duplicate or an
+    /// overtaken frame is ordinary. A frame that will not authenticate still ends it.
     private func receive(_ bytes: Data, for session: LinkSession) async {
-        guard let channel = session.channel else { return session.deliverPlaintext(bytes) }
+        guard let inbox = session.inbox else { return session.deliverPlaintext(bytes) }
         do {
-            dispatch(try channel.open(bytes))
+            for frame in try inbox.accept(bytes) { dispatch(frame) }
+        } catch SecureChannelError.replayed, SecureChannelError.outOfWindow {
+            logger.notice("A frame arrived late or too far ahead and was dropped.")
         } catch {
             logger.error("A frame did not open; the channel is finished.")
             await roadEnded(session, error: error)

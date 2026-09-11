@@ -29,9 +29,21 @@ extension CompanionSession {
     }
 
     /// One frame, sealed once there is a channel and plaintext before there is one.
+    ///
+    /// A frame the inbox refuses as late or as too far ahead is dropped with a line in the log,
+    /// never a closed session: the relay is several concurrent invocations and a duplicate or an
+    /// overtaken frame is ordinary. What does end the session is a frame that will not
+    /// authenticate, or a gap the inbox waited out, and both arrive here as a throw.
     private func receive(_ data: Data) async throws {
-        guard let channel else { return try await handshake(data) }
-        try await receive(try channel.open(data))
+        guard let inbox else { return try await handshake(data) }
+        let ready: [Frame]
+        do {
+            ready = try inbox.accept(data)
+        } catch SecureChannelError.replayed, SecureChannelError.outOfWindow {
+            host?.logger.notice("companion dropped a frame that arrived late or too far ahead")
+            return
+        }
+        for frame in ready { try await receive(frame) }
     }
 
     /// A handshake message: `hello` first, `confirm` second, nothing else.
@@ -80,6 +92,7 @@ extension CompanionSession {
         }
         channel = opened.channel
         peer = opened.peer
+        inbox = makeInbox(over: opened.channel)
         handshakeSettled()
         if opened.paired {
             host.devicePaired(opened.peer, name: deviceName)

@@ -26,6 +26,8 @@ final class FakeHost {
     private var channel: SecureChannel?
     private var assembling: [UUID: BlobReassembly] = [:]
     private var task: Task<Void, Never>?
+    /// The bytes of the last frame this Mac sealed, so a test can send them twice.
+    private var lastFrame: Data?
 
     /// A Mac showing a pairing code, or one that only knows the devices it has paired with.
     init(
@@ -72,7 +74,7 @@ final class FakeHost {
     private func receive(_ bytes: Data) async {
         do {
             guard let channel else { return try await handshake(bytes) }
-            switch try channel.open(bytes) {
+            switch try channel.open(bytes).frame {
             case .envelope(let envelope): try await answer(envelope)
             case .chunk(let piece): chunk(piece)
             }
@@ -145,9 +147,17 @@ final class FakeHost {
         blobs.append(whole)
     }
 
+    /// Sends the last frame again, which is what a relay that replayed an invocation does.
+    func repeatLastFrame() async throws {
+        guard let lastFrame, let road else { throw LinkClientTestError.noSession }
+        try await road.send(lastFrame)
+    }
+
     private func send(_ frame: Frame) async throws {
         guard let channel, let road else { throw LinkClientTestError.noSession }
-        try await road.send(try channel.seal(frame))
+        let bytes = try channel.seal(frame)
+        lastFrame = bytes
+        try await road.send(bytes)
     }
 
     private func plaintext(_ envelope: Envelope) async throws {

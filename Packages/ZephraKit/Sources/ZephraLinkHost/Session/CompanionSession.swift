@@ -31,6 +31,9 @@ public final class CompanionSession: Identifiable {
     /// code on screen rather than a stale device reconnecting.
     var isPairingAttempt = false
     var channel: SecureChannel?
+    /// Everything the phone says, released in the order it was sealed in. The relay is several
+    /// concurrent invocations, so the road is not ordered and this is what makes it so again.
+    var inbox: OrderedInbox?
     var isClosed = false
     /// The blob arriving from the phone right now — a reference picture — and the ones that have
     /// landed, kept until an `enqueue` names one.
@@ -96,6 +99,7 @@ public final class CompanionSession: Identifiable {
         if let error { try? sendError(error) }
         isClosed = true
         isReady = false
+        inbox?.stop()
         handshakeSettled()
         sink.finish()
         await writer?.value

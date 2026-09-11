@@ -21,6 +21,9 @@ final class LinkSession {
     let kind: LinkRoad
     /// The sealed channel, once the handshake has made one.
     var channel: SecureChannel?
+    /// Everything the Mac says, released in the order it was sealed in. The relay is several
+    /// concurrent invocations, so the road is not ordered and this is what makes it so again.
+    var inbox: OrderedInbox?
     /// The task reading `road.frames()`.
     var reader: Task<Void, Never>?
     /// The plaintext frames that arrived before anyone asked for them.
@@ -72,6 +75,7 @@ final class LinkSession {
         sink.finish()
         await writer?.value
         writer = nil
+        inbox?.stop()
         channel?.close()
         if let waiter = handshakeWaiter {
             handshakeWaiter = nil

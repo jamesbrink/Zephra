@@ -251,10 +251,21 @@ Three rules it is built on. A preview frame never rides inside a state update �
 `EngineStateDTO` is scalars, and previews have a message kind of their own. A
 reference picture never rides inside a request — it crosses as a blob and
 `GenerationRequest` strips the bytes on the way in *and* on the way out. And a
-blob's chunks are accepted in order only, because the channel underneath is one
-ordered stream and a gap means loss or tampering; `BlobReassembly` also holds a
-sender to the `byteCount` it announced, and a chunk for a blob nothing announced
-is dropped rather than opening a transfer of whatever size it likes.
+blob's chunks are accepted in order only, because `OrderedInbox` underneath has
+already made the stream ordered and a gap above it means loss or tampering;
+`BlobReassembly` also holds a sender to the `byteCount` it announced, and a chunk
+for a blob nothing announced is dropped rather than opening a transfer of
+whatever size it likes.
+
+The channel's counter is **sent**, between the kind byte and the ciphertext —
+`kind || counter || ciphertext || tag` — because the relay is one Lambda
+invocation per frame and those post concurrently, so frames arrive overtaken; the
+counter is the nonce, so it is authenticated for free, and a counter at or below
+the release point (`replayed`) or a whole 1024-frame window beyond it
+(`outOfWindow`) is dropped rather than fatal. Only a frame that does not
+authenticate closes the channel. `OrderedInbox` releases opened frames in counter
+order, holding an overtaken one for at most 256 frames or 500 ms; a gap that does
+not fill inside that is loss, not reordering, and ends the session.
 
 `ZephraLinkTransport` is the roads under that wire. A TCP frame rides behind a
 four-byte big-endian length and is capped at 1 MiB, a length past which closes
