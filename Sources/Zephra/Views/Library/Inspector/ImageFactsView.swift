@@ -39,6 +39,9 @@ struct ImageFactsView: View {
             if let upscaled = facts.upscaled {
                 FactsRow("Upscaled", upscaled)
             }
+            if let continued = facts.continued {
+                FactsRow("Continues", continued)
+            }
         }
     }
 }

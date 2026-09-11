@@ -6,6 +6,7 @@ import ZephraBackendWan
 import ZephraBackendZImage
 import ZephraCore
 import ZephraEngine
+import ZephraMedia
 import ZephraUpscaleRealESRGAN
 
 /// The composition root. The only place that builds a store, and the only place allowed to
@@ -197,7 +198,10 @@ struct ZephraApp: App {
             outputDirectory: AppSettings.imageLibrary().root,
             locations: AppSettings.modelLocations(),
             upscaler: RealESRGANUpscaler.make,
-            runtime: runtime
+            runtime: runtime,
+            // Reads a clip's tail and joins clips, for Extend Clip; injected here for the
+            // reason the upscaler is, so the engine names no media code.
+            clips: MP4Stitcher()
         )
         store.memoryBudget = budget
         store.weightResidencyPolicy = AppSettings.residencyPolicy(

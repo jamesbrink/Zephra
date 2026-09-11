@@ -42,6 +42,14 @@ struct FreshImageActions: View {
                     hasSource: ActionAvailability.hasAnimatableSource(image), store: store))
                 .gridCellColumns(2)
             }
+            if image.isVideo {
+                GridRow {
+                    button(CommandTarget.extendTitle) { ReferenceAdoption.extend(image, into: store) }
+                        .disabled(!extendReason.isEmpty)
+                        .help(extendReason)
+                        .gridCellColumns(2)
+                }
+            }
             // A clip's poster is not a picture to make larger.
             if !image.isVideo {
                 GridRow {
@@ -63,6 +71,12 @@ struct FreshImageActions: View {
     }
 
     private var canUseAsReference: Bool { store.descriptor.capabilities.supportsReferenceImage }
+
+    /// Why Extend Clip is greyed, or "" once the clip is on disk and a model can continue it.
+    private var extendReason: String {
+        ActionAvailability.extendDisabledReason(
+            record: image.fileURL == nil ? nil : GenerationRecord(image), store: store)
+    }
 
     /// `store.canAnimate` and whether `image` itself has bytes Animate could read — a clip
     /// whose write has not landed and whose video never reached memory either has none.

@@ -119,7 +119,11 @@ struct ReferenceImageWell: View {
         .accessibilityLabel(role.emptyWellHelp)
     }
 
-    private var role: ReferenceRole { ReferenceRole(capabilities: store.descriptor.capabilities) }
+    private var role: ReferenceRole {
+        ReferenceRole(
+            capabilities: store.descriptor.capabilities,
+            continuing: store.settings.continuation != nil)
+    }
 
     private func chooseFile() {
         Task {

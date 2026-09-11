@@ -79,6 +79,10 @@ targets:
         product: ZephraCore
       - package: ZephraKit
         product: ZephraEngine
+      # For `MP4Stitcher`, the one `ClipEditing` the root injects; nothing else in the app
+      # target imports ZephraMedia.
+      - package: ZephraKit
+        product: ZephraMedia
       - package: ZephraBackendZImage
         product: ZephraBackendZImage
       - package: ZephraBackendQwenImage
@@ -119,11 +123,6 @@ targets:
     platform: macOS
     sources:
       - path: Tests/ZephraTests
-        excludes:
-          - Fixtures
-      - path: Tests/ZephraTests/Fixtures
-        type: folder
-        buildPhase: resources
     dependencies:
       - target: Zephra
       - package: ZephraKit

@@ -23,6 +23,9 @@ public struct ImageFacts: Hashable, Sendable {
     public let upscaled: String?
     /// How long the clip runs and how many frames it has, or nil for a picture.
     public let length: String?
+    /// The clip this one carries on from and how many of its frames were held, or nil when
+    /// the clip was not made by Extend Clip.
+    public let continued: String?
     /// How far from the reference picture the generation started, to two decimals, or nil when
     /// there was no picture and when the strength was 1 — a model that conditions on the
     /// picture directly had no distance to travel, and a row saying "1.00" says nothing.
@@ -54,6 +57,9 @@ public struct ImageFacts: Hashable, Sendable {
         length = item.provenance.record.flatMap { record in
             record.frameCount.map { Self.lengthLabel(frames: $0, rate: record.frameRate ?? 24) }
         }
+        continued = item.provenance.record.flatMap { record in
+            record.continuedFrom.map { Self.continuedLabel(from: $0, held: record.contextFrames ?? 0) }
+        }
         // The record's own strength is already nil where there was no picture.
         referenceStrengthValue = Self.reportable(item.provenance.record?.referenceStrength)
         referenceStrength = referenceStrengthValue.map(Self.strengthLabel)
@@ -72,6 +78,9 @@ public struct ImageFacts: Hashable, Sendable {
         // takes over the moment the scan lands, which is typically inside a second.
         upscaled = nil
         length = image.video.map { Self.lengthLabel(frames: $0.frameCount, rate: $0.frameRate) }
+        continued = image.settings.continuation.map {
+            Self.continuedLabel(from: $0.origin, held: $0.contextFrames)
+        }
         let settings = image.settings
         referenceStrengthValue = settings.referenceImage == nil
             ? nil : Self.reportable(settings.referenceStrength)
@@ -96,6 +105,14 @@ public struct ImageFacts: Hashable, Sendable {
     static func lengthLabel(frames: Int, rate: Double) -> String {
         let seconds = DurationLabel.text(seconds: Double(frames) / rate, fraction: true)
         return String(format: "%@, %d frames at %.0f fps", seconds, frames, rate)
+    }
+
+    /// What a clip carried on says about it: the source's file name and how many of its
+    /// frames were held at the join.
+    static func continuedLabel(from origin: String, held: Int) -> String {
+        held == 1
+            ? "\(origin), from its last frame"
+            : "\(origin), \(held) frames held"
     }
 
     /// How long a generation took, with what that came to per step.

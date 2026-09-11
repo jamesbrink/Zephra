@@ -105,6 +105,10 @@ enum CommandTarget: Equatable {
 
     var deleteTitle: String { count > 1 ? "Delete \(count) Images" : "Delete Image" }
 
+    /// "Extend Clip", the one wording for carrying a clip on; `ExtendClipButton`,
+    /// `FreshImageActions`, `FreshImageMenu` and the menu bar all read it.
+    static let extendTitle = "Extend Clip"
+
     /// "Animate from Last Frame" over a clip, since its poster is only the frame it starts on;
     /// "Animate" otherwise, for one picture or for no target at all, which is what greys the
     /// item out regardless of what its title says.

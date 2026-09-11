@@ -100,18 +100,21 @@ enum ReferenceAdoption {
     /// still held in memory (`image.video?.mp4`, through a temporary file) when it has not —
     /// never from the poster, which is only the *first* frame and would animate the wrong end of
     /// the clip. `ActionAvailability.hasAnimatableSource` is what greys the button in that one
-    /// remaining case, a clip with neither.
+    /// remaining case, a clip with neither. The frame is read through the store's own clip
+    /// reader (`GenerationStore.clips`, the `ClipEditing` the root injected) and re-encoded
+    /// through `ReferenceImageEncoder`, so it is capped and cast like every other door.
     @MainActor
     static func animate(_ image: GeneratedImage, into store: GenerationStore) {
+        let clips = store.clips
         store.animate(origin: image.fileURL?.lastPathComponent) {
             guard image.isVideo else {
                 return ReferenceImageEncoder.pngData(from: image.pngData)
             }
             if let fileURL = image.fileURL {
-                return await ClipFrames.lastFrame(of: VideoSidecar.url(beside: fileURL))
+                return await lastFrame(of: .file(VideoSidecar.url(beside: fileURL)), clips: clips)
             }
             if let mp4 = image.video?.mp4 {
-                return await ClipFrames.lastFrame(ofMP4Data: mp4)
+                return await lastFrame(of: .bytes(mp4), clips: clips)
             }
             return nil
         }
@@ -123,11 +126,52 @@ enum ReferenceAdoption {
     /// command both call this.
     @MainActor
     static func animate(_ item: LibraryItem, into store: GenerationStore) {
+        let clips = store.clips
         store.animate(origin: item.fileName) {
             if item.isVideo, let videoURL = item.videoURL {
-                return await ClipFrames.lastFrame(of: videoURL)
+                return await lastFrame(of: .file(videoURL), clips: clips)
             }
             return ReferenceImageEncoder.pngData(contentsOf: item.url)
         }
+    }
+
+    /// A clip's last frame as reference bytes, or nil when the clip cannot be read.
+    private nonisolated static func lastFrame(
+        of clip: ContinuationSource.Clip, clips: (any ClipEditing)?
+    ) async -> Data? {
+        guard let clips else { return nil }
+        let frames: [Data]?
+        switch clip {
+        case .file(let url): frames = try? await clips.tail(of: url, frames: 1)
+        case .bytes(let mp4): frames = try? await clips.tail(ofData: mp4, frames: 1)
+        }
+        return frames?.last.flatMap(ReferenceImageEncoder.pngData(from:))
+    }
+
+    /// Sets the next generation up to carry a library clip on from where it ends, the way
+    /// `animate` sets one up from its last frame: `ExtendClipButton` and the menu bar's Extend
+    /// Clip command both call this. Nothing for a picture, which has no end to carry on from.
+    @MainActor
+    static func extend(_ item: LibraryItem, into store: GenerationStore) {
+        guard item.isVideo, let videoURL = item.videoURL, let record = item.provenance.record
+        else { return }
+        store.extend(ContinuationSource(origin: item.fileName, clip: .file(videoURL), record: record))
+    }
+
+    /// The same over a clip the session still holds in memory: its saved MP4 when the file has
+    /// landed, else the bytes beside the poster. `FreshImageMenu` and `FreshImageActions` call
+    /// this.
+    @MainActor
+    static func extend(_ image: GeneratedImage, into store: GenerationStore) {
+        guard image.isVideo, let origin = image.fileURL?.lastPathComponent else { return }
+        let clip: ContinuationSource.Clip
+        if let fileURL = image.fileURL {
+            clip = .file(VideoSidecar.url(beside: fileURL))
+        } else if let mp4 = image.video?.mp4 {
+            clip = .bytes(mp4)
+        } else {
+            return
+        }
+        store.extend(ContinuationSource(origin: origin, clip: clip, record: GenerationRecord(image)))
     }
 }

@@ -4,7 +4,7 @@ import ZephraEngine
 /// The menu bar. Every one of these has a visible twin in the window; the menu exists so the
 /// shortcuts are discoverable and so the Mac behaves like a Mac.
 ///
-/// Export, Share, Copy, Reveal, Delete, Use as Reference, Animate and Upscale mean different
+/// Export, Share, Copy, Reveal, Delete, Use as Reference, Animate, Extend Clip and Upscale mean different
 /// things depending on where you are standing, so each of them asks `target` (a `CommandTarget`)
 /// rather than reaching for the canvas: the grid's selection while the grid has the keyboard,
 /// the canvas's picture while the canvas is showing one, and nothing otherwise. The grid's focus rather than
@@ -76,6 +76,9 @@ struct ZephraCommands: Commands {
             Button(target.animateTitle) { animate() }
                 .keyboardShortcut("a", modifiers: [.command, .option])
                 .disabled(!canAnimateTarget)
+            Button(CommandTarget.extendTitle) { extend() }
+                .keyboardShortcut("x", modifiers: [.command, .option])
+                .disabled(!canExtendTarget)
             Divider()
             Button("Upscale 2\u{00D7}") { upscale(2) }
                 .keyboardShortcut("u", modifiers: [.command, .option])

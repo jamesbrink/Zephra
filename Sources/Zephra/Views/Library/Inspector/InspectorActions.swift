@@ -61,6 +61,13 @@ struct InspectorActions: View {
                 AnimateButton(item: item)
                     .gridCellColumns(2)
             }
+            // A clip can be carried on from where it ends; a picture has no end.
+            if item.isVideo {
+                GridRow {
+                    ExtendClipButton(item: item)
+                        .gridCellColumns(2)
+                }
+            }
         }
         .lineLimit(1)
     }

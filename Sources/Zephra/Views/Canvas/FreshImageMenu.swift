@@ -35,6 +35,11 @@ struct FreshImageMenu: View {
         .disabled(!canAnimateImage)
         .help(ActionAvailability.animateDisabledReason(
             hasSource: ActionAvailability.hasAnimatableSource(image), store: store))
+        if image.isVideo {
+            Button(CommandTarget.extendTitle) { ReferenceAdoption.extend(image, into: store) }
+                .disabled(!extendReason.isEmpty)
+                .help(extendReason)
+        }
         Divider()
         // Nothing is asked first: the file goes to Recently Deleted, where Put Back has thirty
         // days, and a dialog on every discarded image would be in the way.
@@ -42,6 +47,12 @@ struct FreshImageMenu: View {
     }
 
     private var canUseAsReference: Bool { store.descriptor.capabilities.supportsReferenceImage }
+
+    /// Why Extend Clip is greyed, or "" once the clip is on disk and a model can continue it.
+    private var extendReason: String {
+        ActionAvailability.extendDisabledReason(
+            record: image.fileURL == nil ? nil : GenerationRecord(image), store: store)
+    }
 
     /// `store.canAnimate` and whether `image` itself has bytes Animate could read — a clip
     /// whose write has not landed and whose video never reached memory either has none.

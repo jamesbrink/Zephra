@@ -39,12 +39,22 @@ struct ReferenceRoleTests {
 
     @Test("every string is distinct per role, so nothing accidentally shares another's wording")
     func stringsDontCollideAcrossRoles() {
-        let roles: [ReferenceRole] = [.firstFrame, .startFrom, .reference]
-        #expect(Set(roles.map(\.wellCaption)).count == 3)
-        #expect(Set(roles.map(\.emptyWellHelp)).count == 3)
-        #expect(Set(roles.map(\.filledWellAccessibilityLabel)).count == 3)
-        #expect(Set(roles.map(\.openPanelMessage)).count == 3)
-        #expect(Set(roles.map(\.strengthHelp)).count == 3)
-        #expect(Set(roles.map(\.inspectorRowLabel)).count == 3)
+        let roles: [ReferenceRole] = [.firstFrame, .continues, .startFrom, .reference]
+        #expect(Set(roles.map(\.wellCaption)).count == 4)
+        #expect(Set(roles.map(\.emptyWellHelp)).count == 4)
+        #expect(Set(roles.map(\.filledWellAccessibilityLabel)).count == 4)
+        #expect(Set(roles.map(\.openPanelMessage)).count == 4)
+        #expect(Set(roles.map(\.strengthHelp)).count == 4)
+        #expect(Set(roles.map(\.inspectorRowLabel)).count == 4)
+    }
+
+    @Test("while the capsule carries a continuation, a clip model's picture is the clip's end")
+    func continuingIsItsOwnRole() {
+        let capabilities = ModelCatalog.ltx2Distilled4bit.capabilities
+        #expect(ReferenceRole(capabilities: capabilities, continuing: true) == .continues)
+        #expect(ReferenceRole(capabilities: capabilities, continuing: false) == .firstFrame)
+        // A picture model never continues anything, whatever the capsule says.
+        #expect(ReferenceRole(capabilities: ModelCatalog.zImageTurbo4bit.capabilities, continuing: true) == .startFrom)
+        #expect(ReferenceRole.continues.wellCaption == "Continues from")
     }
 }

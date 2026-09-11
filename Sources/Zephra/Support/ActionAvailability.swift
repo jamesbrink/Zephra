@@ -23,6 +23,20 @@ enum ActionAvailability {
         return image.fileURL != nil || image.video != nil
     }
 
+    /// Extend Clip's reason over a clip whose record is `record` (nil while the session's own
+    /// clip has not been written yet, since the join needs the source on disk), or "" once it
+    /// is live. `ExtendClipButton`, `FreshImageActions` and `FreshImageMenu` read it.
+    @MainActor
+    static func extendDisabledReason(record: GenerationRecord?, store: GenerationStore) -> String {
+        guard store.clips != nil, ModelCatalog.animator() != nil else {
+            return "This build cannot carry a clip on"
+        }
+        guard store.acceptsWork else { return "Wait for the current work to finish" }
+        guard let record else { return "This clip has not finished saving yet" }
+        guard store.canExtend(record) else { return "This clip's size is not one its model can continue" }
+        return ""
+    }
+
     /// Animate's reason over a picture with `hasSource`, in `store`, or "" once it is live.
     /// `AnimateButton` always has one (a `LibraryItem` is already on disk); `FreshImageActions`
     /// and `FreshImageMenu` pass `hasAnimatableSource(image)`.

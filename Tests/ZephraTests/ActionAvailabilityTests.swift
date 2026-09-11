@@ -76,6 +76,14 @@ struct ActionAvailabilityTests {
                 == "This clip has not finished saving yet")
     }
 
+    @Test("Extend Clip names the build when the store has no clip reader, and the save when it has not landed")
+    func extendReasons() {
+        let store = GenerationStore.preview(state: .ready)
+        #expect(
+            ActionAvailability.extendDisabledReason(record: nil, store: store)
+                == "This build cannot carry a clip on", "a preview store is built with no clip reader")
+    }
+
     @Test("Animate says nothing once the store takes work and the clip has a source")
     func animateIsLive() {
         let store = GenerationStore.preview(state: .ready)

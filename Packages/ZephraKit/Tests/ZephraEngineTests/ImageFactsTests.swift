@@ -20,6 +20,14 @@ struct ImageFactsTests {
         #expect(facts.took == "3 s \u{00B7} \(Self.number(3.0 / 9)) s/step")
     }
 
+    @Test("a clip carried on names its source and how many frames were held")
+    func continuedClip() {
+        #expect(ImageFacts.continuedLabel(from: "a.png", held: 9) == "a.png, 9 frames held")
+        #expect(ImageFacts.continuedLabel(from: "a.png", held: 1) == "a.png, from its last frame")
+        let item = LibraryFilteringTests.item(prompt: "a lighthouse", seed: 1)
+        #expect(ImageFacts(item).continued == nil)
+    }
+
     @Test("a clip's length reads as seconds, frames and rate; a picture has none")
     func lengthOfAClip() {
         #expect(ImageFacts.lengthLabel(frames: 49, rate: 24) == "2.0 s, 49 frames at 24 fps", "49 frames is 2.04 s, not two")

@@ -67,6 +67,36 @@ extension ZephraCommands {
         return true
     }
 
+    /// Whether Extend Clip has one clip to carry on: on disk with its record, on a model that
+    /// can continue it, and not inside Recently Deleted.
+    var canExtendTarget: Bool {
+        guard store.canExtend, target.singlePicture == true else { return false }
+        switch target {
+        case .none: return false
+        case .canvas(let image): return image.fileURL != nil && store.canExtend(GenerationRecord(image))
+        case .library:
+            guard let item = target.singleItem, let record = item.provenance.record,
+                libraryIndex?.query.scope != .recentlyDeleted
+            else { return false }
+            return store.canExtend(record)
+        }
+    }
+
+    /// Sets the next generation up to carry the one clip the commands are about on, the way
+    /// the inspector's own button does; a library clip also brings the canvas up.
+    func extend() {
+        switch target {
+        case .none:
+            return
+        case .canvas(let image):
+            ReferenceAdoption.extend(image, into: store)
+        case .library:
+            guard let item = target.singleItem else { return }
+            ReferenceAdoption.extend(item, into: store)
+            workspace.pane = .canvas
+        }
+    }
+
     /// Sets the next generation up to animate the one picture or clip the commands are about,
     /// the way the inspector's own button does — a library picture also brings the canvas up,
     /// since that is where the run will show.
