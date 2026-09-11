@@ -16,8 +16,13 @@ extension ZephraApp {
     /// keychain or its port, and a screenshot build listening on the network would be a surprise.
     func startCompanion() {
         guard companion == nil, InterfacePreview.requestedState == nil else { return }
-        let keychain = LinkKeychain()
+        let keychain = LinkKeychain(isFreshStart: FreshStart.current != nil)
         guard let identity = try? keychain.identity() else { return }
+        roads.remember(identity)
+        // The port is asked for when the code goes up, not now: the local road may have taken a
+        // different one, and a code that named 7723 when the listener is elsewhere is a code
+        // that does not work.
+        let roads = self.roads
         let host = CompanionHost(
             store: store,
             index: index,
@@ -25,7 +30,7 @@ extension ZephraApp {
             identity: identity,
             pairings: keychain,
             hostName: AppSettings.companionName(),
-            endpoints: { CompanionEndpoints.current() })
+            endpoints: { CompanionEndpoints.current(port: roads.port) })
         companion = host
         // The library's own wiring ran first (`openLibrary`), so these are wrapped rather than
         // replaced: a save still reaches the index and still posts its notification, and the
@@ -48,12 +53,15 @@ extension ZephraApp {
     /// changes. Called at launch and whenever the toggle moves.
     func openCompanionRoads() {
         guard let host = companion else { return }
-        guard AppSettings.flag(AppSettings.companionEnabled) else {
-            Task { await host.stop() }
-            return
-        }
-        for road in CompanionRoads.open(relay: AppSettings.companionRelay()) {
-            host.serve(road)
+        Task {
+            // The host stops with the roads: a listener taken away while sessions are open on
+            // it would leave phones holding a connection nothing is reading.
+            await host.stop()
+            await roads.close()
+            guard AppSettings.flag(AppSettings.companionEnabled) else { return }
+            for road in await roads.open(relay: AppSettings.companionRelay()) {
+                host.serve(road)
+            }
         }
     }
 
@@ -64,5 +72,6 @@ extension ZephraApp {
     /// is a phone that says so rather than one that times out.
     func stopCompanion() async {
         await companion?.stop()
+        await roads.close()
     }
 }

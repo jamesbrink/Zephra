@@ -1,29 +1,76 @@
 import Foundation
 import ZephraLinkProtocol
+import ZephraLinkTransport
+import os
 
-/// The roads a phone reaches this Mac on, built in one place so the host is handed listeners
-/// and never learns what a socket is.
+/// The roads a phone reaches this Mac on, opened and closed in one place so the host is handed
+/// listeners and never learns what a socket is.
 ///
-/// Two of them, eventually: a TCP listener on the local network, advertised over Bonjour, and a
-/// relay road for a phone that is somewhere else. Both are `LinkListener`s, and a session does
+/// Two of them. A `TCPListener` on the local network, advertising `_zephra._tcp` with this
+/// Mac's room in its TXT record, so a phone that has paired finds it again after the router
+/// hands out a different address; and a `RelayRoad` for a phone that is somewhere else, which
+/// only exists once the person has allowed access from outside the home network. A session does
 /// not know or care which one carried it — the handshake and the channel are the same either
-/// way, and the relay is a pipe that never sees inside a frame.
+/// way, and the relay copies sealed bytes it has no key to read.
 ///
-/// Empty for now. The listeners live in `ZephraLinkTransport`, which is being written beside
-/// this; the wiring above is against `any LinkListener` so landing them is one line each here
-/// and nothing anywhere else.
+/// It remembers the port it actually got, because it may not be the one it asked for: something
+/// else on the Mac may hold 7723, and a QR code has to name where the listener really is.
 @MainActor
-enum CompanionRoads {
-    /// Every road this launch should listen on.
+final class CompanionRoads {
+    /// The port the local road is on, which is what a pairing code should say.
+    private(set) var port = CompanionEndpoints.port
+
+    private var identity: DeviceIdentity?
+    private var listeners: [any LinkListener] = []
+    private let logger = Logger(subsystem: "io.zephra", category: "companion")
+
+    /// The keys this Mac's roads are opened under. Remembered once, so opening them again when
+    /// the preference moves does not have to go back to the keychain.
+    func remember(_ identity: DeviceIdentity) {
+        self.identity = identity
+    }
+
+    /// Opens every road this launch should listen on, closing whatever was open first.
+    func open(relay: URL?) async -> [any LinkListener] {
+        await close()
+        guard let identity else { return [] }
+        var roads: [any LinkListener] = []
+        if let local = await openLocal(identity: identity) { roads.append(local) }
+        if let relay {
+            let road = RelayRoad(url: relay, identity: identity)
+            road.start()
+            roads.append(road)
+        }
+        listeners = roads
+        return roads
+    }
+
+    /// Closes every road. The host stops its own listeners too; both are idempotent, and
+    /// whichever runs first is the one that does the work.
+    func close() async {
+        let closing = listeners
+        listeners = []
+        port = CompanionEndpoints.port
+        for road in closing { await road.stop() }
+    }
+
+    /// The local road, on the port it asked for or on one the system picks when that is taken.
     ///
-    /// - Parameters:
-    ///   - relay: the relay's URL when the person has allowed access from outside the home
-    ///     network, and nil when they have not.
-    static func open(relay: URL?) -> [any LinkListener] {
-        // TODO: `TCPListener(port: CompanionEndpoints.port)` from `ZephraLinkTransport`, a
-        // `LinkListener` advertising `_zephra._tcp`, plus its relay counterpart over `relay`.
-        // Until they land there is no road, so the host serves nothing and no phone can knock.
-        _ = relay
-        return []
+    /// A Mac whose 7723 is occupied still works: the port it did get goes into the QR code, and
+    /// Bonjour carries it to a phone that paired earlier. What it loses is a router rule somebody
+    /// wrote by hand, which is a fair trade for starting at all.
+    private func openLocal(identity: DeviceIdentity) async -> (any LinkListener)? {
+        for wanted in [CompanionEndpoints.port, nil] {
+            guard let listener = try? TCPListener(
+                port: wanted, advertising: identity.roomID, name: AppSettings.companionName())
+            else { continue }
+            if let got = try? await listener.start() {
+                port = got
+                return listener
+            }
+            await listener.stop()
+        }
+        logger.error("companion could not listen on the local network")
+        return nil
     }
 }

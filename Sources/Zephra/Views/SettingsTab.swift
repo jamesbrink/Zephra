@@ -1,6 +1,6 @@
 import Foundation
 
-/// The three tabs of the Settings window, and how tall each one stands.
+/// The four tabs of the Settings window, and how tall each one stands.
 ///
 /// One height per tab rather than one for the window, because the tabs are nothing alike:
 /// General is three rows and Performance is a page. A window sized for the longest left the
@@ -15,13 +15,14 @@ import Foundation
 /// 820 of content plus the window's own 88 points of chrome (32 title bar, 56 tab-strip
 /// toolbar, taller than the main window's 52 because it carries the tab icons) is 908 — over by
 /// 32 points before Larger Text is even considered. So the floor is `minimumHeight`, one number
-/// for all three tabs, well clear of that Mac; the window opens at each tab's own height when
+/// for all four tabs, well clear of that Mac; the window opens at each tab's own height when
 /// the display has room for it, and a person who has made it taller keeps that size when they
 /// step between tabs.
 enum SettingsTab: String, CaseIterable, Identifiable {
     case general
     case performance
     case models
+    case companion
 
     var id: String { rawValue }
 
@@ -31,6 +32,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .general: "General"
         case .performance: "Performance"
         case .models: "Models"
+        case .companion: "Companion"
         }
     }
 
@@ -39,11 +41,12 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .general: "gearshape"
         case .performance: "speedometer"
         case .models: "shippingbox"
+        case .companion: "iphone"
         }
     }
 
     /// How wide the window opens, and the least it will narrow to — width has no equivalent of
-    /// the height problem below, so one number still does both jobs. One width for all three,
+    /// the height problem below, so one number still does both jobs. One width for all four,
     /// since every tab is a form of the same rows.
     static let openingWidth: CGFloat = 520
 
@@ -60,12 +63,15 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     /// four-row GPU memory group, the tiling picker and the live readout, all of which must
     /// be on screen at once, since a page that scrolls hides the very reading it is there to
     /// show; Models scrolls, so its height is what the longest Settings pane on the Mac
-    /// usually takes, which is what the window was before.
+    /// usually takes, which is what the window was before; Companion is the two toggles, the
+    /// code and the list of paired devices, with room for the code at the size a phone's camera
+    /// reads across a desk.
     var openingHeight: CGFloat {
         switch self {
         case .general: 420
         case .performance: 820
         case .models: 620
+        case .companion: 600
         }
     }
 

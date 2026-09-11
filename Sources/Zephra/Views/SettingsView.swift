@@ -1,8 +1,8 @@
 import SwiftUI
 import ZephraEngine
 
-/// Preferences, in three tabs: where images land and how a run behaves, what the engine does
-/// after it loads, and what the models occupy on disk. Who wrote the code Zephra stands on is
+/// Preferences, in four tabs: where images land and how a run behaves, what the engine does
+/// after it loads, what the models occupy on disk, and which phones may reach this Mac. Who wrote the code Zephra stands on is
 /// the About window's Acknowledgments button, not a tab here — a fourth tab once showed the
 /// same facts the About window shows, and a Settings tab duplicating a window that already
 /// exists is not what any other Mac app does, so it was removed.
@@ -12,7 +12,7 @@ import ZephraEngine
 /// way System Settings' own panes each take their own height.
 ///
 /// That height is an opening size rather than a fixed one, and not the window's floor either —
-/// `SettingsTab.minimumHeight` is, one number for all three tabs rather than each tab's own,
+/// `SettingsTab.minimumHeight` is, one number for all four tabs rather than each tab's own,
 /// because Performance's 820 does not fit the smallest Mac Sequoia still runs on (see that
 /// type's comment for the arithmetic). The window resizes, and a person who has made it larger
 /// keeps that size when they step between tabs. `SettingsWindowFrame` is what opens it at the
@@ -49,6 +49,7 @@ struct SettingsView: View {
         case .general: GeneralSettings()
         case .performance: PerformanceSettings()
         case .models: ModelsSettings()
+        case .companion: CompanionSettings()
         }
     }
 }

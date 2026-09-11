@@ -25,7 +25,11 @@ struct LinkKeychain: PairingStore, Sendable {
     let devicesAccount: String
 
     /// The keychain this launch should read. A fresh start gets accounts of its own.
-    init(isFreshStart: Bool = FreshStart.current != nil) {
+    ///
+    /// The answer is passed in rather than read here: `FreshStart.current` is main-actor state
+    /// in an app target isolated to the main actor by default, and this type is `Sendable` so
+    /// that a session can hold it off the main actor.
+    init(isFreshStart: Bool) {
         let suffix = isFreshStart ? ".fresh" : ""
         identityAccount = "identity\(suffix)"
         devicesAccount = "devices\(suffix)"

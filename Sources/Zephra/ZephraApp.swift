@@ -33,6 +33,17 @@ struct ZephraApp: App {
     /// and a `@State` initializer cannot read another. Nil until then, and on a preview build;
     /// `ZephraApp+Companion.swift` is the whole of it.
     @State var companion: CompanionHost?
+    /// The roads that link listens on, and the port the local one actually took. Built here
+    /// with nothing in it, since which roads it opens is the preference's answer rather than
+    /// this launch's.
+    @State var roads = CompanionRoads()
+    /// The two companion switches, read here so the roads follow them. An explicit store
+    /// because `defaultAppStorage` is a view modifier and this is the scene above the views,
+    /// and a fresh start must read its own suite rather than the person's.
+    @AppStorage(AppSettings.companionEnabled, store: AppSettings.store)
+    private var companionEnabled = AppSettings.initialCompanionEnabled
+    @AppStorage(AppSettings.companionRelayEnabled, store: AppSettings.store)
+    private var companionRelayEnabled = AppSettings.initialCompanionRelayEnabled
     /// Every `ZEPHRA_*` switch the inference path honours, read from the process environment
     /// here and nowhere else, then handed to the backends as a value.
     private static let environment = InferenceEnvironment.read(ProcessInfo.processInfo.environment)
@@ -122,6 +133,10 @@ struct ZephraApp: App {
                 // The answer itself, for the case the line above cannot see: a chooser
                 // answered with the model the store was already pointing at moves nothing, so
                 // nothing would ever be written for that session. Still one writer.
+                // The roads follow the two switches, which live in Settings, a scene of its own
+                // that cannot reach the composition root's state. Both call the same one door.
+                .onChange(of: companionEnabled) { _, _ in openCompanionRoads() }
+                .onChange(of: companionRelayEnabled) { _, _ in openCompanionRoads() }
                 .onChange(of: welcome.isShowing) { _, showing in
                     guard !showing else { return }
                     AppSettings.write(store.rememberedModel.id, to: AppSettings.selectedModelID)

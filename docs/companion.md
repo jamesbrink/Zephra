@@ -322,11 +322,89 @@ multiplexing is in `ROADMAP.md`. A frame that arrives with no session behind it
 opens one, because the relay's connection index is eventually consistent and a
 guest's first frame can beat the `peer joined` that announces it.
 
-**Reconnecting** is the phone's job, not the road's. `LinkBackoff` is the one
+**Reconnecting** is the caller's job, not the road's — the phone's client on one
+side, and `RelayRoad` in the Mac app on the other, which rejoins its room when
+the socket goes. `LinkBackoff` (`ZephraLinkTransport`) is the one
 place the numbers live: a second, then two, four, eight, capped at thirty. The
 count is the caller's, because the caller is what knows a connection succeeded —
 it resets on a live session and on the app coming to the foreground, which is
 also when it reconnects.
+
+## The Mac host
+
+`ZephraLinkHost` (`Packages/ZephraKit`) is the Mac's side: `CompanionHost`, the
+sessions under it, and the projections that turn the store and the index into
+what crosses. It lives in `ZephraKit` rather than in `ZephraLink` because it is
+Mac-only and reaches deep into the engine, and `ZephraLink` is the one package
+the phone links whole. SwiftPM takes the resulting bidirectional *package*
+dependency because the target graph under it is acyclic: `ZephraLinkProtocol` ->
+`ZephraEngine`, `ZephraLinkHost` -> `ZephraLinkProtocol`.
+
+**What it watches.** One `withObservationTracking` loop, re-armed after every
+change and coalesced by a 50 ms sleep, over `store.state`, `store.current?.id`,
+the ids in `store.history`, `store.queue`, `store.running`,
+`store.descriptor.id`, `store.availability`, `store.downloads.items`,
+`store.acceptsWork`, `store.livePreview` and `index.items`. The sleep is what
+makes it correct as well as cheap: the callback runs *before* the change lands,
+so reading in it would read the value before. Each `StateDelta` case is compared
+on its own against `CompanionPublication`, what the sessions were last told, so a
+step counter ticking does not resend the model list. The library is compared by
+`LibraryEntry.version`, and a change of more than a hundred entries is a
+`.reset` rather than a diff — a folder scanned wholesale is not a diff worth
+sending. The loop runs only while a session is open.
+
+Preview frames have their own path: `PreviewEncoder` turns the engine's RGBA8
+into JPEG at 0.6 off the main actor, at most ten a second, newest wins, and the
+frame is fingerprinted by its size and its first and last sixteen bytes rather
+than hashed — a quarter of a megabyte, several times a second.
+
+**What it never touches.** `CompanionSession+Commands` maps every `Command`
+through the doors the Mac's own menus use: `GenerationStore.enqueue` for a
+submit, `switchModel`, `cancel`, the queue calls, `LibraryIndex`'s own mutations,
+`moveToRecentlyDeleted`, `upscale`, `animate`. It never writes `settings` or
+`descriptor`, never sets `index.query`, and never calls `generate(count:)` — the
+person at the Mac may be halfway through typing a prompt. An annotation edit is
+made with `index.undoManager` lifted off and put back, because Undo is the Edit
+menu of the window in front of somebody, and a favourite a phone toggled sitting
+on it as "Undo Favorite" would be an edit they never made.
+
+A refused submit carries the store's own words: `RemoteAdmission`'s `.busy`,
+`.refused` and `.badRequest` become `LinkError`s of the same three codes.
+`store.clips == nil` refuses Animate as `unsupported`; a file name the index does
+not know is `notFound`.
+
+**Sessions.** `CompanionSession` is one phone from its handshake to the road
+closing. One loop over the connection's frames, with `channel == nil` standing
+for "still in the plaintext stage", so there is one reader and no iterator
+crossing an isolation domain. Everything the Mac says is sealed at the call and
+yielded into one `AsyncStream<Data>` drained by a writer task of its own: the
+channel's nonce is a frame's position in the stream, so the order frames are
+sealed in must be the order they leave in, and a phone on a slow link never holds
+the main actor. A blob leaves as a `blobStart` reply and the chunks behind it.
+
+**The app's side** is `Sources/Zephra/Companion/`. `LinkKeychain` keeps the
+identity and the pairings as generic passwords under `io.zephra.link`, accessible
+after first unlock and `ThisDeviceOnly` — a Mac restored from another Mac's
+backup should be a new device, not that one. A `ZEPHRA_FRESH_START` launch uses
+accounts of its own. `CompanionThumbnails` is `ThumbnailSupply` over the app's own
+`ThumbnailFolder`, so a phone scrolling the library pays for each decode once and
+shares what the Mac's grid already baked. `CompanionEndpoints` is the addresses a
+code carries: the `.local` name first, then every IPv4 address on an interface
+that is up, loopback and link-local left out. `CompanionRoads` opens the roads and
+remembers the port the local one actually took, since 7723 may be held by
+something else and a code has to name where the listener really is. `RelayRoad` is
+one `LinkListener` that outlives the sockets under it, rejoining the room on
+`LinkBackoff` so the host is served once rather than once per reconnection.
+
+**Settings > Companion** is the fourth tab. Two switches, deliberately apart:
+one opens the local road and puts the Mac on Bonjour, the other lets a phone
+somewhere else meet it on the relay, and neither follows from the other. Both are
+off until asked for. The pairing code is a version 11 QR at 240 points, drawn
+without interpolation so every module stays a hard square, with `Text`'s own
+timer style counting its two minutes down — no repeating animation, which the app
+target forbids. Revoking a device is immediate: the list is written before the
+sessions are closed, so a phone that reconnects the instant it is dropped is
+refused rather than racing the save.
 
 ## The phone's client
 
