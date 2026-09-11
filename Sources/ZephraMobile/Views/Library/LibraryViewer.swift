@@ -10,13 +10,17 @@ import ZephraStyle
 /// in place through AVKit rather than showing its poster: the poster is how a clip is filed,
 /// not how it is watched.
 ///
-/// Every gesture but the pull is UIKit's, inside `ZoomingScrollView`; what it saw comes back
-/// up through `\.viewerGestures` and lands in one `ViewerPose`.
+/// Every gesture, the pull included, is UIKit's, inside `ZoomingScrollView` or on the clip's
+/// player; what it saw comes back up through `\.viewerGestures` and lands in one `ViewerPose`.
+/// Which picture the pager has settled on goes back out through `\.viewerPaged`, so the
+/// surface underneath can close the viewer into that picture's cell (`ViewerCover`).
 struct LibraryViewer: View {
     /// The pictures, in the order the grid showed them.
     let entries: [CachedEntry]
     /// Which one is on screen, whether the chrome is, and how far it has been pulled.
     @State private var pose: ViewerPose
+
+    @Environment(\.viewerPaged) private var paged
 
     /// Opens the pictures at one of them.
     init(entries: [CachedEntry], opening fileName: String) {
@@ -51,6 +55,9 @@ struct LibraryViewer: View {
         .modifier(LibraryRequests())
         .statusBarHidden()
         .presentationBackground(.clear)
+        .onChange(of: pose.current) { _, current in
+            if let current { paged(current) }
+        }
     }
 
     /// The picture on screen, or nil once the last one has been deleted.

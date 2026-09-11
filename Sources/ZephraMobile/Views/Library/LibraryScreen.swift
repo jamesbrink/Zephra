@@ -13,8 +13,8 @@ import ZephraStyle
 /// pictures belong on screen" is a question with a test, not a line in a view.
 struct LibraryScreen: View {
     @Environment(LibraryCatalog.self) private var catalog
-    /// The day whose pictures are open full size, and which of them, or nil for the grid.
-    @State private var viewing: CachedEntry?
+    /// The picture open full size, and the one the viewer has paged to, or nil for the grid.
+    @State private var viewing: ViewerOpening?
 
     var body: some View {
         @Bindable var catalog = catalog
@@ -28,11 +28,10 @@ struct LibraryScreen: View {
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $catalog.query.text, prompt: "Search prompts and tags")
         }
-        .environment(\.openLibraryItem) { viewing = $0 }
         .modifier(LibraryRequests())
-        .fullScreenCover(item: $viewing) { entry in
-            LibraryViewer(entries: wall, opening: entry.fileName)
-        }
+        // The viewer, and the zoom out of a cell and back into one, are the cover's; the
+        // pictures it pages are the whole wall whichever one it opened on.
+        .modifier(ViewerCover(opening: $viewing) { _ in wall })
         // Keyed on the count, because the catalog reads the disk and then the client before it
         // has anything: a plain `.task` runs while the grid is still empty.
         .task(id: catalog.entries.count) { openFirstIfPhotographing() }
@@ -53,7 +52,7 @@ struct LibraryScreen: View {
     /// of the viewer is taken the same way as a screenshot of anything else.
     private func openFirstIfPhotographing() {
         guard MobilePreview.opensViewer, viewing == nil else { return }
-        viewing = catalog.sections.first?.entries.first
+        viewing = catalog.sections.first?.entries.first.map { ViewerOpening(opened: $0) }
     }
 }
 

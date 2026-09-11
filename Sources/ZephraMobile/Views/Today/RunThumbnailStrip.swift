@@ -12,26 +12,36 @@ struct RunThumbnailStrip: View {
     let fileNames: [String]
 
     @Environment(LibraryCatalog.self) private var catalog
+    /// Which picture the viewer over this strip is showing, if one is up: its cell is kept on
+    /// screen, the way the library's grid keeps it, so the viewer has a cell to zoom back into.
+    @Environment(\.viewerOpening) private var opening
 
     /// How big one is: about a fifth of a phone's width, so four fit with room to spare.
     private static let edge: CGFloat = 72
 
     var body: some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: 4) {
-                ForEach(fileNames, id: \.self) { name in
-                    if let entry = catalog.entry(named: name) {
-                        RunThumbnail(entry: entry)
-                            .frame(width: Self.edge, height: Self.edge)
-                    } else {
-                        RoundedRectangle(cornerRadius: ZephraChrome.tileRadius, style: .continuous)
+        ScrollViewReader { strip in
+            ScrollView(.horizontal) {
+                HStack(spacing: 4) {
+                    ForEach(fileNames, id: \.self) { name in
+                        if let entry = catalog.entry(named: name) {
+                            RunThumbnail(entry: entry)
+                                .frame(width: Self.edge, height: Self.edge)
+                        } else {
+                            RoundedRectangle(
+                                cornerRadius: ZephraChrome.tileRadius, style: .continuous
+                            )
                             .fill(.quaternary)
                             .frame(width: Self.edge, height: Self.edge)
+                        }
                     }
                 }
             }
+            .scrollIndicators(.hidden)
+            .onChange(of: opening?.shown) { _, shown in
+                if let shown, fileNames.contains(shown) { strip.scrollTo(shown) }
+            }
         }
-        .scrollIndicators(.hidden)
     }
 }
 

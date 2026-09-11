@@ -15,8 +15,9 @@ import ZephraStyle
 struct TodayScreen: View {
     @Environment(LinkClient.self) private var client
     @Environment(LibraryCatalog.self) private var catalog
-    /// The picture from a finished run that is open full size, or nil.
-    @State private var viewing: CachedEntry?
+    /// The picture from a finished run that is open full size, and the one the viewer has
+    /// paged to, or nil.
+    @State private var viewing: ViewerOpening?
 
     var body: some View {
         NavigationStack {
@@ -40,13 +41,11 @@ struct TodayScreen: View {
             .navigationTitle(MobileTab.today.title)
             .navigationBarTitleDisplayMode(.inline)
         }
-        // A picture in a run's strip opens the same way it does in the library, and wears the
-        // same menu: the actions are the library's and this surface keeps no copy of them.
-        .environment(\.openLibraryItem) { viewing = $0 }
+        // A picture in a run's strip opens the same way it does in the library, zooms out of
+        // its cell the same way, and wears the same menu: the actions are the library's and
+        // this surface keeps no copy of them.
         .modifier(LibraryRequests())
-        .fullScreenCover(item: $viewing) { entry in
-            LibraryViewer(entries: pictures(around: entry), opening: entry.fileName)
-        }
+        .modifier(ViewerCover(opening: $viewing) { pictures(around: $0.opened) })
     }
 
     /// The pictures the viewer pages through: the run's, in the strip's order, so a swipe

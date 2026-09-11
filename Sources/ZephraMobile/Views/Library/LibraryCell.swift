@@ -7,16 +7,30 @@ import ZephraStyle
 /// The square itself is `EntryThumbnail`, which every grid on the phone draws, so what a
 /// picture looks like while its bytes are coming is decided in one place and a picture fetched
 /// here is on the phone for the reference picker too.
+///
+/// Where a viewer opens over it, the cell is what the viewer zooms out of and back into. The
+/// id it answers to is `ViewerOpening.sourceID(forCell:)`'s, so the cell of the picture the
+/// viewer has paged to is the one the zoom back finds; where no viewer opens, it declares no
+/// source at all.
 struct LibraryCell: View {
     /// The picture this cell shows.
     let entry: CachedEntry
 
+    @Environment(\.viewerOpening) private var opening
+    @Environment(\.viewerNamespace) private var namespace
+
     var body: some View {
+        if let namespace, let sourceID {
+            square.matchedTransitionSource(id: sourceID, in: namespace) { $0.clipShape(tile) }
+        } else {
+            square
+        }
+    }
+
+    private var square: some View {
         EntryThumbnail(entry: entry)
             .aspectRatio(1, contentMode: .fit)
-            .clipShape(
-                RoundedRectangle(cornerRadius: ZephraChrome.tileRadius, style: .continuous)
-            )
+            .clipShape(tile)
             .overlay(alignment: .bottomTrailing) { favourite }
             .overlay(alignment: .topLeading) { badge }
             .contentShape(Rectangle())
@@ -24,6 +38,18 @@ struct LibraryCell: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(entry.label)
             .accessibilityAddTraits(.isButton)
+    }
+
+    /// The id the zoom transition finds this cell by: its own name while no viewer is up, so
+    /// a tap zooms out of here; while one is, `ViewerOpening`'s answer, which is a name for
+    /// the cell of the picture on screen and nothing for every other.
+    private var sourceID: String? {
+        guard let opening else { return entry.fileName }
+        return opening.sourceID(forCell: entry.fileName)
+    }
+
+    private var tile: RoundedRectangle {
+        RoundedRectangle(cornerRadius: ZephraChrome.tileRadius, style: .continuous)
     }
 
     @ViewBuilder private var favourite: some View {
