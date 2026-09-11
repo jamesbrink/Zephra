@@ -64,6 +64,8 @@ enum PairingEntry {
             return "Zephra could not reach that Mac. Check that both are awake and on the "
                 + "same network."
         case .timedOut: return "Your Mac did not answer in time."
+        case .lost:
+            return "A message between your Mac and this phone went missing. Try that again."
         case .unexpectedMessage, .unexpectedReply:
             return "Your Mac answered with something this version of Zephra does not understand."
         case .tooManyTransfers:
