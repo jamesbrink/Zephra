@@ -67,6 +67,12 @@ extension CompanionHost {
         _ = index.items
     }
 
+    /// Publishes what has moved right now rather than waiting for the loop to come round.
+    ///
+    /// What the app calls when it knows something moved — a picture saved, a picture deleted —
+    /// so a phone sees it in the same moment the Mac's own grid does.
+    public func publishNow() { publish() }
+
     /// Publishes what has moved since the last pass, and the newest preview frame if one is due.
     private func publish() {
         guard !sessions.isEmpty else { return }

@@ -69,6 +69,20 @@ enum AppSettings {
     /// The folders `modelsDirectory` was set to before, newest first, so what was put there
     /// is still found. Never more than a handful.
     static let previousModelsDirectories = "previousModelsDirectories"
+    /// Whether a paired iPhone may connect to this Mac at all. Off until it is asked for: the
+    /// link opens a port and advertises the Mac on the network, and neither should happen
+    /// because somebody installed the app.
+    static let companionEnabled = "companionEnabled"
+    /// Whether a phone that cannot reach this Mac directly may meet it on the relay. Off on its
+    /// own: reaching the Mac from outside the house is a second thing to agree to, and the
+    /// first one does not imply it.
+    static let companionRelayEnabled = "companionRelayEnabled"
+    /// The relay to meet on, as a URL. Overridable so a person running their own relay can
+    /// point at it, and so a test build can point somewhere harmless.
+    static let companionRelayURL = "companionRelayURL"
+    /// What the Mac calls itself on a phone's list of Macs. The machine's own name until the
+    /// person changes it.
+    static let companionDeviceName = "companionDeviceName"
 
     // Starting values, matching the defaults written at each `@AppStorage` site.
 
@@ -96,6 +110,30 @@ enum AppSettings {
     static let initialSeedFormat = SeedFormat.hex
     /// The Mac's own appearance, until the user picks one.
     static let initialAppearance = AppearanceMode.system
+    /// A phone connects only once somebody has said it may.
+    static let initialCompanionEnabled = false
+    /// And reaches the Mac from outside the house only once they have said that too.
+    static let initialCompanionRelayEnabled = false
+    /// The relay Zephra runs. A pipe that copies sealed bytes and has no key to read them.
+    static let initialCompanionRelayURL = "wss://zephra-link.urandom.io"
+
+    /// What this Mac is called on a phone. The machine's own name until it is changed here,
+    /// and never empty: a nameless Mac on a list of Macs is one nobody can pick.
+    static func companionName() -> String {
+        let stored = store.string(forKey: companionDeviceName)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard stored.isEmpty else { return stored }
+        return Host.current().localizedName ?? ProcessInfo.processInfo.hostName
+    }
+
+    /// Where the relay is, or nil when the person has not allowed one. An unparseable URL is
+    /// nil too: a relay that cannot be dialled is the same as no relay, and the local network
+    /// is unaffected either way.
+    static func companionRelay() -> URL? {
+        guard flag(companionRelayEnabled) else { return nil }
+        let stored = store.string(forKey: companionRelayURL) ?? initialCompanionRelayURL
+        return URL(string: stored)
+    }
 
     /// Where models are kept right now, for the composition root, which has to answer the
     /// question before any view exists. An unset or empty path is the app's own folder.
@@ -157,6 +195,8 @@ enum AppSettings {
         case warmUpOnLaunch: initialWarmUpOnLaunch
         case backgroundNotifications: initialBackgroundNotifications
         case inspectorVisible: initialInspectorVisible
+        case companionEnabled: initialCompanionEnabled
+        case companionRelayEnabled: initialCompanionRelayEnabled
         default: false
         }
     }

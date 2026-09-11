@@ -6,6 +6,7 @@ import ZephraBackendWan
 import ZephraBackendZImage
 import ZephraCore
 import ZephraEngine
+import ZephraLinkHost
 import ZephraMedia
 import ZephraUpscaleRealESRGAN
 
@@ -27,6 +28,11 @@ struct ZephraApp: App {
     /// What the models occupy on disk, for Settings > Models. Built here with the store so the
     /// window and Settings observe the one list.
     @State private var inventory = ModelInventory(locations: AppSettings.modelLocations())
+    /// The link a paired iPhone talks to this Mac over, built in `.task` beside the library's
+    /// wiring rather than here, since it takes the store, the index and the thumbnail folder
+    /// and a `@State` initializer cannot read another. Nil until then, and on a preview build;
+    /// `ZephraApp+Companion.swift` is the whole of it.
+    @State var companion: CompanionHost?
     /// Every `ZEPHRA_*` switch the inference path honours, read from the process environment
     /// here and nowhere else, then handed to the backends as a value.
     private static let environment = InferenceEnvironment.read(ProcessInfo.processInfo.environment)
@@ -122,7 +128,10 @@ struct ZephraApp: App {
                 }
                 .task {
                     termination.shutdown = {
-                        // Store first: its last save calls `onImageSaved` -> `index.insert`,
+                        // The link first: a phone holding a request open is the one reader that
+                        // could still ask the store for work while it is trying to finish.
+                        await stopCompanion()
+                        // Store next: its last save calls `onImageSaved` -> `index.insert`,
                         // which must land before the index stops taking anything.
                         await store.shutdown()
                         await index.shutdown()
@@ -130,6 +139,9 @@ struct ZephraApp: App {
                         await Task.detached { runtime.synchronize() }.value
                     }
                     openLibrary()
+                    // After the library, so the saved and deleted closures it sets are wrapped
+                    // rather than replaced.
+                    startCompanion()
                 }
         }
         .defaultSize(width: 1200, height: 840)
@@ -153,6 +165,9 @@ struct ZephraApp: App {
                 .environment(store)
                 .environment(inventory)
                 .environment(index)
+                // Optional on purpose: Settings can be opened on a preview build, which has no
+                // link, and the Companion tab draws the "not available" case from the absence.
+                .environment(companion)
                 .environment(\.inferenceRuntime, runtime)
                 .environment(\.memoryBudget, Self.budget)
                 .environment(\.weightResidencyOverride, Self.environment.weightResidency)

@@ -21,7 +21,10 @@ final class ThumbnailCache {
     private static let memoryLimit = 96 * 1024 * 1024
 
     private let memory = NSCache<NSString, NSImage>()
-    private let folder: ThumbnailFolder
+    /// The baked files behind this cache. Not private, because the companion link asks the same
+    /// folder for the same thumbnails: two folders over one directory would be two gates and
+    /// twice the concurrent decodes for the same files.
+    let folder: ThumbnailFolder
 
     /// The bakes running right now, so two cells asking for the same picture are one decode.
     @ObservationIgnored private var inFlight: [ThumbnailKey: Task<CGImage?, Never>] = [:]
