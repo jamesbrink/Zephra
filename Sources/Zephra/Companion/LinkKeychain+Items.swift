@@ -8,12 +8,16 @@ import Security
 /// the keychain simply unpairs every phone, which is the right answer for keys a person can see
 /// and revoke in Settings.
 ///
-/// Every query asks for the **data-protection** keychain. On macOS the default is the old
-/// file-based keychain, where `kSecAttrAccessible` is not honoured: the identity and the
-/// pairings would sit there under whatever the login keychain's own unlock state happened to
-/// be, and `ThisDeviceOnly` — the whole reason a restored backup is a new Mac — would mean
-/// nothing. An item written by a build before this is found by `legacyQuery`, moved across on
-/// the first read, and deleted from where it was.
+/// Every query asks for the **data-protection** keychain where this build can reach one. On
+/// macOS the default is the old file-based keychain, where `kSecAttrAccessible` is not honoured:
+/// the identity and the pairings would sit there under whatever the login keychain's own unlock
+/// state happened to be, and `ThisDeviceOnly` — the whole reason a restored backup is a new Mac
+/// — would mean nothing. An item written by a build before this is found by `legacyQuery`,
+/// moved across on the first read, and deleted from where it was.
+///
+/// Reaching that keychain needs an entitlement a build signed ad hoc has not got, so which one
+/// is asked for is `LinkKeychainKind`'s answer rather than a constant. A Debug build keeps its
+/// pairings in the old keychain and says so in the log; nothing else here changes.
 extension LinkKeychain {
     /// What one item holds, or nil when there is no such item.
     func read(_ account: String) throws -> Data? {
@@ -71,9 +75,15 @@ extension LinkKeychain {
         }
     }
 
-    /// The item one account names, in the keychain that honours `kSecAttrAccessible`.
+    /// The item one account names, in the best keychain this build can reach.
+    ///
+    /// The data-protection keychain where the signature allows it, and the old one where it does
+    /// not — `LinkKeychainKind` decides that once a launch. On a build that cannot reach the
+    /// data-protection keychain this is `legacyQuery`, which makes the migration below a lookup
+    /// that finds the item where it already is and moves nothing.
     static func query(_ account: String) -> [String: Any] {
         var query = base(account)
+        guard LinkKeychainKind.current.usesDataProtection else { return query }
         query[kSecUseDataProtectionKeychain as String] = true
         return query
     }

@@ -291,8 +291,12 @@ every request goes through `GenerationStore.enqueue` and the index's own
 mutations, never `settings`, `descriptor`, `index.query` or `generate(count:)`,
 and an annotation edit is made with the index's `UndoManager` lifted off, since
 the Edit menu belongs to the person at the keyboard. The app's side is
-`Sources/Zephra/Companion/`: `LinkKeychain` (the identity and the pairings),
-`CompanionThumbnails`, `CompanionEndpoints`, `CompanionRoads` and `RelayRoad`.
+`Sources/Zephra/Companion/`: `LinkKeychain` (the identity and the pairings, in
+the data-protection keychain where the signature reaches one and the old login
+keychain where it does not, which `LinkKeychainKind` settles once a launch and
+logs, since an ad-hoc-signed Debug build cannot reach the first and would open no
+road at all), `CompanionThumbnails`, `CompanionEndpoints`, `CompanionRoads` and
+`RelayRoad`.
 
 `ZephraLinkClient` is the phone's `LinkClient`: `@MainActor @Observable`, split
 by concern like `GenerationStore`, holding the snapshot the deltas edit, the
@@ -540,7 +544,8 @@ Five directories, by what a file is rather than what screen it is on:
 - `Support/` — caches, exports, pickers, previews, and the single homes for
   cross-cutting answers listed below.
 - `Companion/` — everything the link needs that is the Mac's rather than the
-  protocol's: `LinkKeychain` (the identity and the pairings), `CompanionThumbnails`,
+  protocol's: `LinkKeychain` (the identity and the pairings), `LinkKeychainKind`,
+  `CompanionThumbnails`,
   `CompanionEndpoints`, `CompanionRoads`, `RelayRoad` and `PairingQRCode`. The one
   place in the app target that may import `ZephraLinkTransport`, since a road is
   what it opens; `ZephraApp.swift` itself takes only `ZephraLinkHost`.

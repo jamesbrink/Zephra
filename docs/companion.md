@@ -468,7 +468,13 @@ the only one on macOS where `kSecAttrAccessible` means anything: without it the
 items sit in the file-based login keychain under whatever its own unlock state
 happens to be, and `ThisDeviceOnly` is silently nothing. An item a build before
 that wrote is found by `legacyQuery`, moved across on the first read and deleted
-from where it was; `removeAll` clears both. The phone's `MobileKeychain` asks for
+from where it was; `removeAll` clears both. Reaching that keychain needs an
+entitlement only a real signing identity carries, so `LinkKeychainKind` asks once
+a launch — a delete of an account nothing writes, `errSecMissingEntitlement`
+where the answer is no — and logs which keychain is in use: a Debug build is
+signed ad hoc, keeps its pairings in the old keychain, and the migration becomes
+a lookup that moves nothing, where before this the link simply never opened a
+road. The phone's `MobileKeychain` asks for
 the same flag, which is iOS's default, so both ends read the same. A
 `ZEPHRA_FRESH_START` launch uses accounts of its own. `CompanionThumbnails` is `ThumbnailSupply` over the app's own
 `ThumbnailFolder`, so a phone scrolling the library pays for each decode once and
