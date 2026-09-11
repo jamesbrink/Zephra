@@ -58,7 +58,7 @@ struct LinkReconnectTests {
         let client = client(pairedTo: host())
         let reconnect = LinkReconnect(client: client)
         reconnect.begin()
-        try await settle { if case .failed = client.connection { return true } else { return false } }
+        try await settle { client.connection.hasFailed }
         #expect(client.connection == .failed("Zephra could not reach halcyon."))
         // The loop is still there, waiting out `LinkBackoff` before it tries again.
         #expect(reconnect.isRunning)
@@ -69,7 +69,7 @@ struct LinkReconnectTests {
         let client = client(pairedTo: host())
         let reconnect = LinkReconnect(client: client)
         reconnect.begin()
-        try await settle { if case .failed = client.connection { return true } else { return false } }
+        try await settle { client.connection.hasFailed }
         reconnect.end()
         #expect(!reconnect.isRunning)
         try await settle { client.connection == .offline }
@@ -82,12 +82,14 @@ struct LinkReconnectTests {
         let reconnect = LinkReconnect(client: client)
         reconnect.begin()
         reconnect.begin()
-        try await settle { if case .failed = client.connection { return true } else { return false } }
+        try await settle { client.connection.hasFailed }
         #expect(reconnect.isRunning)
         reconnect.end()
     }
 
     /// Waits for something the loop does on its own, rather than for a length of time.
+    ///
+    /// - Parameter condition: what the loop is expected to get the client to.
     private func settle(
         within limit: Int = 200, until condition: @MainActor () -> Bool
     ) async throws {
@@ -97,4 +99,9 @@ struct LinkReconnectTests {
         }
         Issue.record("the client never got there")
     }
+}
+
+/// Whether the client has given up on an attempt, whatever it gave up saying.
+extension LinkConnectionState {
+    fileprivate var hasFailed: Bool { if case .failed = self { true } else { false } }
 }

@@ -14,7 +14,9 @@ struct PairedMacRow: View {
     var body: some View {
         if let host = client.pairedHost {
             LabeledContent("Mac", value: host.name)
-            LabeledContent("Paired", value: host.pairedAt.formatted(date: .abbreviated, time: .shortened))
+            LabeledContent(
+                "Paired",
+                value: host.pairedAt.formatted(date: .abbreviated, time: .shortened))
             Button("Forget This Mac", role: .destructive) { isConfirming = true }
                 .confirmationDialog(
                     "Forget \(host.name)?", isPresented: $isConfirming, titleVisibility: .visible

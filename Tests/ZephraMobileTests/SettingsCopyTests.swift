@@ -39,9 +39,10 @@ struct SettingsCopyTests {
 
     @Test("A pairing that failed says what the client wrote, not what was thrown")
     func prefersTheClientsSentence() {
+        let words = "Zephra could not reach halcyon."
         let written = PairingEntry.message(
-            for: LinkClientError.unreachable, connection: .failed("Zephra could not reach halcyon."))
-        #expect(written == "Zephra could not reach halcyon.")
+            for: LinkClientError.unreachable, connection: .failed(words))
+        #expect(written == words)
     }
 
     @Test("With nothing on the connection to go on, the error's own sentence stands")
