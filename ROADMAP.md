@@ -556,6 +556,20 @@ Left out of the first pass on purpose, each a small change to one file unless no
   is not. A Mac that announced every reconnection would announce one every two
   hours, which is what the relay's connection lifetime makes of a phone left on a
   desk.
+- **The phone watches a live session rather than being woken by it.**
+  `LinkReconnect` asks `LinkClient.connection` every couple of seconds while the
+  session is up, because the sequence that would wake a task on an observation
+  (`Observations`) is iOS 26 and the target is 18. It is one enum read on the
+  main actor, only while the app is in front, so the cost is nothing; the day the
+  floor moves the loop should await the change instead.
+- **`MobileKeychain` has no suite.** A keychain item needs an access group, and a
+  unit-test bundle hosted in the simulator's app has none, so every call answers
+  `errSecMissingEntitlement` and a suite over it would be a suite over that. It
+  is exercised by running the app and pairing. A device test target with an
+  entitlement would pin it properly.
+- **The phone's cache is not built.** `CacheRow` in Settings says so in as many
+  words. It is one file, so whoever builds the library's cache replaces it rather
+  than editing a settings screen around it.
 - **The local road is not re-opened when the network changes.** `TCPListener`
   keeps its port across a Wi-Fi change, and Bonjour re-advertises; what goes
   stale is the address list inside a pairing code already on screen. Since a code
