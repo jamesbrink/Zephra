@@ -66,6 +66,13 @@ the same override the store runs under without a second read of the process envi
   rest. A frozen *Mac* build opens no road either: `startCompanion` refuses while
   `InterfacePreview.requestedState` is set.
 - `make logs` streams `os.Logger` output for subsystem `io.zephra`.
+- A Debug build's companion keeps its identity and pairings in the login keychain
+  (an ad-hoc signature cannot reach the data-protection keychain), so every
+  rebuild changes the signature and the next launch can stall on a keychain
+  password prompt while the app stays usable. Clear it with
+  `security delete-generic-password -s io.zephra.link -a identity` and the same
+  for `-a devices`, then pair again; a Developer ID build keeps a stable
+  requirement and never hits this.
 - `make screenshot` photographs the app's window by its CoreGraphics id, so it captures the
   window rather than the rectangle of screen it sits in, and it fails rather than falling back
   when there is no window: a region or full-screen grab returns whatever is in front of Zephra,
