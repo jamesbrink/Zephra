@@ -67,7 +67,10 @@ the same override the store runs under without a second read of the process envi
 - `swift scripts/ax-press.swift "<title>" [role]` presses the control with that `AXTitle` or
   `AXDescription` in the running Zephra through the accessibility tree, without activating the
   app, moving the mouse, or posting an event, so it can open Settings > Models or click a
-  button while a person keeps working; `--dump [depth]` prints the tree for finding titles.
+  button while a person keeps working; a `Toggle` or static text in a SwiftUI `Form` that
+  carries neither of its own matches through the label linked by `AXTitleUIElement` or
+  `AXServesAsTitleForUIElements` instead. `--dump [depth]` prints the tree for finding titles,
+  with that linked label alongside where the control has one.
   `swift scripts/ax-type.swift "<label>" "<text>"` is its sibling for a field: it sets the
   value of the text field with that accessibility label and performs `AXConfirm`, what Return
   does in it, which is how the Size menu's "Custom size" field is typed into hands-off.

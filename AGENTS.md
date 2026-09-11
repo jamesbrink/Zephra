@@ -1455,8 +1455,10 @@ environment value.
   takes the window with that title (a Settings window is titled after its tab).
 - `swift scripts/ax-press.swift "<title>" [role]` presses a control by
   `AXTitle` or `AXDescription` through the accessibility tree without
-  activating the app or moving the mouse; `--dump [depth]` prints the tree and
-  `ZEPHRA_PID` picks the copy to drive. `swift scripts/ax-type.swift "<label>"
+  activating the app or moving the mouse, or, for a Form `Toggle` with
+  neither, by the label linked through `AXTitleUIElement` or
+  `AXServesAsTitleForUIElements`; `--dump [depth]` prints the tree, that
+  linked label included, and `ZEPHRA_PID` picks the copy to drive. `swift scripts/ax-type.swift "<label>"
   "<text>"` sets a labelled text field's value and confirms it, which is how
   the Size menu's custom size is typed hands-off. With `open -g --env
   ZEPHRA_PREVIEW_STATE=settings build/Debug/Zephra.app` and the titled
