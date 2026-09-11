@@ -97,11 +97,16 @@ nonisolated struct MobileKeychain: LinkKeyStore {
     }
 
     /// What names one of our two items, and nothing else on the device.
+    ///
+    /// `kSecUseDataProtectionKeychain` is the default on iOS and asked for anyway: it is the
+    /// only keychain that honours `kSecAttrAccessible`, it is what the Mac's `LinkKeychain` has
+    /// to spell out, and one shape for both ends is one thing to know rather than two.
     private static func query(for item: Item) -> [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: item.rawValue,
+            kSecUseDataProtectionKeychain as String: true,
         ]
     }
 }

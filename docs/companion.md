@@ -431,8 +431,15 @@ the main actor. A blob leaves as a `blobStart` reply and the chunks behind it.
 **The app's side** is `Sources/Zephra/Companion/`. `LinkKeychain` keeps the
 identity and the pairings as generic passwords under `io.zephra.link`, accessible
 after first unlock and `ThisDeviceOnly` — a Mac restored from another Mac's
-backup should be a new device, not that one. A `ZEPHRA_FRESH_START` launch uses
-accounts of its own. `CompanionThumbnails` is `ThumbnailSupply` over the app's own
+backup should be a new device, not that one. Every query asks for the
+**data-protection** keychain (`kSecUseDataProtectionKeychain`), because that is
+the only one on macOS where `kSecAttrAccessible` means anything: without it the
+items sit in the file-based login keychain under whatever its own unlock state
+happens to be, and `ThisDeviceOnly` is silently nothing. An item a build before
+that wrote is found by `legacyQuery`, moved across on the first read and deleted
+from where it was; `removeAll` clears both. The phone's `MobileKeychain` asks for
+the same flag, which is iOS's default, so both ends read the same. A
+`ZEPHRA_FRESH_START` launch uses accounts of its own. `CompanionThumbnails` is `ThumbnailSupply` over the app's own
 `ThumbnailFolder`, so a phone scrolling the library pays for each decode once and
 shares what the Mac's grid already baked. `CompanionEndpoints` is the addresses a
 code carries: the `.local` name first, then every IPv4 address on an interface
