@@ -64,9 +64,11 @@ public final class CompanionSession: Identifiable {
     /// rather than being dropped with everything else still queued.
     public func close(telling error: LinkError? = nil) async {
         guard !isClosed else { return }
+        // Before the flag, not after: `enqueue` refuses a closed session, and a refusal the
+        // phone never receives is a phone left guessing why the connection went.
+        if let error { try? sendError(error) }
         isClosed = true
         isReady = false
-        if let error { try? sendError(error) }
         sink.finish()
         await writer?.value
         writer = nil
