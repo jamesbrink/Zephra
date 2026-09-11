@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import ZephraEngine
 import ZephraLinkHost
+import ZephraLinkProtocol
 
 /// The composition root's other wiring: the link a paired phone talks to this Mac over.
 ///
@@ -14,10 +15,19 @@ extension ZephraApp {
     ///
     /// Silent on a frozen preview build and under the app-hosted tests: neither owns this Mac's
     /// keychain or its port, and a screenshot build listening on the network would be a surprise.
-    func startCompanion() {
+    func startCompanion() async {
         guard companion == nil, InterfacePreview.requestedState == nil else { return }
         let keychain = LinkKeychain(isFreshStart: FreshStart.current != nil)
-        guard let identity = try? keychain.identity() else { return }
+        // Off the main actor, both reads. A keychain item whose access list no longer names
+        // this copy of the app raises a system password prompt, and `SecItemCopyMatching` does
+        // not return until somebody answers it — on the main thread that is the whole app
+        // stopped before its first window, with nothing on screen to explain why. Read here,
+        // the worst a prompt left unanswered costs is a link that has not started yet.
+        let opened = await Task.detached(priority: .userInitiated) { () -> (DeviceIdentity, [PairedDevice])? in
+            guard let identity = try? keychain.identity() else { return nil }
+            return (identity, (try? keychain.load()) ?? [])
+        }.value
+        guard let (identity, devices) = opened else { return }
         roads.remember(identity)
         // The port is asked for when the code goes up, not now: the local road may have taken a
         // different one, and a code that named 7723 when the listener is elsewhere is a code
@@ -30,6 +40,7 @@ extension ZephraApp {
             identity: identity,
             pairings: keychain,
             hostName: AppSettings.companionName(),
+            devices: devices,
             endpoints: { CompanionEndpoints.current(port: roads.port) })
         companion = host
         // The library's own wiring ran first (`openLibrary`), so these are wrapped rather than

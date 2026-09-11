@@ -81,6 +81,7 @@ public final class CompanionHost {
         identity: DeviceIdentity,
         pairings: any PairingStore,
         hostName: String,
+        devices: [PairedDevice]? = nil,
         endpoints: @escaping @MainActor () -> [Endpoint] = { [] }
     ) {
         self.store = store
@@ -90,7 +91,10 @@ public final class CompanionHost {
         self.pairings = pairings
         self.hostName = hostName
         self.endpoints = endpoints
-        self.devices = (try? pairings.load()) ?? []
+        // The list may be handed in already read. A keychain read is a call that can stop for
+        // as long as a person takes to answer a system prompt, and this initialiser runs on the
+        // main actor, so a caller that has somewhere else to read it passes it here instead.
+        self.devices = devices ?? ((try? pairings.load()) ?? [])
     }
 
     /// The Mac's published keys, which a phone needs to know before it can knock.

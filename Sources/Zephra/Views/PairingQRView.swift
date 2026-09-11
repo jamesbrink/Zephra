@@ -34,7 +34,25 @@ struct PairingQRView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .task(id: host?.pairing) { code = Self.draw(host?.pairing) }
+        .task(id: host?.pairing) {
+            code = Self.draw(host?.pairing)
+            await expire(host?.pairing)
+        }
+    }
+
+    /// Takes the code down the moment its secret stops working.
+    ///
+    /// One sleep to a date, not a ticking anything: the app target runs no repeating animation,
+    /// and this wakes once. Without it the code stays on screen after `PairingSecret` has run
+    /// out, counting *up*, and a phone that reads it is refused by a Mac still offering it.
+    private func expire(_ payload: PairingPayload?) async {
+        guard let payload else { return }
+        let left = payload.expiresAt.timeIntervalSinceNow
+        if left > 0 {
+            try? await Task.sleep(for: .seconds(left))
+            guard !Task.isCancelled else { return }
+        }
+        host?.endPairing()
     }
 
     /// The code on screen, with what is left of its two minutes under it.

@@ -156,7 +156,7 @@ struct ZephraApp: App {
                     openLibrary()
                     // After the library, so the saved and deleted closures it sets are wrapped
                     // rather than replaced.
-                    startCompanion()
+                    await startCompanion()
                 }
         }
         .defaultSize(width: 1200, height: 840)
