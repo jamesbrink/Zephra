@@ -245,11 +245,16 @@ IOS_SIGNING ?= automatic
 ios-signing:
 	SIGNING_CONFIG="$(SIGNING_CONFIG)" ./scripts/testflight-signing.sh
 
-archive-ios: gen $(if $(filter manual,$(IOS_SIGNING)),ios-signing)
+# The profile is installed from inside the recipe rather than as a prerequisite: `testflight`
+# sets IOS_SIGNING as a target-specific variable, which a recipe sees and a prerequisite list
+# does not (that is expanded when the Makefile is read), so a prerequisite chosen by it ran
+# the signing script never and CI archived with no profile on the runner.
+archive-ios: gen
 	@if ! echo "$(IOS_VERSION)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
 	  echo "VERSION must be MAJOR.MINOR.PATCH, got '$(IOS_VERSION)'"; exit 1; fi
 	@if ! echo "$(IOS_BUILD_NUMBER)" | grep -Eq '^[1-9][0-9]*$$'; then \
 	  echo "BUILD_NUMBER must be a positive integer, got '$(IOS_BUILD_NUMBER)'"; exit 1; fi
+	@if [ "$(IOS_SIGNING)" = manual ]; then $(MAKE) ios-signing SIGNING_CONFIG="$(SIGNING_CONFIG)"; fi
 	rm -rf "$(IOS_ARCHIVE)"
 # -allowProvisioningUpdates needs a developer account, and takes it from Xcode's Accounts
 # settings or from an App Store Connect key on the command line. The key is the same one the
