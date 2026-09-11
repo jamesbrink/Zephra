@@ -14,6 +14,10 @@ enum MobilePreviewState: String, CaseIterable {
     case capsule
     /// Paired, on the library, over the fixture's pictures.
     case library
+    /// Paired, on the library, with its first picture open full size.
+    case viewer
+    /// Paired, on today's runs, with one running and one waiting.
+    case today
     /// Paired, but the Mac is not answering: everything on screen is the last thing known.
     case offline
     /// Paired, on the settings surface.
@@ -23,7 +27,8 @@ enum MobilePreviewState: String, CaseIterable {
     var tab: MobileTab {
         switch self {
         case .pairing, .ready, .generating, .capsule, .offline: .canvas
-        case .library: .library
+        case .library, .viewer: .library
+        case .today: .today
         case .settings: .settings
         }
     }

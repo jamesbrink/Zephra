@@ -711,11 +711,32 @@ US-spelling check.
   sentence, and an expired code is refused here rather than at the far end. The
   screen sends people to **Settings > Companion** on the Mac, which is where the
   code is.
+- The Library tab is the Mac's library, cached. `Support/Cache/` is three stores
+  — `EntryStore` (a JSON file per picture under Application Support, the wire's
+  own entry written back byte for byte), `ThumbnailStore` (the JPEG as it
+  arrived, keyed by the Mac's own `ThumbnailKey` rule: name, modification time,
+  pixels) and `FileStore` (whole pictures and clips in Caches, under a 512 MB
+  `CacheBudget` that drops the least recently *read*) — behind `LibraryCatalog`,
+  which reads the disk before it asks the Mac anything and follows
+  `client.library` and `client.connection` in one observation loop. **That folder
+  is a cache and the Mac's folder is the truth**: nothing in it is backed up,
+  clearing it loses nothing, and an entry is refetched when
+  `CachedEntry.isStale(against:)` says its file moved, which is exactly the
+  three facts `LibraryEntry.version` is made of. A reset carries at most a
+  hundred entries, so `LibraryCatalog` applies its removals only once
+  `client.library` has reached `snapshot.libraryCount` — `LibrarySync.plan` is
+  pure and answers with them regardless. Browsing, searching, the viewer over
+  anything fetched, Share and Save to Photos work offline; favoriting, tagging,
+  deleting and an unfetched picture grey rather than failing on press.
+- The Today tab is `snapshot.today` drawn in the Mac's order. Nothing in it
+  groups anything: `RunSummary` arrives grouped, and `EngineStateDTO` already
+  carries the derived facts the running card reads.
 - `MobilePreview` is `InterfacePreview`'s shape for the phone:
-  `ZEPHRA_PREVIEW_STATE=pairing|ready|generating|capsule|library|offline|settings`,
+  `ZEPHRA_PREVIEW_STATE=pairing|ready|generating|capsule|library|viewer|today|offline|settings`,
   Debug only, over two JSON fixtures decoded with the wire's own decoder. Every
   state but `pairing` is a `LinkClient.frozen`, which has no road under it;
-  nothing reconnects behind one.
+  nothing reconnects behind one, the catalog is built with no roots and writes
+  nothing, and `shaped(_:for:)` is where `midRun` and `todayRuns` are chosen.
 - `make build-ios`, `make run-ios PREVIEW=<state>`, `make test-ios`,
   `make screenshot-ios`. `IOS_SIM` names the simulator; CI passes what
   `scripts/ios-sim.sh` finds. There is no benchmark: the phone renders

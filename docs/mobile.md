@@ -80,15 +80,12 @@ Four directories, by what a file is, the way the Mac's target is laid out.
 - `Style/` — `MobileChrome`, and only what has no counterpart on the Mac: the
   prompt sheet's heights, the room the tab bar takes, the side margin. Anything
   a radius, a hairline or a wash could be belongs in `Packages/ZephraStyle`.
-- `Views/` — one subfolder per surface. `Canvas/` and `Capsule/` are the two
-  halves of the first one built: what the Mac is making, and what asks it for
-  more. `TodayScreen` and `LibraryScreen` are still placeholders that show the
-  one fact the snapshot knows about them, so the tabs, the paired state and the
-  frozen previews are exercised whatever is built; `SurfacePlaceholder` is what
-  they draw, and each is replaced from the inside as its surface is built.
-  `SettingsScreen` is real: `PairedMacRow`, `ConnectionRow`, `CacheRow` and
-  `AboutRow`, a row to a file, so a later agent replaces one of them rather than
-  editing a screen around it.
+- `Views/` — one subfolder per surface, and every surface is real now:
+  `Canvas/` and `Capsule/` are the two halves of the first, what the Mac is
+  making and what asks it for more; `LibraryScreen` and `TodayScreen` are the
+  Mac's library and its canvas sidebar; `SettingsScreen` is `PairedMacRow`,
+  `ConnectionRow`, `CacheRow` and `AboutRow`, a row to a file, so a later change
+  replaces one of them rather than editing a screen around it.
 
 ### `LinkClient`, and how it stays connected
 
@@ -262,6 +259,111 @@ thing the Mac said.
 What this surface deliberately leaves out — a picture saved to the camera roll —
 is in `ROADMAP.md`.
 
+## The cached library
+
+The Library tab is the Mac's library, and it works with no Mac in reach. That
+is the one place the phone keeps something, and it is worth being exact about
+what it is: **the Mac's folder is the truth and this is a cache**. Nothing in it
+is authoritative, nothing in it is backed up, and clearing it loses nothing.
+
+`Support/Cache/` is three stores and two pure rules.
+
+- `CachedEntry` wraps `LibraryEntry` rather than copying its fields, and codes
+  transparently — a file in the cache is byte for byte the JSON that arrived.
+  Two reasons. The record and the annotation inside an entry are `ZephraEngine`
+  types and the phone may not import that module, so nothing here can spell one
+  of those names; and an entry that *is* the wire's entry cannot drift from what
+  a Mac would send. The facts the surfaces read (`prompt`, `modelID`,
+  `isFavourite`, `videoSeconds`, `upscaleFactor`) are lifted out as scalars, and
+  `searchKey` is folded once when the entry is taken in rather than on every
+  keystroke.
+- `EntryStore` is a JSON file per picture under
+  `Application Support/Library/Entries/<file name>.json`. A file each rather
+  than one document, because what happens to this folder is a handful of entries
+  changing: rewriting a thousand-entry list to record one favorite is a write
+  the size of the library for a change the size of a bool.
+- `ThumbnailStore` keeps the JPEG bytes exactly as they arrived, under
+  `Thumbnails/<2-char shard>/<digest>.jpg`, where the digest is the SHA-256 of
+  the file's name, its modification time and the pixels asked for. That is the
+  Mac's `ThumbnailKey` rule moved one device along, and for the Mac's reason: a
+  picture that changed misses rather than showing yesterday's pixels under
+  today's name. Two sizes only, 256 for a cell and 512 for the viewer — a phone
+  has one grid at one width, where the Mac's slider needed four buckets.
+- `FileStore` keeps whole pictures and clips in `Caches/Files/`, named as the
+  Mac names them, a clip's MP4 beside its poster under the same stem
+  (`VideoSidecar`'s rule). `CacheBudget` caps it at 512 MB and drops the least
+  recently **read** first, not the least recently written: a clip watched four
+  times today is worth more than a picture fetched once this morning. The access
+  date is set explicitly on every read, because iOS mounts with `noatime` and
+  every file would otherwise look equally old.
+- `LibrarySync.plan(remote:local:)` is pure: an entry is taken in when the cache
+  has never heard of it and again whenever its file has moved, which
+  `CachedEntry.isStale(against:)` decides from the three facts
+  `LibraryEntry.version` is made of. Favoriting a picture on the Mac rewrites
+  its PNG, so its modification time moves and its version with it — which is the
+  whole reason an annotation change reaches the phone at all.
+- `CachedLibraryQuery` is the Mac's `LibraryQuery` cut to the two axes a phone
+  has: a scope (All, Favorites, Clips) and free text over the prompt, the tags,
+  the seed and the model. It answers `sections`, grouped by day, newest first.
+  **Nothing in a view filters**, as on the Mac.
+
+`LibraryCatalog` (`@MainActor @Observable`, split by concern like
+`GenerationStore`) is what the surfaces observe. `start(client:)` reads the disk
+*before* it looks at the client — the offline promise in one line — then follows
+`client.library` and `client.connection` in one `withObservationTracking` loop,
+both in the same arming because both decide what the surface draws. Fetching a
+thumbnail or a file is store, then Mac, then store. Favoriting, tagging and
+deleting are optimistic and revert on a refusal, the way `LibraryIndex`'s
+mutations are; nothing here invents a `version`, since the Mac decides what a
+file's fingerprint is and a guessed one would make the next sync think the cache
+was current.
+
+One rule is worth spelling out because it is not obvious. A `LibraryChange.reset`
+carries at most `CompanionPublication.resetThreshold` entries — a hundred — so a
+phone that treated every reset as the whole library would throw the rest of its
+cache away the first time somebody with two thousand pictures rescanned a
+folder. `LibrarySync.plan` still answers with the removals, because it is a pure
+function over what it was given; `LibraryCatalog` applies them only when
+`client.library.count` has reached `snapshot.libraryCount`, and keeps what it has
+otherwise.
+
+Offline, browsing, searching, the viewer over anything already fetched, Share
+and Save to Photos all work. Favoriting, tagging, deleting and a fetch of
+something never fetched are **greyed**, not failed on press: the annotation lives
+in the picture's own PNG on the Mac, and a star that filled in offline would be a
+lie about a file this phone cannot touch. Save and Share stay live for a file
+already here, which is the one somebody is looking at.
+
+`ReferenceIntent` (`Support/`) is how the library says "start from this one": an
+`@Observable` with one file **name** on it, which the capsule reads and takes.
+A name, never bytes — the Mac made the picture and still has it, and sending a
+megabyte of PNG back to the machine it came from to say one word would be absurd.
+
+## Today
+
+The Today tab is the Mac's canvas sidebar: what is waiting, what is being
+rendered, what has come out, in that order. **Nothing in it groups anything.**
+`RunSummary` arrives already grouped, because the grouping is a rule about a
+press of Generate and the Mac is what pressed it — `SessionTimeline` does that
+work on the Mac and the phone would only be a second copy of it.
+
+- `RunningRunCard` is the only amber thing on the phone, for the reason
+  safelight amber is the only amber on the Mac. Its step count, its pace and its
+  phase are read straight off `EngineStateDTO`, which already carries the
+  derived facts (`isBusy`, `isFinishing`): the phone never works out a rule the
+  Mac knows. Stop is `client.cancel()`.
+- `WaitingRunCard` takes the **whole run** out of the queue rather than one seed
+  of it, finding its entries in `snapshot.queue` by their batch. A run is what
+  was asked for, so a run is what can be taken back.
+- `FinishedRunRow` draws its pictures out of the catalog by name, so a run made
+  this morning still shows them on a train with no signal. A picture in the
+  strip opens the same viewer and wears the same `LibraryItemMenu` the grid's
+  cells do, through the same `\.openLibraryItem` — the surface keeps no copy of
+  the library's actions.
+
+This is the one surface that goes blank without a Mac, and it should: a run in
+flight cannot be cached.
+
 ## Frozen preview states
 
 The same mechanism as the Mac's `InterfacePreview`, in the same shape, so a
@@ -275,6 +377,8 @@ once, in `MobilePreview`, `#if DEBUG` only.
 | `generating` | paired, four steps into a nine-step ladder, with a frame of it in |
 | `capsule` | paired and idle, with the capsule showing every control the model has |
 | `library` | paired, opened on the library |
+| `viewer` | the library with its first picture open full size |
+| `today` | paired, one run four steps in and one waiting behind it |
 | `offline` | paired, the connection `.offline`: everything is the last thing known |
 | `settings` | paired, opened on the settings surface |
 
@@ -298,6 +402,17 @@ made with `UIGraphicsImageRenderer`, since a photograph of one particular run
 saved in the bundle would prove nothing about a canvas that draws whatever
 arrives. `capsule` is `ready` with `MobilePreview.capsuleIsExpanded` true, which
 is the only way to photograph the settings: a screenshot build cannot tap.
+
+`MobilePreview.todayRuns` (in `MobilePreview+Today.swift`, beside it for
+the same reason) puts a waiting run behind that one and lists both at the head
+of `today`, each under a batch identity of its own so no run is listed twice.
+`MobilePreview.shaped(_:for:)` is the one place a state chooses between them.
+
+Under any preview state the catalog is built with no roots at all: it seeds
+itself from the frozen client's library and writes nothing, so photographing a
+surface twice photographs the same surface. Blobs fail on a frozen client, so
+the grid's cells are placeholders and the viewer says the picture is not on
+this phone — which is, incidentally, exactly what the offline path looks like.
 
 ## Running it
 

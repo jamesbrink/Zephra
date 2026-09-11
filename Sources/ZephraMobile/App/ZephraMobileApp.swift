@@ -21,6 +21,11 @@ struct ZephraMobileApp: App {
     @State private var reconnect: LinkReconnect?
     /// The capsule's own state: what the next press of Generate would ask for.
     @State private var draft = PromptDraft()
+    /// The Mac's library as this phone holds it, and "use that one as the reference" on its way
+    /// from the library to the capsule. Both are facts about this phone rather than facts that
+    /// came over the link, which is why they are objects of their own beside the client.
+    @State private var catalog = LibraryCatalog()
+    @State private var reference = ReferenceIntent()
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
@@ -42,6 +47,11 @@ struct ZephraMobileApp: App {
                 // prompt survives a walk to the library and back; it holds no fact that came
                 // over the link, which is the client's alone.
                 .environment(draft)
+                .environment(catalog)
+                .environment(reference)
+                // The catalog reads what is on disk and then follows the client for the life
+                // of the app. Idempotent, so a scene rebuilt behind it starts nothing twice.
+                .task { catalog.start(client: client) }
                 // Connect while the app is in front and let the session go when it is not:
                 // a phone in a pocket has no reason to hold a socket open, and the Mac has no
                 // reason to hold a session for it. `initial` covers the launch itself, which

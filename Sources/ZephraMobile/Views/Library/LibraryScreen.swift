@@ -1,23 +1,63 @@
 import SwiftUI
-import ZephraLinkClient
+import ZephraStyle
 
-/// The Mac's library. A placeholder for now: the grid, its scopes and the viewer come next.
+/// The Mac's library, on the phone.
+///
+/// Everything on it came over the link and is kept here, so this surface works with no Mac in
+/// reach: the grid, the search, the scopes and every picture already looked at are all drawn
+/// from `LibraryCatalog`. What needs the Mac — favoriting, tagging, deleting, and fetching
+/// something never fetched — shows greyed instead of failing when it is pressed.
+///
+/// Nothing here filters. The chips and the search field write the catalog's query and the
+/// catalog answers with sections, which is the Mac's rule and the Mac's reason: "which
+/// pictures belong on screen" is a question with a test, not a line in a view.
 struct LibraryScreen: View {
-    @Environment(LinkClient.self) private var client
+    @Environment(LibraryCatalog.self) private var catalog
+    /// The day whose pictures are open full size, and which of them, or nil for the grid.
+    @State private var viewing: CachedEntry?
 
     var body: some View {
-        SurfacePlaceholder(
-            title: MobileTab.library.title, symbol: MobileTab.library.symbol, fact: fact)
+        @Bindable var catalog = catalog
+        NavigationStack {
+            VStack(spacing: 0) {
+                ScopeChips()
+                LibraryGrid()
+            }
+            .background(Color.canvasBackground)
+            .navigationTitle(MobileTab.library.title)
+            .navigationBarTitleDisplayMode(.inline)
+            .searchable(text: $catalog.query.text, prompt: "Search prompts and tags")
+        }
+        .environment(\.openLibraryItem) { viewing = $0 }
+        .modifier(LibraryRequests())
+        .fullScreenCover(item: $viewing) { entry in
+            LibraryViewer(entries: day(of: entry), opening: entry.fileName)
+        }
+        // Keyed on the count, because the catalog reads the disk and then the client before it
+        // has anything: a plain `.task` runs while the grid is still empty.
+        .task(id: catalog.entries.count) { openFirstIfPhotographing() }
     }
 
-    /// How much of the library the phone is holding, out of what the Mac says it has. The two
-    /// differ on purpose: the library arrives a page at a time.
-    private var fact: String? {
-        guard let total = client.snapshot?.libraryCount else { return nil }
-        guard total > 0 else { return "Nothing in the library yet." }
-        let held = client.library.count
-        return held < total
-            ? "\(held) of \(total) pictures"
-            : "\(total) \(total == 1 ? "picture" : "pictures")"
+    /// The pictures the viewer pages through: the day the opened one belongs to.
+    ///
+    /// The day rather than the whole library, because the day is what the grid showed above
+    /// it: swiping past the end of a section and landing three weeks earlier is a place nobody
+    /// meant to go.
+    private func day(of entry: CachedEntry) -> [CachedEntry] {
+        catalog.sections.first { $0.day == entry.day }?.entries ?? [entry]
     }
+
+    /// The `viewer` preview state is the library with its first picture open, so a screenshot
+    /// of the viewer is taken the same way as a screenshot of anything else.
+    private func openFirstIfPhotographing() {
+        guard MobilePreview.opensViewer, viewing == nil else { return }
+        viewing = catalog.sections.first?.entries.first
+    }
+}
+
+#Preview("Library") {
+    LibraryScreen()
+        .environment(MobilePreview.client() ?? MobilePreview.unpairedClient())
+        .environment(LibraryCatalog(libraryRoot: nil, filesRoot: nil))
+        .environment(ReferenceIntent())
 }

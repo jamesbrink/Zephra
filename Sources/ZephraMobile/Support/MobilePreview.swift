@@ -5,7 +5,7 @@ import ZephraLinkClient
 /// surface can be photographed and inspected on its own.
 ///
 /// Set `ZEPHRA_PREVIEW_STATE` to `pairing`, `ready`, `generating`, `capsule`, `library`,
-/// `offline` or `settings` before launching. Debug builds only; in Release this is inert, exactly as
+/// `viewer`, `today`, `offline` or `settings` before launching. Debug builds only; in Release this is inert, exactly as
 /// `InterfacePreview` is on the Mac — the two mechanisms are deliberately the same shape, so a
 /// screenshot of either app is taken the same way.
 ///
@@ -38,7 +38,7 @@ enum MobilePreview {
         guard let state else { return nil }
         guard let snapshot = snapshot(), state != .pairing else { return unpairedClient() }
         return LinkClient.frozen(
-            snapshot: state == .generating ? midRun(snapshot) ?? snapshot : snapshot,
+            snapshot: shaped(snapshot, for: state),
             library: library(),
             connection: state == .offline ? .offline : .live(.lan),
             preview: state == .generating ? frame() : nil)
