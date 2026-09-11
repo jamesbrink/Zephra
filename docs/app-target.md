@@ -360,6 +360,17 @@ Four directories, by what a file is rather than what screen it is on:
   `LibraryItem` to hand the button. Both paths go through
   `ReferenceAdoption.animate(_:into:)`, one overload per kind of picture,
   never `adopt(_:into:)`: an edit hands back its own source under `adopt`,
+  and a clip's last frame is read through the store's injected `ClipEditing`
+  (`GenerationStore.clips`) and re-encoded through `ReferenceImageEncoder`.
+  Extend Clip sits beside Animate on the same surfaces, for clips only
+  (`ExtendClipButton`, the fresh-image menu and actions, ⌥⌘X in the menu bar),
+  greyed by `ActionAvailability.extendDisabledReason` — no reader in this
+  build, the store busy, the clip not yet on disk, or a size the continuer's
+  grid cannot draw — and wired through `ReferenceAdoption.extend(_:into:)`,
+  which builds the `ContinuationSource` the store takes. While the capsule
+  carries a continuation the well reads `ReferenceRole.continues`, whose
+  strings sit beside the other roles', and the inspector's facts gain a
+  "Continues" line from `ImageFacts.continued`,
   which is right for "use this as a reference" and wrong for Animate, which
   means exactly the picture in front of you. A clip's last frame — what
   Animate reads instead of the poster, since the poster is only the first

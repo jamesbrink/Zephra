@@ -80,11 +80,19 @@ is distributed until the app is ready to ship.
      `ModelCapabilities.producesAudio` lets the player unmute. The video output of the
      audio variant differs from the video-only one: the audio-to-video cross-attention
      adds a term the video-only forward has not got.
-   - **More than one held frame**: image-to-video holds the *first* frame and nothing
-     else. The same mask holds a last frame, or a keyframe at any latent frame, if the
-     interface grows a way to say which; a strength that ramps across frames rather than
-     standing at one value per frame is the other half of that. The transformer's
-     per-token noise level already carries as many distinct values as the mask has.
+   - **More than one held frame**: shipped 2026-09-10 as Extend Clip, holding the `1 + 8k`
+     last frames of an earlier clip as `k + 1` clean latent frames at the head
+     (`LTX2HeldFrames`; the reference's multi-frame condition at latent index 0). Still
+     out: a keyframe at any *other* latent frame, a strength that ramps across the held
+     frames rather than standing at one value, and the reference's re-compression of the
+     held frames at CRF 18 before encoding. The join re-encodes both parts once through
+     `MP4Writer`; a passthrough splice of the two H.264 streams was left out because the
+     parts would have to have been encoded alike. A variation queued from an extended
+     clip runs clamped to one pass, since the record's `frameCount` is the whole clip.
+     Wan continues from its last frame alone: holding a run of latent frames is the
+     untrained case for its base model (`TheDenk/wan2.2-video-continuation`, Apache-2.0,
+     is a LoRA that trains it), and Wan's mask already takes any number of frames when
+     one is worth packing.
    - **The first frame is not re-compressed**: the reference image-to-video pipeline puts
      the picture through H.264 at CRF 18 before encoding it, so the model sees the
      compression artefacts it was trained beside. This port encodes the picture as it is,

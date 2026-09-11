@@ -95,7 +95,11 @@ as an index, and it is Foundation only, so `make test` covers all of it.
   and the albums stay in the poster and do not leave with the MP4, and Copy puts
   the file alone on the pasteboard, with no pixels and no promised TIFF
   (`ROADMAP.md`). Upscale is offered for pictures only, at every entry point.
-  `ImageLibraryVideoTests` pins the pairs.
+  `ImageLibraryVideoTests` pins the pairs. A clip made by Extend Clip is a new
+  pair whose poster is the source's first frame and whose record carries
+  `continuedFrom` (the source's file name) and `contextFrames`; `frameCount`
+  is the whole joined clip. `ImageLibrary.sourceClip(named:)` is how the join
+  finds the source, in the folder or in Recently Deleted.
 - `LibrarySelection` holds what is chosen; `LibraryCursor` is the pure
   arithmetic of moving through a grid, so keyboard navigation is tested without
   a window. `ImageFacts` formats the rows the inspector shows, the clip's Length

@@ -109,6 +109,47 @@ since 1024 x 1024 carried over from Z-Image would make the clip two and a half
 times the default's pixels. A picture model leaves its size alone; its
 picture is a reference for the image asked for, not the image.
 
+Extending a clip is the fourth thing a clip can be the start of, and it is one
+call, `GenerationStore.extend(_:)`, mirroring Animate: the clip's own model is
+chosen without loading it when it can hold a clip's end
+(`ModelCatalog.continuer(for:)`, else the animator), the last
+`defaultContinuationFrames` frames are read off the main actor through the
+`ClipEditing` the root injected (`MP4Stitcher` in `ZephraMedia`; the engine
+knows only the protocol in `ZephraCore`), and the capsule is set up with the
+clip's own prompt and size, the model's default length and strength, and the
+tail: its last frame in the well, under the `ReferenceRole.continues` caption,
+and the whole tail as `GenerationSettings.continuation`. The frames are bytes,
+not a path, for the reason the reference picture is; the published image drops
+them (`ClipContinuation.withoutPixels`) so history never holds a tail. Putting
+any other picture in the well drops the continuation, because the picture in
+the well *is* the continuation's last frame.
+
+How a family holds the tail is `ModelCapabilities.continuationFrames`, the
+degenerate-range convention again: `0...0` cannot; Wan declares `1...1` and
+holds the last frame exactly as it holds a first frame, since its base model
+was trained on one held frame; LTX-2.5 declares `1...25` on its ladder of
+eight and holds the `1 + 8k` frames as `k + 1` clean latent frames at the
+head, the reference's multi-frame condition at latent index 0 — the per-token
+noise level covers every held frame, the keyframe embedding stays on the first
+latent frame alone (`transformer_conditioned_span` pins both), and both stages
+of a two-stage run encode the tail at their own size. `clamp` drops the
+continuation on a model without it and trims the frame list down the ladder,
+newest frames kept. `LTX2RequestMapper` holds the tail over the well's
+picture; `WanRequestMapper` holds its last frame.
+
+The join is the run's: after the backend hands the segment back,
+`GenerationStore+Stitching` finds the source by its library name (the images
+folder, then Recently Deleted, since a clip deleted while its continuation
+waited is still there), drops the segment's first `contextFrames` frames — the
+held ones, which the model re-draws — and stitches the two through the same
+`ClipEditing`, one re-encode. The published clip's poster is the source's,
+stripped of its chunks so it takes a record of its own; `frameCount` is the
+whole clip; the record says `continuedFrom` and `contextFrames`, and no
+reference, since the frame in the well was the clip's own. A source gone from
+both folders fails the run and writes nothing; the segment alone is never kept.
+`ExtendTests`, `ContinuationCapabilitiesTests`, `ClipTailTests` and
+`MP4StitcherTests` pin it.
+
 Each backend package decodes the bytes to a `CGImage` in its own
 `ReferenceImageDecoding` — a small file duplicated per package, because no backend
 package may import another. Backends decode; the kits are handed decoded images

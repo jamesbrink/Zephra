@@ -59,10 +59,14 @@ Shared, by what a file actually touches:
   ZephraKit/ZephraSnapshot     Foundation, CryptoKit — the model downloader, local snapshot
                                                   checks, the hub cache read as a fallback,
                                                   what the models occupy on disk
-  ZephraKit/ZephraMedia        Foundation, AVFoundation — frames in, an H.264 MP4 out
-                                                  (`MP4Writer`), which a video backend takes
-                                                  for its clip; the app never reads it, its
-                                                  player is AVKit's over the file
+  ZephraKit/ZephraMedia        Foundation, AVFoundation, ZephraCore — frames in, an H.264
+                                                  MP4 out (`MP4Writer`), which a video backend
+                                                  takes for its clip; a clip's tail read back
+                                                  (`ClipTail`) and clips joined (`MP4Stitcher`,
+                                                  the one `ClipEditing`), which the engine
+                                                  reaches only through the protocol in Core and
+                                                  the app links in `ZephraApp.swift` alone, to
+                                                  inject it; the player is AVKit's over the file
   ZephraKit/ZephraTestSupport  Foundation, ZephraCore — Scratch, the filesystem test
                                                   fixture, and SnapshotUnderTest, the real
                                                   snapshot a kit's suite may read
@@ -479,7 +483,14 @@ Rules in `Views/`:
 - Animate sits beside Use as Reference everywhere and both show disabled
   rather than hidden. Animate goes through `ReferenceAdoption.animate`, never
   `adopt` (which hands back an edit's source); a clip's last frame comes from
-  `ClipFrames.lastFrame(of:)`.
+  the store's `clips` (`ClipEditing.tail`), re-encoded through
+  `ReferenceImageEncoder`.
+- Extend Clip sits beside Animate for clips only (`ExtendClipButton`, the two
+  fresh-image surfaces, and ⌥⌘X), greyed by `ActionAvailability.extendDisabledReason`
+  and titled by `CommandTarget.extendTitle`; it goes through
+  `ReferenceAdoption.extend`. While the capsule carries a continuation the well's
+  role is `ReferenceRole.continues` ("Continues from"), and `ImageFacts.continued`
+  is the inspector's "Continues" line.
 - Double-click or Return in the grid opens `LibraryViewer` in the pane
   (`\.viewLibraryItem`); "Open in Canvas" (`\.openLibraryItem`) is unchanged.
 - `GenerationStore.isShowingRun` decides what the canvas shows: `LivePreviewView`
@@ -680,6 +691,33 @@ For the noised-copy models:
   the picture; `LibraryIndex.item(named:)` looks it back up, Recently Deleted
   excluded.
 
+Extending a clip is the fourth way, one call: `GenerationStore.extend(_:)` takes
+a `ContinuationSource` (the poster's library name, the MP4 on disk or in
+memory, the record), picks `ModelCatalog.continuer(for:)` — the clip's own model
+when it `supportsContinuation`, else the animator — chooses it without loading
+it, reads the last `defaultContinuationFrames` frames through the store's
+injected `ClipEditing` under the reference ticket, and sets the capsule up with
+the clip's prompt and size, the model's default length and strength, the tail's
+last frame in the well and the tail behind it as
+`GenerationSettings.continuation` (`ClipContinuation`: PNG frames oldest first,
+the origin name, the source's frame count). Any other picture put in the well,
+or none, drops the continuation. `ModelCapabilities.continuationFrames` says how
+many frames a family holds (`0...0` cannot; LTX-2.5 `1...25` on its ladder,
+default 9, held as `k + 1` clean latent frames with the keyframe embedding on
+the first alone; Wan `1...1`, the last frame held as a first frame is), and
+`clamp` drops or trims it. `LTX2RequestMapper` holds the tail over the well's
+picture; `WanRequestMapper` holds its last frame. When the segment lands, `run`
+joins it onto its source inside the generation (`GenerationStore+Stitching`):
+the source is found by name in the images folder or Recently Deleted, the
+segment's first `contextFrames` frames (the held ones, re-drawn) are dropped,
+and one clip is published whose poster is the source's stripped of its chunks
+and whose record says `continuedFrom`, `contextFrames` and the whole
+`frameCount`; the published settings keep the continuation without its pixels
+and no reference picture. A source gone from both folders fails the run and
+writes nothing. `canExtend` is `acceptsWork`, a `clips` reader and an animator;
+`canExtend(_ record:)` adds that the continuer draws the clip's size on its own
+grid. `ExtendTests` and `ContinuationCapabilitiesTests` pin it.
+
 Animating is one call, `GenerationStore.animate(origin:read:)`: it picks the
 entry that makes clips and reads a picture (`ModelCatalog.animator(among:)`, a
 capability question), chooses it without loading it, sets the clip length to
@@ -819,9 +857,11 @@ sentences about behaviour.
 - `make test-app` — `Tests/ZephraTests`, hosted in the Debug app
   (`@testable import Zephra`; Release turns testability off). Pure interface
   logic, nothing that needs a window. The scheme sets
-  `ZEPHRA_PREVIEW_STATE=ready`. A test needing a media file reads one under
-  `Tests/ZephraTests/Fixtures`; never write one with `AVAssetWriter` inside the
-  host, which leaves the host unable to exit.
+  `ZEPHRA_PREVIEW_STATE=ready`. Never write a media file with `AVAssetWriter`
+  inside the host, which leaves the host unable to exit; a test that needs a
+  clip belongs in `ZephraMediaTests`, whose committed fixture
+  (`Fixtures/red-then-blue.mp4`) and in-process writes are fine under
+  `swift test`.
 - `make test-mlx` — the MLX packages, through `xcodebuild`.
 - One suite: `cd Packages/ZephraKit && swift test --filter ModelSwap`. The
   filter is a regex over *type* names, not `@Suite` display names. For an MLX
