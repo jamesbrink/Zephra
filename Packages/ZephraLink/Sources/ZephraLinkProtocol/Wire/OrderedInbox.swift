@@ -30,7 +30,7 @@ public final class OrderedInbox: Sendable {
         var next: UInt64 = 0
         /// The clock on the gap that is open right now, armed when it opened and not since.
         var timer: Task<Void, Never>?
-        var onLoss: (@Sendable () -> Void)?
+        var onLoss: (@Sendable (FrameGap) -> Void)?
         var hasFailed = false
     }
 
@@ -52,8 +52,9 @@ public final class OrderedInbox: Sendable {
     }
 
     /// What to do when a gap goes unfilled. Set once, by whoever owns the inbox; the channel is
-    /// already closed by the time it runs, so this is about the session and not the stream.
-    public func onLoss(_ body: @escaping @Sendable () -> Void) {
+    /// already closed by the time it runs, so this is about the session and not the stream. The
+    /// `FrameGap` is what the owner logs: which counter never came, and what was waiting on it.
+    public func onLoss(_ body: @escaping @Sendable (FrameGap) -> Void) {
         state.withLock { $0.onLoss = body }
     }
 
@@ -127,17 +128,20 @@ public final class OrderedInbox: Sendable {
     /// caller to throw it at.
     @discardableResult
     private func fail() -> SecureChannelError {
-        let notify: (isFirst: Bool, body: (@Sendable () -> Void)?) = state.withLock { state in
-            guard !state.hasFailed else { return (false, nil) }
+        let notify: (gap: FrameGap?, body: (@Sendable (FrameGap) -> Void)?) = state.withLock {
+            state in
+            guard !state.hasFailed else { return (nil, nil) }
             state.hasFailed = true
             state.timer?.cancel()
             state.timer = nil
+            let gap = FrameGap(
+                expected: state.next, nextHeld: state.held.keys.min(), held: state.held.count)
             state.held.removeAll()
-            return (true, state.onLoss)
+            return (gap, state.onLoss)
         }
-        guard notify.isFirst else { return .lost }
+        guard let gap = notify.gap else { return .lost }
         channel.close()
-        notify.body?()
+        notify.body?(gap)
         return .lost
     }
 }

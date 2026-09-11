@@ -15,11 +15,13 @@ extension CompanionSession {
     /// new channel opens on a snapshot of everything, which is the recovery.
     func makeInbox(over channel: SecureChannel) -> OrderedInbox {
         let inbox = OrderedInbox(channel: channel, hold: host?.frameHold ?? OrderedInbox.hold)
-        inbox.onLoss { [weak self] in
+        inbox.onLoss { [weak self] gap in
             Task { @MainActor in
                 guard let session = self, !session.isClosed else { return }
-                session.host?.logger.notice(
-                    "companion closed a session that lost a frame on the way in")
+                // At info and with the counters: a loss is rare, ends the session, and leaves
+                // nothing else to look at afterwards. What went missing is the whole diagnosis.
+                session.host?.logger.info(
+                    "companion lost a frame from a phone (\(gap.summary, privacy: .public)); the session is finished")
                 await session.close()
             }
         }

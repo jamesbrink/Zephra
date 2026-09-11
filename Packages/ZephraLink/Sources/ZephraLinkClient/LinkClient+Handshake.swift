@@ -37,10 +37,10 @@ extension LinkClient {
     /// a new channel carries is a snapshot of the whole state.
     private func inbox(over channel: SecureChannel, for session: LinkSession) -> OrderedInbox {
         let inbox = OrderedInbox(channel: channel, hold: frameHold)
-        inbox.onLoss { [weak self, weak session] in
+        inbox.onLoss { [weak self, weak session] gap in
             Task { @MainActor in
                 guard let self, let session else { return }
-                await self.lost(session)
+                await self.lost(session, gap: gap)
             }
         }
         return inbox
@@ -48,8 +48,12 @@ extension LinkClient {
 
     /// A gap the Mac's stream never filled. The road is still open, but what it carries is no
     /// longer the stream that started, so the session goes and the phone reconnects.
-    func lost(_ session: LinkSession) async {
-        logger.error("A frame was lost on the way here; the session is finished.")
+    /// At info and with the counters: a loss is rare, ends the session, and leaves nothing else
+    /// to look at afterwards, so which counter never came is the whole diagnosis.
+    func lost(_ session: LinkSession, gap: FrameGap) async {
+        logger.info(
+            "A frame was lost on the way here (\(gap.summary, privacy: .public)); the session is finished."
+        )
         await roadEnded(session, error: LinkClientError.notConnected)
     }
 

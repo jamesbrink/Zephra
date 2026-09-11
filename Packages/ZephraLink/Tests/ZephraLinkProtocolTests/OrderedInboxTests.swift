@@ -75,12 +75,30 @@ struct OrderedInboxTests {
         let (sender, receiver) = SecureChannelTests.channels()
         let inbox = OrderedInbox(channel: receiver, hold: .milliseconds(20))
         let told = Told()
-        inbox.onLoss { told.say() }
+        inbox.onLoss { _ in told.say() }
         _ = try sender.seal(Self.frame("1"))
         #expect(try inbox.accept(try sender.seal(Self.frame("2"))).isEmpty)
         try await Task.sleep(for: .milliseconds(200))
         #expect(receiver.isClosed)
         #expect(told.wasTold)
+    }
+
+    @Test("the owner is told which counter never came, so a loss can be read afterwards")
+    func lossCarriesTheGap() async throws {
+        let (sender, receiver) = SecureChannelTests.channels()
+        let inbox = OrderedInbox(channel: receiver, hold: .milliseconds(20))
+        let told = ToldTheGap()
+        inbox.onLoss { told.say($0) }
+        _ = try sender.seal(Self.frame("the one that never comes"))
+        _ = try sender.seal(Self.frame("nor this one"))
+        #expect(try inbox.accept(try sender.seal(Self.frame("this one arrived"))).isEmpty)
+        try await Task.sleep(for: .milliseconds(200))
+        let gap = try #require(told.gap)
+        #expect(gap.expected == 0)
+        #expect(gap.nextHeld == 2)
+        #expect(gap.width == 2)
+        #expect(gap.held == 1)
+        #expect(gap.summary == "expected 0, next held 2, 2 missing, 1 waiting")
     }
 
     @Test("More held frames than the limit is loss too")
@@ -109,6 +127,16 @@ struct OrderedInboxTests {
 }
 
 /// Whether the inbox said a frame was lost, from whichever thread it said it on.
+/// The gap the inbox handed over, kept for the test to read.
+final class ToldTheGap: @unchecked Sendable {
+    private let lock = NSLock()
+    private var told: FrameGap?
+
+    var gap: FrameGap? { lock.withLock { told } }
+
+    func say(_ gap: FrameGap) { lock.withLock { told = gap } }
+}
+
 final class Told: @unchecked Sendable {
     private let lock = NSLock()
     private var told = false

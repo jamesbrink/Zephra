@@ -212,6 +212,11 @@ they were sent.
   overtaking is expected between hops and a hole is not. The channel is closed
   and the session with it. The phone reconnects, and a new channel opens on a
   snapshot of the whole state, which is the recovery.
+- The owner is handed a `FrameGap` — the counter that never came, the lowest one
+  waiting behind it, how many were waiting — and **both ends log it at info**:
+  `CompanionSession+Inbox` and `LinkClient.lost`. A loss is rare, ends the
+  session and leaves nothing else to look at, so the counters are the whole
+  diagnosis, and info is where a line survives a run nobody was watching.
 - The hold is `CompanionHost.frameHold` and `LinkClient.frameHold` rather than
   the constant, so a suite asks the question in milliseconds.
 
