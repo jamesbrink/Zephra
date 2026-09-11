@@ -128,7 +128,10 @@ is distributed until the app is ready to ship.
    halves onto the grid. The mirror carries the Wan variant since 2026-09-10; its
    LTX-2.5 entry is still the shipped build's (packed before the upsampler joined the
    release's patterns), so the next ship runs `make mirror-ltx2 FORCE=1` and syncs, at
-   which point the shipped build falls back to the pack for LTX until updated. Upgrading a
+   which point the shipped build falls back to the pack for LTX until updated. The
+   entry with sound (`ltx-2.5-distilled-audio-4bit`, 2026-09-10) is not on the mirror
+   at all yet: `make mirror-ltx2-audio` goes with that same ship, and until then every
+   Mac choosing it downloads the 71 GB pack and packs 25.8 GB itself. Upgrading a
    Mac that holds the earlier LTX variant rebuilds it whole (20.8 GB written, with the old
    variant still on the volume for the free-space check), or re-downloads the 70 GB pack if
    the pack was deleted; an upsampler-only top-up was not written. Left out, in order of
