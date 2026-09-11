@@ -105,6 +105,17 @@ FLUX2_DIR       := $(DOWNLOADS)/$(subst /,--,$(FLUX2_MODEL))
 
 DEST     := platform=macOS,arch=arm64
 XCB      := xcodebuild -project "$(PROJECT)" -destination '$(DEST)' SYMROOT="$(BUILD)" -derivedDataPath "$(DERIVED)"
+
+# The phone. A simulator *name* rather than a udid, so the same line works on any Mac; CI
+# passes whatever `scripts/ios-sim.sh` found on the runner, which is the newest iPhone it has.
+# PREVIEW sets ZEPHRA_PREVIEW_STATE for `run-ios`, the way ZEPHRA_PREVIEW_STATE does on the Mac.
+IOS_SCHEME    := ZephraMobile
+IOS_SIM       ?= iPhone 17 Pro
+IOS_DEST      := platform=iOS Simulator,name=$(IOS_SIM)
+IOS_APP       := $(BUILD)/Debug-iphonesimulator/Zephra.app
+IOS_BUNDLE_ID := io.zephra.ZephraMobile
+PREVIEW       ?=
+XCB_IOS       := xcodebuild -project "$(PROJECT)" -destination '$(IOS_DEST)' SYMROOT="$(BUILD)" -derivedDataPath "$(DERIVED)"
 # Every package that links MLX, and so needs xcodebuild rather than `swift test`, written as
 # directory:scheme. SwiftPM names a package's scheme after the package, except where it ships
 # more than one library product, when the aggregate that covers every test target is
@@ -138,7 +149,7 @@ VERSION      ?=
 BUILD_NUMBER ?=
 VERSION_FLAGS := $(if $(VERSION),MARKETING_VERSION=$(VERSION)) $(if $(BUILD_NUMBER),CURRENT_PROJECT_VERSION=$(BUILD_NUMBER))
 
-.PHONY: doctor gen build run run-fresh bench quantize quantize-qwen quantize-flux2 quantize-ltx2 quantize-ltx2-audio quantize-wan mirror mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-ltx2 mirror-ltx2-audio mirror-wan mirror-index mirror-sync prefetch prefetch-qwen prefetch-flux2 prefetch-ltx2 prefetch-wan open clean lint-layers lint-size vendored-diff logs screenshot test test-app test-mlx test-backend icon signed-build release notarize notarized-release
+.PHONY: doctor gen build run run-fresh bench quantize quantize-qwen quantize-flux2 quantize-ltx2 quantize-ltx2-audio quantize-wan mirror mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-ltx2 mirror-ltx2-audio mirror-wan mirror-index mirror-sync prefetch prefetch-qwen prefetch-flux2 prefetch-ltx2 prefetch-wan open clean lint-layers lint-size vendored-diff logs screenshot screenshot-ios test test-app test-mlx test-backend test-ios build-ios run-ios icon signed-build release notarize notarized-release
 
 # What a fresh Mac needs before `make build` can work, each with its fix printed.
 doctor:
@@ -180,6 +191,37 @@ run-fresh: build
 	open -n --env ZEPHRA_FRESH_START="$(FRESH_DIR)" "$(APP)" --args -ApplePersistenceIgnoreState YES
 	@echo "models: $(FRESH_DIR)/Models"
 	@echo "images: $(FRESH_DIR)/Images"
+
+# The companion, for the simulator. Debug only: there is nothing to benchmark on a phone that
+# renders nothing, and the simulator takes the base ad-hoc identity, so no certificate is
+# needed. The first build compiles ZephraCore, ZephraEngine and the protocol for the simulator
+# from scratch, which is minutes; after that it is incremental.
+build-ios: gen
+	$(XCB_IOS) -scheme $(IOS_SCHEME) -configuration Debug build
+
+# Build it, make sure the simulator is up, and launch. `make run-ios PREVIEW=pairing` launches
+# it frozen in one state, which is how each surface is photographed; see `MobilePreview`.
+run-ios: build-ios
+	@xcrun simctl boot "$(IOS_SIM)" 2>/dev/null || true
+	@xcrun simctl bootstatus "$(IOS_SIM)" -b >/dev/null
+	open -a Simulator
+	xcrun simctl install "$(IOS_SIM)" "$(IOS_APP)"
+	@if [ -n "$(PREVIEW)" ]; then \
+	  SIMCTL_CHILD_ZEPHRA_PREVIEW_STATE="$(PREVIEW)" \
+	    xcrun simctl launch "$(IOS_SIM)" $(IOS_BUNDLE_ID); \
+	else xcrun simctl launch "$(IOS_SIM)" $(IOS_BUNDLE_ID); fi
+
+# The companion's own suites, hosted inside it. Seconds once the app is built.
+test-ios: gen
+	$(XCB_IOS) -scheme $(IOS_SCHEME) -configuration Debug \
+	  -only-testing:ZephraMobileTests test
+
+# The booted simulator, as a PNG under build/. The Mac's `screenshot` takes a window by its
+# CoreGraphics id; a simulator has one screen, so this takes that.
+screenshot-ios:
+	@mkdir -p "$(BUILD)"
+	@shot="$(BUILD)/ios-$$(date -u +%Y%m%d%H%M%S).png"; \
+	  xcrun simctl io booted screenshot "$$shot" && echo "$$shot"
 
 bench: gen
 	@mkdir -p "$(BUILD)"; $(XCB) -scheme ZephraBench -configuration Release build >"$(BUILD)/ZephraBench-build.log" 2>&1 \
@@ -437,10 +479,16 @@ vendored-diff:
 # is added to; the import patterns name the kits' module names, which are the same words.
 FAMILIES := ZImage QwenImage Flux2 LTX2 Wan
 lint-layers:
-	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|LTX2|Wan|MLX)' Sources/Zephra Sources/ZephraBench Sources/ZephraQuantize --include='*.swift' \
+	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|LTX2|Wan|MLX)' Sources/Zephra Sources/ZephraMobile Sources/ZephraBench Sources/ZephraQuantize --include='*.swift' \
 	  || (echo "LAYER VIOLATION: app or tool target imports a model package or MLX directly"; exit 1)
 	@! grep -rlnE '^import (ZephraBackend|ZephraUpscale|ZephraMedia)' Sources/Zephra --include='*.swift' | grep -v 'ZephraApp.swift' \
 	  || (echo "LAYER VIOLATION: a backend, upscaler or ZephraMedia is imported outside ZephraApp.swift"; exit 1)
+# The phone links the value layer, the wire and the chrome, and nothing else. It has no engine
+# of its own, no folder on disk and no backend: everything it shows came over the link from a
+# Mac. AppKit is in the list because it would compile on nothing and mean the file was written
+# for the wrong app.
+	@! grep -rlnE '^import (ZephraBackend|ZephraUpscale|ZephraMedia|ZephraSnapshot|ZephraEngine|AppKit)' Sources/ZephraMobile --include='*.swift' 2>/dev/null \
+	  || (echo "LAYER VIOLATION: the phone imports something only the Mac may have (see AGENTS.md, The phone)"; exit 1)
 	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|LTX2|Wan|MLX)' Packages/ZephraKit/Sources 2>/dev/null \
 	  || (echo "LAYER VIOLATION: ZephraKit imports a model package or MLX"; exit 1)
 	@! grep -rlnE '^import (ZephraBackend|ZephraUpscale)' Packages/ZephraBackend*/Sources 2>/dev/null \
@@ -455,7 +503,7 @@ lint-layers:
 	done; exit $$status
 	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|LTX2|Wan|ZephraBackend|ZephraUpscale)' Packages/ZephraMLXKit/Sources 2>/dev/null \
 	  || (echo "LAYER VIOLATION: ZephraMLXKit imports a model package; nothing there may depend on a family"; exit 1)
-	@! grep -rlnE '^import (SwiftUI|AppKit)' Packages/ZephraKit/Sources 2>/dev/null \
+	@! grep -rlnE '^import (SwiftUI|AppKit|UIKit)' Packages/ZephraKit/Sources 2>/dev/null \
 	  || (echo "LAYER VIOLATION: UI framework imported inside ZephraKit"; exit 1)
 # The chrome is drawn by both apps, so it may name SwiftUI and ZephraCore and nothing else:
 # a platform's own toolkit or the engine's state would make it one app's again. The one
@@ -469,8 +517,8 @@ lint-layers:
 	@! grep -rhnE '^import ' Packages/ZephraLink/Sources 2>/dev/null \
 	  | grep -vE '^[0-9]+:import (Foundation|CryptoKit|Network|os|Observation|ImageIO|CoreGraphics|Synchronization|ZephraCore|ZephraEngine|ZephraLink[A-Za-z]*)$$' \
 	  || (echo "LAYER VIOLATION: ZephraLink imports something an iOS app cannot link (see AGENTS.md)"; exit 1)
-	@! grep -rlnE 'repeatForever|repeatCount\(|TimelineView\(\.animation|phaseAnimator|keyframeAnimator' Sources/Zephra --include='*.swift' \
-	  || (echo "ANIMATION VIOLATION: the app target runs a repeating animation; the GPU is the model's while it works (see RunPlaceholderView)"; exit 1)
+	@! grep -rlnE 'repeatForever|repeatCount\(|TimelineView\(\.animation|phaseAnimator|keyframeAnimator' Sources/Zephra Sources/ZephraMobile --include='*.swift' \
+	  || (echo "ANIMATION VIOLATION: an app target runs a repeating animation; the GPU is the model's while it works (see RunPlaceholderView)"; exit 1)
 	@! grep -rlnE 'hoverWash' Sources/Zephra --include='*.swift' | grep -vE 'WallSquareChrome\.swift|ZephraChrome\+Washes\.swift' \
 	  || (echo "HIT-TEST VIOLATION: the hover wash is laid over a button outside WallSquareChrome, where allowsHitTesting(false) keeps it from taking the click"; exit 1)
 # US spelling in user-facing strings, which AGENTS.md asks for and six shipped literals
@@ -481,7 +529,7 @@ lint-layers:
 # LibraryScope, whose "favourites" is the stable spelling written into preferences --
 # changing that one would orphan every saved scope.
 	@! grep -rnE '"[^"]*([Ff]avourite|[Cc]olour|[Cc]entre|[Bb]ehaviour|[Ll]icence|[Oo]rganise|[Aa]nalyse|[Nn]ormalise|[Cc]ancelled)[^"]*"' \
-	  Sources/Zephra Packages/ZephraKit/Sources Packages/ZephraMLXKit/Sources \
+	  Sources/Zephra Sources/ZephraMobile Packages/ZephraKit/Sources Packages/ZephraMLXKit/Sources \
 	  Packages/ZephraStyle/Sources Packages/ZephraLink/Sources --include='*.swift' 2>/dev/null \
 	  | grep -vE ':[0-9]+: *(///|//|\*)' | grep -v '#Preview' | grep -v 'LibraryScope\.swift' \
 	  || (echo "SPELLING VIOLATION: a user-facing string is in British spelling; AGENTS.md asks for US spelling on screen (identifiers are exempt)"; exit 1)
