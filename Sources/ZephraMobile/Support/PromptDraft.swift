@@ -75,11 +75,20 @@ final class PromptDraft {
     /// asks for what the Mac would have allowed rather than for something the Mac then quietly
     /// rewrites. The picture rides along only long enough to be clamped: `GenerationRequest`
     /// strips it, because a picture crosses as a blob and is named there by its id.
+    ///
+    /// The length is the one exception, and `ChainPlan` is why. `clamp` bounds frames at one
+    /// pass, because a request that reaches a backend must never be longer than it runs; a
+    /// longer clip is a chain of passes, and `GenerationStore.enqueue` plans that chain from
+    /// the length it is handed before it clamps the first pass. So a clamped length here would
+    /// be a ten-second clip quietly cut to five. The whole length is put back after the clamp,
+    /// bounded and snapped the way the chain will make it.
     func request(clampedBy summary: CapabilitiesSummary) -> GenerationRequest {
         var chosen = settings
         chosen.referenceImage = reference
-        return GenerationRequest(
-            modelID: modelID, count: count, settings: summary.capabilities.clamp(chosen))
+        let capabilities = summary.capabilities
+        var clamped = capabilities.clamp(chosen)
+        clamped.frames = ChainPlan.frames(chosen.frames, capabilities: capabilities)
+        return GenerationRequest(modelID: modelID, count: count, settings: clamped)
     }
 
     /// The picture to send beside that request, or nil where the model would not read one.

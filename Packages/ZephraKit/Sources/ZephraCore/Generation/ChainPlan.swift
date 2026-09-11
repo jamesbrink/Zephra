@@ -41,6 +41,18 @@ public enum ChainPlan {
         return lengths
     }
 
+    /// The length a clip of `frames` actually becomes on this model: bounded by `maxFrames`
+    /// and snapped down the ladder, which is what the segments make once joined.
+    ///
+    /// What a request carries when it is composed somewhere other than the store — a phone's
+    /// draft — since `ModelCapabilities.clamp` bounds a length at one pass and would cut a
+    /// chained clip down to its first.
+    public static func frames(_ frames: Int, capabilities: ModelCapabilities) -> Int {
+        joinedFrames(
+            segments(frames: frames, capabilities: capabilities),
+            context: capabilities.defaultContinuationFrames)
+    }
+
     /// How many frames a chain of `segments` makes once joined, the held frames counted once.
     public static func joinedFrames(_ segments: [Int], context: Int) -> Int {
         guard let first = segments.first else { return 0 }

@@ -38,4 +38,13 @@ struct ChainPlanTests {
         #expect(ChainPlan.maxFrames(picture) == 1)
         #expect(ChainPlan.segments(frames: 49, capabilities: picture) == [1])
     }
+
+    @Test("the length a request carries is the whole clip, bounded and on the ladder")
+    func wholeLength() {
+        #expect(ChainPlan.frames(241, capabilities: Self.ltx) == 241)
+        #expect(ChainPlan.frames(245, capabilities: Self.ltx) == 241)
+        #expect(ChainPlan.frames(10_000, capabilities: Self.ltx) == ChainPlan.maxFrames(Self.ltx))
+        #expect(ChainPlan.frames(49, capabilities: Self.ltx) == 49)
+        #expect(ChainPlan.frames(49, capabilities: ModelCatalog.zImageTurbo8bit.capabilities) == 1)
+    }
 }

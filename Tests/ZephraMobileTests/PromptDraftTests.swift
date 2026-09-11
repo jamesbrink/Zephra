@@ -45,7 +45,8 @@ struct PromptDraftTests {
                     guidanceBounds: 0...0, defaultGuidance: 0,
                     supportsNegativePrompt: false, supportsSeed: true,
                     supportsReferenceImage: true,
-                    frameBounds: 5...121, defaultFrames: 49, frameAlignment: 4)))
+                    frameBounds: 5...121, defaultFrames: 49, frameAlignment: 4,
+                    continuationFrames: 1...9, defaultContinuationFrames: 5)))
     }
 
     private func snapshot(model: ModelSummary) -> StateSnapshot {
@@ -94,6 +95,32 @@ struct PromptDraftTests {
         #expect(request.settings.size == ImageSize(width: 1024, height: 1024))
         #expect(request.settings.steps == 20)
         #expect(request.modelID == "test-picture")
+    }
+
+    @Test("A clip longer than one pass crosses whole, for the Mac to plan as a chain")
+    func chainedLengthSurvivesTheClamp() {
+        let draft = PromptDraft()
+        let model = clipModel()
+        draft.adopt(snapshot(model: model))
+        draft.settings.prompt = "a long ride"
+        draft.settings.frames = 349
+        // `clamp` alone bounds a length at one pass, since no backend runs more; the Mac plans
+        // the chain from the length it is handed, so the request must carry the whole clip.
+        #expect(model.capabilities.capabilities.clamp(draft.settings).frames == 121)
+        #expect(draft.request(clampedBy: model.capabilities).settings.frames == 349)
+        // Past four passes it comes back to what four make, not to one.
+        draft.settings.frames = 10_000
+        #expect(draft.request(clampedBy: model.capabilities).settings.frames == 121 + 3 * 116)
+    }
+
+    @Test("The lengths offered are the Mac's, chained ones included")
+    func lengthsAreTheMacs() {
+        let capabilities = clipModel().capabilities.capabilities
+        let choices = ClipLength.choices(capabilities)
+        #expect(choices.contains { $0 > capabilities.frameBounds.upperBound })
+        for frames in choices {
+            #expect(ChainPlan.frames(frames, capabilities: capabilities) == frames)
+        }
     }
 
     @Test("A model that reads no picture is not sent one")
