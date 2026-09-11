@@ -75,11 +75,20 @@ struct PreviewFixtureTests {
         #expect(client.connection == .offline)
     }
 
+    @Test("The mid-run state carries a frame for the canvas to draw")
+    func theMidRunStateHasAFrame() {
+        let frame = MobilePreview.frame()
+        #expect(frame.jpeg.prefix(2) == Data([0xFF, 0xD8]))
+        #expect(frame.width == 256 && frame.height == 256)
+        #expect(frame.step == 4 && frame.steps == 9)
+    }
+
     @Test("Every preview state names a surface")
     func everyStateOpensSomewhere() {
-        #expect(MobilePreviewState.allCases.count == 6)
+        #expect(MobilePreviewState.allCases.count == 7)
         #expect(MobilePreviewState.library.tab == .library)
         #expect(MobilePreviewState.settings.tab == .settings)
         #expect(MobilePreviewState.pairing.tab == .canvas)
+        #expect(MobilePreviewState.capsule.tab == .canvas)
     }
 }
