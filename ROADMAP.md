@@ -87,10 +87,25 @@ is distributed until the app is ready to ship.
      `MP4Writer`; a passthrough splice of the two H.264 streams was left out because the
      parts would have to have been encoded alike. A variation queued from an extended
      clip runs clamped to one pass, since the record's `frameCount` is the whole clip.
-     Wan continues from its last frame alone: holding a run of latent frames is the
-     untrained case for its base model (`TheDenk/wan2.2-video-continuation`, Apache-2.0,
-     is a LoRA that trains it), and Wan's mask already takes any number of frames when
-     one is worth packing. Longer clips are chains of passes (`ChainPlan`, up to four);
+     Wan continues from its last frame alone, and **that is what a chained Wan clip looks
+     like**: one still frame carries no motion, so every pass re-establishes the model's
+     own and a twenty-second clip reads as four clips cut together. Holding a run of
+     latent frames is the obvious answer and was measured on 2026-09-11; it is worse.
+     Wan's `expand_timesteps` mask takes any number of frames and holds them exactly (the
+     segment's first 13 frames came back as the source's last 13 at an RMSE of 0.010 to
+     0.013, the autoencoder's own round trip), but the frame right after the held run
+     jumps, and the jump grows with the run. Mean absolute frame-to-frame difference over
+     a joined clip, 832 x 480, 49 frames a pass, the frame before the seam against the
+     frames around it: a fast scene went 10.7 held-1, 17.8 held-5, 29.7 held-13 against a
+     local 13 to 15; a slow scene went 10.6 held-1 and 23.3 held-13 against a local 4.
+     Holding more does match the source's motion better after the seam (5.5 against 6.5
+     on the slow scene, where the source ran at 4.0), but it buys that with a visible pop
+     at the boundary, so the shipped behaviour stands. The way out is training, not
+     masking: `TheDenk/wan2.2-video-continuation` (Apache-2.0) is a LoRA that teaches the
+     multi-frame hold, and packing it is the open item — the catalog change behind it is
+     `continuationFrames` and `defaultContinuationFrames` on the Wan entry. Until then a
+     long clip that has to be continuous belongs on LTX-2.5, which holds 17 frames and
+     was trained to. Longer clips are chains of passes (`ChainPlan`, up to four);
      left out: a Stop that keeps the passes made so far as a shorter clip (today it drops
      them, as it drops a single run), a record field counting the passes, the batch
      control's pending count while a chain queues its next pass, and audio across a

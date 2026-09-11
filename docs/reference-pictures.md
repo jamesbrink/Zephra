@@ -137,6 +137,18 @@ continuation on a model without it and trims the frame list down the ladder,
 newest frames kept. `LTX2RequestMapper` holds the tail over the well's
 picture; `WanRequestMapper` holds its last frame.
 
+What one held frame costs, on Wan: a still frame says where the clip is and
+nothing about where it was going, so each pass re-establishes the model's own
+motion and a chained clip reads as several clips cut together rather than one
+long one. That is the conditioning the reference gives this family, not a
+defect in the hold — the hold itself is exact, and a held run comes back as the
+source's own frames at the autoencoder's round-trip error. Holding a run
+instead was measured on 2026-09-11 and is worse: the frame after the run jumps
+two to six times the clip's own frame-to-frame change, since the base model was
+trained with exactly one clean latent frame. `ROADMAP.md` carries the numbers
+and the LoRA that would train the rest. A clip that has to stay continuous
+across a seam belongs on LTX-2.5, which holds 17 frames and was trained to.
+
 The join is the run's: after the backend hands the segment back,
 `GenerationStore+Stitching` finds the source by its library name (the images
 folder, then Recently Deleted, since a clip deleted while its continuation
