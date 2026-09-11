@@ -24,11 +24,21 @@ extension ModelCatalog {
         "spatial_upscaler_x2_v1_1_config.json", "gemma4-12b-ltx-v1/*",
     ]
 
+    /// The video-only files with the audio autoencoder and the vocoder beside them, for the
+    /// entry that makes sound. A list of its own rather than the first plus two, because the
+    /// patterns are part of a variant's identity (`PackedProvenance`): the video-only entry's
+    /// stays what it was, and the mirror's index for it with it.
+    static let ltx2AudioPatterns = ltx2Patterns + ["audio_vae.safetensors", "vocoder.safetensors"]
+
     /// The six weight files as the repository lists them — transformer 37,985,774,111,
     /// connector 6,344,495,770, Gemma 23,814,788,105, decoder 814,349,515, encoder
     /// 637,885,335, spatial upscaler 995,745,061 — plus the 32,169,626-byte tokenizer and
     /// the configs: 70,625,207,798 in all.
     static let ltx2DownloadBytes: Int64 = 70_630_000_000
+
+    /// The same plus `audio_vae.safetensors` (107,157,208) and `vocoder.safetensors`
+    /// (258,461,656): 70,990,826,662 in all.
+    static let ltx2AudioDownloadBytes: Int64 = 70_995_000_000
 
     /// LTX-2.5 distilled at four-bit precision, video only, built on this Mac from the pack the
     /// first time it is loaded.
@@ -82,6 +92,72 @@ extension ModelCatalog {
         // upsampler copied likewise.
         builtBytes: 20_840_000_000,
         mirror: mirror
+    )
+
+    /// LTX-2.5 distilled at four-bit precision with its audio lane, built on this Mac from the
+    /// same pack plus its two audio files the first time it is loaded.
+    ///
+    /// The whole 22-billion-parameter audio-video DiT: the video stream as `ltx2Distilled4bit`
+    /// runs it and, beside it, the audio stream — 5.9 billion parameters of audio attention,
+    /// feed-forward and the gated cross-attentions that join the lanes in every block — with
+    /// the 2048-wide audio connector, the audio autoencoder's decoder and the vocoder with its
+    /// bandwidth extender. The clip's MP4 carries a stereo AAC track at 48 kHz. The video
+    /// differs from the video-only entry's: the audio-to-video cross-attention adds a term
+    /// the video-only forward has not got.
+    public static let ltx2DistilledAudio4bit = ModelDescriptor(
+        id: "ltx-2.5-distilled-audio-4bit",
+        displayName: "LTX-2.5",
+        variantName: "4-bit, with sound",
+        backend: .ltx2,
+        source: .huggingFace(
+            repoID: "mlx-community/ltx-2.5-mlx",
+            revision: "main",
+            filePatterns: ltx2AudioPatterns
+        ),
+        quantization: .int4,
+        downloadBytes: ltx2AudioDownloadBytes,
+        // Estimated from the video-only entry's measurements and the lane's size, to be
+        // measured: 5.86 billion more parameters at four bits is 3.3 GB more resident and a
+        // fraction more scratch, and the decoder and vocoder 0.37 GB in float32 doubled.
+        residentBytes: 23_200_000_000,
+        peakBytes: 27_500_000_000,
+        tiledPeakBytes: 27_500_000_000,
+        // Streamed, the lane's 3.5 GB more of blocks is read per step rather than held; the
+        // extra resident pieces are the audio connector and projection, the decoder and the
+        // vocoder.
+        streamedPeakBytes: 11_400_000_000,
+        maxPromptTokens: 1024,
+        capabilities: ltx2AudioCapabilities,
+        // Estimated from the video-only build: its 20.84 GB plus the lane's 5.86 billion
+        // parameters at four bits with float32 scales (3.3 GB), the audio projection at
+        // eight bits (0.4 GB), the conditioners whole (0.2 GB), and the two audio files
+        // copied (0.37 GB). To be measured by `make quantize-ltx2-audio`.
+        builtBytes: 25_100_000_000,
+        mirror: mirror
+    )
+
+    /// What the audio entry accepts: everything the video-only one does, and it makes sound.
+    static let ltx2AudioCapabilities = ModelCapabilities(
+        sizeAlignment: ltx2Capabilities.sizeAlignment,
+        sizePresets: ltx2Capabilities.sizePresets,
+        sizeBounds: ltx2Capabilities.sizeBounds,
+        defaultSize: ltx2Capabilities.defaultSize,
+        stepBounds: ltx2Capabilities.stepBounds,
+        defaultSteps: ltx2Capabilities.defaultSteps,
+        guidanceBounds: ltx2Capabilities.guidanceBounds,
+        defaultGuidance: ltx2Capabilities.defaultGuidance,
+        supportsNegativePrompt: ltx2Capabilities.supportsNegativePrompt,
+        supportsSeed: ltx2Capabilities.supportsSeed,
+        supportsReferenceImage: ltx2Capabilities.supportsReferenceImage,
+        referenceStrengthBounds: ltx2Capabilities.referenceStrengthBounds,
+        defaultReferenceStrength: ltx2Capabilities.defaultReferenceStrength,
+        frameBounds: ltx2Capabilities.frameBounds,
+        defaultFrames: ltx2Capabilities.defaultFrames,
+        frameAlignment: ltx2Capabilities.frameAlignment,
+        frameRate: ltx2Capabilities.frameRate,
+        continuationFrames: ltx2Capabilities.continuationFrames,
+        defaultContinuationFrames: ltx2Capabilities.defaultContinuationFrames,
+        producesAudio: true
     )
 
     /// What the distilled LTX-2.5 accepts.

@@ -46,8 +46,8 @@ struct FeatureExtractorTests {
         let extractor = LTX2FeatureExtractor(hiddenSize: 4, stateCount: 1, outputSize: 16)
         try extractor.update(
             parameters: ModuleParameters.unflattened([
-                "video_aggregate_embed.weight": MLX.concatenated([MLXArray.eye(4), MLXArray.zeros([12, 4])]),
-                "video_aggregate_embed.bias": MLXArray.zeros([16]),
+                "aggregate_embed.weight": MLX.concatenated([MLXArray.eye(4), MLXArray.zeros([12, 4])]),
+                "aggregate_embed.bias": MLXArray.zeros([16]),
             ]), verify: .all)
         let state = MLXArray.ones([1, 1, 4])
         let features = extractor([state], padding: MLXArray.ones([1, 1], dtype: .int32))

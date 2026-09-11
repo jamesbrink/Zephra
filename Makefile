@@ -63,10 +63,14 @@ LTX2_INCLUDE := --include "config.json" --include "embedded_config.json" --inclu
                 --include "vae_decoder.safetensors" --include "vae_encoder.safetensors" \
                 --include "spatial_upscaler_x2_v1_1.safetensors" \
                 --include "spatial_upscaler_x2_v1_1_config.json" \
-                --include "gemma4-12b-ltx-v1/*"
+                --include "gemma4-12b-ltx-v1/*" \
+                --include "audio_vae.safetensors" --include "vocoder.safetensors"
 LTX2_MODELS  ?= /Volumes/ExternalStorage/Models/ZephraModels
 LTX2_SOURCE  ?= $(LTX2_MODELS)/Downloads/$(subst /,--,$(LTX2_MODEL))
 LTX2_OUT     ?= $(MODELS_DIR)/ltx-2.5-distilled-$(BITS)bit
+# The same pack with its audio lane: the two audio files above are fetched for it, and the
+# variant is packed with the lane, the audio decoder and the vocoder.
+LTX2_AUDIO_OUT ?= $(MODELS_DIR)/ltx-2.5-distilled-audio-$(BITS)bit
 # Wan 2.2 is built by the app on first load from FastVideo's Diffusers release of the
 # three-step distilled TI2V-5B: 24 GB, so WAN_MODELS defaults to the external volume the way
 # LTX2_MODELS does. `make quantize-wan` is the same build by hand.
@@ -93,7 +97,7 @@ MIRROR_PROFILE      ?= dev.urandom.io
 MIRROR_DISTRIBUTION ?= E14XJ2G91C9S6D
 MIRROR_AWS          := aws $(if $(MIRROR_PROFILE),--profile "$(MIRROR_PROFILE)")
 MIRROR_IDS    := z-image-turbo-4bit qwen-image-2512-4bit flux2-klein-4b-4bit flux2-klein-4b-8bit \
-                 ltx-2.5-distilled-4bit wan-2.2-ti2v-5b-4bit
+                 ltx-2.5-distilled-4bit ltx-2.5-distilled-audio-4bit wan-2.2-ti2v-5b-4bit
 # One download directory per repository, named as the app names it: <org>--<repo>.
 ZIMAGE_8BIT_DIR := $(DOWNLOADS)/$(subst /,--,$(MODEL))
 ZIMAGE_BASE_DIR := $(DOWNLOADS)/$(subst /,--,$(BASE_MODEL))
@@ -134,7 +138,7 @@ VERSION      ?=
 BUILD_NUMBER ?=
 VERSION_FLAGS := $(if $(VERSION),MARKETING_VERSION=$(VERSION)) $(if $(BUILD_NUMBER),CURRENT_PROJECT_VERSION=$(BUILD_NUMBER))
 
-.PHONY: doctor gen build run run-fresh bench quantize quantize-qwen quantize-flux2 quantize-ltx2 quantize-wan mirror mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-ltx2 mirror-wan mirror-index mirror-sync prefetch prefetch-qwen prefetch-flux2 prefetch-ltx2 prefetch-wan open clean lint-layers lint-size vendored-diff logs screenshot test test-app test-mlx test-backend icon signed-build release notarize notarized-release
+.PHONY: doctor gen build run run-fresh bench quantize quantize-qwen quantize-flux2 quantize-ltx2 quantize-ltx2-audio quantize-wan mirror mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-ltx2 mirror-ltx2-audio mirror-wan mirror-index mirror-sync prefetch prefetch-qwen prefetch-flux2 prefetch-ltx2 prefetch-wan open clean lint-layers lint-size vendored-diff logs screenshot test test-app test-mlx test-backend icon signed-build release notarize notarized-release
 
 # What a fresh Mac needs before `make build` can work, each with its fix printed.
 doctor:
@@ -228,6 +232,17 @@ quantize-ltx2: gen
 	  --source-name $(LTX2_MODEL) --bits $(BITS) --group-size $(GROUP_SIZE) \
 	  --out "$(LTX2_OUT)" $(ARGS)
 
+# The same pack into LTX2_AUDIO_OUT with the audio lane, the audio decoder and the vocoder:
+# the 4-bit variant with sound the catalog names.
+quantize-ltx2-audio: gen
+	@mkdir -p "$(BUILD)"; $(XCB) -scheme ZephraQuantize -configuration Release build >"$(BUILD)/ZephraQuantize-build.log" 2>&1 \
+	  || { tail -40 "$(BUILD)/ZephraQuantize-build.log"; echo "ZephraQuantize failed to build; full log in $(BUILD)/ZephraQuantize-build.log"; exit 1; }
+	@test -f "$(LTX2_SOURCE)/vocoder.safetensors" || $(MAKE) prefetch-ltx2
+	"$(QUANTIZE)" --family ltx2-audio \
+	  --source "$(LTX2_SOURCE)" \
+	  --source-name $(LTX2_MODEL) --bits $(BITS) --group-size $(GROUP_SIZE) \
+	  --out "$(LTX2_AUDIO_OUT)" $(ARGS)
+
 # The FastWan release from WAN_SOURCE into WAN_OUT: the 4-bit variant the catalog names.
 # `make prefetch-wan` fetches the source first when it is not there.
 quantize-wan: gen
@@ -244,7 +259,7 @@ quantize-wan: gen
 # Each variant is its own target, so one can be rebuilt alone; the sources are the same
 # releases the quantize targets read (ZIMAGE_BASE_DIR and FLUX2_DIR are fetched if absent,
 # QWEN_SOURCE and QWEN_LORA must already be there).
-mirror: mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-ltx2 mirror-wan mirror-index
+mirror: mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-ltx2 mirror-ltx2-audio mirror-wan mirror-index
 
 mirror-z-image:
 	@$(call mirror_variant,z-image-turbo-4bit,quantize QUANT_OUT="$(MIRROR_DIR)/z-image-turbo-4bit" BITS=4)
@@ -260,6 +275,9 @@ mirror-flux2-8bit:
 
 mirror-ltx2:
 	@$(call mirror_variant,ltx-2.5-distilled-4bit,quantize-ltx2 LTX2_OUT="$(MIRROR_DIR)/ltx-2.5-distilled-4bit" BITS=4)
+
+mirror-ltx2-audio:
+	@$(call mirror_variant,ltx-2.5-distilled-audio-4bit,quantize-ltx2-audio LTX2_AUDIO_OUT="$(MIRROR_DIR)/ltx-2.5-distilled-audio-4bit" BITS=4)
 
 mirror-wan:
 	@$(call mirror_variant,wan-2.2-ti2v-5b-4bit,quantize-wan WAN_OUT="$(MIRROR_DIR)/wan-2.2-ti2v-5b-4bit" BITS=4)
@@ -308,14 +326,16 @@ test-app: gen
 	  -only-testing:ZephraTests test
 
 # These link MLX, so their tests need xcodebuild rather than `swift test`. Kept out of
-# `make test` on purpose: that one stays MLX-free and fast.
+# `make test` on purpose: that one stays MLX-free and fast. Serial, because the parity
+# suites share one GPU and one MLX default stream: run in parallel, whichever autoencoder
+# suite lands beside a heavy one reads back a tensor off by whole units.
 test-mlx:
 	@for entry in $(MLX_PACKAGES); do \
 	  package=$${entry%%:*}; scheme=$${entry##*:}; \
 	  echo "== $$package"; \
 	  ( cd $(CURDIR)/Packages/$$package && xcodebuild test -scheme $$scheme \
 	    -destination 'platform=macOS' -skipPackagePluginValidation \
-	    -derivedDataPath $(DERIVED) ) || exit 1; \
+	    -parallel-testing-enabled NO -derivedDataPath $(DERIVED) ) || exit 1; \
 	done
 
 # The name this had when there was one such package.
@@ -384,8 +404,9 @@ prefetch-qwen:
 prefetch-flux2:
 	hf download $(FLUX2_MODEL) $(FLUX2_EXCLUDE) --local-dir "$(FLUX2_DIR)"
 
-# The five LTX-2.5 files the video-only build reads, into LTX2_MODELS' Downloads folder as the
-# app would name it; point MODELS_DIR at that volume and the app finds them.
+# The LTX-2.5 files both builds read — the five the video-only one packs and the two audio
+# files the entry with sound adds — into LTX2_MODELS' Downloads folder as the app would
+# name it; point MODELS_DIR at that volume and the app finds them.
 prefetch-ltx2:
 	hf download $(LTX2_MODEL) $(LTX2_INCLUDE) --local-dir "$(LTX2_SOURCE)"
 

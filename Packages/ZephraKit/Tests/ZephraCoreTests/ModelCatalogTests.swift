@@ -76,9 +76,10 @@ struct ModelCatalogTests {
         // 23.5 GB untiled is over the 19.3 GB budget; 17.7 GB tiled is under it.
         #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo8bit, physicalMemory: memory) == .fitsTiled)
         // Both Z-Image variants, both klein variants, Qwen-Image streamed, Wan 2.2 tiled
-        // (12.4 GB under the 19.3 GB budget), and LTX-2.5 streamed: its measured 21.8 GB
-        // peak is over it.
-        #expect(ModelCatalog.fitting(physicalMemory: memory).count == 7)
+        // (12.4 GB under the 19.3 GB budget), and both LTX-2.5 entries streamed: the
+        // measured 21.8 GB peak and the audio entry's larger one are over it.
+        #expect(ModelCatalog.fitting(physicalMemory: memory).count == 8)
+        #expect(ModelCatalog.fit(ModelCatalog.ltx2DistilledAudio4bit, physicalMemory: memory) == .fitsStreamed)
         #expect(ModelCatalog.fit(ModelCatalog.wan22TI2V5B4bit, physicalMemory: memory) == .fits)
         #expect(ModelCatalog.fit(ModelCatalog.qwenImage2512_4bit, physicalMemory: memory) == .fitsStreamed)
     }
@@ -117,6 +118,7 @@ struct ModelCatalogTests {
                 ModelCatalog.qwenImage2512_4bit,
                 ModelCatalog.wan22TI2V5B4bit,
                 ModelCatalog.ltx2Distilled4bit,
+                ModelCatalog.ltx2DistilledAudio4bit,
             ],
             "the order is what a picker shows and what default(fitting:) walks, so a model that needs a larger Mac than the ones before it goes last; klein 4-bit sits before 8-bit so a 16 GB Mac lands on it by construction rather than by a measurement within a gigabyte of the budget"
         )

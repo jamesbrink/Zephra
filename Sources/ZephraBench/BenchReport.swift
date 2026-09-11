@@ -64,6 +64,9 @@ struct BenchReport: Codable, Sendable {
     let contextFrames: Int?
     /// Where the run joined onto that clip was written.
     let extendedPath: String?
+    /// Whether the clip carries a sound track: nil for a picture, false for a clip model
+    /// without a lane, true when the MP4 has two tracks.
+    let hasAudio: Bool?
 
     /// Mean wall-clock seconds across the timed runs.
     var meanRunSeconds: Double {
@@ -139,6 +142,9 @@ struct BenchReport: Codable, Sendable {
         lines.append(row("live memory", String(format: "%.0f MB", activeMemoryMB)))
         lines.append(row("cached", String(format: "%.0f MB", cacheMemoryMB)))
         lines.append(row("peak memory", String(format: "%.0f MB", peakMemoryMB)))
+        if let hasAudio {
+            lines.append(row("sound", hasAudio ? "stereo track" : "none"))
+        }
         lines.append(row(frames > 1 ? "clip written" : "image written", outputPath))
         return lines.joined(separator: "\n")
     }

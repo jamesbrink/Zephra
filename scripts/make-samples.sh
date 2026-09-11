@@ -36,6 +36,7 @@ MODELS_AND_SIZES=(
   "qwen-image-2512-4bit 1664x928 Qwen--Qwen-Image-2512"
   "wan-2.2-ti2v-5b-4bit 832x480 FastVideo--FastWan2.2-TI2V-5B-FullAttn-Diffusers"
   "ltx-2.5-distilled-4bit 768x512 mlx-community--ltx-2.5-mlx"
+  "ltx-2.5-distilled-audio-4bit 768x512 mlx-community--ltx-2.5-mlx"
 )
 
 [ -x "$BENCH" ] || { echo "build ZephraBench first: make bench ARGS=--help"; exit 1; }

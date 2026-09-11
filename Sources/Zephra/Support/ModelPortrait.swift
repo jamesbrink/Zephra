@@ -40,5 +40,7 @@ struct ModelPortrait: Hashable {
             "The quick clip maker: three steps, from a prompt or from a picture it holds as the first frame.",
         "ltx-2.5-distilled-4bit":
             "Makes short clips rather than pictures, up to five seconds at 24 frames a second.",
+        "ltx-2.5-distilled-audio-4bit":
+            "The same clips with sound: the whole model, for a Mac with the memory to hold it.",
     ]
 }

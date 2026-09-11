@@ -19,16 +19,16 @@ extension LTX2Backend {
         switch descriptor.source {
         case .localDirectory:
             let candidates = locations.builtCandidates(for: descriptor)
-            if let built = candidates.first(where: { LocalSnapshot.ltx2.missingEntry(in: $0) == nil }) {
+            let snapshot = LocalSnapshot.ltx2(for: descriptor)
+            if let built = candidates.first(where: { snapshot.missingEntry(in: $0) == nil }) {
                 return built
             }
-            return try LocalSnapshot.ltx2.verified(
-                candidates.first ?? locations.built(descriptor), descriptor: descriptor)
+            return try snapshot.verified(candidates.first ?? locations.built(descriptor), descriptor: descriptor)
         case .huggingFace:
             if let packed = LTX2PackedVariant.find(of: descriptor, in: locations) {
                 return packed
             }
-            if let here = LocalSnapshot.ltx2Release.downloadedRelease(of: descriptor, in: locations) {
+            if let here = LocalSnapshot.ltx2Release(for: descriptor).downloadedRelease(of: descriptor, in: locations) {
                 return here
             }
             // Published ready-made, the variant is fetched instead of the pack it is built
@@ -36,11 +36,11 @@ extension LTX2Backend {
             if let prebuilt = try await acquisition.fetchPrebuilt(
                 descriptor, into: locations, onProgress: onProgress)
             {
-                return try LocalSnapshot.ltx2.verified(prebuilt, descriptor: descriptor)
+                return try LocalSnapshot.ltx2(for: descriptor).verified(prebuilt, descriptor: descriptor)
             }
             let fetched = try await acquisition.fetch(
                 descriptor, into: locations, release: nil, onProgress: onProgress)
-            return try LocalSnapshot.ltx2Release.verified(fetched, descriptor: descriptor)
+            return try LocalSnapshot.ltx2Release(for: descriptor).verified(fetched, descriptor: descriptor)
         }
     }
 

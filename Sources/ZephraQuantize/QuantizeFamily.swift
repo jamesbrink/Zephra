@@ -17,6 +17,7 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
     case qwenImage = "qwen-image"
     case flux2 = "flux2"
     case ltx2 = "ltx2"
+    case ltx2Audio = "ltx2-audio"
     case wan = "wan"
 
     /// Every value `--family` accepts, for the usage text.
@@ -30,6 +31,7 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
         case .qwenImage: "qwen-image-2512-4bit"
         case .flux2: "flux2-klein-4b-4bit"
         case .ltx2: "ltx-2.5-distilled-4bit"
+        case .ltx2Audio: "ltx-2.5-distilled-audio-4bit"
         case .wan: "wan-2.2-ti2v-5b-4bit"
         }
     }
@@ -40,7 +42,7 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
         case .zImage: "Tongyi-MAI/Z-Image-Turbo"
         case .qwenImage: "Qwen/Qwen-Image-2512"
         case .flux2: "black-forest-labs/FLUX.2-klein-4B"
-        case .ltx2: "mlx-community/ltx-2.5-mlx"
+        case .ltx2, .ltx2Audio: "mlx-community/ltx-2.5-mlx"
         case .wan: "FastVideo/FastWan2.2-TI2V-5B-FullAttn-Diffusers"
         }
     }
@@ -90,7 +92,7 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
         case .flux2:
             return Flux2QuantizationPlan.plan(
                 transformer: transformer, textEncoder: textEncoder, adapters: adapters)
-        case .ltx2:
+        case .ltx2, .ltx2Audio:
             if !adapters.isEmpty {
                 throw QuantizeUsageError.adapterNotRead(family: rawValue)
             }
@@ -99,7 +101,8 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
                 textEncoder: textEncoder,
                 embeddings: transformer.bits < 8
                     ? try QuantizationPrecision(bits: 8, groupSize: transformer.groupSize)
-                    : transformer
+                    : transformer,
+                audio: self == .ltx2Audio
             )
         case .wan:
             if !adapters.isEmpty {

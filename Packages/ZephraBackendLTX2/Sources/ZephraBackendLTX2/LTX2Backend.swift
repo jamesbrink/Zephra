@@ -59,7 +59,8 @@ public nonisolated final class LTX2Backend: ImageGenerationBackend {
             try pipeline.loadModel(
                 at: localPath,
                 activation: LTX2ActivationPrecision.resolve(environment: environment),
-                streaming: streaming
+                streaming: streaming,
+                audio: descriptor.capabilities.producesAudio
             ) { progress in
                 onProgress(LTX2ProgressMapper.event(from: progress))
             }
@@ -107,11 +108,14 @@ public nonisolated final class LTX2Backend: ImageGenerationBackend {
             // suspends after the decode would be wrong here. Reported as the saving phase, so
             // the interface can say the decode is over and the frames are being written.
             onProgress(GenerationProgressEvent(phase: .saving, fraction: 1))
-            let mp4 = try await MP4Writer.encode(frames, frameRate: clip.video.frameRate)
+            let audio = try clip.audio.map {
+                try AudioTrack(samples: $0.samples, channels: $0.channels, sampleRate: Double($0.sampleRate))
+            }
+            let mp4 = try await MP4Writer.encode(frames, frameRate: clip.video.frameRate, audio: audio)
             return .video(
                 GeneratedVideo(
                     poster: clip.poster, mp4: mp4, frameCount: clip.video.frameCount,
-                    frameRate: clip.video.frameRate))
+                    frameRate: clip.video.frameRate, hasAudio: audio != nil))
         } catch {
             throw BackendError.generationFailed(error.readableMessage)
         }

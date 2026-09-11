@@ -8,6 +8,8 @@ public struct LTX2GenerationProgress: Hashable, Sendable {
         case encodingPrompt
         case denoising(step: Int, of: Int)
         case decoding
+        /// The audio latent through the audio decoder and the vocoder, after the frames.
+        case decodingAudio
     }
 
     /// The stage just entered.

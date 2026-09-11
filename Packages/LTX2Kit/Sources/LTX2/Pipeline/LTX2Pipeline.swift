@@ -25,6 +25,16 @@ public final class LTX2Pipeline {
         let upsampler: LTX2LatentUpsampler
         /// The dtype the stream runs in.
         let activation: DType
+        /// The audio lane's own pieces, on a variant packed with the lane; nil on a video-only one.
+        let audio: LoadedAudio?
+    }
+
+    /// What the audio lane needs beyond the transformer: its text path and its way to sound.
+    struct LoadedAudio {
+        let extractor: LTX2FeatureExtractor
+        let connector: LTX2TextConnector
+        let decoder: LTX2AudioDecoder
+        let vocoder: LTX2Vocoder
     }
 
     var loaded: Loaded?
@@ -75,14 +85,37 @@ public final class LTX2Pipeline {
         }
         onProgress(LTX2GenerationProgress(stage: .encodingPrompt))
         let text = try encodePrompt(request.prompt, maxTokens: request.maxPromptTokens, with: loaded)
-        let latent = request.twoStage
+        let latents = request.twoStage
             ? try twoStages(text: text, request: request, with: loaded, onProgress: onProgress, onPreview: onPreview)
             : try oneStage(text: text, request: request, with: loaded, onProgress: onProgress, onPreview: onPreview)
         onProgress(LTX2GenerationProgress(stage: .decoding))
-        let video = loaded.decoder.decode(latent.asType(loaded.decoder.dtype))
+        let video = loaded.decoder.decode(latents.video.asType(loaded.decoder.dtype))
         MLX.eval(video)
-        return LTX2Clip(
-            video: LTX2Frames.video(video, frameRate: request.frameRate),
-            poster: try LTX2Frames.posterPNG(video))
+        let frames = LTX2Frames.video(video, frameRate: request.frameRate)
+        let poster = try LTX2Frames.posterPNG(video)
+        var audio: LTX2Audio?
+        if let audioLatent = latents.audio, let lane = loaded.audio {
+            onProgress(LTX2GenerationProgress(stage: .decodingAudio))
+            audio = Self.sound(of: audioLatent, with: lane)
+        }
+        return LTX2Clip(video: frames, poster: poster, audio: audio)
+    }
+
+    /// The finished latents of a run: the video's, and the audio's on a variant with the lane.
+    struct Latents {
+        let video: MLXArray
+        let audio: MLXArray?
+    }
+
+    /// A packed audio latent `[1, frames, 128]` decoded to a mel and voiced, as interleaved
+    /// stereo samples at 48 kHz.
+    static func sound(of latent: MLXArray, with lane: LoadedAudio) -> LTX2Audio {
+        let mel = lane.decoder.decode(lane.decoder.unpacked(latent.asType(lane.decoder.dtype)))
+        let waveform = lane.vocoder(mel)  // [1, channels, samples]
+        let interleaved = waveform.transposed(0, 2, 1).reshaped([-1]).asType(.float32)
+        MLX.eval(interleaved)
+        return LTX2Audio(
+            samples: interleaved.asArray(Float.self), channels: waveform.dim(1),
+            sampleRate: LTX2Vocoder.outputSampleRate)
     }
 }

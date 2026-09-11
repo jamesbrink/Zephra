@@ -16,6 +16,7 @@ enum LTX2SnapshotBuild {
     /// video encoder, both copied as they are, and the 1.0 GB spatial upscaler likewise.
     private static let componentWeights = [
         "transformer": 38.0, "connector": 6.3, "text_encoder": 23.8, "vae": 1.45, "upsampler": 1.0,
+        "audio_vae": 0.11, "vocoder": 0.26,
     ]
 
     /// Packs `release` into `destination` at `descriptor`'s precision.
@@ -30,7 +31,8 @@ enum LTX2SnapshotBuild {
             into: destination,
             descriptor: descriptor,
             plan: try LTX2QuantizationPlan.plan(
-                bits: descriptor.quantization == .int8 ? 8 : 4, groupSize: 64),
+                bits: descriptor.quantization == .int8 ? 8 : 4, groupSize: 64,
+                audio: descriptor.capabilities.producesAudio),
             componentWeights: componentWeights,
             onProgress: onProgress)
     }

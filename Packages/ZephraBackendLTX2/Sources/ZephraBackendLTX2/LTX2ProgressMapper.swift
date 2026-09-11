@@ -16,7 +16,7 @@ enum LTX2ProgressMapper {
             GenerationProgressEvent(
                 phase: .denoising(step: step, of: total),
                 fraction: Double(step - 1) / Double(max(total, 1)))
-        case .decoding:
+        case .decoding, .decodingAudio:
             GenerationProgressEvent(phase: .decoding, fraction: 1)
         }
     }

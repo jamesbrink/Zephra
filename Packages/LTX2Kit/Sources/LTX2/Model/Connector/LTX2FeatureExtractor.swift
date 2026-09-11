@@ -2,7 +2,8 @@ import Foundation
 import MLX
 import MLXNN
 
-/// Turns Gemma's 49 hidden states into one 4096-wide token stream for the video connector.
+/// Turns Gemma's 49 hidden states into one token stream for a connector: 4096 wide for the
+/// video one, 2048 for the audio one, each with a projection of its own.
 ///
 /// Each state is RMS-normalised per token over its own width, the 49 are laid side by side
 /// hidden-major (state 0's channel 0, state 1's channel 0, ... which is the reference's
@@ -12,8 +13,18 @@ import MLXNN
 /// overflow the accumulation's precision, and the port that first found this measured the
 /// difference on real prompts. The pack keeps its scales float32 for the same reason.
 final class LTX2FeatureExtractor: Module {
-    @ModuleInfo(key: "video_aggregate_embed") var projection: Linear
+    /// Which lane's features these are, which names the projection in the pack:
+    /// `video_aggregate_embed` or `audio_aggregate_embed`.
+    enum Modality: String, Sendable {
+        case video, audio
 
+        /// The pack's name for the projection.
+        var projectionName: String { rawValue + "_aggregate_embed" }
+    }
+
+    @ModuleInfo(key: "aggregate_embed") var projection: Linear
+
+    let modality: Modality
     private let hiddenSize: Int
     private let stateCount: Int
     private let outputSize: Int
@@ -25,8 +36,10 @@ final class LTX2FeatureExtractor: Module {
     /// - Parameters:
     ///   - hiddenSize: The encoder's width, 3840.
     ///   - stateCount: How many hidden states arrive, 49.
-    ///   - outputSize: The connector's width, 4096.
-    init(hiddenSize: Int, stateCount: Int, outputSize: Int, eps: Float = 1e-6) {
+    ///   - outputSize: The connector's width, 4096 for video, 2048 for audio.
+    ///   - modality: Which lane's projection this is.
+    init(hiddenSize: Int, stateCount: Int, outputSize: Int, modality: Modality = .video, eps: Float = 1e-6) {
+        self.modality = modality
         self.hiddenSize = hiddenSize
         self.stateCount = stateCount
         self.outputSize = outputSize

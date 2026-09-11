@@ -15,11 +15,16 @@ enum LTX2ResidentParameters {
 
     /// Reads every parameter into memory, except the streamed stacks when `streamed`.
     static func eval(_ loaded: LTX2Pipeline.Loaded, streamed: Bool) {
+        let audio = loaded.audio.map {
+            $0.extractor.parameters().flattenedValues() + $0.connector.parameters().flattenedValues()
+                + $0.decoder.parameters().flattenedValues() + $0.vocoder.parameters().flattenedValues()
+        } ?? []
         let always = loaded.extractor.parameters().flattenedValues()
             + loaded.connector.parameters().flattenedValues()
             + loaded.decoder.parameters().flattenedValues()
             + loaded.encoder.parameters().flattenedValues()
             + loaded.upsampler.parameters().flattenedValues()
+            + audio
         guard streamed else {
             MLX.eval(
                 always + loaded.textEncoder.parameters().flattenedValues()

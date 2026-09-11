@@ -19,7 +19,7 @@ enum LTX2PackedVariant {
     /// The packed variant to load, or nil when the one on disk is missing, stale, or built
     /// without the encoder.
     static func find(of descriptor: ModelDescriptor, in locations: ModelLocations) -> URL? {
-        guard let packed = LocalSnapshot.ltx2.packedVariant(of: descriptor, in: locations),
+        guard let packed = LocalSnapshot.ltx2(for: descriptor).packedVariant(of: descriptor, in: locations),
             holdsEncoder(packed)
         else { return nil }
         return packed

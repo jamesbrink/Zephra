@@ -13,8 +13,15 @@ import MLX
 enum LTX2ConnectorWeights {
     /// The checkpoint's prefix for the video connector's tensors.
     static let connectorPrefix = "connector.video_embeddings_connector."
-    /// The checkpoint's prefix for the feature extractor's projection.
+    /// The checkpoint's prefix for the audio connector's tensors.
+    static let audioConnectorPrefix = "connector.audio_embeddings_connector."
+    /// The checkpoint's prefix for both feature extractors' projections.
     static let projectionPrefix = "connector.text_embedding_projection."
+
+    /// The connector prefix for `modality`'s lane.
+    static func connectorPrefix(for modality: LTX2FeatureExtractor.Modality) -> String {
+        modality == .video ? connectorPrefix : audioConnectorPrefix
+    }
 
     /// Longest first, so `net.0.proj` is matched before `net.0` could be.
     private static let renames = [
@@ -23,25 +30,39 @@ enum LTX2ConnectorWeights {
         (".to_out.0.", ".to_out."),
     ]
 
-    /// The connector's tensors under the names `LTX2TextConnector`'s tree uses; the audio
-    /// connector's and everything else in the file are left out.
-    static func connectorWeights(_ weights: [String: MLXArray]) -> [String: MLXArray] {
-        select(weights, under: connectorPrefix)
+    /// One lane's connector tensors under the names `LTX2TextConnector`'s tree uses; the
+    /// other lane's and everything else in the file are left out.
+    static func connectorWeights(
+        _ weights: [String: MLXArray], modality: LTX2FeatureExtractor.Modality = .video
+    ) -> [String: MLXArray] {
+        select(weights, under: connectorPrefix(for: modality))
     }
 
-    /// The video projection's tensors under the names `LTX2FeatureExtractor`'s tree uses.
-    static func projectionWeights(_ weights: [String: MLXArray]) -> [String: MLXArray] {
-        select(weights, under: projectionPrefix).filter { $0.key.hasPrefix("video_aggregate_embed") }
+    /// One lane's projection under the name `LTX2FeatureExtractor`'s tree uses, which is the
+    /// pack's with the lane's name taken off the front.
+    static func projectionWeights(
+        _ weights: [String: MLXArray], modality: LTX2FeatureExtractor.Modality = .video
+    ) -> [String: MLXArray] {
+        let name = modality.projectionName
+        return select(weights, under: projectionPrefix).reduce(into: [:]) { renamed, entry in
+            guard entry.key.hasPrefix(name + ".") else { return }
+            renamed["aggregate_embed." + entry.key.dropFirst(name.count + 1)] = entry.value
+        }
+    }
+
+    /// A projection module path back under the checkpoint's name for `modality`'s lane.
+    static func projectionCheckpointName(of path: String, modality: LTX2FeatureExtractor.Modality) -> String {
+        projectionPrefix + path.replacingOccurrences(of: "aggregate_embed.", with: modality.projectionName + ".")
     }
 
     /// A connector module path back under the checkpoint's name, for the manifest and the stream.
-    static func checkpointName(of path: String) -> String {
+    static func checkpointName(of path: String, modality: LTX2FeatureExtractor.Modality = .video) -> String {
         var bounded = "." + path + "."
         for (from, to) in renames where bounded.contains(to) {
             bounded = bounded.replacingOccurrences(of: to, with: from)
             break
         }
-        return connectorPrefix + String(bounded.dropFirst().dropLast())
+        return connectorPrefix(for: modality) + String(bounded.dropFirst().dropLast())
     }
 
     private static func select(_ weights: [String: MLXArray], under prefix: String)

@@ -55,9 +55,29 @@ struct WeightKeyCoverageTests {
         let extractor = LTX2FeatureExtractor(hiddenSize: 3840, stateCount: 49, outputSize: 4096)
         let claimed = Set(
             connector.parameters().flattened().map { LTX2ConnectorWeights.checkpointName(of: $0.0) }
-                + extractor.parameters().flattened().map { LTX2ConnectorWeights.projectionPrefix + $0.0 })
+                + extractor.parameters().flattened().map {
+                    LTX2ConnectorWeights.projectionCheckpointName(of: $0.0, modality: .video)
+                })
         #expect(published.count == 262)
         Self.expectNamesMatch(published: video, claimed: claimed)
+    }
+
+    @Test(
+        "the audio connector and projection claim every audio-side tensor, so both lanes cover the file",
+        .enabled(if: SnapshotUnderTest.ltx2.hasRelease))
+    func audioConnector() throws {
+        let release = try #require(SnapshotUnderTest.ltx2.release)
+        let published = try Self.keys(release.appending(path: "connector.safetensors"))
+        let audio = published.filter { $0.contains("audio") }
+        let connector = LTX2TextConnector(dim: 2048, heads: 32, layers: LTX2TextConnector.defaultLayers)
+        let extractor = LTX2FeatureExtractor(hiddenSize: 3840, stateCount: 49, outputSize: 2048, modality: .audio)
+        let claimed = Set(
+            connector.parameters().flattened().map { LTX2ConnectorWeights.checkpointName(of: $0.0, modality: .audio) }
+                + extractor.parameters().flattened().map {
+                    LTX2ConnectorWeights.projectionCheckpointName(of: $0.0, modality: .audio)
+                })
+        #expect(audio.count == 131)
+        Self.expectNamesMatch(published: audio, claimed: claimed)
     }
 
     @Test(

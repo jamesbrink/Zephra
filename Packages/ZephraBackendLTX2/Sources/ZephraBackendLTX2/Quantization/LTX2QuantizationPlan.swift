@@ -10,9 +10,12 @@ import ZephraQuantization
 /// `vae_decoder.`, `vae_encoder.`, `model.language_model.`) and the kit maps its module paths
 /// onto them.
 ///
-/// Video only: every audio-side tensor is omitted, not copied, by `audioOmitted` — the audio
-/// stream's blocks, the audio connector and projection, and the four audio-video cross-attention
-/// conditioners. The audio variant is this plan without that list.
+/// Video only unless `audio` asks for the lane: every audio-side tensor is then omitted, not
+/// copied, by `audioOmitted` — the audio stream's blocks, the audio connector and projection,
+/// and the four audio-video cross-attention conditioners. With the lane the list is empty,
+/// the conditioners and the lane's ends are held whole beside the video's, the audio
+/// projection packs at the embeddings' precision beside the video one, and two more
+/// components are copied as they are: the audio autoencoder's decoding half and the vocoder.
 public enum LTX2QuantizationPlan {
     /// The audio stream, left out of a video-only build. `a2v` and `v2a` catch the two
     /// cross-attention tables and the gate conditioners named for them, `av_ca_` the two
@@ -34,6 +37,22 @@ public enum LTX2QuantizationPlan {
         .contains("keyframes_abs_pos_embedding"),
     ]
 
+    /// The audio lane's tensors held whole, by the same rule as the video's: its two adaLN
+    /// heads, the four cross-modal conditioners, and the two ends of its token stream.
+    static let audioStaysWhole: [NamePattern] = [
+        .prefix("transformer.audio_adaln_single."),
+        .prefix("transformer.audio_prompt_adaln_single."),
+        .prefix("transformer.av_ca_"),
+        .prefix("transformer.audio_patchify_proj."),
+        .prefix("transformer.audio_proj_out."),
+    ]
+
+    /// The audio autoencoder's encoding half, which nothing conditions and nothing loads.
+    static let audioEncoderOmitted: [NamePattern] = [.prefix("audio_vae.encoder.")]
+
+    /// The vocoder's inverse Fourier basis, which nothing reads.
+    static let vocoderOmitted: [NamePattern] = [.contains("inverse_basis")]
+
     /// Connector tensors held whole: the registers that stand in for padding, the gates, norms.
     /// Spelled out rather than taken from `normsAndEmbeddings`, whose `embed` substring would
     /// match `video_embeddings_connector` and hold the whole stack at full width.
@@ -52,25 +71,48 @@ public enum LTX2QuantizationPlan {
     public static func plan(
         transformer: QuantizationPrecision,
         textEncoder: QuantizationPrecision,
-        embeddings: QuantizationPrecision
+        embeddings: QuantizationPrecision,
+        audio: Bool = false
     ) -> QuantizationPlan {
-        QuantizationPlan(
+        let omitted = audio ? [] : audioOmitted
+        let whole = transformerStaysWhole + (audio ? audioStaysWhole : [])
+        let audioComponents: [QuantizedComponent] = audio
+            ? [
+                // The audio autoencoder's decoding half and its statistics, copied as they
+                // are: two-dimensional convolutions the packer does not pack, and the
+                // encoding half left out.
+                QuantizedComponent(
+                    directoryName: "audio_vae",
+                    sourceFiles: ["audio_vae.safetensors"],
+                    fallback: nil,
+                    omitted: audioEncoderOmitted
+                ),
+                // The vocoder with its bandwidth extender, copied as it is.
+                QuantizedComponent(
+                    directoryName: "vocoder",
+                    sourceFiles: ["vocoder.safetensors"],
+                    fallback: nil,
+                    omitted: vocoderOmitted
+                ),
+            ]
+            : []
+        return QuantizationPlan(
             components: [
                 QuantizedComponent(
                     directoryName: "transformer",
                     sourceFiles: ["transformer-distilled.safetensors"],
-                    rules: transformerStaysWhole.map { WeightPrecisionRule($0, precision: nil) }
+                    rules: whole.map { WeightPrecisionRule($0, precision: nil) }
                         + WeightPrecisionRule.normsAndEmbeddings,
                     fallback: transformer,
-                    omitted: audioOmitted
+                    omitted: omitted
                 ),
                 QuantizedComponent(
                     directoryName: "connector",
                     sourceFiles: ["connector.safetensors"],
-                    rules: [WeightPrecisionRule(.contains("video_aggregate_embed"), precision: embeddings)]
+                    rules: [WeightPrecisionRule(.contains("aggregate_embed"), precision: embeddings)]
                         + connectorStaysWhole.map { WeightPrecisionRule($0, precision: nil) },
                     fallback: transformer,
-                    omitted: audioOmitted
+                    omitted: omitted
                 ),
                 QuantizedComponent(
                     directoryName: "text_encoder",
@@ -98,15 +140,15 @@ public enum LTX2QuantizationPlan {
                     sourceFiles: ["spatial_upscaler_x2_v1_1.safetensors"],
                     fallback: nil
                 ),
-            ],
+            ] + audioComponents,
             verbatimDirectories: []
         )
     }
 
     /// The plan at one precision throughout, except the embeddings, which never go below eight.
-    public static func plan(bits: Int, groupSize: Int) throws -> QuantizationPlan {
+    public static func plan(bits: Int, groupSize: Int, audio: Bool = false) throws -> QuantizationPlan {
         let precision = try QuantizationPrecision(bits: bits, groupSize: groupSize)
         let embeddings = bits < 8 ? try QuantizationPrecision(bits: 8, groupSize: groupSize) : precision
-        return plan(transformer: precision, textEncoder: precision, embeddings: embeddings)
+        return plan(transformer: precision, textEncoder: precision, embeddings: embeddings, audio: audio)
     }
 }

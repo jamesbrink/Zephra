@@ -171,12 +171,13 @@ def _connectors():
 def _pack_name(diffusers_name: str) -> str:
     """The mlx-community pack's key for a diffusers connector parameter."""
     name = diffusers_name
-    name = name.replace(
-        "video_connector.transformer_blocks.", "video_embeddings_connector.transformer_1d_blocks."
-    )
-    name = name.replace("video_connector.learnable_registers", "video_embeddings_connector.learnable_registers")
+    for lane in ("video", "audio"):
+        name = name.replace(
+            f"{lane}_connector.transformer_blocks.", f"{lane}_embeddings_connector.transformer_1d_blocks."
+        )
+        name = name.replace(f"{lane}_connector.learnable_registers", f"{lane}_embeddings_connector.learnable_registers")
+        name = name.replace(f"{lane}_text_proj_in.", f"text_embedding_projection.{lane}_aggregate_embed.")
     name = name.replace("attn1.norm_q.", "attn1.q_norm.").replace("attn1.norm_k.", "attn1.k_norm.")
-    name = name.replace("video_text_proj_in.", "text_embedding_projection.video_aggregate_embed.")
     return "connector." + name
 
 
@@ -233,8 +234,34 @@ def dump_connector(out: pathlib.Path) -> None:
     print(f"connector: {len(tensors)} tensors")
 
 
+def dump_audio_connector(out: pathlib.Path) -> None:
+    """The audio connector and its projection: the same stack at sixteen wide, from the same
+    stacked states scaled by the audio width's own factor."""
+    from diffusers.pipelines.ltx2.connectors import per_token_rms_norm
+
+    connectors = _connectors()
+    with torch.no_grad():
+        states, mask, _ = _inputs(connectors)
+        normed = per_token_rms_norm(states).flatten(2, 3)
+        normed = torch.where(mask.bool().unsqueeze(-1), normed, torch.zeros_like(normed))
+        features = connectors.audio_text_proj_in(normed * math.sqrt(16 / 32))
+        _, audio, _ = connectors(states, mask)
+    tensors = {
+        _pack_name(name): value.detach().float().contiguous()
+        for name, value in connectors.state_dict().items()
+        if name.startswith("audio_connector.") or name.startswith("audio_text_proj_in.")
+    }
+    tensors["in.hidden_states"] = states.contiguous()
+    tensors["in.attention_mask"] = mask.to(torch.int32).contiguous()
+    tensors["in.features"] = features.float().contiguous()
+    tensors["out.embedding"] = audio.float().contiguous()
+    save_file(tensors, str(out / "audio_connector.safetensors"))
+    print(f"audio_connector: {len(tensors)} tensors")
+
+
 DUMPERS = {
     "tokenizer": dump_tokenizer,
+    "audio_connector": dump_audio_connector,
     "text_encoder": dump_text_encoder,
     "feature_extractor": dump_feature_extractor,
     "connector": dump_connector,

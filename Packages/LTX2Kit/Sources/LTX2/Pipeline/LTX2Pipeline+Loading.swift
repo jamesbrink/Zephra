@@ -17,10 +17,15 @@ extension LTX2Pipeline {
     /// pass hands back the cast nodes rather than the shards' float32. The feature extractor's
     /// projection is left in float32 on purpose: 188160 products summed in bfloat16 lose the
     /// prompt. The decoder and the upsampler compute in the dtype their weights came in.
+    /// `audio` asks for the audio lane: the transformer is built with it, the connector file's
+    /// audio half and projection are read, and the `audio_vae` and `vocoder` components are
+    /// loaded, cast to float32. A variant packed without them fails here, on the first shard
+    /// that is not there, rather than at the end of a run.
     public func loadModel(
         at snapshot: URL,
         activation: DType = .bfloat16,
         streaming: LTX2Streaming? = nil,
+        audio: Bool = false,
         onProgress: (LTX2GenerationProgress) -> Void = { _ in }
     ) throws {
         unloadModel()
@@ -45,7 +50,7 @@ extension LTX2Pipeline {
                 checkpointName: { Gemma4TextModel.checkpointPrefix + $0 })
         }
 
-        let transformerConfiguration = LTX2TransformerConfiguration()
+        let transformerConfiguration = LTX2TransformerConfiguration(audio: audio ? LTX2AudioConfiguration() : nil)
         let connectorWeights = try SafetensorsShards.weights(in: snapshot.appending(path: "connector"))
         let extractor = LTX2FeatureExtractor(
             hiddenSize: gemma.hiddenSize, stateCount: gemma.numHiddenLayers + 1,
@@ -54,7 +59,7 @@ extension LTX2Pipeline {
             into: extractor,
             weights: LTX2ConnectorWeights.projectionWeights(connectorWeights),
             manifest: manifest,
-            checkpointName: { LTX2ConnectorWeights.projectionPrefix + $0 })
+            checkpointName: { LTX2ConnectorWeights.projectionCheckpointName(of: $0, modality: .video) })
         let connector = LTX2TextConnector(
             dim: transformerConfiguration.crossAttentionDim, heads: transformerConfiguration.heads,
             layers: LTX2TextConnector.defaultLayers)
@@ -62,14 +67,15 @@ extension LTX2Pipeline {
             into: connector,
             weights: LTX2ConnectorWeights.connectorWeights(connectorWeights),
             manifest: manifest,
-            checkpointName: LTX2ConnectorWeights.checkpointName(of:))
+            checkpointName: { LTX2ConnectorWeights.checkpointName(of: $0) })
         PackedWeightLoading.castFloatParameters(of: connector, to: activation)
 
         let transformerDirectory = snapshot.appending(path: "transformer")
         let transformer = LTX2Transformer(transformerConfiguration)
         try PackedWeightLoading.load(
             into: transformer,
-            weights: LTX2TransformerWeights.sanitized(try SafetensorsShards.weights(in: transformerDirectory)),
+            weights: LTX2TransformerWeights.sanitized(
+                try SafetensorsShards.weights(in: transformerDirectory), audio: audio),
             manifest: manifest,
             checkpointName: LTX2TransformerWeights.checkpointName(of:))
         PackedWeightLoading.castFloatParameters(of: transformer, to: activation)
@@ -99,9 +105,46 @@ extension LTX2Pipeline {
             tokenizer: try LTX2Tokenizer(directory: encoderDirectory),
             textEncoder: textEncoder, extractor: extractor, connector: connector,
             transformer: transformer, decoder: decoder, encoder: videoEncoder,
-            upsampler: upsampler, activation: activation)
+            upsampler: upsampler, activation: activation,
+            audio: audio
+                ? try Self.loadAudio(
+                    from: snapshot, connectorWeights: connectorWeights, manifest: manifest,
+                    hiddenSize: gemma.hiddenSize, stateCount: gemma.numHiddenLayers + 1,
+                    activation: activation)
+                : nil)
         LTX2ResidentParameters.eval(result, streamed: streaming != nil)
         loaded = result
+    }
+
+    /// The audio lane's text path and its way to sound: the audio projection and connector out
+    /// of the connector file, the audio decoder out of `audio_vae`, the vocoder out of
+    /// `vocoder`, the last two cast to float32.
+    static func loadAudio(
+        from snapshot: URL, connectorWeights: [String: MLXArray], manifest: PackedSnapshotManifest?,
+        hiddenSize: Int, stateCount: Int, activation: DType
+    ) throws -> LoadedAudio {
+        let configuration = LTX2AudioConfiguration()
+        let extractor = LTX2FeatureExtractor(
+            hiddenSize: hiddenSize, stateCount: stateCount, outputSize: configuration.crossAttentionDim,
+            modality: .audio)
+        try PackedWeightLoading.load(
+            into: extractor,
+            weights: LTX2ConnectorWeights.projectionWeights(connectorWeights, modality: .audio),
+            manifest: manifest,
+            checkpointName: { LTX2ConnectorWeights.projectionCheckpointName(of: $0, modality: .audio) })
+        let connector = LTX2TextConnector(
+            dim: configuration.crossAttentionDim, heads: configuration.heads, layers: LTX2TextConnector.defaultLayers)
+        try PackedWeightLoading.load(
+            into: connector,
+            weights: LTX2ConnectorWeights.connectorWeights(connectorWeights, modality: .audio),
+            manifest: manifest,
+            checkpointName: { LTX2ConnectorWeights.checkpointName(of: $0, modality: .audio) })
+        PackedWeightLoading.castFloatParameters(of: connector, to: activation)
+        let decoder = LTX2AudioDecoder(.ltx25)
+        try decoder.load(weights: try SafetensorsShards.weights(in: snapshot.appending(path: "audio_vae")).mapValues { $0.asType(.float32) })
+        let vocoder = LTX2Vocoder()
+        try vocoder.load(weights: try SafetensorsShards.weights(in: snapshot.appending(path: "vocoder")).mapValues { $0.asType(.float32) })
+        return LoadedAudio(extractor: extractor, connector: connector, decoder: decoder, vocoder: vocoder)
     }
 
     /// Drops the weights and the scratch they were using.

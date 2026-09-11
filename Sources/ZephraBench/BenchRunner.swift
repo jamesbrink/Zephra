@@ -133,7 +133,8 @@ enum BenchRunner {
             outputPath: outputPath,
             referencePath: settings.referenceImage == nil ? nil : options.reference?.path,
             contextFrames: settings.continuation?.contextFrames,
-            extendedPath: extendedPath
+            extendedPath: extendedPath,
+            hasAudio: { if case .video(let video) = media { video.hasAudio } else { nil } }()
         )
     }
 

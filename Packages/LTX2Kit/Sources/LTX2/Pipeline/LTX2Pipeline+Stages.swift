@@ -5,11 +5,11 @@ import MLXRandom
 /// One stage, or two: the eight-step ladder at the clip's size, or that ladder at half the
 /// size followed by the doubled latent's three-step refinement.
 extension LTX2Pipeline {
-    /// The finished latent for a one-stage run, `[1, 128, F, H, W]`.
+    /// The finished latents for a one-stage run, the video's `[1, 128, F, H, W]`.
     func oneStage(
-        text: MLXArray, request: LTX2GenerationRequest, with loaded: Loaded,
+        text: Conditioning, request: LTX2GenerationRequest, with loaded: Loaded,
         onProgress: (LTX2GenerationProgress) -> Void, onPreview: PreviewHandler?
-    ) throws -> MLXArray {
+    ) throws -> Latents {
         let layout = LTX2LatentLayout(
             pixelFrames: request.frames, pixelWidth: request.width, pixelHeight: request.height)
         let held = try request.heldFrames.map {
@@ -30,10 +30,15 @@ extension LTX2Pipeline {
     /// stages hold the pictures at their own resolution, and the doubled, noised latent enters
     /// the second stage with the pictures blended in by their strength exactly as noise enters
     /// the first. The eleven steps are reported as one count.
+    ///
+    /// The audio walks both ladders too: the first stage's audio latent is noised to the
+    /// second ladder's top beside the doubled video and denoised again at the same length,
+    /// which is what the reference's condition pipeline does with an `audio_latents` it is
+    /// handed under `noise_scale` (there is no audio upsampler; the length never changes).
     func twoStages(
-        text: MLXArray, request: LTX2GenerationRequest, with loaded: Loaded,
+        text: Conditioning, request: LTX2GenerationRequest, with loaded: Loaded,
         onProgress: (LTX2GenerationProgress) -> Void, onPreview: PreviewHandler?
-    ) throws -> MLXArray {
+    ) throws -> Latents {
         let total = schedule.steps + secondStage.steps
         let half = LTX2LatentLayout(
             pixelFrames: request.frames, pixelWidth: request.width / 2, pixelHeight: request.height / 2)
@@ -47,9 +52,12 @@ extension LTX2Pipeline {
             schedule: schedule, steps: LTX2StepRange(first: 1, total: total),
             onProgress: onProgress, onPreview: onPreview)
         try Task.checkCancellation()
-        let doubled = loaded.upsampler.upsample(coarse, statistics: loaded.decoder.statistics)
+        let doubled = loaded.upsampler.upsample(coarse.video, statistics: loaded.decoder.statistics)
         let noise = MLXRandom.normal(full.latentShape, key: MLXRandom.key(request.seed &+ 20000))
         var start = full.pack(secondStage.noised(doubled, noise: noise))
+        let audioStart = coarse.audio.map {
+            secondStage.noised($0, noise: MLXRandom.normal($0.shape, key: MLXRandom.key(request.seed &+ 40000)))
+        }
         let heldFull = try request.heldFrames.map {
             try LTX2HeldLatent($0, layout: full, encoder: loaded.encoder)
         }
@@ -62,7 +70,7 @@ extension LTX2Pipeline {
         MLX.eval(start)
         return try denoise(
             text: text, layout: full, request: request, held: heldFull, with: loaded,
-            schedule: secondStage, start: start,
+            schedule: secondStage, start: start, audioStart: audioStart,
             steps: LTX2StepRange(first: schedule.steps + 1, total: total),
             onProgress: onProgress, onPreview: onPreview)
     }

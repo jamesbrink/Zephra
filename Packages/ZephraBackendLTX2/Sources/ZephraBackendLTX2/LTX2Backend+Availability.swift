@@ -16,15 +16,17 @@ extension LTX2Backend {
         switch descriptor.source {
         case .localDirectory:
             let candidates = locations.builtCandidates(for: descriptor)
-            guard candidates.allSatisfy({ LocalSnapshot.ltx2.missingEntry(in: $0) != nil })
+            let snapshot = LocalSnapshot.ltx2(for: descriptor)
+            guard candidates.allSatisfy({ snapshot.missingEntry(in: $0) != nil })
             else { return .available }
-            let missing = LocalSnapshot.ltx2.missingEntry(in: candidates[0]) ?? "its weights"
-            return .missing(reason: "Not built yet: \(missing) is missing. Run `make quantize-ltx2`.")
+            let missing = snapshot.missingEntry(in: candidates[0]) ?? "its weights"
+            let target = descriptor.capabilities.producesAudio ? "quantize-ltx2-audio" : "quantize-ltx2"
+            return .missing(reason: "Not built yet: \(missing) is missing. Run `make \(target)`.")
         case .huggingFace:
             if LTX2PackedVariant.find(of: descriptor, in: locations) != nil {
                 return .available
             }
-            let release = LocalSnapshot.ltx2Release.downloadedRelease(of: descriptor, in: locations)
+            let release = LocalSnapshot.ltx2Release(for: descriptor).downloadedRelease(of: descriptor, in: locations)
             if release != nil { return .needsBuild }
             if descriptor.isPublishedPrebuilt { return .needsDownload(bytes: descriptor.builtBytes) }
             return .needsDownloadAndBuild(
