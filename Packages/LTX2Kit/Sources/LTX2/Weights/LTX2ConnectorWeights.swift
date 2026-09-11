@@ -50,9 +50,13 @@ enum LTX2ConnectorWeights {
         }
     }
 
-    /// A projection module path back under the checkpoint's name for `modality`'s lane.
+    /// A projection module path back under the checkpoint's name for `modality`'s lane: the
+    /// bare `aggregate_embed` the loader asks the manifest about, or a leaf under it.
     static func projectionCheckpointName(of path: String, modality: LTX2FeatureExtractor.Modality) -> String {
-        projectionPrefix + path.replacingOccurrences(of: "aggregate_embed.", with: modality.projectionName + ".")
+        guard path == "aggregate_embed" || path.hasPrefix("aggregate_embed.") else {
+            return projectionPrefix + path
+        }
+        return projectionPrefix + modality.projectionName + path.dropFirst("aggregate_embed".count)
     }
 
     /// A connector module path back under the checkpoint's name, for the manifest and the stream.

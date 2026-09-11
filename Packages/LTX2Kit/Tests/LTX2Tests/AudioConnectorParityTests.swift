@@ -50,5 +50,14 @@ struct AudioConnectorParityTests {
         #expect(
             LTX2ConnectorWeights.projectionCheckpointName(of: "aggregate_embed.bias", modality: .video)
                 == "connector.text_embedding_projection.video_aggregate_embed.bias")
+        // The bare module path is what the loader asks the manifest about; a miss there
+        // falls back to the manifest's default and builds the projection at four bits,
+        // which is the wrong shape for the eight-bit tensor on disk.
+        #expect(
+            LTX2ConnectorWeights.projectionCheckpointName(of: "aggregate_embed", modality: .video)
+                == "connector.text_embedding_projection.video_aggregate_embed")
+        #expect(
+            LTX2ConnectorWeights.projectionCheckpointName(of: "aggregate_embed", modality: .audio)
+                == "connector.text_embedding_projection.audio_aggregate_embed")
     }
 }

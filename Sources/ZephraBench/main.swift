@@ -27,7 +27,9 @@ do {
     FileHandle.standardError.write(Data("ZephraBench: cancelled\n".utf8))
     exit(130)
 } catch {
+    // The app's sentence, then the error itself: a backend's own reason for a failed load is
+    // folded into a sentence about memory, and a bench run by hand wants the reason.
     let reason = (error as? any LocalizedError)?.errorDescription ?? String(describing: error)
-    FileHandle.standardError.write(Data("ZephraBench: \(reason)\n".utf8))
+    FileHandle.standardError.write(Data("ZephraBench: \(reason)\n  \(String(describing: error))\n".utf8))
     exit(1)
 }
