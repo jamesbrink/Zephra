@@ -19,6 +19,8 @@ struct ZephraMobileApp: App {
     /// What keeps that client connected while the app is in front of somebody, or nil for a
     /// frozen one: a client with no road under it has nothing to reconnect.
     @State private var reconnect: LinkReconnect?
+    /// The capsule's own state: what the next press of Generate would ask for.
+    @State private var draft = PromptDraft()
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
@@ -36,6 +38,10 @@ struct ZephraMobileApp: App {
         WindowGroup {
             RootView()
                 .environment(client)
+                // What the next press of Generate will ask for. Built once and injected, so a
+                // prompt survives a walk to the library and back; it holds no fact that came
+                // over the link, which is the client's alone.
+                .environment(draft)
                 // Connect while the app is in front and let the session go when it is not:
                 // a phone in a pocket has no reason to hold a socket open, and the Mac has no
                 // reason to hold a session for it. `initial` covers the launch itself, which

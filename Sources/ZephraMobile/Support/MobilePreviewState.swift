@@ -8,8 +8,10 @@ enum MobilePreviewState: String, CaseIterable {
     case pairing
     /// Paired and idle, on the canvas.
     case ready
-    /// Paired, on the canvas, with a run four steps into its ladder.
+    /// Paired, on the canvas, with a run four steps into its ladder and a frame of it in.
     case generating
+    /// Paired and idle, on the canvas, with the capsule showing every control the model has.
+    case capsule
     /// Paired, on the library, over the fixture's pictures.
     case library
     /// Paired, but the Mac is not answering: everything on screen is the last thing known.
@@ -20,7 +22,7 @@ enum MobilePreviewState: String, CaseIterable {
     /// Which surface the frozen app opens on.
     var tab: MobileTab {
         switch self {
-        case .pairing, .ready, .generating, .offline: .canvas
+        case .pairing, .ready, .generating, .capsule, .offline: .canvas
         case .library: .library
         case .settings: .settings
         }

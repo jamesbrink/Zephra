@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import ZephraLinkProtocol
 
 /// Where a frozen launch's state comes from: two JSON files in the bundle, read with the very
@@ -53,5 +54,35 @@ extension MobilePreview {
             frames: 1)
         snapshot.acceptsWork = false
         return snapshot
+    }
+
+    /// A frame of the run the `generating` state is in the middle of.
+    ///
+    /// Drawn in code rather than kept as a file, for the reason the mid-run state is built in
+    /// code: a real preview frame is a decode of a latent four steps into a ladder, and a
+    /// photograph of one saved in the bundle would be a picture of a particular run rather
+    /// than proof the canvas draws whatever arrives. What matters to the screenshot is that
+    /// the bytes are a JPEG of the run's shape, soft, at preview size.
+    static func frame() -> PreviewFrameDTO {
+        let size = CGSize(width: 256, height: 256)
+        let image = UIGraphicsImageRenderer(size: size).image { context in
+            let colors =
+                [
+                    UIColor(red: 0.10, green: 0.11, blue: 0.16, alpha: 1).cgColor,
+                    UIColor(red: 0.86, green: 0.52, blue: 0.22, alpha: 1).cgColor,
+                    UIColor(red: 0.35, green: 0.40, blue: 0.58, alpha: 1).cgColor,
+                ] as CFArray
+            guard
+                let gradient = CGGradient(
+                    colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors,
+                    locations: [0, 0.55, 1])
+            else { return }
+            context.cgContext.drawLinearGradient(
+                gradient, start: .zero, end: CGPoint(x: size.width, y: size.height),
+                options: [])
+        }
+        return PreviewFrameDTO(
+            jpeg: image.jpegData(compressionQuality: 0.8) ?? Data(),
+            width: Int(size.width), height: Int(size.height), step: 4, steps: 9)
     }
 }

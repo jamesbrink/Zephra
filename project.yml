@@ -189,6 +189,10 @@ targets:
       - sdk: AVKit.framework
       - sdk: VisionKit.framework
       - sdk: Photos.framework
+      # `PhotosPicker`, the camera roll door into the reference well. Its own framework, not
+      # part of Photos: the picker runs out of process, so the app never asks for a photo
+      # permission of its own and only the picture somebody chose crosses.
+      - sdk: PhotosUI.framework
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.zephra.ZephraMobile

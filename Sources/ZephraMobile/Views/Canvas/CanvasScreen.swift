@@ -1,43 +1,38 @@
 import SwiftUI
 import ZephraLinkClient
-import ZephraLinkProtocol
+import ZephraStyle
 
-/// What the Mac is making. A placeholder for now: the live preview, the prompt sheet and the
-/// step bar come next, and each replaces this from the inside.
+/// What the Mac is making, and the capsule that asks it for more.
+///
+/// The Mac's canvas, in a phone's proportions: the picture fills the screen, the model is
+/// named in the toolbar, and the capsule is a safe-area inset along the bottom edge rather
+/// than a sheet — a sheet covers the tab bar, and the four surfaces have to stay one tap
+/// apart while a prompt is being typed.
 struct CanvasScreen: View {
     @Environment(LinkClient.self) private var client
+    @Environment(PromptDraft.self) private var draft
+    /// Whether the capsule is showing its settings. A frozen launch can open with it up, which
+    /// is the only way to photograph the controls.
+    @State private var capsuleExpanded = MobilePreview.capsuleIsExpanded
 
     var body: some View {
-        SurfacePlaceholder(
-            title: MobileTab.canvas.title, symbol: MobileTab.canvas.symbol, fact: fact)
-    }
-
-    /// Where the Mac's engine is, with the step it is on where there is one.
-    ///
-    /// `phase` is preferred wherever the Mac sent one — "Denoising", "Decoding", "Saving" are
-    /// the Mac's own words, and taking them means the two ends can never disagree about what
-    /// is happening. Only the cases that carry no phase get a sentence of their own.
-    private var fact: String? {
-        guard let engine = client.snapshot?.engine else { return nil }
-        let headline = engine.phase ?? Self.headline(engine.kind)
-        guard let step = engine.step, let steps = engine.steps else { return headline }
-        return "\(headline), step \(step) of \(steps)"
-    }
-
-    /// One line for a state the Mac sent no phase for.
-    private static func headline(_ kind: EngineStateDTO.Kind) -> String {
-        switch kind {
-        case .idle: "Idle"
-        case .checkingModel: "Checking the model"
-        case .downloading: "Downloading"
-        case .building: "Building"
-        case .loading: "Loading"
-        case .warmingUp: "Warming up"
-        case .ready: "Ready"
-        case .generating: "Generating"
-        case .upscaling: "Upscaling"
-        case .cancelling: "Stopping"
-        case .failed: "Something went wrong"
+        NavigationStack {
+            CanvasPicture()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.horizontal, MobileChrome.sideMargin)
+                .background(Color.canvasBackground)
+                .navigationTitle(client.snapshot?.hostName ?? "Zephra")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .topBarTrailing) { ModelMenu() } }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    PromptCapsule(isExpanded: $capsuleExpanded)
+                }
+                // The first snapshot is the Mac saying which model is in force and what it
+                // defaults to; `adopt` takes only that first one, so nothing here can land on
+                // a prompt somebody is in the middle of typing.
+                .onChange(of: client.snapshot?.model.id, initial: true) { _, _ in
+                    draft.adopt(client.snapshot)
+                }
         }
     }
 }

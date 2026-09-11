@@ -24,6 +24,9 @@ final class PromptDraft {
     var reference: Data?
     /// How many seeds one press is worth.
     var count: Int
+    /// The shape of the picture in the well, which the Size menu offers at every tier's cost.
+    /// It moves with the picture and is nil whenever the well is empty.
+    private(set) var referenceSize: ImageSize?
 
     /// Whether a snapshot has already seeded this draft. The first one is the Mac saying which
     /// model is in force and what it defaults to; every one after it would overwrite a prompt
@@ -92,6 +95,7 @@ final class PromptDraft {
         _ picture: ReferencePicture, origin: String?, fitting capabilities: ModelCapabilities
     ) {
         reference = picture.data
+        referenceSize = picture.size
         settings.referenceOrigin = origin
         guard capabilities.producesVideo,
             let shape = capabilities.size(
@@ -104,6 +108,7 @@ final class PromptDraft {
     /// with it rather than outliving it.
     func clearReference() {
         reference = nil
+        referenceSize = nil
         settings.referenceOrigin = nil
     }
 

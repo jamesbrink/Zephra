@@ -4,8 +4,8 @@ import ZephraLinkClient
 /// Launches the phone app frozen in one state, with no Mac on the other end of the wire, so a
 /// surface can be photographed and inspected on its own.
 ///
-/// Set `ZEPHRA_PREVIEW_STATE` to `pairing`, `ready`, `generating`, `library`, `offline` or
-/// `settings` before launching. Debug builds only; in Release this is inert, exactly as
+/// Set `ZEPHRA_PREVIEW_STATE` to `pairing`, `ready`, `generating`, `capsule`, `library`,
+/// `offline` or `settings` before launching. Debug builds only; in Release this is inert, exactly as
 /// `InterfacePreview` is on the Mac — the two mechanisms are deliberately the same shape, so a
 /// screenshot of either app is taken the same way.
 ///
@@ -40,11 +40,16 @@ enum MobilePreview {
         return LinkClient.frozen(
             snapshot: state == .generating ? midRun(snapshot) ?? snapshot : snapshot,
             library: library(),
-            connection: state == .offline ? .offline : .live(.lan))
+            connection: state == .offline ? .offline : .live(.lan),
+            preview: state == .generating ? frame() : nil)
     }
 
     /// Which surface a frozen launch opens on, and the canvas for an ordinary one.
     static var tab: MobileTab { state?.tab ?? .canvas }
+
+    /// Whether the canvas opens with its capsule showing every control, which is the only way
+    /// to photograph the settings: a screenshot build cannot tap.
+    static var capsuleIsExpanded: Bool { state == .capsule }
 
     /// A client that has never paired and has no road to anything, for the pairing state and
     /// for an Xcode canvas, which launches no process and so sets no preview state.

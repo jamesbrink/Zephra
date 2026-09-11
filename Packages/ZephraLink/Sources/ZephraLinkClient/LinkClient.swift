@@ -72,10 +72,13 @@ public final class LinkClient {
     /// It is paired, because every state worth photographing is a paired one — the Mac named
     /// in the snapshot, with a throwaway identity's keys and no endpoint, kept in a store that
     /// ends with the process. The connection rides in so a screenshot can be taken of a phone
-    /// whose Mac is not answering, which is the one state a live client cannot be asked for.
+    /// whose Mac is not answering, which is the one state a live client cannot be asked for,
+    /// and a preview frame rides in for the same reason: the canvas mid-run is a frame, and a
+    /// frozen client has no session to be sent one over.
     public static func frozen(
         snapshot: StateSnapshot, library: [LibraryEntry],
-        connection: LinkConnectionState = .live(.lan)
+        connection: LinkConnectionState = .live(.lan),
+        preview: PreviewFrameDTO? = nil
     ) -> LinkClient {
         let client = LinkClient(
             store: MemoryLinkKeyStore(), roads: MemoryLinkRoads.unreachable(),
@@ -84,6 +87,7 @@ public final class LinkClient {
         client.snapshot = snapshot
         client.library = library
         client.connection = connection
+        client.preview = preview
         let host = DeviceIdentity()
         client.pairedHost = PairedHost(
             name: snapshot.hostName, keys: host.publicKeys, endpoints: [], roomID: host.roomID,
