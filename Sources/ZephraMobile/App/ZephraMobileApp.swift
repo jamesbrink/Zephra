@@ -76,9 +76,10 @@ struct ZephraMobileApp: App {
     private static func makeClient() -> LinkClient {
         let store = MobileKeychain()
         let identity = deviceIdentity(in: store)
+        let roads = NetworkLinkRoads(relayURL: relayURL, identity: identity)
         return LinkClient(
             store: store,
-            roads: NetworkLinkRoads(relayURL: relayURL, identity: identity),
+            roads: RelayOnlyRoads.isRequested ? RelayOnlyRoads(roads: roads) : roads,
             deviceName: UIDevice.current.name)
     }
 

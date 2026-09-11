@@ -108,13 +108,15 @@ XCB      := xcodebuild -project "$(PROJECT)" -destination '$(DEST)' SYMROOT="$(B
 
 # The phone. A simulator *name* rather than a udid, so the same line works on any Mac; CI
 # passes whatever `scripts/ios-sim.sh` found on the runner, which is the newest iPhone it has.
-# PREVIEW sets ZEPHRA_PREVIEW_STATE for `run-ios`, the way ZEPHRA_PREVIEW_STATE does on the Mac.
+# PREVIEW sets ZEPHRA_PREVIEW_STATE for `run-ios`, the way ZEPHRA_PREVIEW_STATE does on the Mac;
+# FORCE_RELAY sets ZEPHRA_FORCE_RELAY, which shuts every road but the relay.
 IOS_SCHEME    := ZephraMobile
 IOS_SIM       ?= iPhone 17 Pro
 IOS_DEST      := platform=iOS Simulator,name=$(IOS_SIM)
 IOS_APP       := $(BUILD)/Debug-iphonesimulator/Zephra.app
 IOS_BUNDLE_ID := io.zephra.ZephraMobile
 PREVIEW       ?=
+FORCE_RELAY   ?=
 XCB_IOS       := xcodebuild -project "$(PROJECT)" -destination '$(IOS_DEST)' SYMROOT="$(BUILD)" -derivedDataPath "$(DERIVED)"
 # Every package that links MLX, and so needs xcodebuild rather than `swift test`, written as
 # directory:scheme. SwiftPM names a package's scheme after the package, except where it ships
@@ -201,15 +203,16 @@ build-ios: gen
 
 # Build it, make sure the simulator is up, and launch. `make run-ios PREVIEW=pairing` launches
 # it frozen in one state, which is how each surface is photographed; see `MobilePreview`.
+# `make run-ios FORCE_RELAY=1` leaves it live but takes the local network away, so the phone
+# reaches the Mac the way one in another country does; see `RelayOnlyRoads`.
 run-ios: build-ios
 	@xcrun simctl boot "$(IOS_SIM)" 2>/dev/null || true
 	@xcrun simctl bootstatus "$(IOS_SIM)" -b >/dev/null
 	open -a Simulator
 	xcrun simctl install "$(IOS_SIM)" "$(IOS_APP)"
-	@if [ -n "$(PREVIEW)" ]; then \
-	  SIMCTL_CHILD_ZEPHRA_PREVIEW_STATE="$(PREVIEW)" \
-	    xcrun simctl launch "$(IOS_SIM)" $(IOS_BUNDLE_ID); \
-	else xcrun simctl launch "$(IOS_SIM)" $(IOS_BUNDLE_ID); fi
+	@env $(if $(PREVIEW),SIMCTL_CHILD_ZEPHRA_PREVIEW_STATE="$(PREVIEW)") \
+	     $(if $(FORCE_RELAY),SIMCTL_CHILD_ZEPHRA_FORCE_RELAY="$(FORCE_RELAY)") \
+	  xcrun simctl launch "$(IOS_SIM)" $(IOS_BUNDLE_ID)
 
 # The companion's own suites, hosted inside it. Seconds once the app is built.
 test-ios: gen

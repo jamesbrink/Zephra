@@ -65,6 +65,13 @@ the same override the store runs under without a second read of the process envi
   reconnects behind a screenshot and the catalog writes nothing. `docs/mobile.md` has the
   rest. A frozen *Mac* build opens no road either: `startCompanion` refuses while
   `InterfacePreview.requestedState` is set.
+- `ZEPHRA_FORCE_RELAY=1` shuts every road on the phone but the relay, so a simulator sitting on
+  the Mac's own Wi-Fi pairs and connects the way a phone in another country does: the browse
+  finishes empty and every LAN endpoint fails, and `connect()` and `pair(with:)` walk their list
+  down to `connectRelay`. `make run-ios FORCE_RELAY=1` hands it over as
+  `SIMCTL_CHILD_ZEPHRA_FORCE_RELAY`. `RelayOnlyRoads` reads it once at launch, Debug only, and
+  Settings says "Live through relay" when it worked. The Mac needs its relay switch on as well
+  (Settings > Companion), or there is no host in the room to reach.
 - `make logs` streams `os.Logger` output for subsystem `io.zephra`.
 - A Debug build's companion keeps its identity and pairings in the login keychain
   (an ad-hoc signature cannot reach the data-protection keychain), so every

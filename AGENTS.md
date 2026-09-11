@@ -1510,6 +1510,11 @@ environment value.
 - `ZEPHRA_FRESH_START=<directory>` launches as a Mac that has never run Zephra:
   its own preferences suite, `<directory>/Models` and `<directory>/Images`, and
   the single-instance guard lets it run beside a real Zephra. `make run-fresh`.
+- `ZEPHRA_FORCE_RELAY=1` (the phone, Debug only) shuts every road but the relay:
+  `RelayOnlyRoads` (`Support/`) finishes the browse empty and fails every LAN
+  endpoint, so a simulator on the Mac's own Wi-Fi pairs and connects the way a
+  phone in another country does. `make run-ios FORCE_RELAY=1`; the Mac's relay
+  switch has to be on too, or there is no host in the room.
 - Debug only: `ZEPHRA_DOWNLOAD_TEST_HUB=http://127.0.0.1:<port>` runs the real
   downloader and UI against disposable HTTP fixtures with an unloaded exercise
   backend; use a separate preferences domain and models folder. No such hook

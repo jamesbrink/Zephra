@@ -84,10 +84,15 @@ final class RelayRoad: LinkListener, @unchecked Sendable {
             await listener.updateAllowList(keys)
             do {
                 try await listener.start()
+                // At info, and on both edges. A relay join is the one piece of this road that
+                // fails silently from the outside: the Mac looks exactly the same whether it is
+                // sitting in its room waiting or has never reached the relay at all.
+                logger.info("companion relay joined \(self.url.absoluteString, privacy: .public)")
                 for await guest in listener.connections() {
                     attempt = 0
                     continuation.yield(guest)
                 }
+                logger.info("companion relay left \(self.url.absoluteString, privacy: .public)")
             } catch {
                 logger.notice("companion relay could not be joined: \(error.localizedDescription, privacy: .public)")
             }

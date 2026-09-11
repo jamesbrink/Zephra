@@ -427,6 +427,17 @@ The same mechanism as the Mac's `InterfacePreview`, in the same shape, so a
 screenshot of either app is taken the same way. `ZEPHRA_PREVIEW_STATE` is read
 once, in `MobilePreview`, `#if DEBUG` only.
 
+`ZEPHRA_FORCE_RELAY=1` is the other switch and is not a frozen state at all: the
+app is live, and what it loses is the local network. `RelayOnlyRoads` (`Support/`)
+wraps `NetworkLinkRoads`, finishes the browse empty and fails every LAN endpoint,
+so `connect()` and `pair(with:)` fall through their list to `connectRelay` — the
+only way to exercise that road from a simulator beside the Mac, since a phone on
+the same Wi-Fi answers on its first stored address and never asks the relay
+anything. A decorator in the composition root rather than a flag inside the link
+package, for the reason the root exists: which roads a phone has is the root's
+business. Read once at launch, `#if DEBUG` only, and handed over by
+`make run-ios FORCE_RELAY=1`.
+
 | State | What it shows |
 | --- | --- |
 | `pairing` | no Mac paired: the pairing screen over nothing |
