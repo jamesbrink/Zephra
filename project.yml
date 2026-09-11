@@ -87,6 +87,15 @@ targets:
         product: ZephraCore
       - package: ZephraKit
         product: ZephraEngine
+      # The Mac's side of the companion link: the sessions a paired phone talks through.
+      - package: ZephraKit
+        product: ZephraLinkHost
+      # The wire both ends speak, for the pairing payload the QR code carries.
+      - package: ZephraLink
+        product: ZephraLinkProtocol
+      # The roads under it: a TCP listener on the local network and the relay's WebSocket.
+      - package: ZephraLink
+        product: ZephraLinkTransport
       # The chrome: every radius, hairline, wash and colour set, shared with the iOS
       # companion so the two apps are drawn from one set of numbers.
       - package: ZephraStyle

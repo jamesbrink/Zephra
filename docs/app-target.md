@@ -163,12 +163,13 @@ Four directories, by what a file is rather than what screen it is on:
   says nothing, and the ring round the selected cell is what shows where the
   keyboard is — which is why an arrow key with nothing selected selects an end
   of the grid (`LibraryCursor`) rather than doing nothing. `SettingsView` is
-  three tabs, and `SettingsTab` says how wide the window opens and how tall each
+  four tabs -- General, Performance, Models and Companion -- and `SettingsTab`
+  says how wide the window opens and how tall each
   tab stands: the window opens 520 points wide at the tab's own height rather
-  than standing at the tallest tab's for all three, and Escape does not close it,
+  than standing at the tallest tab's for all four, and Escape does not close it,
   which is what every Settings window on the Mac does. The height a tab opens at
   is not the least the window may be dragged to — `minimumHeight` is, one
-  number for all three, and it must fit the smallest display Sequoia runs on:
+  number for all four, and it must fit the smallest display Sequoia runs on:
   Performance's 820 points of content plus 88 of chrome is 908, against 876
   usable on a 13-inch MacBook Air M1, and AppKit clamps a window to the screen's
   visible frame on open only when the minimum it is holding to actually fits.

@@ -9,6 +9,10 @@ import Foundation
 ///
 /// The count is the caller's, because the caller is the one that knows a connection succeeded:
 /// it resets to zero on a live session and on the app coming to the foreground.
+///
+/// It sits with the roads rather than with the phone's client because both ends retry one: the
+/// phone reconnects to a Mac, and the Mac's own relay road rejoins its room when the socket
+/// goes. Deciding *whether* to try again is still the caller's, on either side.
 public enum LinkBackoff {
     /// The first wait.
     public static let first: Duration = .seconds(1)

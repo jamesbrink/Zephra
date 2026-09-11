@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import ZephraLinkClient
+import ZephraLinkTransport
 
 /// How long the phone waits before it tries the Mac again.
 @Suite("The wait between attempts doubles and stops")

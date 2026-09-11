@@ -541,3 +541,24 @@ Left out of the first pass on purpose, each a small change to one file unless no
   Lambda's contract, not just ours — and a demultiplexer on the Mac that keeps a
   session per id. The local network already allows several phones at once, so the
   limit is the relay's alone.
+- **A phone cannot start a download.** `Command` has no case for one and
+  `CompanionHost` refuses anything it does not know. Fetching a model is
+  gigabytes onto somebody else's Mac, over their network, and the person holding
+  the phone is not always the person paying for either. The phone watches
+  transfers (`DownloadDTO`) and that is all. If it is ever offered it wants a
+  confirmation on the Mac, not on the phone.
+- **A paired device cannot be renamed on the Mac.** The name in the list is the
+  phone's own, out of its `Hello`. A list whose names could be edited here is a
+  list nobody could match to a phone in a drawer, and the phone already has a
+  field for it.
+- **No notification when a phone connects.** `BackgroundNotices` is about a run
+  and a download, which are things a person walked away from; a session opening
+  is not. A Mac that announced every reconnection would announce one every two
+  hours, which is what the relay's connection lifetime makes of a phone left on a
+  desk.
+- **The local road is not re-opened when the network changes.** `TCPListener`
+  keeps its port across a Wi-Fi change, and Bonjour re-advertises; what goes
+  stale is the address list inside a pairing code already on screen. Since a code
+  lasts two minutes, showing it again is the whole remedy. Watching
+  `NWPathMonitor` to re-open the road is a real improvement only once somebody
+  reports a Mac that stopped answering after moving networks.

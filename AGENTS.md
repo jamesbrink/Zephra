@@ -54,6 +54,10 @@ Sources/Zephra (SwiftUI app) ─→ ZephraEngine ─→ ZephraCore, ZephraSnapsh
                              ─→ ZephraUpscale<Network> ─→ ZephraCore, ZephraMLX
                                                           [imported in ZephraApp.swift ONLY]
                              ─→ ZephraStyle ─→ ZephraCore
+                             ─→ ZephraLinkHost ─→ ZephraCore, ZephraEngine,
+                                                   ZephraLinkProtocol
+                             ─→ ZephraLinkTransport ─→ ZephraLinkProtocol
+                                                   [Companion/ only, to open a road]
 Sources/ZephraMobile (iOS)   ─→ ZephraCore, ZephraLinkProtocol, ZephraLinkTransport,
                                 ZephraLinkClient, ZephraStyle
                                 [never a backend, MLX, ZephraEngine or AppKit]
@@ -75,6 +79,14 @@ Shared, by what a file actually touches:
                                                   reaches only through the protocol in Core and
                                                   the app links in `ZephraApp.swift` alone, to
                                                   inject it; the player is AVKit's over the file
+  ZephraKit/ZephraLinkHost     Foundation, Observation, ImageIO, CoreGraphics, os,
+                                                  ZephraCore, ZephraEngine,
+                                                  ZephraLinkProtocol — the Mac's side of the
+                                                  link: CompanionHost, the sessions a paired
+                                                  phone talks through, the projections that
+                                                  turn the store and the index into what
+                                                  crosses, and the JPEG a preview frame
+                                                  becomes. No UI framework and no road
   ZephraKit/ZephraTestSupport  Foundation, ZephraCore — Scratch, the filesystem test
                                                   fixture, and SnapshotUnderTest, the real
                                                   snapshot a kit's suite may read
@@ -248,6 +260,22 @@ lifetime. `RelayConnection` speaks the relay's JSON over a
 new handshake — and `RelayListener` serves **one guest at a time**, because the
 relay gives a host one socket and a frame on it carries no guest id. Several
 phones at once is a LAN feature.
+
+`ZephraLinkHost` (`Packages/ZephraKit`) is the Mac's side. `CompanionHost` is
+`@MainActor @Observable`: it owns the sessions, the paired devices and the
+pairing secret, and it is served `LinkListener`s rather than opening a road
+itself, so a LAN listener and a relay are the same thing to it. One
+`withObservationTracking` loop over the store and the index, re-armed after each
+change and coalesced by 50 ms, is what publishes the `StateDelta`s; preview
+frames go out as JPEG at most ten a second, encoded off the main actor.
+`CompanionSession` is one phone, with a writer task of its own so a slow link
+never holds the main actor. It **writes nothing to the Mac's own interface**:
+every request goes through `GenerationStore.enqueue` and the index's own
+mutations, never `settings`, `descriptor`, `index.query` or `generate(count:)`,
+and an annotation edit is made with the index's `UndoManager` lifted off, since
+the Edit menu belongs to the person at the keyboard. The app's side is
+`Sources/Zephra/Companion/`: `LinkKeychain` (the identity and the pairings),
+`CompanionThumbnails`, `CompanionEndpoints`, `CompanionRoads` and `RelayRoad`.
 
 `ZephraLinkClient` is the phone's `LinkClient`: `@MainActor @Observable`, split
 by concern like `GenerationStore`, holding the snapshot the deltas edit, the
@@ -470,7 +498,7 @@ builds, the app-hosted tests, and `ZEPHRA_FRESH_START` (`FreshStart` in
 `Support/`, which gives `AppSettings.store` a throwaway suite and its own
 `Models` and `Images` folders; the hub cache is deliberately not redirected).
 
-Four directories, by what a file is rather than what screen it is on:
+Five directories, by what a file is rather than what screen it is on:
 
 - `Style/` — the chrome drawn on top of the shared tokens. The tokens
   themselves live in `Packages/ZephraStyle`, since the iOS companion is drawn
@@ -487,6 +515,11 @@ Four directories, by what a file is rather than what screen it is on:
   persisted through `AppSettings`.
 - `Support/` — caches, exports, pickers, previews, and the single homes for
   cross-cutting answers listed below.
+- `Companion/` — everything the link needs that is the Mac's rather than the
+  protocol's: `LinkKeychain` (the identity and the pairings), `CompanionThumbnails`,
+  `CompanionEndpoints`, `CompanionRoads`, `RelayRoad` and `PairingQRCode`. The one
+  place outside `ZephraApp.swift` that may import `ZephraLinkTransport`, since a
+  road is what it opens.
 - `Views/` — one subfolder per surface; the capsule, its controls, the
   commands and Settings sit at the top because they belong to no surface.
 
@@ -541,8 +574,9 @@ Rules in `Views/`:
 - `focusEffectDisabled()` on the library grid, the picker's grid and the
   viewer is the one exemption from the focus ring; an arrow key with nothing
   selected selects an end of the grid (`LibraryCursor`).
-- `SettingsView` is three tabs. `SettingsTab` gives the opening height;
-  `minimumHeight` is one number for all three and must fit a 13-inch MacBook
+- `SettingsView` is four tabs — General, Performance, Models, Companion.
+  `SettingsTab` gives the opening height;
+  `minimumHeight` is one number for all four and must fit a 13-inch MacBook
   Air, since AppKit can only clamp a window that fits. `SettingsWindowFrame`
   configures the window from a zero-sized `NSView` and *observes* the
   resizable flag, putting it back whenever SwiftUI strips it. Escape does not

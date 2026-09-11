@@ -1,5 +1,6 @@
 import Foundation
 import ZephraLinkClient
+import ZephraLinkTransport
 
 /// Keeping the phone connected to its Mac for as long as it is in front of somebody.
 ///
