@@ -832,6 +832,17 @@ US-spelling check.
   flag is up — `LibrarySync.plan` is pure and answers with them regardless. Browsing, searching, the viewer over
   anything fetched, Share and Save to Photos work offline; favoriting, tagging,
   deleting and an unfetched picture grey rather than failing on press.
+- `LibraryViewer` is Photos-shaped: a lazy horizontal `ScrollView` paging the
+  **whole grid** in the grid's order (the run's pictures from Today), each page
+  a `ZoomingScrollView` — a nested `UIScrollView` for pinch and double-tap
+  zoom, so paging and panning never fight: at fit UIKit hands the pan to the
+  pager, zoomed in it scrolls the picture, and a page that stops being current
+  goes back to fit. A single tap hides the chrome. Swipe down dismisses through
+  `ZoomingScrollView+Pull`, a pan recognizer read in UIKit beside the pager's
+  (a SwiftUI drag over the pager never sees a touch), and `ViewerPose.Pull`
+  holds the rules `ViewerPoseTests` pin. Everything the fingers do reaches the
+  viewer as `ViewerGestures` closures in the environment; `ViewerPull` is what
+  a pull does to the screen. A clip's page is AVKit's and has no pull.
 - The Today tab is `snapshot.today` drawn in the Mac's order. Nothing in it
   groups anything: `RunSummary` arrives grouped, and `EngineStateDTO` already
   carries the derived facts the running card reads.
@@ -840,7 +851,9 @@ US-spelling check.
   Debug only, over two JSON fixtures decoded with the wire's own decoder. Every
   state but `pairing` is a `LinkClient.frozen`, which has no road under it;
   nothing reconnects behind one, the catalog is built with no roots and writes
-  nothing, and `shaped(_:for:)` is where `midRun` and `todayRuns` are chosen.
+  nothing (`viewer` alone reads drawn pictures from a temporary folder
+  `MobilePreview.pictureFolder()` empties at every launch), and
+  `shaped(_:for:)` is where `midRun` and `todayRuns` are chosen.
 - `make build-ios`, `make run-ios PREVIEW=<state>`, `make test-ios`,
   `make screenshot-ios`. `IOS_SIM` names the simulator; CI passes what
   `scripts/ios-sim.sh` finds. There is no benchmark: the phone renders

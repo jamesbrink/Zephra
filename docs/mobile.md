@@ -432,6 +432,64 @@ the very fetch it started. And the request is taken before anything is fetched,
 so a slow link cannot let it be acted on twice and refill a well somebody
 emptied.
 
+### The viewer
+
+`LibraryViewer` (`Views/Library/`) is a picture full size, and it is built the
+way Photos is, because Photos is what every thumb on a phone already knows.
+
+- **The pager is a lazy `ScrollView`**, horizontal, paging with
+  `.viewAligned(limitBehavior: .always)` over a `LazyHStack` of `ViewerPicture`s
+  a `containerRelativeFrame` wide and `MobileChrome.viewerPageGap` apart, its
+  position bound to the current file name. Lazy is what lets `LibraryScreen`
+  hand it **the whole grid** in the grid's order rather than one day: the grid
+  is one continuous wall and its day headers are labels on it, and a swipe that
+  stopped at midnight stopped somewhere nobody could see from the picture they
+  were looking at. `TodayScreen` hands it the run's pictures in the strip's
+  order, so a swipe there walks the seeds of one press of Generate.
+- **Zoom is a `UIScrollView`.** `ZoomablePicture` wraps `ZoomingScrollView`, a
+  scroll view holding one `UIImageView` sized to the aspect-fitted rectangle and
+  kept centered with `contentInset`, minimum zoom 1, maximum 6, its own
+  delegate. It is UIKit rather than a `MagnifyGesture` beside a `DragGesture`
+  for one reason: a nested scroll view at zoom 1 has nothing to scroll, so UIKit
+  hands the pan straight to the pager, and zoomed in the same pan scrolls the
+  picture. Two SwiftUI gestures over the same pixels had to guess which, and
+  guessed wrong often enough to feel broken. Double tap goes in to 2.5 around
+  the finger or back to fit; a single tap waits for the double to fail. A page
+  reads `\.viewerPageIsCurrent` and puts its zoom back to fit the moment it is
+  not, so swiping away from a zoomed picture and back finds it fitted.
+  Replacing the picture — the viewer sharpens a thumbnail into the file —
+  keeps the zoom, since the shape is the same.
+- **What the fingers did goes up as `ViewerGestures`** (`Support/`), three
+  closures in the environment: `tapped` toggles the chrome, `zoomed` says
+  whether the picture is in past fit, `pulled` carries each phase of a pull
+  downwards. The viewer holds all of it in one `ViewerPose`: the current file
+  name, whether the chrome is hidden, whether the picture is zoomed, and the
+  pull.
+- **Swipe down closes it, and the finger is read in UIKit too.** A SwiftUI
+  `DragGesture` over the pager never saw a touch — the two scroll views
+  underneath claim every one before SwiftUI's gesture does — so
+  `ZoomingScrollView+Pull` is a `UIPanGestureRecognizer` on the page. It begins
+  for any touch at fit, because UIKit asks a touch held still on a scroll view
+  at zero translation and a refusal there is final; it reads the direction on
+  the first change past `pullDecision` (8 points), and for anything but a pull
+  downwards it cancels itself, which is the failure the pager's pan has been
+  told to wait for (`shouldBeRequiredToFailBy`). So a sideways drag is the
+  pager's, a drag on a zoomed picture is the picture's, and a pull never drags
+  the next picture sideways on its way down. `ViewerPull` is what the phases
+  do to the screen: the picture drops by the offset, shrinks by a quarter at
+  most, and the black behind it thins so the grid shows through
+  (`presentationBackground(.clear)` on the cover, which does show the grid).
+  Letting go past `MobileChrome.viewerDismissDistance`, or flung so that a
+  quarter of a second at lift-off speed would carry it past twice that
+  (`Pull.predictedEnd`), dismisses; short of it the picture springs back, or
+  snaps back under Reduce Motion. The decisions are static functions on
+  `ViewerPose.Pull`, and `ViewerPoseTests` is what pins them.
+- A single tap hides the title strip and the bar and another brings them back,
+  faded over 0.2 s or at once under Reduce Motion; hidden chrome takes no hits.
+  A clip's page is `ClipPlayerView` with its controls, whose taps are AVKit's;
+  it has no pull, since the recognizer lives on the picture's scroll view, and
+  the X is a clip's way out.
+
 ## Today
 
 The Today tab is the Mac's canvas sidebar: what is waiting, what is being
@@ -517,6 +575,14 @@ itself from the frozen client's library and writes nothing, so photographing a
 surface twice photographs the same surface. Blobs fail on a frozen client, so
 the grid's cells are placeholders and the viewer says the picture is not on
 this phone — which is, incidentally, exactly what the offline path looks like.
+The one exception is `viewer`, which is about paging, pinching and pulling and
+needs a picture under the finger: `MobilePreview.pictureFolder()`
+(`MobilePreview+Pictures.swift`) draws one numbered, gridded picture per
+fixture entry at the entry's own size into a folder under the temporary
+directory, emptied at every launch, and the catalog's `FileStore` reads it
+before asking the Mac. The clip's page still says the picture is not here,
+since there is no MP4 to draw. Drawn rather than bundled for the reason
+`frame()` is drawn: what matters is that each page is unmistakably itself.
 
 ## Running it
 

@@ -536,6 +536,21 @@ Left out of the first pass on purpose, each a small change to one file unless no
   For now, move into an empty folder, or keep both libraries in place and switch
   between their folders in Settings.
 
+## The phone's viewer: left out on purpose
+
+- **No pull-down over a clip.** The pull is a pan recognizer on the picture's
+  `ZoomingScrollView`, and a clip's page is `AVPlayerViewController`'s view,
+  whose own recognizers take every touch; the X is a clip's way out. A
+  recognizer on the page container that yields to AVKit's transport controls
+  is the fix, once it is worth the fight.
+- **No zoom-back-to-cell transition.** Photos closes a pulled picture by
+  shrinking it into its cell in the grid; here the picture follows the finger
+  and the cover slides away when it is let go. A matched-geometry transition
+  between `LibraryCell` and the viewer's page is the next step.
+- **Paging past a zoomed picture's edge is UIKit's.** Dragging a zoomed
+  picture past its edge chains the pan to the pager, which is what Photos
+  does; nothing here decides it, so nothing here tunes it.
+
 ## The companion link: left out on purpose
 
 - **Several guests over the relay.** `RelayListener` serves one phone at a time,
