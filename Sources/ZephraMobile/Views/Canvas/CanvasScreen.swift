@@ -28,12 +28,10 @@ struct CanvasScreen: View {
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     PromptCapsule(isExpanded: $selection.capsuleIsExpanded)
                 }
-                // The first snapshot is the Mac saying which model is in force and what it
-                // defaults to; `adopt` takes only that first one, so nothing here can land on
-                // a prompt somebody is in the middle of typing.
-                .onChange(of: client.snapshot?.model.id, initial: true) { _, _ in
-                    draft.adopt(client.snapshot)
-                }
+                // The first snapshot seeds the capsule, and a run the Mac starts fills it in
+                // the way the Mac's own capsule follows the run; never over a prompt somebody
+                // is in the middle of typing.
+                .modifier(DraftFollowsMac())
                 // "Use as Reference", said over in the library and heard here.
                 .modifier(ReferenceIntentReader(fill: fill))
         }

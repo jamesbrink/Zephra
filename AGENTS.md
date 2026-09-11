@@ -759,7 +759,14 @@ US-spelling check.
 - `PromptDraft` (`Support/`) is the phone's capsule: the settings, the model, the
   picture in the well and the seeds one press is worth, injected beside the
   client and the one object here holding something the Mac did not say. It seeds
-  itself from the **first** snapshot only and clamps every request through the
+  itself from the **first** snapshot only, and then follows a run the Mac starts
+  (`follow`, `PromptDraft+FollowingRun`) the way the Mac's own capsule follows
+  the run: the running row's `settings` and `modelID` land in the capsule, the
+  well emptied, **only while the draft is untouched** — its prompt empty or the
+  last one it followed or sent (`followedPrompt`, set by `follow` and by
+  `noteSubmitted` once the Mac answers `queued`). A prompt somebody typed on the
+  phone is never written over; `DraftFollowsMac` is the one modifier that calls
+  both. It clamps every request through the
   Mac's own `ModelCapabilities`, rebuilt from `CapabilitiesSummary`, so the phone
   asks for what the Mac would have allowed rather than for what the Mac then
   quietly rewrites. Taking a picture into the well runs the Mac's

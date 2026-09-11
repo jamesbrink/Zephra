@@ -32,6 +32,10 @@ final class PromptDraft {
     /// model is in force and what it defaults to; every one after it would overwrite a prompt
     /// somebody is in the middle of typing.
     @ObservationIgnored private var hasAdopted = false
+    /// The last prompt this draft took from a run of the Mac's or sent it as one, which is how
+    /// `follow` tells a draft nobody has touched from one somebody typed into
+    /// (`PromptDraft+FollowingRun`). Set there and by `noteSubmitted`, nowhere else.
+    @ObservationIgnored var followedPrompt: String?
 
     /// An empty draft, before any Mac has said what it can do.
     init() {
@@ -43,16 +47,19 @@ final class PromptDraft {
         count = 1
     }
 
-    /// Seeds the model and its defaults from the Mac's state, the first time one arrives.
+    /// Seeds the model and its defaults from the Mac's state, the first time one arrives, and
+    /// then follows the run the Mac is in the middle of, if there is one.
     ///
     /// The prompt is kept, since somebody may have typed one before the link came up, and so is
-    /// the seed, which is this launch's and not the Mac's.
+    /// the seed, which is this launch's and not the Mac's; `follow` has the same rule, so a run
+    /// in flight replaces neither of them over something typed.
     func adopt(_ snapshot: StateSnapshot?) {
         guard !hasAdopted, let snapshot else { return }
         hasAdopted = true
         modelID = snapshot.model.id
         settings = Self.defaults(
             for: snapshot.model.capabilities, prompt: settings.prompt, seed: settings.seed)
+        follow(snapshot.running)
     }
 
     /// Names another model, putting the schedule settings on its own ladder the way

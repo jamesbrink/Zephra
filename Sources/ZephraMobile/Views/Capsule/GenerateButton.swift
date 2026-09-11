@@ -56,6 +56,9 @@ struct GenerateButton: View {
         Task {
             do {
                 try await client.enqueue(request, reference: reference)
+                // Queued, so the run it becomes is one the capsule follows rather than a
+                // prompt still being typed; a refused press leaves the prompt somebody's.
+                draft.noteSubmitted(request)
             } catch let error as LinkError {
                 refusal = error.reason
             } catch {

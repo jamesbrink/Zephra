@@ -186,7 +186,22 @@ about the Mac. The facts stay on `LinkClient`.
 
 - `adopt(_ snapshot:)` seeds the model and its defaults, **the first snapshot
   only**. Every snapshot after it would land on a prompt somebody is in the
-  middle of typing.
+  middle of typing. Having seeded, it follows `snapshot.running`, so a phone
+  that connects mid-run shows the prompt at once.
+- `follow(_ running:)` (`PromptDraft+FollowingRun`) is the Mac's own
+  follow-the-run rule (`GenerationStore+FollowingRun`, `watchRun()`) in a
+  phone's shape: when a run starts, the draft takes its `settings` and
+  `modelID` — the well emptied, since the phone has no pixels for the Mac's
+  picture, `referenceOrigin` kept as the row carries it, the continuation
+  dropped with the well — **only while the draft is untouched**: its prompt is
+  empty or is the last prompt it followed or sent. `followedPrompt` is that
+  one fact, set by `follow` and by `noteSubmitted`, which `GenerateButton`
+  calls once the Mac has answered `queued`. So a run the phone submitted is
+  followed harmlessly, a later run of the Mac's replaces it, and a prompt
+  somebody typed is never written over. `DraftFollowsMac` (`Views/Canvas/`) is
+  the modifier that calls both, on the first snapshot and on every change of
+  `running?.id`; a run ending changes nothing, the way the Mac's capsule keeps
+  a finished run's settings.
 - `request(clampedBy:)` rebuilds the real `ModelCapabilities` from
   `CapabilitiesSummary` and runs the Mac's own `clamp`. The phone therefore asks
   for what the Mac would have allowed, rather than for something the Mac quietly
