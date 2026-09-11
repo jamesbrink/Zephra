@@ -55,7 +55,8 @@ engine be tested in seconds without Metal.
 
   What a backend hands back is `GeneratedMedia`: `.image(png:)` from the three
   picture families, `.video(GeneratedVideo)` — the MP4, its first frame as the
-  poster PNG, the frame count and rate — from LTX-2.5. One return type rather
+  poster PNG, the frame count and rate, and `hasAudio` when the file carries a
+  sound track — from Wan and LTX-2.5. One return type rather
   than two protocol methods, because the actor, the timer, the cancellation
   check and the queue are the same whatever comes back; only the last step
   reads the kind. `GenerationSettings.frames` is the clip's length (1 for a

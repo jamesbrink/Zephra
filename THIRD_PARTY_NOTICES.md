@@ -107,8 +107,9 @@ written from the second port and from `diffusers`.
 ### LTX-2.5 port (`Packages/LTX2Kit`)
 
 `Packages/LTX2Kit` is Zephra's own code, an MLX Swift implementation of
-LTX-2.5's video path — the distilled transformer's video stream, the Gemma 4
-text encoder, the text connector and the convolutional video decoder — written
+LTX-2.5 — the distilled transformer's video and audio streams, the Gemma 4
+text encoder, both text connectors, the convolutional video autoencoder, the
+audio autoencoder's decoder and the BigVGAN-v2 vocoder — written
 in the same style as `Flux2Kit` and covered by Zephra's own license. It was
 translated with attribution from the Apache-2.0 reference implementations in
 `diffusers` and `transformers`, and its behaviour is pinned against them by
@@ -118,8 +119,12 @@ reference was followed, and `PROVENANCE.md` lists the departures.
 
 - **diffusers** — https://github.com/huggingface/diffusers — Copyright 2024
   The HuggingFace Team — Apache License 2.0 — the LTX-2 transformer block,
-  the audio-video rotary embedding, the text connectors and the video
-  autoencoder the port is defined against and dumps its fixtures from.
+  the audio-video rotary embedding, the text connectors, the video and audio
+  autoencoders and the vocoder (`pipelines/ltx2/vocoder.py`) the port is
+  defined against and dumps its fixtures from. The vocoder's architecture is
+  NVIDIA's BigVGAN-v2 (https://github.com/NVIDIA/BigVGAN, MIT); Zephra's is
+  written from diffusers' reimplementation alone, and NVIDIA's repository was
+  not read.
 - **transformers** — https://github.com/huggingface/transformers — Copyright
   2018- The Hugging Face team — Apache License 2.0 — the Gemma 4 text model
   the encoder is defined against and dumps its fixtures from.
@@ -258,8 +263,9 @@ user's own machine, which the `make quantize*` targets also do by hand.
   — Copyright Lightricks Ltd. — License: LTX-2.x Community License Agreement
   (dated August 11, 2026; the pack ships it as `LICENSE.md`, and the packed
   variant carries that file beside its weights) — the distilled transformer,
-  the text connector, the video decoder and the Gemma 4 text encoder, as bf16
-  safetensors converted by the mlx-community from Lightricks' release. The
+  the text connector, the video autoencoder, the spatial upsampler, the audio
+  autoencoder, the vocoder and the Gemma 4 text encoder, as safetensors
+  converted by the mlx-community from Lightricks' release. The
   text encoder is Google's Gemma 4 12B, fine-tuned by Lightricks: Google
   publishes Gemma 4 under the Apache License 2.0 (Copyright 2026 Google LLC;
   https://ai.google.dev/gemma/docs/gemma_4_license — Gemma 3 and earlier were

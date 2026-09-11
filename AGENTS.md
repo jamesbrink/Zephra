@@ -2,7 +2,8 @@
 
 Zephra is a native macOS app that generates images locally on Apple Silicon,
 via MLX/Metal. It runs four model families today, Z-Image-Turbo,
-Qwen-Image-2512, FLUX.2 klein 4B, and LTX-2.5 (video), behind one backend seam.
+Qwen-Image-2512, FLUX.2 klein 4B, Wan 2.2 and LTX-2.5 (video, with sound on one
+entry), behind one backend seam.
 
 ## Quick reference
 
@@ -60,7 +61,8 @@ Shared, by what a file actually touches:
                                                   checks, the hub cache read as a fallback,
                                                   what the models occupy on disk
   ZephraKit/ZephraMedia        Foundation, AVFoundation, ZephraCore — frames in, an H.264
-                                                  MP4 out (`MP4Writer`), which a video backend
+                                                  MP4 out (`MP4Writer`, with an AAC track when
+                                                  handed an `AudioTrack`), which a video backend
                                                   takes for its clip; a clip's tail read back
                                                   (`ClipTail`) and clips joined (`MP4Stitcher`,
                                                   the one `ClipEditing`), which the engine
@@ -150,7 +152,9 @@ Shared, by what a file actually touches:
   `diffusers`, pinned against `diffusers`; never from GPL code or the unlicensed
   `xocialize/flux2-vae-mlx-swift`.
 - `Packages/LTX2Kit`: ours, from Apache-2.0 `diffusers` and `transformers`,
-  pinned by dumped fixtures; nothing copied from `Lightricks/LTX-2`. Video only.
+  pinned by dumped fixtures; nothing copied from `Lightricks/LTX-2`. The video
+  lane always, the audio lane, its decoder and the vocoder for the entry with
+  sound.
 - `Packages/WanKit`: ours, from Apache-2.0 `diffusers` and `transformers` and
   the release's configs, pinned by dumped fixtures; no other port of Wan read.
 - Each kit's `PROVENANCE.md` lists its deliberate departures; keep it true.
@@ -480,9 +484,10 @@ Rules in `Views/`:
   one lookup behind the canvas inspector and menu.
 - `RootView` forces the toolbar background visible; panes and the inspector
   start below the strip.
-- `ClipPlayerView` is AVKit's `AVPlayerView` over the MP4, looped and muted,
-  never SwiftUI's `VideoPlayer` (its controls take the tuck click and it
-  crashed resolving its superclass), which is why `project.yml` links
+- `ClipPlayerView` is AVKit's `AVPlayerView` over the MP4, looped, muted
+  unless the asset itself says it has an audio track (never a record's word
+  for it), never SwiftUI's `VideoPlayer` (its controls take the tuck click and
+  it crashed resolving its superclass), which is why `project.yml` links
   `AVKit.framework` explicitly. Clips keep playing during a run.
 - `DurationControl` shows only when `frameBounds` is a range; `StepsControl`
   hides when `stepBounds` is a single value, as guidance already does.
@@ -821,9 +826,11 @@ Makefile targets:
   and Wan ones name files explicitly because those repositories ship more than
   the build reads.
 - `quantize`, `quantize-qwen`, `quantize-flux2`, `quantize-ltx2`,
-  `quantize-wan` — the build the app does on first load, by hand, into the
-  app's models folder (`QUANT_OUT`, `QWEN_OUT`, `FLUX2_OUT`, `LTX2_OUT`,
-  `WAN_OUT`; `BITS`, `GROUP_SIZE`).
+  `quantize-ltx2-audio`, `quantize-wan` — the build the app does on first
+  load, by hand, into the app's models folder (`QUANT_OUT`, `QWEN_OUT`,
+  `FLUX2_OUT`, `LTX2_OUT`, `LTX2_AUDIO_OUT`, `WAN_OUT`; `BITS`, `GROUP_SIZE`).
+  `prefetch-ltx2` fetches the two audio files too, so one pack serves both
+  LTX builds.
 - `mirror` (and `mirror-<variant>`, `mirror-index`, `mirror-sync`) — build
   every packed variant into `MIRROR_DIR` laid out for the bucket with
   `index.json`, and sync to `MIRROR_BUCKET` under `MIRROR_PROFILE` with
@@ -871,7 +878,10 @@ sentences about behaviour.
   clip belongs in `ZephraMediaTests`, whose committed fixture
   (`Fixtures/red-then-blue.mp4`) and in-process writes are fine under
   `swift test`.
-- `make test-mlx` — the MLX packages, through `xcodebuild`.
+- `make test-mlx` — the MLX packages, through `xcodebuild`, each package's
+  suites run serially (`-parallel-testing-enabled NO`): in parallel, whichever
+  autoencoder parity suite lands beside a heavy one reads a tensor back off by
+  whole units, and the same suite passes alone.
 - One suite: `cd Packages/ZephraKit && swift test --filter ModelSwap`. The
   filter is a regex over *type* names, not `@Suite` display names. For an MLX
   package: `xcodebuild test -scheme <Package> -destination 'platform=macOS'
@@ -1033,15 +1043,43 @@ budget (tests, GPU-less builds) assumes four fifths.
   and places its tokens after the image on rotary image index 10; the shift
   counts only the image being made.
 
-### LTX-2.5: `ltx-2.5-distilled-4bit`
+### LTX-2.5: `ltx-2.5-distilled-4bit`, `ltx-2.5-distilled-audio-4bit`
 
-- **Video only**: the audio stream is a seam (`ROADMAP.md`), and its absence
-  changes the pictures, since `audio=None` drops the audio-to-video term.
+- Two entries from one pack. The first runs the official `audio=None` forward,
+  video only, for Macs without the memory for the lane; its pictures differ
+  from the audio-video model's, since that forward drops the audio-to-video
+  term. The second, "4-bit, with sound", runs the whole model: the audio lane
+  in every block, the audio connector, the audio autoencoder's decoder and the
+  vocoder, and its MP4 carries a stereo AAC track at 48 kHz.
+  `ModelCapabilities.producesAudio` is the one flag: the plan, the snapshot
+  checks, the load and the player's mute all read it or the file. Listed last
+  in `all`, so Animate still picks Wan.
 - Lightricks' repositories are gated and Zephra sends no token, so the catalog
-  names the ungated `mlx-community/ltx-2.5-mlx` pack: five files (distilled
-  transformer, connector, Gemma 4 encoder with tokenizer, video decoder, video
-  encoder), the audio and dev files omitted by pattern. The mirror is the path
-  users take.
+  names the ungated `mlx-community/ltx-2.5-mlx` pack: six files for the video
+  entry (distilled transformer, connector, Gemma 4 encoder with tokenizer,
+  video decoder, video encoder, spatial upsampler), the audio autoencoder and
+  vocoder added for the entry with sound, the dev files omitted by pattern.
+  The mirror is the path users take.
+- The audio lane (`LTX2AudioLane` in each block, `LTX2AudioHead` on the
+  transformer, both nil on a video-only tree): per block, video self-attention,
+  audio self-attention, both text cross-attentions, then the two gated
+  cross-modal attentions on five-row tables (scale, shift, scale, shift, gate)
+  with the queries rotated on their own time table and the keys on the other
+  lane's (`keyRotary`), then both feed-forwards. The audio adaLN heads and the
+  four `av_ca_*` conditioners read the **scalar** sigma always, even over a
+  held frame. Audio latents are `[1, L, 128]` float32, L = round(frames / 24 x
+  25), positioned in seconds over a 20-second rotary; both lanes walk one
+  ladder, the audio re-noised at the second stage's top the way
+  `pipeline_ltx2_condition.py` does, with noise keys of its own (`seed +
+  30000`, `+ 50000` per step, `+ 40000` at the second stage). Decode is `LTX2AudioDecoder` (2D causal convolutions, float32)
+  then `LTX2Vocoder`, BigVGAN-v2 twice (16 kHz, then the bandwidth extender
+  to 48 kHz) written from diffusers' `vocoder.py`; its depthwise anti-aliasing
+  filters run as single-channel convolutions over `[B*C, T, 1]`.
+- Pack keys for the lane nest under `audio.` in the module tree
+  (`LTX2TransformerWeights.sanitized(_:audio:)`); `WeightKeyCoverageTests`
+  claims every one of the 4091 transformer and 262 connector keys for the
+  audio variant and keeps `audioOmitted` in step with `audioMarkers` for the
+  video one.
 - The encoder is causal in time, so one picture encodes to one latent frame
   held as the clip's first. The transformer's video adaLN and output head see a
   **per-token** sigma, `sigma * (1 - mask)`, while the prompt's adaLN keeps the
@@ -1056,9 +1094,12 @@ budget (tests, GPU-less builds) assumes four fifths.
   `vae_encoder.`, `model.language_model.`). `LTX2QuantizationPlan` packs both
   stacks at four bits, the two embeddings at eight, holds conditioning,
   modulation tables, gates and norms whole, and omits the audio side through
-  `audioOmitted`, which `WeightKeyCoverageTests` keeps in step with
-  `LTX2TransformerWeights.audioMarkers`. The aggregate projection's scales stay
-  float32: 188160 products summed in bfloat16 lose the prompt.
+  `audioOmitted` unless `plan(audio:)` asks for the lane, when the lane's
+  blocks pack at four bits, its ends, adaLN heads and the four conditioners
+  stay whole, the audio aggregate projection goes to eight like the video one,
+  and `audio_vae` (decoder half) and `vocoder` (inverse basis left out) are
+  copied whole. The aggregate projections' scales stay float32: 188160 products
+  summed in bfloat16 lose the prompt.
 - `LTX2Tokenizer` is Zephra's own byte-pair encoder keyed by UTF-8 bytes,
   pinned against Hugging Face's ids; it prepends BOS (id 2), truncates keeping
   the front, and left-pads to 1024 with id 0.

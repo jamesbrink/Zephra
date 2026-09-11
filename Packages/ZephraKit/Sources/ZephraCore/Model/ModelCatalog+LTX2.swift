@@ -128,11 +128,10 @@ extension ModelCatalog {
         streamedPeakBytes: 11_400_000_000,
         maxPromptTokens: 1024,
         capabilities: ltx2AudioCapabilities,
-        // Estimated from the video-only build: its 20.84 GB plus the lane's 5.86 billion
-        // parameters at four bits with float32 scales (3.3 GB), the audio projection at
-        // eight bits (0.4 GB), the conditioners whole (0.2 GB), and the two audio files
-        // copied (0.37 GB). To be measured by `make quantize-ltx2-audio`.
-        builtBytes: 25_100_000_000,
+        // Measured by `make quantize-ltx2-audio` on 2026-09-10: 25,832,161,853 bytes, the
+        // video-only build's 20.84 GB plus 4.0 GB of lane in the transformer, 0.7 GB of
+        // audio connector and projection, and the two audio files copied (0.32 GB).
+        builtBytes: 25_832_161_853,
         mirror: mirror
     )
 

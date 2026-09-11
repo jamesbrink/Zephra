@@ -281,10 +281,10 @@ after the image being made on image index 10 of the rotary embedding's first
 axis. The schedule's shift counts only the image being made. An edit is dearer
 than a picture, since the reference's tokens ride through every attention layer.
 
-### LTX-2.5: `ltx-2.5-distilled-4bit`
+### LTX-2.5: `ltx-2.5-distilled-4bit`, `ltx-2.5-distilled-audio-4bit`
 
 **LTX-2.5** (Lightricks, LTX-2.x Community License) is a 22-billion-parameter
-audio-video DiT of which Zephra runs the **video stream only**: 13.1 billion
+audio-video DiT. The first entry runs the **video stream only**: 13.1 billion
 parameters across 48 blocks (video self-attention, cross-attention to text, and
 a feed-forward, each gated per head by `to_gate_logits`), conditioned on a
 Gemma 4 12B encoder — all 49 of its hidden states, RMS-normalised per token,
@@ -403,14 +403,46 @@ stays float32 because 188160 products summed in bfloat16 lose the prompt.
 Video only is a real departure and not just a subset: the audio-to-video
 cross-attention adds a term to the video stream that the `audio=None` forward
 has not got, so this variant's pictures differ from the audio-video model's.
-The official model accepts `audio=None`, the fixtures are dumped the same way,
-and the seam for the audio stream — the place on `LTX2Block` where the audio
-modules go, the transformer's audio heads, a second connector stack, the audio
-autoencoder and vocoder, an audio track in `GeneratedVideo` — is written down
-in `ROADMAP.md` for Macs with the memory. Nothing else is left out of the video
-path except the temporal chunking of the decode, which matters past about 121
-frames at 1024, and the H.264 re-compression the reference puts a held first
-frame through before encoding it (`ROADMAP.md`).
+The official model accepts `audio=None` and the video-only fixtures are dumped
+the same way. Nothing else is left out of the video path except the temporal
+chunking of the decode, which matters past about 121 frames at 1024, and the
+H.264 re-compression the reference puts a held first frame through before
+encoding it (`ROADMAP.md`).
+
+**The entry with sound** runs the whole model. The audio lane is 5.86 billion
+more parameters: in every block an audio self-attention, an audio
+cross-attention to the text, a 2048-wide feed-forward with biases, and the two
+gated cross-modal attentions (audio-to-video with video queries over audio
+keys, video-to-audio the other way, 32 heads of 64) on their own five-row
+tables, gated and modulated by four conditioners on the transformer
+(`av_ca_*_adaln_single`) that read the scalar sigma. The audio tokens are
+`[1, L, 128]`, the audio autoencoder's eight channels by sixteen mel bands
+packed, L = round(frames / 24 x 25), placed in seconds on a one-axis rotary
+over twenty seconds (`LTX2AudioPositions`: the mel frame's midpoint at hop 160
+of 16 kHz). The text reaches it through a second connector, 2048 wide with its
+own 128 registers, fed by `audio_aggregate_embed`. Both lanes walk one ladder;
+at the second stage the audio latent is re-noised at the ladder's top and
+walked beside the doubled video, as `pipeline_ltx2_condition.py` does. After
+the loop the audio latent is denormalised by the pack's per-channel statistics,
+decoded by `LTX2AudioDecoder` (two-dimensional causal convolutions over
+`[B, T, M, C]`, three levels of 512/256/128 with nearest doubling, pixel norm
+at eps 1e-6, float32) to a two-channel mel spectrogram, and turned to sound by
+`LTX2Vocoder`: BigVGAN-v2 twice, a 1536-wide generator to 16 kHz and a
+512-wide bandwidth extender to 48 kHz over a Hann-windowed 3x resampling and a
+convolutional mel STFT, with SnakeBeta activations anti-aliased by the pack's
+stored 12-tap filters. The result is an `AudioTrack` (`ZephraMedia`) the
+backend hands `MP4Writer` beside the frames, and the MP4 carries an AAC track.
+
+The plan for it is `LTX2QuantizationPlan.plan(audio: true)`: nothing omitted
+from the transformer or the connector, the lane's blocks at four bits, its
+ends, adaLN heads and the four conditioners whole, the audio aggregate
+projection at eight bits like the video one, and two more components copied
+as they are: `audio_vae` (the decoder half and the statistics; the encoder is
+left out, since nothing conditions audio) and `vocoder` (the inverse Fourier
+basis left out, since nothing reads it). The variant lives under its own id
+so the two identities never cross, and a Mac holding the video-only variant
+packs the whole audio one beside it. Resident it holds 3.3 GB more than the
+video entry; streamed it reads 3.5 GB more per step.
 
 The tokenizer is Zephra's own byte-pair encoder over the pack's `tokenizer.json`
 (`LTX2Tokenizer`): swift-transformers 0.1.24 splits by grapheme cluster and

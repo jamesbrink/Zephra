@@ -315,7 +315,7 @@ Four directories, by what a file is rather than what screen it is on:
 
   A clip plays where its poster would be: `Canvas/ClipPlayerView`, an
   `NSViewRepresentable` over AVKit's `AVPlayerView` with no transport controls,
-  fed by an `AVPlayerLooper`, muted, over the MP4 beside the poster — on the
+  fed by an `AVPlayerLooper`, muted unless the asset carries an audio track, over the MP4 beside the poster — on the
   canvas once the save has landed and `fileURL` says where (the poster shows
   until then), and in the library viewer through `Library/Viewer/LibraryViewerClip`
   for any item with a `videoURL`. Both play on while a run is in flight: H.264

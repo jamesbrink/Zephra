@@ -62,24 +62,22 @@ is distributed until the app is ready to ship.
    promises the mirror's 19.8 GB. LTX-2.5's variant with the video encoder was the one
    waiting; it went with the 2026-09-08 ship, and `index.json` in the bucket is now byte
    for byte the one in `MIRROR_DIR`, so nothing is owed.
-8. **LTX-2.5 video** (in progress on `feat/ltx2`; `docs/research/ltx-2.5.md` has the
-   reading). Shipped first: the video-only distilled transformer at four bits, packed from
-   the ungated `mlx-community/ltx-2.5-mlx` bf16 pack — Lightricks' own repositories are
-   gated and Zephra sends no token — with a poster PNG carrying the record and the MP4
-   beside it. Left out, in order of value:
-   - **Audio**, for Macs with the memory: a second catalog entry whose plan is
-     `LTX2QuantizationPlan` without `audioOmitted` plus the audio autoencoder and the
-     vocoder copied whole (0.37 GB more download). In the kit, `LTX2Block.audio` becomes
-     non-nil when its weights are present (`audio_attn1`, `audio_attn2`, `audio_ff`, the
-     two audio-video cross-attentions and their `scale_shift_table_a2v_ca_*`, gated by the
-     four `av_ca_*_adaln_single` conditioners), the transformer gains the audio patchify,
-     adaLN and projection, the feature extractor its `audio_aggregate_embed`, the connector
-     a second 2048-wide stack, and `LTX2AudioDecoder` plus a BigVGAN `LTX2Vocoder` are
-     ported with diffusers fixtures. `GeneratedVideo` gains an audio track and `MP4Writer`
-     appends it before the frames (appending it after deadlocks `AVAssetWriter`).
-     `ModelCapabilities.producesAudio` lets the player unmute. The video output of the
-     audio variant differs from the video-only one: the audio-to-video cross-attention
-     adds a term the video-only forward has not got.
+8. **LTX-2.5 video** (`docs/research/ltx-2.5.md` has the reading). Shipped first: the
+   video-only distilled transformer at four bits, packed from the ungated
+   `mlx-community/ltx-2.5-mlx` bf16 pack — Lightricks' own repositories are gated and
+   Zephra sends no token — with a poster PNG carrying the record and the MP4 beside it.
+   Left out, in order of value:
+   - **Audio**: shipped 2026-09-10 as a second entry, `ltx-2.5-distilled-audio-4bit`,
+     the plan with the lane, the audio decoder and the vocoder, the kit's audio lane,
+     heads, connector, decoder and BigVGAN-v2 vocoder pinned by diffusers fixtures, and
+     an AAC track in the MP4 (`MP4Writer` feeds both inputs at once from
+     `requestMediaDataWhenReady`; polling either one stalls the writer at the first
+     interleave). Still out: audio conditioning and the audio encoder (nothing to hold
+     an earlier clip's sound at a join, so a chained or extended clip made with sound
+     carries each pass's own track, joined at the seam without a crossfade); a volume
+     control and a mute in the player beyond the file's own track; an 8-bit audio
+     variant; the wall stays silent by design; and the audio's per-step noise keys are
+     this port's own, so the lane's sound for a seed is not the reference's.
    - **More than one held frame**: shipped 2026-09-10 as Extend Clip, holding the `1 + 8k`
      last frames of an earlier clip as `k + 1` clean latent frames at the head
      (`LTX2HeldFrames`; the reference's multi-frame condition at latent index 0). Still

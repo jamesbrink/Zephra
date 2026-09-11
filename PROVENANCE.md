@@ -223,7 +223,7 @@ carries the pack's `LICENSE.md`.
 | Reference | License | What was taken |
 |---|---|---|
 | `mlx-community/ltx-2.5-mlx` configs and headers | LTX-2.x Community | Every architectural constant and every tensor name: the transformer's 48 blocks, 32 heads of 128, the 9-row block modulation table, the connector's 8 blocks and 128 registers, Gemma 4's 48 layers with eight full-attention layers that share their key and value projection, the decoder's stage plan and per-channel statistics. Lightricks' own repositories are gated and were never fetched. |
-| `huggingface/diffusers` | Apache 2.0 | The reference behaviour of the transformer block (`LTX2VideoTransformerBlock`), the audio-video rotary embedding, the text connectors and both halves of the video autoencoder, and every fixture for them; and the first-frame conditioning of `pipeline_ltx2_image2video.py` and `pipeline_ltx2_condition.py` — the per-token timestep, the conditioning mask, and the blend in `x0` space around each step. |
+| `huggingface/diffusers` | Apache 2.0 | The reference behaviour of the transformer block (`LTX2VideoTransformerBlock`, both lanes and the cross-modal attentions), the audio-video rotary embedding, the text connectors, both halves of the video autoencoder, the audio autoencoder's decoder (`autoencoder_kl_ltx2_audio.py`) and the vocoder (`pipelines/ltx2/vocoder.py`, BigVGAN-v2 with its bandwidth extender), and every fixture for them; and the first-frame and multi-frame conditioning of `pipeline_ltx2_image2video.py` and `pipeline_ltx2_condition.py` — the per-token timestep, the conditioning mask, the blend in `x0` space around each step, and the audio re-noised at the second stage. NVIDIA's BigVGAN repository was not read. |
 | `huggingface/transformers` | Apache 2.0 | The reference behaviour of `Gemma4TextModel`: the four sandwich norms, `layer_scalar`, the per-head query and key norms, the scale-free value norm, attention scaling of 1, the rotate-half rotary layout with a partial factor on the full-attention layers, and the per-layer-type masks; and every fixture for it. |
 | `dgrauet/ltx-2-mlx` | MIT | Read for the pack's key names, its bidirectionally verified decoder stage plan (zeros spatial padding, non-causal), the encoder's stage plan and space-to-depth downsampler, and its block-streaming and decode-tiling design. No code was taken. |
 | `xocialize/ltx-2-mlx-swift` | Apache 2.0 | Read for the tokenizer's missing BOS, the front-truncation rule, the float32 aggregate projection, the kernel-compilation warm-up, its measured envelopes, and its re-imposition of a fully held frame after each step. No code was taken. |
@@ -236,12 +236,32 @@ carries the pack's `LICENSE.md`.
 
 ## Where this port departs from its sources, on purpose
 
-- **Video only.** The transformer runs the official `audio=None` forward: the
-  audio stream, the audio-to-video cross-attention and its conditioners are
-  omitted from the pack and from the module tree. The video output differs from
-  the audio-video model's by the cross-attention term that is gone; fixtures are
-  dumped the same way. `LTX2Block` keeps the seam for the audio stream
-  (`ROADMAP.md`).
+- **Two forwards from one tree.** The video-only entry runs the official
+  `audio=None` forward: the audio stream, the audio-to-video cross-attention
+  and its conditioners are omitted from the pack and from the module tree, and
+  the video output differs from the audio-video model's by the cross-attention
+  term that is gone. The entry with sound runs the whole model; its fixtures
+  are dumped with `isolate_modalities=False`.
+- **The audio autoencoder's decoder only.** Nothing conditions audio, so the
+  encoder is neither ported nor packed (`audioEncoderOmitted`); the reference
+  loads both halves.
+- **Audio in float32 throughout**: the latents, the decoder and the vocoder,
+  where the reference runs the decoder in the transformer's dtype. Parity was
+  measured in float32 on doll's-house fixtures.
+- **The vocoder's depthwise filters are single-channel convolutions.** The
+  anti-aliased activations' stored 12-tap filters are applied per channel by
+  folding to `[B*C, T, 1]`, since mlx-swift's convolutions take no groups;
+  the arithmetic is the reference's.
+- **The audio's own noise keys.** The reference draws the audio latents and
+  their re-noising from the generator in sequence with the video's; here the
+  audio's first latent is `seed + 30000`, its per-step re-noising `seed +
+  50000` and its second-stage re-noising `seed + 40000`, so the video's draws
+  are the same with or without the lane.
+- **A partly held frame steps on scaled sigmas.** A held token's ancestral
+  Euler step uses the sigmas scaled by `1 - strength`, matching the per-token
+  noise level the transformer was told; the reference's sampler takes the
+  scalar. Without this a partial hold (strength above zero) fills the held
+  frames with noise at the seam.
 - **The decoder computes in bfloat16**, the dtype the pack ships it in, where
   Zephra's other autoencoders stay float32. The reference decodes in bfloat16;
   parity was measured at 8e-6 in float32 on the doll's-house fixture.
