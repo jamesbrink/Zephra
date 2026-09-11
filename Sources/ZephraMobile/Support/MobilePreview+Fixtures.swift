@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import ZephraCore
 import ZephraLinkProtocol
 
 /// Where a frozen launch's state comes from: two JSON files in the bundle, read with the very
@@ -47,11 +48,10 @@ extension MobilePreview {
             batchID: UUID(uuidString: "1E9C2A60-4E1D-4C35-9F0E-2C7B3A5D8E11")!,
             batchIndex: 0,
             modelID: snapshot.model.id,
-            prompt: "a red bicycle against a limestone wall",
-            width: 1024,
-            height: 1024,
-            seed: 8_123_447_209_115_664,
-            frames: 1)
+            settings: GenerationSettings(
+                prompt: "a red bicycle against a limestone wall",
+                size: ImageSize(width: 1024, height: 1024), steps: 9, guidance: 0,
+                seed: 8_123_447_209_115_664))
         snapshot.acceptsWork = false
         return snapshot
     }

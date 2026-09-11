@@ -5,8 +5,9 @@ import ZephraCore
 ///
 /// The settings are `ZephraCore`'s own, so the Mac clamps what arrives with the same `clamp`
 /// every local press goes through and no second set of rules exists. The one thing stripped is
-/// the reference picture: megabytes of PNG inside a JSON envelope would block the channel for
-/// everything else, so a picture crosses as a blob and is named here by its id.
+/// the pixels (`GenerationSettings.withoutPixels`): megabytes of PNG inside a JSON envelope
+/// would block the channel for everything else, so a picture crosses as a blob and is named
+/// here by its id.
 ///
 /// It also carries the phone's own `requestID`, which is the one thing in the protocol that
 /// makes a repeat safe. Every other command says what the Mac should end up like; this one adds
@@ -37,9 +38,7 @@ public struct GenerationRequest: Hashable, Sendable {
         self.requestID = requestID
         self.modelID = modelID
         self.count = min(max(count, Self.countBounds.lowerBound), Self.countBounds.upperBound)
-        var stripped = settings
-        stripped.referenceImage = nil
-        self.settings = stripped
+        self.settings = settings.withoutPixels()
         self.referenceBlobID = referenceBlobID
     }
 }

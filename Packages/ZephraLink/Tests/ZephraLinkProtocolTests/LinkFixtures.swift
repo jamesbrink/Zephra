@@ -60,9 +60,7 @@ enum LinkFixtures {
 
     /// One queue row.
     static func queued(id: UUID, batchID: UUID) -> QueuedEntry {
-        QueuedEntry(
-            id: id, batchID: batchID, batchIndex: 0, modelID: model.id, prompt: "a lighthouse",
-            width: 1024, height: 1024, seed: 42, frames: 1)
+        QueuedEntry(id: id, batchID: batchID, batchIndex: 0, modelID: model.id, settings: settings)
     }
 
     /// A value written and read back through the one spelling every envelope body uses.

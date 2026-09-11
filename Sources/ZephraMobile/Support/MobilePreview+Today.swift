@@ -1,4 +1,5 @@
 import Foundation
+import ZephraCore
 import ZephraLinkProtocol
 
 /// The two frozen states the library and Today surfaces are photographed in.
@@ -34,11 +35,10 @@ extension MobilePreview {
             batchID: Self.waitingBatch,
             batchIndex: 0,
             modelID: snapshot.model.id,
-            prompt: "a lighthouse in fog, long exposure",
-            width: 1024,
-            height: 1024,
-            seed: 3_310_552_004_991_233,
-            frames: 1)
+            settings: GenerationSettings(
+                prompt: "a lighthouse in fog, long exposure",
+                size: ImageSize(width: 1024, height: 1024), steps: 9, guidance: 0,
+                seed: 3_310_552_004_991_233))
         snapshot.running = running
         snapshot.queue = [waiting]
         snapshot.today = [summary(of: running, .running), summary(of: waiting, .waiting)]

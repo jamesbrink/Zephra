@@ -85,8 +85,20 @@ know a rule the Mac already knows.
 
 `GenerationRequest` carries `ZephraCore`'s own `GenerationSettings`, so the Mac
 clamps what arrives through the same `clamp` a local press of Generate goes
-through. The one thing stripped is `referenceImage`, on the way in and on the way
-out: a picture crosses as a blob and is named by `referenceBlobID`.
+through. The one thing stripped is the pixels, on the way in and on the way out
+(`GenerationSettings.withoutPixels`, the protocol's one rule for a settings
+value on the wire): `referenceImage` goes, since a picture crosses as a blob and
+is named by `referenceBlobID`, and a `continuation` keeps its origin and its
+count but not its frames, which the Mac's `clamp` then drops as a continuation
+with nothing to hold.
+
+`QueuedEntry`, the row `snapshot.queue` and `snapshot.running` are made of,
+carries the run's whole `settings` through the same strip beside `id`,
+`batchID`, `batchIndex` and `modelID`; `prompt`, `width`, `height`, `seed` and
+`frames` are reads over it. Whole rather than flattened because the phone's
+capsule follows the Mac's run (`PromptDraft.follow`), and what it wants is what
+the Mac's own capsule gets back from `watchRun()`: the settings that are
+running, not a summary of them.
 
 It also carries the phone's own `requestID`, made once per press of Generate and
 kept across a retry while the envelope's id changes. `CompanionSession` remembers
