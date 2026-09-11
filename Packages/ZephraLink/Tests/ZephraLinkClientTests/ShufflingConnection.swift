@@ -1,7 +1,8 @@
 import Foundation
 import ZephraLinkProtocol
 
-/// A road that lets frames overtake one another, which is what the relay does.
+/// A road that lets frames overtake one another — and, when asked, loses one outright, which is
+/// the other thing the relay does.
 ///
 /// Every `send` through the relay is a Lambda invocation of its own and they post to the far end
 /// concurrently, so a frame sealed second can arrive first. This is that, made deterministic
@@ -19,9 +20,20 @@ final class ShufflingConnection: LinkConnection, @unchecked Sendable {
     private var shuffles = false
     private var swaps = 0
     private var refusesSends = false
+    /// How many frames to let past before one is dropped, or nil for a road that drops nothing.
+    /// A live run had the relay swallow one small frame with nothing logged at either end; this
+    /// is that, made deterministic.
+    private var dropCountdown: Int?
+    private var dropped = 0
 
     /// How many frames were let past the one before them, so a test can say it really happened.
     var swapCount: Int { lock.withLock { swaps } }
+
+    /// How many frames this road has thrown away.
+    var dropCount: Int { lock.withLock { dropped } }
+
+    /// Loses one frame: the next to arrive, or the one after `skipping` of them.
+    func dropFrame(after skipping: Int = 0) { lock.withLock { dropCountdown = skipping } }
 
     /// Wraps one end of a road.
     init(_ inner: any LinkConnection) {
@@ -48,6 +60,20 @@ final class ShufflingConnection: LinkConnection, @unchecked Sendable {
 
     private func countSwap() { lock.withLock { swaps += 1 } }
 
+    /// Whether this frame is the one to lose, counting down to it as frames go past.
+    private func swallows() -> Bool {
+        lock.withLock {
+            guard let countdown = dropCountdown else { return false }
+            guard countdown == 0 else {
+                dropCountdown = countdown - 1
+                return false
+            }
+            dropCountdown = nil
+            dropped += 1
+            return true
+        }
+    }
+
     func frames() -> AsyncThrowingStream<Data, Error> {
         let source = inner.frames()
         return AsyncThrowingStream { continuation in
@@ -55,6 +81,7 @@ final class ShufflingConnection: LinkConnection, @unchecked Sendable {
                 var held: Data?
                 do {
                     for try await bytes in source {
+                        if self?.swallows() == true { continue }
                         if let waiting = held {
                             held = nil
                             self?.countSwap()

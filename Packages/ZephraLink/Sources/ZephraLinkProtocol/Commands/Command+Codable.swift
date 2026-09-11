@@ -8,13 +8,14 @@ extension Command: Codable {
 
     /// The tag, which is also the case name.
     public enum Kind: String, Codable, Hashable, Sendable, CaseIterable {
-        case enqueue, cancel, removeFromQueue, clearQueue, switchModel, setFavourite, setTags
-        case delete, upscale, animate, fetchThumbnail, fetchFile, libraryPage
+        case resync, enqueue, cancel, removeFromQueue, clearQueue, switchModel, setFavourite
+        case setTags, delete, upscale, animate, fetchThumbnail, fetchFile, libraryPage
     }
 
     /// Which command this is, without decoding its payload.
     public var kind: Kind {
         switch self {
+        case .resync: .resync
         case .enqueue: .enqueue
         case .cancel: .cancel
         case .removeFromQueue: .removeFromQueue
@@ -36,7 +37,7 @@ extension Command: Codable {
         try container.encode(kind, forKey: .kind)
         switch self {
         case .enqueue(let request): try container.encode(request, forKey: .request)
-        case .cancel, .clearQueue: break
+        case .resync, .cancel, .clearQueue: break
         case .removeFromQueue(let id): try container.encode(id, forKey: .id)
         case .switchModel(let id): try container.encode(id, forKey: .modelID)
         case .setFavourite(let names, let on):
@@ -66,6 +67,7 @@ extension Command: Codable {
             try container.decode(type, forKey: key)
         }
         switch try container.decode(Kind.self, forKey: .kind) {
+        case .resync: self = .resync
         case .enqueue: self = .enqueue(try value(GenerationRequest.self, .request))
         case .cancel: self = .cancel
         case .removeFromQueue: self = .removeFromQueue(try value(UUID.self, .id))

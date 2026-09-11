@@ -10,6 +10,7 @@ struct CommandCodingTests {
     @Test("Every command survives being written and read back")
     func commandsRoundTrip() throws {
         let commands: [Command] = [
+            .resync,
             .enqueue(GenerationRequest(
                 modelID: "z-image-turbo-4bit", count: 4, settings: LinkFixtures.settings)),
             .cancel,

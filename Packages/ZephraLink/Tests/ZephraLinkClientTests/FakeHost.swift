@@ -25,6 +25,9 @@ final class FakeHost {
     /// Called as each command arrives, before it is answered, so a test can ask what the phone
     /// was holding at the moment it asked for the next page.
     var onCommand: (@MainActor (Command) -> Void)?
+    /// The state a `resync` is answered with, behind its `.ok`. Nil for a Mac that answers the
+    /// command and sends nothing after it.
+    var world: StateSnapshot?
 
     private var secret: Data?
     private var known: Set<Data>
@@ -122,6 +125,10 @@ final class FakeHost {
         onCommand?(command)
         let answer = reply ?? standing(for: command)
         try await send(.envelope(Envelope.encoding(answer, kind: .reply, inReplyTo: envelope.id)))
+        // The `.ok` first and the snapshot behind it, which is the order the Mac answers in.
+        if command == .resync, let world {
+            try await send(.envelope(Envelope.encoding(world, kind: .snapshot)))
+        }
         if case .blob(let start) = answer, let payload {
             for piece in BlobChunker.chunks(of: payload, blobID: start.blobID) {
                 try await send(.chunk(piece))

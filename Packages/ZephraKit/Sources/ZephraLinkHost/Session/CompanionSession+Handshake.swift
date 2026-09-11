@@ -32,8 +32,9 @@ extension CompanionSession {
     ///
     /// A frame the inbox refuses as late or as too far ahead is dropped with a line in the log,
     /// never a closed session: the relay is several concurrent invocations and a duplicate or an
-    /// overtaken frame is ordinary. What does end the session is a frame that will not
-    /// authenticate, or a gap the inbox waited out, and both arrive here as a throw.
+    /// overtaken frame is ordinary. A gap the inbox waited out is stepped over, and the frames
+    /// behind it arrive through `stepOver`. What still ends the session is a frame that will not
+    /// authenticate, which arrives here as a throw.
     private func receive(_ data: Data) async throws {
         guard let inbox else { return try await handshake(data) }
         let ready: [Frame]
@@ -109,9 +110,23 @@ extension CompanionSession {
     }
 
     /// What arrives once the channel is up.
-    private func receive(_ frame: Frame) async throws {
+    ///
+    /// A chunk that does not fit its transfer refuses that transfer and nothing more. The
+    /// picture is unusable either way — the `enqueue` naming it is answered `notFound` — and a
+    /// session closed over one dropped chunk is a phone that reconnects mid-run and loses the
+    /// stream it was following.
+    func receive(_ frame: Frame) async throws {
         switch frame {
-        case .chunk(let chunk): try accept(chunk)
+        case .chunk(let chunk):
+            do {
+                try accept(chunk)
+            } catch let error as LinkError {
+                incoming = nil
+                incomingID = nil
+                host?.logger.notice(
+                    "companion refused a chunk: \(error.reason, privacy: .public)")
+                try? sendError(error)
+            }
         case .envelope(let envelope): try await receive(envelope)
         }
     }

@@ -18,6 +18,8 @@ extension LinkClient {
         session.reader = Task { [weak self] in await self?.read(frames, for: session) }
         let events = road.peerEvents()
         session.peers = Task { [weak self] in await self?.watch(events, for: session) }
+        let refusals = road.relayErrors()
+        session.roadErrors = Task { [weak self] in await self?.watch(refusals) }
         connection = .handshaking(kind)
         let initiator = HandshakeInitiator(
             identity: identity, peer: peer, pairingSecret: secret, deviceName: deviceName)
@@ -32,29 +34,58 @@ extension LinkClient {
 
     /// The inbox this session reads through, with the answer to a gap it could not fill.
     ///
-    /// Loss is the end of the session: a frame that never arrived cannot be asked for again, and
-    /// the phone's own reconnection is the recovery — it opens a new channel, and the first thing
-    /// a new channel carries is a snapshot of the whole state.
+    /// A gap is no longer the end of the session. A frame that never arrived cannot be asked for
+    /// again, but the *world* can: the phone steps over the hole, throws away everything the
+    /// missing frame might have been part of, and sends `resync`, which the Mac answers with a
+    /// fresh snapshot. Ending the session instead meant a reconnection, and over a run that
+    /// dropped a frame every few seconds it meant reconnecting until the phone gave up.
     private func inbox(over channel: SecureChannel, for session: LinkSession) -> OrderedInbox {
         let inbox = OrderedInbox(channel: channel, hold: frameHold)
-        inbox.onLoss { [weak self, weak session] gap in
+        inbox.onGap { [weak self, weak session] gap, frames in
             Task { @MainActor in
                 guard let self, let session else { return }
-                await self.lost(session, gap: gap)
+                await self.lost(session, gap: gap, releasing: frames)
             }
         }
         return inbox
     }
 
-    /// A gap the Mac's stream never filled. The road is still open, but what it carries is no
-    /// longer the stream that started, so the session goes and the phone reconnects.
-    /// At info and with the counters: a loss is rare, ends the session, and leaves nothing else
-    /// to look at afterwards, so which counter never came is the whole diagnosis.
-    func lost(_ session: LinkSession, gap: FrameGap) async {
-        logger.info(
-            "A frame was lost on the way here (\(gap.summary, privacy: .public)); the session is finished."
+    /// A gap the Mac's stream never filled, stepped over.
+    ///
+    /// At error and with the counters: a skip is rare, costs a whole resync, and is the first
+    /// thing to look for when the phone behaves oddly. What the hole may have swallowed is a
+    /// blob's chunk and a reply, so every transfer in flight is dropped and every request still
+    /// open is failed as `lost` — both of which the caller retries once — and then the state the
+    /// deltas were editing is asked for again, whole.
+    func lost(_ session: LinkSession, gap: FrameGap, releasing frames: [Frame]) async {
+        logger.error(
+            "A frame never arrived (\(gap.summary, privacy: .public)); asking the Mac for the world again."
         )
-        await roadEnded(session, error: LinkClientError.notConnected)
+        settleEverything(with: LinkClientError.lost)
+        resync()
+        for frame in frames { dispatch(frame) }
+    }
+
+    /// Asks the Mac for the whole of its state again. Answered `.ok` and then a fresh snapshot,
+    /// which is what puts the phone back in step — the library pull included, since it restarts
+    /// on a snapshot landing.
+    private func resync() {
+        do {
+            try send(.envelope(try Envelope.encoding(Command.resync, kind: .request)))
+        } catch {
+            logger.error(
+                "The resync did not go out: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    /// The road's own refusals, which over the relay is the one place a frame vanishes with
+    /// nobody above it any the wiser. Logged at error and nothing else: the Mac is short one
+    /// frame, which is a gap it steps over and a resync this end will be asked for anyway.
+    private func watch(_ refusals: AsyncStream<String>) async {
+        for await reason in refusals {
+            logger.error(
+                "The relay refused a frame on its way to the Mac: \(reason, privacy: .public)")
+        }
     }
 
     /// The road saying the Mac arrived or went, for as long as it can say.

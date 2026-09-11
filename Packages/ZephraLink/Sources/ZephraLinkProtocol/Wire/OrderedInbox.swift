@@ -13,8 +13,15 @@ import Synchronization
 /// So frames are opened as they arrive and released in counter order. One that overtook its
 /// neighbours waits here until the frames before it land, at most `frameLimit` of them and no
 /// longer than `hold`. A frame that arrives after the stream moved past it is dropped by the
-/// channel as `replayed`. A gap nothing fills inside `hold` is loss rather than reordering, and
-/// loss means the stream is not whole: the channel is closed and whoever owns the inbox is told.
+/// channel as `replayed`.
+///
+/// A gap nothing fills inside `hold` is loss rather than reordering — and loss is **skipped**,
+/// not fatal. The release point jumps to the lowest counter waiting, the frames behind the hole
+/// come out in order, and `onGap` says so once. A relay that dropped one small frame used to end
+/// the session, which during a run meant a reconnection every few seconds until the phone gave
+/// up; what a hole actually costs is one message, and the phone asks for the world again with
+/// `Command.resync`. The one case still fatal is more than `frameLimit` frames held on one gap:
+/// that is a stream nothing is going to put back together, and not memory worth keeping.
 public final class OrderedInbox: Sendable {
     /// How long a gap may stand before it is loss. Two orders of magnitude more than a relay's
     /// own spread, and a fraction of what a person would call a stall.
@@ -30,7 +37,7 @@ public final class OrderedInbox: Sendable {
         var next: UInt64 = 0
         /// The clock on the gap that is open right now, armed when it opened and not since.
         var timer: Task<Void, Never>?
-        var onLoss: (@Sendable (FrameGap) -> Void)?
+        var onGap: (@Sendable (FrameGap, [Frame]) -> Void)?
         var hasFailed = false
     }
 
@@ -51,11 +58,12 @@ public final class OrderedInbox: Sendable {
         self.frameLimit = frameLimit
     }
 
-    /// What to do when a gap goes unfilled. Set once, by whoever owns the inbox; the channel is
-    /// already closed by the time it runs, so this is about the session and not the stream. The
-    /// `FrameGap` is what the owner logs: which counter never came, and what was waiting on it.
-    public func onLoss(_ body: @escaping @Sendable (FrameGap) -> Void) {
-        state.withLock { $0.onLoss = body }
+    /// What to do when a gap goes unfilled, called once per skip. Set once, by whoever owns the
+    /// inbox. The `FrameGap` is what the owner logs and answers — the phone asks for the world
+    /// again, the Mac drops the transfer the hole was in the middle of — and the frames are what
+    /// the skip released, in order, for the owner to dispatch as if they had just arrived.
+    public func onGap(_ body: @escaping @Sendable (FrameGap, [Frame]) -> Void) {
+        state.withLock { $0.onGap = body }
     }
 
     /// One frame off the road, and everything it makes ready, oldest first.
@@ -114,34 +122,47 @@ public final class OrderedInbox: Sendable {
         }
     }
 
-    /// The hold ran out with the gap still open.
+    /// The hold ran out with the gap still open, so the stream steps over it.
+    ///
+    /// The release point jumps to the lowest counter waiting and everything contiguous behind it
+    /// comes out. `released(through:)` moves the channel's floor with it, which is what makes a
+    /// frame the hole swallowed `replayed` rather than openable if it ever does turn up. A second
+    /// hole behind the first arms the clock again.
     private func gapRanOut() {
-        let stillOpen: Bool = state.withLock { state in
+        let skip: (gap: FrameGap, frames: [Frame], through: UInt64)? = state.withLock { state in
             state.timer = nil
-            return !state.held.isEmpty && !state.hasFailed
+            guard !state.hasFailed, let lowest = state.held.keys.min() else { return nil }
+            let gap = FrameGap(expected: state.next, nextHeld: lowest, held: state.held.count)
+            state.next = lowest
+            var frames: [Frame] = []
+            var through = lowest
+            while let frame = state.held.removeValue(forKey: state.next) {
+                frames.append(frame)
+                through = state.next
+                state.next += 1
+            }
+            return (gap, frames, through)
         }
-        guard stillOpen else { return }
-        fail()
+        guard let skip else { return }
+        channel.released(through: skip.through)
+        state.withLock { $0.onGap }?(skip.gap, skip.frames)
+        armOrDisarm()
     }
 
-    /// Closes the channel, tells the owner, and hands back the error to throw where there is a
-    /// caller to throw it at.
+    /// Closes the channel and hands back the error to throw. The one way in is more frames held
+    /// on one gap than the limit allows, which is the pathological case a skip cannot answer.
     @discardableResult
     private func fail() -> SecureChannelError {
-        let notify: (gap: FrameGap?, body: (@Sendable (FrameGap) -> Void)?) = state.withLock {
-            state in
-            guard !state.hasFailed else { return (nil, nil) }
+        let wasOpen: Bool = state.withLock { state in
+            guard !state.hasFailed else { return false }
             state.hasFailed = true
             state.timer?.cancel()
             state.timer = nil
-            let gap = FrameGap(
-                expected: state.next, nextHeld: state.held.keys.min(), held: state.held.count)
             state.held.removeAll()
-            return (gap, state.onLoss)
+            return true
         }
-        guard let gap = notify.gap else { return .lost }
+        guard wasOpen else { return .lost }
         channel.close()
-        notify.body?(gap)
         return .lost
     }
 }

@@ -29,6 +29,7 @@ extension CompanionSession {
     private func perform(_ command: Command, id: UUID) async throws -> Reply? {
         guard let host else { throw LinkError.refused }
         switch command {
+        case .resync: return try resend(to: host, inReplyTo: id)
         case .enqueue(let request): return try submit(request, to: host)
         case .cancel:
             host.store.cancel()
@@ -46,6 +47,21 @@ extension CompanionSession {
         case .animate(let name): return try animate(name, on: host)
         default: return try await performLibrary(command, id: id, on: host)
         }
+    }
+
+    /// The whole state again, for a phone that stepped over a hole in the stream.
+    ///
+    /// The `.ok` goes first and the snapshot behind it, in that order and on this one stream, so
+    /// the phone's request closes before the state it asked for arrives. Nothing is remembered
+    /// about it: a snapshot is the whole truth, and the deltas after it carry on as they were.
+    private func resend(to host: CompanionHost, inReplyTo id: UUID) throws -> Reply? {
+        host.logger.notice("companion is sending \(self.deviceName, privacy: .public) the world again")
+        try reply(.ok, to: id)
+        try send(
+            StateSnapshotProjection.snapshot(
+                store: host.store, index: host.index, hostName: host.hostName),
+            kind: .snapshot)
+        return nil
     }
 
     /// Queues a press of Generate on the phone's behalf.

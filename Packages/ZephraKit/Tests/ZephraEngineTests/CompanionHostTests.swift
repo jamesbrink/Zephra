@@ -218,4 +218,26 @@ struct CompanionHostTests {
         await bed.shutdown()
     }
 
+    @Test("a phone that stepped over a hole is answered, and then sent the world again")
+    func resyncSendsTheWholeStateAgain() async throws {
+        let bed = CompanionTestBed()
+        await bed.bootstrap()
+        let phone = try await bed.pairedPhone()
+        _ = try await phone.snapshot()
+
+        let reply = try await phone.request(.resync)
+
+        #expect(reply == .ok)
+        let snapshot = try await phone.waitFor { () -> Envelope? in
+            let snapshots = phone.envelopes.filter { $0.kind == .snapshot }
+            return snapshots.count == 2 ? snapshots.last : nil
+        }
+        #expect(try snapshot.decode(StateSnapshot.self).hostName == "A Test Mac")
+        #expect(
+            phone.envelopes.firstIndex { $0.kind == .reply }
+                .map { $0 < (phone.envelopes.lastIndex { $0.kind == .snapshot } ?? 0) } == true,
+            "the ok closes the request before the state it asked for arrives")
+        #expect(bed.host.sessions.count == 1, "and the session carries on")
+        await bed.shutdown()
+    }
 }

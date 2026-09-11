@@ -1,10 +1,11 @@
-/// The hole in a stream that `OrderedInbox` gave up waiting on.
+/// The hole in a stream that `OrderedInbox` gave up waiting on and stepped over.
 ///
-/// Loss ends a session, and a session that ended is all a log line said until this: three
-/// numbers is the difference between "a frame went missing" and "the stream jumped from 412 to
-/// 908 with 3 frames held", which says whether frames were dropped in their hundreds or one
-/// overtook its neighbours and never landed. Both ends log it at info, so a loss that happens
-/// once in a long run is still there in `make logs`.
+/// Three numbers is the difference between "a frame went missing" and "the stream jumped from
+/// 412 to 908 with 3 frames held", which says whether frames were dropped in their hundreds or
+/// one overtook its neighbours and never landed. Both ends log it at error — a skip is rare,
+/// costs the phone a whole `resync`, and is the one thing to look for in `make logs` when a
+/// session behaves oddly. The phone answers a gap by asking for the world again; the Mac drops
+/// whatever transfer the hole was in the middle of and carries on.
 public struct FrameGap: Hashable, Sendable {
     /// The counter the stream was waiting for.
     public let expected: UInt64

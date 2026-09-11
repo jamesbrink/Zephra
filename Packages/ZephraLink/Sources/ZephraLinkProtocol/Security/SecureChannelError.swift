@@ -20,8 +20,9 @@ public enum SecureChannelError: Error, Hashable, Sendable {
     /// A counter a whole `SecureChannel.receiveWindow` past the release point. Too far ahead to
     /// be a reordering, so it is refused rather than held.
     case outOfWindow
-    /// A gap in the stream that nothing filled in time. Each hop is TCP under a WebSocket, so
-    /// reordering between hops is expected and loss is not: the session ends.
+    /// More frames held on one gap than `OrderedInbox.frameLimit` allows. An ordinary hole is
+    /// stepped over and the owner told; this is the pathological case — hundreds of frames
+    /// waiting on one that is never coming — and it ends the session.
     case lost
     /// Two to the thirty-two frames have gone one way. The nonce space is finished and the
     /// connection has to be made again.

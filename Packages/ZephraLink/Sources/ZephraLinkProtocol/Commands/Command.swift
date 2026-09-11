@@ -6,7 +6,14 @@ import Foundation
 /// refuses the ones `GenerationStore.acceptsWork` will not take. Nothing here changes a
 /// preference or a folder: settings stay on the Mac, where the person can see what they are
 /// agreeing to.
+/// Every command is safe to send twice. A request whose reply may have gone missing is sent
+/// again with a fresh envelope id (`LinkClient.request` retries once), so nothing here may count
+/// what it is asked: the two that would — `enqueue` and `upscale` — are answered from what the
+/// session already did, keyed by the request's own `GenerationRequest.requestID`.
 public enum Command: Hashable, Sendable {
+    /// Send the whole state again: the phone stepped over a hole in the stream and no longer
+    /// trusts what it is holding. Answered `.ok`, then a fresh `snapshot`.
+    case resync
     /// Queue a press of Generate.
     case enqueue(GenerationRequest)
     /// Stop whatever is running.

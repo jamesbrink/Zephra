@@ -66,8 +66,13 @@ extension LinkClient {
     }
 
     /// The whole of one blob, waiting for it if it has not all arrived.
+    ///
+    /// A transfer nothing is assembling any more is `lost` at once rather than waited out: a gap
+    /// throws away everything in flight, and a caller that reached its `await` a moment later
+    /// would otherwise sit on a continuation nobody can resume until the blob timeout.
     func blob(_ id: UUID) async throws -> Data {
         if let whole = arrivedBlobs.removeValue(forKey: id) { return whole }
+        guard blobs[id] != nil else { throw LinkClientError.lost }
         return try await withCheckedThrowingContinuation { continuation in
             blobWaiters[id] = continuation
             // The clock started at the announcement; a second one here would move the deadline

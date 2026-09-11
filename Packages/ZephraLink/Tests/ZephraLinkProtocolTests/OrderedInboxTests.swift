@@ -70,35 +70,43 @@ struct OrderedInboxTests {
         #expect(receiver.isClosed)
     }
 
-    @Test("A gap nothing fills is loss: the channel closes and the owner is told")
-    func anUnfilledGapIsLoss() async throws {
-        let (sender, receiver) = SecureChannelTests.channels()
-        let inbox = OrderedInbox(channel: receiver, hold: .milliseconds(20))
-        let told = Told()
-        inbox.onLoss { _ in told.say() }
-        _ = try sender.seal(Self.frame("1"))
-        #expect(try inbox.accept(try sender.seal(Self.frame("2"))).isEmpty)
-        try await Task.sleep(for: .milliseconds(200))
-        #expect(receiver.isClosed)
-        #expect(told.wasTold)
-    }
-
-    @Test("the owner is told which counter never came, so a loss can be read afterwards")
-    func lossCarriesTheGap() async throws {
+    @Test("A gap nothing fills is skipped: the held frames come out and the channel stays open")
+    func anUnfilledGapIsSkipped() async throws {
         let (sender, receiver) = SecureChannelTests.channels()
         let inbox = OrderedInbox(channel: receiver, hold: .milliseconds(20))
         let told = ToldTheGap()
-        inbox.onLoss { told.say($0) }
+        inbox.onGap { told.say($0, $1) }
         _ = try sender.seal(Self.frame("the one that never comes"))
-        _ = try sender.seal(Self.frame("nor this one"))
-        #expect(try inbox.accept(try sender.seal(Self.frame("this one arrived"))).isEmpty)
+        let rest = try (3...5).map { try sender.seal(Self.frame("\($0)")) }
+        for bytes in rest { #expect(try inbox.accept(bytes).isEmpty) }
         try await Task.sleep(for: .milliseconds(200))
-        let gap = try #require(told.gap)
-        #expect(gap.expected == 0)
-        #expect(gap.nextHeld == 2)
-        #expect(gap.width == 2)
-        #expect(gap.held == 1)
-        #expect(gap.summary == "expected 0, next held 2, 2 missing, 1 waiting")
+
+        #expect(!receiver.isClosed, "one hole is a message lost, not a session")
+        #expect(
+            told.frames.compactMap(Self.name)
+                == [#"{"n":"3"}"#, #"{"n":"4"}"#, #"{"n":"5"}"#],
+            "everything waiting behind the hole is released, in order")
+        #expect(told.gap?.expected == 0)
+        #expect(told.gap?.nextHeld == 1)
+        #expect(told.gap?.held == 3)
+    }
+
+    @Test("The stream carries on past a skip, and the frame it stepped over is replayed")
+    func theStreamCarriesOnPastASkip() async throws {
+        let (sender, receiver) = SecureChannelTests.channels()
+        let inbox = OrderedInbox(channel: receiver, hold: .milliseconds(20))
+        let told = ToldTheGap()
+        inbox.onGap { told.say($0, $1) }
+        let missing = try sender.seal(Self.frame("the one that never comes"))
+        #expect(try inbox.accept(try sender.seal(Self.frame("2"))).isEmpty)
+        try await Task.sleep(for: .milliseconds(200))
+
+        #expect(try inbox.accept(try sender.seal(Self.frame("3"))).count == 1, "the next lands")
+        #expect(
+            throws: SecureChannelError.replayed,
+            "the release point jumped, so the hole's own frame is behind the stream now"
+        ) { try inbox.accept(missing) }
+        #expect(told.count == 1, "one skip, one word about it")
     }
 
     @Test("More held frames than the limit is loss too")
@@ -126,22 +134,25 @@ struct OrderedInboxTests {
     }
 }
 
-/// Whether the inbox said a frame was lost, from whichever thread it said it on.
-/// The gap the inbox handed over, kept for the test to read.
+/// What the inbox said about a skip, from whichever thread it said it on: the gap, the frames it
+/// released, and how many skips there have been.
 final class ToldTheGap: @unchecked Sendable {
     private let lock = NSLock()
     private var told: FrameGap?
+    private var released: [Frame] = []
+    private var skips = 0
 
     var gap: FrameGap? { lock.withLock { told } }
 
-    func say(_ gap: FrameGap) { lock.withLock { told = gap } }
-}
+    var frames: [Frame] { lock.withLock { released } }
 
-final class Told: @unchecked Sendable {
-    private let lock = NSLock()
-    private var told = false
+    var count: Int { lock.withLock { skips } }
 
-    var wasTold: Bool { lock.withLock { told } }
-
-    func say() { lock.withLock { told = true } }
+    func say(_ gap: FrameGap, _ frames: [Frame]) {
+        lock.withLock {
+            told = gap
+            released += frames
+            skips += 1
+        }
+    }
 }
