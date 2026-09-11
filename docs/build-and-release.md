@@ -60,6 +60,10 @@ Makefile targets:
 - `make screenshot-ios` — the booted simulator, into `build/ios-<stamp>.png`.
   Taken into a temporary directory and copied, because `simctl` is refused a
   write onto an external volume. See `docs/mobile.md`.
+- `make archive-ios` — the Release archive a device runs, into
+  `build/ZephraMobile.xcarchive`, signed automatically. `make testflight` —
+  that archive uploaded to App Store Connect as a TestFlight build. See
+  **TestFlight** below.
 - `make icon` — resize the approved Zephyr PNG masters in `design/branding/zephyr/`
   into `AppIcon.appiconset` and the website icons/marks with `scripts/make-icon.swift`.
   The phone's single 1024-pixel icon comes out of the same dark master.
@@ -258,6 +262,72 @@ Makefile targets:
 The first Release build compiles MLX's Metal kernels from scratch and takes
 several minutes. Always benchmark and make performance claims against
 Release, never Debug — Debug has Metal validation and full debug info on.
+
+
+## TestFlight
+
+How the companion reaches a phone. Two targets:
+
+- `make archive-ios` — generate, then `xcodebuild archive` the `ZephraMobile`
+  scheme for `generic/platform=iOS`, Release, into
+  `build/ZephraMobile.xcarchive`. Signing is automatic and
+  `-allowProvisioningUpdates` lets Xcode fetch the profile rather than be
+  handed one: a manual profile checked into a repository is a thing that
+  expires without telling anybody.
+- `make testflight` — `archive-ios`, then `scripts/testflight.sh`, which
+  exports the archive through `scripts/ExportOptions-testflight.plist`. The
+  method is `app-store-connect` and the destination is `upload`, so the build
+  goes straight up and no `.ipa` is left behind to be sent by hand.
+
+**It is a TestFlight upload and never an App Store submission.** Releasing a
+build to the store is a separate act performed in App Store Connect; nothing
+here does it, and nothing here should learn to.
+
+The version is stamped the way a Mac ship stamps one, and for a sharper
+reason. No version bumps: the marketing version stays `project.yml`'s `0.1.0`
+and what tells two builds apart is the build number, the UTC minute the build
+started (`YYYYMMDDHHMM`). On the Mac that is a convention; here App Store
+Connect refuses a build number it has already seen, so `project.yml`'s default
+of `1` would be taken once and refused by every upload after it. `VERSION` and
+`BUILD_NUMBER` override either, with the same shapes `make build` demands.
+
+Credentials are an App Store Connect API key, read from the same
+`~/Documents/Zephra Signing/signing.env` that `make signed-build` sources:
+
+    ASC_KEY_PATH="$HOME/Documents/Zephra Signing/AuthKey_<key id>.p8"
+    ASC_KEY_ID=<key id>
+    ASC_ISSUER_ID=<issuer id>
+
+All three or none. `scripts/testflight.sh` refuses by name and says where the
+key is made rather than letting `xcodebuild` complain about a missing issuer
+id, which says nothing useful. They are kept apart from the `NOTARY_*` key the
+Mac's notarization uses: that one is scoped for notarization, and an upload
+wants a key with the App Manager role. `archive-ios` passes them too when they
+are set — Xcode
+takes a developer account from its Accounts settings *or* from a key on the
+command line, and with neither it stops at "No Accounts: Add a new account in
+Accounts settings" before a line is compiled.
+
+What James does by hand, once:
+
+- An App Store Connect app record for `io.zephra.ZephraMobile`, named Zephra,
+  under team `28X9H69QGE`. The bundle identifier is already what the target
+  builds.
+- An API key with the **App Manager** role (App Store Connect > Users and
+  Access > Integrations), its `.p8` saved beside the Developer ID material and
+  its key id and issuer id written into `signing.env`. A `.p8` is downloadable
+  exactly once.
+- The phone added to internal testing in App Store Connect, on the build's
+  group. Internal TestFlight needs **no review** — a build reaches the testers
+  as soon as App Store Connect finishes processing it, which is minutes.
+- The export-compliance questionnaire, answered once for the app: standard
+  algorithms only. The link uses CryptoKit — Curve25519 and AES-GCM — nothing
+  of our own and nothing beyond what the platform ships, which is exactly what
+  the question is asking about. The companion's `Info.plist` already declares
+  `ITSAppUsesNonExemptEncryption` as `true`, so the bundle states the use up
+  front instead of every upload asking; if App Store Connect asks for
+  compliance documentation anyway, that key is the thing to revisit, not this
+  recipe.
 
 
 ## Tests

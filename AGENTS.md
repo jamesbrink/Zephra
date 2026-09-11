@@ -21,6 +21,7 @@ entry), behind one backend seam.
 | Benchmark | `make bench ARGS="--size 1024 --steps 9 --runs 3 --json"` (Release, idle Mac) |
 | Logs, screenshot | `make logs`, `make screenshot WINDOW=<title>` |
 | The phone | `make build-ios`, `make run-ios` (`PREVIEW=<state>`), `make test-ios` |
+| The phone, to TestFlight | `make testflight` (`archive-ios` first; needs the `ASC_*` key in `signing.env`) |
 
 What trips a first session: `swift build` and `swift test` work only in
 `Packages/ZephraKit`, because everything else links mlx-swift and its Metal
@@ -688,7 +689,9 @@ US-spelling check.
   nothing reconnects behind one.
 - `make build-ios`, `make run-ios PREVIEW=<state>`, `make test-ios`,
   `make screenshot-ios`. `IOS_SIM` names the simulator; CI passes what
-  `scripts/ios-sim.sh` finds. There is no Release lane and no benchmark.
+  `scripts/ios-sim.sh` finds. There is no benchmark: the phone renders
+  nothing. The one Release lane is `make archive-ios` and `make testflight`,
+  which is how a build reaches a real phone.
 
 Full detail: `docs/mobile.md`.
 
@@ -961,6 +964,14 @@ Makefile targets:
 - `test` — `swift test` in `Packages/ZephraKit`, no MLX. `test-app` —
   `ZephraTests` hosted in the Debug app. `test-mlx` — every package in
   `MLX_PACKAGES` (`directory:scheme`); `test-backend` is an alias.
+- `archive-ios` — the phone's Release archive into
+  `build/ZephraMobile.xcarchive`, signed automatically, stamped 0.1.0 and the
+  UTC minute because App Store Connect refuses a build number it has seen.
+  `testflight` — that archive exported straight up to App Store Connect as a
+  TestFlight build, through `scripts/ExportOptions-testflight.plist` and
+  `scripts/testflight.sh`, which sources `signing.env` for `ASC_KEY_PATH`,
+  `ASC_KEY_ID` and `ASC_ISSUER_ID` and refuses by name without all three.
+  Never an App Store submission.
 - `lint-layers` — the gate, before every commit. `lint-size` — advisory list
   of files over 150 lines.
 - `icon` — resize the approved masters in `design/branding/zephyr/`; never

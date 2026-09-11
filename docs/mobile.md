@@ -203,29 +203,37 @@ permitted" and no hint as to why.
 
 The first build compiles `ZephraCore`, `ZephraEngine`, `ZephraSnapshot`, the
 protocol and the chrome for the simulator from scratch, which is minutes; after
-that it is incremental. There is no Release lane and no benchmark: the phone
-renders nothing, so there is nothing to measure.
+that it is incremental. There is no benchmark: the phone renders nothing, so
+there is nothing to measure. The one Release lane is `make archive-ios` and
+`make testflight`, below.
 
-## TestFlight, when it comes
+## TestFlight
 
-Nothing here is wired up yet. What it will need:
+```
+make archive-ios                    # Release archive into build/ZephraMobile.xcarchive
+make testflight                     # that archive, uploaded to App Store Connect
+```
 
-- An App Store Connect record for `io.zephra.ZephraMobile`, under team
-  `28X9H69QGE`. The bundle identifier is already what the target builds.
-- An App Store Connect API key (`.p8`) under `~/Documents/Zephra Signing/`,
-  beside the Developer ID material `make release` already sources from
-  `signing.env`, with its key id and issuer id in that same file. Uploads go
-  through `xcrun altool`/`notarytool`'s successor, never a keychain password.
-- A distribution certificate and a provisioning profile for the identifier.
-  `CODE_SIGN_IDENTITY[sdk=iphoneos*]` is `Apple Development` today, which is a
-  device build; a distribution build overrides it on the command line the way
-  `make release` overrides the Mac's.
-- `ITSAppUsesNonExemptEncryption` is already `true` in the Info.plist. The link
-  uses CryptoKit — Curve25519 and AES-GCM — so the answer is yes, and declaring
-  it in the bundle stops every upload asking. An export-compliance exemption
-  claim, if one is ever made, goes in App Store Connect and not here.
-- Marketing version and build number come from `MARKETING_VERSION` and
-  `CURRENT_PROJECT_VERSION` in `project.yml`, overridable on the xcodebuild line
-  exactly as the Mac's are.
+Both live in **TestFlight** in `docs/build-and-release.md`, beside the Mac's
+signing and notarization, because they are the same kind of thing and read from
+the same `~/Documents/Zephra Signing/signing.env`: the export options
+(`scripts/ExportOptions-testflight.plist`), the `ASC_KEY_PATH`, `ASC_KEY_ID`
+and `ASC_ISSUER_ID` an upload needs, the stamping rule, and what James does by
+hand once — the App Store Connect record for `io.zephra.ZephraMobile`, the API
+key, the phone in internal testing, the export-compliance answer. It is a
+TestFlight upload and never an App Store submission.
+
+The two things that are the phone's own rather than the recipe's:
+
+- `ITSAppUsesNonExemptEncryption` is `true` in the companion's `Info.plist`.
+  The link uses CryptoKit — Curve25519 and AES-GCM — so the app does use
+  encryption, and declaring it in the bundle means the upload does not stop to
+  ask. Standard algorithms only; nothing of our own.
+- `CODE_SIGN_IDENTITY[sdk=iphoneos*]` is `Apple Development`, which is what a
+  device build wants. The archive is signed with it and the export re-signs
+  with the distribution certificate it fetches, which is what `signingStyle:
+  automatic` in the export options and `-allowProvisioningUpdates` on the
+  command line are for. Nothing is checked in: a provisioning profile in a
+  repository is a thing that expires without telling anybody.
 
 Deferred work lives in `ROADMAP.md`.
