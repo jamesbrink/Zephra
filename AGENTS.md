@@ -90,7 +90,18 @@ Shared, by what a file actually touches:
                                                   the Mac and a future iOS app both speak: the
                                                   frames, the state snapshot and its deltas, the
                                                   commands, a Noise-style channel, the QR
-                                                  pairing payload and the relay's JSON; nothing
+                                                  pairing payload and the relay's JSON; no
+                                                  transport and no interface
+  ZephraLink/ZephraLinkTransport   Foundation, Network, os, ZephraLinkProtocol — the roads:
+                                                  TCPConnection and TCPListener behind a
+                                                  four-byte length, the listener's own Bonjour
+                                                  advertisement and BonjourBrowser, and the
+                                                  relay's RelayConnection and RelayListener,
+                                                  which serves one guest at a time
+  ZephraLink/ZephraLinkClient      Foundation, Observation, ZephraLinkProtocol,
+                                                  ZephraLinkTransport — LinkClient, the one
+                                                  object the phone's views observe, over an
+                                                  injected LinkRoads and LinkKeyStore; nothing
                                                   links it yet
   ZephraMLXKit/ZephraMLX           MLX, MLXNN, ZephraCore — the packed loader, the manifest
                                                   reader, the rotary table, the pixel packer,
@@ -181,12 +192,16 @@ Shared, by what a file actually touches:
   `Sources/Zephra/ZephraApp.swift` may import a `ZephraBackend*` or
   `ZephraUpscale*` package, to register it.
 - No backend package may import another backend package.
-- `ZephraLinkProtocol` (`Packages/ZephraLink`) is the one package an iOS app
-  links too, so what it may import is a short list rather than a short ban:
-  Foundation-level frameworks, `ZephraCore`, `ZephraEngine` and itself.
-  `ZephraEngine` is for `GenerationRecord` and `LibraryAnnotation` alone, which
-  cross the wire as themselves: they are the truth inside every PNG, and a second
-  shape of the same provenance is a second thing to keep in step.
+- `Packages/ZephraLink` is the one package an iOS app links too, so what it may
+  import is a short list rather than a short ban: Foundation-level frameworks,
+  `ZephraCore`, `ZephraEngine` and itself. `ZephraEngine` is for
+  `GenerationRecord` and `LibraryAnnotation` alone, which cross the wire as
+  themselves: they are the truth inside every PNG, and a second shape of the same
+  provenance is a second thing to keep in step. Its three targets stack in one
+  direction only: `ZephraLinkProtocol` (the wire, no socket in it),
+  `ZephraLinkTransport` (the roads, no state in it) and `ZephraLinkClient` (the
+  phone's `LinkClient`, which reaches a road only through injected protocols and
+  so is tested without one).
 
 Code rules:
 
@@ -222,6 +237,24 @@ reference picture never rides inside a request — it crosses as a blob and
 `GenerationRequest` strips the bytes on the way in *and* on the way out. And a
 blob's chunks are accepted in order only, because the channel underneath is one
 ordered stream and a gap means loss or tampering.
+
+`ZephraLinkTransport` is the roads under that wire. A TCP frame rides behind a
+four-byte big-endian length and is capped at 1 MiB, a length past which closes
+the road rather than allocating it; the listener publishes its own
+`_zephra._tcp` service with the room in the TXT record, since an advertiser of
+its own would have to be handed the port and kept in step with the listener's
+lifetime. `RelayConnection` speaks the relay's JSON over a
+`URLSessionWebSocketTask` and never reconnects itself — a reconnection is a whole
+new handshake — and `RelayListener` serves **one guest at a time**, because the
+relay gives a host one socket and a frame on it carries no guest id. Several
+phones at once is a LAN feature.
+
+`ZephraLinkClient` is the phone's `LinkClient`: `@MainActor @Observable`, split
+by concern like `GenerationStore`, holding the snapshot the deltas edit, the
+newest preview and the library it has been told about. `LinkKeyStore` and
+`LinkRoads` are injected, so the whole session is tested over a road that never
+leaves the process; the phone reconnects on foreground and after a close on
+`LinkBackoff`'s one, two, four, eight seconds, capped at thirty.
 
 Full detail: `docs/companion.md`.
 

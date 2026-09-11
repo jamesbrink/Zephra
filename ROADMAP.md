@@ -531,3 +531,13 @@ Left out of the first pass on purpose, each a small change to one file unless no
   needs explicit choices for duplicate pictures, album identities, and deletion dates.
   For now, move into an empty folder, or keep both libraries in place and switch
   between their folders in Settings.
+
+## The companion link: left out on purpose
+
+- **Several guests over the relay.** `RelayListener` serves one phone at a time,
+  because the relay hands a host one socket and a `send` carries no guest id: two
+  phones would be one interleaved stream that no channel could open. Multiplexing
+  them needs a guest id in the relay's own `send` and `peer` messages — the
+  Lambda's contract, not just ours — and a demultiplexer on the Mac that keeps a
+  session per id. The local network already allows several phones at once, so the
+  limit is the relay's alone.

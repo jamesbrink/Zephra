@@ -1,8 +1,11 @@
 # The companion link
 
-`Packages/ZephraLink` holds `ZephraLinkProtocol`: the wire the Mac app and a
-future iOS app both speak. No transport and no interface are in it, so both ends
-are tested in milliseconds without a socket, and the phone links the whole target.
+`Packages/ZephraLink` is three targets. `ZephraLinkProtocol` is the wire the Mac
+app and a future iOS app both speak: no transport and no interface are in it, so
+both ends are tested in milliseconds without a socket. `ZephraLinkTransport` is
+the roads under it — TCP and Bonjour on the local network, the relay's WebSocket
+from anywhere — and `ZephraLinkClient` is the phone's side over one of those, the
+one object its views observe. Each takes only the one before it.
 
 It may import Foundation, CryptoKit, Network, os, Observation, ImageIO,
 CoreGraphics, Synchronization, `ZephraCore` and `ZephraEngine`, and nothing else;
@@ -264,3 +267,117 @@ whole; `close()`. A TCP road prefixes each frame with a 4-byte big-endian length
 the relay road maps one WebSocket text message to one frame. `LinkListener` is the Mac's
 side, yielding a `LinkConnection` per peer. `MemoryLinkConnection.pair()` is both ends of a
 road that never leaves the process, for tests and the phone's frozen preview.
+
+## Roads
+
+`ZephraLinkTransport` is the roads themselves: Foundation, Network and os over
+the protocol, no state, and every type in it is a `LinkConnection` or something
+that makes one.
+
+**TCP.** `TCPConnection` puts a four-byte big-endian length in front of every
+frame and reads one back the same way: read the length, read exactly that many
+bytes, hand the frame up, begin again. `NWConnection.receive` does the gathering,
+with `minimumIncompleteLength` and `maximumLength` both set to the count, so a
+frame split across packets arrives whole and a short read means the peer went
+away part way through one. A frame is capped at 1 MiB in both directions — a
+chunk is 64 KiB and a snapshot a few hundred kilobytes, so the cap is room to
+spare and not a limit anything legitimate meets. A length past it is not a frame
+this build would ever send, so the road closes rather than allocating what it
+asks for. An empty frame is a frame, not the end of the road.
+
+`TCPListener` is the Mac's side. The advertiser is not a type of its own:
+`NWListener` publishes the service itself, and a separate advertiser would have
+to be handed the port the listener chose and kept in step with its lifetime — two
+objects that can only ever be right together. So advertising is an argument,
+`TCPListener(advertising: room)`, and the TXT record is `BonjourRecord`: `room`,
+the hash of the Mac's signing key, and `v`, the protocol version, on
+`_zephra._tcp`. The room is in the record so a phone that has paired already
+knows which of several Macs is its own before it opens a connection to any of
+them.
+
+`BonjourBrowser` hands back the whole list every time rather than a stream of
+arrivals and departures, and `DiscoveredHost` keeps the endpoint as the service
+rather than as an address: Network resolves a `.service` endpoint when the
+connection is made, over whichever interface and address family actually works,
+which is a better answer than any one address a browse could pick.
+
+**The relay.** `RelayConnection` is a `URLSessionWebSocketTask` — the one WebSocket
+that works the same on both platforms with no server-side headers to set — and it
+speaks the sequence above: hello, challenge, join, joined, then `send` frames
+carrying base64 of one sealed frame each. The rules about which message may
+follow which live in `RelayHandshake`, a value with no socket under it, so they
+can be tested by handing it the messages a relay would send. It pings every five
+minutes against the ten-minute idle timeout, and it does **not** reconnect: a
+reconnection is a whole new handshake, and pretending otherwise would hand the
+channel above a stream with a hole in it.
+
+**One guest at a time over the relay.** `RelayListener` is a `LinkListener` like
+the TCP one, so the Mac's session code is the same over either road, but with a
+limit the local network does not have. The relay gives a host one connection and
+a frame on it carries no guest id, so two phones at once would be one interleaved
+stream that no channel could open. A `peer joined` ends the session before it and
+yields a fresh `LinkConnection`; a `peer left` finishes the current one. Several
+phones at once is a LAN feature; over the relay it is one, and per-guest
+multiplexing is in `ROADMAP.md`. A frame that arrives with no session behind it
+opens one, because the relay's connection index is eventually consistent and a
+guest's first frame can beat the `peer joined` that announces it.
+
+**Reconnecting** is the phone's job, not the road's. `LinkBackoff` is the one
+place the numbers live: a second, then two, four, eight, capped at thirty. The
+count is the caller's, because the caller is what knows a connection succeeded —
+it resets on a live session and on the app coming to the foreground, which is
+also when it reconnects.
+
+## The phone's client
+
+`ZephraLinkClient` holds `LinkClient`, a `@MainActor @Observable` class that is
+the phone's `GenerationStore`: the one object its views observe, split across
+`LinkClient+*.swift` by concern — connecting, pairing, the handshake, the
+dispatch, requests, blobs, commands. A new concern is another extension file,
+never more lines in `LinkClient.swift`.
+
+What it holds is what the Mac published: `snapshot`, brought up to date by
+`StateSnapshot.applying(_:)` for every delta after it; `preview`, the newest
+frame of the run in flight, cleared whenever the engine stops being busy;
+`library`, the entries the Mac has sent, reset, upserted by file name or removed;
+and `pairedHost`, the Mac this phone knows. Nothing here decides anything about a
+generation — the Mac clamps, the Mac queues, and the phone shows what came back.
+
+Two things are injected, and both are what make the whole session testable in
+milliseconds. `LinkKeyStore` is where the identity and the pairing are kept; the
+keychain is the app's business, and `MemoryLinkKeyStore` is the test's.
+`LinkRoads` is every way to reach a Mac — `NetworkLinkRoads` is Bonjour, TCP and
+the relay; `MemoryLinkRoads` hands back one end of a `MemoryLinkConnection.pair()`
+with a fake Mac on the other, so pairing, the handshake, the dispatch, a request
+and a blob are all exercised with nothing between the two ends but an
+`AsyncStream` and no permission dialog for the local network.
+
+`connect()` is idempotent, so the interface calls it on every foreground without
+a flag of its own: the stored addresses first, then a three-second Bonjour browse
+filtered to the room, then the relay. A refusal ends it wherever it comes — it is
+the same Mac at the end of every road, and trying the rest would waste the
+person's time and lose the sentence the Mac wrote for them. `pair(with:)` is the
+same walk carrying the code's secret, and it saves the `PairedHost` only once a
+handshake has succeeded.
+
+The session loop reads `frames()`, opens each through the `SecureChannel` and
+dispatches by kind. The reader starts **before** the first plaintext message goes
+out, not after the handshake: the Mac's answer can be on its way back before this
+end asks for it, and a frame read by nobody is a handshake that hangs. A body
+that will not decode is dropped with a log line rather than taken as a reason to
+close, which is the case the envelope's opaque body exists for. An `error` with
+`revoked` forgets the host, because the keys this phone holds are then worth
+nothing.
+
+`request(_:)` holds a command open for thirty seconds under its envelope's id,
+and every command gets exactly one reply. `fetchBlob(_:)` is a request whose
+reply announces a blob, and the chunks that follow are reassembled in order; a
+chunk for a blob nothing has looked at yet still opens a transfer, since the
+reply and the first chunk are two frames on one stream. `enqueue(_:reference:)`
+sends the picture as a blob first and names it in the request, for the reason
+`GenerationRequest` strips the bytes at all.
+
+`LinkClient.frozen(snapshot:library:)` is a client for a preview or a screenshot:
+live over the LAN as far as the interface can tell, requests answering `.ok` and
+blobs failing, and no road under it at all. A preview that could make a request
+would be a preview that could queue a generation on somebody's Mac.
