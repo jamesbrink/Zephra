@@ -1,8 +1,6 @@
 import Testing
 import ZephraCore
 
-@testable import Zephra
-
 @Suite("What a reference picture means to the model reading it")
 struct ReferenceRoleTests {
     @Test("LTX-2.5 holds the picture as the clip's first frame")

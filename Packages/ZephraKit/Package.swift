@@ -3,7 +3,9 @@ import PackageDescription
 
 let package = Package(
     name: "ZephraKit",
-    platforms: [.macOS(.v15)],
+    // iOS as well, because the value layer the companion app reads — the catalog, the
+    // capabilities, and the three parsers that turn typing into them — is the same layer.
+    platforms: [.macOS(.v15), .iOS(.v18)],
     products: [
         .library(name: "ZephraCore", targets: ["ZephraCore"]),
         .library(name: "ZephraSnapshot", targets: ["ZephraSnapshot"]),

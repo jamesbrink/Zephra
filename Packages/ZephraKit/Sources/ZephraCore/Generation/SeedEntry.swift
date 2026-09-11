@@ -12,9 +12,9 @@ import Foundation
 /// are decimal, since that is what the tooltip shows and what a pasted number means. Sixteen
 /// hex digits are the whole value, eight are the label, and any other count is refused rather
 /// than guessed at.
-enum SeedEntry {
+public enum SeedEntry {
     /// The seed `text` names, or nil when it names none.
-    static func parse(_ text: String) -> UInt64? {
+    public static func parse(_ text: String) -> UInt64? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         let lower = trimmed.lowercased()
