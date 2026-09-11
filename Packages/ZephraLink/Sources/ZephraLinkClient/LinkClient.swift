@@ -84,6 +84,9 @@ public final class LinkClient {
     /// A session ending, as it happens. `LinkReconnect` waits on this instead of asking every
     /// couple of seconds whether the Mac is still there, so a socket that died mid-session —
     /// which over the relay is how a sleeping Mac looks — is reconnected to immediately.
+    ///
+    /// One consumer: an `AsyncStream` has one, and an iterator that is dropped ends the stream
+    /// behind it, so whoever waits keeps the iterator it made.
     public func sessionEndings() -> AsyncStream<Void> { endings }
 
     /// Says the session that was live has gone. Called wherever one is let go.

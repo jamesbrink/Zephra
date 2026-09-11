@@ -27,9 +27,9 @@ final class LinkReconnect {
     private let client: LinkClient
     private var task: Task<Void, Never>?
     private var attempt = 0
-    /// The client's endings, iterated once and for the life of this object: a second iterator
-    /// over one `AsyncStream` would share its elements with the first.
-    private var endings: AsyncStream<Void>.Iterator?
+    /// The client's endings, iterated once and for the life of this object: an `AsyncStream`
+    /// has one consumer, and an iterator that is dropped ends the stream behind it.
+    private var endings: SessionEndings?
 
     /// Reconnection for one client.
     init(client: LinkClient) {
@@ -85,11 +85,25 @@ final class LinkReconnect {
     /// The client says so itself. Only where that stream has finished does this fall back to
     /// asking every couple of seconds, since a wait on a finished stream would spin.
     private func waitForTheSessionToEnd() async {
-        if endings == nil { endings = client.sessionEndings().makeAsyncIterator() }
+        let endings = endings ?? SessionEndings(client.sessionEndings())
+        self.endings = endings
         while !Task.isCancelled, client.connection.isLive {
-            if await endings?.next() == nil {
+            if await endings.next() == nil {
                 do { try await Task.sleep(for: Self.heartbeat) } catch { return }
             }
         }
     }
+}
+
+/// One iterator over a client's endings, off the main actor, so waiting on it is not a mutation
+/// of actor-isolated state — and kept, since an `AsyncStream` iterator that is dropped ends the
+/// stream behind it. Single consumer by construction: `LinkReconnect` is the only thing that
+/// waits on one.
+private nonisolated final class SessionEndings: @unchecked Sendable {
+    private var iterator: AsyncStream<Void>.AsyncIterator
+
+    init(_ stream: AsyncStream<Void>) { iterator = stream.makeAsyncIterator() }
+
+    /// The next ending, or nil once there will be no more.
+    func next() async -> Void? { await iterator.next() }
 }
