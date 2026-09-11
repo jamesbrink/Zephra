@@ -1,5 +1,6 @@
 import Foundation
 import ZephraLinkProtocol
+import os
 
 /// One connection to one Mac, from the road under it to the channel over it.
 ///
@@ -30,6 +31,10 @@ final class LinkSession {
     /// and a `left` is the Mac asleep or its own socket gone: it ends this session at once
     /// rather than leaving every request to time out against a room with nobody in it.
     var peers: Task<Void, Never>?
+    /// The task watching the road's own refusals — the relay's `error` frames — which are frames
+    /// this end sealed that the Mac will never see. Logged, never fatal: what the missing frame
+    /// costs is a gap at the far end, and a gap is now something both ends recover from.
+    var roadErrors: Task<Void, Never>?
     /// The plaintext frames that arrived before anyone asked for them.
     var handshakeInbox: [Data] = []
     /// Whoever is waiting for the next plaintext frame.
@@ -78,6 +83,8 @@ final class LinkSession {
         reader = nil
         peers?.cancel()
         peers = nil
+        roadErrors?.cancel()
+        roadErrors = nil
         sink.finish()
         await writer?.value
         writer = nil
@@ -93,14 +100,27 @@ final class LinkSession {
     /// The writer: one task per session, draining the stream in the order it was sealed in.
     ///
     /// A send that fails closes the road rather than reporting: the reader is the one place a
-    /// session is torn down, and a closed road is what it notices.
+    /// session is torn down, and a closed road is what it notices. It is logged at error first,
+    /// with what was in flight and what went wrong — a frame that left this phone and reached
+    /// nobody is otherwise the quietest failure in the link.
     private static func writerTask(
         road: any LinkConnection, outbound: AsyncStream<Data>
     ) -> Task<Void, Never> {
         Task.detached(priority: .utility) {
             for await bytes in outbound {
-                do { try await road.send(bytes) } catch { return await road.close() }
+                do {
+                    try await road.send(bytes)
+                } catch {
+                    Self.logger.error(
+                        """
+                        A frame of \(bytes.count, privacy: .public) bytes did not leave this                         phone: \(String(describing: error), privacy: .public)
+                        """)
+                    return await road.close()
+                }
             }
         }
     }
+
+    /// The log this session's writer uses, which runs off the main actor.
+    private nonisolated static let logger = Logger(subsystem: "io.zephra", category: "link.client")
 }

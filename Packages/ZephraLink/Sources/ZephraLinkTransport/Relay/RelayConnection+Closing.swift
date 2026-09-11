@@ -23,6 +23,7 @@ extension RelayConnection {
         task.cancel(with: .goingAway, reason: nil)
         frameContinuation.finish(throwing: error)
         peerContinuation.finish()
+        errorContinuation.finish()
     }
 
     public func close() async {
@@ -37,6 +38,7 @@ extension RelayConnection {
         task.cancel(with: .goingAway, reason: nil)
         frameContinuation.finish()
         peerContinuation.finish()
+        errorContinuation.finish()
     }
 
     /// Whether this road has been closed from this end.

@@ -45,6 +45,12 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
     let frameContinuation: AsyncThrowingStream<Data, Error>.Continuation
     let peerContinuation: AsyncStream<RelayPeerEvent>.Continuation
     let peerStream: AsyncStream<RelayPeerEvent>
+    /// The relay's own refusals of frames this end sent, after the join. Their own stream rather
+    /// than a `RelayPeerEvent`: a refusal is not the other end moving, it is a frame this end
+    /// wrote that nobody will ever receive, and the owner of the road is the one that can say
+    /// which session lost it.
+    let errorContinuation: AsyncStream<String>.Continuation
+    let errorStream: AsyncStream<String>
     /// The slices of payloads too big for one WebSocket frame, put back together here.
     let fragments = RelayFragments()
     /// Not private: `RelayConnection+Closing` is the rest of this type, and the lock is what
@@ -62,6 +68,7 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
         handshake = RelayHandshake(identity: identity, room: room, role: role)
         (frameStream, frameContinuation) = AsyncThrowingStream.makeStream()
         (peerStream, peerContinuation) = AsyncStream.makeStream()
+        (errorStream, errorContinuation) = AsyncStream.makeStream()
     }
 
     /// Opens the socket and joins the room, or throws the relay's refusal.
@@ -110,6 +117,11 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
     /// phone knows the Mac is asleep without waiting for a request to time out.
     public func peerEvents() -> AsyncStream<RelayPeerEvent> { peerStream }
 
+    /// Every frame the relay refused after the join, in the relay's own words. Logged here and
+    /// carried up as well, because the road knows a frame was refused and only the session above
+    /// knows what was in it.
+    public func relayErrors() -> AsyncStream<String> { errorStream }
+
     /// Replaces the set of guests the relay will admit into this room, and says whether the room
     /// is open to a guest on no list at all.
     ///
@@ -126,6 +138,8 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
             return state.isJoined && !state.isClosed
         }
         guard isLive, role == .host else { return }
+        // `write` logs its own failure: an allow-list that never reached the relay is a phone
+        // that cannot join, and it used to be swallowed here without a word.
         try? await write(.allow(pubs: trimmed, open: open ? true : nil))
     }
 
@@ -145,8 +159,11 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
         do {
             for message in RelayFragment.messages(for: frame) { try await write(message) }
         } catch {
-            logger.notice(
-                "The relay socket refused a frame: \(error.localizedDescription, privacy: .public)")
+            logger.error(
+                """
+                The relay socket refused a frame of \(frame.count, privacy: .public) bytes: \
+                \(String(describing: error), privacy: .public)
+                """)
             fail(error)
             throw error
         }

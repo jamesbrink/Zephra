@@ -133,6 +133,47 @@ struct RelayConnectionTests {
         Issue.record("the relay never heard it")
     }
 
+    @Test("a refusal after the join reaches the road's owner and leaves the road open")
+    func relayErrorsSurface() async throws {
+        let relay = try FakeRelay()
+        defer { relay.stop() }
+        let identity = DeviceIdentity()
+        let road = RelayConnection(
+            url: try await relay.start(), identity: identity, room: identity.roomID, role: .guest)
+        defer { Task { await road.close() } }
+        try await road.start()
+        var refusals = road.relayErrors().makeAsyncIterator()
+        let frames = FrameReader(road.frames())
+
+        relay.push(.error(reason: "bad payload"))
+        #expect(await refusals.next() == "bad payload", "the relay's own word, not ours")
+
+        // The frame that caused it is gone — that is a gap for the far end to step over — but
+        // the road is not: the relay leaves a joined connection open after an error, and so does
+        // this end.
+        let payload = Data([0x01, 0x02, 0x03])
+        try await road.send(payload)
+        #expect(try await frames.next() == payload, "the road still carries")
+    }
+
+    @Test("a write into a dead socket fails loudly rather than being swallowed")
+    func aFailedWriteEndsTheRoad() async throws {
+        let relay = try FakeRelay()
+        defer { relay.stop() }
+        let identity = DeviceIdentity()
+        let road = RelayConnection(
+            url: try await relay.start(), identity: identity, room: identity.roomID, role: .guest)
+        defer { Task { await road.close() } }
+        try await road.start()
+        let frames = FrameReader(road.frames())
+
+        // The socket goes without this end saying so, which is the shape a write failure takes.
+        road.task.cancel(with: .goingAway, reason: nil)
+        await #expect(throws: (any Error).self) { try await road.send(Data([0x09])) }
+        await #expect(throws: (any Error).self) { _ = try await frames.next() }
+        #expect(road.isClosed, "a road that cannot write is a road nothing may wait on")
+    }
+
     @Test("a frame before the room is joined is refused rather than sent")
     func sendBeforeJoin() async throws {
         let relay = try FakeRelay()

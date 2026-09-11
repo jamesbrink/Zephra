@@ -22,9 +22,19 @@ public protocol LinkConnection: Sendable {
     /// request to time out. A road that cannot tell answers a stream that finishes immediately,
     /// so a caller may always ask.
     func peerEvents() -> AsyncStream<RelayPeerEvent>
+    /// Every refusal the road itself made of something this end sent, in the road's own words —
+    /// the relay's `error` frames after a join, which leave the connection open and are otherwise
+    /// a frame that simply never arrives at the far end. A road that cannot refuse anything
+    /// answers a stream that finishes immediately, so a caller may always ask.
+    func relayErrors() -> AsyncStream<String>
 }
 
 extension LinkConnection {
+    /// Nothing, for a road that refuses nothing of its own.
+    public func relayErrors() -> AsyncStream<String> {
+        AsyncStream { $0.finish() }
+    }
+
     /// Nothing, for a road with no notion of the other end leaving.
     public func peerEvents() -> AsyncStream<RelayPeerEvent> {
         AsyncStream { $0.finish() }
