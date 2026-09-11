@@ -79,7 +79,7 @@ export const handler = async (event) => {
     if (routeKey === "$connect") {
       // Nothing is authenticated yet. The connection proves itself over the
       // next two frames, hello then join.
-      console.log("connect", connectionId);
+      logLine({ at: "$connect", from: connectionId, result: "open" });
       return { statusCode: 200 };
     }
     if (routeKey === "$disconnect") {
@@ -90,6 +90,14 @@ export const handler = async (event) => {
     return { statusCode: 200 };
   } catch (error) {
     console.error("relay failure", routeKey, connectionId, error);
+    // The backstop line: whatever threw, the frame that died leaves one JSON
+    // line behind like every other, so a filter over `result` sees it too.
+    logLine({
+      at: short(routeKey, 32) ?? "unknown",
+      from: connectionId,
+      result: "error",
+      error: describe(error),
+    });
     // Returning 200 keeps API Gateway from retrying a frame we cannot handle.
     return { statusCode: 200 };
   }
@@ -102,6 +110,11 @@ async function onMessage(connectionId, body) {
   const message = parseMessage(body);
 
   if (!message) {
+    logLine({
+      at: "malformed",
+      from: connectionId,
+      result: state.member ? "errored" : "closed",
+    });
     await fail(state, connectionId, "malformed");
     return;
   }
@@ -118,6 +131,15 @@ async function onMessage(connectionId, body) {
   // Every other action needs a joined connection. An unauthenticated connection
   // that speaks anything but hello or join is closed on the spot.
   if (!state.member) {
+    // Two holes, and the log tells them apart: a connection that never joined,
+    // or one whose own pending row says it did and whose index entry was still
+    // not there after the retry.
+    logLine({
+      at: short(message.a, 32) ?? "unknown",
+      from: connectionId,
+      result: state.retried ? "index-lag" : "not-joined",
+      error: "not joined",
+    });
     await reject(connectionId, "not joined");
     return;
   }
@@ -136,6 +158,13 @@ async function onMessage(connectionId, body) {
     default:
       // A joined connection keeps its socket: the client is authenticated and a
       // stray frame is a bug to report, not grounds to tear the session down.
+      logLine({
+        at: short(message.a, 32) ?? "unknown",
+        from: connectionId,
+        role: state.member.role,
+        room: state.member.room,
+        result: "unknown-action",
+      });
       await post(connectionId, { a: "error", reason: "unknown action" });
   }
 }
@@ -145,12 +174,14 @@ async function onMessage(connectionId, body) {
 // key it is about to claim.
 async function onHello(connectionId, state) {
   if (state.member || state.pending?.joined) {
+    logLine({ at: "hello", from: connectionId, result: "already-joined" });
     await post(connectionId, { a: "error", reason: "already joined" });
     return;
   }
 
   const hellos = (state.pending?.hellos ?? 0) + 1;
   if (hellos > MAX_HELLOS) {
+    logLine({ at: "hello", from: connectionId, result: "too-many" });
     await reject(connectionId, "too many hellos");
     return;
   }
@@ -173,10 +204,21 @@ async function onHello(connectionId, state) {
   );
 
   await post(connectionId, { a: "challenge", n: nonce });
+  logLine({ at: "hello", from: connectionId, result: "challenged" });
 }
 
 async function onJoin(connectionId, message, state) {
+  // What every line about this join says, whatever it ends as. Both fields are
+  // the client's own words until they are checked, so both are logged bounded.
+  const line = {
+    at: "join",
+    from: connectionId,
+    role: short(message.role, 16),
+    room: short(message.room, 64),
+  };
+
   if (state.member || state.pending?.joined) {
+    logLine({ ...line, result: "already-joined" });
     await post(connectionId, { a: "error", reason: "already joined" });
     return;
   }
@@ -185,18 +227,18 @@ async function onJoin(connectionId, message, state) {
   const role = message.role;
 
   if (!ROOM_PATTERN.test(room ?? "")) {
-    await reject(connectionId, "bad room");
+    await refuseJoin(connectionId, line, "bad room");
     return;
   }
   if (role !== "host" && role !== "guest") {
-    await reject(connectionId, "bad role");
+    await refuseJoin(connectionId, line, "bad role");
     return;
   }
 
   const pub = decodeBase64(message.pub, 32);
   const sig = decodeBase64(message.sig, 64);
   if (!pub || !sig) {
-    await reject(connectionId, "bad key");
+    await refuseJoin(connectionId, line, "bad key");
     return;
   }
 
@@ -206,33 +248,33 @@ async function onJoin(connectionId, message, state) {
 
   const allow = role === "host" ? parseAllowList(message.allow) : [];
   if (!allow) {
-    await reject(connectionId, "bad allow");
+    await refuseJoin(connectionId, line, "bad allow");
     return;
   }
 
   const open = role === "host" ? parseOpen(message.open) : false;
   if (open === null) {
-    await reject(connectionId, "bad open");
+    await refuseJoin(connectionId, line, "bad open");
     return;
   }
 
   const pending = state.pending;
   if (!pending?.nonce) {
-    await reject(connectionId, "no challenge");
+    await refuseJoin(connectionId, line, "no challenge");
     return;
   }
   if (pending.expiresAt <= now()) {
     // DynamoDB's TTL sweep runs on its own schedule, so an expired challenge is
     // still readable. Refuse it here rather than trust the sweep.
     await dropPending(connectionId);
-    await reject(connectionId, "challenge expired");
+    await refuseJoin(connectionId, line, "challenge expired");
     return;
   }
 
   const nonce = decodeBase64(pending.nonce, 32);
   if (!nonce) {
     await dropPending(connectionId);
-    await reject(connectionId, "challenge expired");
+    await refuseJoin(connectionId, line, "challenge expired");
     return;
   }
 
@@ -246,7 +288,7 @@ async function onJoin(connectionId, message, state) {
   // it to this connection, and the room binds it to this room.
   const signed = Buffer.concat([nonce, Buffer.from(room, "utf8"), Buffer.from(role, "utf8")]);
   if (!verifyEd25519(signed, pub, sig)) {
-    await reject(connectionId, "bad signature");
+    await refuseJoin(connectionId, line, "bad signature");
     return;
   }
 
@@ -257,18 +299,19 @@ async function onJoin(connectionId, message, state) {
   if (role === "host") {
     const fingerprint = createHash("sha256").update(pub).digest().subarray(0, 16).toString("hex");
     if (fingerprint !== room) {
-      await reject(connectionId, "room does not match key");
+      await refuseJoin(connectionId, line, "room does not match key");
       return;
     }
   }
 
   let hostConnectionId = null;
   if (role === "guest") {
-    hostConnectionId = await claimGuestSlot(connectionId, room, publicKey);
-    if (!hostConnectionId) {
-      // claimGuestSlot has already answered and closed.
+    const claim = await claimGuestSlot(connectionId, room, publicKey);
+    if (claim.refusal) {
+      await refuseJoin(connectionId, line, claim.refusal);
       return;
     }
+    hostConnectionId = claim.host;
   }
 
   // The nonce is single use: spending it is what makes a captured join frame
@@ -295,34 +338,49 @@ async function onJoin(connectionId, message, state) {
   await dynamo.send(new PutItemCommand({ TableName: TABLE_NAME, Item: item }));
 
   await post(connectionId, { a: "joined", role });
+  logLine({ ...line, at: "joined", result: "joined" });
 
   if (hostConnectionId) {
-    await post(hostConnectionId, { a: "peer", event: "joined" }, {
+    const told = await post(hostConnectionId, { a: "peer", event: "joined" }, {
       room,
       connectionId: hostConnectionId,
+    });
+    logLine({
+      at: "peer",
+      event: "joined",
+      from: connectionId,
+      role,
+      room,
+      to: [hostConnectionId],
+      result: told ? "forwarded" : "gone",
     });
   }
 }
 
-// Returns the host's connection id, or null once it has refused and closed the
-// guest. The slot is taken on the host's own row, so two guests racing for the
-// same room cannot both win: DynamoDB decides it, not a read followed by a
-// write.
+// A join that goes no further: one line saying why, then the error frame and
+// the close the contract promises.
+async function refuseJoin(connectionId, line, reason) {
+  logLine({ ...line, result: "refused", error: reason });
+  await reject(connectionId, reason);
+}
+
+// `{ host }` with the host's connection id, or `{ refusal }` with the reason
+// this guest cannot have the room. The caller answers and logs, so every refusal
+// leaves the same line behind. The slot is taken on the host's own row, so two
+// guests racing for the same room cannot both win: DynamoDB decides it, not a
+// read followed by a write.
 async function claimGuestSlot(connectionId, room, publicKey) {
   const rows = await roomRows(room);
   const host = rows.find((peer) => peer.role === "host");
   if (!host) {
-    await reject(connectionId, "no host");
-    return null;
+    return { refusal: "no host" };
   }
   // An open room admits any key; a closed one only the keys the host named.
   if (!host.open && !host.allow.includes(publicKey)) {
-    await reject(connectionId, "not allowed");
-    return null;
+    return { refusal: "not allowed" };
   }
   if (rows.some((peer) => peer.role === "guest")) {
-    await reject(connectionId, "room busy");
-    return null;
+    return { refusal: "room busy" };
   }
 
   // A slot naming a guest whose row is gone is stale — the row was swept by the
@@ -347,32 +405,41 @@ async function claimGuestSlot(connectionId, room, publicKey) {
   } catch (error) {
     if (error.name === "ConditionalCheckFailedException") {
       // Either another guest won the race or the host left mid-join.
-      await reject(connectionId, "room busy");
-      return null;
+      return { refusal: "room busy" };
     }
     throw error;
   }
 
-  return host.connectionId;
+  return { host: host.connectionId };
 }
 
 // The host's admission policy, replaced wholesale: the frame says what the room
 // admits from now on, so an omitted `open` closes it. It governs who may join
 // next; a guest already in the room is not evicted by it.
 async function onAllow(member, message) {
+  const line = {
+    at: "allow",
+    from: member.connectionId,
+    role: member.role,
+    room: member.room,
+  };
+
   if (member.role !== "host") {
+    logLine({ ...line, result: "not-host" });
     await post(member.connectionId, { a: "error", reason: "not host" });
     return;
   }
 
   const allow = parseAllowList(message.pubs);
   if (!allow) {
+    logLine({ ...line, result: "bad-allow" });
     await post(member.connectionId, { a: "error", reason: "bad allow" });
     return;
   }
 
   const open = parseOpen(message.open);
   if (open === null) {
+    logLine({ ...line, result: "bad-open" });
     await post(member.connectionId, { a: "error", reason: "bad open" });
     return;
   }
@@ -410,27 +477,80 @@ async function onAllow(member, message) {
   );
 
   await post(member.connectionId, { a: "allowed", count: allow.length });
+  // The keys themselves are not logged: how many, and whether the room is open.
+  logLine({ ...line, result: "allowed", count: allow.length, open });
 }
 
+// Every way out of this function writes one line. A frame that vanishes with
+// nothing written is the bug this logging exists for: a live run lost one small
+// `send` between two counters and CloudWatch held nothing at all.
 async function onSend(member, message, body) {
+  const line = {
+    at: "send",
+    from: member.connectionId,
+    role: member.role,
+    room: member.room,
+    bytes: typeof message.d === "string" ? message.d.length : 0,
+    // The fragment fields are the client's, so they are logged only in a shape
+    // a filter can rely on. `d` itself never is.
+    m: short(message.m),
+    i: counter(message.i),
+    n: counter(message.n),
+    to: [],
+  };
+
   if (typeof message.d !== "string") {
     await post(member.connectionId, { a: "error", reason: "bad payload" });
+    logLine({ ...line, result: "bad-payload" });
     return;
   }
 
   // One peer each way: a host talks to its one guest, a guest to its host.
   const target = member.role === "host" ? await resolveGuest(member) : member.host;
   if (!target) {
+    if (member.role === "host") {
+      // The documented silent drop: a host may write before its guest has
+      // arrived, and an error frame for each of those would tell it nothing it
+      // does not already know. The line is the record that it happened.
+      logLine({ ...line, result: "no-peer" });
+      return;
+    }
+    // A guest whose row points at no host has nothing to wait for: rejoining is
+    // the only way back, so it is told rather than left writing into nothing.
+    await post(member.connectionId, { a: "error", reason: "no host" });
+    await post(member.connectionId, { a: "peer", event: "left" });
+    logLine({ ...line, result: "no-host" });
     return;
   }
 
-  // Forwarded verbatim: the relay does not read or rewrite `d`.
-  const delivered = await post(target, body, { room: member.room, connectionId: target });
-  if (!delivered && member.role === "host") {
-    // The guest's row is gone with it; free the slot too, or the room stays
-    // busy against a connection that no longer exists.
+  line.to = [target];
+
+  let delivered;
+  try {
+    // Forwarded verbatim: the relay does not read or rewrite `d`.
+    delivered = await post(target, body, { room: member.room, connectionId: target });
+  } catch (error) {
+    // Anything that is not a dead peer: a throttle, a timeout, a permission.
+    // Swallowing it is what made the last drop invisible, so the sender is told
+    // and keeps its socket.
+    await post(member.connectionId, { a: "error", reason: "forward failed" });
+    logLine({ ...line, result: "error", error: describe(error) });
+    return;
+  }
+
+  if (delivered) {
+    logLine({ ...line, result: "forwarded" });
+    return;
+  }
+
+  // The peer is gone and `post` took its row with it. A host frees the room's
+  // slot too, or the room stays busy against a connection that no longer
+  // exists, and either sender is told its peer left rather than left to guess.
+  if (member.role === "host") {
     await releaseGuestSlot(member.room, member.connectionId, target);
   }
+  await post(member.connectionId, { a: "peer", event: "left" });
+  logLine({ ...line, result: "gone" });
 }
 
 async function onDisconnect(connectionId) {
@@ -441,31 +561,46 @@ async function onDisconnect(connectionId) {
   await dropPending(connectionId);
 
   if (!member) {
+    logLine({ at: "$disconnect", from: connectionId, to: [], result: "unknown" });
     return;
   }
 
   await drop(member);
 
+  const line = {
+    at: "$disconnect",
+    from: connectionId,
+    role: member.role,
+    room: member.room,
+  };
+
   // The host leaving ends the session for the guest; a guest leaving is news the
   // host needs to drop its own peer state, and frees the room's one slot.
   if (member.role === "host") {
     const guest = await resolveGuest(member);
-    if (guest) {
-      await post(guest, { a: "peer", event: "left" }, {
-        room: member.room,
-        connectionId: guest,
-      });
+    if (!guest) {
+      logLine({ ...line, to: [], result: "no-peer" });
+      return;
     }
+    const told = await post(guest, { a: "peer", event: "left" }, {
+      room: member.room,
+      connectionId: guest,
+    });
+    logLine({ ...line, to: [guest], result: told ? "left" : "gone" });
     return;
   }
 
-  if (member.host) {
-    await releaseGuestSlot(member.room, member.host, connectionId);
-    await post(member.host, { a: "peer", event: "left" }, {
-      room: member.room,
-      connectionId: member.host,
-    });
+  if (!member.host) {
+    logLine({ ...line, to: [], result: "no-peer" });
+    return;
   }
+
+  await releaseGuestSlot(member.room, member.host, connectionId);
+  const told = await post(member.host, { a: "peer", event: "left" }, {
+    room: member.room,
+    connectionId: member.host,
+  });
+  logLine({ ...line, to: [member.host], result: told ? "left" : "gone" });
 }
 
 // A guest's connection id reaches the host's row by a later UpdateItem, so the
@@ -565,6 +700,32 @@ function verifyEd25519(data, rawPublicKey, signature) {
   }
 }
 
+// One JSON object per line, so CloudWatch Logs Insights and a metric filter can
+// both read a field out of it: `{ $.at = "send" && $.result != "forwarded" }` is
+// every frame that did not make it across. The contents of `d` and `sig` are
+// never in a line -- the relay logs the shape of a frame, never what is in it.
+function logLine(fields) {
+  console.log(JSON.stringify(fields));
+}
+
+// A string a client chose, bounded, or null. Nothing unbounded reaches the log,
+// so a peer cannot write a megabyte of its own into it.
+function short(value, limit = 64) {
+  return typeof value === "string" && value.length <= limit ? value : null;
+}
+
+// A number a client chose, or null: a fragment index is a number or it is not
+// one, and a filter should never have to tell `"0"` from `0`.
+function counter(value) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+// What an error says in a line: its message, bounded, never the object.
+function describe(error) {
+  const text = error?.message ?? String(error);
+  return text.length > 200 ? `${text.slice(0, 200)}...` : text;
+}
+
 function now() {
   return Math.floor(Date.now() / 1000);
 }
@@ -582,19 +743,20 @@ function pendingRoom(connectionId) {
 async function connectionState(connectionId) {
   const member = await findMember(connectionId);
   if (member) {
-    return { member, pending: null };
+    return { member, pending: null, retried: false };
   }
 
   const pending = await findPending(connectionId);
   if (!pending?.joined) {
     // Nothing here ever joined, so there is nothing for a retry to find. An
     // unauthenticated connection never buys a second query with its frames.
-    return { member: null, pending };
+    return { member: null, pending, retried: false };
   }
 
   // The row says this connection joined, so the index is merely lagging.
+  // `retried` is what tells a missing row from a lagging index in the log.
   await new Promise((resolve) => setTimeout(resolve, INDEX_RETRY_MS));
-  return { member: await findMember(connectionId), pending };
+  return { member: await findMember(connectionId), pending, retried: true };
 }
 
 async function findPending(connectionId) {

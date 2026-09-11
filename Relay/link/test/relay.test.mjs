@@ -16,6 +16,29 @@ register("./fake-aws/hooks.mjs", import.meta.url);
 process.env.TABLE_NAME = "t";
 process.env.MANAGEMENT_ENDPOINT = "http://local";
 
+// Every line the relay writes, parsed. `console.log` is the relay's only way
+// out to CloudWatch, so the test reads exactly what a person reading the log
+// would: one JSON object per line and nothing else. The stub stays up for the
+// whole file -- the scenarios run as this module is evaluated, and `check`
+// reports their answers afterwards without printing anything itself.
+const logged = [];
+const realLog = console.log;
+console.log = (...args) => {
+  const text = args.join(" ");
+  try {
+    logged.push(JSON.parse(text));
+  } catch {
+    logged.push({ unparsed: text });
+  }
+};
+process.on("exit", () => {
+  console.log = realLog;
+});
+
+// The raw text of what was logged, for asserting what is *not* in a line.
+const loggedText = [];
+const noteText = (line) => JSON.stringify(line);
+
 const { generateKeyPairSync, createHash, sign } = await import("node:crypto");
 const db = await import("@aws-sdk/client-dynamodb");
 const gw = await import("@aws-sdk/client-apigatewaymanagementapi");
@@ -71,7 +94,20 @@ async function joinAs(id, k, room, role, extra = {}) {
 function fresh() {
   db.reset();
   gw.reset();
+  logged.length = 0;
+  loggedText.length = 0;
 }
+
+// The lines written since the last `sinceLogs()`, which is how a scenario reads
+// only its own.
+function sinceLogs() {
+  const lines = logged.splice(0, logged.length);
+  loggedText.push(...lines.map(noteText));
+  return lines;
+}
+
+const lineFor = (lines, at, result) =>
+  lines.find((line) => line.at === at && (result === undefined || line.result === result));
 
 // 1. A host joins, names one guest key, and that guest joins.
 {
@@ -378,4 +414,139 @@ function fresh() {
   await msg("G", { a: "send", d: big, m: "fedcba9876543210", i: 0, n: 1 });
   const last = gw.frames("H").filter((f) => f.a === "send").pop();
   check("a 24,000-byte slice arrives whole", last.d.length === 24000 && last.n === 1);
+}
+
+// 16. What the log says. A frame that vanishes with nothing written is the bug
+// this exists for: a live run lost one small `send` between two counters and
+// CloudWatch held only the failures that threw.
+{
+  fresh();
+  const host = key();
+  const guest = key();
+  await joinAs("H", host, host.room, "host", { allow: [guest.pub] });
+  await joinAs("G", guest, host.room, "guest");
+
+  const handshake = sinceLogs();
+  check(
+    "a join writes its own line",
+    lineFor(handshake, "joined", "joined")?.room === host.room,
+    handshake.map((l) => `${l.at}:${l.result}`),
+  );
+  check(
+    "a peer notice says who it reached",
+    lineFor(handshake, "peer", "forwarded")?.to?.[0] === "H",
+    lineFor(handshake, "peer"),
+  );
+
+  // A forwarded fragment: the whole shape, and none of the payload.
+  await msg("G", { a: "send", d: "c2xpY2Ux", m: "0123456789abcdef", i: 1, n: 3 });
+  const [forwarded] = sinceLogs();
+  check(
+    "a forwarded frame is one send line",
+    forwarded?.at === "send" && forwarded.result === "forwarded",
+    forwarded,
+  );
+  check(
+    "it says who, which room and how big",
+    forwarded.from === "G" &&
+      forwarded.role === "guest" &&
+      forwarded.room === host.room &&
+      forwarded.bytes === 8 &&
+      JSON.stringify(forwarded.to) === JSON.stringify(["H"]),
+    forwarded,
+  );
+  check(
+    "it carries the fragment's m, i and n",
+    forwarded.m === "0123456789abcdef" && forwarded.i === 1 && forwarded.n === 3,
+    forwarded,
+  );
+  check(
+    "an unfragmented send logs them as null",
+    (await msg("G", { a: "send", d: "aGk=" }), sinceLogs()[0]).m === null,
+  );
+  check(
+    "no line has ever carried a payload or a signature",
+    !loggedText.some((text) => text.includes("c2xpY2Ux") || text.includes('"sig"')),
+  );
+
+  // A peer that is gone: the slot is freed, the sender is told, and the line
+  // says `gone` rather than nothing at all.
+  gw.gone.add("H");
+  await msg("G", { a: "send", d: "aGk=" });
+  const goneLine = sinceLogs()[0];
+  check("a gone peer logs result gone", goneLine?.result === "gone", goneLine);
+  check(
+    "and the sender is told its peer left",
+    last("G").a === "peer" && last("G").event === "left",
+    last("G"),
+  );
+}
+
+// 17. A host with no guest, and a forward that fails for another reason.
+{
+  fresh();
+  const host = key();
+  const guest = key();
+  await joinAs("H", host, host.room, "host", { allow: [guest.pub] });
+  sinceLogs();
+
+  await msg("H", { a: "send", d: "aGk=" });
+  const lonely = sinceLogs()[0];
+  check(
+    "a host with no guest logs no-peer",
+    lonely?.at === "send" && lonely.result === "no-peer" && lonely.to.length === 0,
+    lonely,
+  );
+  check("and is not sent an error for it", !gw.frames("H").some((f) => f.a === "error"));
+
+  await joinAs("G", guest, host.room, "guest");
+  sinceLogs();
+  gw.broken.add("G");
+  await msg("H", { a: "send", d: "aGk=" });
+  const failed = sinceLogs()[0];
+  check(
+    "a forward that throws logs result error with the reason",
+    failed?.result === "error" && failed.error === "too many requests",
+    failed,
+  );
+  check(
+    "and the sender is told the forward failed",
+    last("H").a === "error" && last("H").reason === "forward failed",
+    last("H"),
+  );
+  check("and keeps its socket", !gw.closed.has("H"));
+  gw.broken.delete("G");
+}
+
+// 18. The refusals write lines too, and each says why.
+{
+  fresh();
+  const host = key();
+  const stranger = key();
+  await joinAs("H", host, host.room, "host", { allow: [] });
+  sinceLogs();
+
+  await joinAs("S", stranger, host.room, "guest");
+  const refused = sinceLogs();
+  check(
+    "a refused join says which refusal",
+    lineFor(refused, "join", "refused")?.error === "not allowed",
+    refused.map((l) => `${l.at}:${l.result}`),
+  );
+
+  await msg("N", { a: "ping" });
+  const notJoined = sinceLogs();
+  check(
+    "a frame from a connection with no row logs not-joined",
+    lineFor(notJoined, "ping", "not-joined")?.error === "not joined",
+    notJoined,
+  );
+
+  await bye("H");
+  const left = sinceLogs();
+  check(
+    "a disconnect logs what it told and whom",
+    lineFor(left, "$disconnect")?.result === "no-peer",
+    left,
+  );
 }
