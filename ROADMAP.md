@@ -102,7 +102,7 @@ is distributed until the app is ready to ship.
      on the slow scene, where the source ran at 4.0), but it buys that with a visible pop
      at the boundary, so the shipped behaviour stands. The way out is training, not
      masking: `TheDenk/wan2.2-video-continuation` (Apache-2.0) is a LoRA that teaches the
-     multi-frame hold, and packing it is the open item — the catalog change behind it is
+     multi-frame hold, and packing it is the open item (issue #43) — the catalog change behind it is
      `continuationFrames` and `defaultContinuationFrames` on the Wan entry. Until then a
      long clip that has to be continuous belongs on LTX-2.5, which holds 17 frames and
      was trained to. Longer clips are chains of passes (`ChainPlan`, up to four);
