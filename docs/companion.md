@@ -411,7 +411,18 @@ not know is `notFound`.
 **Sessions.** `CompanionSession` is one phone from its handshake to the road
 closing. One loop over the connection's frames, with `channel == nil` standing
 for "still in the plaintext stage", so there is one reader and no iterator
-crossing an isolation domain. Everything the Mac says is sealed at the call and
+crossing an isolation domain.
+
+The plaintext stage is where an unpaired device can cost the Mac something, so it
+is bounded twice. `CompanionHost.accept` refuses a connection when
+`CompanionHost.unauthenticatedLimit` sessions already have no channel — eight,
+far more than the phones in one house — and closes that connection rather than
+allocating a session for it; only the unauthenticated are counted, so a house of
+paired phones talking is never refused. And each session starts a clock:
+`handshakeDeadline`, ten seconds, cancelled the moment the `confirm` settles, and
+otherwise the session closes. Both live here rather than in `TCPListener`, which
+has no notion of a handshake and would have to be told about one; the relay road
+gets the same bound for free. Everything the Mac says is sealed at the call and
 yielded into one `AsyncStream<Data>` drained by a writer task of its own: the
 channel's nonce is a frame's position in the stream, so the order frames are
 sealed in must be the order they leave in, and a phone on a slow link never holds

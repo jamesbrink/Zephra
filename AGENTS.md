@@ -275,7 +275,10 @@ itself, so a LAN listener and a relay are the same thing to it. One
 change and coalesced by 50 ms, is what publishes the `StateDelta`s; preview
 frames go out as JPEG at most ten a second, encoded off the main actor.
 `CompanionSession` is one phone, with a writer task of its own so a slow link
-never holds the main actor. It **writes nothing to the Mac's own interface**:
+never holds the main actor. The plaintext stage is bounded twice, in
+`CompanionHost` rather than in a listener that knows nothing of handshakes: at
+most `unauthenticatedLimit` (8) connections may sit in it, and each is closed
+after `handshakeDeadline` (10 s) without a channel. It **writes nothing to the Mac's own interface**:
 every request goes through `GenerationStore.enqueue` and the index's own
 mutations, never `settings`, `descriptor`, `index.query` or `generate(count:)`,
 and an annotation edit is made with the index's `UndoManager` lifted off, since

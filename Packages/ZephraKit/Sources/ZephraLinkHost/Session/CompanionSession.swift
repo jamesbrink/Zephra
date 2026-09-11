@@ -42,6 +42,8 @@ public final class CompanionSession: Identifiable {
     private let sink: AsyncStream<Data>.Continuation
     private var writer: Task<Void, Never>?
     private var reader: Task<Void, Never>?
+    /// The clock on the plaintext stage, cancelled the moment there is a channel.
+    private var deadline: Task<Void, Never>?
 
     /// How many finished blobs a session holds before the oldest is dropped. A phone sends one
     /// reference picture and then asks for a generation; more than a couple waiting means a
@@ -55,10 +57,26 @@ public final class CompanionSession: Identifiable {
         (outbound, sink) = AsyncStream.makeStream(bufferingPolicy: .unbounded)
     }
 
-    /// Starts the two tasks: bytes out, frames in.
+    /// Whether the handshake is behind it: `channel` is what says the plaintext stage is over.
+    var isAuthenticated: Bool { channel != nil }
+
+    /// Starts the two tasks — bytes out, frames in — and the clock on the handshake.
     func start() {
         writer = Self.writerTask(connection: connection, outbound: outbound, session: self)
         reader = Task { @MainActor [weak self] in await self?.run() }
+        let wait = host?.handshakeDeadline ?? .seconds(10)
+        deadline = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: wait)
+            guard !Task.isCancelled, let self, !isAuthenticated else { return }
+            host?.logger.notice("companion closed a connection that never finished its handshake")
+            await close()
+        }
+    }
+
+    /// The handshake is behind it, so the clock stops.
+    func handshakeSettled() {
+        deadline?.cancel()
+        deadline = nil
     }
 
     /// Closes the session, optionally telling the phone why first.
@@ -72,6 +90,7 @@ public final class CompanionSession: Identifiable {
         if let error { try? sendError(error) }
         isClosed = true
         isReady = false
+        handshakeSettled()
         sink.finish()
         await writer?.value
         writer = nil

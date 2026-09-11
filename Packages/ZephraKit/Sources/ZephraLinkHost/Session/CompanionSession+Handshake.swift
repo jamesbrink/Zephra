@@ -72,6 +72,7 @@ extension CompanionSession {
         let opened = try responder.receive(confirm)
         channel = opened.channel
         peer = opened.peer
+        handshakeSettled()
         if opened.paired {
             host.devicePaired(opened.peer, name: deviceName)
         } else {
