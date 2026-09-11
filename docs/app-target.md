@@ -374,10 +374,9 @@ Four directories, by what a file is rather than what screen it is on:
   which is right for "use this as a reference" and wrong for Animate, which
   means exactly the picture in front of you. A clip's last frame — what
   Animate reads instead of the poster, since the poster is only the first
-  frame — is `ClipFrames.lastFrame(of:)` (`Support/`): `AVAssetImageGenerator`
-  asked for the frame a step before the asset's duration, tolerant a step
-  either side, its bytes re-encoded through `ReferenceImageEncoder` like
-  every other door into the well.
+  frame — comes from `ClipEditing.tail`, the one `ClipEditing` implemented by
+  `MP4Stitcher`/`ClipTail` in `ZephraMedia`, its bytes re-encoded through
+  `ReferenceImageEncoder` like every other door into the well.
 
   A double-click in the grid, or Return on the selection, no longer opens the
   canvas — it opens `Library/Viewer/LibraryViewer`, the picture full size in

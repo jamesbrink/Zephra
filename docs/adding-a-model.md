@@ -40,7 +40,7 @@ measured; leave a comment saying where a figure came from. `ModelMenu` lists
    the `InferenceEnvironment` the root read once — and
    `YourBackendFactory.runtime` in the `CombinedInferenceRuntime` list beside
    it — `MLXInferenceRuntime` over the family's own `VAETileSetting`, the way
-   the four factories build theirs; no family writes a runtime type of its
+   the five factories build theirs; no family writes a runtime type of its
    own, and no kit reads an environment variable. That file is the only place
    in the app target allowed to name a concrete backend.
 
@@ -120,8 +120,9 @@ backend looks in the built variant, then `locations.downloads` under every
 root, then the hub cache, and only then downloads.
 
 **A model whose download is not what gets loaded** is the third case, and all
-four families now have one: FLUX.2 klein's two variants, LTX-2.5's, the 4-bit Z-Image
-Turbo, and the 4-bit Qwen-Image. In each the release is bfloat16 and the loader
+five families now have one: FLUX.2 klein's two variants, LTX-2.5's two, the
+4-bit Z-Image Turbo, the 4-bit Qwen-Image, and the 4-bit Wan 2.2. In each the
+release is bfloat16 and the loader
 reads a packed variant. Such a family implements
 `ImageGenerationBackend.build(_:at:locations:onProgress:)`, which the engine calls
 between `ensureAvailable` and `load` and shows as `EngineState.building`; every

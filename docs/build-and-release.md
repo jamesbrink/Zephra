@@ -153,9 +153,11 @@ Makefile targets:
 - `make prefetch-flux2` — the same for the FLUX.2 klein 4B release, without the
   7.75 GB single-file checkpoint the loader never reads, so a first launch skips
   the download and goes straight to the build.
-- `make prefetch-ltx2` — the four LTX-2.5 files the video-only build reads (the
+- `make prefetch-ltx2` — the LTX-2.5 files the video-only build reads (the
   distilled transformer, the connector, the Gemma 4 encoder with its tokenizer,
-  the convolutional decoder and encoder and the spatial upscaler; 70.6 GB) from the ungated `mlx-community/ltx-2.5-mlx`
+  the convolutional decoder and encoder and the spatial upscaler; 70.6 GB),
+  plus the audio autoencoder and the vocoder the entry with sound needs
+  too, from the ungated `mlx-community/ltx-2.5-mlx`
   pack into `LTX2_MODELS` (external storage by default), as the app names it.
 - `make prefetch-qwen` — download Qwen-Image-2512 and its four-step Lightning
   adapter into `QWEN_MODELS` (external storage by default; 57.7 GB does not
@@ -198,12 +200,20 @@ Makefile targets:
   `~/Library/Application Support/Zephra/Models/ltx-2.5-distilled-4bit` (`LTX2_OUT`
   overrides), fetching the source first when it is not there. 88 s once the
   source is local; 19.8 GB out, the video encoder copied beside the decoder.
+- `make quantize-ltx2-audio` — the same pack, from the same `LTX2_SOURCE`, built
+  with the audio lane into
+  `~/Library/Application Support/Zephra/Models/ltx-2.5-distilled-audio-4bit`
+  (`LTX2_AUDIO_OUT` overrides): the 4-bit variant with sound the catalog names.
+  Runs `make prefetch-ltx2` first when `vocoder.safetensors` is missing from
+  `LTX2_SOURCE`, since `prefetch-ltx2` fetches the audio autoencoder and the
+  vocoder alongside the video files now.
 - `make mirror` — build every variant the app packs on first load into one directory
   laid out for a bucket: `MIRROR_DIR/<catalog id>/`, each exactly what
   `locations.built(descriptor)` holds on a Mac, provenance stamp included, plus an
   `index.json` (`scripts/mirror-index.swift`) listing every file's path, size and
   SHA-256 and the stamp's contents. `mirror-z-image`, `mirror-qwen`,
-  `mirror-flux2-4bit`, `mirror-flux2-8bit` and `mirror-ltx2` are the five variants alone, each
+  `mirror-flux2-4bit`, `mirror-flux2-8bit`, `mirror-ltx2`, `mirror-ltx2-audio`
+  and `mirror-wan` are the seven variants alone, each
   skipped when its stamp is already there unless `FORCE=1`; `mirror-index` rewrites the
   index by itself; `mirror-sync` pushes the directory to `MIRROR_BUCKET`
   (`s3://zephra-assets-urandom-io/models` by default) with `aws s3 sync --delete`, files
@@ -212,8 +222,12 @@ Makefile targets:
   and its CloudFront host, `zephra-assets.urandom.io`, are Terraform-managed in the
   `urandom.io` repository's `modules/zephra`; the repository's Actions variables
   `AWS_ROLE_ARN`, `AWS_REGION`, `ZEPHRA_ASSETS_BUCKET` and `ZEPHRA_ASSETS_HOST` name them. The default `MIRROR_DIR` is
-  `ZephraMirror` beside the Qwen source on the external volume, since the five variants
-  are 61 GB. The releases are read from where the quantize targets read them, so set
+  `ZephraMirror` beside the Qwen source on the external volume, since the seven variants
+  (z-image-turbo-4bit 7.1 GB, qwen-image-2512-4bit 21.6 GB, flux2-klein-4b-4bit
+  5.4 GB, flux2-klein-4b-8bit 8.6 GB, ltx-2.5-distilled-4bit 20.84 GB,
+  ltx-2.5-distilled-audio-4bit 25.83 GB, wan-2.2-ti2v-5b-4bit 10.09 GB, each
+  `builtBytes` from `BENCHMARKS.md`) are about 99.5 GB. The releases are read
+  from where the quantize targets read them, so set
   `MODELS_DIR` and `QWEN_MODELS` the same way. This is the supply side of the mirror
   the app reads through `fetchPrebuilt` (see "A built variant that is published
   ready-made" in `docs/adding-a-model.md`).
@@ -248,12 +262,13 @@ the snapshot, not whichever is listed first"); match that when adding one.
   selection — and nothing that needs a window. The scheme's test action sets
   `ZEPHRA_PREVIEW_STATE=ready`, so the host launches frozen with no model. The
   test target takes `ZephraTestSupport` for `Scratch`, and its files default to
-  the main actor the way the app's do. A test that needs a media file reads
-  one committed under `Tests/ZephraTests/Fixtures` (a resource folder of the
-  target, found through the test bundle) and never writes one with
+  the main actor the way the app's do. A test never writes a media file with
   `AVAssetWriter` inside the host: a writer run there left CoreMedia's threads
   parked after the suite, the frozen host never exited, and `make test-app`
-  waited on it for good. `ClipFramesTests` is the example. One suite:
+  waited on it for good. A test that needs a clip belongs in
+  `ZephraMediaTests` instead, whose committed fixture
+  (`Fixtures/red-then-blue.mp4`) and in-process writes are fine under `swift
+  test` — `ClipTailTests` is the example. One suite:
   `make test-app` with `-only-testing:ZephraTests/ExportPlanTests` appended to
   the `xcodebuild` line, or from Xcode.
 - One suite or test:

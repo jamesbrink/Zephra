@@ -68,7 +68,7 @@ to say that was already computed and shown nowhere until a toolbar menu was foun
   one line of copy live, keyed by descriptor id — presentation rather than a measured
   catalog fact, so it sits beside `ReferenceRole` rather than on `ModelDescriptor`.
   `ModelPortraitTests` walks `ModelCatalog.all` and fails when a model has neither, so
-  a seventh model cannot ship with a blank card.
+  a ninth model cannot ship with a blank card.
 - The samples are one prompt at one seed for every model, so a row of cards compares
   models and not prompts: the website's own copper-robot still life, seed 42, rendered
   at each family's preset nearest 16:9 and centre-cropped to 800 x 450 JPEG in

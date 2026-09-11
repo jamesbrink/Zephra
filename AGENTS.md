@@ -1,7 +1,7 @@
 # Zephra
 
 Zephra is a native macOS app that generates images locally on Apple Silicon,
-via MLX/Metal. It runs four model families today, Z-Image-Turbo,
+via MLX/Metal. It runs five model families today, Z-Image-Turbo,
 Qwen-Image-2512, FLUX.2 klein 4B, Wan 2.2 and LTX-2.5 (video, with sound on one
 entry), behind one backend seam.
 
@@ -1248,8 +1248,10 @@ environment value.
   their count and mean cost, and writes the last as `<stem>.preview.png`
   (`ZEPHRA_PREVIEW_INTERVAL_MS` underneath, 0 off); `--model
   ltx-2.5-distilled-4bit --size 768x512 --frames 49` measures a clip, written
-  as `.mp4` with its poster beside it; `--stream` and `--stream-depth N`
-  report gigabytes read per step and the disk's rate.
+  as `.mp4` with its poster beside it; `--extend CLIP --context N` holds a
+  clip's last frames at the head of the run the way Extend Clip does and joins
+  the result onto the source as `<stem>-extended.mp4`; `--stream` and
+  `--stream-depth N` report gigabytes read per step and the disk's rate.
 - `ZEPHRA_PROFILE_STEP=1` prints per-phase timings and MLX's active and peak
   allocation to stderr.
 - Precision and padding, for bisecting without a rebuild:

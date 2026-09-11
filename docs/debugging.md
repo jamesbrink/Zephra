@@ -89,6 +89,13 @@ the same override the store runs under without a second read of the process envi
   model that starts from a noised copy; the report says which step the loop began at and how
   many steps actually ran, so a run that took a third of the seconds is not mistaken for a
   model that got three times faster.
+- `make bench ARGS="--extend CLIP.mp4 [--context N]"` measures carrying a clip on the way the
+  app's Extend Clip does: the clip's last frames (`--context` of them, else the model's own
+  default — 17 on LTX-2.5, 1 on Wan 2.2) are read and held at the head of every timed run,
+  `--strength` defaults to the model's own default for an extended run rather than the plain
+  editing default, the report says `extended` with the frames held, and the run is written
+  joined onto the source clip as `<stem>-extended.mp4` beside `--out` so the seam can be
+  looked at.
 - `make bench ARGS="--micro --size 1024"` times the DiT's individual MLX kernels at that size's
   token count without loading any weights, so a slow generation can be attributed to a primitive
   rather than guessed at.
