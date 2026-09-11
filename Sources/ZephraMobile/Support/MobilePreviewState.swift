@@ -1,0 +1,28 @@
+/// The states a Debug build of the phone app can be frozen in, for screenshots and for
+/// looking at a surface without a Mac on the other end of the wire.
+///
+/// The Mac's list is longer because the Mac has an engine to freeze; here there are only two
+/// axes — which surface is up, and whether the wire is live — so six states cover the app.
+enum MobilePreviewState: String, CaseIterable {
+    /// No Mac paired: the pairing screen, over nothing.
+    case pairing
+    /// Paired and idle, on the canvas.
+    case ready
+    /// Paired, on the canvas, with a run four steps into its ladder.
+    case generating
+    /// Paired, on the library, over the fixture's pictures.
+    case library
+    /// Paired, but the Mac is not answering: everything on screen is the last thing known.
+    case offline
+    /// Paired, on the settings surface.
+    case settings
+
+    /// Which surface the frozen app opens on.
+    var tab: MobileTab {
+        switch self {
+        case .pairing, .ready, .generating, .offline: .canvas
+        case .library: .library
+        case .settings: .settings
+        }
+    }
+}

@@ -1,0 +1,103 @@
+[
+  {
+    "annotation" : {
+      "albums" : [
+
+      ],
+      "isFavourite" : true,
+      "tags" : [
+        "bicycle"
+      ],
+      "version" : 1
+    },
+    "contentModifiedAt" : "2026-09-10T11:41:12Z",
+    "createdAt" : "2026-09-10T11:41:12Z",
+    "fileName" : "2026-09-11 09-41-12 z-image-turbo-4bit.png",
+    "fileSize" : 1482119,
+    "height" : 1024,
+    "isVideo" : false,
+    "record" : {
+      "batchID" : "1E9C2A60-4E1D-4C35-9F0E-2C7B3A5D8E11",
+      "createdAt" : "2026-09-11T09:41:19Z",
+      "durationSeconds" : 6.2,
+      "guidance" : 0,
+      "height" : 1024,
+      "modelID" : "z-image-turbo-4bit",
+      "prompt" : "a red bicycle against a limestone wall",
+      "seed" : 8123447209115663,
+      "steps" : 9,
+      "version" : 1,
+      "width" : 1024
+    },
+    "version" : "10427e91f8559933",
+    "width" : 1024
+  },
+  {
+    "annotation" : {
+      "albums" : [
+
+      ],
+      "isFavourite" : false,
+      "tags" : [
+
+      ],
+      "version" : 1
+    },
+    "contentModifiedAt" : "2026-09-10T11:41:05Z",
+    "createdAt" : "2026-09-10T11:41:05Z",
+    "fileName" : "2026-09-11 09-41-05 z-image-turbo-4bit.png",
+    "fileSize" : 1463880,
+    "height" : 1024,
+    "isVideo" : false,
+    "record" : {
+      "batchID" : "1E9C2A60-4E1D-4C35-9F0E-2C7B3A5D8E11",
+      "createdAt" : "2026-09-11T09:41:12Z",
+      "durationSeconds" : 6.4,
+      "guidance" : 0,
+      "height" : 1024,
+      "modelID" : "z-image-turbo-4bit",
+      "prompt" : "a red bicycle against a limestone wall",
+      "seed" : 8123447209115662,
+      "steps" : 9,
+      "version" : 1,
+      "width" : 1024
+    },
+    "version" : "cfb26684df04138b",
+    "width" : 1024
+  },
+  {
+    "annotation" : {
+      "albums" : [
+
+      ],
+      "isFavourite" : false,
+      "tags" : [
+
+      ],
+      "version" : 1
+    },
+    "contentModifiedAt" : "2026-09-10T11:12:03Z",
+    "createdAt" : "2026-09-10T11:12:03Z",
+    "fileName" : "2026-09-11 09-12-03 wan-2.2-ti2v-5b-4bit.png",
+    "fileSize" : 623004,
+    "height" : 512,
+    "isVideo" : true,
+    "record" : {
+      "batchID" : "7A4F8B21-19C6-4D0A-B2E7-51C90D6F4A32",
+      "createdAt" : "2026-09-11T09:12:03Z",
+      "durationSeconds" : 41.8,
+      "frameCount" : 49,
+      "frameRate" : 24,
+      "guidance" : 0,
+      "height" : 512,
+      "modelID" : "wan-2.2-ti2v-5b-4bit",
+      "prompt" : "rain moving across a harbour at dusk",
+      "seed" : 4410222930118007,
+      "steps" : 3,
+      "version" : 1,
+      "width" : 768
+    },
+    "version" : "201ca3f03c64919a",
+    "width" : 768
+  }
+]
