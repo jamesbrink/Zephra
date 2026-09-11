@@ -14,4 +14,10 @@ enum MobileChrome {
     static let sideMargin: CGFloat = 16
     /// The gap between stacked blocks of content on a surface.
     static let blockSpacing: CGFloat = 20
+
+    /// How dark the backing behind the viewer's controls is, over whatever picture is under
+    /// them. One number, because the close button and the action bar are the same idea and two
+    /// numbers for it is two things to keep in step. The Mac has no counterpart: its viewer
+    /// puts its controls beside the picture rather than on top of it.
+    static let viewerChromeOpacity: Double = 0.45
 }

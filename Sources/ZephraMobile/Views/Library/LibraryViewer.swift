@@ -58,7 +58,7 @@ private struct LibraryViewerTitle: View {
                 Image(systemName: "xmark.circle.fill")
                     .font(.title2)
                     .symbolRenderingMode(.palette)
-                    .foregroundStyle(.white, .black.opacity(0.4))
+                    .foregroundStyle(.white, .black.opacity(MobileChrome.viewerChromeOpacity))
             }
             .accessibilityLabel("Close")
             Spacer(minLength: 0)

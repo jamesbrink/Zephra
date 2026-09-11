@@ -49,7 +49,7 @@ struct LibraryViewerBar: View {
         .foregroundStyle(.white)
         .padding(.horizontal, 22)
         .padding(.vertical, 12)
-        .background(.black.opacity(0.45), in: Capsule())
+        .background(.black.opacity(MobileChrome.viewerChromeOpacity), in: Capsule())
         .padding(.bottom, 28)
         .task(id: entry.fileName) { file = try? await catalog.file(for: entry) }
     }
