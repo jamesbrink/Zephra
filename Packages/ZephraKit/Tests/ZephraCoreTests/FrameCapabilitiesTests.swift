@@ -70,4 +70,10 @@ struct FrameCapabilitiesTests {
         #expect(GeneratedMedia.image(png: Data([7])).posterPNG == Data([7]))
         #expect(abs(video.seconds - 49.0 / 24.0) < 1e-9)
     }
+
+    @Test("no model in the catalog makes sound yet, and the flag defaults off")
+    func producesAudioDefaultsOff() {
+        #expect(!video.producesAudio)
+        #expect(GeneratedVideo(poster: Data(), mp4: Data(), frameCount: 9, frameRate: 24).hasAudio == false)
+    }
 }

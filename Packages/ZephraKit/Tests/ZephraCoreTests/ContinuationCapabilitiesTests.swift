@@ -27,7 +27,7 @@ struct ContinuationCapabilitiesTests {
     func ltxTrimsToItsLadder() {
         let ltx = ModelCatalog.ltx2Distilled4bit.capabilities
         #expect(ltx.supportsContinuation)
-        #expect(ltx.defaultContinuationFrames == 9)
+        #expect(ltx.defaultContinuationFrames == 17)
         let kept = ltx.clamp(settings(continuation(frames: 12))).continuation
         #expect(kept?.frames.count == 9)
         #expect(kept?.frames.last == Data([11]), "the newest frames are the ones kept")

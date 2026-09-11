@@ -41,6 +41,7 @@ struct ImageLibraryVideoTests {
         #expect(record.isVideo)
         #expect(record.frameCount == 49)
         #expect(record.frameRate == 24)
+        #expect(record.hasAudio == false, "a silent clip says so; a picture says nothing")
         #expect(record.settings().frames == 49)
         let items = LibraryScan(library: library).rescan()
         #expect(items.count == 1, "the MP4 is not listed; the poster is")

@@ -71,7 +71,7 @@ extension GenerationStore {
         }
         let joined = GeneratedVideo(
             poster: poster, mp4: try await clips.stitch(parts), frameCount: frames,
-            frameRate: clip.frameRate)
+            frameRate: clip.frameRate, hasAudio: clip.hasAudio)
         return (.video(joined), progress.source)
     }
 

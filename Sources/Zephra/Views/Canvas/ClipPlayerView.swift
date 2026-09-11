@@ -2,9 +2,11 @@ import AVKit
 import SwiftUI
 
 /// A clip playing where its poster would be: `AVPlayerView` over the MP4 beside the poster,
-/// looping, muted (there is no sound yet), with no transport controls, so a click on it still
-/// reaches the canvas — the prompt tuck, the context menu, the viewer's double-click — the
-/// way a click on a picture does. SwiftUI's `VideoPlayer` draws controls that take the click.
+/// looping, with no transport controls, so a click on it still reaches the canvas — the
+/// prompt tuck, the context menu, the viewer's double-click — the way a click on a picture
+/// does. SwiftUI's `VideoPlayer` draws controls that take the click. It plays sound when the
+/// file has a track, read off the asset itself rather than any record, and stays muted over
+/// a silent clip so the system never shows a volume it cannot change.
 ///
 /// It plays on while the model works. Decoding H.264 is the media engine's job and not the
 /// GPU's, so it costs the run nothing the app can measure, and a clip that stopped the moment
@@ -43,10 +45,18 @@ struct ClipPlayerView: NSViewRepresentable {
 
         /// Plays `url`, starting the loop over only when it is a different clip: `updateNSView`
         /// runs on every rebuild of the canvas, and a loop rebuilt each time would never get going.
+        /// The mute follows the file: unmuted once the asset says it has an audio track.
         func play(_ url: URL) {
             if self.url != url {
                 self.url = url
-                looper = AVPlayerLooper(player: player, templateItem: AVPlayerItem(url: url))
+                let asset = AVURLAsset(url: url)
+                looper = AVPlayerLooper(player: player, templateItem: AVPlayerItem(asset: asset))
+                player.isMuted = true
+                Task { [weak self] in
+                    let tracks = (try? await asset.loadTracks(withMediaType: .audio)) ?? []
+                    guard let self, self.url == url else { return }
+                    player.isMuted = tracks.isEmpty
+                }
             }
             player.play()
         }

@@ -52,6 +52,10 @@ public struct ModelCapabilities: Hashable, Sendable {
     public let continuationFrames: ClosedRange<Int>
     /// How many of those frames to hold when nothing else is said.
     public let defaultContinuationFrames: Int
+    /// Whether the model makes sound beside its frames, so the clip's MP4 carries an audio
+    /// track and the player plays it. False on a picture model and on a video model that
+    /// runs its audio lane switched off.
+    public let producesAudio: Bool
 
     /// Creates a capability set describing one model's accepted inputs.
     ///
@@ -77,7 +81,8 @@ public struct ModelCapabilities: Hashable, Sendable {
         frameAlignment: Int = 8,
         frameRate: Double = 24,
         continuationFrames: ClosedRange<Int> = 0...0,
-        defaultContinuationFrames: Int = 0
+        defaultContinuationFrames: Int = 0,
+        producesAudio: Bool = false
     ) {
         self.sizeAlignment = sizeAlignment
         self.sizePresets = sizePresets
@@ -98,6 +103,7 @@ public struct ModelCapabilities: Hashable, Sendable {
         self.frameRate = frameRate
         self.continuationFrames = continuationFrames
         self.defaultContinuationFrames = defaultContinuationFrames
+        self.producesAudio = producesAudio
     }
 
     /// Whether guidance is a choice on this model. A distilled model declares a single legal

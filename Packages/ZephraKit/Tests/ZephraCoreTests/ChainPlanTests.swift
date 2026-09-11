@@ -18,10 +18,10 @@ struct ChainPlanTests {
 
     @Test("a longer clip is a full pass and then passes of context plus new frames, exactly the count asked")
     func chained() {
-        // 241 frames on LTX: 121, then 9 held + 112 new, then 9 held + 8 new.
+        // 241 frames on LTX: 121, then 17 held + 104 new, then 17 held + 16 new.
         let segments = ChainPlan.segments(frames: 241, capabilities: Self.ltx)
-        #expect(segments == [121, 121, 17])
-        #expect(ChainPlan.joinedFrames(segments, context: 9) == 241)
+        #expect(segments == [121, 121, 33])
+        #expect(ChainPlan.joinedFrames(segments, context: 17) == 241)
         for length in segments { #expect((length - 1) % 8 == 0) }
         // Wan holds one frame, so a pass adds 120.
         let wan = ChainPlan.segments(frames: 241, capabilities: Self.wan)
@@ -31,7 +31,7 @@ struct ChainPlanTests {
 
     @Test("four passes is the most, and a picture model has one")
     func bounds() {
-        #expect(ChainPlan.maxFrames(Self.ltx) == 121 + 3 * 112)
+        #expect(ChainPlan.maxFrames(Self.ltx) == 121 + 3 * 104)
         #expect(ChainPlan.maxFrames(Self.wan) == 121 + 3 * 120)
         #expect(ChainPlan.segments(frames: 10_000, capabilities: Self.ltx).count == 4)
         let picture = ModelCatalog.zImageTurbo8bit.capabilities

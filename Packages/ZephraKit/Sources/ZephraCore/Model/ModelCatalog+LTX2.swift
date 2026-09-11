@@ -131,11 +131,12 @@ extension ModelCatalog {
         frameRate: 24,
         // A clip is carried on by holding its last frames as the new clip's first latent
         // frames, the reference's multi-frame condition at latent index 0. On the ladder of
-        // eight plus one: nine frames is the last frame on its own plus one chunk of eight,
-        // two latent frames, enough for the motion to carry across the join; twenty-five is
-        // the most worth holding before the held part crowds out what is new in a 49-frame
-        // segment.
+        // eight plus one: seventeen frames is the last frame on its own plus two chunks of
+        // eight, three latent frames. Measured on halcyon over a 768 x 512 two-stage clip:
+        // nine held frames left a visible step at the join (the kite moved and the shore
+        // came into frame), seventeen carried the motion across it; twenty-five is the most
+        // worth holding before the held part crowds out what is new in a 49-frame segment.
         continuationFrames: 1...25,
-        defaultContinuationFrames: 9
+        defaultContinuationFrames: 17
     )
 }

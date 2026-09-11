@@ -31,14 +31,14 @@ struct ChainingTests {
 
         let runs = bed.control.settings
         #expect(runs.generations == 3)
-        #expect(bed.clips.recorded.tailReads.map(\.frames) == [9, 9], "each pass but the last reads its tail")
+        #expect(bed.clips.recorded.tailReads.map(\.frames) == [17, 17], "each pass but the last reads its tail")
         let stitched = try #require(bed.clips.recorded.stitches.first)
-        #expect(stitched.map(\.dropLeading) == [0, 9, 9])
-        #expect(stitched.map { String(decoding: $0.mp4, as: UTF8.self) } == ["segment:121", "segment:121", "segment:17"])
+        #expect(stitched.map(\.dropLeading) == [0, 17, 17])
+        #expect(stitched.map { String(decoding: $0.mp4, as: UTF8.self) } == ["segment:121", "segment:121", "segment:33"])
         let last = try #require(runs.lastSettings)
-        #expect(last.frames == 17)
+        #expect(last.frames == 33)
         #expect(last.seed == 102, "each pass takes the next seed")
-        #expect(last.continuation?.frames.count == 9)
+        #expect(last.continuation?.frames.count == 17)
 
         let image = try #require(store.history.first)
         #expect(image.settings.frames == 241)
@@ -84,12 +84,13 @@ struct ChainingTests {
         try await bed.waitUntil { store.history.count == 1 && store.state == .ready }
 
         let stitched = try #require(bed.clips.recorded.stitches.first)
-        #expect(stitched.map(\.dropLeading) == [0, 9, 9])
+        // The source, then three passes: 121, 104 new behind 17 held, and 8 new behind 17.
+        #expect(stitched.map(\.dropLeading) == [0, 17, 17, 17])
         #expect(String(decoding: stitched[0].mp4, as: UTF8.self) == "source-clip")
         await store.saveTask?.value
         let image = try #require(store.history.first)
-        // 49 from the source less the 9 held, plus 233 made in two passes.
-        #expect(image.video?.frameCount == 49 - 9 + 233)
+        // 49 from the source less the 17 held, plus 233 made in three passes.
+        #expect(image.video?.frameCount == 49 - 17 + 233)
         #expect(image.settings.continuation?.origin == url.lastPathComponent)
         let written = try #require(image.fileURL.flatMap { try? Data(contentsOf: $0) })
         #expect(GenerationRecord.read(from: written)?.continuedFrom == url.lastPathComponent)

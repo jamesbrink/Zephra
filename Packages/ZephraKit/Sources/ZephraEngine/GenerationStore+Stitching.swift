@@ -33,7 +33,7 @@ extension GenerationStore {
             GeneratedVideo(
                 poster: poster, mp4: joined,
                 frameCount: continuation.sourceFrameCount + segment.frameCount - continuation.contextFrames,
-                frameRate: segment.frameRate))
+                frameRate: segment.frameRate, hasAudio: segment.hasAudio))
     }
 
     /// A source's poster without the source's own record, reference, annotation and captions:

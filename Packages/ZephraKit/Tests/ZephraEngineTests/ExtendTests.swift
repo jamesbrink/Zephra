@@ -52,7 +52,7 @@ struct ExtendTests {
         #expect(bed.control.settings.loads == loads, "nothing was swapped")
         #expect(bed.clips.recorded.tailReads.map(\.frames) == [Self.ltx.capabilities.defaultContinuationFrames])
         let continuation = try #require(store.settings.continuation)
-        #expect(continuation.frames.count == 9)
+        #expect(continuation.frames.count == 17)
         #expect(continuation.origin == clip.url.lastPathComponent)
         #expect(continuation.sourceFrameCount == 49)
         #expect(store.settings.referenceImage == MockBackend.pngData, "the last frame is in the well")
@@ -125,23 +125,23 @@ struct ExtendTests {
         #expect(stitched[0].mp4 == Data("source-clip".utf8))
         #expect(stitched[0].dropLeading == 0)
         #expect(stitched[1].mp4 == Data("segment:49".utf8))
-        #expect(stitched[1].dropLeading == 9)
+        #expect(stitched[1].dropLeading == 17)
 
         let sent = try #require(bed.control.settings.lastSettings)
-        #expect(sent.continuation?.frames.count == 9, "the tail reached the backend")
+        #expect(sent.continuation?.frames.count == 17, "the tail reached the backend")
 
         let image = try #require(store.history.first)
-        #expect(image.video?.frameCount == 49 + 49 - 9)
+        #expect(image.video?.frameCount == 49 + 49 - 17)
         #expect(image.video?.mp4.starts(with: Data("stitched:".utf8)) == true)
         #expect(image.settings.continuation?.frames.isEmpty == true, "history holds no tail")
-        #expect(image.settings.continuation?.contextFrames == 9)
+        #expect(image.settings.continuation?.contextFrames == 17)
         #expect(image.settings.referenceImage == nil)
 
         let url = try #require(image.fileURL)
         let record = try #require(GenerationRecord.read(from: try Data(contentsOf: url)))
         #expect(record.continuedFrom == clip.url.lastPathComponent)
-        #expect(record.contextFrames == 9)
-        #expect(record.frameCount == 89)
+        #expect(record.contextFrames == 17)
+        #expect(record.frameCount == 81)
         #expect(record.referenceBytes == nil)
         #expect(FileManager.default.fileExists(atPath: VideoSidecar.url(beside: url).path(percentEncoded: false)))
     }
@@ -160,7 +160,7 @@ struct ExtendTests {
         store.generate()
         try await bed.waitUntil { store.history.count == 1 && store.state == .ready }
         #expect(bed.clips.recorded.stitches.count == 1)
-        #expect(store.history.first?.video?.frameCount == 89)
+        #expect(store.history.first?.video?.frameCount == 81)
     }
 
     @Test("a source that is gone for good fails the run and writes nothing")

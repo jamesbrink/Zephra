@@ -93,6 +93,9 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
     public var continuedFrom: String?
     /// How many of the source's last frames the model held to carry it on, when it did.
     public var contextFrames: Int?
+    /// Whether the clip's MP4 carries sound, when the model made any; nil on a picture and on
+    /// a clip written before models made sound. Optional, so the version stays 1.
+    public var hasAudio: Bool?
 
     /// The record for a finished image.
     public init(_ image: GeneratedImage) {
@@ -119,6 +122,7 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
         frameRate = image.video?.frameRate
         continuedFrom = image.settings.continuation?.origin
         contextFrames = image.settings.continuation?.contextFrames
+        hasAudio = image.video.map(\.hasAudio)
     }
 
     /// Whether the picture is a clip's first frame.

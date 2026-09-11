@@ -9,7 +9,7 @@ struct DurationControlTests {
     func choices() {
         let choices = DurationControl.choices(ModelCatalog.ltx2Distilled4bit.capabilities)
         // One pass by the second, then every five seconds as a chain of passes: 10 s is 241
-        // frames in three, 15 s is 361 in four; 20 s would be 481, past four passes' 457.
+        // frames in three, 15 s is 361 in four; 20 s would be 481, past four passes' 433.
         #expect(choices == [9, 25, 49, 73, 97, 121, 241, 361])
         for frames in choices {
             #expect((frames - 1) % 8 == 0)
