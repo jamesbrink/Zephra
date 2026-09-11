@@ -54,9 +54,9 @@ Sources/Zephra (SwiftUI app) ─→ ZephraEngine ─→ ZephraCore, ZephraSnapsh
                              ─→ ZephraUpscale<Network> ─→ ZephraCore, ZephraMLX
                                                           [imported in ZephraApp.swift ONLY]
                              ─→ ZephraStyle ─→ ZephraCore
-Sources/ZephraMobile (iOS)   ─→ ZephraCore, ZephraLinkProtocol, ZephraStyle
-                                [ZephraLinkTransport and ZephraLinkClient as they land;
-                                 never a backend, MLX, ZephraEngine or AppKit]
+Sources/ZephraMobile (iOS)   ─→ ZephraCore, ZephraLinkProtocol, ZephraLinkTransport,
+                                ZephraLinkClient, ZephraStyle
+                                [never a backend, MLX, ZephraEngine or AppKit]
 Sources/ZephraBench (tool)   ─→ ZephraCore, every ZephraBackend<Family>
 Sources/ZephraQuantize (tool)─→ ZephraCore, ZephraSnapshot, ZephraQuantization,
                                 every ZephraBackend<Family>

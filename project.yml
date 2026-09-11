@@ -162,6 +162,15 @@ targets:
       # The protocol both ends speak: the pairing payload, the state snapshot, the library page.
       - package: ZephraLink
         product: ZephraLinkProtocol
+      # The roads under it: Bonjour and TCP on the local network, the relay from anywhere.
+      # Linked by name rather than left to the client's own dependency, because the app is
+      # what names the relay's URL and hands `NetworkLinkRoads` the device's identity.
+      - package: ZephraLink
+        product: ZephraLinkTransport
+      # `LinkClient`: the one type a view reads the Mac through, and the phone's counterpart
+      # to the Mac's `GenerationStore`.
+      - package: ZephraLink
+        product: ZephraLinkClient
       # The same radii, hairlines and washes the Mac is drawn from, so the two apps look like
       # one program rather than resemble each other.
       - package: ZephraStyle
