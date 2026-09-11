@@ -1,14 +1,18 @@
 // swift-tools-version: 6.0
 import PackageDescription
 
-// The protocol the Mac app and the phone both speak. One target for now: the wire types, the
-// secure channel and the pairing payload, with no transport and no interface in it, so both
-// ends can be tested without a socket and the iOS app can link it whole.
+// The protocol the Mac app and the phone both speak, the roads it travels, and the phone's
+// client over them. Three targets, so the wire types stay testable without a socket and the
+// client stays testable without a network: the protocol knows nothing of Network.framework,
+// the transport knows nothing of the client's state, and the client reaches a road only
+// through a protocol it can be handed a double for.
 let package = Package(
     name: "ZephraLink",
     platforms: [.macOS(.v15), .iOS(.v18)],
     products: [
-        .library(name: "ZephraLinkProtocol", targets: ["ZephraLinkProtocol"])
+        .library(name: "ZephraLinkProtocol", targets: ["ZephraLinkProtocol"]),
+        .library(name: "ZephraLinkTransport", targets: ["ZephraLinkTransport"]),
+        .library(name: "ZephraLinkClient", targets: ["ZephraLinkClient"]),
     ],
     dependencies: [
         .package(path: "../ZephraKit")
@@ -25,6 +29,20 @@ let package = Package(
                 .product(name: "ZephraEngine", package: "ZephraKit"),
             ]
         ),
+        // The roads: TCP on the local network, Bonjour to find one, and the relay's WebSocket
+        // when neither end can reach the other. Network and os over the protocol, and no
+        // state: everything here is a `LinkConnection` or something that makes one.
+        .target(name: "ZephraLinkTransport", dependencies: ["ZephraLinkProtocol"]),
+        // The phone's side: one observable object over a road, holding the Mac's state.
+        .target(
+            name: "ZephraLinkClient",
+            dependencies: ["ZephraLinkProtocol", "ZephraLinkTransport"]
+        ),
         .testTarget(name: "ZephraLinkProtocolTests", dependencies: ["ZephraLinkProtocol"]),
+        .testTarget(name: "ZephraLinkTransportTests", dependencies: ["ZephraLinkTransport"]),
+        .testTarget(
+            name: "ZephraLinkClientTests",
+            dependencies: ["ZephraLinkClient", "ZephraLinkTransport"]
+        ),
     ]
 )
