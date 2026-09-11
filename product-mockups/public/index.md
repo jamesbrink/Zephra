@@ -10,9 +10,9 @@ Generate and edit images with Z-Image-Turbo, Qwen-Image-2512, or FLUX.2 klein 4B
 
 ## Video and animation
 
-LTX-2.5 generates short videos from text. Choose a picture and select Animate to use it as the first frame of a clip. Play clips in Zephra, keep them alongside your images, and export them as MP4.
+Wan 2.2 TI2V-5B and LTX-2.5 generate short videos from text. Choose a picture and select Animate to use it as the first frame of a clip. Play clips in Zephra, keep them alongside your images, and export them as MP4.
 
-Clips run at 24 fps and can be approximately five seconds long. Video generation currently produces silent clips; audio generation is not supported. Real-ESRGAN upscaling is for still images.
+Individual segments run at 24 fps and can be approximately five seconds long. Wan 2.2 and the LTX-2.5 video-only variant generate silent clips. Choose LTX-2.5’s “4-bit, with sound” variant to generate audio and video together in one MP4. Real-ESRGAN upscaling is for still images.
 
 ## Library
 
@@ -24,9 +24,9 @@ Use favorites, tags, albums, and search to organize your creations. Image prompt
 - Memory and disk space appropriate for the chosen model and settings.
 - An internet connection to download models. Prepare them before creating offline.
 
-Generation speed and memory use depend on the Mac, model, resolution, and settings. FLUX.2 klein 4-bit is the smallest image model listed here and a starting point for a 16 GB Mac. LTX-2.5 and Qwen-Image can stream weights from disk via Settings > Performance to reduce memory use, with a potential speed tradeoff.
+Generation speed and memory use depend on the Mac, model, resolution, and settings. FLUX.2 klein 4-bit is the smallest image model listed here and a starting point for a 16 GB Mac. Wan 2.2, both LTX-2.5 variants, and Qwen-Image can stream weights from disk via Settings > Performance to reduce memory use, with a potential speed tradeoff.
 
-Approximate disk sizes for 4-bit models (prepared model / including retained source files): FLUX.2 klein 5.4 / 21.4 GB; Z-Image-Turbo 7.1 / 40.0 GB; Qwen-Image 21.6 / 81.0 GB; LTX-2.5 19.8 / 89.5 GB. These are disk sizes, not RAM requirements. Prepared models are downloaded when available; otherwise Zephra downloads the source and builds locally. Allow additional space for setup and your library.
+Approximate disk sizes for 4-bit models (prepared model / including retained source files): FLUX.2 klein 5.4 / 21.4 GB; Z-Image-Turbo 7.1 / 40.0 GB; Qwen-Image 21.6 / 81.0 GB; Wan 2.2 TI2V-5B 10.1 / 34.3 GB; LTX-2.5 video only 20.8 / 91.5 GB; LTX-2.5 with sound 25.8 / 96.8 GB. These are disk sizes, not RAM requirements. Prepared models are downloaded when available; otherwise Zephra downloads the source and builds locally. Allow additional space for setup and your library.
 
 ## Getting started
 
@@ -36,7 +36,7 @@ Approximate disk sizes for 4-bit models (prepared model / including retained sou
 
 ## What’s new and support
 
-The latest website release notes highlight LTX-2.5 text-to-video and image animation, local clip playback and MP4 export, and weight streaming for Qwen-Image and LTX-2.5. [Read what’s new](https://zephra.urandom.io/#whats-new).
+The latest website release notes highlight LTX-2.5 video with sound, Wan 2.2 text-to-video and image animation, and weight streaming for Qwen-Image, Wan 2.2, and LTX-2.5. [Read what’s new](https://zephra.urandom.io/#whats-new).
 
 For help or to report a problem, email [Zephra support](mailto:dev.urandom.io@gmail.com).
 
@@ -55,3 +55,7 @@ The website uses Google Analytics cookies to understand visits, download clicks,
 ## Publisher
 
 James Brink. © 2026 James Brink. All rights reserved.
+
+## User guide
+
+[Read the Zephra user guide](https://zephra.urandom.io/guide/) for beginner-friendly instructions on images, reference photos, editing, video with sound, library workflows, and troubleshooting. A [complete Markdown edition](https://zephra.urandom.io/guide.md) is also available.

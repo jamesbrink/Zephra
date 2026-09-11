@@ -1,0 +1,47 @@
+[
+  {
+    "slug": "first-image",
+    "title": "Make your first image",
+    "description": "From opening Zephra to saving your first result. No technical background needed."
+  },
+  {
+    "slug": "models",
+    "title": "Choose a model",
+    "description": "Pick the tool for your task, then let Zephra handle the technical settings."
+  },
+  {
+    "slug": "prompting",
+    "title": "Write a useful prompt",
+    "description": "Describe the result in everyday language. Start simple, then adjust one thing at a time."
+  },
+  {
+    "slug": "reference-images",
+    "title": "Start from an image",
+    "description": "Use a photo or drawing as the starting point for a new still image."
+  },
+  {
+    "slug": "photo-editing",
+    "title": "Edit a photo",
+    "description": "Ask for a specific change using FLUX.2 klein 4B and one reference photo."
+  },
+  {
+    "slug": "text-to-video",
+    "title": "Make a video from words",
+    "description": "Create a short scene with Wan 2.2 or LTX-2.5, including sound with the LTX audio variant."
+  },
+  {
+    "slug": "image-to-video",
+    "title": "Animate an image",
+    "description": "Turn a finished image into the opening frame of a moving scene."
+  },
+  {
+    "slug": "library",
+    "title": "Keep, refine, and share",
+    "description": "Use the library to explore variations, organize favorites, and export finished work."
+  },
+  {
+    "slug": "settings",
+    "title": "Setup and troubleshooting",
+    "description": "Make room for models, understand the wait, and get unstuck."
+  }
+]

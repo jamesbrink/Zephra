@@ -1,2 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://zephra.urandom.io/</loc></url></urlset>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://zephra.urandom.io/</loc></url>
+  <url><loc>https://zephra.urandom.io/guide/</loc></url>
+  <url><loc>https://zephra.urandom.io/guide/first-image/</loc></url>
+  <url><loc>https://zephra.urandom.io/guide/models/</loc></url>
+  <url><loc>https://zephra.urandom.io/guide/prompting/</loc></url>
+  <url><loc>https://zephra.urandom.io/guide/reference-images/</loc></url>
+  <url><loc>https://zephra.urandom.io/guide/photo-editing/</loc></url>
+  <url><loc>https://zephra.urandom.io/guide/text-to-video/</loc></url>
+  <url><loc>https://zephra.urandom.io/guide/image-to-video/</loc></url>
+  <url><loc>https://zephra.urandom.io/guide/library/</loc></url>
+  <url><loc>https://zephra.urandom.io/guide/settings/</loc></url>
+</urlset>

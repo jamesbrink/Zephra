@@ -20,10 +20,22 @@ const models = [
     use: 'Image generation and reference edits.',
   },
   {
-    name: 'LTX-2.5',
-    size: '19.8 GB',
-    setup: '89.5 GB',
+    name: 'Wan 2.2 TI2V-5B',
+    size: '10.1 GB',
+    setup: '34.3 GB',
+    use: 'Silent video from text or a first frame.',
+  },
+  {
+    name: 'LTX-2.5 · video only',
+    size: '20.8 GB',
+    setup: '91.5 GB',
     use: 'Short videos and image animation.',
+  },
+  {
+    name: 'LTX-2.5 · with sound',
+    size: '25.8 GB',
+    setup: '96.8 GB',
+    use: 'Generate video and audio together.',
   },
 ];
 
@@ -85,11 +97,12 @@ export default function GettingStarted({ id }: { id: string }) {
             </p>
           </div>
           <div>
-            <h3>Video on a 16 GB Mac.</h3>
+            <h3>Make room for motion.</h3>
             <p>
-              LTX-2.5 can run with weights streamed from disk. Choose streaming
-              in Settings → Performance to reduce memory use. A fast SSD helps;
-              generation can take longer than keeping the model in memory.
+              Wan 2.2 and both LTX-2.5 variants can stream weights from disk.
+              Choose streaming in Settings → Performance to reduce memory use. A
+              fast SSD helps; generation can take longer than keeping the model
+              in memory. The audio variant needs more memory than video alone.
             </p>
           </div>
         </div>
@@ -126,11 +139,13 @@ export default function GettingStarted({ id }: { id: string }) {
             Qwen-Image 4-bit, 26.1 GB, or about 10.3 GB with streaming.
           </p>
           <p>
-            LTX-2.5 at 768 × 512 and 49 frames measured about 22.4 GB with
-            resident weights, or 9.0 GB with streaming. These are measured
-            workload figures, not minimum Mac memory requirements. Leave memory
-            for macOS and other apps; resolution, clip length, and settings
-            affect usage.
+            Wan 2.2 at 832 × 480 and 49 frames measured about 15.1 GB, 12.4 GB
+            with tiled decoding, or 9.7 GB with streaming. LTX-2.5 at 768 × 512
+            and 49 frames measured about 23.4 GB with resident weights, or 10.0
+            GB with streaming. Its “with sound” variant measured 28.7 GB
+            resident or 12.1 GB streamed. These are measured workload figures,
+            not minimum Mac memory requirements. Leave memory for macOS and
+            other apps; resolution, clip length, and settings affect usage.
           </p>
         </details>
       </section>
@@ -146,16 +161,16 @@ export default function GettingStarted({ id }: { id: string }) {
         </p>
         <ul>
           <li>
-            <strong>Local video with LTX-2.5.</strong> Create silent clips from
-            a prompt, or animate an image as the first frame.
+            <strong>Video with sound.</strong> Choose LTX-2.5’s “with sound”
+            variant to generate audio and video together, saved in one MP4.
           </li>
           <li>
-            <strong>Video in your library.</strong> Play clips in Zephra and
-            export them as MP4.
+            <strong>Meet Wan 2.2.</strong> Generate silent clips from a prompt
+            or animate a picture with the TI2V-5B model.
           </li>
           <li>
-            <strong>More control over memory.</strong> Stream Qwen-Image and
-            LTX-2.5 weights from disk in Settings → Performance.
+            <strong>More control over memory.</strong> Stream Qwen-Image, Wan
+            2.2, and LTX-2.5 weights from disk in Settings → Performance.
           </li>
         </ul>
       </section>

@@ -2,7 +2,7 @@
 
 > Zephra is a native macOS app for local AI image and short-video generation on Apple Silicon, powered by MLX and Metal.
 
-The official website is https://zephra.urandom.io/. Zephra supports image generation and editing with Z-Image-Turbo, Qwen-Image-2512, and FLUX.2 klein 4B; video generation and image animation with LTX-2.5; and still-image upscaling with Real-ESRGAN. Video clips currently have no audio. macOS 15 or later and Apple Silicon are required. Model downloads need an internet connection; generation runs locally after models are prepared.
+The official website is https://zephra.urandom.io/. Zephra supports image generation and editing with Z-Image-Turbo, Qwen-Image-2512, and FLUX.2 klein 4B; video generation and image animation with Wan 2.2 TI2V-5B and LTX-2.5; and still-image upscaling with Real-ESRGAN. LTX-2.5 offers both video-only and “with sound” variants; the latter generates audio and video together in one MP4. Wan 2.2 generates silent video. macOS 15 or later and Apple Silicon are required. Model downloads need an internet connection; generation runs locally after models are prepared.
 
 ## Product
 
@@ -16,3 +16,17 @@ The official website is https://zephra.urandom.io/. Zephra supports image genera
 
 - [Download for Mac](https://zephra-assets.urandom.io/releases/Zephra-latest.dmg): The current macOS installer.
 - [Release metadata](https://zephra-assets.urandom.io/releases/latest.json): Current build and SHA-256 checksum.
+
+## User guide
+
+- [Guide overview](https://zephra.urandom.io/guide/): Choose a workflow.
+- [Complete guide in Markdown](https://zephra.urandom.io/guide.md): All chapters in a single document.
+- [Make your first image](https://zephra.urandom.io/guide/first-image/): From opening Zephra to saving your first result. No technical background needed.
+- [Choose a model](https://zephra.urandom.io/guide/models/): Pick the tool for your task, then let Zephra handle the technical settings.
+- [Write a useful prompt](https://zephra.urandom.io/guide/prompting/): Describe the result in everyday language. Start simple, then adjust one thing at a time.
+- [Start from an image](https://zephra.urandom.io/guide/reference-images/): Use a photo or drawing as the starting point for a new still image.
+- [Edit a photo](https://zephra.urandom.io/guide/photo-editing/): Ask for a specific change using FLUX.2 klein 4B and one reference photo.
+- [Make a video from words](https://zephra.urandom.io/guide/text-to-video/): Create a short scene with Wan 2.2 or LTX-2.5, including sound with the LTX audio variant.
+- [Animate an image](https://zephra.urandom.io/guide/image-to-video/): Turn a finished image into the opening frame of a moving scene.
+- [Keep, refine, and share](https://zephra.urandom.io/guide/library/): Use the library to explore variations, organize favorites, and export finished work.
+- [Setup and troubleshooting](https://zephra.urandom.io/guide/settings/): Make room for models, understand the wait, and get unstuck.

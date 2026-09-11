@@ -1,0 +1,68 @@
+{
+  "slug": "photo-editing",
+  "title": "Edit a photo",
+  "description": "Ask for a specific change using FLUX.2 klein 4B and one reference photo.",
+  "sections": [
+    {
+      "id": "prepare",
+      "title": "Open the photo as a reference",
+      "paragraphs": [],
+      "steps": [
+        "Choose FLUX.2 klein 4B in the model menu.",
+        "Click Reference beside the prompt and select Choose File… or a library image. You can also drop your photo into the reference box.",
+        "Check the thumbnail and choose a Size with similar proportions to your photo. Keep the default four Steps for the first attempt."
+      ]
+    },
+    {
+      "id": "edit",
+      "title": "Say what changes and what stays",
+      "paragraphs": [
+        "Name one concrete change and the important details to retain. This follows Black Forest Labs’ single-reference guidance. Zephra’s FLUX model reads the whole reference; there is no Strength slider."
+      ],
+      "prompt": "Change the blue ceramic mug to a pale green ceramic mug. Keep its shape, handle, position, the table, and the lighting the same.",
+      "links": [
+        {
+          "label": "Upstream: single-reference editing",
+          "url": "https://docs.bfl.ai/guides/prompting_editing_single_reference"
+        }
+      ]
+    },
+    {
+      "id": "background",
+      "title": "Try a new background",
+      "paragraphs": [
+        "Use a photo with a clearly visible subject. Start with a simple background before asking for a complex new setting."
+      ],
+      "prompt": "Replace the background behind the vase with a plain warm gray studio backdrop. Keep the vase’s shape and painted pattern. Add a soft shadow beneath it."
+    },
+    {
+      "id": "review",
+      "title": "Generate and inspect the result",
+      "paragraphs": [],
+      "steps": [
+        "Click Generate and wait for the finished image. Your original file is not overwritten.",
+        "Inspect the parts you asked to keep, especially faces, lettering, edges, and small details. A request to preserve something is a direction, not a pixel-perfect guarantee.",
+        "If too much changes, simplify the instruction and explicitly name what matters. Try another seed before adding several more edits.",
+        "Export the result. To build a second edit on that result, choose the exported file as the next reference."
+      ]
+    },
+    {
+      "id": "limits",
+      "title": "What this workflow does",
+      "paragraphs": [
+        "You can request changes to color, background, objects, or style. The model generates a new image from the photo and your instruction. Zephra currently takes one image and does not offer masks, layers, or a retouching brush.",
+        "For a looser visual reinterpretation with a Strength slider, use the starting-image workflow instead."
+      ],
+      "links": [
+        {
+          "label": "Reinterpret a photo",
+          "url": "/guide/reference-images/"
+        },
+        {
+          "label": "Upscale a finished result",
+          "url": "/guide/library/#upscale"
+        }
+      ]
+    }
+  ]
+}

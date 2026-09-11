@@ -1,0 +1,67 @@
+{
+  "slug": "models",
+  "title": "Choose a model",
+  "description": "Pick the tool for your task, then let Zephra handle the technical settings.",
+  "sections": [
+    {
+      "id": "which-model",
+      "title": "What would you like to make?",
+      "paragraphs": [],
+      "items": [
+        "FLUX.2 klein 4B: create an image from words or ask for a specific change to a photo. A useful starting point for editing.",
+        "Z-Image Turbo: make still images from a description, or reinterpret an existing picture with a Strength setting.",
+        "Qwen-Image 2512: another still-image option, including scenes with written text. It can start from a picture, but Zephra uses Qwen-Image 2512, not the separate Qwen-Image-Edit model.",
+        "Wan 2.2: create silent video from words or a first-frame image. Zephra includes the 5B variant.",
+        "LTX-2.5: create video from words or a first frame. Choose “video only” for silent output or “with sound” to generate audio together with the video."
+      ]
+    },
+    {
+      "id": "variants",
+      "title": "What do 4-bit and 8-bit mean?",
+      "paragraphs": [
+        "These describe how compactly the model is stored. A 4-bit version generally uses less storage and memory than an 8-bit version of the same model. It is a practical place to begin when your Mac has limited memory.",
+        "A larger model or variant is not automatically a better choice for every idea. Try the task with a model that fits your Mac before downloading several alternatives."
+      ]
+    },
+    {
+      "id": "space",
+      "title": "Make room for the first download",
+      "paragraphs": [
+        "The prepared 4-bit models use roughly 5.4 GB for FLUX.2 klein, 7.1 GB for Z-Image, 21.6 GB for Qwen, 10.1 GB for Wan, 20.8 GB for LTX video only, or 25.8 GB for LTX with sound. Setup also needs source files, so allow substantially more free space.",
+        "Storage is disk space; memory is the working space your Mac uses while generating. Having enough of one does not guarantee enough of the other. Check the notes in Zephra’s model chooser and Settings → Models."
+      ],
+      "links": [
+        {
+          "label": "Full storage estimates",
+          "url": "/#dark-requirements"
+        },
+        {
+          "label": "Downloads and memory help",
+          "url": "/guide/settings/"
+        }
+      ]
+    },
+    {
+      "id": "controls",
+      "title": "Why do the controls change?",
+      "paragraphs": [
+        "Zephra shows only settings the selected model uses. All current models have seeds. Still-image models offer Steps; video models use a fixed step schedule and instead offer Length. Current variants do not expose Guidance or a negative-prompt field.",
+        "Reference images also change meaning: Start from for Z-Image and Qwen, Reference for FLUX, and First frame for video. Use the matching guide instead of copying settings from a tutorial for another app."
+      ],
+      "links": [
+        {
+          "label": "Start from an image",
+          "url": "/guide/reference-images/"
+        },
+        {
+          "label": "Edit a photo",
+          "url": "/guide/photo-editing/"
+        },
+        {
+          "label": "Make a video",
+          "url": "/guide/text-to-video/"
+        }
+      ]
+    }
+  ]
+}

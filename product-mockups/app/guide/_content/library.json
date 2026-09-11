@@ -1,0 +1,74 @@
+{
+  "slug": "library",
+  "title": "Keep, refine, and share",
+  "description": "Use the library to explore variations, organize favorites, and export finished work.",
+  "sections": [
+    {
+      "id": "find",
+      "title": "Find your work",
+      "paragraphs": [
+        "Switch to Library with Command–2; return to Canvas with Command–1. Use search to find your work and the sidebar to browse its groups. Select an item and show the inspector with Option–Command–I to review its details.",
+        "Completed results save automatically. You can browse another image while generation continues. Looking at an older image does not mean the current job has stopped."
+      ]
+    },
+    {
+      "id": "variations",
+      "title": "Explore seeds and variations",
+      "paragraphs": [
+        "Use the shuffle control beside Seed for a different starting point. Enable Keep seed with the lock control when comparing small prompt changes. Click the seed value to enter one yourself.",
+        "The “1 seed” menu chooses how many results a press of Generate queues. Start with one, then try a small batch to compare interpretations. Right-click a generated library item and choose Queue a Variation to repeat its request with a fresh seed. Imported pictures do not have a generation request to repeat.",
+        "You can prepare and queue another idea while a generation runs. Its settings apply to the queued job, not the one already in progress.",
+        "To remove a waiting run, use the × beside it in the canvas sidebar. This removes all seeds in that waiting run."
+      ]
+    },
+    {
+      "id": "organize",
+      "title": "Organize what you like",
+      "paragraphs": [
+        "Mark favorites and use tags and albums to collect related work. These library details live with your PNGs. For generated videos, the poster PNG carries the details while the MP4 carries the video.",
+        "Deleting an item moves it to Recently Deleted. Use Put Back to restore it within 30 days, or Delete Immediately to remove it sooner. Zephra may purge items older than 30 days; use a backup for work you need to keep."
+      ],
+      "steps": [
+        "Select a result in Library and mark it as a favorite from its context menu.",
+        "Show the inspector and use + tag to add a descriptive label, such as garden or poster.",
+        "Use Add to Album to choose a collection, or New Album… to create one. You can also create an empty album with New Album in the sidebar."
+      ]
+    },
+    {
+      "id": "upscale",
+      "title": "Make a still image larger",
+      "paragraphs": [],
+      "steps": [
+        "Choose a finished still image in Library.",
+        "Select Upscale 2× or Upscale 4× from its available actions. Zephra may need to obtain the upscaler’s model files on first use.",
+        "Inspect the larger result before exporting it. Upscaling makes a new result and keeps the original."
+      ],
+      "note": "2× doubles the width and height; 4× quadruples them. Real-ESRGAN may invent detail. This action is for still images, not video clips."
+    },
+    {
+      "id": "export",
+      "title": "Export or move your library",
+      "paragraphs": [
+        "Right-click an item and choose Export… for a copy, Copy for the clipboard, or Reveal in Finder to locate the original. The app’s Share action opens macOS sharing options. Videos export as MP4; still images are PNG.",
+        "To move a video with its prompt and library details, keep its MP4 and same-named poster PNG together. Exporting the MP4 alone is convenient for sharing but does not carry the PNG’s library annotations.",
+        "Choose another library folder in Settings → General. Zephra can move the existing library or leave it where it is and switch folders. Back up the whole library folder when preserving originals, sources, albums, and deleted items."
+      ]
+    },
+    {
+      "id": "shortcuts",
+      "title": "Useful keyboard shortcuts",
+      "paragraphs": [],
+      "items": [
+        "Command–Return: Generate.",
+        "Command–period: Stop the current work.",
+        "Command–1 / Command–2: Canvas / Library.",
+        "Option–Command–I: show or hide the inspector.",
+        "Shift–Command–E: export the current target.",
+        "Shift–Command–R: reveal the current target in Finder.",
+        "Option–Command–R: use the current target as a reference.",
+        "Option–Command–A: prepare an animation.",
+        "Option–Command–X: prepare an extension of a clip."
+      ]
+    }
+  ]
+}

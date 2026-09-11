@@ -1,0 +1,80 @@
+{
+  "slug": "settings",
+  "title": "Setup and troubleshooting",
+  "description": "Make room for models, understand the wait, and get unstuck.",
+  "sections": [
+    {
+      "id": "downloads",
+      "title": "Manage model downloads",
+      "paragraphs": [
+        "Open Settings → Models to inspect storage and ongoing downloads. Pause keeps partial files so you can Resume later. Cancel Download discards unfinished files when no other model still needs the same transfer. Retry resumes after a failure.",
+        "Choosing another model does not necessarily cancel a background download. Some variants share files, so a transfer can continue for another model that needs it. If download controls are unavailable because the files are in use, stop the foreground work or remove queued work first.",
+        "If setup runs out of space, check the selected model-storage disk. Preparing a model needs both downloaded source files and a compact built copy. Free space or choose a larger model folder in Settings → Models; do not delete files from an active download manually."
+      ]
+    },
+    {
+      "id": "memory",
+      "title": "When generation is slow or runs out of memory",
+      "paragraphs": [
+        "Start with a smaller Size, a shorter video Length, and one seed. Close other memory-heavy apps. Video and reference-image work can need more memory than a basic still image.",
+        "In Settings → Performance, leave Stream weights from disk on Automatic to let supported models use less memory when needed. Streaming repeatedly reads model data from storage, so slower disks can make generation slower. Qwen, Wan, and LTX support it; Z-Image and FLUX stay in memory.",
+        "Tiled VAE decode in the same settings splits the final conversion into pixels into smaller pieces. Automatic is a useful default. It can reduce peak memory, with possible small differences in the result. It does not make a model’s memory needs disappear.",
+        "Scratch cache limit controls reusable temporary GPU memory. Begin with the recommended setting; Reset to Recommended restores it if you have changed it. Raising it uses more memory and is not a quality setting."
+      ]
+    },
+    {
+      "id": "first-run",
+      "title": "Why is the first run taking so long?",
+      "paragraphs": [
+        "Downloading, preparing, loading, and generating are different stages. Model files are large, and local preparation may take time after the download finishes. A prepared model can then generate without an internet connection.",
+        "The first generation after loading may also take longer while your Mac prepares GPU operations. “Warm up the model after loading” in Settings → Performance does that preparation with a throwaway run. It takes effect on the next model load."
+      ]
+    },
+    {
+      "id": "results",
+      "title": "The result is blurry or not what I asked for",
+      "paragraphs": [
+        "Wait for the finished result before judging an in-progress preview. Start with the model’s default Steps, where available, rather than assuming the highest number is best.",
+        "Simplify your prompt and change one setting at a time. For photo edits, check that FLUX.2 klein is selected. For Z-Image or Qwen with a starting image, try lowering Strength if the original changes too much."
+      ],
+      "links": [
+        {
+          "label": "Prompt-writing help",
+          "url": "/guide/prompting/"
+        },
+        {
+          "label": "Photo-editing workflow",
+          "url": "/guide/photo-editing/"
+        }
+      ]
+    },
+    {
+      "id": "missing-controls",
+      "title": "A control or result seems to be missing",
+      "paragraphs": [
+        "The model determines which controls appear. Current variants do not have Guidance or negative prompts. Strength appears only for models that use it and when an image is present.",
+        "If you are still looking at an older picture, check the running job or Library for the result. If a video is silent, confirm it was generated with LTX “with sound” and check the player’s volume."
+      ]
+    },
+    {
+      "id": "preferences",
+      "title": "Make the workspace yours",
+      "paragraphs": [
+        "Settings → General contains Appearance, the image-library folder, seed preferences, and notifications for work that finishes in the background. You can also hide the prompt with Option–Command–P when you want more space to view a result."
+      ]
+    },
+    {
+      "id": "support",
+      "title": "Get help",
+      "paragraphs": [
+        "If a problem continues, include your Mac model, macOS version, Zephra version, the selected model variant, Size and Length or Steps, and the exact error message. Add your prompt or a screenshot if you are comfortable sharing it."
+      ],
+      "links": [
+        {
+          "label": "Email Zephra support",
+          "url": "mailto:dev.urandom.io@gmail.com?subject=Zephra%20support"
+        }
+      ]
+    }
+  ]
+}

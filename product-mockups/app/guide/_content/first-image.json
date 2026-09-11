@@ -1,0 +1,63 @@
+{
+  "slug": "first-image",
+  "title": "Make your first image",
+  "description": "From opening Zephra to saving your first result. No technical background needed.",
+  "sections": [
+    {
+      "id": "before-you-start",
+      "title": "Before you start",
+      "paragraphs": [
+        "You need a Mac with Apple Silicon (an M-series chip) and macOS 15 or later. You can check your Mac in Apple menu → About This Mac.",
+        "The app and its models are separate downloads. A model is the creative engine that turns your description into an image or video. Start with one; you can add others later. Models need several gigabytes of storage, often much more during setup."
+      ],
+      "links": [
+        {
+          "label": "Compare models and storage",
+          "url": "/guide/models/"
+        }
+      ]
+    },
+    {
+      "id": "install",
+      "title": "Install and choose a model",
+      "paragraphs": [],
+      "steps": [
+        "Open the downloaded DMG and drag Zephra into Applications. Open Zephra from Applications.",
+        "In the first-launch model chooser, read the recommendation for your Mac. Select a model and use the button that says Download, Build, or Continue, depending on what is already available.",
+        "Keep your internet connection available while files download. Zephra may then prepare the model locally. This first setup takes longer than opening a prepared model.",
+        "If you chose Skip for Now, use Choose a Model on the canvas to return to the chooser."
+      ]
+    },
+    {
+      "id": "create",
+      "title": "Create something simple",
+      "paragraphs": [],
+      "steps": [
+        "Choose an image model, such as FLUX.2 klein 4B or Z-Image Turbo, using the model menu at the top of the window.",
+        "Leave the small reference-image box empty. If a thumbnail is there, clear it with its × button.",
+        "Type the example below into the prompt box. A prompt is simply a description of what you want to see.",
+        "Keep the initial Size and Steps settings and choose 1 seed. Click Generate, or press Command–Return.",
+        "Wait until generation finishes. An in-progress preview can look blurry or unfinished; judge the completed image."
+      ],
+      "prompt": "A small copper robot reading a newspaper at a kitchen table. Morning light comes through a window on the left. A blue ceramic mug sits beside it. Warm, natural photography, eye-level view."
+    },
+    {
+      "id": "keep",
+      "title": "Keep it or try again",
+      "paragraphs": [
+        "Completed results are saved to your library automatically. The default folder is Pictures/Zephra. Right-click a result in Library and choose Export… to save a copy elsewhere.",
+        "To try another interpretation, right-click a generated result and choose Queue a Variation. Your previous result stays in the library."
+      ],
+      "links": [
+        {
+          "label": "Learn about prompts",
+          "url": "/guide/prompting/"
+        },
+        {
+          "label": "Organize and export your work",
+          "url": "/guide/library/"
+        }
+      ]
+    }
+  ]
+}
