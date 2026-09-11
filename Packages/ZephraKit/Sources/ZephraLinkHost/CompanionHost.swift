@@ -38,14 +38,6 @@ public final class CompanionHost {
     /// scanned a stale screenshot and far too few to search.
     public static let pairingAttemptLimit = 3
 
-    /// How many connections may sit in the plaintext stage at once.
-    ///
-    /// Opening a socket costs an attacker nothing and finishing a handshake costs it a pairing,
-    /// so an uncapped listener is a listener anybody on the network can fill with sessions that
-    /// never say anything. Eight is far more than the phones in one house and small enough that
-    /// the ninth knock is refused rather than allocated.
-    public static let unauthenticatedLimit = 8
-
     /// What the Mac is called on the phone's list of Macs.
     @ObservationIgnored public let hostName: String
 
@@ -136,26 +128,6 @@ public final class CompanionHost {
         for session in closing { await session.close() }
         endPairing()
         stopObserving()
-    }
-
-    /// Starts one session over a connection that has just arrived, or refuses it.
-    ///
-    /// Only sessions still in the plaintext stage are counted: a house with nine paired phones
-    /// talking is fine, and nine connections that have said nothing is not.
-    func accept(_ connection: any LinkConnection) {
-        guard unauthenticatedCount < Self.unauthenticatedLimit else {
-            logger.notice("companion refused a connection: too many are still handshaking")
-            Task { await connection.close() }
-            return
-        }
-        let session = CompanionSession(connection: connection, host: self)
-        sessions.append(session)
-        session.start()
-    }
-
-    /// How many sessions have a connection but no channel yet.
-    var unauthenticatedCount: Int {
-        sessions.count { !$0.isAuthenticated }
     }
 
     /// Takes a session off the list once it has closed, and stops watching when it was the last.
