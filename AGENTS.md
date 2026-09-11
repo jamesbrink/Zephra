@@ -274,7 +274,11 @@ the road rather than allocating it; the listener publishes its own
 its own would have to be handed the port and kept in step with the listener's
 lifetime. `RelayConnection` speaks the relay's JSON over a
 `URLSessionWebSocketTask` and never reconnects itself — a reconnection is a whole
-new handshake — and `RelayListener` serves **one guest at a time**, because the
+new handshake. A payload whose base64 passes 24,000 bytes goes as `RelayFragment`
+slices (`m`, `i`, `n` on a `send`, which the relay forwards verbatim), because API
+Gateway allows one 32 KB frame and a sealed 64 KiB chunk is about 87 KB of base64;
+`RelayFragments` puts a set back together whatever order it arrives in.
+`RelayListener` serves **one guest at a time**, because the
 relay gives a host one socket and a frame on it carries no guest id. Several
 phones at once is a LAN feature. The relay admits a guest only when its signing
 key is on the host's allow-list: the host's `join` carries it (`allow`, at most

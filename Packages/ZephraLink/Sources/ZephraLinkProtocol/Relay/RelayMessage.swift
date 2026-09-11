@@ -40,7 +40,14 @@ public enum RelayMessage: Hashable, Sendable {
     /// does not.
     case error(reason: String)
     /// One sealed frame, to be copied to the other end verbatim.
-    case send(payload: Data)
+    ///
+    /// The three optional fields are one slice of a payload too big for a single WebSocket
+    /// frame: `message` (`m`) the id every slice of one payload shares, `index` (`i`) which
+    /// slice this is and `count` (`n`) how many there are. All three are absent on a payload
+    /// that fits, which is every frame a previous build sent. The relay neither reads nor
+    /// rewrites them — a `send` is forwarded verbatim — so reassembly is the receiver's,
+    /// `RelayFragments`.
+    case send(payload: Data, message: String? = nil, index: Int? = nil, count: Int? = nil)
     /// The other end arrived or went. A guest leaving notifies the host too.
     case peer(event: RelayPeerEvent)
     /// Keep the connection alive. Every five minutes, against a ten-minute idle timeout.

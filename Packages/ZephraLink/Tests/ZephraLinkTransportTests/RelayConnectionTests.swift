@@ -45,6 +45,26 @@ struct RelayConnectionTests {
         #expect(try await frames.next() == payload)
     }
 
+    @Test("a payload past one frame is cut up on the way out and whole on the way in")
+    func aLargePayloadCrossesInSlices() async throws {
+        let relay = try FakeRelay()
+        defer { relay.stop() }
+        let identity = DeviceIdentity()
+        let road = RelayConnection(
+            url: try await relay.start(), identity: identity, room: identity.roomID, role: .guest)
+        defer { Task { await road.close() } }
+        try await road.start()
+        let frames = FrameReader(road.frames())
+        // A sealed 64 KiB blob chunk, which is what closed the socket before it was cut up:
+        // base64 of it is about 87 KB and API Gateway allows 32 KB in one frame.
+        let payload = Data((0..<(64 * 1024 + 25)).map { UInt8($0 % 251) })
+        try await road.send(payload)
+        #expect(try await frames.next() == payload)
+        let sizes = relay.sendFrameSizes
+        #expect(sizes.count == 4, "one frame each for four slices")
+        #expect(sizes.allSatisfy { $0 < 32_000 }, "every frame is inside the relay's own limit")
+    }
+
     @Test("the other end arriving reaches the owner as a peer event")
     func peerEventsSurface() async throws {
         let relay = try FakeRelay()
@@ -54,7 +74,7 @@ struct RelayConnectionTests {
             url: try await relay.start(), identity: identity, room: identity.roomID, role: .host)
         defer { Task { await road.close() } }
         try await road.start()
-        var events = road.peerEvents.makeAsyncIterator()
+        var events = road.peerEvents().makeAsyncIterator()
         relay.push(.peer(event: .joined))
         #expect(await events.next() == .joined)
     }

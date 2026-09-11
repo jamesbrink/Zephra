@@ -44,7 +44,7 @@ public final class RelayListener: LinkListener, @unchecked Sendable {
         }
         let peers = Task { [weak self] in
             guard let self else { return }
-            for await event in self.host.peerEvents { self.peerChanged(event) }
+            for await event in self.host.peerEvents() { self.peerChanged(event) }
         }
         lock.withLock { pumps = [frames, peers] }
     }

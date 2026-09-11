@@ -318,6 +318,32 @@ same JSON the sender wrote and extra fields survive the trip. A host's frame goe
 to the room's one guest; a guest's goes to the host alone. `d` is opaque to
 the relay, which is not a trust boundary: the payload is a sealed frame.
 
+#### A payload too big for one frame
+
+API Gateway's 128 KB is the limit on a **message**; one **frame** may carry 32 KB,
+and `URLSessionWebSocketTask` sends a message as a single frame. A 64 KiB blob
+chunk sealed and base64'd is about 87 KB, so the first one closed the Mac's socket
+with `NSPOSIXErrorDomain 57` and nothing said about why. The client fragments, not
+the relay:
+
+```
+client -> relay  {"a":"send","d":"<base64 slice>","m":"<16 hex>","i":0,"n":3}
+```
+
+`m` is a message id every slice of one payload shares, `i` is this slice's index
+and `n` how many there are — ordinary extra fields, which the relay neither reads
+nor rewrites. A slice is `RelayFragment.byteLimit` (18,000) bytes, exactly 24,000
+characters of base64 and a multiple of three, so concatenating the slices' bytes
+and concatenating their base64 are the same answer. A payload that fits goes as
+`{"a":"send","d":"..."}` with none of the three, which is every frame a previous
+build sent.
+
+`RelayFragments` is the receiving half, and it assumes nothing about order:
+invocations run concurrently, so slices are held by `m`, indexed by `i`, and
+released only when all `n` are there. A set nothing finishes is dropped after
+`lifetime` (30 s) and at most `setLimit` (8) are held at once, the oldest going
+first — a sender that stops half way through must not cost this end anything.
+
 A `peer` event fires on a disconnect in both directions — a host leaving notifies
 its guest, a guest leaving notifies the host — and both say `left`.
 
@@ -365,7 +391,8 @@ second `hello` replaces it, and only the newest is live.
 
 | Limit | Value | What it means here |
 | --- | --- | --- |
-| Frame payload | 128 KB | 64 KiB chunks plus header and tag fit with room to spare |
+| Message payload | 128 KB | a sealed 64 KiB chunk is about 87 KB of base64, inside it |
+| Frame payload | 32 KB | one frame per message here, so payloads are cut at 24,000 base64 |
 | Frame type | text only | JSON with base64 payloads, not binary frames |
 | Connection lifetime | 2 hours | both ends reconnect and re-handshake |
 | Idle timeout | 10 minutes | clients ping every 5 minutes |
@@ -431,7 +458,9 @@ which is a better answer than any one address a browse could pick.
 **The relay.** `RelayConnection` is a `URLSessionWebSocketTask` — the one WebSocket
 that works the same on both platforms with no server-side headers to set — and it
 speaks the sequence above: hello, challenge, join, joined, then `send` frames
-carrying base64 of one sealed frame each. The rules about which message may
+carrying base64 of one sealed frame each — cut into `RelayFragment` slices when
+the base64 passes 24,000 bytes, since one frame holds 32 KB and a sealed 64 KiB
+chunk is about 87 KB, and put back together by `RelayFragments` on the way in. The rules about which message may
 follow which live in `RelayHandshake`, a value with no socket under it, so they
 can be tested by handing it the messages a relay would send. It pings every five
 minutes against the ten-minute idle timeout, and it does **not** reconnect: a

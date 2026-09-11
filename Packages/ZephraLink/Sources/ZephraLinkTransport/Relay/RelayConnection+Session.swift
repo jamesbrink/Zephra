@@ -52,7 +52,11 @@ extension RelayConnection {
     /// loss.
     private func dispatch(_ message: RelayMessage) {
         switch message {
-        case .send(let payload): frameContinuation.yield(payload)
+        case .send:
+            // A payload that came in slices is yielded once, whole. Slices arrive out of order,
+            // because every `send` is a Lambda invocation of its own, so `RelayFragments` holds
+            // them by message id until the set is complete.
+            if let whole = fragments.accept(message) { frameContinuation.yield(whole) }
         case .peer(let event): peerContinuation.yield(event)
         case .error(let reason): logger.error("The relay refused a frame: \(reason, privacy: .public)")
         case .allowed(let count):
@@ -62,8 +66,11 @@ extension RelayConnection {
     }
 
     /// The socket stopped. A close from this end finishes the stream; anything else fails it.
+    ///
+    /// Either way the road is marked closed before the stream finishes, so a `send` that arrives
+    /// after this is refused here rather than written into a socket that is gone.
     private func streamEnded(_ error: Error) {
-        if isClosed {
+        if readerStopped() {
             frameContinuation.finish()
         } else {
             frameContinuation.finish(throwing: error)

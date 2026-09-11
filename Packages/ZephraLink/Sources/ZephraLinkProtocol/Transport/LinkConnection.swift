@@ -17,6 +17,18 @@ public protocol LinkConnection: Sendable {
     func send(_ frame: Data) async throws
     /// Closes the road; `frames()` finishes.
     func close() async
+    /// The far end arriving or going, where the road under this can tell — the relay says so,
+    /// and a phone that hears `left` ends its session at once rather than waiting for the next
+    /// request to time out. A road that cannot tell answers a stream that finishes immediately,
+    /// so a caller may always ask.
+    func peerEvents() -> AsyncStream<RelayPeerEvent>
+}
+
+extension LinkConnection {
+    /// Nothing, for a road with no notion of the other end leaving.
+    public func peerEvents() -> AsyncStream<RelayPeerEvent> {
+        AsyncStream { $0.finish() }
+    }
 }
 
 /// The Mac's side of a road: something that yields connections as peers arrive.

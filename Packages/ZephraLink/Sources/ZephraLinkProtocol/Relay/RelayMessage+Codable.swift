@@ -6,11 +6,15 @@ import Foundation
 /// the same contract — the other is a Lambda — and the names in the deployed one are what both
 /// have to agree on. `n` and `d` are the two the relay spells short.
 extension RelayMessage: Codable {
+    /// `n` is spelled once and means two things: the challenge's nonce, and how many slices a
+    /// fragmented `send` has. They are fields of different messages and the relay's README
+    /// spells both that way, so one key carries both rather than the wire growing a synonym.
     private enum CodingKeys: String, CodingKey {
         case action = "a"
         case nonce = "n"
         case room, publicKey = "pub", role, signature = "sig"
         case payload = "d"
+        case fragment = "m", index = "i"
         case event, reason
         case allow, pubs, count, open
     }
@@ -38,7 +42,11 @@ extension RelayMessage: Codable {
             try container.encodeIfPresent(Self.flag(open), forKey: .open)
         case .allowed(let count): try container.encode(count, forKey: .count)
         case .error(let reason): try container.encode(reason, forKey: .reason)
-        case .send(let payload): try container.encode(payload, forKey: .payload)
+        case .send(let payload, let fragment, let index, let count):
+            try container.encode(payload, forKey: .payload)
+            try container.encodeIfPresent(fragment, forKey: .fragment)
+            try container.encodeIfPresent(index, forKey: .index)
+            try container.encodeIfPresent(count, forKey: .nonce)
         case .peer(let event): try container.encode(event, forKey: .event)
         }
     }
@@ -66,7 +74,12 @@ extension RelayMessage: Codable {
                 open: Self.flag(try container.decodeIfPresent(Bool.self, forKey: .open)))
         case .allowed: self = .allowed(count: try value(Int.self, .count))
         case .error: self = .error(reason: try value(String.self, .reason))
-        case .send: self = .send(payload: try value(Data.self, .payload))
+        case .send:
+            self = .send(
+                payload: try value(Data.self, .payload),
+                message: try container.decodeIfPresent(String.self, forKey: .fragment),
+                index: try container.decodeIfPresent(Int.self, forKey: .index),
+                count: try container.decodeIfPresent(Int.self, forKey: .nonce))
         case .peer: self = .peer(event: try value(RelayPeerEvent.self, .event))
         case .ping: self = .ping
         case .pong: self = .pong

@@ -37,9 +37,9 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
     let frameStream: AsyncThrowingStream<Data, Error>
     let frameContinuation: AsyncThrowingStream<Data, Error>.Continuation
     let peerContinuation: AsyncStream<RelayPeerEvent>.Continuation
-    /// The other end arriving and going, which is how a Mac knows a phone is there and how a
-    /// phone knows the Mac is asleep without waiting for a request to time out.
-    public let peerEvents: AsyncStream<RelayPeerEvent>
+    let peerStream: AsyncStream<RelayPeerEvent>
+    /// The slices of payloads too big for one WebSocket frame, put back together here.
+    let fragments = RelayFragments()
     private let lock = NSLock()
     private var state = State()
 
@@ -52,7 +52,7 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
         self.role = role
         handshake = RelayHandshake(identity: identity, room: room, role: role)
         (frameStream, frameContinuation) = AsyncThrowingStream.makeStream()
-        (peerEvents, peerContinuation) = AsyncStream.makeStream()
+        (peerStream, peerContinuation) = AsyncStream.makeStream()
     }
 
     /// Opens the socket and joins the room, or throws the relay's refusal.
@@ -79,6 +79,10 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
 
     public func frames() -> AsyncThrowingStream<Data, Error> { frameStream }
 
+    /// The other end arriving and going, which is how a Mac knows a phone is there and how a
+    /// phone knows the Mac is asleep without waiting for a request to time out.
+    public func peerEvents() -> AsyncStream<RelayPeerEvent> { peerStream }
+
     /// Replaces the set of guests the relay will admit into this room, and says whether the room
     /// is open to a guest on no list at all.
     ///
@@ -98,9 +102,44 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
         try? await write(.allow(pubs: trimmed, open: open ? true : nil))
     }
 
+    /// One sealed frame to the other end, cut into slices where it is too big for one frame.
+    ///
+    /// API Gateway allows a 128 KB *message* but a 32 KB *frame*, and `URLSessionWebSocketTask`
+    /// sends a message as one frame: a 64 KiB blob chunk sealed and base64'd is about 87 KB, and
+    /// the relay closed the socket on the first one with nothing said about why. So a large
+    /// payload goes as `RelayFragment` slices, which the far end puts back together.
+    ///
+    /// A write that fails takes the road down with it. The socket is dead either way, and a road
+    /// that stays open over a dead socket is a session the Mac keeps and the phone cannot reach:
+    /// the failure finishes `frames()`, which is what everything above reads the end of a
+    /// session from.
     public func send(_ frame: Data) async throws {
         guard lock.withLock({ state.isJoined && !state.isClosed }) else { throw RelayError.closed }
-        try await write(.send(payload: frame))
+        do {
+            for message in RelayFragment.messages(for: frame) { try await write(message) }
+        } catch {
+            logger.notice(
+                "The relay socket refused a frame: \(error.localizedDescription, privacy: .public)")
+            fail(error)
+            throw error
+        }
+    }
+
+    /// The socket is gone, from a read that failed or a write that did. Marks the road closed and
+    /// finishes both streams, so the session over it ends rather than waiting on a dead socket.
+    func fail(_ error: any Error) {
+        let wasOpen: Bool = lock.withLock {
+            guard !state.isClosed else { return false }
+            state.isClosed = true
+            return true
+        }
+        guard wasOpen else { return }
+        let running = lock.withLock { state }
+        running.reader?.cancel()
+        running.pinger?.cancel()
+        task.cancel(with: .goingAway, reason: nil)
+        frameContinuation.finish(throwing: error)
+        peerContinuation.finish()
     }
 
     public func close() async {
@@ -119,6 +158,15 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
 
     /// Whether this road has been closed from this end.
     var isClosed: Bool { lock.withLock { state.isClosed } }
+
+    /// Marks the road closed as its reader stops, and says whether it was already closed —
+    /// which is what tells a close from this end apart from a socket that went on its own.
+    func readerStopped() -> Bool {
+        lock.withLock {
+            defer { state.isClosed = true }
+            return state.isClosed
+        }
+    }
 
     /// Keeps the two long-lived tasks, so `close()` can stop them.
     func hold(reader: Task<Void, Never>, pinger: Task<Void, Never>) {

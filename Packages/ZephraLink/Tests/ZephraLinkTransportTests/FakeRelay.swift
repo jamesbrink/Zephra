@@ -18,8 +18,15 @@ final class FakeRelay: @unchecked Sendable {
     private let refusal: String?
     private var allow: [Data]?
     private var isOpen = false
+    private var joined: RoomID?
+    private var sends: [Int] = []
+
     /// The room the last good join asked for, which is what a test checks the signature bought.
-    private(set) var joinedRoom: RoomID?
+    var joinedRoom: RoomID? { lock.withLock { joined } }
+
+    /// The size in bytes of every `send` frame this relay was handed, in the order they came,
+    /// which is how a test asks whether a large payload was cut up before it left.
+    var sendFrameSizes: [Int] { lock.withLock { sends } }
 
     /// The allow-list this relay last heard, from the join or from an `allow` after it.
     var allowList: [Data]? { lock.withLock { allow } }
@@ -70,12 +77,14 @@ final class FakeRelay: @unchecked Sendable {
             guard let self, error == nil, let content,
                 let message = try? LinkJSON.decode(RelayMessage.self, from: content)
             else { return }
-            self.answer(message, on: connection)
+            self.answer(message, raw: content, on: connection)
             self.receive(on: connection)
         }
     }
 
-    private func answer(_ message: RelayMessage, on connection: NWConnection) {
+    /// A `send` is echoed back as the very bytes it arrived as, which is what the deployed relay
+    /// does — it forwards the frame verbatim, so a fragment's extra fields survive the trip.
+    private func answer(_ message: RelayMessage, raw: Data, on connection: NWConnection) {
         switch message {
         case .hello:
             let fresh = Data((0..<RelayJoin.nonceByteCount).map { _ in UInt8.random(in: 0...255) })
@@ -92,8 +101,9 @@ final class FakeRelay: @unchecked Sendable {
                 allow = pubs
                 isOpen = message.isOpen
             }
-        case .send(let payload):
-            send(.send(payload: payload), to: connection)
+        case .send:
+            lock.withLock { sends.append(raw.count) }
+            send(raw, to: connection)
         case .ping:
             send(.pong, to: connection)
         default:
@@ -114,12 +124,16 @@ final class FakeRelay: @unchecked Sendable {
         guard role == .guest || RoomID(signingPublicKey: publicKey) == room else {
             return .error(reason: "room does not match key")
         }
-        lock.withLock { joinedRoom = room }
+        lock.withLock { joined = room }
         return .joined(role: role)
     }
 
     private func send(_ message: RelayMessage, to connection: NWConnection) {
         guard let bytes = try? LinkJSON.encode(message) else { return }
+        send(bytes, to: connection)
+    }
+
+    private func send(_ bytes: Data, to connection: NWConnection) {
         let context = NWConnection.ContentContext(
             identifier: "text", metadata: [NWProtocolWebSocket.Metadata(opcode: .text)])
         connection.send(
