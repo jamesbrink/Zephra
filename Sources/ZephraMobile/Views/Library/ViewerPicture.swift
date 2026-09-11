@@ -28,7 +28,7 @@ struct ViewerPicture: View {
             case .picture(let image):
                 ZoomablePicture(picture: image)
             case .clip(let url):
-                ClipPlayerView(url: url, showsControls: true)
+                ClipPlayerView(url: url, place: .viewer)
             case .unavailable(let reason):
                 ContentUnavailableView("Not on This Phone", systemImage: "wifi.slash",
                     description: Text(reason))

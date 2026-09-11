@@ -17,7 +17,7 @@ struct ClipPicture: View {
     var body: some View {
         Group {
             if let url = phase.value {
-                ClipPlayerView(url: url, showsControls: false)
+                ClipPlayerView(url: url, place: .canvas)
                     .clipShape(
                         RoundedRectangle(
                             cornerRadius: ZephraChrome.cardRadius, style: .continuous))

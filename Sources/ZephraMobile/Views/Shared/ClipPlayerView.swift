@@ -6,8 +6,14 @@ import SwiftUI
 /// One player for both surfaces. The Mac's `ClipPlayerView` is the model, and the reason for a
 /// representable rather than SwiftUI's `VideoPlayer` is the Mac's — plus one of the phone's:
 /// the controller is what gives iOS the full-screen controls, the scrubber and the route
-/// button people expect of a video. Whether those controls show is the one thing that differs
-/// between the two places a clip appears, which is why it is a flag rather than two files.
+/// button people expect of a video. Where the clip is showing decides the two things that
+/// differ between the places a clip appears — whether the controls show, and whether a pull
+/// downwards closes the viewer over it — which is why it is a `Place` rather than two files.
+///
+/// In the viewer the player's view carries the same `ViewerPullRecognizer` a picture's scroll
+/// view does, so a clip drops and closes under the finger exactly as a picture does. The
+/// recognizer runs beside AVKit's own and cancels no touch, so a tap still brings the
+/// controls up and the scrubber still scrubs.
 ///
 /// Muted unless the file itself says it has sound. The *file*, never the record's word for it:
 /// a clip made by a model with no audio lane has no track to unmute, and a phone that unmuted
@@ -16,15 +22,17 @@ import SwiftUI
 struct ClipPlayerView: UIViewControllerRepresentable {
     /// The MP4 on this phone.
     let url: URL
-    /// Whether the transport controls show. False on the canvas, where a tap on the clip has
-    /// to reach the canvas behind it; true in the viewer, where watching is the whole point.
-    let showsControls: Bool
+    /// Where the clip is showing, which decides what the player does besides play.
+    let place: Place
+
+    @Environment(\.viewerGestures) private var gestures
 
     func makeUIViewController(context: Context) -> AVPlayerViewController {
         let controller = AVPlayerViewController()
-        controller.showsPlaybackControls = showsControls
+        controller.showsPlaybackControls = place == .viewer
         controller.videoGravity = .resizeAspect
         controller.view.backgroundColor = .clear
+        if place == .viewer { controller.view.addGestureRecognizer(context.coordinator.pull) }
         let player = AVQueuePlayer()
         controller.player = player
         context.coordinator.play(url, on: player)
@@ -32,25 +40,40 @@ struct ClipPlayerView: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {
-        controller.showsPlaybackControls = showsControls
+        // Set on every update, not once: the closure closes over the viewer's state and a
+        // stale one would pull on a viewer that has since been rebuilt.
+        context.coordinator.pull.onPull = gestures.pulled
         guard let player = controller.player as? AVQueuePlayer else { return }
         context.coordinator.play(url, on: player)
     }
 
     static func dismantleUIViewController(
-        _ controller: AVPlayerViewController, coordinator: Loop
+        _ controller: AVPlayerViewController, coordinator: Playback
     ) {
         coordinator.stop()
     }
 
-    func makeCoordinator() -> Loop { Loop() }
+    func makeCoordinator() -> Playback { Playback() }
 
-    /// What keeps the clip going round, and what decides whether it makes a sound.
+    /// The two places a clip plays, and what each asks of the player.
+    enum Place {
+        /// The canvas: no controls, since a tap on the clip has to reach the canvas behind
+        /// it, and nothing to pull.
+        case canvas
+        /// The viewer: the controls, since watching is the whole point, and the pull
+        /// downwards that closes it.
+        case viewer
+    }
+
+    /// What keeps the clip going round, what decides whether it makes a sound, and the pull
+    /// that closes the viewer over it.
     ///
     /// `AVPlayerLooper` holds the loop and must outlive the call that made it, or the clip
     /// plays once and stops; SwiftUI keeps one coordinator per representable instance, which is
-    /// exactly the lifetime wanted.
-    final class Loop {
+    /// exactly the lifetime wanted, for the recognizer as much as the loop.
+    @MainActor final class Playback {
+        /// The pull downwards, attached to the player's view in the viewer alone.
+        let pull = ViewerPullRecognizer()
         private var looper: AVPlayerLooper?
         private var playing: URL?
 

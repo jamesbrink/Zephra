@@ -13,7 +13,9 @@ import UIKit
 /// Drawn rather than bundled, for the reason `frame()` is: a photograph of one particular
 /// run would prove nothing about a viewer that shows whatever arrives. What matters is that
 /// each page is unmistakably itself — a number a swipe can count by — and has edges a zoom
-/// can be seen against.
+/// can be seen against. The fixture's clip gets its poster and, beside it under the sidecar's
+/// name, a short MP4 of the same page with a bar sweeping across it (`MobilePreview+Clip`),
+/// so the clip's page plays and a pull over it can be tried.
 extension MobilePreview {
     /// The folder of drawn pictures, or nil for every state but `viewer`.
     static func pictureFolder() -> URL? {
@@ -22,17 +24,22 @@ extension MobilePreview {
             .appending(path: "ZephraPreviewFiles", directoryHint: .isDirectory)
         try? FileManager.default.removeItem(at: folder)
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        for (index, entry) in library().enumerated() where !entry.isVideo {
-            let png = picture(number: index + 1, width: entry.width, height: entry.height)
-            try? png.write(to: folder.appending(path: entry.fileName))
+        for (index, entry) in library().enumerated() {
+            let size = CGSize(width: entry.width, height: entry.height)
+            let page = page(number: index + 1, size: size)
+            try? page.pngData()?.write(to: folder.appending(path: entry.fileName))
+            if entry.isVideo {
+                clip(number: index + 1, size: size,
+                    to: folder.appending(path: LibraryCatalog.clipName(of: entry.fileName)))
+            }
         }
         return folder
     }
 
-    /// One page: a gradient, a fine grid, and its number, at the entry's own size.
-    private static func picture(number: Int, width: Int, height: Int) -> Data {
-        let size = CGSize(width: width, height: height)
-        let image = UIGraphicsImageRenderer(size: size).image { context in
+    /// One page: a gradient, a fine grid, and its number, at the entry's own size. `sweep` is
+    /// how far across a bar is drawn, for a clip's frames; nil draws none.
+    static func page(number: Int, size: CGSize, sweep: CGFloat? = nil) -> UIImage {
+        UIGraphicsImageRenderer(size: size).image { context in
             let colors =
                 [
                     UIColor(hue: CGFloat(number) * 0.17, saturation: 0.55, brightness: 0.35,
@@ -49,7 +56,7 @@ extension MobilePreview {
             }
             context.cgContext.setStrokeColor(UIColor.white.withAlphaComponent(0.35).cgColor)
             context.cgContext.setLineWidth(1)
-            for step in stride(from: 0, through: max(width, height), by: 64) {
+            for step in stride(from: 0, through: Int(max(size.width, size.height)), by: 64) {
                 let line = CGFloat(step) + 0.5
                 context.cgContext.move(to: CGPoint(x: line, y: 0))
                 context.cgContext.addLine(to: CGPoint(x: line, y: size.height))
@@ -66,7 +73,11 @@ extension MobilePreview {
             let bounds = label.size()
             label.draw(at: CGPoint(
                 x: (size.width - bounds.width) / 2, y: (size.height - bounds.height) / 2))
+            if let sweep {
+                context.cgContext.setFillColor(UIColor.white.withAlphaComponent(0.8).cgColor)
+                context.cgContext.fill(
+                    CGRect(x: sweep * size.width - 8, y: 0, width: 16, height: size.height))
+            }
         }
-        return image.pngData() ?? Data()
     }
 }
