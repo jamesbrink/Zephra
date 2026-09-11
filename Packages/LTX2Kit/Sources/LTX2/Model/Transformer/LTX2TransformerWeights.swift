@@ -10,8 +10,11 @@ import MLX
 /// so that level is folded away on the way in and put back by `checkpointName(of:)` on the way
 /// to the quantization manifest, which knows tensors by the pack's names.
 ///
-/// Audio-lane tensors are dropped rather than mapped: a video-only pack has none, and a full
-/// pack loaded into this tree would otherwise fail on the first `audio_attn1` it met.
+/// Audio-lane tensors are dropped unless the tree has the lane (`sanitized(_:audio:)`), and
+/// mapped one level down when it has: the pack keeps them flat beside the video lane's,
+/// `transformer_blocks.N.audio_attn1` and `av_ca_a2v_gate_adaln_single`, where the tree holds
+/// them under `transformer_blocks.N.audio.` and `audio.`; `moduleName(of:)` puts the level
+/// in and `checkpointName(of:)` takes it out again.
 public enum LTX2TransformerWeights {
     static let prefix = "transformer."
     private static let checkpointForm = ".emb.timestep_embedder."
@@ -28,10 +31,11 @@ public enum LTX2TransformerWeights {
         audioMarkers.contains { key.contains($0) }
     }
 
-    /// The pack's video-lane tensors under the names this module tree uses.
-    public static func sanitized(_ weights: [String: MLXArray]) -> [String: MLXArray] {
+    /// The pack's tensors under the names this module tree uses: the video lane's, and the
+    /// audio lane's too when `audio` says the tree has one.
+    public static func sanitized(_ weights: [String: MLXArray], audio: Bool = false) -> [String: MLXArray] {
         weights.reduce(into: [:]) { renamed, entry in
-            guard !isAudio(entry.key) else { return }
+            guard audio || !isAudio(entry.key) else { return }
             renamed[moduleName(of: entry.key)] = entry.value
         }
     }
@@ -39,11 +43,25 @@ public enum LTX2TransformerWeights {
     /// One pack path under the name this module tree uses.
     public static func moduleName(of key: String) -> String {
         let bare = key.hasPrefix(prefix) ? String(key.dropFirst(prefix.count)) : key
-        return ("." + bare).replacingOccurrences(of: checkpointForm, with: moduleForm).dropFirst().description
+        let folded = ("." + bare).replacingOccurrences(of: checkpointForm, with: moduleForm).dropFirst().description
+        guard isAudio(folded) else { return folded }
+        return nested(folded)
     }
 
     /// A module path back under the name the pack and its manifest know it by.
     public static func checkpointName(of path: String) -> String {
-        prefix + ("." + path).replacingOccurrences(of: moduleForm, with: checkpointForm).dropFirst()
+        let flat = path.replacingOccurrences(of: ".audio.", with: ".").replacingOccurrences(of: "^audio\\.", with: "", options: .regularExpression)
+        return prefix + ("." + flat).replacingOccurrences(of: moduleForm, with: checkpointForm).dropFirst()
+    }
+
+    /// An audio-lane path with the tree's `audio.` level put in: after `transformer_blocks.N.`
+    /// for a block's tensor, in front for the transformer's own.
+    static func nested(_ path: String) -> String {
+        let block = "transformer_blocks."
+        guard path.hasPrefix(block), let dot = path.dropFirst(block.count).firstIndex(of: ".") else {
+            return "audio." + path
+        }
+        let head = path[path.startIndex...dot]
+        return head + "audio." + path[path.index(after: dot)...]
     }
 }

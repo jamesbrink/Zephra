@@ -31,6 +31,20 @@ struct WeightKeyCoverageTests {
     }
 
     @Test(
+        "the transformer with its audio lane claims every published tensor",
+        .enabled(if: SnapshotUnderTest.ltx2.hasRelease))
+    func transformerWithAudio() throws {
+        let release = try #require(SnapshotUnderTest.ltx2.release)
+        let published = try Self.keys(release.appending(path: "transformer-distilled.safetensors"))
+        let configuration = LTX2TransformerConfiguration(audio: LTX2AudioConfiguration())
+        let claimed = Set(
+            LTX2Transformer(configuration).parameters().flattened()
+                .map { LTX2TransformerWeights.checkpointName(of: $0.0) })
+        #expect(published.count == 4091)
+        Self.expectNamesMatch(published: published, claimed: claimed)
+    }
+
+    @Test(
         "the connector and the projection claim every video-side tensor",
         .enabled(if: SnapshotUnderTest.ltx2.hasRelease))
     func connector() throws {

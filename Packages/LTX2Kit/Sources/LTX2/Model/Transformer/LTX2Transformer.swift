@@ -6,9 +6,10 @@ import ZephraMLX
 /// LTX-2's video transformer: forty-eight blocks over a clip's latent tokens, conditioned on
 /// the text connector's output and on the noise level.
 ///
-/// The video lane only. The audio lane, with its own patchify, adaLN heads and output head,
-/// is the optional stream described on `LTX2Block`; a video-only pack has none of it and this
-/// module tree has no slot for it until the weights exist to fill one.
+/// The video lane always, and the audio lane when the configuration names one: its ends and
+/// conditioners are `LTX2AudioHead` under `audio`, its blocks' halves `LTX2AudioLane` under
+/// each block's `audio`, both nil on a video-only tree, which loads and runs exactly as it
+/// did before the lane existed.
 public final class LTX2Transformer: Module {
     @ModuleInfo(key: "patchify_proj") var patchify: Linear
     @ModuleInfo(key: "adaln_single") var timestepModulation: LTX2AdaLayerNormSingle
@@ -21,6 +22,8 @@ public final class LTX2Transformer: Module {
     /// frame of any clip, because the autoencoder is causal, and a generated keyframe slot. The
     /// reference marks the first frame unconditionally, and so does this.
     @ParameterInfo(key: "keyframes_abs_pos_embedding") var keyframeEmbedding: MLXArray
+    /// The audio lane's ends and conditioners, or nil on a video-only tree.
+    @ModuleInfo(key: "audio") var audioHead: LTX2AudioHead?
 
     let configuration: LTX2TransformerConfiguration
     /// The rotary embedding over the clip's three axes.
@@ -54,5 +57,9 @@ public final class LTX2Transformer: Module {
         _output.wrappedValue = Linear(dim, configuration.outChannels, bias: true)
         _outputTable.wrappedValue = MLXArray.zeros([2, dim])
         _keyframeEmbedding.wrappedValue = MLXArray.zeros([1, dim])
+        _audioHead.wrappedValue = configuration.audio.map { LTX2AudioHead(configuration, audio: $0) }
     }
+
+    /// Whether the tree carries the audio lane.
+    public var hasAudio: Bool { audioHead != nil }
 }

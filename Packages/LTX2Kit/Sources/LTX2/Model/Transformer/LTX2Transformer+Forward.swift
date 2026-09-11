@@ -42,7 +42,40 @@ extension LTX2Transformer {
         heldFrames: Int = 1,
         textMask: MLXArray? = nil
     ) throws -> MLXArray {
-        let table = rotary.table(positions: layout.positions(frameRate: frameRate))
+        try predict(
+            tokens: tokens, text: text, sigma: sigma, layout: layout, frameRate: frameRate,
+            firstFrameStrength: firstFrameStrength, heldFrames: heldFrames, textMask: textMask, audio: nil
+        ).video
+    }
+
+    /// The audio lane's input to one step: its tokens, its text, and its layout.
+    public struct AudioInput {
+        public var tokens: MLXArray
+        public var text: MLXArray
+        public var layout: LTX2AudioLatentLayout
+
+        public init(tokens: MLXArray, text: MLXArray, layout: LTX2AudioLatentLayout) {
+            self.tokens = tokens
+            self.text = text
+            self.layout = layout
+        }
+    }
+
+    /// Both lanes' velocities for one step, the audio's when `audio` hands the lane a stream
+    /// and the tree has one. Without a stream this is the video-only forward exactly.
+    public func predict(
+        tokens: MLXArray,
+        text: MLXArray,
+        sigma: MLXArray,
+        layout: LTX2LatentLayout,
+        frameRate: Double,
+        firstFrameStrength: Float? = nil,
+        heldFrames: Int = 1,
+        textMask: MLXArray? = nil,
+        audio: AudioInput?
+    ) throws -> LTX2Prediction {
+        let positions = layout.positions(frameRate: frameRate)
+        let table = rotary.table(positions: positions)
         let keyframe = Self.heldMarker(layout, frames: 1)
         var x = patchify(tokens) + keyframe.asType(tokens.dtype) * keyframeEmbedding.asType(tokens.dtype)
         let held = firstFrameStrength.map { MLX.concatenated([sigma, sigma * (1 - $0)], axis: 0) }
@@ -57,19 +90,45 @@ extension LTX2Transformer {
                 conditioned: modulation[1..<2], marker: marker)
         let context = text.asType(x.dtype)
 
+        guard let audio, let audioHead else {
+            if let stream {
+                try stream.run { block in
+                    try Task.checkCancellation()
+                    x = block(x, text: context, conditioning: conditioning, rotary: table, textMask: textMask)
+                    return [x]
+                }
+            } else {
+                for (index, block) in blocks.enumerated() {
+                    x = block(x, text: context, conditioning: conditioning, rotary: table, textMask: textMask)
+                    if (index + 1) % blocksPerEval == 0 { MLX.eval(x) }
+                }
+            }
+            return LTX2Prediction(video: head(x, embedded: embedded, marker: held == nil ? nil : marker), audio: nil)
+        }
+        // The audio lane and the cross-modal conditioners read the scalar sigma, held frame
+        // or not; the video's time positions are the first axis of its own, in seconds.
+        var (audioStream, audioEmbedded) = audioHead.stream(
+            tokens: audio.tokens, text: audio.text, sigma: sigma, audioLayout: audio.layout,
+            videoTimes: positions[0..<1], dtype: x.dtype)
         if let stream {
             try stream.run { block in
                 try Task.checkCancellation()
-                x = block(x, text: context, conditioning: conditioning, rotary: table, textMask: textMask)
-                return [x]
+                let both = block(x, text: context, conditioning: conditioning, rotary: table, textMask: textMask, audio: audioStream)
+                x = both.video
+                audioStream.hidden = both.audio
+                return [x, audioStream.hidden]
             }
         } else {
             for (index, block) in blocks.enumerated() {
-                x = block(x, text: context, conditioning: conditioning, rotary: table, textMask: textMask)
-                if (index + 1) % blocksPerEval == 0 { MLX.eval(x) }
+                let both = block(x, text: context, conditioning: conditioning, rotary: table, textMask: textMask, audio: audioStream)
+                x = both.video
+                audioStream.hidden = both.audio
+                if (index + 1) % blocksPerEval == 0 { MLX.eval(x, audioStream.hidden) }
             }
         }
-        return head(x, embedded: embedded, marker: held == nil ? nil : marker)
+        return LTX2Prediction(
+            video: head(x, embedded: embedded, marker: held == nil ? nil : marker),
+            audio: audioHead.head(audioStream.hidden, embedded: audioEmbedded))
     }
 
     /// `[1, tokens, 1]`: true over the first `frames` latent frames' tokens, false elsewhere.

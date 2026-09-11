@@ -2,9 +2,9 @@ import Foundation
 
 /// The shape of the LTX-2 video transformer, with LTX-2.5's 22B values as the defaults.
 ///
-/// Only the video lane is described: the audio lane's dimensions belong to the audio stream
-/// that a video-only pack omits, and will arrive with it. Every default is the shipped
-/// `config.json`'s; a doll's-house configuration for a parity test names its own.
+/// The video lane, and the audio lane when `audio` names one: a video-only pack builds the
+/// tree without it and loads what it has. Every default is the shipped `config.json`'s; a
+/// doll's-house configuration for a parity test names its own.
 public struct LTX2TransformerConfiguration: Hashable, Sendable {
     /// Latent channels in and out of the model.
     public var inChannels: Int
@@ -28,6 +28,8 @@ public struct LTX2TransformerConfiguration: Hashable, Sendable {
     public var ropeMaxPositions: [Double]
     /// The sinusoid sees `sigma * timestepScale`.
     public var timestepScale: Float
+    /// The audio lane's shape, or nil for the video-only tree.
+    public var audio: LTX2AudioConfiguration?
 
     /// Creates a configuration; the defaults are LTX-2.5's.
     public init(
@@ -41,7 +43,8 @@ public struct LTX2TransformerConfiguration: Hashable, Sendable {
         feedForwardBias: Bool = false,
         ropeTheta: Double = 10000,
         ropeMaxPositions: [Double] = [20, 2048, 2048],
-        timestepScale: Float = 1000
+        timestepScale: Float = 1000,
+        audio: LTX2AudioConfiguration? = nil
     ) {
         self.inChannels = inChannels
         self.outChannels = outChannels
@@ -54,6 +57,7 @@ public struct LTX2TransformerConfiguration: Hashable, Sendable {
         self.ropeTheta = ropeTheta
         self.ropeMaxPositions = ropeMaxPositions
         self.timestepScale = timestepScale
+        self.audio = audio
     }
 
     /// The stream's width.

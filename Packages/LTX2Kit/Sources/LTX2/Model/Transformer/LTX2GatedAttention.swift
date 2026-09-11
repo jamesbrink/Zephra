@@ -48,19 +48,24 @@ final class LTX2GatedAttention: Module {
     /// - Parameters:
     ///   - x: `[batch, tokens, queryDim]`, already normalised and modulated by the caller.
     ///   - context: What to attend over, `[batch, contextTokens, contextDim]`, or nil for `x`.
-    ///   - rotary: The table to rotate queries and keys with, or nil for none.
+    ///   - rotary: The table to rotate queries with, and keys too unless `keyRotary` says
+    ///     otherwise, or nil for none.
+    ///   - keyRotary: The keys' own table, for the cross-modal attentions, whose queries and
+    ///     keys are two sequences on one time axis.
     ///   - mask: An additive bias broadcastable to `[batch, heads, tokens, contextTokens]`.
     func callAsFunction(
-        _ x: MLXArray, context: MLXArray? = nil, rotary: LTX2RotaryTable? = nil, mask: MLXArray? = nil
+        _ x: MLXArray, context: MLXArray? = nil, rotary: LTX2RotaryTable? = nil,
+        keyRotary: LTX2RotaryTable? = nil, mask: MLXArray? = nil
     ) -> MLXArray {
         let batch = x.shape[0]
         let source = context ?? x
         let gates = 2 * sigmoid(gateLogits(x))
         let queries = queryNorm(query(x))
         let keys = keyNorm(key(source))
+        let keyTable = keyRotary ?? rotary
         let attended = MLXFast.scaledDotProductAttention(
             queries: rotary?.rotate(queries) ?? split(queries),
-            keys: rotary?.rotate(keys) ?? split(keys),
+            keys: keyTable?.rotate(keys) ?? split(keys),
             values: split(value(source)),
             scale: scale,
             mask: mask

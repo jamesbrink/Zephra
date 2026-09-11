@@ -12,23 +12,25 @@ import MLXNN
 /// left wide by a loader cannot widen every activation after it.
 ///
 /// **The audio seam.** The full model runs an audio lane beside this one, joined by a gated
-/// cross-attention in both directions between the text cross-attention and the feed-forward.
-/// The official model accepts `audio=None` and skips that whole section, which is the forward
-/// this block computes; a video-only pack has no audio weights to load. When the audio lane is
-/// added it becomes an optional module on this block and an optional stream argument to
-/// `callAsFunction`, nil today, and the video arithmetic above and below it does not change.
+/// cross-attention in both directions between the text cross-attention and the feed-forward
+/// (`LTX2AudioLane`, `audio` here, nil on a video-only tree). The official model accepts
+/// `audio=None` and skips that whole section, which is what `callAsFunction` without a
+/// stream computes, bit for bit what it computed before the lane existed; with a stream it
+/// runs both lanes in the reference's order, `LTX2Block+Audio.swift`.
 final class LTX2Block: Module {
     @ModuleInfo(key: "attn1") var selfAttention: LTX2GatedAttention
     @ModuleInfo(key: "attn2") var crossAttention: LTX2GatedAttention
     @ModuleInfo(key: "ff") var feedForward: LTX2FeedForward
     @ParameterInfo(key: "scale_shift_table") var table: MLXArray
     @ParameterInfo(key: "prompt_scale_shift_table") var promptTable: MLXArray
+    @ModuleInfo(key: "audio") var audio: LTX2AudioLane?
 
-    private let eps: Float
+    let eps: Float
 
     init(_ configuration: LTX2TransformerConfiguration) {
         let dim = configuration.innerDim
         eps = configuration.normEps
+        _audio.wrappedValue = configuration.audio.map { LTX2AudioLane(configuration, audio: $0) }
         _selfAttention.wrappedValue = LTX2GatedAttention(
             queryDim: dim, contextDim: dim, heads: configuration.heads,
             headDim: configuration.headDim, eps: eps)
