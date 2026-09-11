@@ -674,7 +674,8 @@ RELAY_ZIP      := $(BUILD)/relay-link.zip
 # Seconds, no network and no AWS account: the relay against fakes for DynamoDB and the
 # API Gateway management API. Part of the push gate, so a broken relay never deploys.
 relay-test:
-	node --test Relay/link/test
+	# A file, not a directory: Node 24 on the runner refuses a directory argument that Node 26 here walks.
+	node --test Relay/link/test/relay.test.mjs
 
 # The deployment package is one file -- the AWS SDK comes from the Lambda runtime -- so
 # there is no build step and nothing to install. `wait function-updated` is not optional:
