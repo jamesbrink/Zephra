@@ -287,6 +287,17 @@ How the companion reaches a phone. Two targets:
   seconds for forty minutes and exits when the build is valid. `ASC_APP_ID`
   (or `--app`) points it at an app record other than Zephra Companion's
   `6811136175`.
+- The same script carries the three acts that follow a valid build, because
+  they want the same token and a second copy of that ES256 minting is a second
+  place to get it wrong. Each takes a build id, or the newest build when given
+  none: `attach` adds it to the internal beta group (`ASC_GROUP_ID`, or
+  `--group`, defaulting to the "Internal" group
+  `3ef9f46a-3906-4689-8d11-dbfcd73176cb`) and then reports what TestFlight
+  makes of it; `detail` reports that alone, the build's `internalBuildState`,
+  which reads `READY_FOR_BETA_TESTING` once a tester can install it; and
+  `compliance` answers the export-compliance question by hand, for a build
+  uploaded before the `Info.plist` key below was there. Internal testing needs
+  no review, so attaching a valid build is the last step.
 
 **It is a TestFlight upload and never an App Store submission.** Releasing a
 build to the store is a separate act performed in App Store Connect; nothing
@@ -326,11 +337,20 @@ What James does by hand, once:
   its key id and issuer id written into `signing.env`. A `.p8` is downloadable
   exactly once. App Manager is not enough: the export has no distribution
   certificate of its own and asks Xcode's cloud signing for one, and a key
-  below Admin is refused it — `Cloud signing permission error`, `You haven't
-  been given access to cloud-managed distribution certificates`, and then `No
-  profiles for 'io.zephra.ZephraMobile' were found`, which reads like a missing
-  profile and is not one. Signing in to Xcode with the Account Holder's Apple
-  ID is the other way to the same access.
+  without that access is refused it — `Cloud signing permission error`, `You
+  haven't been given access to cloud-managed distribution certificates`, and
+  then `No profiles for 'io.zephra.ZephraMobile' were found`, which reads like
+  a missing profile and is not one. The refused request is in
+  `IDEDistributionProvisioning.log` inside the `.xcdistributionlogs` bundle the
+  export names: `GET .../xcbuild/v1/certificates` filtered to
+  `DISTRIBUTION_MANAGED`, answered `403 FORBIDDEN_ERROR`. That the key reads an
+  Admin-only endpoint such as `GET /v1/users` is not proof it can sign: access
+  to cloud-managed distribution certificates is granted separately, by the
+  Account Holder, and a key that predates the grant may have to be replaced
+  rather than edited. Signing in to Xcode with the Account Holder's Apple ID is
+  the other way to the same access. Neither is worth working around by issuing
+  a distribution certificate by hand: the point of cloud signing is that
+  nothing expires in a drawer.
 - The phone added to internal testing in App Store Connect, on the build's
   group. Internal TestFlight needs **no review** — a build reaches the testers
   as soon as App Store Connect finishes processing it, which is minutes.

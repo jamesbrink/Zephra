@@ -1075,7 +1075,10 @@ Makefile targets:
   `scripts/testflight.sh`, which sources `signing.env` for `ASC_KEY_PATH`,
   `ASC_KEY_ID` and `ASC_ISSUER_ID` and refuses by name without all three.
   Never an App Store submission. `testflight-status` — what App Store Connect
-  did with it; `ARGS=--watch` waits rather than asking once.
+  did with it; `ARGS=--watch` waits rather than asking once, and
+  `scripts/asc-build-status.sh` also carries `attach`, `detail` and
+  `compliance`, which put a valid build in front of the internal testers over
+  the same minted token.
 - `lint-layers` — the gate, before every commit. `lint-size` — advisory list
   of files over 150 lines.
 - `icon` — resize the approved masters in `design/branding/zephyr/`; never
