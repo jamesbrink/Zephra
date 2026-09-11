@@ -216,6 +216,16 @@ targets:
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: 28X9H69QGE
         CODE_SIGN_IDENTITY[sdk=iphoneos*]: "Apple Development"
+      configs:
+        # A Release device build is a TestFlight archive, signed by hand with the Apple
+        # Distribution identity and the App Store profile `scripts/testflight-signing.sh`
+        # installs; a runner has no Apple ID in Xcode and no development certificate, only
+        # that identity. Set here, on this target alone, because a command-line override
+        # would also land on ZephraStyle's resource bundle, which cannot take a profile.
+        Release:
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY[sdk=iphoneos*]: "Apple Distribution"
+          PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]: "Zephra iOS App Store"
 
   # The companion's own suites, hosted inside it so they can `@testable import ZephraMobile`.
   # Pure interface logic, like the Mac's: parsing a pairing code, reading the frozen fixture.

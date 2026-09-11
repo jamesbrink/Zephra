@@ -151,7 +151,7 @@ VERSION      ?=
 BUILD_NUMBER ?=
 VERSION_FLAGS := $(if $(VERSION),MARKETING_VERSION=$(VERSION)) $(if $(BUILD_NUMBER),CURRENT_PROJECT_VERSION=$(BUILD_NUMBER))
 
-.PHONY: doctor gen build run run-fresh bench quantize quantize-qwen quantize-flux2 quantize-ltx2 quantize-ltx2-audio quantize-wan mirror mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-ltx2 mirror-ltx2-audio mirror-wan mirror-index mirror-sync prefetch prefetch-qwen prefetch-flux2 prefetch-ltx2 prefetch-wan open clean lint-layers lint-size vendored-diff logs screenshot screenshot-ios test test-app test-mlx test-backend test-ios build-ios run-ios archive-ios testflight testflight-status icon signed-build release notarize notarized-release
+.PHONY: ios-signing doctor gen build run run-fresh bench quantize quantize-qwen quantize-flux2 quantize-ltx2 quantize-ltx2-audio quantize-wan mirror mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-ltx2 mirror-ltx2-audio mirror-wan mirror-index mirror-sync prefetch prefetch-qwen prefetch-flux2 prefetch-ltx2 prefetch-wan open clean lint-layers lint-size vendored-diff logs screenshot screenshot-ios test test-app test-mlx test-backend test-ios build-ios run-ios archive-ios testflight testflight-status icon signed-build release notarize notarized-release
 
 # What a fresh Mac needs before `make build` can work, each with its fix printed.
 doctor:
@@ -237,7 +237,15 @@ IOS_VERSION       = $(if $(VERSION),$(VERSION),0.1.0)
 IOS_BUILD_NUMBER  = $(if $(BUILD_NUMBER),$(BUILD_NUMBER),$(RELEASE_STAMP))
 IOS_VERSION_FLAGS = MARKETING_VERSION=$(IOS_VERSION) CURRENT_PROJECT_VERSION=$(IOS_BUILD_NUMBER)
 
-archive-ios: gen
+# IOS_SIGNING=manual installs the App Store profile first (scripts/testflight-signing.sh) and
+# archives without -allowProvisioningUpdates: the Release configuration signs the phone target
+# with the Apple Distribution identity and that profile (project.yml), which is what a runner
+# has. `testflight` always archives that way, so a local upload and a CI upload are one path.
+IOS_SIGNING ?= automatic
+ios-signing:
+	SIGNING_CONFIG="$(SIGNING_CONFIG)" ./scripts/testflight-signing.sh
+
+archive-ios: gen $(if $(filter manual,$(IOS_SIGNING)),ios-signing)
 	@if ! echo "$(IOS_VERSION)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
 	  echo "VERSION must be MAJOR.MINOR.PATCH, got '$(IOS_VERSION)'"; exit 1; fi
 	@if ! echo "$(IOS_BUILD_NUMBER)" | grep -Eq '^[1-9][0-9]*$$'; then \
@@ -257,10 +265,16 @@ archive-ios: gen
 	         -authenticationKeyIssuerID "$$ASC_ISSUER_ID"; \
 	  echo "archive-ios: signing with the App Store Connect key $$ASC_KEY_ID"; \
 	else echo "archive-ios: no ASC_* key configured; signing with Xcode's own accounts"; fi; \
-	xcodebuild archive -project "$(PROJECT)" -scheme $(IOS_SCHEME) \
-	  -destination 'generic/platform=iOS' -configuration Release \
-	  -archivePath "$(IOS_ARCHIVE)" -allowProvisioningUpdates \
-	  -derivedDataPath "$(DERIVED)" $(IOS_VERSION_FLAGS) "$$@"
+	if [ "$(IOS_SIGNING)" = manual ]; then \
+	  xcodebuild archive -project "$(PROJECT)" -scheme $(IOS_SCHEME) \
+	    -destination 'generic/platform=iOS' -configuration Release \
+	    -archivePath "$(IOS_ARCHIVE)" -derivedDataPath "$(DERIVED)" $(IOS_VERSION_FLAGS); \
+	else \
+	  xcodebuild archive -project "$(PROJECT)" -scheme $(IOS_SCHEME) \
+	    -destination 'generic/platform=iOS' -configuration Release \
+	    -archivePath "$(IOS_ARCHIVE)" -allowProvisioningUpdates \
+	    -derivedDataPath "$(DERIVED)" $(IOS_VERSION_FLAGS) "$$@"; \
+	fi
 	@echo "archive-ios: $(IOS_ARCHIVE) is $(IOS_VERSION) ($(IOS_BUILD_NUMBER))"
 
 # Export that archive straight up to App Store Connect, where it becomes a TestFlight build.
@@ -269,6 +283,7 @@ archive-ios: gen
 # same signing.env `signed-build` sources; the script refuses by name when any of the three
 # ASC_* variables is unset. Internal testing needs no review, so a build reaches the phone as
 # soon as App Store Connect finishes processing it.
+testflight: IOS_SIGNING = manual
 testflight: archive-ios
 	SIGNING_CONFIG="$(SIGNING_CONFIG)" ./scripts/testflight.sh "$(IOS_ARCHIVE)" "$(IOS_EXPORT)"
 

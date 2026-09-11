@@ -225,6 +225,11 @@ install_profile() {   # $1: base64 profileContent, $2: the profile's name
         mkdir -p "$dir"
         cp "$ASC_WORK/profile.mobileprovision" "$dir/$uuid.mobileprovision"
     done
+    # Xcode 16 and later read only the UserData folder; a copy that missed it is an
+    # archive that says "No profile for team ... found" with the profile sitting next door.
+    echo "$PROFILE_DIRS" | while IFS= read -r dir; do
+        [ -f "$dir/$uuid.mobileprovision" ] || { say "profile did not land in $dir"; exit 1; }
+    done
     say "profile \"$2\" installed as $uuid.mobileprovision"
 }
 
