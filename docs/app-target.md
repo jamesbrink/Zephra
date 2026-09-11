@@ -31,7 +31,12 @@ read-only fallback a real new Mac may equally have. `make run-fresh` asks for it
 
 Four directories, by what a file is rather than what screen it is on:
 
-- `Style/` — the chrome: `ZephraChrome`'s radii, hairlines and heights
+- `Style/` — the chrome. The tokens themselves are one package up, in
+  `Packages/ZephraStyle` (SwiftUI and `ZephraCore`, macOS and iOS), because the
+  companion app has to be drawn from the same numbers rather than from numbers
+  that look like them; what stays in this directory is the chrome that is
+  AppKit-bound or names an app type. In the package: `ZephraChrome`'s radii,
+  hairlines and heights
   (`fieldRadius`, `fieldHeight`, `barHeight` beside the radii), the colours
   laid over things in `ZephraChrome+Washes` (`badgeForeground` and
   `badgeBackdrop` for a glyph on a picture, `safelightWash` and
@@ -39,8 +44,11 @@ Four directories, by what a file is rather than what screen it is on:
   the pointer, `warningWash` and `warningStroke`
   for `ChromePanel`'s warning, `wellFill`, `wellFillHovered` and
   `wellFillTargeted` for the reference well's empty drop target and
-  `wellDash` for its dashed hairline (`ReferencePlaceholder`), `captionShadowOpacity`), `ChromePanel`, `Chip`,
-  `SectionHeader`, `CountBadge`, `KeyValueRow`, `WrappingHStack`, `ModelDot`;
+  `wellDash` for its dashed hairline (`ReferencePlaceholder`), `captionShadowOpacity`),
+  the palette's colour sets in `Color+Palette` read from the package's own
+  bundle, and `Chip`, `ModelDot`, `UpscaleBadge` and `VideoBadge`, which are
+  nothing but those numbers. Here: `ChromePanel`,
+  `SectionHeader`, `CountBadge`, `KeyValueRow`, `WrappingHStack`;
   `FactsRow` and `FactsTable`, the one line and the one column every inspector's
   facts are drawn from; `SearchFieldChrome`, the modifier that dresses the
   sidebar's search and the reference picker's alike; and `MenuChevron`, the
@@ -118,7 +126,7 @@ Four directories, by what a file is rather than what screen it is on:
   flight's steps before that, the next run's only with nothing running — read
   through `GenerationStore.stepProgress` by the capsule, its lip and the
   running card, so the bar never counts the slider. `ReferenceRole`
-  (`Support/`) is the one place every string a reference picture's role
+  (`ZephraCore`) is the one place every string a reference picture's role
   changes — the well's caption and help, its accessibility label, the open
   panel's message, the strength slider's help, and the inspector's row label
   — is spelled, derived from a model's `ModelCapabilities`
@@ -220,7 +228,7 @@ Four directories, by what a file is rather than what screen it is on:
   a document with changes to keep. `SeedControl`'s label is `SeedLabel`, a
   button: it opens `SeedEntryPopover`, where a seed is typed as the number the
   tooltip shows or as the short hex label off another picture's inspector,
-  and `SeedEntry` (`Support/`) is the one parser — digits are decimal, a hex
+  and `SeedEntry` (`ZephraCore`) is the one parser — digits are decimal, a hex
   letter, a `0x` or the label's middle dot make it hex, eight hex digits are
   the label and come back as the seed's leading half over zeros, sixteen are
   the whole value, and any other count is refused rather than guessed at
@@ -237,7 +245,7 @@ Four directories, by what a file is rather than what screen it is on:
   `Support/`), so a quick clip of a portrait photograph is one click and not a
   typed size; a shape that is a preset already marks the preset instead. A size is typed there
   as two numbers with anything between them (`800 × 512`, `800x512`, `800 by
-  512`), a button turns the frame the other way, and `SizeEntry` (`Support/`)
+  512`), a button turns the frame the other way, and `SizeEntry` (`ZephraCore`)
   is the one parser: it fits what was typed to the model's grid through
   `ModelCapabilities.fit`, and `SizeEntryHint` says what Return will keep when
   that differs from what was typed (`SizeEntryTests`). Every picture family
@@ -325,7 +333,7 @@ Four directories, by what a file is rather than what screen it is on:
   click that tucks the prompt, and linked only through SwiftUI it aborted the
   first clip resolving its superclass, which is why `project.yml` still names
   `AVKit.framework` in the app's link rather than leaving it to autolink.
-  `Style/VideoBadge` is the clip's mark on a grid cell and a sidebar square, in
+  `ZephraStyle`'s `VideoBadge` is the clip's mark on a grid cell and a sidebar square, in
   the corner `UpscaleBadge` uses, since a picture is one or the other. The
   capsule shows `DurationControl` — the shortest clip, then one choice per
   whole second, each snapped to the model's ladder (9, 25, 49, 73, 97, 121

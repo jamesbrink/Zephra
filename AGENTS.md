@@ -52,6 +52,7 @@ Sources/Zephra (SwiftUI app) ─→ ZephraEngine ─→ ZephraCore, ZephraSnapsh
                                                           [imported in ZephraApp.swift ONLY]
                              ─→ ZephraUpscale<Network> ─→ ZephraCore, ZephraMLX
                                                           [imported in ZephraApp.swift ONLY]
+                             ─→ ZephraStyle ─→ ZephraCore
 Sources/ZephraBench (tool)   ─→ ZephraCore, every ZephraBackend<Family>
 Sources/ZephraQuantize (tool)─→ ZephraCore, ZephraSnapshot, ZephraQuantization,
                                 every ZephraBackend<Family>
@@ -73,6 +74,11 @@ Shared, by what a file actually touches:
   ZephraKit/ZephraTestSupport  Foundation, ZephraCore — Scratch, the filesystem test
                                                   fixture, and SnapshotUnderTest, the real
                                                   snapshot a kit's suite may read
+  ZephraStyle                  SwiftUI, ZephraCore — the chrome both apps draw with:
+                                                  ZephraChrome's radii, hairlines and
+                                                  heights, the washes, the palette's colour
+                                                  sets, and the badges that are only those.
+                                                  No AppKit, no UIKit, no engine
   ZephraMLXKit/ZephraQuantization  MLX, ZephraCore, ZephraSnapshot — the streaming weight
                                                   packer, and the one descriptor build every
                                                   family runs through it
@@ -398,12 +404,16 @@ builds, the app-hosted tests, and `ZEPHRA_FRESH_START` (`FreshStart` in
 
 Four directories, by what a file is rather than what screen it is on:
 
-- `Style/` — the chrome. `ZephraChrome` holds every radius, hairline and
-  height; `ZephraChrome+Washes` every colour laid over things. A view reaching
-  for a literal radius or a raw colour belongs here instead. Safelight amber
-  means "only while the model works" and appears nowhere else. Radii step down
-  by what a thing is: 16 capsule, 10 reference well, 8 card or thumbnail, 6
-  field, 5 wall square.
+- `Style/` — the chrome drawn on top of the shared tokens. The tokens
+  themselves live in `Packages/ZephraStyle`, since the iOS companion is drawn
+  from the same numbers: `ZephraChrome` holds every radius, hairline and
+  height, `ZephraChrome+Washes` every colour laid over things, `Color+Palette`
+  the colour sets, and `Chip`, `ModelDot`, `UpscaleBadge` and `VideoBadge` are
+  nothing but those. A view reaching for a literal radius or a raw colour
+  belongs in the package instead; what stays here is AppKit-bound or app-bound.
+  Safelight amber means "only while the model works" and appears nowhere else.
+  Radii step down by what a thing is: 16 capsule, 10 reference well, 8 card or
+  thumbnail, 6 field, 5 wall square.
 - `Workspace/` — which pane is up, the library query, whether the inspector is
   open: `WorkspaceSelection`, one `@Observable` injected by the root and
   persisted through `AppSettings`.
@@ -437,7 +447,9 @@ Rules in `Support/`:
   costs first. `StepProgress` is the step bar's reading, so it never counts the
   slider. `SeedEntry` is the one seed parser and `SizeEntry` the one size
   parser (two numbers with anything between, fitted to the model's grid
-  through `ModelCapabilities.fit`); `SizeMenu` groups presets by `SizeTier`,
+  through `ModelCapabilities.fit`). Those three — `ReferenceRole`, `SeedEntry`
+  and `SizeEntry` — are pure and live in `ZephraCore` now, not here, since the
+  companion app reads the same typing; `SizeMenu` groups presets by `SizeTier`,
   leads each tier with the well's picture's shape at that tier's cost
   (`SizeChoice`), and offers Custom Size… on every model. `AppSettings.seedFormat` is how a
   seed is spelled on screen, read from the environment everywhere — nothing on
@@ -772,7 +784,7 @@ BSD-3-Clause), the seam a later post-process should copy:
   parent's record with the new size, `upscaledFrom` and `upscaleFactor` set,
   `batchID` cleared, and the reference chunk copied verbatim; an imported
   parent gets a minimal record. Nothing rewrites the parent. Cells and squares
-  wear an `UpscaleBadge` (`Style/`).
+  wear an `UpscaleBadge` (`ZephraStyle`).
 - Weights are a bundled package resource converted by
   `Tools/convert_weights.py`; `PROVENANCE.md` records the checksum. 2x is the
   4x pass followed by an exact 2x2 box mean. The picture runs through

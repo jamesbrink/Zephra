@@ -457,6 +457,11 @@ lint-layers:
 	  || (echo "LAYER VIOLATION: ZephraMLXKit imports a model package; nothing there may depend on a family"; exit 1)
 	@! grep -rlnE '^import (SwiftUI|AppKit)' Packages/ZephraKit/Sources 2>/dev/null \
 	  || (echo "LAYER VIOLATION: UI framework imported inside ZephraKit"; exit 1)
+# The chrome is drawn by both apps, so it may name SwiftUI and ZephraCore and nothing else:
+# a platform's own toolkit or the engine's state would make it one app's again. The one
+# platform difference, the hairline's separator colour, is spelled with #if os(macOS).
+	@! grep -rlnE '^import (AppKit|UIKit|ZephraEngine)' Packages/ZephraStyle/Sources 2>/dev/null \
+	  || (echo "LAYER VIOLATION: ZephraStyle imports AppKit, UIKit or ZephraEngine; the chrome is drawn on both platforms"; exit 1)
 	@! grep -rlnE 'repeatForever|repeatCount\(|TimelineView\(\.animation|phaseAnimator|keyframeAnimator' Sources/Zephra --include='*.swift' \
 	  || (echo "ANIMATION VIOLATION: the app target runs a repeating animation; the GPU is the model's while it works (see RunPlaceholderView)"; exit 1)
 	@! grep -rlnE 'hoverWash' Sources/Zephra --include='*.swift' | grep -vE 'WallSquareChrome\.swift|ZephraChrome\+Washes\.swift' \
@@ -469,7 +474,8 @@ lint-layers:
 # LibraryScope, whose "favourites" is the stable spelling written into preferences --
 # changing that one would orphan every saved scope.
 	@! grep -rnE '"[^"]*([Ff]avourite|[Cc]olour|[Cc]entre|[Bb]ehaviour|[Ll]icence|[Oo]rganise|[Aa]nalyse|[Nn]ormalise|[Cc]ancelled)[^"]*"' \
-	  Sources/Zephra Packages/ZephraKit/Sources Packages/ZephraMLXKit/Sources --include='*.swift' 2>/dev/null \
+	  Sources/Zephra Packages/ZephraKit/Sources Packages/ZephraMLXKit/Sources Packages/ZephraStyle/Sources \
+	  --include='*.swift' 2>/dev/null \
 	  | grep -vE ':[0-9]+: *(///|//|\*)' | grep -v '#Preview' | grep -v 'LibraryScope\.swift' \
 	  || (echo "SPELLING VIOLATION: a user-facing string is in British spelling; AGENTS.md asks for US spelling on screen (identifiers are exempt)"; exit 1)
 # The type-name ban from AGENTS.md's code rules. PromptLayoutManager is the one documented

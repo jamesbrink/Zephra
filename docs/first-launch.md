@@ -66,7 +66,7 @@ to say that was already computed and shown nowhere until a toolbar menu was foun
   floor.
 - `ModelPortrait` (`Support/`) is the one place a model's sample picture and its
   one line of copy live, keyed by descriptor id — presentation rather than a measured
-  catalog fact, so it sits beside `ReferenceRole` rather than on `ModelDescriptor`.
+  catalog fact, so it stays in the app rather than on `ModelDescriptor`.
   `ModelPortraitTests` walks `ModelCatalog.all` and fails when a model has neither, so
   a ninth model cannot ship with a blank card.
 - The samples are one prompt at one seed for every model, so a row of cards compares

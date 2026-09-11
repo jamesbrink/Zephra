@@ -192,7 +192,7 @@ later post-process should copy:
   `upscaleFactor` set, `batchID` cleared, and the parent's reference chunk copied
   verbatim. An imported parent gets a minimal record so the result is indexed.
   Nothing rewrites the parent. A grid cell and a sidebar square wear an
-  `UpscaleBadge` (`Style/`) in the top-left corner, because an upscale looks
+  `UpscaleBadge` (`ZephraStyle`) in the top-left corner, because an upscale looks
   exactly like its parent at thumbnail size.
 - The weights are bundled as a package resource, 2.4 MB of float16 safetensors
   converted once by `Packages/ZephraUpscaleRealESRGAN/Tools/convert_weights.py`

@@ -11,6 +11,7 @@ Sources/Zephra (SwiftUI app) ─→ ZephraEngine ─→ ZephraCore, ZephraSnapsh
                                                           [imported in ZephraApp.swift ONLY]
                              ─→ ZephraUpscale<Network> ─→ ZephraCore, ZephraMLX
                                                           [imported in ZephraApp.swift ONLY]
+                             ─→ ZephraStyle ─→ ZephraCore
 Sources/ZephraBench (tool)   ─→ ZephraCore, every ZephraBackend<Family>
 Sources/ZephraQuantize (tool)─→ ZephraCore, ZephraSnapshot, ZephraQuantization,
                                 every ZephraBackend<Family>
@@ -26,6 +27,11 @@ Shared, by what a file actually touches:
   ZephraKit/ZephraTestSupport  Foundation, ZephraCore — Scratch, the filesystem test
                                                   fixture, and SnapshotUnderTest, the real
                                                   snapshot a kit's suite may read
+  ZephraStyle                  SwiftUI, ZephraCore — the chrome both apps draw with:
+                                                  ZephraChrome's radii, hairlines and
+                                                  heights, the washes, the palette's colour
+                                                  sets, and the badges that are only those.
+                                                  No AppKit, no UIKit, no engine
   ZephraMLXKit/ZephraQuantization  MLX, ZephraCore, ZephraSnapshot — the streaming weight
                                                   packer, and the one descriptor build every
                                                   family runs through it
@@ -37,7 +43,21 @@ Shared, by what a file actually touches:
 ```
 
 - `ZephraCore` (in `Packages/ZephraKit`): Sendable value types + protocols.
-  Zero dependencies — no model package, no MLX, no SwiftUI.
+  Zero dependencies — no model package, no MLX, no SwiftUI. It builds for iOS
+  18 as well as macOS 15, because the companion app reads the same catalog and
+  the same capabilities; the three pure parsers that turn typing into them,
+  `SeedEntry`, `SizeEntry` and `ReferenceRole`, live here for that reason
+  rather than in the app's `Support/`, where they began.
+- `ZephraStyle` (its own package): the chrome both apps draw with — every
+  radius, hairline and height in `ZephraChrome`, every wash in
+  `ZephraChrome+Washes`, the palette's colour sets in `Palette.xcassets` read
+  through `.module`, and `Chip`, `ModelDot`, `UpscaleBadge` and `VideoBadge`,
+  which are nothing but those numbers. SwiftUI and `ZephraCore`; `make
+  lint-layers` refuses AppKit, UIKit and `ZephraEngine` here, because a token
+  that names one platform's toolkit or the engine's state is one app's again.
+  The hairline is the one constant spelled twice, under `#if os(macOS)`, since
+  each platform has a separator colour of its own. What stays in the app's
+  `Style/` is the chrome that is AppKit-bound or names an app type.
 - `ZephraSnapshot` (in `Packages/ZephraKit`): downloading a model, checking a
   local model directory, reading the Hugging Face cache as a fallback, and
   listing what the catalog's models occupy on disk. Foundation only, which is
