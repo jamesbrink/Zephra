@@ -144,6 +144,9 @@ targets:
         product: ZephraCore
       - package: ZephraKit
         product: ZephraSnapshot
+      # For `ClipTail` and `MP4Stitcher`, so --extend measures a continuation end to end.
+      - package: ZephraKit
+        product: ZephraMedia
       - package: ZephraBackendZImage
         product: ZephraBackendZImage
       - package: ZephraBackendQwenImage

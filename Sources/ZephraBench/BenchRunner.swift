@@ -1,5 +1,6 @@
 import Foundation
 import ZephraCore
+import ZephraMedia
 import ZephraSnapshot
 
 /// Drives a backend through a load, a warm-up, and a set of timed runs.
@@ -58,7 +59,16 @@ enum BenchRunner {
             warmUpSettings(descriptor, prompt: options.prompt, reference: reference)
         ) { _ in }
 
-        let settings = timedSettings(descriptor, options: options, reference: reference)
+        // The clip's tail, read as the app reads it, held at the head of every timed run.
+        var continuation: ClipContinuation?
+        if let clip = options.extend {
+            let context = options.context ?? descriptor.capabilities.defaultContinuationFrames
+            continuation = ClipContinuation(
+                frames: try await ClipTail.read(from: clip, frames: max(context, 1)),
+                origin: clip.lastPathComponent, sourceFrameCount: 0)
+        }
+        let settings = timedSettings(
+            descriptor, options: options, reference: reference, continuation: continuation)
         var runSeconds: [Double] = []
         var stepIntervals: [Double] = []
         var previewSeconds: [Double] = []
@@ -79,6 +89,11 @@ enum BenchRunner {
             firstStep = stepClock.firstStep ?? 1
         }
         let outputPath = try write(media, to: options.output)
+        // The run joined onto the clip it carried on, the held frames dropped at the join:
+        // the seam is the one part of a continuation a number cannot show.
+        let extendedPath = try await BenchExtendedClip.write(
+            media, onto: options.extend, dropping: settings.continuation?.contextFrames ?? 0,
+            beside: options.output)
         // Written beside the image, and only when frames were asked for: a frame is the one part
         // of a run whose correctness a number cannot show.
         let previewPath = try lastPreview.map {
@@ -116,7 +131,9 @@ enum BenchRunner {
             cacheMemoryMB: Double(memory.cacheBytes) / 1_000_000,
             peakMemoryMB: Double(memory.peakBytes) / 1_000_000,
             outputPath: outputPath,
-            referencePath: settings.referenceImage == nil ? nil : options.reference?.path
+            referencePath: settings.referenceImage == nil ? nil : options.reference?.path,
+            contextFrames: settings.continuation?.contextFrames,
+            extendedPath: extendedPath
         )
     }
 

@@ -33,7 +33,8 @@ extension BenchRunner {
     static func timedSettings(
         _ descriptor: ModelDescriptor,
         options: BenchOptions,
-        reference: Data?
+        reference: Data?,
+        continuation: ClipContinuation? = nil
     ) -> GenerationSettings {
         var settings = GenerationSettings.defaults(for: descriptor)
         settings.prompt = options.prompt
@@ -43,6 +44,7 @@ extension BenchRunner {
         settings.seed = 42
         settings.referenceImage = reference
         settings.referenceStrength = options.referenceStrength
+        settings.continuation = continuation
         return descriptor.capabilities.clamp(settings)
     }
 }

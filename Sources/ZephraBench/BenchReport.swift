@@ -60,6 +60,10 @@ struct BenchReport: Codable, Sendable {
     /// The picture the runs edited, when they edited one. A path, not a flag: it is what makes
     /// a recorded run reproducible.
     let referencePath: String?
+    /// How many of a clip's last frames the run held, when it carried one on.
+    let contextFrames: Int?
+    /// Where the run joined onto that clip was written.
+    let extendedPath: String?
 
     /// Mean wall-clock seconds across the timed runs.
     var meanRunSeconds: Double {
@@ -92,6 +96,9 @@ struct BenchReport: Codable, Sendable {
         ]
         if let referencePath {
             lines.insert(row("reference", referencePath), at: 3)
+        }
+        if let extendedPath, let contextFrames {
+            lines.insert(row("extended", "\(extendedPath) (\(contextFrames) frames held)"), at: 3)
         }
         if let referenceStrength {
             // The step arithmetic is only worth printing when steps were actually skipped. A

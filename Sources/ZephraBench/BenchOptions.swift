@@ -34,6 +34,11 @@ struct BenchOptions: Sendable {
     /// How far from it the timed runs start, on a model that starts from a noised copy. Only
     /// read when there is a reference, and clamped to the model's own bounds after that.
     var referenceStrength = 0.6
+    /// A clip to carry on, so a continuation is what gets measured: its tail is held at the
+    /// head of the run and the run is joined onto it beside `--out`.
+    var extend: URL?
+    /// How many of that clip's last frames to hold, or nil for the model's own default.
+    var context: Int?
     /// Whether the weights are streamed from disk on every step rather than held, on a model
     /// whose family can. Off by default, so a timing taken today is the model's own.
     var stream = false
@@ -66,7 +71,7 @@ struct BenchOptions: Sendable {
                 exit(0)
             case "--size", "--steps", "--runs", "--frames", "--prompt", "--out", "--model",
                 "--backend", "--snapshot", "--reference", "--strength", "--stream-depth",
-                "--models":
+                "--models", "--extend", "--context":
                 guard index < arguments.count else { fail("\(flag) needs a value") }
                 let value = arguments[index]
                 index += 1
@@ -91,6 +96,8 @@ struct BenchOptions: Sendable {
         case "--snapshot": options.snapshot = URL(fileURLWithPath: value)
         case "--reference": options.reference = readableFile(value, flag)
         case "--strength": options.referenceStrength = fraction(value, flag)
+        case "--extend": options.extend = readableFile(value, flag)
+        case "--context": options.context = positive(value, flag)
         case "--stream-depth": options.streamDepth = positive(value, flag)
         case "--models": options.models = URL(fileURLWithPath: value, isDirectory: true)
         default: fail("unknown option \(flag)")
