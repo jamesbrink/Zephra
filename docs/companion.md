@@ -89,7 +89,13 @@ the byte count and the mime; the bytes follow as chunk frames.
   single ordered stream, so a gap means loss or tampering rather than overtaking,
   and holding out-of-order pieces would mean holding arbitrary memory for a
   sender that never sends the missing one. A duplicate index is the same answer.
-- One blob may not exceed 64 MiB while it is being assembled.
+- One blob may not exceed 64 MiB while it is being assembled, and it may not
+  exceed **what it announced**: `BlobReassembly` takes the `byteCount` at
+  construction, trims a claim past the cap down to it, refuses the chunk that
+  would pass the claim, and refuses a transfer that completes short of it.
+  Without that the announcement was a courtesy rather than a limit — a thumbnail
+  announced as forty kilobytes could arrive as sixty-four megabytes, and the
+  receiver had already decided to accept it.
 
 ## The handshake
 
@@ -514,9 +520,16 @@ nothing.
 
 `request(_:)` holds a command open for thirty seconds under its envelope's id,
 and every command gets exactly one reply. `fetchBlob(_:)` is a request whose
-reply announces a blob, and the chunks that follow are reassembled in order; a
-chunk for a blob nothing has looked at yet still opens a transfer, since the
-reply and the first chunk are two frames on one stream. `enqueue(_:reference:)`
+reply announces a blob, and the chunks that follow are reassembled in order. The
+announcement is opened in `dispatch`, where the reply is read, rather than where
+the request that asked for it resumes — the reply and the first chunk are two
+frames on one stream, and a phone that had not got back to its own `await` would
+drop the second. A chunk for a blob **nothing announced** is dropped with a log
+line: the announcement is what says how much memory a transfer may take, so
+without one there is nothing to assemble it into. At most `LinkClient.blobLimit`
+(4) are part way through at once, oldest dropped, and each is given
+`blobTimeout`, two minutes from the announcement rather than from the first
+`await` for it. `enqueue(_:reference:)`
 sends the picture as a blob first and names it in the request, for the reason
 `GenerationRequest` strips the bytes at all.
 

@@ -6,19 +6,31 @@ import Foundation
 /// tampering rather than overtaking, and accepting an out-of-order chunk would mean holding
 /// arbitrary memory for a sender that never sends the missing one. A duplicate index is the
 /// same answer for the same reason.
+///
+/// And no longer than it said it would be. The announcement carries a `byteCount`, which is what
+/// the far end decided to accept the transfer on; without holding the sender to it, a blob
+/// announced as a thumbnail could arrive as sixty-four megabytes, and the announcement would be
+/// a courtesy rather than a limit.
 public struct BlobReassembly: Sendable {
     /// The most any one blob may occupy while it is being assembled.
     public static let byteCap = 64 * 1024 * 1024
 
     /// The blob being assembled.
     public let blobID: UUID
+    /// How many bytes it was announced as, never more than `byteCap`.
+    public let byteCount: Int
     private var bytes = Data()
     private var next: UInt32 = 0
     private var total: UInt32?
 
-    /// Starts assembling the blob with this id.
-    public init(blobID: UUID) {
+    /// Starts assembling the blob with this id, of the length its announcement claimed.
+    ///
+    /// The claim is trimmed to `byteCap` rather than refused, so a sender that announces more
+    /// than this link carries fails on the chunk that passes the cap, with the same words as any
+    /// other over-long transfer.
+    public init(blobID: UUID, byteCount: Int) {
         self.blobID = blobID
+        self.byteCount = min(max(byteCount, 0), Self.byteCap)
     }
 
     /// Takes one chunk, and answers the whole blob when that chunk was the last.
@@ -35,12 +47,16 @@ public struct BlobReassembly: Sendable {
         if let total, total != chunk.count {
             throw LinkError(code: .badRequest, reason: "The transfer changed length part way through.")
         }
-        guard bytes.count + chunk.bytes.count <= Self.byteCap else {
-            throw LinkError(code: .badRequest, reason: "That transfer is larger than this link allows.")
+        guard bytes.count + chunk.bytes.count <= byteCount else {
+            throw LinkError(code: .badRequest, reason: "That transfer is larger than it announced.")
         }
         total = chunk.count
         bytes.append(chunk.bytes)
         next += 1
-        return next == chunk.count ? bytes : nil
+        guard next == chunk.count else { return nil }
+        guard bytes.count == byteCount else {
+            throw LinkError(code: .badRequest, reason: "That transfer is shorter than it announced.")
+        }
+        return bytes
     }
 }

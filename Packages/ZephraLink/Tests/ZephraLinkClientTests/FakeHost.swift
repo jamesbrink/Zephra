@@ -101,6 +101,12 @@ final class FakeHost {
 
     /// A message the phone sent over the sealed channel.
     private func answer(_ envelope: Envelope) async throws {
+        if envelope.kind == .blobStart {
+            let start = try envelope.decode(BlobStart.self)
+            assembling[start.blobID] = BlobReassembly(
+                blobID: start.blobID, byteCount: start.byteCount)
+            return
+        }
         guard envelope.kind == .request else { return }
         let command = try envelope.decode(Command.self)
         commands.append(command)
@@ -128,9 +134,9 @@ final class FakeHost {
         }
     }
 
-    /// One piece of a blob the phone is sending.
+    /// One piece of a blob the phone is sending, which it announced first.
     private func chunk(_ piece: BlobChunk) {
-        var assembly = assembling[piece.blobID] ?? BlobReassembly(blobID: piece.blobID)
+        guard var assembly = assembling[piece.blobID] else { return }
         guard let whole = try? assembly.accept(piece) else {
             assembling[piece.blobID] = assembly
             return

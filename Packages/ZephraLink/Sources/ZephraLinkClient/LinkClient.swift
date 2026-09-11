@@ -15,8 +15,13 @@ import os
 public final class LinkClient {
     /// How long a command may go unanswered before the phone gives up on it.
     public static let requestTimeout: Duration = .seconds(30)
-    /// How long the bytes of a blob may take after the reply that announced them.
+    /// How long the bytes of a blob may take after the reply that announced them, and how many
+    /// may be part way through at once. A phone asks for a thumbnail or a file and waits for it;
+    /// more than a handful in flight means a Mac announcing transfers nobody asked for, and that
+    /// is not memory this phone should keep.
     public static let blobTimeout: Duration = .seconds(120)
+    /// How many blobs may be part way through at once. The oldest is dropped past this.
+    public static let blobLimit = 4
     /// How long a browse runs before the relay is tried.
     public static let browseWindow: Duration = .seconds(3)
 
@@ -39,6 +44,9 @@ public final class LinkClient {
     @ObservationIgnored var session: LinkSession?
     @ObservationIgnored var pending: [UUID: CheckedContinuation<Reply, any Error>] = [:]
     @ObservationIgnored var blobs: [UUID: BlobReassembly] = [:]
+    /// The order they were announced in, so the one dropped at the limit is the oldest and not
+    /// whichever the dictionary happened to hand back first.
+    @ObservationIgnored var blobOrder: [UUID] = []
     @ObservationIgnored var blobWaiters: [UUID: CheckedContinuation<Data, any Error>] = [:]
     @ObservationIgnored var arrivedBlobs: [UUID: Data] = [:]
     @ObservationIgnored var timers: [UUID: Task<Void, Never>] = [:]

@@ -19,7 +19,7 @@ struct BlobTransferTests {
     func chunksReassemble() throws {
         let blob = Data((0..<200_000).map { UInt8($0 % 251) })
         let chunks = BlobChunker.chunks(of: blob)
-        var reassembly = BlobReassembly(blobID: chunks[0].blobID)
+        var reassembly = BlobReassembly(blobID: chunks[0].blobID, byteCount: blob.count)
         var finished: Data?
         for chunk in chunks { finished = try reassembly.accept(chunk) }
         #expect(finished == blob)
@@ -28,7 +28,7 @@ struct BlobTransferTests {
     @Test("A chunk out of order is refused")
     func outOfOrderIsRefused() throws {
         let chunks = BlobChunker.chunks(of: Data(count: 200_000))
-        var reassembly = BlobReassembly(blobID: chunks[0].blobID)
+        var reassembly = BlobReassembly(blobID: chunks[0].blobID, byteCount: 200_000)
         _ = try reassembly.accept(chunks[0])
         #expect(throws: LinkError.self) { try reassembly.accept(chunks[2]) }
     }
@@ -36,7 +36,7 @@ struct BlobTransferTests {
     @Test("A chunk sent twice is refused")
     func duplicateIsRefused() throws {
         let chunks = BlobChunker.chunks(of: Data(count: 200_000))
-        var reassembly = BlobReassembly(blobID: chunks[0].blobID)
+        var reassembly = BlobReassembly(blobID: chunks[0].blobID, byteCount: 200_000)
         _ = try reassembly.accept(chunks[0])
         #expect(throws: LinkError.self) { try reassembly.accept(chunks[0]) }
     }
@@ -44,14 +44,15 @@ struct BlobTransferTests {
     @Test("A chunk belonging to another blob is refused")
     func foreignChunkIsRefused() {
         let chunks = BlobChunker.chunks(of: Data(count: 10))
-        var reassembly = BlobReassembly(blobID: UUID())
+        var reassembly = BlobReassembly(blobID: UUID(), byteCount: 10)
         #expect(throws: LinkError.self) { try reassembly.accept(chunks[0]) }
     }
 
     @Test("A blob past the cap is refused rather than held")
     func capIsEnforced() throws {
         let big = BlobReassembly.byteCap / BlobChunker.chunkSize + 1
-        var reassembly = BlobReassembly(blobID: UUID())
+        var reassembly = BlobReassembly(
+            blobID: UUID(), byteCount: big * BlobChunker.chunkSize)
         let id = reassembly.blobID
         for index in 0..<UInt32(big) {
             let chunk = BlobChunk(
@@ -68,7 +69,33 @@ struct BlobTransferTests {
     @Test("An empty blob is one empty chunk that completes")
     func emptyBlobCompletes() throws {
         let chunks = BlobChunker.chunks(of: Data())
-        var reassembly = BlobReassembly(blobID: chunks[0].blobID)
+        var reassembly = BlobReassembly(blobID: chunks[0].blobID, byteCount: 0)
         #expect(try reassembly.accept(chunks[0]) == Data())
+    }
+
+    @Test("A blob longer than it announced is refused on the chunk that passes the claim")
+    func aLongerBlobThanAnnouncedIsRefused() throws {
+        // The announcement is what the far end accepted the transfer on, so the sender is held
+        // to it: without this a thumbnail could arrive as sixty-four megabytes.
+        let blob = Data(count: 200_000)
+        let chunks = BlobChunker.chunks(of: blob)
+        var reassembly = BlobReassembly(blobID: chunks[0].blobID, byteCount: 70_000)
+        _ = try reassembly.accept(chunks[0])
+        #expect(throws: LinkError.self) { try reassembly.accept(chunks[1]) }
+    }
+
+    @Test("A blob shorter than it announced is refused rather than handed back short")
+    func aShorterBlobThanAnnouncedIsRefused() throws {
+        let chunks = BlobChunker.chunks(of: Data(count: 100))
+        var reassembly = BlobReassembly(blobID: chunks[0].blobID, byteCount: 200)
+        #expect(throws: LinkError.self) { try reassembly.accept(chunks[0]) }
+    }
+
+    @Test("A claim past the cap is trimmed to it, not taken at its word")
+    func aClaimPastTheCapIsTrimmed() {
+        #expect(
+            BlobReassembly(blobID: UUID(), byteCount: BlobReassembly.byteCap * 4).byteCount
+                == BlobReassembly.byteCap)
+        #expect(BlobReassembly(blobID: UUID(), byteCount: -1).byteCount == 0)
     }
 }

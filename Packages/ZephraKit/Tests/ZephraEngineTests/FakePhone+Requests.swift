@@ -49,7 +49,7 @@ extension FakePhone {
             else { return nil }
             return all
         }
-        var assembly = BlobReassembly(blobID: start.blobID)
+        var assembly = BlobReassembly(blobID: start.blobID, byteCount: start.byteCount)
         for chunk in pieces {
             if let whole = try assembly.accept(chunk) { return whole }
         }

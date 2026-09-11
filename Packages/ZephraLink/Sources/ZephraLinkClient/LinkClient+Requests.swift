@@ -40,6 +40,8 @@ extension LinkClient {
         pending.removeValue(forKey: id)?.resume(throwing: error)
         blobWaiters.removeValue(forKey: id)?.resume(throwing: error)
         blobs.removeValue(forKey: id)
+        blobOrder.removeAll { $0 == id }
+        arrivedBlobs.removeValue(forKey: id)
     }
 
     /// Everything waiting, told the session is over.
@@ -51,6 +53,7 @@ extension LinkClient {
         pending.removeAll()
         blobWaiters.removeAll()
         blobs.removeAll()
+        blobOrder.removeAll()
         arrivedBlobs.removeAll()
         for continuation in waiting { continuation.resume(throwing: error) }
         for continuation in blobbed { continuation.resume(throwing: error) }

@@ -80,7 +80,7 @@ struct SecureChannelTests {
         let (sender, receiver) = Self.channels()
         let blob = Data((0..<150_000).map { UInt8($0 % 253) })
         let chunks = BlobChunker.chunks(of: blob)
-        var reassembly = BlobReassembly(blobID: chunks[0].blobID)
+        var reassembly = BlobReassembly(blobID: chunks[0].blobID, byteCount: blob.count)
         var finished: Data?
         for chunk in chunks {
             guard case .chunk(let read) = try receiver.open(try sender.seal(.chunk(chunk))) else {

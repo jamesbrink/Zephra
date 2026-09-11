@@ -15,4 +15,6 @@ public enum LinkClientError: Error, Hashable, Sendable {
     case unexpectedMessage(kind: String)
     /// The reply was not the shape the command asks for.
     case unexpectedReply
+    /// Too many blobs were part way through at once, and this was the oldest.
+    case tooManyTransfers
 }

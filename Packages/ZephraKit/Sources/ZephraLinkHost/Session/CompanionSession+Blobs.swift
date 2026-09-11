@@ -14,7 +14,7 @@ extension CompanionSession {
             throw LinkError(code: .badRequest, reason: "That picture is larger than this link allows.")
         }
         incomingID = start.blobID
-        incoming = BlobReassembly(blobID: start.blobID)
+        incoming = BlobReassembly(blobID: start.blobID, byteCount: start.byteCount)
     }
 
     /// One piece of it. A chunk with nothing announced is a broken sender, and a blob that
