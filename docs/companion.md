@@ -180,23 +180,70 @@ public key and can work out where to knock.
 
 When neither end can reach the other directly, both join a room on a WebSocket
 relay, which copies bytes and never sees inside them: a `send` payload is one
-sealed frame and the relay has no key.
+sealed frame and the relay has no key. The relay is a Lambda behind API Gateway;
+this package and that Lambda are two implementations of one contract, so the
+field names below are the relay's own and not ours.
 
-```json
-{"a":"challenge","n":"<base64 nonce>"}
-{"a":"join","r":"<room>","k":"<base64 signing key>","o":"host","s":"<base64 signature>"}
-{"a":"send","p":"<base64 sealed frame>"}
-{"a":"peer","e":"joined"}
+A room is the lowercase hex of the first 16 bytes of `SHA-256` over the raw
+32-byte Ed25519 public key — `RoomID(signingPublicKey:)`, the one place that rule
+lives. The relay checks that the key hashes to the room **for a host only**. A
+guest signs with its own key and is let in, because the host will refuse an
+unknown static in the handshake the relay cannot read.
+
+### The sequence
+
+```
+client -> relay  {"a":"hello"}
+relay  -> client {"a":"challenge","n":"<base64, 32 random bytes>"}
+client -> relay  {"a":"join","room":"<32 hex>","pub":"<base64 key>","role":"host","sig":"<base64>"}
+relay  -> client {"a":"joined","role":"host"}          or  {"a":"error","reason":"..."}
+client -> relay  {"a":"send","d":"<base64 sealed frame>"}
+relay  -> client {"a":"peer","event":"joined"}          when the other end arrives
+client -> relay  {"a":"ping"}   relay -> client {"a":"pong"}
 ```
 
-The signature is Curve25519 over `nonce || room || role`, so it is good for one
-join of one room against one challenge and cannot be replayed into another. The
-relay verifies it against the key in the same message and checks that a host's
-key hashes to the room it asks for. A guest signs with its own key and is let in,
-because the host will refuse an unknown static in the handshake the relay cannot
-read.
+The first frame must be `hello` and the second `join`; anything else from a
+connection with no membership is `{"a":"error","reason":"not joined"}` and an
+immediate close. Wait for `joined` before the first `send`: the relay's
+connection index is eventually consistent.
 
-**API Gateway's limits, which the protocol is shaped around.**
+A `send` is forwarded verbatim, the `a` field included, so the receiver sees the
+same JSON the sender wrote and extra fields survive the trip. A host's frame goes
+to every guest in the room; a guest's goes to the host alone. `d` is opaque to
+the relay, which is not a trust boundary: the payload is a sealed frame.
+
+A `peer` event fires on a disconnect in both directions — a host leaving notifies
+every guest, a guest leaving notifies the host — and both say `left`.
+
+An `error` during the handshake, or on a frame from a connection that has not
+joined, is followed by the relay closing the connection. An error on a joined
+connection leaves it open. The handshake's reasons are `malformed`, `bad room`,
+`bad role`, `bad key`, `no challenge`, `challenge expired`, `bad signature` and
+`room does not match key`.
+
+### The signature
+
+`sig` is Ed25519 — `Curve25519.Signing`, no pre-hash — over exactly:
+
+```
+nonce (32 raw bytes) || room (32 ASCII hex characters) || role ("host" | "guest", ASCII)
+```
+
+No separators and no length prefixes, because none of the three can run into the
+next: the nonce and the room are both fixed at 32, so the role is whatever is
+left. A host's signed message is **68 bytes** and a guest's 69;
+`RelayMessageTests` pins the layout. `RelayJoin.sign(identity:nonce:room:role:)`
+writes it and `verify(publicKey:nonce:room:role:signature:)` checks it.
+
+The relay rebuilds the key from SPKI DER, whose fixed prefix is followed by
+exactly the 32 bytes in `pub`, which is what
+`Curve25519.Signing.PublicKey.rawRepresentation` already is.
+
+The challenge is single-use — a successful join spends it, so a captured join
+frame is worthless on a later connection — and it expires after 60 seconds. A
+second `hello` replaces it, and only the newest is live.
+
+### API Gateway's limits, which the protocol is shaped around
 
 | Limit | Value | What it means here |
 | --- | --- | --- |
