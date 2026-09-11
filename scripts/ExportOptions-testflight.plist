@@ -7,10 +7,15 @@
   upload and never an App Store submission -- releasing to the store is a separate
   act in App Store Connect that nothing here performs.
 
-  `signingStyle` is `automatic`: the archive is signed with the development
-  identity `project.yml` names, and Xcode fetches the distribution certificate and
-  the `io.zephra.ZephraMobile` App Store profile at export time, which is what
-  `-allowProvisioningUpdates` on the command line permits it to do.
+  `signingStyle` is `manual`, and the certificate and profile it names are made by
+  `scripts/testflight-signing.sh`, which `scripts/testflight.sh` runs first.
+  Automatic signing cannot work here: at export time Xcode asks App Store Connect
+  for a cloud-managed distribution certificate, and the team's API key is refused
+  one -- "You haven't been given access to cloud-managed distribution
+  certificates" -- which surfaces as "No profiles for 'io.zephra.ZephraMobile'
+  were found" and reads like a missing profile. Issuing an ordinary distribution
+  certificate from the same key is the way past it. The archive is still signed
+  automatically, with the Apple Development identity, which needs no such grant.
 
   `manageAppVersionAndBuildNumber` is false because the build number is ours: a
   ship stamps the UTC minute into `CURRENT_PROJECT_VERSION`, and Xcode silently
@@ -23,7 +28,14 @@
 	<key>destination</key>
 	<string>upload</string>
 	<key>signingStyle</key>
-	<string>automatic</string>
+	<string>manual</string>
+	<key>signingCertificate</key>
+	<string>Apple Distribution</string>
+	<key>provisioningProfiles</key>
+	<dict>
+		<key>io.zephra.ZephraMobile</key>
+		<string>Zephra iOS App Store</string>
+	</dict>
 	<key>teamID</key>
 	<string>28X9H69QGE</string>
 	<key>uploadSymbols</key>

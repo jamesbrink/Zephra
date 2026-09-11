@@ -12,27 +12,15 @@
 # five to thirty minutes to process one, and only `processingState == VALID` says
 # it is installable. This asks, rather than making somebody watch a web page.
 #
-# The three build subcommands live here rather than in a script of their own
-# because all four acts want the same thing, an ES256 token minted from the same
-# key, and a second copy of that minting is a second place to get it wrong. A
-# build id is optional everywhere: without one they take the newest build, which
-# is the one just uploaded.
-#
-# The credentials are the same App Store Connect API key the upload uses, read
-# from the same signing config:
-#
-#   ASC_KEY_PATH    the .p8 file, e.g. ~/Documents/Zephra Signing/AuthKey_XXXX.p8
-#   ASC_KEY_ID      the key id App Store Connect shows beside it
-#   ASC_ISSUER_ID   the issuer id, one per team
-#
-# The key is never printed and the minted token never reaches a command line: it
-# is handed to curl through a config file in a private temporary directory, so it
-# is not in `ps` output for the length of the request.
+# The four build subcommands live here rather than in scripts of their own
+# because they are one conversation about one build. The token they all need is
+# minted by `scripts/asc-api.sh`, which `scripts/testflight-signing.sh` uses too.
+# A build id is optional everywhere: without one they take the newest build,
+# which is the one just uploaded.
 set -eu
 
 APP_ID="${ASC_APP_ID:-6811136175}"   # Zephra Companion
 GROUP_ID="${ASC_GROUP_ID:-3ef9f46a-3906-4689-8d11-dbfcd73176cb}"   # the "Internal" beta group
-API="https://api.appstoreconnect.apple.com/v1"
 COMMAND=status
 BUILD_ID=""
 WATCH=0
@@ -51,75 +39,13 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-SIGNING_CONFIG="${SIGNING_CONFIG:-$HOME/Documents/Zephra Signing/signing.env}"
-if [ -f "$SIGNING_CONFIG" ]; then
-    set -a
-    # shellcheck disable=SC1090
-    . "$SIGNING_CONFIG"
-    set +a
-fi
-
-missing=""
-for name in ASC_KEY_PATH ASC_KEY_ID ASC_ISSUER_ID; do
-    eval "value=\${$name:-}"
-    [ -n "$value" ] || missing="$missing $name"
-done
-if [ -n "$missing" ]; then
-    echo "asc-build-status: missing$missing"
-    echo "      Set all three in $SIGNING_CONFIG; see docs/build-and-release.md, TestFlight."
-    exit 1
-fi
-[ -f "$ASC_KEY_PATH" ] || { echo "asc-build-status: no API key at $ASC_KEY_PATH"; exit 1; }
-command -v jq >/dev/null || { echo "asc-build-status: jq is not on PATH"; exit 1; }
-
-WORK=$(mktemp -d); chmod 700 "$WORK"
-trap 'rm -rf "$WORK"' EXIT INT TERM
-
-b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
-
-# ES256, by hand: openssl signs to DER, and a JWT wants the two integers raw and
-# fixed width, so each is trimmed of its sign byte or left-padded to 32 bytes.
-pad64() {
-    h="$1"
-    while [ ${#h} -gt 64 ]; do h=${h#??}; done
-    while [ ${#h} -lt 64 ]; do h="0$h"; done
-    printf '%s' "$h"
-}
-
-mint_token() {
-    now=$(date +%s)
-    header=$(printf '{"alg":"ES256","kid":"%s","typ":"JWT"}' "$ASC_KEY_ID" | b64url)
-    payload=$(printf '{"iss":"%s","iat":%s,"exp":%s,"aud":"appstoreconnect-v1"}' \
-        "$ASC_ISSUER_ID" "$now" "$((now + 1200))" | b64url)
-    printf '%s.%s' "$header" "$payload" > "$WORK/input"
-    openssl dgst -sha256 -sign "$ASC_KEY_PATH" -out "$WORK/sig.der" "$WORK/input"
-    r=$(openssl asn1parse -inform DER -in "$WORK/sig.der" | awk -F: '/INTEGER/ {print $4}' | sed -n 1p)
-    s=$(openssl asn1parse -inform DER -in "$WORK/sig.der" | awk -F: '/INTEGER/ {print $4}' | sed -n 2p)
-    sig=$(printf '%s%s' "$(pad64 "$r")" "$(pad64 "$s")" | xxd -r -p | b64url)
-    printf '%s.%s' "$(cat "$WORK/input")" "$sig"
-}
-
-# One request, its body left in $WORK/body. A relationship POST answers 204 with
-# nothing in it, so the HTTP status decides and an empty body is not a failure.
-request() {
-    method="$1"; url="$2"; payload="${3:-}"
-    umask 077
-    printf 'header = "Authorization: Bearer %s"\nsilent\nshow-error\n' "$(mint_token)" > "$WORK/curlrc"
-    set -- --config "$WORK/curlrc" -X "$method" -o "$WORK/body" -w '%{http_code}' "$url"
-    if [ -n "$payload" ]; then
-        set -- "$@" -H "Content-Type: application/json" --data-binary "@$payload"
-    fi
-    : > "$WORK/body"
-    status=$(curl "$@")
-    rm -f "$WORK/curlrc"
-    if [ -s "$WORK/body" ] && jq -e '.errors' < "$WORK/body" >/dev/null 2>&1; then
-        jq -r '.errors[] | "asc-build-status: \(.title): \(.detail // "")"' < "$WORK/body"
-        return 1
-    fi
-    case "$status" in 2??) return 0 ;; esac
-    echo "asc-build-status: $method returned HTTP $status"
-    return 1
-}
+ASC_TOOL=asc-build-status
+# shellcheck disable=SC1091
+. "$(dirname "$0")/asc-api.sh"
+asc_load_credentials || exit 1
+API="$ASC_API/v1"
+WORK="$ASC_WORK"
+request() { asc_request "$@"; }
 
 fetch() {
     request GET "$API/builds?filter%5Bapp%5D=$APP_ID&sort=-uploadedDate&limit=1&include=preReleaseVersion"
