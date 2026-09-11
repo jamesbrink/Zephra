@@ -444,6 +444,12 @@ is what this list is for.
 | `LinkClient.lost` | `link.client` | the `FrameGap`, and that the world is being asked for again |
 | `CompanionSession.stepOver` | `companion` | the `FrameGap`, and that the session carries on |
 
+The relay writes the middle of that journey: one JSON line per frame in
+`/aws/lambda/zephra-link` saying whether it forwarded, dropped or failed each
+one, which is the first place to look when a counter goes missing over the relay
+rather than the LAN — the line shape and the filters are under "Logs" in
+`Relay/link/README.md`.
+
 `RelayError` tells the guest's three apart, and `NetworkLinkRoads.connectRelay`
 is where that turns into behaviour: `no host` and `room busy` are about the
 moment and read as unreachable, so the phone waits on `LinkBackoff` and tries

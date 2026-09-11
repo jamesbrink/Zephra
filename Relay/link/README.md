@@ -221,8 +221,20 @@ Because frames are not ordered end to end (see Rules and limits), a receiver
 must buffer by `m` and index by `i` rather than assume slices arrive in
 sequence.
 
-A `send` with no peer on the other side is **dropped silently**; wait for
-`{"a":"peer","event":"joined"}` before a host sends anything.
+A **host's** `send` with no guest in the room is **dropped silently**; wait for
+`{"a":"peer","event":"joined"}` before a host sends anything. It is logged as
+`"result":"no-peer"` (see Logs), which is the only trace of it.
+
+A **guest's** `send` whose host is gone is answered
+`{"a":"error","reason":"no host"}` and `{"a":"peer","event":"left"}`: a guest has
+nothing to wait for, since the way back is a new host row and therefore a new
+join.
+
+A forward that fails for a reason that is **not** a dead peer — a throttle, a
+timeout, a permission — is answered `{"a":"error","reason":"forward failed"}` and
+the sender keeps its socket. A forward to a peer that is **gone** frees the
+room's guest slot as before and tells the sender `{"a":"peer","event":"left"}`,
+so a frame never disappears with nothing said to anybody.
 
 `d` is opaque to the relay. Encrypt end to end; the relay is not a trust
 boundary for payload contents.
@@ -261,7 +273,8 @@ closing the connection: the handshake reasons above, plus `malformed`,
 
 An error on an **already-joined** connection leaves the connection open:
 `malformed`, `unknown action`, `bad payload`, `bad allow`, `bad open`,
-`not host`, `already joined`.
+`not host`, `already joined`, `no host` (a guest whose host is gone) and
+`forward failed` (the forward failed for a reason that is not a dead peer).
 
 ## Rules and limits
 
@@ -449,9 +462,80 @@ comes back a `challenge`. CI runs the same target over the OIDC role; a person
 runs it over the `dev.urandom.io` profile. `RELAY_FUNCTION` names the function
 (`zephra-link`) and `RELAY_WSS` the endpoint the smoke test uses.
 
+## Logs
+
+**Every frame writes one line, and every line is one JSON object.** A drop that
+writes nothing is a drop nobody can explain: a live run lost one small `send`
+between two counters and CloudWatch held only the failures that threw, which is
+what this shape exists for.
+
+```json
+{"at":"send","from":"<connectionId>","role":"host","room":"<32 hex>","bytes":312,
+ "m":"0123456789abcdef","i":1,"n":3,"to":["<connectionId>"],"result":"forwarded"}
+```
+
+- `at` — the action the line is about: `send`, `join`, `joined`, `hello`,
+  `allow`, `peer`, `$connect`, `$disconnect`, `malformed`, or the `a` of a frame
+  that got no further.
+- `from` — the connection the frame came from. `to` — the connections it was
+  posted to, `[]` when it reached nobody.
+- `role`, `room` — the sender's, from its membership row; on a `join` they are
+  what the client claimed, bounded, before anything checked them.
+- `bytes` — the length of `d` as base64. **Never `d` itself, and never `sig`:
+  the relay logs the shape of a frame and never what is in it.**
+- `m`, `i`, `n` — the fragment fields off a `send`, `null` on a frame that is
+  not a slice.
+- `result` — how it ended, below. `error` — the reason, where there is one.
+
+What a `result` means, by `at`:
+
+| `at` | `result` | |
+| --- | --- | --- |
+| `send` | `forwarded` | posted to the peer |
+| `send` | `gone` | the peer was 410; its row is swept, a host's slot freed, the sender told `peer left` |
+| `send` | `no-peer` | a host with no guest in the room; dropped, as the contract says |
+| `send` | `no-host` | a guest whose row points at no host; the sender is told |
+| `send` | `error` | the forward threw; the sender is told `forward failed` |
+| `send` | `bad-payload` | `d` was not a string |
+| any action | `not-joined` | no membership row, and the connection never joined |
+| any action | `index-lag` | its own pending row says it joined and the index still had nothing after the 150 ms retry |
+| any action | `unknown-action` | a joined connection sent an `a` the relay has no branch for |
+| `join` | `refused` \| `already-joined` \| — | `error` names the refusal |
+| `joined` | `joined` | the membership row is written |
+| `hello` | `challenged` \| `already-joined` \| `too-many` | |
+| `allow` | `allowed` \| `not-host` \| `bad-allow` \| `bad-open` | `count` and `open` say what the policy became |
+| `peer` | `forwarded` \| `gone` | a `peer` notice pushed; `event` is `joined` or `left` |
+| `$disconnect` | `left` \| `gone` \| `no-peer` \| `unknown` | whether the other side was told; `unknown` is a connection with no row |
+
+**Reading them.** Every frame that did not make it across, over the last hour:
+
+```bash
+aws logs filter-log-events --log-group-name /aws/lambda/zephra-link \
+  --filter-pattern '{ $.at = "send" && $.result != "forwarded" }' \
+  --start-time $(( ($(date +%s) - 3600) * 1000 )) \
+  --profile dev.urandom.io --region us-west-2 --no-cli-pager \
+  --query 'events[].message' --output text
+```
+
+The same pattern works as a metric filter. Other useful ones:
+`{ $.at = "send" && $.from = "<connectionId>" }` for one peer's whole stream,
+`{ $.result = "index-lag" }` for the eventually consistent index actually
+costing a frame, and `{ $.m = "<message id>" }` for every slice of one
+fragmented message. To watch a session as it runs:
+
+```bash
+aws logs tail /aws/lambda/zephra-link --since 5m --follow \
+  --profile dev.urandom.io --region us-west-2
+```
+
+A counter missing on the phone or the Mac (`docs/companion.md`) is one end of
+this: the log line says whether the relay ever saw that frame, and if it did,
+what it did with it.
+
 ## Operations
 
-- Logs: `/aws/lambda/zephra-link`, 14-day retention.
+- Logs: `/aws/lambda/zephra-link`, 14-day retention, one JSON line per frame as
+  above.
 - Rows: `aws dynamodb scan --table-name zephra-link-rooms --profile dev.urandom.io --region us-west-2`
   shows live membership and unspent challenges. Rows should disappear on
   disconnect; any that linger are swept by the TTL.
