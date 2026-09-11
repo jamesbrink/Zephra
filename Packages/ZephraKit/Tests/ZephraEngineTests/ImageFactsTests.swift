@@ -33,6 +33,7 @@ struct ImageFactsTests {
         #expect(ImageFacts.lengthLabel(frames: 49, rate: 24) == "2.0 s, 49 frames at 24 fps", "49 frames is 2.04 s, not two")
         #expect(ImageFacts.lengthLabel(frames: 9, rate: 24) == "0.4 s, 9 frames at 24 fps")
         #expect(ImageFacts.lengthLabel(frames: 121, rate: 24) == "5.0 s, 121 frames at 24 fps")
+        #expect(ImageFacts.lengthLabel(frames: 49, rate: 24, sound: true) == "2.0 s, 49 frames at 24 fps, with sound")
         let item = LibraryFilteringTests.item(prompt: "a lighthouse", seed: 1)
         #expect(ImageFacts(item).length == nil)
     }

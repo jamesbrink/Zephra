@@ -55,7 +55,9 @@ public struct ImageFacts: Hashable, Sendable {
         file = item.fileName
         upscaled = item.upscale.map { "\u{00D7}\($0.factor) from \($0.parent)" }
         length = item.provenance.record.flatMap { record in
-            record.frameCount.map { Self.lengthLabel(frames: $0, rate: record.frameRate ?? 24) }
+            record.frameCount.map {
+                Self.lengthLabel(frames: $0, rate: record.frameRate ?? 24, sound: record.hasAudio ?? false)
+            }
         }
         continued = item.provenance.record.flatMap { record in
             record.continuedFrom.map { Self.continuedLabel(from: $0, held: record.contextFrames ?? 0) }
@@ -77,7 +79,7 @@ public struct ImageFacts: Hashable, Sendable {
         // A picture in memory has no record to read it from, and the library's own inspector
         // takes over the moment the scan lands, which is typically inside a second.
         upscaled = nil
-        length = image.video.map { Self.lengthLabel(frames: $0.frameCount, rate: $0.frameRate) }
+        length = image.video.map { Self.lengthLabel(frames: $0.frameCount, rate: $0.frameRate, sound: $0.hasAudio) }
         continued = image.settings.continuation.flatMap { continuation in
             continuation.origin.map { Self.continuedLabel(from: $0, held: continuation.contextFrames) }
         }
@@ -102,9 +104,10 @@ public struct ImageFacts: Hashable, Sendable {
 
     /// "2 s, 49 frames at 24 fps", the seconds to one decimal only when a ladder of eight
     /// frames does not land on a whole one.
-    static func lengthLabel(frames: Int, rate: Double) -> String {
+    static func lengthLabel(frames: Int, rate: Double, sound: Bool = false) -> String {
         let seconds = DurationLabel.text(seconds: Double(frames) / rate, fraction: true)
-        return String(format: "%@, %d frames at %.0f fps", seconds, frames, rate)
+        let length = String(format: "%@, %d frames at %.0f fps", seconds, frames, rate)
+        return sound ? "\(length), with sound" : length
     }
 
     /// What a clip carried on says about it: the source's file name and how many of its

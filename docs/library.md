@@ -103,7 +103,8 @@ as an index, and it is Foundation only, so `make test` covers all of it.
 - `LibrarySelection` holds what is chosen; `LibraryCursor` is the pure
   arithmetic of moving through a grid, so keyboard navigation is tested without
   a window. `ImageFacts` formats the rows the inspector shows, the clip's Length
-  among them. Every span of seconds on screen — the countdown in the
+  among them ("2.0 s, 49 frames at 24 fps", and ", with sound" after it when
+  the record says the file carries a track). Every span of seconds on screen — the countdown in the
   window subtitle and the running-run inspector, Elapsed, how long a run took, a
   clip's length in the inspector, the capsule and the badge — is a
   `DurationLabel` (`ZephraCore`): "45 s", "1 min 20 s", "12 min", "1 hr 5 min",
