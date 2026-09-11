@@ -68,14 +68,26 @@ public final class LinkClient {
     ///
     /// Requests answer `.ok` and blobs fail: a preview that could make a request would be a
     /// preview that could queue a generation on somebody's Mac.
-    public static func frozen(snapshot: StateSnapshot, library: [LibraryEntry]) -> LinkClient {
+    ///
+    /// It is paired, because every state worth photographing is a paired one — the Mac named
+    /// in the snapshot, with a throwaway identity's keys and no endpoint, kept in a store that
+    /// ends with the process. The connection rides in so a screenshot can be taken of a phone
+    /// whose Mac is not answering, which is the one state a live client cannot be asked for.
+    public static func frozen(
+        snapshot: StateSnapshot, library: [LibraryEntry],
+        connection: LinkConnectionState = .live(.lan)
+    ) -> LinkClient {
         let client = LinkClient(
             store: MemoryLinkKeyStore(), roads: MemoryLinkRoads.unreachable(),
             deviceName: "Preview")
         client.isFrozen = true
         client.snapshot = snapshot
         client.library = library
-        client.connection = .live(.lan)
+        client.connection = connection
+        let host = DeviceIdentity()
+        client.pairedHost = PairedHost(
+            name: snapshot.hostName, keys: host.publicKeys, endpoints: [], roomID: host.roomID,
+            pairedAt: Date())
         return client
     }
 }
