@@ -541,6 +541,20 @@ Left out of the first pass on purpose, each a small change to one file unless no
   Lambda's contract, not just ours — and a demultiplexer on the Mac that keeps a
   session per id. The local network already allows several phones at once, so the
   limit is the relay's alone.
+- **Sixteen phones on the relay allow-list.** The host's `join` carries the
+  signing keys the relay admits a guest out of, and `RelayJoin.allowLimit` is 16:
+  a longer list is `bad allow` and closes the connection, so
+  `CompanionHost.relayAllowList` sends the sixteen seen most recently and trims
+  the rest. A Mac with more paired phones than that still reaches every one of
+  them on the local network, and any of them over the relay as soon as it is in
+  the sixteen. Lifting it means a paged or hashed set in the relay's own
+  contract, which is the Lambda's to change and not worth it for a limit no
+  household meets.
+- **A revoked phone keeps a relay slot it already holds.** The allow-list governs
+  future joins only, so `CompanionHost.revoke` closes that guest's session itself
+  with `revoked`, which is what it has always done. Evicting from the relay's side
+  as well means a message that names a guest, which the contract has no room for
+  until guests have ids at all — the same change as several guests above.
 - **A phone cannot start a download.** `Command` has no case for one and
   `CompanionHost` refuses anything it does not know. Fetching a model is
   gigabytes onto somebody else's Mac, over their network, and the person holding
