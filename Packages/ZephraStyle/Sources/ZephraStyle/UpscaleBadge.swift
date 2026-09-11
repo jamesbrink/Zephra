@@ -6,11 +6,16 @@ import SwiftUI
 ///
 /// Dark on a translucent ground rather than a chip, because it sits on a picture rather than
 /// on the chrome, and the favourite's star in the opposite corner sets the register.
-struct UpscaleBadge: View {
+public struct UpscaleBadge: View {
     /// How many times larger than its parent the picture is.
-    let factor: Int
+    public let factor: Int
 
-    var body: some View {
+    /// A badge for a picture `factor` times its parent.
+    public init(factor: Int) {
+        self.factor = factor
+    }
+
+    public var body: some View {
         Text("\u{00D7}\(factor)")
             .font(.caption2.weight(.semibold))
             .monospacedDigit()

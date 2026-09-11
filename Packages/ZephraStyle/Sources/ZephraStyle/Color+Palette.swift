@@ -6,10 +6,10 @@ import ZephraCore
 /// is what lets the picture behind the capsule do the tinting.
 extension Color {
     /// The ground a picture sits on: graphite in the dark, warm paper in the light.
-    nonisolated static let canvasBackground = Color("CanvasBackground", bundle: .main)
+    public nonisolated static let canvasBackground = Color("CanvasBackground", bundle: .module)
 
     /// Safelight amber, the one accent. Only ever shown while the model is working.
-    nonisolated static let safelight = Color("Safelight", bundle: .main)
+    public nonisolated static let safelight = Color("Safelight", bundle: .module)
 
     /// The four muted colours a model's dot can take.
     ///
@@ -17,10 +17,10 @@ extension Color {
     /// which would say the model is working when it is only listed. Four rather than one per
     /// model because four are told apart at a glance and twelve are not.
     private nonisolated static let modelDots = [
-        Color("ModelDot1", bundle: .main),
-        Color("ModelDot2", bundle: .main),
-        Color("ModelDot3", bundle: .main),
-        Color("ModelDot4", bundle: .main),
+        Color("ModelDot1", bundle: .module),
+        Color("ModelDot2", bundle: .module),
+        Color("ModelDot3", bundle: .module),
+        Color("ModelDot4", bundle: .module),
     ]
 
     /// The colour standing for one model, by descriptor identifier.
@@ -30,7 +30,7 @@ extension Color {
     /// landed in the same bucket. A new model appended to the catalog takes the next colour,
     /// and the four repeat from the fifth on. A model the catalog does not name falls to the
     /// first colour rather than to a crash.
-    nonisolated static func modelDot(_ id: String) -> Color {
+    public nonisolated static func modelDot(_ id: String) -> Color {
         let place = ModelCatalog.all.firstIndex { $0.id == id } ?? 0
         return modelDots[place % modelDots.count]
     }

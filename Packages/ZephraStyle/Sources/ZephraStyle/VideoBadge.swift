@@ -6,11 +6,16 @@ import ZephraCore
 ///
 /// Drawn the way `UpscaleBadge` is, dark on a translucent ground, and in the same corner: a
 /// picture is one or the other, never both.
-struct VideoBadge: View {
+public struct VideoBadge: View {
     /// How long the clip plays, in seconds.
-    let seconds: Double
+    public let seconds: Double
 
-    var body: some View {
+    /// A badge for a clip `seconds` long.
+    public init(seconds: Double) {
+        self.seconds = seconds
+    }
+
+    public var body: some View {
         HStack(spacing: 3) {
             Image(systemName: "play.fill").font(.system(size: 8, weight: .semibold))
             Text(label).monospacedDigit()

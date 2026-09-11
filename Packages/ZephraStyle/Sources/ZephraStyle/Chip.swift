@@ -5,22 +5,22 @@ import SwiftUI
 /// Never accent-coloured and never amber. Amber means the model is working, and a chip that
 /// borrowed it would say so falsely; a selected chip is a lighter neutral instead, which is
 /// what the system's own segmented controls do.
-struct Chip: View {
+public struct Chip: View {
     /// The word on it.
-    let title: String
+    public let title: String
     /// Whether it is the one currently chosen.
-    let isSelected: Bool
+    public let isSelected: Bool
     /// What to do when its cross is pressed, or nil for a chip that cannot be removed.
-    let onRemove: (() -> Void)?
+    public let onRemove: (() -> Void)?
 
     /// A chip, removable only if a `onRemove` is given.
-    init(_ title: String, isSelected: Bool = false, onRemove: (() -> Void)? = nil) {
+    public init(_ title: String, isSelected: Bool = false, onRemove: (() -> Void)? = nil) {
         self.title = title
         self.isSelected = isSelected
         self.onRemove = onRemove
     }
 
-    var body: some View {
+    public var body: some View {
         HStack(spacing: 4) {
             Text(title)
                 .lineLimit(1)

@@ -5,39 +5,45 @@ import SwiftUI
 /// One place for them so a corner radius means the same thing wherever it appears: the prompt
 /// capsule and a sidebar card that look related actually are related, and changing the family
 /// resemblance is one edit rather than a hunt for repeated numbers.
-enum ZephraChrome {
+public enum ZephraChrome {
     /// The floating prompt capsule, the largest radius in the app.
-    static let capsuleRadius: CGFloat = 16
+    public static let capsuleRadius: CGFloat = 16
     /// The picture in the reference well: a step above a card, since it sits on the capsule.
-    static let wellRadius: CGFloat = 10
+    public static let wellRadius: CGFloat = 10
     /// A small card in a list: a queue row, a block of facts.
-    static let cardRadius: CGFloat = 8
+    public static let cardRadius: CGFloat = 8
     /// A square image standing in for a bigger one.
-    static let thumbnailRadius: CGFloat = 8
+    public static let thumbnailRadius: CGFloat = 8
     /// A small square on the sidebar's wall: a step under the cards above it, so a card reads
     /// as a thing to act on and a square as a thing to look at.
-    static let tileRadius: CGFloat = 5
+    public static let tileRadius: CGFloat = 5
     /// Half the height of a 22 pt chip, which is what makes it a capsule.
-    static let chipRadius: CGFloat = 11
+    public static let chipRadius: CGFloat = 11
     /// A text field, or a ring drawn round a row: the smallest corner in the app.
-    static let fieldRadius: CGFloat = 6
+    public static let fieldRadius: CGFloat = 6
 
     /// The height of a search field: one line of `.callout` with air around it.
-    static let fieldHeight: CGFloat = 26
+    public static let fieldHeight: CGFloat = 26
     /// The strip over a pane: tall enough for a 22 pt chip with air around it, and no taller.
-    static let barHeight: CGFloat = 42
+    public static let barHeight: CGFloat = 42
 
     /// The one-pixel line that separates a surface from what is behind it. The system's own
-    /// separator, so it is right in both appearances without a second definition.
-    static let hairline = Color(nsColor: .separatorColor)
+    /// separator, so it is right in both appearances without a second definition — and the
+    /// platform's own separator on each platform, which is why this is the one constant here
+    /// that is spelled twice.
+    #if os(macOS)
+        public static let hairline = Color(nsColor: .separatorColor)
+    #else
+        public static let hairline = Color(uiColor: .separator)
+    #endif
 
     /// The height of one row in the sidebar's source lists.
-    static let sidebarRowHeight: CGFloat = 28
+    public static let sidebarRowHeight: CGFloat = 28
 
     /// How far the floating capsule's shadow spreads.
-    static let shadowRadius: CGFloat = 22
+    public static let shadowRadius: CGFloat = 22
     /// How far below the capsule that shadow falls.
-    static let shadowY: CGFloat = 8
+    public static let shadowY: CGFloat = 8
     /// How dark it is: enough to lift the capsule off a bright picture, not enough to smudge it.
-    static let shadowOpacity: Double = 0.28
+    public static let shadowOpacity: Double = 0.28
 }
