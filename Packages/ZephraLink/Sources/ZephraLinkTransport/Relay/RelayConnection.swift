@@ -22,6 +22,9 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
         /// The guests this host will admit, as raw signing keys. Empty for a guest, which sends
         /// no list at all.
         var allow: [Data] = []
+        /// Whether this host's room admits a guest that is on no list, which is true only while
+        /// a pairing code is on screen.
+        var isOpen = false
         var reader: Task<Void, Never>?
         var pinger: Task<Void, Never>?
     }
@@ -62,7 +65,8 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
         try await write(handshake.opening)
         while true {
             let message = try await read()
-            switch try handshake.receive(message, allow: lock.withLock { state.allow }) {
+            let room = lock.withLock { (allow: state.allow, isOpen: state.isOpen) }
+            switch try handshake.receive(message, allow: room.allow, open: room.isOpen) {
             case .send(let answer): try await write(answer)
             case .ignore: continue
             case .joined:
@@ -75,20 +79,23 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
 
     public func frames() -> AsyncThrowingStream<Data, Error> { frameStream }
 
-    /// Replaces the set of guests the relay will admit into this room.
+    /// Replaces the set of guests the relay will admit into this room, and says whether the room
+    /// is open to a guest on no list at all.
     ///
-    /// Kept here rather than handed in at `init` because the set moves while the socket is up: a
-    /// pairing completes, a device is revoked. Called before `start()` it is what the join
-    /// carries; called after, it goes as its own message. A guest sends none of this, and the
-    /// relay ignores an allow-list from anything but the host that owns the room.
-    public func updateAllowList(_ keys: [Data]) async {
+    /// Kept here rather than handed in at `init` because both move while the socket is up: a
+    /// pairing completes, a device is revoked, a code goes up or comes down. Called before
+    /// `start()` it is what the join carries; called after, it goes as its own message. A guest
+    /// sends none of this, and the relay ignores either from anything but the host that owns the
+    /// room.
+    public func updateAllowList(_ keys: [Data], open: Bool = false) async {
         let trimmed = Array(keys.prefix(RelayJoin.allowLimit))
         let isLive = lock.withLock { () -> Bool in
             state.allow = trimmed
+            state.isOpen = open
             return state.isJoined && !state.isClosed
         }
         guard isLive, role == .host else { return }
-        try? await write(.allow(pubs: trimmed))
+        try? await write(.allow(pubs: trimmed, open: open ? true : nil))
     }
 
     public func send(_ frame: Data) async throws {

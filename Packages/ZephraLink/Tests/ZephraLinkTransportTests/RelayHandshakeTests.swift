@@ -14,7 +14,7 @@ struct RelayHandshakeTests {
         let handshake = RelayHandshake(identity: identity, room: identity.roomID, role: .host)
         let nonce = Data(repeating: 7, count: RelayJoin.nonceByteCount)
         let phone = DeviceIdentity().publicKeys.signing
-        guard case .send(.join(let room, let publicKey, let role, let signature, let allow)) =
+        guard case .send(.join(let room, let publicKey, let role, let signature, let allow, _)) =
             try handshake.receive(.challenge(nonce: nonce), allow: [phone])
         else { return #expect(Bool(false), "a challenge asks for a join") }
         #expect(room == identity.roomID)
@@ -28,7 +28,7 @@ struct RelayHandshakeTests {
     @Test("a guest's join carries no allow-list, whatever it is handed")
     func aGuestCarriesNoAllowList() throws {
         let handshake = RelayHandshake(identity: identity, room: identity.roomID, role: .guest)
-        guard case .send(.join(_, _, _, _, let allow)) = try handshake.receive(
+        guard case .send(.join(_, _, _, _, let allow, _)) = try handshake.receive(
             .challenge(nonce: Data(repeating: 7, count: RelayJoin.nonceByteCount)),
             allow: [DeviceIdentity().publicKeys.signing])
         else { return #expect(Bool(false), "a challenge asks for a join") }
@@ -38,7 +38,7 @@ struct RelayHandshakeTests {
     @Test("a host that has paired nothing sends an empty list, which admits nobody")
     func aHostWithNoPairingsSendsAnEmptyList() throws {
         let handshake = RelayHandshake(identity: identity, room: identity.roomID, role: .host)
-        guard case .send(.join(_, _, _, _, let allow)) = try handshake.receive(
+        guard case .send(.join(_, _, _, _, let allow, _)) = try handshake.receive(
             .challenge(nonce: Data(repeating: 7, count: RelayJoin.nonceByteCount)))
         else { return #expect(Bool(false), "a challenge asks for a join") }
         #expect(allow == [])

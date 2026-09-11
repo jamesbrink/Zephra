@@ -12,10 +12,11 @@ import os
 /// accumulate one dead listener per reconnection, so the reconnecting lives here instead: one
 /// `LinkListener` the host serves once, which yields the guests of each join in turn.
 ///
-/// It also carries the allow-list. The relay admits a guest only when the key it signed with is
-/// one this Mac has paired, so the set has to reach the relay at every join and again whenever a
-/// pairing completes or is revoked — which is why `allowed` is a closure read inside an
-/// observation loop rather than a list handed in once.
+/// It also carries the allow-list and whether the room is open. The relay admits a guest only
+/// when the key it signed with is one this Mac has paired, or when the Mac has declared its room
+/// open because a pairing code is on screen — so both have to reach the relay at every join and
+/// again whenever either moves, which is why `allowed` and `opened` are closures read inside an
+/// observation loop rather than values handed in once.
 ///
 /// The wait between attempts is `LinkBackoff`, and the count resets when a guest actually
 /// arrives, which is what "a live session" means for the Mac's end.
@@ -25,23 +26,31 @@ final class RelayRoad: LinkListener, @unchecked Sendable {
         var rejoining: Task<Void, Never>?
         var listener: RelayListener?
         var allow: [Data] = []
+        var isOpen = false
     }
 
     private let url: URL
     private let identity: DeviceIdentity
     /// Every paired device's raw signing key, as the host holds them right now.
     private let allowed: @MainActor () -> [Data]
+    /// Whether the room admits a guest on no list, which is true while a code is on screen.
+    private let opened: @MainActor () -> Bool
     private let logger = Logger(subsystem: "io.zephra", category: "companion")
     private let stream: AsyncStream<any LinkConnection>
     private let continuation: AsyncStream<any LinkConnection>.Continuation
     private let lock = NSLock()
     private var state = State()
 
-    /// A road into this Mac's own room on `url`, admitting the devices `allowed` names.
-    init(url: URL, identity: DeviceIdentity, allowed: @escaping @MainActor () -> [Data]) {
+    /// A road into this Mac's own room on `url`, admitting the devices `allowed` names, and
+    /// anybody at all while `opened` says a pairing code is up.
+    init(
+        url: URL, identity: DeviceIdentity, allowed: @escaping @MainActor () -> [Data],
+        opened: @escaping @MainActor () -> Bool
+    ) {
         self.url = url
         self.identity = identity
         self.allowed = allowed
+        self.opened = opened
         (stream, continuation) = AsyncStream.makeStream()
     }
 
@@ -71,17 +80,17 @@ final class RelayRoad: LinkListener, @unchecked Sendable {
 
     /// One join after another, with a doubling wait between failures.
     ///
-    /// The allow-list goes in before `start()`, so it rides in the join itself rather than as a
-    /// second message the relay could admit a guest ahead of.
+    /// The allow-list and the open flag go in before `start()`, so both ride in the join itself
+    /// rather than as a second message the relay could admit or refuse a guest ahead of.
     private func rejoin() async {
         var attempt = 0
         while !Task.isCancelled {
             let listener = RelayListener(url: url, identity: identity)
-            let keys = lock.withLock { () -> [Data] in
+            let room = lock.withLock { () -> (allow: [Data], isOpen: Bool) in
                 state.listener = listener
-                return state.allow
+                return (state.allow, state.isOpen)
             }
-            await listener.updateAllowList(keys)
+            await listener.updateAllowList(room.allow, open: room.isOpen)
             do {
                 try await listener.start()
                 // At info, and on both edges. A relay join is the one piece of this road that
@@ -104,28 +113,33 @@ final class RelayRoad: LinkListener, @unchecked Sendable {
         }
     }
 
-    /// Reads the paired devices and re-arms itself whenever they move.
+    /// Reads the paired devices and whether a code is up, and re-arms itself whenever either
+    /// moves. Both are read inside the one tracking closure, so a code going up republishes for
+    /// the same reason a pairing completing does.
     ///
     /// The callback runs *before* the change lands, so it re-reads after a beat rather than in
     /// the callback: this is `CompanionHost`'s own observation shape, for the same reason.
     @MainActor
     private func watchAllowList() {
         guard !lock.withLock({ state.isStopped }) else { return }
-        let keys = withObservationTracking { allowed() } onChange: { [weak self] in
+        let room = withObservationTracking {
+            (allow: allowed(), isOpen: opened())
+        } onChange: { [weak self] in
             Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(50))
                 self?.watchAllowList()
             }
         }
-        Task { [weak self] in await self?.publish(keys) }
+        Task { [weak self] in await self?.publish(room.allow, open: room.isOpen) }
     }
 
-    /// Remembers the set the next join should carry, and tells the join that is already up.
-    private func publish(_ keys: [Data]) async {
+    /// Remembers what the next join should carry, and tells the join that is already up.
+    private func publish(_ keys: [Data], open: Bool) async {
         let listener = lock.withLock { () -> RelayListener? in
             state.allow = keys
+            state.isOpen = open
             return state.listener
         }
-        await listener?.updateAllowList(keys)
+        await listener?.updateAllowList(keys, open: open)
     }
 }

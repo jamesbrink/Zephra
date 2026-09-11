@@ -74,7 +74,8 @@ extension ZephraApp {
             // reads the host's paired devices: a strong closure would be a cycle.
             let opened = await roads.open(
                 relay: AppSettings.companionRelay(),
-                allowing: { [weak host] in host?.relayAllowList ?? [] })
+                allowing: { [weak host] in host?.relayAllowList ?? [] },
+                openWhilePairing: { [weak host] in host?.relayOpen ?? false })
             for road in opened { host.serve(road) }
         }
     }

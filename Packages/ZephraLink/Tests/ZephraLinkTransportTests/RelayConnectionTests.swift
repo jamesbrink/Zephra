@@ -87,6 +87,32 @@ struct RelayConnectionTests {
         #expect(relay.allowList == nil)
     }
 
+    @Test("a room open for a pairing says so in the join, and shuts on the next word")
+    func anOpenRoomIsDeclaredInTheJoin() async throws {
+        let relay = try FakeRelay()
+        defer { relay.stop() }
+        let identity = DeviceIdentity()
+        let road = RelayConnection(
+            url: try await relay.start(), identity: identity, room: identity.roomID, role: .host)
+        defer { Task { await road.close() } }
+        await road.updateAllowList([], open: true)
+        try await road.start()
+        #expect(relay.isRoomOpen, "a first pairing has no key on any list")
+
+        await road.updateAllowList([Data(repeating: 4, count: 32)], open: false)
+        try await waitUntil { !relay.isRoomOpen }
+        #expect(relay.allowList == [Data(repeating: 4, count: 32)])
+    }
+
+    /// Waits for the relay to have heard what the road said, or gives up after a second.
+    private func waitUntil(_ condition: @Sendable () -> Bool) async throws {
+        for _ in 0..<200 {
+            if condition() { return }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        Issue.record("the relay never heard it")
+    }
+
     @Test("a frame before the room is joined is refused rather than sent")
     func sendBeforeJoin() async throws {
         let relay = try FakeRelay()

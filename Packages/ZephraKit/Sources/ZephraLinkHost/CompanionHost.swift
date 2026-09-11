@@ -30,6 +30,9 @@ public final class CompanionHost {
     /// One line saying why the code went, where it went for a reason of its own. Cleared the
     /// moment a fresh code goes up.
     public internal(set) var pairingNote: String?
+    /// Whether the relay room admits a guest on no allow-list: true exactly while a code is on
+    /// screen, since a first pairing is a phone with no key anywhere. `CompanionHost+RelayRoom`.
+    public internal(set) var relayOpen = false
 
     /// How many wrong answers to one code end the pairing.
     ///
@@ -45,8 +48,8 @@ public final class CompanionHost {
     /// property rather than a constant so a suite can ask the question in milliseconds.
     @ObservationIgnored var handshakeDeadline: Duration = .seconds(10)
 
-    /// How long a session's `OrderedInbox` holds a gap open before it calls it loss. An instance
-    /// property for the same reason, and handed to each session as its channel is made.
+    /// How long a session's `OrderedInbox` holds a gap open before it calls it loss, handed to
+    /// each session as its channel is made. An instance property for the same reason.
     @ObservationIgnored var frameHold: Duration = OrderedInbox.hold
 
     @ObservationIgnored let store: GenerationStore
@@ -62,6 +65,8 @@ public final class CompanionHost {
     @ObservationIgnored var secret: PairingSecret?
     /// How many devices have answered this code wrongly.
     @ObservationIgnored var pairingFailures = 0
+    /// The clock that shuts the room when the code runs out, since nothing else would ask.
+    @ObservationIgnored var openRoomClock: Task<Void, Never>?
     @ObservationIgnored var listeners: [any LinkListener] = []
     @ObservationIgnored var serving: [Task<Void, Never>] = []
     /// The observation loop, running only while at least one session is listening.

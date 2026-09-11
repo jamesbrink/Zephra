@@ -139,25 +139,65 @@ struct RelayMessageTests {
         let host = try RelayJoin.message(
             identity: mac, nonce: Self.nonce, room: mac.roomID, role: .host,
             allow: [phone.publicKeys.signing])
-        guard case .join(_, _, _, _, let allowed) = host else {
+        guard case .join(_, _, _, _, let allowed, _) = host else {
             return #expect(Bool(false), "a host's join is a join")
         }
         #expect(allowed == [phone.publicKeys.signing])
         let guest = try RelayJoin.message(
             identity: phone, nonce: Self.nonce, room: mac.roomID, role: .guest,
             allow: [phone.publicKeys.signing])
-        guard case .join(_, _, _, _, let none) = guest else {
+        guard case .join(_, _, _, _, let none, _) = guest else {
             return #expect(Bool(false), "a guest's join is a join")
         }
         #expect(none == nil)
         #expect(!String(decoding: try LinkJSON.encode(guest), as: UTF8.self).contains("allow"))
     }
 
+    @Test("An open room says so in the join, and a shut one says nothing at all")
+    func opennessIsWrittenOnlyWhenTrue() throws {
+        let mac = DeviceIdentity()
+        let open = try RelayJoin.message(
+            identity: mac, nonce: Self.nonce, room: mac.roomID, role: .host, open: true)
+        #expect(open.isOpen)
+        #expect(
+            String(decoding: try LinkJSON.encode(open), as: UTF8.self).contains(#""open":true"#))
+        #expect(try LinkFixtures.roundTrip(open) == open)
+
+        let shut = try RelayJoin.message(
+            identity: mac, nonce: Self.nonce, room: mac.roomID, role: .host, open: false)
+        #expect(!shut.isOpen)
+        #expect(!String(decoding: try LinkJSON.encode(shut), as: UTF8.self).contains("open"))
+        #expect(try LinkFixtures.roundTrip(shut) == shut)
+    }
+
+    @Test("A guest cannot declare a room open, however it is asked to")
+    func onlyAHostDeclaresARoomOpen() throws {
+        let phone = DeviceIdentity()
+        let guest = try RelayJoin.message(
+            identity: phone, nonce: Self.nonce, room: DeviceIdentity().roomID, role: .guest,
+            open: true)
+        #expect(!guest.isOpen)
+        #expect(!String(decoding: try LinkJSON.encode(guest), as: UTF8.self).contains("open"))
+    }
+
+    @Test("An allow message carries the same flag, written only when the room is open")
+    func anAllowMessageCarriesOpenness() throws {
+        let keys = [Data(repeating: 0x03, count: 4)]
+        #expect(
+            String(decoding: try LinkJSON.encode(RelayMessage.allow(pubs: keys, open: true)),
+                   as: UTF8.self) == #"{"a":"allow","open":true,"pubs":["AwMDAw=="]}"#)
+        #expect(
+            String(decoding: try LinkJSON.encode(RelayMessage.allow(pubs: keys)), as: UTF8.self)
+                == #"{"a":"allow","pubs":["AwMDAw=="]}"#)
+        #expect(RelayMessage.allow(pubs: keys, open: true).isOpen)
+        #expect(!RelayMessage.allow(pubs: keys).isOpen)
+    }
+
     @Test("An allow-list longer than the relay takes is trimmed rather than refused")
     func theAllowListIsTrimmed() throws {
         let mac = DeviceIdentity()
         let keys = (0..<20).map { Data(repeating: UInt8($0), count: 32) }
-        guard case .join(_, _, _, _, let allowed) = try RelayJoin.message(
+        guard case .join(_, _, _, _, let allowed, _) = try RelayJoin.message(
             identity: mac, nonce: Self.nonce, room: mac.roomID, role: .host, allow: keys)
         else { return #expect(Bool(false), "a join is a join") }
         #expect(allowed?.count == RelayJoin.allowLimit)
@@ -169,7 +209,7 @@ struct RelayMessageTests {
         // The relay takes the list from the connection that has just proved it holds the room's
         // key, so the signature covers the challenge and nothing else — as it did before.
         let mac = DeviceIdentity()
-        guard case .join(_, _, _, let signature, _) = try RelayJoin.message(
+        guard case .join(_, _, _, let signature, _, _) = try RelayJoin.message(
             identity: mac, nonce: Self.nonce, room: mac.roomID, role: .host,
             allow: [Data(repeating: 7, count: 32)])
         else { return #expect(Bool(false), "a join is a join") }

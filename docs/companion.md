@@ -266,15 +266,42 @@ It governs **future joins only**: it does not evict a guest already in the room,
 so a revoke still closes that guest's own session with `revoked`, which is what
 `CompanionHost.revoke` has always done.
 
+**A room is open while a code is on screen.** A phone pairing for the first time
+holds a key that is on no list — the pairing is what puts it there — so an
+allow-list alone refused the one guest the code was put up for, and a first
+pairing over the relay could not be made at all. Both `join` and `allow` carry an
+optional `"open"`, and while it is true the relay admits any guest, still one at a
+time; while it is false or absent, only listed keys. It is written **only when
+true**: a shut room says nothing, so every message a previous build sent is
+unchanged on the wire. `RelayMessage.isOpen` is the one place absent and false are
+read as the same answer, and only a host's join carries either flag.
+
+An open room is not a weaker Mac. It buys a stranger a handshake and nothing
+else: `HandshakeResponder` still refuses any static key it has not paired unless
+that device can answer the code, `CompanionHost.unauthenticatedLimit` and
+`handshakeDeadline` still bound the plaintext stage, and three wrong answers still
+burn the secret. What it removes is a refusal one layer too early to be useful.
+
+`CompanionHost.relayOpen` is the flag, observable beside `relayAllowList`:
+`beginPairing` raises it, and it falls when the code comes down, when a pairing
+succeeds, when three wrong answers burn the secret, when the host stops, or when
+the code simply runs out — `CompanionHost+RelayRoom` holds the clock for that last
+one, since nothing else would ask. `RelayRoad` reads both inside one
+`withObservationTracking` and republishes on either, so a code going up reaches
+the relay the same way a pairing completing does.
+
 ### The sequence
 
 ```
 client -> relay  {"a":"hello"}
 relay  -> client {"a":"challenge","n":"<base64, 32 random bytes>"}
 client -> relay  {"a":"join","room":"<32 hex>","pub":"<base64 key>","role":"host","sig":"<base64>",
-                  "allow":["<base64 raw pub>", ...]}          allow: a host's, and at most 16
+                  "allow":["<base64 raw pub>", ...],"open":true}
+                                        allow and open: a host's; allow at most 16 keys,
+                                        open written only while a code is on screen
 relay  -> client {"a":"joined","role":"host"}          or  {"a":"error","reason":"..."}
-host   -> relay  {"a":"allow","pubs":["<base64 raw pub>", ...]}   when the paired set moves
+host   -> relay  {"a":"allow","pubs":["<base64 raw pub>", ...],"open":true}
+                                        when the paired set moves or a code goes up or down
 relay  -> host   {"a":"allowed","count":2}
 client -> relay  {"a":"send","d":"<base64 sealed frame>"}
 relay  -> client {"a":"peer","event":"joined"}          when the other end arrives
@@ -525,9 +552,12 @@ remembers the port the local one actually took, since 7723 may be held by
 something else and a code has to name where the listener really is. `RelayRoad` is
 one `LinkListener` that outlives the sockets under it, rejoining the room on
 `LinkBackoff` so the host is served once rather than once per reconnection, and
-carrying the allow-list: it reads `CompanionHost.relayAllowList` inside a
-`withObservationTracking` loop, hands it to each listener before that listener
-joins, and sends an `allow` to the join already up whenever the paired set moves.
+carrying what the relay admits on: it reads `CompanionHost.relayAllowList` **and**
+`CompanionHost.relayOpen` inside one `withObservationTracking` loop, hands both to
+each listener before that listener joins, and sends an `allow` to the join already
+up whenever either moves — a pairing completing, a device revoked, a code going up
+or coming down. `ZephraApp+Companion` is where the two closures are tied to the
+host, weakly, since the host holds every listener it is served.
 
 **Three wrong answers burn the code.** A `confirm` whose tag does not prove the
 secret, from a `Hello` that asked to pair, is counted; the third ends the pairing
@@ -538,6 +568,15 @@ is the one window in the whole link that is cheap to attack. A wrong tag from a
 device that was *reconnecting* is not counted: no code is being guessed at, and
 that session is refused on its own account. `beginPairing()` clears both the
 count and the note.
+
+**A code on screen opens the relay room.** `beginPairing()` also sets
+`CompanionHost.relayOpen`, which is what lets a phone that has never paired reach
+the relay at all: its key is on no allow-list until the pairing puts it there.
+The flag falls on every way the code goes — `endPairing()`, a pairing that
+succeeds, the third wrong answer, `stop()` — and on the code simply expiring,
+which `CompanionHost+RelayRoom` keeps a clock for because nothing else would
+notice. The room being open changes nothing about who this Mac talks to: the
+responder's refusal is unmoved, and a stranger gets a handshake it cannot pass.
 
 **Settings > Companion** is the fourth tab. Two switches, deliberately apart:
 one opens the local road and puts the Mac on Bonjour, the other lets a phone

@@ -37,15 +37,18 @@ public struct RelayHandshake: Sendable {
     /// forwards nothing to a connection it has no membership for, so either the relay is not
     /// the one this protocol describes or something is in the middle.
     ///
-    /// `allow` is read at the moment the challenge lands rather than held here, because a
-    /// pairing may complete or be revoked between opening the socket and answering: the list
-    /// that goes out is the one the Mac holds as it joins.
-    public func receive(_ message: RelayMessage, allow: [Data] = []) throws -> Step {
+    /// `allow` and `open` are read at the moment the challenge lands rather than held here,
+    /// because a pairing may complete, be revoked, or be started between opening the socket and
+    /// answering: what goes out is what the Mac holds as it joins.
+    public func receive(
+        _ message: RelayMessage, allow: [Data] = [], open: Bool = false
+    ) throws -> Step {
         switch message {
         case .challenge(let nonce):
             return .send(
                 try RelayJoin.message(
-                    identity: identity, nonce: nonce, room: room, role: role, allow: allow))
+                    identity: identity, nonce: nonce, room: room, role: role, allow: allow,
+                    open: open))
         case .joined(let granted):
             guard granted == role else { throw RelayError.refused("bad role") }
             return .joined

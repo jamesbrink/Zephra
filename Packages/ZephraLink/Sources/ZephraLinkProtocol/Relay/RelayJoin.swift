@@ -52,15 +52,22 @@ public enum RelayJoin {
     /// because the relay takes it only from the connection that has just proved it holds the
     /// room's own key — the signature over the challenge is what says this is that host. It is
     /// trimmed to `allowLimit`, which the caller has already ordered by what matters most.
+    ///
+    /// `open` is the host's too, and it is how a phone pairs for the first time at all: a device
+    /// that has never paired is on no list, so without it the relay would refuse the one guest
+    /// the code on screen was put up for. It is written only when true, and it buys a stranger
+    /// nothing but a handshake — the Mac's own responder still refuses anything that cannot
+    /// answer the code.
     public static func message(
         identity: DeviceIdentity, nonce: Data, room: RoomID, role: RelayRole,
-        allow: [Data]? = nil
+        allow: [Data]? = nil, open: Bool = false
     ) throws -> RelayMessage {
         .join(
             room: room,
             publicKey: identity.publicKeys.signing,
             role: role,
             signature: try sign(identity: identity, nonce: nonce, room: room, role: role),
-            allow: role == .host ? Array((allow ?? []).prefix(allowLimit)) : nil)
+            allow: role == .host ? Array((allow ?? []).prefix(allowLimit)) : nil,
+            open: role == .host && open ? true : nil)
     }
 }

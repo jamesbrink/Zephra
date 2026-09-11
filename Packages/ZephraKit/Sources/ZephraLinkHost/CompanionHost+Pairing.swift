@@ -18,16 +18,20 @@ extension CompanionHost {
         let payload = PairingPayload(
             hostName: hostName, keys: identity.publicKeys, endpoints: endpoints(), secret: secret)
         pairing = payload
+        openRoom(until: secret.expiresAt)
         logger.info("companion pairing open until \(secret.expiresAt, privacy: .public)")
         return payload
     }
 
-    /// Takes the code down. A device that has not finished its handshake by now is refused.
+    /// Takes the code down, and shuts the relay room with it. A device that has not finished its
+    /// handshake by now is refused.
     public func endPairing() {
         secret = nil
         pairing = nil
         pairingFailures = 0
+        shutRoom()
     }
+
 
     /// One device answered the code wrongly.
     ///
@@ -57,19 +61,6 @@ extension CompanionHost {
     /// Whether a device's static keys are ones this Mac has already agreed to.
     func isKnown(_ keys: DevicePublicKeys) -> Bool {
         devices.contains { $0.keys == keys }
-    }
-
-    /// The signing keys the relay admits a guest out of.
-    ///
-    /// Every paired device, the most recently seen first, and at most `RelayJoin.allowLimit` of
-    /// them, which is all the relay will take: a Mac with more phones than that admits the ones
-    /// actually in use rather than whichever the keychain happened to list first. An empty list
-    /// admits nobody, which is what a Mac that has paired nothing should do.
-    public var relayAllowList: [Data] {
-        devices
-            .sorted { ($0.lastSeen ?? $0.pairedAt) > ($1.lastSeen ?? $1.pairedAt) }
-            .prefix(RelayJoin.allowLimit)
-            .map(\.keys.signing)
     }
 
     /// Records a device the handshake has just paired, and takes the code down.

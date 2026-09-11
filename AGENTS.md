@@ -279,7 +279,11 @@ relay gives a host one socket and a frame on it carries no guest id. Several
 phones at once is a LAN feature. The relay admits a guest only when its signing
 key is on the host's allow-list: the host's `join` carries it (`allow`, at most
 `RelayJoin.allowLimit`, from `CompanionHost.relayAllowList`) and an `allow`
-message replaces it whenever a pairing completes or is revoked. A `peer joined`
+message replaces it whenever a pairing completes or is revoked. Both messages also
+carry `open`, written only when true, which `CompanionHost.relayOpen` raises while
+a pairing code is on screen and drops the moment it goes: a phone pairing for the
+first time is on no list, and an open room buys it a handshake the Mac still
+refuses unless it can answer the code. A `peer joined`
 over a live session is that guest's own announcement arriving late and never ends
 it; only a `peer left` or the road going does.
 

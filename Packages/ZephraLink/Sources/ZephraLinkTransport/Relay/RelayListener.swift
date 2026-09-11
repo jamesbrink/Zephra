@@ -62,9 +62,10 @@ public final class RelayListener: LinkListener, @unchecked Sendable {
         continuation.finish()
     }
 
-    /// Replaces the set of guests the relay will admit into this room.
-    public func updateAllowList(_ keys: [Data]) async {
-        await host.updateAllowList(keys)
+    /// Replaces the set of guests the relay will admit into this room, and says whether the room
+    /// is open to a guest on no list — which it is exactly while a pairing code is on screen.
+    public func updateAllowList(_ keys: [Data], open: Bool = false) async {
+        await host.updateAllowList(keys, open: open)
     }
 
     /// A guest arrived or went.

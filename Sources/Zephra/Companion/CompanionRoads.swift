@@ -33,15 +33,21 @@ final class CompanionRoads {
     /// Opens every road this launch should listen on, closing whatever was open first.
     ///
     /// `allowing` is what the relay admits a guest out of: the paired devices' signing keys, read
-    /// afresh every time the host's list moves. The local road needs none — a phone on the same
-    /// network is refused by the handshake it cannot complete.
-    func open(relay: URL?, allowing: @escaping @MainActor () -> [Data]) async -> [any LinkListener] {
+    /// afresh every time the host's list moves. `openWhilePairing` is the other half — a phone
+    /// pairing for the first time is on no list, so the room says it is open for as long as the
+    /// code is on screen. The local road needs neither: a phone on the same network is refused by
+    /// the handshake it cannot complete.
+    func open(
+        relay: URL?, allowing: @escaping @MainActor () -> [Data],
+        openWhilePairing: @escaping @MainActor () -> Bool
+    ) async -> [any LinkListener] {
         await close()
         guard let identity else { return [] }
         var roads: [any LinkListener] = []
         if let local = await openLocal(identity: identity) { roads.append(local) }
         if let relay {
-            let road = RelayRoad(url: relay, identity: identity, allowed: allowing)
+            let road = RelayRoad(
+                url: relay, identity: identity, allowed: allowing, opened: openWhilePairing)
             road.start()
             roads.append(road)
         }
