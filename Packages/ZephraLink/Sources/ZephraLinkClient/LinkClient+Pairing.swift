@@ -46,8 +46,18 @@ extension LinkClient {
     }
 
     /// A refusal, shown and thrown: the person is owed the Mac's own sentence.
+    ///
+    /// The Mac answers a device it will not talk to with one sentence, the same one whether the
+    /// key is unknown or the code has come down — deliberately, so an unpaired peer learns
+    /// nothing else. On the pairing screen that sentence is true and not much use, so the thing
+    /// to check is added to it here, where we know a code was being read.
     private func refused(_ refusal: LinkError) -> LinkError {
-        connection = .failed(refusal.reason)
-        return refusal
+        let shown = refusal.code == .notPaired
+            ? LinkError(
+                code: .notPaired,
+                reason: "\(refusal.reason) Check that the code is still showing on your Mac.")
+            : refusal
+        connection = .failed(shown.reason)
+        return shown
     }
 }

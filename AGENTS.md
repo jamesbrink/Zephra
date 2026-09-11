@@ -241,7 +241,9 @@ Full detail: `docs/architecture.md`.
 talk to this Mac over: two frame kinds, a state snapshot and its deltas, the
 commands a phone may send, a Noise-style handshake on CryptoKit with an AES-GCM
 channel counted per direction, the QR pairing payload, and the relay's routing
-JSON. No transport and no interface are in it, so both ends are tested in
+JSON. Every way the responder turns a device away before it is authenticated is
+the same `LinkError.notPaired` and the same sentence, which names no Mac and does
+not say whether a code is on screen: two answers there were two oracles. No transport and no interface are in it, so both ends are tested in
 milliseconds without a socket. Nothing links it yet.
 
 Three rules it is built on. A preview frame never rides inside a state update —

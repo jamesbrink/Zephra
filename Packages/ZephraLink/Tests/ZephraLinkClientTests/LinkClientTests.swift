@@ -33,6 +33,22 @@ struct LinkClientTests {
         #expect(bed.client.connection == .failed(LinkError.notPaired.reason))
     }
 
+    @Test("a Mac with no code up says only that it has not paired this phone, plus what to check")
+    func pairingWithNoCodeUpSaysWhatToCheck() async throws {
+        // The Mac's answer is the same sentence whether the key is unknown or the code has come
+        // down — deliberately. The pairing screen adds the half a person can act on.
+        let bed = LinkClientUnderTest(secret: nil)
+        defer { Task { await bed.host.stop() } }
+        await #expect(throws: LinkError.self) { try await bed.client.pair(with: bed.pairingCode()) }
+
+        guard case .failed(let shown) = bed.client.connection else {
+            return #expect(Bool(false), "a refused pairing is a failed connection")
+        }
+        #expect(shown.hasPrefix(LinkError.notPaired.reason))
+        #expect(shown.contains("Check that the code is still showing on your Mac"))
+        #expect(bed.client.pairedHost == nil)
+    }
+
     @Test("a code past its time is refused before any road is opened")
     func expiredCodeIsRefused() async throws {
         let bed = LinkClientUnderTest()

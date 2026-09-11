@@ -63,6 +63,9 @@ public final class CompanionSession: Identifiable {
     /// Whether the handshake is behind it: `channel` is what says the plaintext stage is over.
     var isAuthenticated: Bool { channel != nil }
 
+    /// Whether the clock on the plaintext stage is still running.
+    var isOnTheHandshakeClock: Bool { deadline != nil }
+
     /// Starts the two tasks — bytes out, frames in — and the clock on the handshake.
     func start() {
         writer = Self.writerTask(connection: connection, outbound: outbound, session: self)

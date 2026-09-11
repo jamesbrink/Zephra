@@ -60,7 +60,46 @@ struct HandshakeTests {
         let initiator = HandshakeInitiator(
             identity: DeviceIdentity(), peer: DeviceIdentity().publicKeys,
             pairingSecret: PairingSecret().bytes, deviceName: "Test Phone")
-        #expect(throws: LinkError.refused) { try responder.receive(initiator.hello()) }
+        #expect(throws: LinkError.notPaired) { try responder.receive(initiator.hello()) }
+    }
+
+    @Test("Every way a device is turned away before it is known gets the same answer")
+    func theRefusalIsOneAnswer() throws {
+        // Two answers here were two oracles. A `pairing: false` hello told apart a guessed key
+        // from a real one; a `pairing: true` hello told whether somebody was at the Mac pairing
+        // right now. What an unpaired peer may learn is one sentence.
+        let mac = DeviceIdentity()
+        func refusal(pairing: Bool, codeOnScreen: Bool, known: Bool) -> LinkError? {
+            let responder = HandshakeResponder(
+                identity: mac, isKnown: { _ in known },
+                pairingSecret: codeOnScreen ? PairingSecret().bytes : nil)
+            let initiator = HandshakeInitiator(
+                identity: DeviceIdentity(), peer: mac.publicKeys,
+                pairingSecret: pairing ? PairingSecret().bytes : nil, deviceName: "Test Phone")
+            do {
+                _ = try responder.receive(initiator.hello())
+                return nil
+            } catch {
+                return error as? LinkError
+            }
+        }
+        #expect(refusal(pairing: false, codeOnScreen: false, known: false) == .notPaired)
+        #expect(refusal(pairing: false, codeOnScreen: true, known: false) == .notPaired)
+        #expect(refusal(pairing: true, codeOnScreen: false, known: false) == .notPaired)
+        #expect(refusal(pairing: true, codeOnScreen: false, known: true) == .notPaired)
+        #expect(
+            refusal(pairing: true, codeOnScreen: true, known: false) == nil,
+            "a code on screen is what a request to pair is answered by")
+    }
+
+    @Test("The refusal names no Mac, no model and no person")
+    func theRefusalNamesNothing() {
+        // It goes out in the clear, before anything has been authenticated, so every word in it
+        // is a word anyone who can reach the port may read.
+        let reason = LinkError.notPaired.reason
+        #expect(reason == "This Mac has not paired this phone.")
+        #expect(!reason.contains("Zephra"))
+        #expect(reason.split(separator: " ").count < 8)
     }
 
     @Test("A device the Mac does not know is turned away when it is not pairing")

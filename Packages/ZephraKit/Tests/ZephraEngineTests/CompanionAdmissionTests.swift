@@ -65,16 +65,29 @@ struct CompanionAdmissionTests {
         await bed.shutdown()
     }
 
-    @Test("a phone that finishes its handshake is not closed out by that clock")
+    @Test("a phone that finishes its handshake stops that clock rather than racing it")
     func aFinishedHandshakeStopsTheClock() async throws {
         let bed = CompanionTestBed()
-        bed.host.handshakeDeadline = .milliseconds(20)
         let phone = try await bed.pairedPhone()
         _ = try await phone.snapshot()
-        try await Task.sleep(for: .milliseconds(60))
 
-        #expect(bed.host.sessions.count == 1)
-        #expect(bed.host.sessions.first?.isReady == true)
+        let session = try #require(bed.host.sessions.first)
+        #expect(session.isAuthenticated)
+        #expect(!session.isOnTheHandshakeClock, "the clock is cancelled, not merely outrun")
+        await bed.shutdown()
+    }
+
+    @Test("a connection that has said nothing is still on that clock")
+    func silenceIsStillOnTheClock() async throws {
+        let bed = CompanionTestBed()
+        bed.host.handshakeDeadline = .seconds(30)
+        let (macSide, _) = MemoryLinkConnection.pair()
+        bed.listener.offer(macSide)
+        try await bed.waitUntil { bed.host.sessions.count == 1 }
+
+        let session = try #require(bed.host.sessions.first)
+        #expect(!session.isAuthenticated)
+        #expect(session.isOnTheHandshakeClock)
         await bed.shutdown()
     }
 }

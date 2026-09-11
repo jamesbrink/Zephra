@@ -15,8 +15,9 @@ struct LinkClientUnderTest {
     /// What the phone keeps between launches.
     let store: MemoryLinkKeyStore
 
-    /// A phone that has never paired, and a Mac showing a pairing code.
-    init(secret: Data = Data(repeating: 9, count: PairingSecret.byteCount)) {
+    /// A phone that has never paired, and a Mac showing a pairing code — or, with a nil secret,
+    /// one showing none.
+    init(secret: Data? = Data(repeating: 9, count: PairingSecret.byteCount)) {
         host = FakeHost(pairingSecret: secret)
         store = MemoryLinkKeyStore()
         client = LinkClient(store: store, roads: Self.roads(to: host), deviceName: "A Phone")

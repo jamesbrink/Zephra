@@ -6,6 +6,13 @@ import Foundation
 /// Two questions, kept apart. Whether this device is allowed at all is `isKnown` and the live
 /// pairing secret, answered before any key is derived. Whether it is who it says it is, is the
 /// tag on the `Confirm`, answered after.
+///
+/// The first question has exactly one answer, `LinkError.notPaired`, whichever way it failed.
+/// Two answers were two oracles to anyone who could reach the port: a `pairing: false` hello
+/// with a guessed static key was told `notPaired` while a real one was answered, which turns a
+/// knock into "is this key paired with this Mac"; and a `pairing: true` hello was told `refused`
+/// only while no code was up, which turns a knock into "is somebody at that Mac pairing right
+/// now". An unpaired peer learns one thing: this Mac has not paired this phone.
 public final class HandshakeResponder {
     private let identity: DeviceIdentity
     private let isKnown: @Sendable (DevicePublicKeys) -> Bool
@@ -32,7 +39,7 @@ public final class HandshakeResponder {
     public func receive(_ hello: Hello) throws -> Accept {
         guard hello.version == LinkProtocolVersion.current else { throw LinkError.protocolMismatch }
         if hello.pairing {
-            guard pairingSecret != nil else { throw LinkError.refused }
+            guard pairingSecret != nil else { throw LinkError.notPaired }
         } else {
             guard isKnown(hello.keys) else { throw LinkError.notPaired }
         }

@@ -113,9 +113,21 @@ a Curve25519 signing private key, 64 bytes together, kept in the keychain so a
 relaunch is the same device and not a new one.
 
 The responder decides who may talk to it before it derives any key. A `hello`
-with `pairing` set needs a live pairing secret or it is `refused`; one without
-needs a static key the Mac already knows or it is `notPaired`; a version that is
-not `LinkProtocolVersion.current` is `protocolMismatch`.
+with `pairing` set needs a live pairing secret; one without needs a static key
+the Mac already knows; a version that is not `LinkProtocolVersion.current` is
+`protocolMismatch`.
+
+**Every way it is turned away is the same answer**, `LinkError.notPaired` and
+the one sentence "This Mac has not paired this phone." Two answers were two
+oracles to anybody who could reach the port: a `pairing: false` hello was told
+`notPaired` for a key the Mac does not know and answered for one it does, which
+turns a knock into "is this key paired with this Mac"; and a `pairing: true`
+hello was told `refused` only while no code was up, which turns a knock into "is
+somebody at that Mac pairing right now". The refusal goes out in the clear,
+before anything is authenticated, so every word in it is a word anyone can read:
+it names no Mac, no model and no person. The phone's pairing screen adds the half
+a person can act on — "Check that the code is still showing on your Mac" — in
+`LinkClient+Pairing`, where a code is known to have been read.
 
 **Key schedule.** Four Diffie-Hellman results are concatenated as
 `ee || es || se || ss`, naming them from the initiator's side. Mixing all four
@@ -329,6 +341,18 @@ the hash of the Mac's signing key, and `v`, the protocol version, on
 `_zephra._tcp`. The room is in the record so a phone that has paired already
 knows which of several Macs is its own before it opens a connection to any of
 them.
+
+**The room in the record is public, and that is acceptable.** Anyone on the local
+network can read it, and the room is where the relay would route a guest — so
+before the allow-list, knowing it was most of what taking a Mac's relay slot
+needed. It is not any more: the relay admits a guest only when its signing key is
+one the Mac has paired, so the room's name buys a refusal. The record is a
+per-device name and never the Mac's model or the person's name; it is published
+only while the local road is open, which is a switch that is off until asked for.
+What is left is that the same Mac is recognisable on a network across time, which
+is true of every Bonjour service on it, and the alternative — a rotating name —
+costs a paired phone the ability to find the Mac again, which is the whole point
+of the record.
 
 `BonjourBrowser` hands back the whole list every time rather than a stream of
 arrivals and departures, and `DiscoveredHost` keeps the endpoint as the service

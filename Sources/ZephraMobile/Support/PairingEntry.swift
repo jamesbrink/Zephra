@@ -66,6 +66,8 @@ enum PairingEntry {
         case .timedOut: return "Your Mac did not answer in time."
         case .unexpectedMessage, .unexpectedReply:
             return "Your Mac answered with something this version of Zephra does not understand."
+        case .tooManyTransfers:
+            return "Your Mac was sending too many pictures at once. Try that again."
         }
     }
 }
