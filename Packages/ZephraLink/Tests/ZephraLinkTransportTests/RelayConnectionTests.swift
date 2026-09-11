@@ -59,6 +59,34 @@ struct RelayConnectionTests {
         #expect(await events.next() == .joined)
     }
 
+    @Test("the relay's three refusals of a guest are told apart")
+    func refusalsAreToldApart() {
+        // `not allowed` is about this device and is the sentence a person is shown; the other two
+        // are about the moment and are worth another attempt after a wait.
+        #expect(RelayError.refused("not allowed").refusalToShow == LinkError.notPaired)
+        #expect(!RelayError.refused("not allowed").isTemporary)
+        #expect(RelayError.refused("no host").isTemporary)
+        #expect(RelayError.refused("room busy").isTemporary)
+        #expect(RelayError.refused("no host").refusalToShow == nil)
+        #expect(RelayError.refused("room busy").refusalToShow == nil)
+        #expect(!RelayError.refused("bad signature").isTemporary)
+        #expect(RelayError.refused("bad signature").refusalToShow == nil)
+        #expect(!RelayError.closed.isTemporary)
+    }
+
+    @Test("a guest sends no allow-list, whatever it is told to admit")
+    func aGuestSendsNoAllowList() async throws {
+        let relay = try FakeRelay()
+        defer { relay.stop() }
+        let identity = DeviceIdentity()
+        let road = RelayConnection(
+            url: try await relay.start(), identity: identity, room: identity.roomID, role: .guest)
+        defer { Task { await road.close() } }
+        await road.updateAllowList([Data(repeating: 4, count: 32)])
+        try await road.start()
+        #expect(relay.allowList == nil)
+    }
+
     @Test("a frame before the room is joined is refused rather than sent")
     func sendBeforeJoin() async throws {
         let relay = try FakeRelay()

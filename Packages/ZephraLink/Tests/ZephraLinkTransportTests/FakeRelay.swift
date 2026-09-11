@@ -16,8 +16,12 @@ final class FakeRelay: @unchecked Sendable {
     private var client: NWConnection?
     private var nonce = Data()
     private let refusal: String?
+    private var allow: [Data]?
     /// The room the last good join asked for, which is what a test checks the signature bought.
     private(set) var joinedRoom: RoomID?
+
+    /// The allow-list this relay last heard, from the join or from an `allow` after it.
+    var allowList: [Data]? { lock.withLock { allow } }
 
     /// A relay that lets a well-signed join in, or one that refuses every join with `refusing`.
     init(refusing: String? = nil) throws {
@@ -73,8 +77,11 @@ final class FakeRelay: @unchecked Sendable {
             let fresh = Data((0..<RelayJoin.nonceByteCount).map { _ in UInt8.random(in: 0...255) })
             lock.withLock { nonce = fresh }
             send(.challenge(nonce: fresh), to: connection)
-        case .join(let room, let publicKey, let role, let signature):
+        case .join(let room, let publicKey, let role, let signature, let allow):
+            lock.withLock { self.allow = allow }
             send(verdict(room, publicKey, role, signature), to: connection)
+        case .allow(let pubs):
+            lock.withLock { allow = pubs }
         case .send(let payload):
             send(.send(payload: payload), to: connection)
         case .ping:

@@ -9,18 +9,47 @@ import ZephraLinkProtocol
 struct RelayHandshakeTests {
     private let identity = DeviceIdentity()
 
-    @Test("a challenge is answered with a join signed over it")
+    @Test("a challenge is answered with a join signed over it, carrying the allow-list")
     func challengeIsSigned() throws {
         let handshake = RelayHandshake(identity: identity, room: identity.roomID, role: .host)
         let nonce = Data(repeating: 7, count: RelayJoin.nonceByteCount)
-        guard case .send(.join(let room, let publicKey, let role, let signature)) =
-            try handshake.receive(.challenge(nonce: nonce))
+        let phone = DeviceIdentity().publicKeys.signing
+        guard case .send(.join(let room, let publicKey, let role, let signature, let allow)) =
+            try handshake.receive(.challenge(nonce: nonce), allow: [phone])
         else { return #expect(Bool(false), "a challenge asks for a join") }
         #expect(room == identity.roomID)
         #expect(role == .host)
         #expect(publicKey == identity.publicKeys.signing)
+        #expect(allow == [phone])
         #expect(RelayJoin.verify(
             publicKey: publicKey, nonce: nonce, room: room, role: role, signature: signature))
+    }
+
+    @Test("a guest's join carries no allow-list, whatever it is handed")
+    func aGuestCarriesNoAllowList() throws {
+        let handshake = RelayHandshake(identity: identity, room: identity.roomID, role: .guest)
+        guard case .send(.join(_, _, _, _, let allow)) = try handshake.receive(
+            .challenge(nonce: Data(repeating: 7, count: RelayJoin.nonceByteCount)),
+            allow: [DeviceIdentity().publicKeys.signing])
+        else { return #expect(Bool(false), "a challenge asks for a join") }
+        #expect(allow == nil)
+    }
+
+    @Test("a host that has paired nothing sends an empty list, which admits nobody")
+    func aHostWithNoPairingsSendsAnEmptyList() throws {
+        let handshake = RelayHandshake(identity: identity, room: identity.roomID, role: .host)
+        guard case .send(.join(_, _, _, _, let allow)) = try handshake.receive(
+            .challenge(nonce: Data(repeating: 7, count: RelayJoin.nonceByteCount)))
+        else { return #expect(Bool(false), "a challenge asks for a join") }
+        #expect(allow == [])
+    }
+
+    @Test("an allow-list from the relay is out of turn: only a host sends one")
+    func anAllowListFromTheRelayIsOutOfTurn() throws {
+        let handshake = RelayHandshake(identity: identity, room: identity.roomID, role: .host)
+        #expect(throws: RelayError.unexpected(.allow)) {
+            try handshake.receive(.allow(pubs: []))
+        }
     }
 
     @Test("the room is joined when the relay says so")

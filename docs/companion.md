@@ -189,17 +189,35 @@ field names below are the relay's own and not ours.
 
 A room is the lowercase hex of the first 16 bytes of `SHA-256` over the raw
 32-byte Ed25519 public key — `RoomID(signingPublicKey:)`, the one place that rule
-lives. The relay checks that the key hashes to the room **for a host only**. A
-guest signs with its own key and is let in, because the host will refuse an
-unknown static in the handshake the relay cannot read.
+lives. The relay checks that the key hashes to the room **for a host only**.
+
+**A guest is admitted only off the host's allow-list.** The host's `join` carries
+`allow`, the raw signing key of every device it has paired, and the relay lets a
+guest in only when the key it signed with is one of them — and only when no other
+guest holds the room. Before that check existed, any device that could sign for
+any key was let into any room it knew the name of, and the room's name is in a
+Bonjour TXT record; the host's refusal of an unknown static came one handshake
+too late to stop it taking the room. The list is `RelayJoin.allowLimit` keys at
+most, which `CompanionHost.relayAllowList` orders by what was last seen, and the
+relay refuses a longer one as `bad allow`. An absent or empty list admits nobody.
+
+The set moves while the socket is up — a pairing completes, a device is revoked —
+so `{"a":"allow","pubs":[...]}` replaces it, and the relay answers
+`{"a":"allowed","count":N}`, which `RelayConnection` swallows with a debug line.
+It governs **future joins only**: it does not evict a guest already in the room,
+so a revoke still closes that guest's own session with `revoked`, which is what
+`CompanionHost.revoke` has always done.
 
 ### The sequence
 
 ```
 client -> relay  {"a":"hello"}
 relay  -> client {"a":"challenge","n":"<base64, 32 random bytes>"}
-client -> relay  {"a":"join","room":"<32 hex>","pub":"<base64 key>","role":"host","sig":"<base64>"}
+client -> relay  {"a":"join","room":"<32 hex>","pub":"<base64 key>","role":"host","sig":"<base64>",
+                  "allow":["<base64 raw pub>", ...]}          allow: a host's, and at most 16
 relay  -> client {"a":"joined","role":"host"}          or  {"a":"error","reason":"..."}
+host   -> relay  {"a":"allow","pubs":["<base64 raw pub>", ...]}   when the paired set moves
+relay  -> host   {"a":"allowed","count":2}
 client -> relay  {"a":"send","d":"<base64 sealed frame>"}
 relay  -> client {"a":"peer","event":"joined"}          when the other end arrives
 client -> relay  {"a":"ping"}   relay -> client {"a":"pong"}
@@ -221,8 +239,19 @@ every guest, a guest leaving notifies the host — and both say `left`.
 An `error` during the handshake, or on a frame from a connection that has not
 joined, is followed by the relay closing the connection. An error on a joined
 connection leaves it open. The handshake's reasons are `malformed`, `bad room`,
-`bad role`, `bad key`, `no challenge`, `challenge expired`, `bad signature` and
-`room does not match key`.
+`bad role`, `bad key`, `no challenge`, `challenge expired`, `bad signature`,
+`room does not match key`, `bad allow`, and the three a guest may meet: `no host`
+(the Mac is not in its room), `room busy` (its one guest slot is taken) and `not
+allowed` (this device is not on the list). A joined connection may also be told
+`not host` (a guest sent an `allow`), `bad allow`, `malformed` or `unknown
+action`, and stays open.
+
+`RelayError` tells the guest's three apart, and `NetworkLinkRoads.connectRelay`
+is where that turns into behaviour: `no host` and `room busy` are about the
+moment and read as unreachable, so the phone waits on `LinkBackoff` and tries
+again; `not allowed` is about this device and becomes `LinkError.notPaired`,
+whose one sentence the person is shown, and the walk of the roads stops there.
+A guest's `send` before the host is in the room is not forwarded.
 
 ### The signature
 
@@ -315,12 +344,18 @@ channel above a stream with a hole in it.
 the TCP one, so the Mac's session code is the same over either road, but with a
 limit the local network does not have. The relay gives a host one connection and
 a frame on it carries no guest id, so two phones at once would be one interleaved
-stream that no channel could open. A `peer joined` ends the session before it and
-yields a fresh `LinkConnection`; a `peer left` finishes the current one. Several
-phones at once is a LAN feature; over the relay it is one, and per-guest
-multiplexing is in `ROADMAP.md`. A frame that arrives with no session behind it
-opens one, because the relay's connection index is eventually consistent and a
-guest's first frame can beat the `peer joined` that announces it.
+stream that no channel could open. Several phones at once is a LAN feature; over
+the relay it is one, and per-guest multiplexing is in `ROADMAP.md`.
+
+A frame that arrives with no session behind it opens one, because the relay's
+connection index is eventually consistent and a guest's first frame can beat the
+`peer joined` that announces it. Which is why a `peer joined` over a session that
+is already up **leaves it alone**: the relay admits one allow-listed guest at a
+time, so that announcement is the one already talking catching up with its own
+first frame, and closing the session on it would tear the handshake that frame
+began in half. A session stands until a `peer left`, or until the host's own road
+goes. `updateAllowList(_:)` is on the listener too, and rides in the join when it
+is called before `start()`.
 
 **Reconnecting** is the caller's job, not the road's — the phone's client on one
 side, and `RelayRoad` in the Mac app on the other, which rejoins its room when
@@ -394,7 +429,10 @@ that is up, loopback and link-local left out. `CompanionRoads` opens the roads a
 remembers the port the local one actually took, since 7723 may be held by
 something else and a code has to name where the listener really is. `RelayRoad` is
 one `LinkListener` that outlives the sockets under it, rejoining the room on
-`LinkBackoff` so the host is served once rather than once per reconnection.
+`LinkBackoff` so the host is served once rather than once per reconnection, and
+carrying the allow-list: it reads `CompanionHost.relayAllowList` inside a
+`withObservationTracking` loop, hands it to each listener before that listener
+joins, and sends an `allow` to the join already up whenever the paired set moves.
 
 **Settings > Companion** is the fourth tab. Two switches, deliberately apart:
 one opens the local road and puts the Mac on Bonjour, the other lets a phone

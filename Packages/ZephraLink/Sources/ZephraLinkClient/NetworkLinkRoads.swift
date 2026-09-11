@@ -52,13 +52,22 @@ public final class NetworkLinkRoads: LinkRoads, @unchecked Sendable {
         return road
     }
 
+    /// The relay, whose three refusals of a guest mean three different things to the phone.
+    ///
+    /// `not allowed` is about this device — the Mac has not paired it, or has revoked it — so it
+    /// becomes the `LinkError` a person is shown and the walk of the roads stops. `no host` and
+    /// `room busy` are about the moment: the Mac is asleep, or its one guest slot is still held
+    /// by a session that has not finished going. Those read as unreachable, which is what the
+    /// caller waits on `LinkBackoff` and tries again after.
     public func connectRelay(room: RoomID) async throws -> any LinkConnection {
         let road = RelayConnection(url: relayURL, identity: identity, room: room, role: .guest)
         do {
             try await road.start()
         } catch {
             await road.close()
-            throw error
+            guard let refusal = error as? RelayError else { throw error }
+            if let shown = refusal.refusalToShow { throw shown }
+            throw refusal.isTemporary ? LinkClientError.unreachable : refusal
         }
         return road
     }

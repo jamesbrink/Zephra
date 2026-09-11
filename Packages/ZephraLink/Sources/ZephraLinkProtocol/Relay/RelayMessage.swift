@@ -3,8 +3,9 @@ import Foundation
 /// What a device and the relay say to each other.
 ///
 /// The relay never sees inside a `send`: its payload is one sealed frame, and the relay has no
-/// key. All it does is check that a joiner holds the private key for the room it asks for, and
-/// then copy bytes between the two ends.
+/// key. What it does is check that a joiner holds the private key it claims, that a host's key
+/// hashes to the room, that a guest is on the host's allow-list, and then copy bytes between the
+/// two ends.
 ///
 /// JSON, because API Gateway's WebSocket API carries text frames: a binary protocol would need
 /// a second encoding anyway. The discriminator is `a`, for action, and it is the only field
@@ -16,9 +17,18 @@ public enum RelayMessage: Hashable, Sendable {
     /// seconds; a second `hello` replaces it.
     case challenge(nonce: Data)
     /// A device asking to join a room, proving it may.
-    case join(room: RoomID, publicKey: Data, role: RelayRole, signature: Data)
+    ///
+    /// `allow` is the host's alone: every paired device's raw signing key, which is the set the
+    /// relay admits a guest out of. Nil from a guest, and nil from a host that has paired
+    /// nothing, which admits nobody.
+    case join(room: RoomID, publicKey: Data, role: RelayRole, signature: Data, allow: [Data]? = nil)
     /// The relay let it in, as this role.
     case joined(role: RelayRole)
+    /// The host replacing its allow-list, because a device was paired or revoked. Nothing else
+    /// may send one: a guest that tries is told `not host`.
+    case allow(pubs: [Data])
+    /// The relay's receipt for an `allow`, saying how many keys it now holds.
+    case allowed(count: Int)
     /// The relay refused. Before a join it closes the connection after this; after a join it
     /// does not.
     case error(reason: String)
@@ -33,7 +43,7 @@ public enum RelayMessage: Hashable, Sendable {
 
     /// The tag, which is also the case name.
     public enum Action: String, Codable, Hashable, Sendable, CaseIterable {
-        case hello, challenge, join, joined, error, send, peer, ping, pong
+        case hello, challenge, join, joined, allow, allowed, error, send, peer, ping, pong
     }
 
     /// Which message this is, without decoding its payload.
@@ -43,6 +53,8 @@ public enum RelayMessage: Hashable, Sendable {
         case .challenge: .challenge
         case .join: .join
         case .joined: .joined
+        case .allow: .allow
+        case .allowed: .allowed
         case .error: .error
         case .send: .send
         case .peer: .peer

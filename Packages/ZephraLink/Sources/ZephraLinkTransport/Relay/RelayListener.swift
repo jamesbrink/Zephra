@@ -7,8 +7,13 @@ import os
 /// A `LinkListener` like the TCP one, so the Mac's session code is the same over either road,
 /// but with a limit the local network does not have. The relay gives a host one connection and
 /// a frame on it carries no guest id, so two phones at once would be one interleaved stream
-/// that no channel could open. A `peer joined` ends the session before it and starts a fresh
-/// one; the local network is where several phones may connect at once.
+/// that no channel could open. The local network is where several phones may connect at once.
+///
+/// The relay admits one allow-listed guest at a time, so a `joined` while a session is live is
+/// never a second phone: it is the announcement of the one already talking, arriving after its
+/// first frame because the relay's connection index is eventually consistent. Ending the live
+/// session on it would tear down the handshake that frame began, so the session stands until a
+/// `left`, or until the road under it goes.
 public final class RelayListener: LinkListener, @unchecked Sendable {
     private let host: RelayConnection
     private let logger = Logger(subsystem: "io.zephra", category: "link.relay")
@@ -57,10 +62,24 @@ public final class RelayListener: LinkListener, @unchecked Sendable {
         continuation.finish()
     }
 
+    /// Replaces the set of guests the relay will admit into this room.
+    public func updateAllowList(_ keys: [Data]) async {
+        await host.updateAllowList(keys)
+    }
+
     /// A guest arrived or went.
+    ///
+    /// A `joined` over a session that is already up is the announcement of that same guest
+    /// catching up with its own first frame, so it is left alone.
     private func peerChanged(_ event: RelayPeerEvent) {
         switch event {
-        case .joined: continuation.yield(beginSession())
+        case .joined:
+            let opened = openSession()
+            if opened.isNew {
+                continuation.yield(opened.session)
+            } else {
+                logger.notice("A guest was announced over the relay after its own first frame.")
+            }
         case .left: lock.withLock { defer { session = nil }; return session }?.end(nil)
         }
     }
@@ -71,28 +90,24 @@ public final class RelayListener: LinkListener, @unchecked Sendable {
     /// consistent, so a guest's first frame can beat the `peer joined` that announces it, and
     /// dropping that frame would lose a handshake's hello.
     private func deliver(_ frame: Data) {
-        let current = lock.withLock { session }
-        if let current {
-            current.deliver(frame)
-        } else {
-            let opened = beginSession()
-            continuation.yield(opened)
-            opened.deliver(frame)
-        }
+        let opened = openSession()
+        if opened.isNew { continuation.yield(opened.session) }
+        opened.session.deliver(frame)
     }
 
-    /// Closes whatever session is up and starts one in its place.
-    private func beginSession() -> RelayGuestSession {
-        let fresh = RelayGuestSession(host: host)
-        let previous = lock.withLock { () -> RelayGuestSession? in
-            defer { session = fresh }
-            return session
+    /// The session up right now, opening one where there is none.
+    ///
+    /// One take of the lock rather than a read and then a write: the frames pump and the peers
+    /// pump are two tasks, and both can find the room empty at the same instant. Whichever makes
+    /// the session says so, and only that one is yielded, so the host is never handed two
+    /// connections for one guest.
+    private func openSession() -> (session: RelayGuestSession, isNew: Bool) {
+        lock.withLock {
+            if let session { return (session, false) }
+            let fresh = RelayGuestSession(host: host)
+            session = fresh
+            return (fresh, true)
         }
-        if previous != nil {
-            logger.notice("A second guest joined over the relay; the one before it was closed.")
-        }
-        previous?.end(nil)
-        return fresh
     }
 
     /// The host's own road stopped, which ends the guest with it.

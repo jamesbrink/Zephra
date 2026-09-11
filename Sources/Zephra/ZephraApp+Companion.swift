@@ -59,9 +59,12 @@ extension ZephraApp {
             await host.stop()
             await roads.close()
             guard AppSettings.flag(AppSettings.companionEnabled) else { return }
-            for road in await roads.open(relay: AppSettings.companionRelay()) {
-                host.serve(road)
-            }
+            // Weakly, because the host holds every listener it is served and the relay road
+            // reads the host's paired devices: a strong closure would be a cycle.
+            let opened = await roads.open(
+                relay: AppSettings.companionRelay(),
+                allowing: { [weak host] in host?.relayAllowList ?? [] })
+            for road in opened { host.serve(road) }
         }
     }
 

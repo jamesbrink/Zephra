@@ -260,7 +260,12 @@ lifetime. `RelayConnection` speaks the relay's JSON over a
 `URLSessionWebSocketTask` and never reconnects itself — a reconnection is a whole
 new handshake — and `RelayListener` serves **one guest at a time**, because the
 relay gives a host one socket and a frame on it carries no guest id. Several
-phones at once is a LAN feature.
+phones at once is a LAN feature. The relay admits a guest only when its signing
+key is on the host's allow-list: the host's `join` carries it (`allow`, at most
+`RelayJoin.allowLimit`, from `CompanionHost.relayAllowList`) and an `allow`
+message replaces it whenever a pairing completes or is revoked. A `peer joined`
+over a live session is that guest's own announcement arriving late and never ends
+it; only a `peer left` or the road going does.
 
 `ZephraLinkHost` (`Packages/ZephraKit`) is the Mac's side. `CompanionHost` is
 `@MainActor @Observable`: it owns the sessions, the paired devices and the

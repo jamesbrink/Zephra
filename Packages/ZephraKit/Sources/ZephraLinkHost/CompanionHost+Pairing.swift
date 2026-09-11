@@ -39,6 +39,19 @@ extension CompanionHost {
         devices.contains { $0.keys == keys }
     }
 
+    /// The signing keys the relay admits a guest out of.
+    ///
+    /// Every paired device, the most recently seen first, and at most `RelayJoin.allowLimit` of
+    /// them, which is all the relay will take: a Mac with more phones than that admits the ones
+    /// actually in use rather than whichever the keychain happened to list first. An empty list
+    /// admits nobody, which is what a Mac that has paired nothing should do.
+    public var relayAllowList: [Data] {
+        devices
+            .sorted { ($0.lastSeen ?? $0.pairedAt) > ($1.lastSeen ?? $1.pairedAt) }
+            .prefix(RelayJoin.allowLimit)
+            .map(\.keys.signing)
+    }
+
     /// Records a device the handshake has just paired, and takes the code down.
     ///
     /// One code pairs one phone. Leaving it up would mean a photograph of it taken across the

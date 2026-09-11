@@ -19,12 +19,17 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
     struct State {
         var isClosed = false
         var isJoined = false
+        /// The guests this host will admit, as raw signing keys. Empty for a guest, which sends
+        /// no list at all.
+        var allow: [Data] = []
         var reader: Task<Void, Never>?
         var pinger: Task<Void, Never>?
     }
 
     let task: URLSessionWebSocketTask
     let handshake: RelayHandshake
+    /// Which end of the room this is, which is what decides whether it carries an allow-list.
+    public let role: RelayRole
     let logger = Logger(subsystem: "io.zephra", category: "link.relay")
     let frameStream: AsyncThrowingStream<Data, Error>
     let frameContinuation: AsyncThrowingStream<Data, Error>.Continuation
@@ -41,6 +46,7 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
         session: URLSession = .shared
     ) {
         task = session.webSocketTask(with: url)
+        self.role = role
         handshake = RelayHandshake(identity: identity, room: room, role: role)
         (frameStream, frameContinuation) = AsyncThrowingStream.makeStream()
         (peerEvents, peerContinuation) = AsyncStream.makeStream()
@@ -56,7 +62,7 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
         try await write(handshake.opening)
         while true {
             let message = try await read()
-            switch try handshake.receive(message) {
+            switch try handshake.receive(message, allow: lock.withLock { state.allow }) {
             case .send(let answer): try await write(answer)
             case .ignore: continue
             case .joined:
@@ -68,6 +74,22 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
     }
 
     public func frames() -> AsyncThrowingStream<Data, Error> { frameStream }
+
+    /// Replaces the set of guests the relay will admit into this room.
+    ///
+    /// Kept here rather than handed in at `init` because the set moves while the socket is up: a
+    /// pairing completes, a device is revoked. Called before `start()` it is what the join
+    /// carries; called after, it goes as its own message. A guest sends none of this, and the
+    /// relay ignores an allow-list from anything but the host that owns the room.
+    public func updateAllowList(_ keys: [Data]) async {
+        let trimmed = Array(keys.prefix(RelayJoin.allowLimit))
+        let isLive = lock.withLock { () -> Bool in
+            state.allow = trimmed
+            return state.isJoined && !state.isClosed
+        }
+        guard isLive, role == .host else { return }
+        try? await write(.allow(pubs: trimmed))
+    }
 
     public func send(_ frame: Data) async throws {
         guard lock.withLock({ state.isJoined && !state.isClosed }) else { throw RelayError.closed }

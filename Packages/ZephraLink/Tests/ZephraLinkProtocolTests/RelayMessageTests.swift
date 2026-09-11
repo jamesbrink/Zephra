@@ -71,6 +71,8 @@ struct RelayMessageTests {
             try RelayJoin.message(
                 identity: mac, nonce: Self.nonce, room: mac.roomID, role: .host),
             .joined(role: .guest),
+            .allow(pubs: [Data(repeating: 0x03, count: 32)]),
+            .allowed(count: 2),
             .error(reason: "That room already has a host."),
             .send(payload: Data([1, 2, 3])),
             .peer(event: .joined),
@@ -96,9 +98,13 @@ struct RelayMessageTests {
             (.join(
                 room: RoomID(rawValue: "0123456789abcdef0123456789abcdef"),
                 publicKey: Data(repeating: 0x01, count: 4), role: .host,
-                signature: Data(repeating: 0x02, count: 4)),
-             #"{"a":"join","pub":"AQEBAQ==","role":"host","room":"0123456789abcdef0123456789abcdef","sig":"AgICAg=="}"#),
+                signature: Data(repeating: 0x02, count: 4),
+                allow: [Data(repeating: 0x03, count: 4)]),
+             #"{"a":"join","allow":["AwMDAw=="],"pub":"AQEBAQ==","role":"host","room":"0123456789abcdef0123456789abcdef","sig":"AgICAg=="}"#),
             (.joined(role: .host), #"{"a":"joined","role":"host"}"#),
+            (.allow(pubs: [Data(repeating: 0x03, count: 4)]),
+             #"{"a":"allow","pubs":["AwMDAw=="]}"#),
+            (.allowed(count: 2), #"{"a":"allowed","count":2}"#),
             (.error(reason: "challenge expired"),
              #"{"a":"error","reason":"challenge expired"}"#),
             (.send(payload: Data([0xAB])), #"{"a":"send","d":"qw=="}"#),
@@ -124,6 +130,53 @@ struct RelayMessageTests {
         #expect(json.allSatisfy { $0.isASCII })
         #expect(json.contains(#""room":"\#(mac.roomID.rawValue)""#))
         #expect(json.count < 300)
+    }
+
+    @Test("The allow-list rides in a host's join and never in a guest's")
+    func onlyAHostCarriesTheAllowList() throws {
+        let mac = DeviceIdentity()
+        let phone = DeviceIdentity()
+        let host = try RelayJoin.message(
+            identity: mac, nonce: Self.nonce, room: mac.roomID, role: .host,
+            allow: [phone.publicKeys.signing])
+        guard case .join(_, _, _, _, let allowed) = host else {
+            return #expect(Bool(false), "a host's join is a join")
+        }
+        #expect(allowed == [phone.publicKeys.signing])
+        let guest = try RelayJoin.message(
+            identity: phone, nonce: Self.nonce, room: mac.roomID, role: .guest,
+            allow: [phone.publicKeys.signing])
+        guard case .join(_, _, _, _, let none) = guest else {
+            return #expect(Bool(false), "a guest's join is a join")
+        }
+        #expect(none == nil)
+        #expect(!String(decoding: try LinkJSON.encode(guest), as: UTF8.self).contains("allow"))
+    }
+
+    @Test("An allow-list longer than the relay takes is trimmed rather than refused")
+    func theAllowListIsTrimmed() throws {
+        let mac = DeviceIdentity()
+        let keys = (0..<20).map { Data(repeating: UInt8($0), count: 32) }
+        guard case .join(_, _, _, _, let allowed) = try RelayJoin.message(
+            identity: mac, nonce: Self.nonce, room: mac.roomID, role: .host, allow: keys)
+        else { return #expect(Bool(false), "a join is a join") }
+        #expect(allowed?.count == RelayJoin.allowLimit)
+        #expect(allowed == Array(keys.prefix(RelayJoin.allowLimit)))
+    }
+
+    @Test("The signed bytes do not change when an allow-list rides beside them")
+    func theAllowListIsNotSigned() throws {
+        // The relay takes the list from the connection that has just proved it holds the room's
+        // key, so the signature covers the challenge and nothing else — as it did before.
+        let mac = DeviceIdentity()
+        guard case .join(_, _, _, let signature, _) = try RelayJoin.message(
+            identity: mac, nonce: Self.nonce, room: mac.roomID, role: .host,
+            allow: [Data(repeating: 7, count: 32)])
+        else { return #expect(Bool(false), "a join is a join") }
+        #expect(
+            RelayJoin.verify(
+                publicKey: mac.publicKeys.signing, nonce: Self.nonce, room: mac.roomID,
+                role: .host, signature: signature))
     }
 
     @Test("A challenge is thirty-two bytes and a minute long")

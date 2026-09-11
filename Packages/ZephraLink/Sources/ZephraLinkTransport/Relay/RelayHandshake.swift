@@ -36,11 +36,16 @@ public struct RelayHandshake: Sendable {
     /// A `send` or a `peer` before the join is out of turn rather than early traffic: the relay
     /// forwards nothing to a connection it has no membership for, so either the relay is not
     /// the one this protocol describes or something is in the middle.
-    public func receive(_ message: RelayMessage) throws -> Step {
+    ///
+    /// `allow` is read at the moment the challenge lands rather than held here, because a
+    /// pairing may complete or be revoked between opening the socket and answering: the list
+    /// that goes out is the one the Mac holds as it joins.
+    public func receive(_ message: RelayMessage, allow: [Data] = []) throws -> Step {
         switch message {
         case .challenge(let nonce):
             return .send(
-                try RelayJoin.message(identity: identity, nonce: nonce, room: room, role: role))
+                try RelayJoin.message(
+                    identity: identity, nonce: nonce, room: room, role: role, allow: allow))
         case .joined(let granted):
             guard granted == role else { throw RelayError.refused("bad role") }
             return .joined
@@ -48,7 +53,7 @@ public struct RelayHandshake: Sendable {
             throw RelayError.refused(reason)
         case .pong, .ping:
             return .ignore
-        case .hello, .join, .send, .peer:
+        case .hello, .join, .allow, .allowed, .send, .peer:
             throw RelayError.unexpected(message.action)
         }
     }

@@ -6,13 +6,16 @@ import Foundation
 /// The signature is over the relay's own challenge, the room and the role, so it is good for
 /// one join of one room against one nonce and cannot be replayed into another. The relay
 /// verifies it against the public key in the same message and checks that the key hashes to the
-/// room — for a host only. A guest signs with its own key and is let in, because the host will
-/// refuse an unknown static in the handshake the relay cannot read.
+/// room — for a host only. A guest is admitted only when the key it signed with is on the host's
+/// `allow` list, and only when no other guest holds the room.
 public enum RelayJoin {
     /// How many bytes the relay's challenge is.
     public static let nonceByteCount = 32
     /// How long a challenge is good for, and it is single-use.
     public static let challengeLifetime: TimeInterval = 60
+    /// The most keys a host's allow-list may carry. A longer one is `bad allow` and closes the
+    /// connection, so the list is trimmed here rather than refused there.
+    public static let allowLimit = 16
 
     /// The bytes both ends sign and verify: the nonce raw, then the room and the role as ASCII,
     /// with nothing between them.
@@ -43,13 +46,21 @@ public enum RelayJoin {
     }
 
     /// The join message a device sends, signed.
+    ///
+    /// `allow` is carried by a host and by nothing else: the raw signing keys of the devices it
+    /// has paired, which is the set the relay admits a guest out of. The list is not signed,
+    /// because the relay takes it only from the connection that has just proved it holds the
+    /// room's own key — the signature over the challenge is what says this is that host. It is
+    /// trimmed to `allowLimit`, which the caller has already ordered by what matters most.
     public static func message(
-        identity: DeviceIdentity, nonce: Data, room: RoomID, role: RelayRole
+        identity: DeviceIdentity, nonce: Data, room: RoomID, role: RelayRole,
+        allow: [Data]? = nil
     ) throws -> RelayMessage {
         .join(
             room: room,
             publicKey: identity.publicKeys.signing,
             role: role,
-            signature: try sign(identity: identity, nonce: nonce, room: room, role: role))
+            signature: try sign(identity: identity, nonce: nonce, room: room, role: role),
+            allow: role == .host ? Array((allow ?? []).prefix(allowLimit)) : nil)
     }
 }

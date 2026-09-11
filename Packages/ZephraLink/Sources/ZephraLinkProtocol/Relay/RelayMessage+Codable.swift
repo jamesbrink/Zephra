@@ -12,6 +12,7 @@ extension RelayMessage: Codable {
         case room, publicKey = "pub", role, signature = "sig"
         case payload = "d"
         case event, reason
+        case allow, pubs, count
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -20,12 +21,15 @@ extension RelayMessage: Codable {
         switch self {
         case .hello, .ping, .pong: break
         case .challenge(let nonce): try container.encode(nonce, forKey: .nonce)
-        case .join(let room, let publicKey, let role, let signature):
+        case .join(let room, let publicKey, let role, let signature, let allow):
             try container.encode(room, forKey: .room)
             try container.encode(publicKey, forKey: .publicKey)
             try container.encode(role, forKey: .role)
             try container.encode(signature, forKey: .signature)
+            try container.encodeIfPresent(allow, forKey: .allow)
         case .joined(let role): try container.encode(role, forKey: .role)
+        case .allow(let pubs): try container.encode(pubs, forKey: .pubs)
+        case .allowed(let count): try container.encode(count, forKey: .count)
         case .error(let reason): try container.encode(reason, forKey: .reason)
         case .send(let payload): try container.encode(payload, forKey: .payload)
         case .peer(let event): try container.encode(event, forKey: .event)
@@ -45,8 +49,11 @@ extension RelayMessage: Codable {
                 room: try value(RoomID.self, .room),
                 publicKey: try value(Data.self, .publicKey),
                 role: try value(RelayRole.self, .role),
-                signature: try value(Data.self, .signature))
+                signature: try value(Data.self, .signature),
+                allow: try container.decodeIfPresent([Data].self, forKey: .allow))
         case .joined: self = .joined(role: try value(RelayRole.self, .role))
+        case .allow: self = .allow(pubs: try value([Data].self, .pubs))
+        case .allowed: self = .allowed(count: try value(Int.self, .count))
         case .error: self = .error(reason: try value(String.self, .reason))
         case .send: self = .send(payload: try value(Data.self, .payload))
         case .peer: self = .peer(event: try value(RelayPeerEvent.self, .event))

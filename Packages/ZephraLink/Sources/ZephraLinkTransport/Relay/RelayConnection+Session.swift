@@ -54,7 +54,9 @@ extension RelayConnection {
         case .send(let payload): frameContinuation.yield(payload)
         case .peer(let event): peerContinuation.yield(event)
         case .error(let reason): logger.error("The relay refused a frame: \(reason, privacy: .public)")
-        case .hello, .challenge, .join, .joined, .ping, .pong: break
+        case .allowed(let count):
+            logger.debug("The relay now holds \(count, privacy: .public) allowed keys.")
+        case .hello, .challenge, .join, .joined, .allow, .ping, .pong: break
         }
     }
 
