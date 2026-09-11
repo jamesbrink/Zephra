@@ -175,6 +175,10 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.zephra.ZephraMobile
         PRODUCT_NAME: Zephra
+        # The app on the phone is called Zephra, but its *module* is not: the Mac's app target
+        # already owns that name, and two modules called Zephra in one project is a trap every
+        # `@testable import` would fall into. The bundle is unaffected.
+        PRODUCT_MODULE_NAME: ZephraMobile
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
         INFOPLIST_FILE: Sources/ZephraMobile/Resources/Info.plist
@@ -206,6 +210,12 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.zephra.ZephraMobileTests
         GENERATE_INFOPLIST_FILE: "YES"
+        # Spelled out because the host's product is named for the app, not for the target:
+        # XcodeGen's default is `$(TARGET_NAME).app/$(TARGET_NAME)`, which is ZephraMobile,
+        # and the bundle on disk is Zephra.app/Zephra. The Mac pair never noticed, its target
+        # and its product being the one word.
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Zephra.app/Zephra
+        BUNDLE_LOADER: $(TEST_HOST)
         SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
         SWIFT_APPROACHABLE_CONCURRENCY: "YES"
 

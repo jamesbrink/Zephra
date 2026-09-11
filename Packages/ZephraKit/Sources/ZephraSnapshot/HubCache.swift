@@ -28,8 +28,22 @@ public nonisolated enum HubCache {
         if let home = environment["HF_HOME"], !home.isEmpty {
             return URL(fileURLWithPath: home).appending(path: "hub")
         }
-        return FileManager.default.homeDirectoryForCurrentUser
-            .appending(path: ".cache/huggingface/hub")
+        return HubCache.home.appending(path: ".cache/huggingface/hub")
+    }
+
+    /// The home directory the cache hangs off.
+    ///
+    /// `homeDirectoryForCurrentUser` is a Mac API, and this module compiles for iOS too: the
+    /// companion app links `ZephraEngine` for the two record types inside every PNG, and
+    /// `ZephraSnapshot` comes with it. There is no hub cache on a phone and nothing here is
+    /// ever called there, so the container's own home is answer enough; the Mac keeps the
+    /// answer it has always had.
+    private static var home: URL {
+        #if os(macOS)
+            FileManager.default.homeDirectoryForCurrentUser
+        #else
+            URL(fileURLWithPath: NSHomeDirectory())
+        #endif
     }
 
     /// The cached snapshot directory holding `repoID` at `revision`, or nil when nothing usable

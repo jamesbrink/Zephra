@@ -79,8 +79,15 @@ public struct SnapshotUnderTest: Sendable {
         if let home = environment["HF_HOME"], !home.isEmpty {
             return URL(filePath: home).appending(path: "hub")
         }
-        return FileManager.default.homeDirectoryForCurrentUser
-            .appending(path: ".cache/huggingface/hub")
+        // `homeDirectoryForCurrentUser` is a Mac API and this module is linked by the
+        // companion's suites too, which run on a simulator with no hub cache to find. The
+        // container's home is answer enough there; the Mac keeps the one it has always had.
+        #if os(macOS)
+            return FileManager.default.homeDirectoryForCurrentUser
+                .appending(path: ".cache/huggingface/hub")
+        #else
+            return URL(filePath: NSHomeDirectory()).appending(path: ".cache/huggingface/hub")
+        #endif
     }
 
     private func exists(_ directory: URL) -> Bool {

@@ -24,10 +24,15 @@ struct PairingPasteField: View {
                     RoundedRectangle(cornerRadius: ZephraChrome.fieldRadius)
                         .fill(ZephraChrome.wellFill))
                 .accessibilityLabel("Pairing code")
-            Button("Pair", action: submit)
-                .buttonStyle(.borderedProminent)
-                .disabled(code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .frame(maxWidth: .infinity)
+            // The width goes on the label, not on the button: a frame outside a bordered
+            // button stretches the space it sits in and leaves the capsule its own small size
+            // in the middle of it, which is what the first screenshot of this screen showed.
+            Button(action: submit) {
+                Text("Pair").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
         .padding(.horizontal, MobileChrome.sideMargin)
     }

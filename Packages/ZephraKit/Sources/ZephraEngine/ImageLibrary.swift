@@ -13,9 +13,19 @@ public struct ImageLibrary: Sendable {
     }
 
     /// The default location: a Zephra folder inside the user's Pictures directory.
+    ///
+    /// The fallback is spelled twice because `homeDirectoryForCurrentUser` is a Mac API and
+    /// this module compiles for iOS as well -- the companion links it for `GenerationRecord`
+    /// and `LibraryAnnotation`, the two chunks inside every PNG. No phone ever calls this; it
+    /// has no library folder of its own, and reads the Mac's over the link.
     public static func pictures() -> ImageLibrary {
+        #if os(macOS)
+            let home = FileManager.default.homeDirectoryForCurrentUser
+        #else
+            let home = URL(fileURLWithPath: NSHomeDirectory())
+        #endif
         let pictures = FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first
-            ?? FileManager.default.homeDirectoryForCurrentUser.appending(path: "Pictures")
+            ?? home.appending(path: "Pictures")
         return ImageLibrary(root: pictures.appending(path: "Zephra", directoryHint: .isDirectory))
     }
 

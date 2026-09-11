@@ -220,8 +220,14 @@ test-ios: gen
 # CoreGraphics id; a simulator has one screen, so this takes that.
 screenshot-ios:
 	@mkdir -p "$(BUILD)"
+# simctl is refused a write onto an external volume, which is where this repository lives on
+# the machine it is developed on ("Operation not permitted", with no hint as to why), so the
+# picture is taken into a temporary directory and copied into build/ afterwards.
 	@shot="$(BUILD)/ios-$$(date -u +%Y%m%d%H%M%S).png"; \
-	  xcrun simctl io booted screenshot "$$shot" && echo "$$shot"
+	  staging=$$(mktemp -d); \
+	  xcrun simctl io booted screenshot "$$staging/shot.png" >/dev/null; \
+	  cp "$$staging/shot.png" "$$shot"; rm -rf "$$staging"; \
+	  echo "$$shot"
 
 bench: gen
 	@mkdir -p "$(BUILD)"; $(XCB) -scheme ZephraBench -configuration Release build >"$(BUILD)/ZephraBench-build.log" 2>&1 \
