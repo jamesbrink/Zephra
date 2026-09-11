@@ -59,6 +59,7 @@ extension CompanionSession {
             pairingSecret: host.liveSecret)
         let accept = try responder.receive(hello)
         self.responder = responder
+        isPairingAttempt = hello.pairing
         deviceName = hello.deviceName
         try sendPlaintext(accept, kind: .accept)
     }
@@ -69,7 +70,14 @@ extension CompanionSession {
         guard let responder, let host else {
             throw LinkError(code: .badRequest, reason: "That device has not said hello yet.")
         }
-        let opened = try responder.receive(confirm)
+        let opened: (channel: SecureChannel, peer: DevicePublicKeys, paired: Bool)
+        do {
+            opened = try responder.receive(confirm)
+        } catch {
+            // A wrong answer to a code on screen is an answer somebody guessed at.
+            if isPairingAttempt { host.pairingFailed() }
+            throw error
+        }
         channel = opened.channel
         peer = opened.peer
         handshakeSettled()

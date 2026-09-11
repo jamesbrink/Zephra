@@ -70,6 +70,17 @@ final class CompanionTestBed {
         }
     }
 
+    /// One wrong answer to the code on screen, from a device the Mac has never met.
+    func guessAtTheCode() async throws {
+        let (macSide, phoneSide) = MemoryLinkConnection.pair()
+        let phone = FakePhone(connection: phoneSide, identity: DeviceIdentity())
+        listener.offer(macSide)
+        try await phone.guessTheCode(of: keys)
+        // The Mac reads the confirm on a task of its own, so the guess is not counted until the
+        // session it arrived on has gone.
+        try await waitUntil { host.sessions.isEmpty }
+    }
+
     /// Brings the store up with the mock backend loaded and no warm-up.
     func bootstrap() async {
         store.warmsUpAfterLoad = false

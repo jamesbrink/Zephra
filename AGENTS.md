@@ -272,7 +272,10 @@ it; only a `peer left` or the road going does.
 `ZephraLinkHost` (`Packages/ZephraKit`) is the Mac's side. `CompanionHost` is
 `@MainActor @Observable`: it owns the sessions, the paired devices and the
 pairing secret, and it is served `LinkListener`s rather than opening a road
-itself, so a LAN listener and a relay are the same thing to it. One
+itself, so a LAN listener and a relay are the same thing to it. Three wrong
+answers to one code burn the secret (`pairingAttemptLimit`): the QR goes and
+`pairingNote` says why; a wrong tag from a device that was reconnecting is not
+counted. One
 `withObservationTracking` loop over the store and the index, re-armed after each
 change and coalesced by 50 ms, is what publishes the `StateDelta`s; preview
 frames go out as JPEG at most ten a second, encoded off the main actor.

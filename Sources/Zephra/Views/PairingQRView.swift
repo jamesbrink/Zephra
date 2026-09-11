@@ -26,7 +26,9 @@ struct PairingQRView: View {
             } else {
                 Button("Show a Pairing Code") { _ = host?.beginPairing() }
                     .disabled(host == nil)
-                Text("Open Zephra on your iPhone and point it at the code.")
+                // The note is why the code went, where it went for a reason of its own — three
+                // wrong answers. It replaces the standing line rather than stacking under it.
+                Text(host?.pairingNote ?? "Open Zephra on your iPhone and point it at the code.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

@@ -27,6 +27,16 @@ public final class CompanionHost {
     /// The code on screen, or nil when none is. The payload rather than the secret, because
     /// what a view wants is the QR's contents and the expiry to count down to.
     public internal(set) var pairing: PairingPayload?
+    /// One line saying why the code went, where it went for a reason of its own. Cleared the
+    /// moment a fresh code goes up.
+    public internal(set) var pairingNote: String?
+
+    /// How many wrong answers to one code end the pairing.
+    ///
+    /// The secret behind a code is guessed at by trying, and a code that stays up while
+    /// something tries is a code somebody is working through: three is enough for a person who
+    /// scanned a stale screenshot and far too few to search.
+    public static let pairingAttemptLimit = 3
 
     /// How many connections may sit in the plaintext stage at once.
     ///
@@ -54,6 +64,8 @@ public final class CompanionHost {
     /// The secret behind the code on screen, live for two minutes. Apart from `pairing` because
     /// the bytes are not something a view should be able to read off the host.
     @ObservationIgnored var secret: PairingSecret?
+    /// How many devices have answered this code wrongly.
+    @ObservationIgnored var pairingFailures = 0
     @ObservationIgnored var listeners: [any LinkListener] = []
     @ObservationIgnored var serving: [Task<Void, Never>] = []
     /// The observation loop, running only while at least one session is listening.

@@ -27,6 +27,9 @@ public final class CompanionSession: Identifiable {
     /// The handshake in progress, from the `hello` until the `confirm` settles it. Nil after
     /// that: `channel` is what says the session is past the plaintext stage.
     var responder: HandshakeResponder?
+    /// Whether the `Hello` asked to pair, which is what makes a wrong `confirm` a guess at the
+    /// code on screen rather than a stale device reconnecting.
+    var isPairingAttempt = false
     var channel: SecureChannel?
     var isClosed = false
     /// The blob arriving from the phone right now — a reference picture — and the ones that have

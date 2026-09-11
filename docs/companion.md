@@ -458,6 +458,16 @@ carrying the allow-list: it reads `CompanionHost.relayAllowList` inside a
 `withObservationTracking` loop, hands it to each listener before that listener
 joins, and sends an `allow` to the join already up whenever the paired set moves.
 
+**Three wrong answers burn the code.** A `confirm` whose tag does not prove the
+secret, from a `Hello` that asked to pair, is counted; the third ends the pairing
+outright — `secret` cleared, `pairing` nil, the QR gone from Settings and
+`CompanionHost.pairingNote` in its place saying why. The secret behind a code is
+a thing to be guessed at and the code sits on screen for two whole minutes, which
+is the one window in the whole link that is cheap to attack. A wrong tag from a
+device that was *reconnecting* is not counted: no code is being guessed at, and
+that session is refused on its own account. `beginPairing()` clears both the
+count and the note.
+
 **Settings > Companion** is the fourth tab. Two switches, deliberately apart:
 one opens the local road and puts the Mac on Bonjour, the other lets a phone
 somewhere else meet it on the relay, and neither follows from the other. Both are

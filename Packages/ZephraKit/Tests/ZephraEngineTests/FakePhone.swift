@@ -59,6 +59,27 @@ final class FakePhone {
         try await sendPlaintext(opened.confirm, kind: .confirm)
     }
 
+    /// Answers a code on screen with a guess: the whole handshake, with a `confirm` that proves
+    /// nothing.
+    ///
+    /// A real phone holding the wrong secret stops at the Mac's own tag and never sends a
+    /// confirm at all, so it is no use for asking what a Mac does with wrong answers. Something
+    /// working through a code sends one anyway, and this is that.
+    func guessTheCode(of peer: DevicePublicKeys) async throws {
+        let initiator = HandshakeInitiator(
+            identity: identity, peer: peer,
+            pairingSecret: Data(repeating: 0xEE, count: PairingSecret.byteCount),
+            deviceName: deviceName)
+        self.initiator = initiator
+        startReading()
+        try await sendPlaintext(initiator.hello(), kind: .hello)
+        let answer = try await waitFor { [weak self] in
+            self?.envelopes.first { $0.kind == .accept || $0.kind == .error }
+        }
+        guard answer.kind == .accept else { throw try answer.decode(LinkError.self) }
+        try await sendPlaintext(Confirm(tag: Data(repeating: 0x5A, count: 32)), kind: .confirm)
+    }
+
     /// Closes this end of the road.
     func disconnect() async {
         reader?.cancel()

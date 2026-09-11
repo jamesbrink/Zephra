@@ -13,6 +13,8 @@ extension CompanionHost {
     public func beginPairing() -> PairingPayload {
         let secret = PairingSecret()
         self.secret = secret
+        pairingFailures = 0
+        pairingNote = nil
         let payload = PairingPayload(
             hostName: hostName, keys: identity.publicKeys, endpoints: endpoints(), secret: secret)
         pairing = payload
@@ -24,6 +26,24 @@ extension CompanionHost {
     public func endPairing() {
         secret = nil
         pairing = nil
+        pairingFailures = 0
+    }
+
+    /// One device answered the code wrongly.
+    ///
+    /// The secret behind a code is a thing to be guessed at, and the code sits on screen for two
+    /// whole minutes: leaving it up while something works through answers is the one way it is
+    /// cheap to attack. The third wrong answer burns the secret, takes the code down and leaves
+    /// a line where it was, so the person sees what happened rather than a code that quietly
+    /// stopped working. A wrong tag from a device that was *reconnecting* is not counted: no
+    /// code is being guessed at, and the session is refused on its own.
+    func pairingFailed() {
+        guard secret != nil else { return }
+        pairingFailures += 1
+        guard pairingFailures >= CompanionHost.pairingAttemptLimit else { return }
+        endPairing()
+        pairingNote = "The pairing code was answered wrongly three times, so it was taken down. Show a new one to try again."
+        logger.notice("companion pairing ended after \(CompanionHost.pairingAttemptLimit, privacy: .public) wrong answers")
     }
 
     /// The secret a handshake may be salted with right now, or nil when no code is up or the one
