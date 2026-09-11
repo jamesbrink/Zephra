@@ -669,6 +669,12 @@ enforces along with the model-package ban, the repeating-animation ban and the
 US-spelling check.
 
 - `App/`, `Support/`, `Style/`, `Views/`, laid out like the Mac target's.
+  `Views/Shared/` is the one folder that is not a surface, and it holds exactly
+  what two surfaces draw the same way: `ClipPlayerView` and `EntryThumbnail`.
+- `MobileSelection` (`Support/`) is where the phone is looking — which tab is up
+  and whether the capsule is expanded — the Mac's `WorkspaceSelection` in a
+  phone's shape and for its reason: which surface is up is a fact several places
+  write, and the library's "Use as Reference" is one of them.
 - `LinkClient` is the one type a view may read the Mac through, taken from
   `@Environment(LinkClient.self)`: `pairedHost` is the whole pairing decision,
   and `snapshot`, `library`, `preview` and `connection` are the rest. A view that
@@ -705,6 +711,16 @@ US-spelling check.
   of the Mac's and the phone offers the same chained lengths — `ReferenceRole`
   captions the well, and a refusal is the Mac's own sentence under Generate
   rather than an alert.
+- The well has three doors and one rule. `PhotosPicker` is the camera roll;
+  `ReferencePickerSheet` and the library's own "Use as Reference" both name a
+  picture the Mac already has, through `ReferenceIntent` — a file **name**, never
+  bytes sent back to the machine that made them. `UseAsReferenceButton` also
+  moves `MobileSelection.tab` to the canvas, which is where
+  `ReferenceIntentReader` takes the name, fetches through `LibraryCatalog` and
+  fills the well with `referenceOrigin` set to it. The reader watches with
+  `onChange` and an unstructured task, never `.task(id:)`: taking the request
+  clears the name, and a task keyed on it would cancel its own fetch. All three
+  doors end at `ReferenceAdoption`, which encodes off the main actor.
 - `PairingEntry.parse` is the one parser all three pairing doors go through —
   the camera (VisionKit, hidden where there is none), the paste field (always
   there), a `zephra://pair` link. Everything it throws is a `LinkError` with a
@@ -718,7 +734,14 @@ US-spelling check.
   pixels) and `FileStore` (whole pictures and clips in Caches, under a 512 MB
   `CacheBudget` that drops the least recently *read*) — behind `LibraryCatalog`,
   which reads the disk before it asks the Mac anything and follows
-  `client.library` and `client.connection` in one observation loop. **That folder
+  `client.library` and `client.connection` in one observation loop.
+  `LibraryCatalog+Media` is the **one** door whole files and thumbnails cross the
+  link through, the canvas's picture and the well's reference included, so a
+  picture crosses what may be a relay once for every surface and one budget sees
+  it; nothing on the phone holds decoded bytes of its own, and `DecodedPicture`
+  is the one line that keeps a decode off the main actor. A clip is asked for by
+  its **poster's** name, which is the only name the Mac's index resolves, and
+  filed beside it as the sidecar MP4 (`url(named:isVideo:)`). **That folder
   is a cache and the Mac's folder is the truth**: nothing in it is backed up,
   clearing it loses nothing, and an entry is refetched when
   `CachedEntry.isStale(against:)` says its file moved, which is exactly the

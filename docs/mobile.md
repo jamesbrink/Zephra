@@ -72,20 +72,32 @@ Four directories, by what a file is, the way the Mac's target is laid out.
 
 - `App/` — `ZephraMobileApp` is the composition root: it builds the one object
   every view observes and injects it, and it is the only file that knows how a
-  Mac is actually reached. `RootView` is the four surfaces behind a `TabView`,
-  with `PairingView` over them as a `.fullScreenCover` until a Mac is paired. A
-  cover rather than a branch, so the tabs are built once and keep their state.
+  Mac is actually reached. `RootView` is the four surfaces behind a `TabView`
+  bound to `MobileSelection.tab`, with `PairingView` over them as a
+  `.fullScreenCover` until a Mac is paired. A cover rather than a branch, so the
+  tabs are built once and keep their state.
 - `Support/` — the cross-cutting answers. `MobileKeychain`, `LinkReconnect`,
-  `MobileTab`, `PairingEntry`, `MobilePreview`.
+  `MobileTab` and `MobileSelection`, `PairingEntry`, `MobilePreview`,
+  `DecodedPicture`.
 - `Style/` — `MobileChrome`, and only what has no counterpart on the Mac: the
-  prompt sheet's heights, the room the tab bar takes, the side margin. Anything
+  room the tab bar takes, the side margin, the gap between blocks. Anything
   a radius, a hairline or a wash could be belongs in `Packages/ZephraStyle`.
-- `Views/` — one subfolder per surface, and every surface is real now:
+- `Views/` — one subfolder per surface, and every surface is real:
   `Canvas/` and `Capsule/` are the two halves of the first, what the Mac is
   making and what asks it for more; `LibraryScreen` and `TodayScreen` are the
   Mac's library and its canvas sidebar; `SettingsScreen` is `PairedMacRow`,
   `ConnectionRow`, `CacheRow` and `AboutRow`, a row to a file, so a later change
-  replaces one of them rather than editing a screen around it.
+  replaces one of them rather than editing a screen around it. `Shared/` is the
+  one exception to "a subfolder per surface", and it holds exactly what two
+  surfaces draw the same way: `ClipPlayerView` and `EntryThumbnail`.
+
+`MobileSelection` (`Support/`) is where the phone is looking: which tab is up,
+and whether the capsule is showing its settings. The Mac's `WorkspaceSelection`
+in a phone's shape, and it exists for the same reason — which surface is up is a
+fact several places **write**. The library's "Use as Reference" moves it, and a
+binding threaded down through four surfaces to let one menu item change a tab is
+worse than one object in the environment. Nothing in it is persisted: a launch
+opens on the canvas, or wherever a frozen preview state asked for.
 
 ### `LinkClient`, and how it stays connected
 
@@ -200,15 +212,22 @@ JPEG letterboxed into the run's own aspect at `.medium` interpolation, since a
 frame is an estimate and should not pretend to be the print. Before the first
 frame lands, `RunPlaceholderView` — the safelight card, the system's spinner and
 the Mac's own word for the phase. Otherwise the newest history entry's picture,
-through `ItemPicture` and `PictureCache`, or `ClipPicture` and AVKit's
-`AVPlayerViewController` for a clip, looped and muted unless the asset itself
-says it has a track.
+through `ItemPicture`, or `ClipPicture` and `ClipPlayerView` for a clip, looped
+and muted unless the asset itself says it has a track.
+
+Both read `LibraryCatalog`, which is **the one cache on this phone**. The canvas
+had one of its own once — a singleton actor of decoded pictures — and fetched
+whole files straight past `FileStore`, so every picture crossed the link twice,
+once for each surface; a clip went into the temporary directory, outside the
+budget entirely. Now the file the library fetched is the file the canvas draws
+and the other way round, one crossing of what may be a relay serves both, and
+`CacheBudget` sees everything. Nothing is decoded on the main actor:
+`DecodedPicture` is that one line, in one place, and there is no second copy of
+the bytes in memory to go stale.
 
 A fetch has three states and not two (`FetchPhase`): a picture that is not
 coming says so, because a blank square reads as a bug rather than as a link that
-is down. `PictureCache` is an actor holding a dozen decoded pictures, so a walk
-to the library and back does not fetch a megabyte again over what may be a
-relay, and nothing is decoded on the main actor.
+is down.
 
 Neither the placeholder nor anything else on this surface animates. The ban is
 the Mac's, for the Mac's reason, and `make lint-layers` covers both targets.
@@ -244,10 +263,15 @@ the Mac once crashed on a model switch.
   default. `CountControl` is `GenerationRequest.countBounds`, read
   from the protocol rather than written down again.
 - `ReferenceWell` captions itself from `ReferenceRole`, so a clip's first frame
-  is called a first frame here as it is there. Two doors, one rule:
-  `PhotosPicker` for the camera roll and `ReferencePickerSheet` for the Mac's own
-  library, both through `ReferenceAdoption`, which encodes off the main actor
-  with `ReferenceImageEncoder` — ImageIO, PNG, 1024 pixels an edge.
+  is called a first frame here as it is there. Three doors, one rule:
+  `PhotosPicker` for the camera roll, `ReferencePickerSheet` for the Mac's own
+  library, and the library tab's own "Use as Reference". All three end at
+  `ReferenceAdoption`, which encodes off the main actor with
+  `ReferenceImageEncoder` — ImageIO, PNG, 1024 pixels an edge. The two that name
+  a picture already on the Mac go through `ReferenceIntent` and take the same
+  path; the picker draws `LibraryCatalog`'s entries rather than a library of its
+  own, so it shows what the Library tab shows, works with no Mac in reach, and
+  shares every thumbnail with the grid.
 
 `GenerateButton` is enabled on three things: a live session, `acceptsWork`, and
 a prompt. A refusal is the Mac's own sentence under the button rather than an
@@ -296,6 +320,14 @@ is authoritative, nothing in it is backed up, and clearing it loses nothing.
   times today is worth more than a picture fetched once this morning. The access
   date is set explicitly on every read, because iOS mounts with `noatime` and
   every file would otherwise look equally old.
+  A clip is **asked for under one name and kept under another**, and the reason
+  is worth writing down because getting it wrong made every clip unfetchable for
+  a while: the Mac's index is its *pictures*, so `item(named:)` resolves a
+  poster's name and nothing else, and a request naming `<stem>.mp4` comes back
+  `notFound`. `Command.fetchFile` answers a clip's video for its **poster**, so
+  the request names the poster and the bytes are filed beside it as the sidecar,
+  which is what `hasFile(for:)` reads back. `url(named:isVideo:)` is the one
+  place that rule lives.
 - `LibrarySync.plan(remote:local:)` is pure: an entry is taken in when the cache
   has never heard of it and again whenever its file has moved, which
   `CachedEntry.isStale(against:)` decides from the three facts
@@ -312,7 +344,10 @@ is authoritative, nothing in it is backed up, and clearing it loses nothing.
 *before* it looks at the client — the offline promise in one line — then follows
 `client.library` and `client.connection` in one `withObservationTracking` loop,
 both in the same arming because both decide what the surface draws. Fetching a
-thumbnail or a file is store, then Mac, then store. Favoriting, tagging and
+thumbnail or a file is store, then Mac, then store, and `LibraryCatalog+Media`
+is the **only** place either crosses the link — the canvas's picture and the
+well's reference come through it too, which is what makes it one cache rather
+than a library cache with two private ones beside it. Favoriting, tagging and
 deleting are optimistic and revert on a refusal, the way `LibraryIndex`'s
 mutations are; nothing here invents a `version`, since the Mac decides what a
 file's fingerprint is and a guessed one would make the next sync think the cache
@@ -335,9 +370,28 @@ lie about a file this phone cannot touch. Save and Share stay live for a file
 already here, which is the one somebody is looking at.
 
 `ReferenceIntent` (`Support/`) is how the library says "start from this one": an
-`@Observable` with one file **name** on it, which the capsule reads and takes.
-A name, never bytes — the Mac made the picture and still has it, and sending a
-megabyte of PNG back to the machine it came from to say one word would be absurd.
+`@Observable` with one file **name** on it. A name, never bytes — the Mac made
+the picture and still has it, and sending a megabyte of PNG back to the machine
+it came from to say one word would be absurd.
+
+The canvas is the other half. `UseAsReferenceButton` puts the name on the intent
+and sets `MobileSelection.tab` to the canvas, because that is one gesture:
+somebody saying "start from this one" is asking to be taken where a run is
+started. `ReferenceIntentReader` (`Views/Canvas/`) is the listener — a modifier
+rather than a view, since there is nothing to draw. It takes the name, fetches
+the picture through `LibraryCatalog` (so the file the library already has is the
+file the well gets) and fills the well with `referenceOrigin` set to that name,
+which is the provenance the Mac records beside the run. `ReferenceAdoption.take`
+is the sequence as one function, which is how it is tested.
+
+It is an object rather than a notification for three reasons, and the third is
+the one that decides the shape: a request made while the library is up is still
+there when the canvas is reached. Two smaller rules follow from that. The reader
+watches with `onChange` and an unstructured task rather than `.task(id:)` —
+taking the request clears the name, and a task keyed on the name would cancel
+the very fetch it started. And the request is taken before anything is fetched,
+so a slow link cannot let it be acted on twice and refill a well somebody
+emptied.
 
 ## Today
 
