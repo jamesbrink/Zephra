@@ -16,6 +16,7 @@ struct LatentLayoutTests {
         #expect(layout.pixelFrames == 49)
         #expect(layout.latentShape == [1, 128, 7, 16, 24])
         #expect(layout.firstFrameTokens == 16 * 24)
+        #expect(layout.frameTokens(2) == 2 * 16 * 24)
         // A single picture is one latent frame.
         #expect(LTX2LatentLayout(pixelFrames: 1, pixelWidth: 512, pixelHeight: 288).frames == 1)
     }

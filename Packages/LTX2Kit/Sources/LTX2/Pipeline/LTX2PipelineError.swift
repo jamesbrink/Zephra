@@ -10,4 +10,6 @@ public enum LTX2PipelineError: Error, Equatable, Sendable {
     case unalignedFrames(frames: Int, alignment: Int)
     /// A first frame that CoreGraphics would not draw into a bitmap of the clip's size.
     case unreadableFirstFrame
+    /// Held frames whose count is not `1 + 8k`, or more of them than the clip has frames.
+    case unalignedHeldFrames(frames: Int, alignment: Int)
 }

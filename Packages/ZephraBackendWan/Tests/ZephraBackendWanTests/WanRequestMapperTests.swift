@@ -50,6 +50,15 @@ struct WanRequestMapperTests {
         #expect(Self.descriptor.capabilities.clamp(settings).referenceStrength == 1)
     }
 
+    @Test("a continuation's tail is held as its last frame alone, whatever the well holds")
+    func aContinuationHoldsTheLastFrame() throws {
+        var settings = Self.settings(reference: Data("not a picture".utf8))
+        settings.continuation = ClipContinuation(
+            frames: [Data("not a picture".utf8), try Self.png()], origin: "clip.png", sourceFrameCount: 49)
+        let request = try WanRequestMapper.request(for: settings, descriptor: Self.descriptor)
+        #expect(request.firstFrame != nil, "the tail's last frame is the picture that is decoded")
+    }
+
     @Test("something that is not a picture fails before the first step rather than during it")
     func anUnreadablePictureThrows() {
         #expect(throws: (any Error).self) {

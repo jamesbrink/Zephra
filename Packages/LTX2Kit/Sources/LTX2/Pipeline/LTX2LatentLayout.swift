@@ -62,4 +62,7 @@ public struct LTX2LatentLayout: Hashable, Sendable {
     /// Tokens of the first latent frame: the ones that encode a single pixel frame, which the
     /// transformer marks with its keyframe embedding.
     public var firstFrameTokens: Int { height * width }
+
+    /// Tokens of the first `frames` latent frames, which is what a held run of frames covers.
+    public func frameTokens(_ frames: Int) -> Int { frames * height * width }
 }

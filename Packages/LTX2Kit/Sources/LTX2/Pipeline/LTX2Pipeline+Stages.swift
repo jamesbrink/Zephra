@@ -12,8 +12,8 @@ extension LTX2Pipeline {
     ) throws -> MLXArray {
         let layout = LTX2LatentLayout(
             pixelFrames: request.frames, pixelWidth: request.width, pixelHeight: request.height)
-        let held = try request.firstFrame.map {
-            try LTX2HeldFirstFrame($0, layout: layout, encoder: loaded.encoder)
+        let held = try request.heldFrames.map {
+            try LTX2HeldLatent($0, layout: layout, encoder: loaded.encoder)
         }
         return try denoise(
             text: text, layout: layout, request: request, held: held, with: loaded,
@@ -26,10 +26,10 @@ extension LTX2Pipeline {
     /// The reference's two-stage distilled pipeline: stage one composes the clip on a quarter
     /// of the tokens, and stage two spends three steps on the detail the upsampler cannot
     /// invent, which is most of the quality of a one-stage run at the full size for about
-    /// three fifths of its step cost. A held first frame is encoded twice, once at each size,
-    /// so both stages hold the picture at their own resolution, and the doubled, noised latent
-    /// enters the second stage with the picture blended in by its strength exactly as noise
-    /// enters the first. The eleven steps are reported as one count.
+    /// three fifths of its step cost. Held frames are encoded twice, once at each size, so both
+    /// stages hold the pictures at their own resolution, and the doubled, noised latent enters
+    /// the second stage with the pictures blended in by their strength exactly as noise enters
+    /// the first. The eleven steps are reported as one count.
     func twoStages(
         text: MLXArray, request: LTX2GenerationRequest, with loaded: Loaded,
         onProgress: (LTX2GenerationProgress) -> Void, onPreview: PreviewHandler?
@@ -39,8 +39,8 @@ extension LTX2Pipeline {
             pixelFrames: request.frames, pixelWidth: request.width / 2, pixelHeight: request.height / 2)
         let full = LTX2LatentLayout(
             pixelFrames: request.frames, pixelWidth: request.width, pixelHeight: request.height)
-        let heldHalf = try request.firstFrame.map {
-            try LTX2HeldFirstFrame($0, layout: half, encoder: loaded.encoder)
+        let heldHalf = try request.heldFrames.map {
+            try LTX2HeldLatent($0, layout: half, encoder: loaded.encoder)
         }
         let coarse = try denoise(
             text: text, layout: half, request: request, held: heldHalf, with: loaded,
@@ -50,8 +50,8 @@ extension LTX2Pipeline {
         let doubled = loaded.upsampler.upsample(coarse, statistics: loaded.decoder.statistics)
         let noise = MLXRandom.normal(full.latentShape, key: MLXRandom.key(request.seed &+ 20000))
         var start = full.pack(secondStage.noised(doubled, noise: noise))
-        let heldFull = try request.firstFrame.map {
-            try LTX2HeldFirstFrame($0, layout: full, encoder: loaded.encoder)
+        let heldFull = try request.heldFrames.map {
+            try LTX2HeldLatent($0, layout: full, encoder: loaded.encoder)
         }
         if let heldFull {
             // The same entry the first stage makes from noise: the picture blended in by its

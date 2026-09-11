@@ -6,7 +6,8 @@ import MLX
 ///
 /// The picture is encoded to one latent frame — the autoencoder is causal, so it has one of its
 /// own — and that frame's tokens are held at a conditioning strength `s` from 0 (not held at
-/// all) to 1 (held exactly). Everything here follows `pipeline_ltx2_condition.py`:
+/// all) to 1 (held exactly). A run of `1 + 8k` pictures, the end of an earlier clip, is the same
+/// arithmetic over `k + 1` latent frames. Everything here follows `pipeline_ltx2_condition.py`:
 ///
 /// - the run starts from `noise * (1 - mask) + clean * mask` rather than from pure noise;
 /// - the transformer is told a **per-token** noise level, which is `LTX2Transformer`'s
@@ -22,9 +23,11 @@ import MLX
 /// it: at strength 1 the frame is meant to survive the ancestral step's fresh noise untouched.
 /// A partially held frame is left stepped, as the reference leaves it.
 public enum LTX2FirstFrameConditioning {
-    /// `[1, tokens, 1]`: `strength` over the first latent frame's tokens, zero elsewhere.
-    public static func mask(layout: LTX2LatentLayout, strength: Float) -> MLXArray {
-        let marked = layout.firstFrameTokens
+    /// `[1, tokens, 1]`: `strength` over the first `frames` latent frames' tokens, zero
+    /// elsewhere. One frame is a picture held as the first frame; more is a clip carried on
+    /// from the end of another, the reference's multi-frame condition at latent index 0.
+    public static func mask(layout: LTX2LatentLayout, strength: Float, frames: Int = 1) -> MLXArray {
+        let marked = layout.frameTokens(frames)
         return MLX.concatenated(
             [
                 MLXArray.full([1, marked, 1], values: MLXArray(strength)),

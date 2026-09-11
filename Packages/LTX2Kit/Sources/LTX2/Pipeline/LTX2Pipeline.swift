@@ -61,6 +61,12 @@ public final class LTX2Pipeline {
         guard request.frames >= 1, (request.frames - 1) % alignment.frames == 0 else {
             throw LTX2PipelineError.unalignedFrames(frames: request.frames, alignment: alignment.frames)
         }
+        if let held = request.heldFrames {
+            let count = held.images.count
+            guard count >= 1, (count - 1) % alignment.frames == 0, count <= request.frames else {
+                throw LTX2PipelineError.unalignedHeldFrames(frames: count, alignment: alignment.frames)
+            }
+        }
         if request.twoStage {
             guard request.width % (2 * alignment.width) == 0, request.height % (2 * alignment.height) == 0 else {
                 throw LTX2PipelineError.unalignedSize(

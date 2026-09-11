@@ -13,6 +13,9 @@ enum WanRequestMapper {
     ///
     /// A reference picture is decoded here rather than inside the pipeline, so a picture that
     /// will not open fails before the first denoising step. That is the only thing this throws.
+    /// A continuation's tail is one frame on this model (`continuationFrames: 1...1`), the
+    /// earlier clip's last, held exactly as a picture is; it wins over the picture in the well,
+    /// which is that same frame.
     static func request(
         for settings: GenerationSettings,
         descriptor: ModelDescriptor
@@ -25,7 +28,7 @@ enum WanRequestMapper {
             frames: clamped.frames,
             frameRate: descriptor.capabilities.frameRate,
             seed: clamped.seed,
-            firstFrame: try clamped.referenceImage.map {
+            firstFrame: try (clamped.continuation?.frames.last ?? clamped.referenceImage).map {
                 WanFirstFrame(image: try ReferenceImageDecoding.cgImage(from: $0))
             }
         )

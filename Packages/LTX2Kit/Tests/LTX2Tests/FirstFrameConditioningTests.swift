@@ -25,6 +25,16 @@ struct FirstFrameConditioningTests {
         #expect(Self.layout.firstFrameTokens == 2)
     }
 
+    @Test("a run of held frames covers that many latent frames' tokens")
+    func maskCoversHeldFrames() {
+        let layout = LTX2LatentLayout(frames: 3, height: 1, width: 2)
+        let mask = LTX2FirstFrameConditioning.mask(layout: layout, strength: 1, frames: 2)
+        #expect(mask.shape == [1, 6, 1])
+        #expect(mask[0, 3, 0].item(Float.self) == 1)
+        #expect(mask[0, 4, 0].item(Float.self) == 0)
+        #expect(layout.frameTokens(2) == 4)
+    }
+
     @Test("a run held at full strength starts from the picture, and from noise everywhere else")
     func fullStrengthStartsFromThePicture() {
         let mask = LTX2FirstFrameConditioning.mask(layout: Self.layout, strength: 1)

@@ -11,6 +11,9 @@ enum LTX2RequestMapper {
     ///
     /// A reference picture is decoded here rather than inside the pipeline, so a picture that
     /// will not open fails before the first denoising step. That is the only thing this throws.
+    /// A continuation's tail, when the settings carry one, is what is held rather than the
+    /// picture in the well: the well shows the tail's last frame, and the tail is the run of
+    /// frames the clip is carried on from, already trimmed to this model's ladder by `clamp`.
     ///
     /// **The strength is inverted.** Everywhere else in Zephra it reads as "how much of the
     /// picture to throw away", on a model that starts from a noised copy of it. LTX-2.5 does
@@ -36,13 +39,22 @@ enum LTX2RequestMapper {
             frameRate: descriptor.capabilities.frameRate,
             seed: clamped.seed,
             maxPromptTokens: descriptor.maxPromptTokens,
-            firstFrame: try clamped.referenceImage.map {
-                LTX2FirstFrame(
-                    image: try ReferenceImageDecoding.cgImage(from: $0),
-                    strength: Float(1 - clamped.referenceStrength))
-            },
+            heldFrames: try Self.heldFrames(clamped),
             twoStage: LTX2StagePlan.twoStage(
                 width: clamped.size.width, height: clamped.size.height, environment: environment)
         )
+    }
+
+    /// The tail's frames when the settings carry one, else the picture in the well, else nil.
+    private static func heldFrames(_ clamped: GenerationSettings) throws -> LTX2HeldFrames? {
+        let strength = Float(1 - clamped.referenceStrength)
+        if let continuation = clamped.continuation, !continuation.frames.isEmpty {
+            return LTX2HeldFrames(
+                images: try continuation.frames.map(ReferenceImageDecoding.cgImage(from:)),
+                strength: strength)
+        }
+        return try clamped.referenceImage.map {
+            LTX2HeldFrames(image: try ReferenceImageDecoding.cgImage(from: $0), strength: strength)
+        }
     }
 }

@@ -14,10 +14,22 @@ public enum LTX2FirstFramePixels {
     /// - Returns: `[1, 3, 1, height, width]` in the range -1 to 1 — channels first and one
     ///   frame, which is a clip of a single picture and encodes to a single latent frame.
     public static func pixels(from image: CGImage, width: Int, height: Int) throws -> MLXArray {
-        guard let rgb = CoveringPicture.pixels(from: image, width: width, height: height) else {
-            throw LTX2PipelineError.unreadableFirstFrame
+        try pixels(from: [image], width: width, height: height)
+    }
+
+    /// Draws every picture in `images` at `width` by `height`, stacked in time.
+    ///
+    /// - Returns: `[1, 3, frames, height, width]` in the range -1 to 1, one frame per picture
+    ///   in order: the end of an earlier clip, which encodes to `k + 1` latent frames.
+    public static func pixels(from images: [CGImage], width: Int, height: Int) throws -> MLXArray {
+        guard !images.isEmpty else { throw LTX2PipelineError.unreadableFirstFrame }
+        let frames = try images.map { image -> MLXArray in
+            guard let rgb = CoveringPicture.pixels(from: image, width: width, height: height) else {
+                throw LTX2PipelineError.unreadableFirstFrame
+            }
+            return rgb.transposed(0, 3, 1, 2).expandedDimensions(axis: 2)
         }
-        return rgb.transposed(0, 3, 1, 2).expandedDimensions(axis: 2)
+        return frames.count == 1 ? frames[0] : MLX.concatenated(frames, axis: 2)
     }
 
     /// Where the picture is drawn; `CoveringPicture`'s rule, kept here for the tests that pin it.

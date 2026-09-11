@@ -296,12 +296,60 @@ def dump_conditioned(out: pathlib.Path) -> None:
     print(f"transformer_conditioned: {len(tensors)} tensors")
 
 
+def dump_conditioned_span(out: pathlib.Path) -> None:
+    """The model holding a run of latent frames rather than one: a clip carried on from the
+    end of another.
+
+    `pipeline_ltx2_condition.py` writes a multi-frame condition in place over the first
+    `k + 1` latent frames' tokens and sets the conditioning mask over all of them, so the
+    per-token timestep covers every held frame. The keyframe embedding stays on the first latent
+    frame alone (`_MarkedPatchify` over `HEIGHT * WIDTH`): it marks the frame that encodes a
+    single picture, which a held run has exactly one of, whatever its length. Two of the three
+    latent frames are held here, so the marked and the held token sets differ and a port that
+    conflates them is caught.
+    """
+    model = _model()
+    tensors = _weights(model, "model.")
+    inputs = _inputs()
+    latent = torch.randn(1, TOKENS, VIDEO["in_channels"])
+    sigma = torch.tensor([0.725])
+    marked = HEIGHT * WIDTH
+    held_frames = 2
+    held = held_frames * HEIGHT * WIDTH
+    model.proj_in = _MarkedPatchify(model.proj_in, model.keyframes_abs_pos_embedding, marked)
+
+    mask = torch.zeros(1, TOKENS, 1)
+    mask[:, :held] = 1.0
+    for strength in (1.0, 0.6):
+        timestep = (sigma[:, None] * 1000) * (1 - mask[..., 0] * strength)  # [1, tokens]
+        with torch.no_grad():
+            video, _ = model(
+                hidden_states=latent,
+                audio_hidden_states=torch.randn(1, 4, AUDIO["audio_in_channels"]),
+                encoder_hidden_states=inputs["text"],
+                audio_encoder_hidden_states=inputs["audio_text"],
+                timestep=timestep, audio_timestep=sigma * 1000, sigma=sigma * 1000,
+                num_frames=FRAMES, height=HEIGHT, width=WIDTH, fps=FPS, audio_num_frames=4,
+                isolate_modalities=True, return_dict=False,
+            )
+        label = f"{strength:g}".replace(".", "_")
+        tensors[f"out.tokens.{label}"] = video.contiguous()
+    tensors.update({
+        "in.tokens": latent, "in.text": inputs["text"], "in.sigma": sigma,
+        "in.marked": torch.tensor([marked], dtype=torch.int32),
+        "in.held_frames": torch.tensor([held_frames], dtype=torch.int32),
+    })
+    save_file(tensors, str(out / "transformer_conditioned_span.safetensors"))
+    print(f"transformer_conditioned_span: {len(tensors)} tensors")
+
+
 DUMPERS = {
     "rope": dump_rope,
     "timestep": dump_timestep,
     "transformer_block": dump_block,
     "transformer_model": dump_model,
     "transformer_conditioned": dump_conditioned,
+    "transformer_conditioned_span": dump_conditioned_span,
 }
 
 

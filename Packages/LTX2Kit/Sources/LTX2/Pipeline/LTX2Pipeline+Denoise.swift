@@ -13,8 +13,8 @@ extension LTX2Pipeline {
     /// looked for before each step; a stop that lands during a step is answered by the streamed
     /// transformer between blocks, or by the caller after the decode.
     ///
-    /// With a `held` first frame the loop starts from the picture where it is held, tells the
-    /// transformer a per-token noise level, and blends the picture into the finished-latent
+    /// With `held` frames the loop starts from the pictures where they are held, tells the
+    /// transformer a per-token noise level, and blends the pictures into the finished-latent
     /// estimate each step — all `LTX2FirstFrameConditioning`, which says why in each case. The
     /// schedule itself does not change: the same nine sigmas, and the same scalar sigma at
     /// every conversion and every step.
@@ -27,7 +27,7 @@ extension LTX2Pipeline {
         text: MLXArray,
         layout: LTX2LatentLayout,
         request: LTX2GenerationRequest,
-        held: LTX2HeldFirstFrame?,
+        held: LTX2HeldLatent?,
         with loaded: Loaded,
         schedule: LTX2DistilledSchedule,
         start: MLXArray? = nil,
@@ -56,7 +56,8 @@ extension LTX2Pipeline {
                 sigma: MLXArray([Float(sigma)]),
                 layout: layout,
                 frameRate: request.frameRate,
-                firstFrameStrength: held?.strength
+                firstFrameStrength: held?.strength,
+                heldFrames: held?.latentFrames ?? 1
             ).asType(.float32)
             // The picture is blended into the finished-latent estimate and the velocity taken
             // back out of it, both at this step's scalar sigma; the estimate is then the
@@ -87,12 +88,12 @@ extension LTX2Pipeline {
                 onPreview(range.first + index, range.total) {
                     let estimate = conditioned?.estimate
                         ?? LTX2DistilledSchedule.denoised(sampled, velocity: predicted, sigma: sigma)
-                    // A held run shows the frame *after* the one being held: frame 0 is the
-                    // picture that was handed in and would say nothing about how the clip is
-                    // coming along.
+                    // A held run shows the frame *after* the ones being held: the held frames
+                    // are the pictures that were handed in and would say nothing about how the
+                    // clip is coming along.
                     return LTX2LatentPreview.make(
                         latent: layout.unpack(estimate), decoder: loaded.decoder,
-                        frame: held == nil ? 0 : Swift.min(1, layout.frames - 1))
+                        frame: held.map { Swift.min($0.latentFrames, layout.frames - 1) } ?? 0)
                 }
             }
             sample = next

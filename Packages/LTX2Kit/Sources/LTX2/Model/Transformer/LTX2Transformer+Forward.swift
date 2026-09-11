@@ -12,17 +12,21 @@ extension LTX2Transformer {
     ///   - sigma: The noise level, `[batch]`, from zero to one; the embedding scales it.
     ///   - layout: The latent's shape, for the rotary positions and the first-frame marker.
     ///   - frameRate: Frames per second of the clip being made; time positions are seconds.
-    ///   - firstFrameStrength: How strongly the first latent frame is held, from 0 (not held,
+    ///   - firstFrameStrength: How strongly the held latent frames are held, from 0 (not held,
     ///     which is ordinary text-to-video) to 1 (held exactly). Nil is the text-to-video path
     ///     and computes what it always did.
+    ///   - heldFrames: How many latent frames are held, from the head: one for a picture held
+    ///     as the first frame, `k + 1` for a clip carried on from `1 + 8k` earlier frames.
     ///   - textMask: An additive bias over the text tokens, or nil when every token counts.
     ///
-    /// A held first frame is a **per-token noise level**, which is how the reference conditions:
-    /// the video adaLN and the output head see `sigma * (1 - mask)`, so the tokens carrying the
-    /// picture are told they are that much less noisy than the ones being made, while the
-    /// prompt's own adaLN keeps the scalar sigma. One held frame gives that field exactly two
-    /// values, so both are computed in one batch of two sigmas and chosen per token by the
-    /// marker the keyframe embedding already builds.
+    /// A held frame is a **per-token noise level**, which is how the reference conditions: the
+    /// video adaLN and the output head see `sigma * (1 - mask)`, so the tokens carrying the
+    /// pictures are told they are that much less noisy than the ones being made, while the
+    /// prompt's own adaLN keeps the scalar sigma. Held frames at one strength give that field
+    /// exactly two values, so both are computed in one batch of two sigmas and chosen per token
+    /// by a marker over the held frames. The keyframe embedding is a different marker: it goes
+    /// on the first latent frame alone, the one that encodes a single picture, however many
+    /// frames are held (`pipeline_ltx2_condition.py` adds it to latent index 0 and nowhere else).
     ///
     /// The stream runs in the tokens' dtype; the text and the conditioning are cast to it. A
     /// resident run evaluates the stream every `blocksPerEval` blocks; a streamed one is
@@ -35,12 +39,14 @@ extension LTX2Transformer {
         layout: LTX2LatentLayout,
         frameRate: Double,
         firstFrameStrength: Float? = nil,
+        heldFrames: Int = 1,
         textMask: MLXArray? = nil
     ) throws -> MLXArray {
         let table = rotary.table(positions: layout.positions(frameRate: frameRate))
-        let marker = Self.firstFrameMarker(layout)
-        var x = patchify(tokens) + marker.asType(tokens.dtype) * keyframeEmbedding.asType(tokens.dtype)
+        let keyframe = Self.heldMarker(layout, frames: 1)
+        var x = patchify(tokens) + keyframe.asType(tokens.dtype) * keyframeEmbedding.asType(tokens.dtype)
         let held = firstFrameStrength.map { MLX.concatenated([sigma, sigma * (1 - $0)], axis: 0) }
+        let marker = heldFrames == 1 ? keyframe : Self.heldMarker(layout, frames: heldFrames)
         let (modulation, embedded) = timestepModulation(held ?? sigma, dtype: x.dtype)
         let (prompt, _) = promptModulation(sigma, dtype: x.dtype)
         let conditioning =
@@ -66,11 +72,11 @@ extension LTX2Transformer {
         return head(x, embedded: embedded, marker: held == nil ? nil : marker)
     }
 
-    /// `[1, tokens, 1]`: true over the first latent frame's tokens, false elsewhere. One
-    /// marker for both readers of it — the keyframe embedding, which casts it to the stream,
-    /// and the per-token modulation, which selects with it.
-    static func firstFrameMarker(_ layout: LTX2LatentLayout) -> MLXArray {
-        let marked = layout.firstFrameTokens
+    /// `[1, tokens, 1]`: true over the first `frames` latent frames' tokens, false elsewhere.
+    /// Over one frame it is the keyframe embedding's marker, cast to the stream; over the held
+    /// frames it is the per-token modulation's, which selects with it.
+    static func heldMarker(_ layout: LTX2LatentLayout, frames: Int) -> MLXArray {
+        let marked = layout.frameTokens(frames)
         return MLX.concatenated(
             [
                 MLXArray.ones([1, marked, 1], type: Bool.self),
@@ -82,7 +88,7 @@ extension LTX2Transformer {
     /// model's own two-row table (shift first, then scale), then the projection to latents.
     ///
     /// With a `marker` the embedded timestep is a batch of two — the step's sigma and the held
-    /// frame's, exactly two rows because one held frame is what `callAsFunction` concatenates —
+    /// frames', exactly two rows because one strength is what `callAsFunction` concatenates —
     /// and the two rows are chosen per token exactly as a block's nine are. Without a `marker`
     /// `embedded` is the ordinary `[batch, 1, dim]` timestep embedding, batch meaning the
     /// request's own batch of prompts, so it is expanded and passed through whole: picking

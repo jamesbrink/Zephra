@@ -35,6 +35,31 @@ struct TransformerConditionedParityTests {
         #expect(Fixture.maxAbsoluteDifference(output, expected) < 1e-4)
     }
 
+    @Test(
+        "a run of held frames reproduces the reference, the keyframe embedding on the first alone",
+        arguments: [("1", Float(1)), ("0_6", Float(0.6))])
+    func heldSpanForward(label: String, strength: Float) throws {
+        let fixture = try Fixture.load("transformer_conditioned_span")
+        let model = try Self.loaded(fixture)
+        let heldFrames = try #require(fixture["in.held_frames"]).item(Int32.self)
+        #expect(heldFrames == 2)
+        let output = try model(
+            tokens: try #require(fixture["in.tokens"]),
+            text: try #require(fixture["in.text"]),
+            sigma: try #require(fixture["in.sigma"]),
+            layout: TransformerParityTests.layout,
+            frameRate: 24,
+            firstFrameStrength: strength,
+            heldFrames: Int(heldFrames))
+        let expected = try #require(fixture["out.tokens.\(label)"])
+        #expect(output.shape == expected.shape)
+        #expect(Fixture.maxAbsoluteDifference(output, expected) < 1e-4)
+        // Holding two frames is not holding one: the second frame's tokens are told a different
+        // noise level, and the answer moves with them.
+        let oneFrame = try #require(try Fixture.load("transformer_conditioned")["out.tokens.\(label)"])
+        #expect(Fixture.maxAbsoluteDifference(output, oneFrame) > 1e-3)
+    }
+
     @Test("holding nothing is not the same answer as holding the frame")
     func conditioningChangesTheAnswer() throws {
         let fixture = try Fixture.load("transformer_conditioned")

@@ -41,7 +41,7 @@ struct LTX2RequestMapperTests {
         for strength in [0.0, 0.5, 1.0] {
             let request = try LTX2RequestMapper.request(
                 for: Self.settings(reference: nil, strength: strength), descriptor: Self.descriptor)
-            #expect(request.firstFrame == nil, Comment(rawValue: "\(strength)"))
+            #expect(request.heldFrames == nil, Comment(rawValue: "\(strength)"))
         }
     }
 
@@ -51,9 +51,22 @@ struct LTX2RequestMapperTests {
         for (setting, held) in [(0.0, Float(1)), (0.4, Float(0.6)), (0.9, Float(0.1))] {
             let request = try LTX2RequestMapper.request(
                 for: Self.settings(reference: png, strength: setting), descriptor: Self.descriptor)
-            let frame = try #require(request.firstFrame)
+            let frame = try #require(request.heldFrames)
             #expect(abs(frame.strength - held) < 1e-6, Comment(rawValue: "\(setting)"))
+            #expect(frame.images.count == 1)
         }
+    }
+
+    @Test("a continuation's tail is what is held, trimmed to the ladder, and the well's picture is not")
+    func aContinuationIsHeld() throws {
+        let png = try Self.png()
+        var settings = Self.settings(reference: png, strength: 0)
+        settings.continuation = ClipContinuation(
+            frames: Array(repeating: png, count: 12), origin: "clip.png", sourceFrameCount: 49)
+        let request = try LTX2RequestMapper.request(for: settings, descriptor: Self.descriptor)
+        let held = try #require(request.heldFrames)
+        #expect(held.images.count == 9, "12 frames trimmed down the ladder of eight to 9")
+        #expect(held.strength == 1)
     }
 
     @Test("the model's own default holds the frame exactly, which is what image-to-video means")
@@ -61,7 +74,7 @@ struct LTX2RequestMapperTests {
         let request = try LTX2RequestMapper.request(
             for: Self.settings(reference: try Self.png(), strength: Self.descriptor.capabilities.defaultReferenceStrength),
             descriptor: Self.descriptor)
-        #expect(try #require(request.firstFrame).strength == 1)
+        #expect(try #require(request.heldFrames).strength == 1)
     }
 
     @Test("a strength outside the model's bounds is clamped before it is inverted")
@@ -71,7 +84,7 @@ struct LTX2RequestMapperTests {
             descriptor: Self.descriptor)
         // 1 is not offered; clamped to 0.9 and inverted to 0.1, the least a frame is ever held
         // by. A conditioning strength of 0 would be a picture read and then ignored.
-        #expect(abs(try #require(request.firstFrame).strength - 0.1) < 1e-6)
+        #expect(abs(try #require(request.heldFrames).strength - 0.1) < 1e-6)
     }
 
     @Test("something that is not a picture fails before the first step rather than during it")

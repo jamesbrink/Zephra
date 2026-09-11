@@ -8,7 +8,10 @@ The transformer fixtures are dumped with the audio-to-video cross-attention swit
 is the official model's `audio=None` forward and the only path a video-only pack runs.
 `transformer_conditioned` is the same model handed a per-token `timestep`, which is how a held
 first frame reaches it; the audio lane keeps the scalar there, as the reference's own
-image-to-video pipeline passes it.
+image-to-video pipeline passes it. `transformer_conditioned_span` holds two of its three latent
+frames the way `pipeline_ltx2_condition.py` holds a multi-frame condition at latent index 0 —
+the per-token timestep over both, the keyframe embedding on the first alone — which is how a
+clip carried on from the end of another reaches it.
 
 `latent_upsampler` is the spatial latent upsampler at eight latent and sixty-four middle
 channels, one block a stage, dumped by `Tools/dump_upsampler.py` with every parameter

@@ -44,6 +44,16 @@ struct FirstFramePixelsTests {
         return try #require(context.makeImage())
     }
 
+    @Test("several pictures stack in time, one frame each, in the order given")
+    func severalPicturesStack() throws {
+        let quadrants = try Self.quadrants(width: 64, height: 64)
+        let pixels = try LTX2FirstFramePixels.pixels(
+            from: [quadrants, quadrants, quadrants], width: 96, height: 64)
+        #expect(pixels.shape == [1, 3, 3, 64, 96])
+        let single = try LTX2FirstFramePixels.pixels(from: quadrants, width: 96, height: 64)
+        #expect(MLX.arrayEqual(pixels[0..., 0..., 2..<3], single).item(Bool.self))
+    }
+
     @Test("the picture comes back as one frame, channels first, in minus one to one")
     func shapeAndRange() throws {
         let pixels = try LTX2FirstFramePixels.pixels(
