@@ -52,12 +52,13 @@ final class LibraryCatalog {
     }
 
     /// The catalog this launch gets: the real folders, or nothing under a frozen preview
-    /// state, where the fixture's entries are seeded straight in and no byte is written.
+    /// state, where the fixture's entries are seeded straight in and no byte is written — but
+    /// for the `viewer` state's drawn pictures, in a temporary folder emptied at every launch.
     convenience init() {
         let frozen = MobilePreview.state != nil
         self.init(
             libraryRoot: frozen ? nil : try? CacheDirectories.library(),
-            filesRoot: frozen ? nil : try? CacheDirectories.files())
+            filesRoot: frozen ? MobilePreview.pictureFolder() : try? CacheDirectories.files())
     }
 
     /// Reads what is on disk, then follows the client for as long as the app runs.
