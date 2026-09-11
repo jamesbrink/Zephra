@@ -7,17 +7,20 @@ extension MP4Writer {
     /// opened for a frame size and rate and closed by `finish`.
     ///
     /// Shared by `encode`, which feeds it a sequence through `FrameAppender`, and
-    /// `MP4Stitcher`, which feeds it decoded frames one at a time. Video only: an audio track,
-    /// when a model produces one, is added here before `startWriting` and appended in full
-    /// before the first frame (see `MP4Writer`).
+    /// `MP4Stitcher`, which feeds it decoded frames the same way. With an `audio` track a
+    /// second input is added before `startWriting`, AAC at the track's rate and channels, fed
+    /// by `AudioSampleAppender` on a queue of its own; `run` drives both appenders at once,
+    /// which is the one way the writer's interleaving of two tracks makes progress.
     final class Session {
         let width: Int
         let height: Int
         let frameRate: Double
         let adaptor: AVAssetWriterInputPixelBufferAdaptor
+        /// The audio appender, when the file has a track.
+        let audio: AudioSampleAppender?
         private let writer: AVAssetWriter
 
-        init(to url: URL, width: Int, height: Int, frameRate: Double) throws {
+        init(to url: URL, width: Int, height: Int, frameRate: Double, audio track: AudioTrack? = nil) throws {
             self.width = width
             self.height = height
             self.frameRate = frameRate
@@ -48,6 +51,26 @@ extension MP4Writer {
                 throw MP4WriterError.encodingFailed("The writer refused a \(width) x \(height) H.264 track.")
             }
             writer.add(input)
+            if let track {
+                let audioInput = AVAssetWriterInput(
+                    mediaType: .audio,
+                    outputSettings: [
+                        AVFormatIDKey: kAudioFormatMPEG4AAC,
+                        AVSampleRateKey: track.sampleRate,
+                        AVNumberOfChannelsKey: track.channels,
+                        AVEncoderBitRateKey: 192_000,
+                    ],
+                    sourceFormatHint: try AudioSampleAppender.formatDescription(
+                        channels: track.channels, sampleRate: track.sampleRate))
+                audioInput.expectsMediaDataInRealTime = false
+                guard writer.canAdd(audioInput) else {
+                    throw MP4WriterError.encodingFailed("The writer refused an AAC track at \(track.sampleRate) Hz.")
+                }
+                writer.add(audioInput)
+                audio = AudioSampleAppender(track: track, input: audioInput)
+            } else {
+                audio = nil
+            }
             guard writer.startWriting() else {
                 throw MP4WriterError.encodingFailed(writer.error?.localizedDescription ?? "startWriting failed")
             }
@@ -61,21 +84,27 @@ extension MP4Writer {
             CMTime(value: CMTimeValue(index) * 1000, timescale: CMTimeScale((frameRate * 1000).rounded()))
         }
 
-        /// Appends one frame as frame `index`, waiting while the encoder catches up.
-        func append(_ buffer: CVPixelBuffer, at index: Int) async throws {
-            while !adaptor.assetWriterInput.isReadyForMoreMediaData {
-                try Task.checkCancellation()
-                try await Task.sleep(for: .milliseconds(2))
+        /// Appends every frame `frames` hands back and the whole audio track, each input on
+        /// its own queue as the writer asks, and closes the file. Throws whatever either
+        /// appender threw, the file abandoned.
+        func run(frames: FrameAppender) async throws {
+            do {
+                if let audio {
+                    async let sound: Void = audio.run()
+                    try await frames.run()
+                    try await sound
+                } else {
+                    try await frames.run()
+                }
+            } catch {
+                abandon()
+                throw error
             }
-            guard adaptor.append(buffer, withPresentationTime: time(of: index)) else {
-                throw MP4WriterError.encodingFailed(
-                    writer.error?.localizedDescription ?? "the writer refused frame \(index)")
-            }
+            try await finish()
         }
 
-        /// Closes the track and the file.
-        func finish() async throws {
-            adaptor.assetWriterInput.markAsFinished()
+        /// Closes the tracks and the file; the appenders have marked their inputs finished.
+        private func finish() async throws {
             await writer.finishWriting()
             if writer.status != .completed {
                 throw MP4WriterError.encodingFailed(writer.error?.localizedDescription ?? "finishWriting failed")

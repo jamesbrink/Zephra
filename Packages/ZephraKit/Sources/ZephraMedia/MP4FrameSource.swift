@@ -18,8 +18,13 @@ final class MP4FrameSource {
     /// Frames per second, as the track says.
     let frameRate: Double
 
+    /// The first audio track's channels and rate, or nil when the clip is silent.
+    let audioFormat: (channels: Int, sampleRate: Double)?
+
+    private let asset: AVURLAsset
     private let reader: AVAssetReader
     private let output: AVAssetReaderTrackOutput
+    private let audioTrack: AVAssetTrack?
 
     /// Opens the clip at `url`. Throws when there is no video track or the reader refuses it.
     ///
@@ -28,6 +33,7 @@ final class MP4FrameSource {
     /// caller that consumes each frame before asking again and not for one that keeps a few.
     init(url: URL, copyingSamples: Bool = false) async throws {
         let asset = AVURLAsset(url: url)
+        self.asset = asset
         guard let track = try? await asset.loadTracks(withMediaType: .video).first else {
             throw MP4WriterError.notAClip
         }
@@ -46,6 +52,16 @@ final class MP4FrameSource {
         output.alwaysCopiesSampleData = copyingSamples
         guard reader.canAdd(output) else { throw MP4WriterError.notAClip }
         reader.add(output)
+        if let audioTrack = try? await asset.loadTracks(withMediaType: .audio).first,
+            let descriptions = try? await audioTrack.load(.formatDescriptions),
+            let stream = descriptions.first?.audioStreamBasicDescription
+        {
+            audioFormat = (Int(stream.mChannelsPerFrame), stream.mSampleRate)
+            self.audioTrack = audioTrack
+        } else {
+            audioFormat = nil
+            audioTrack = nil
+        }
         guard reader.startReading() else {
             throw MP4WriterError.encodingFailed(reader.error?.localizedDescription ?? "startReading failed")
         }
@@ -55,6 +71,43 @@ final class MP4FrameSource {
     func next() -> CVPixelBuffer? {
         guard let sample = output.copyNextSampleBuffer() else { return nil }
         return CMSampleBufferGetImageBuffer(sample)
+    }
+
+    /// The whole audio track as interleaved float samples, or nil for a silent clip.
+    ///
+    /// Through a reader of its own: one reader's outputs are paced against each other, and
+    /// draining the sound before a frame has been read stalls on the frames.
+    func audioSamples() -> [Float]? {
+        guard let audioTrack, let format = audioFormat, let reader = try? AVAssetReader(asset: asset) else {
+            return nil
+        }
+        let decoded = AVAssetReaderTrackOutput(
+            track: audioTrack,
+            outputSettings: [
+                AVFormatIDKey: kAudioFormatLinearPCM,
+                AVLinearPCMBitDepthKey: 32,
+                AVLinearPCMIsFloatKey: true,
+                AVLinearPCMIsNonInterleaved: false,
+                AVLinearPCMIsBigEndianKey: false,
+                AVSampleRateKey: format.sampleRate,
+                AVNumberOfChannelsKey: format.channels,
+            ])
+        decoded.alwaysCopiesSampleData = true
+        guard reader.canAdd(decoded) else { return nil }
+        reader.add(decoded)
+        guard reader.startReading() else { return nil }
+        defer { reader.cancelReading() }
+        var samples: [Float] = []
+        while let sample = decoded.copyNextSampleBuffer() {
+            guard let block = CMSampleBufferGetDataBuffer(sample) else { continue }
+            let length = CMBlockBufferGetDataLength(block)
+            var bytes = [UInt8](repeating: 0, count: length)
+            bytes.withUnsafeMutableBytes { raw in
+                _ = CMBlockBufferCopyDataBytes(block, atOffset: 0, dataLength: length, destination: raw.baseAddress!)
+            }
+            bytes.withUnsafeBytes { raw in samples.append(contentsOf: raw.bindMemory(to: Float.self)) }
+        }
+        return samples
     }
 
     /// Whether the reader stopped for a reason other than the end of the clip.
