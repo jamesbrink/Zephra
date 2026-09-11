@@ -13,6 +13,13 @@ import os
 /// a fresh handshake, because a reconnection is a new session and pretending otherwise would
 /// hand the channel above a stream with a hole in it.
 public final class RelayConnection: LinkConnection, @unchecked Sendable {
+    /// How long the relay has to answer a join before the road gives up on it.
+    ///
+    /// A join that hangs is worse than one that fails: the backoff loop that retries the road
+    /// sits *after* this call, so a socket the relay accepts and then ignores stops the Mac
+    /// rejoining its room at all, for the life of the process and in silence.
+    public static let joinDeadline: Duration = .seconds(15)
+
     /// How often to ping, against the relay's ten-minute idle timeout.
     public static let pingInterval: Duration = .seconds(300)
 
@@ -64,6 +71,24 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
     /// is sent until the relay says `joined`: its connection index is eventually consistent.
     public func start() async throws {
         task.resume()
+        do {
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                group.addTask { try await self.join() }
+                group.addTask {
+                    try await Task.sleep(for: Self.joinDeadline)
+                    throw RelayError.timedOut
+                }
+                try await group.next()
+                group.cancelAll()
+            }
+        } catch {
+            await close()
+            throw error
+        }
+    }
+
+    /// Everything up to `joined`, with no clock of its own; `start()` holds the clock.
+    private func join() async throws {
         try await write(handshake.opening)
         while true {
             let message = try await read()

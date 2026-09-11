@@ -16,6 +16,30 @@ public enum RelayError: Error, Hashable, Sendable {
     case closed
     /// A message arrived that is not a relay message at all.
     case malformed
+    /// The relay took the socket and then never said `joined`.
+    ///
+    /// Its own case rather than a silent wait, because the wait was unbounded: a relay that
+    /// accepts the connection and answers nothing left `start()` suspended for good, and the
+    /// road's backoff loop is *after* that call — so the Mac never rejoined its room and no
+    /// line was written anywhere saying why.
+    case timedOut
+}
+
+/// The words each failure goes into a log as.
+///
+/// `localizedDescription` on a bare Swift error is "The operation couldn't be completed", which
+/// is how the relay's own refusal — the one word that says what to do about it — was being
+/// thrown away at the one place it is read.
+extension RelayError: CustomStringConvertible {
+    public var description: String {
+        switch self {
+        case .refused(let reason): "the relay refused it: \(reason)"
+        case .unexpected(let action): "the relay said \(action.rawValue) out of turn"
+        case .closed: "the socket closed before the join finished"
+        case .malformed: "the relay said something that is not a relay message"
+        case .timedOut: "the relay never answered the join"
+        }
+    }
 }
 
 /// What the relay's three refusals of a guest mean to the phone.

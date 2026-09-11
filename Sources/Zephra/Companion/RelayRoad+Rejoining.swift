@@ -47,7 +47,8 @@ extension RelayRoad {
                 }
                 logger.info("companion relay left \(self.url.absoluteString, privacy: .public)")
             } catch {
-                logger.notice("companion relay could not be joined: \(error.localizedDescription, privacy: .public)")
+                logger.error(
+                    "companion relay could not be joined: \(String(describing: error), privacy: .public)")
             }
             await listener.stop()
             await endGuests()
