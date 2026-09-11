@@ -1,5 +1,7 @@
 import SwiftUI
+import ZephraCore
 import ZephraEngine
+import ZephraStyle
 
 /// The picture a generation edits, on models that read one: a thumbnail at the trailing edge of
 /// the prompt, a place to drop a file or a library picture, and a way to clear it. Shown only

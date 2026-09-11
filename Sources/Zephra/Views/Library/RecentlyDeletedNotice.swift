@@ -1,5 +1,6 @@
 import SwiftUI
 import ZephraEngine
+import ZephraStyle
 
 /// The strip that appears only inside Recently Deleted: how long the images have, and the two
 /// ways out of it.

@@ -1,6 +1,7 @@
 import SwiftUI
 import ZephraCore
 import ZephraEngine
+import ZephraStyle
 
 /// Every model the catalog knows, the ones this Mac runs at their default size first.
 ///

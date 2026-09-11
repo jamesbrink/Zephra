@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import ZephraEngine
+import ZephraStyle
 
 /// The 40 pt thumbnail `ReferenceFactsRow` shows beside its facts, split out so the row itself
 /// does not have to hold the cache or the decode's own state.

@@ -1,4 +1,5 @@
 import SwiftUI
+import ZephraCore
 import ZephraEngine
 
 /// How much of the reference picture survives, as a slider with its value beside it.

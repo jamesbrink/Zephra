@@ -1,6 +1,7 @@
 import SwiftUI
 import ZephraCore
 import ZephraEngine
+import ZephraStyle
 
 /// The first-launch model chooser, filling the window in place of the workspace.
 ///

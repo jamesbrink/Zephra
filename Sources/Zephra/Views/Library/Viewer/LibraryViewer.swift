@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import ZephraEngine
+import ZephraStyle
 
 /// One library image, letterboxed full size, with `LibraryViewerBar` above it.
 ///

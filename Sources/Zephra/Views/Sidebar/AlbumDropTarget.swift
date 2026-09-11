@@ -1,5 +1,6 @@
 import SwiftUI
 import ZephraEngine
+import ZephraStyle
 
 /// Makes a sidebar row take images dropped on it.
 ///

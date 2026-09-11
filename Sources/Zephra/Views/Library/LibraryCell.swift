@@ -1,5 +1,6 @@
 import SwiftUI
 import ZephraEngine
+import ZephraStyle
 
 /// One image in the grid: the picture, a star if it is a favourite, a badge if it was made
 /// larger from another, and what a press means.

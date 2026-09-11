@@ -1,6 +1,7 @@
 import SwiftUI
 import ZephraCore
 import ZephraEngine
+import ZephraStyle
 
 /// The run being rendered right now, in safelight amber with the same step segments that ride
 /// the top of the prompt capsule. It is the only amber thing in the sidebar, because amber

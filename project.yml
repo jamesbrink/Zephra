@@ -41,6 +41,8 @@ settings:
 packages:
   ZephraKit:
     path: Packages/ZephraKit
+  ZephraStyle:
+    path: Packages/ZephraStyle
   ZephraMLXKit:
     path: Packages/ZephraMLXKit
   ZephraBackendZImage:
@@ -79,6 +81,10 @@ targets:
         product: ZephraCore
       - package: ZephraKit
         product: ZephraEngine
+      # The chrome: every radius, hairline, wash and colour set, shared with the iOS
+      # companion so the two apps are drawn from one set of numbers.
+      - package: ZephraStyle
+        product: ZephraStyle
       # For `MP4Stitcher`, the one `ClipEditing` the root injects; nothing else in the app
       # target imports ZephraMedia.
       - package: ZephraKit

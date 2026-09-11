@@ -1,5 +1,6 @@
 import SwiftUI
 import ZephraEngine
+import ZephraStyle
 
 /// The tags on the images being looked at, each removable, and a dashed chip to add one.
 ///

@@ -1,5 +1,6 @@
 import SwiftUI
 import ZephraEngine
+import ZephraStyle
 
 /// What the picture on the canvas was asked for, when that is no longer what is in the prompt
 /// field. Absent otherwise: repeating the field back at you is not a caption.

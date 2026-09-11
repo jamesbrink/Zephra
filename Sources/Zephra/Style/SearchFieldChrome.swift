@@ -1,4 +1,5 @@
 import SwiftUI
+import ZephraStyle
 
 /// The look of a search field: a magnifier at its leading edge, a quiet rounded fill, and the
 /// height of one line of `.callout`.

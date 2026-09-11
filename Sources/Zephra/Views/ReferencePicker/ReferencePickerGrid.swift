@@ -1,5 +1,6 @@
 import SwiftUI
 import ZephraEngine
+import ZephraStyle
 
 /// Every image in the library, narrowed only by the sheet's own search text — scope `.all`,
 /// newest first, the same order the library grid defaults to — in cells of at least 120 pt

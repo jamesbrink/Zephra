@@ -1,5 +1,6 @@
 import SwiftUI
 import ZephraEngine
+import ZephraStyle
 
 /// The last few prompts, as chips on the empty canvas. A press puts one in the field and the
 /// caret after it, so trying yesterday's idea again is one click and a Command-Return.

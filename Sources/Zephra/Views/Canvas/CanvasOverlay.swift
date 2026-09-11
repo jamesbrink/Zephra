@@ -1,5 +1,6 @@
 import SwiftUI
 import ZephraEngine
+import ZephraStyle
 
 /// Everything that floats over the picture, stacked up from the bottom edge: a save notice when
 /// there is one, the caption of the image being looked at, and the prompt capsule.

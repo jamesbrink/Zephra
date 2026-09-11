@@ -1,4 +1,6 @@
 import SwiftUI
+import ZephraCore
+import ZephraStyle
 
 /// The reference well's empty state, and its filled state's drop target too: a plain macOS
 /// drop well rather than a solid card, legible over the floating capsule's material without

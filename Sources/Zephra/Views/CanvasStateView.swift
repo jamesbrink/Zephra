@@ -1,6 +1,7 @@
 import SwiftUI
 import ZephraCore
 import ZephraEngine
+import ZephraStyle
 
 /// What the canvas says when it is not simply showing a picture: the download, the load,
 /// the pace of a running generation, the empty invitation, the failure and its remedy.

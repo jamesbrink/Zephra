@@ -1,6 +1,7 @@
 import SwiftUI
 import ZephraCore
 import ZephraEngine
+import ZephraStyle
 
 /// One model in the sidebar's Models section: its colour, its name, and how many images it
 /// made. Pressing it narrows the library to that model; pressing it again widens it back.

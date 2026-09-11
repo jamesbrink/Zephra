@@ -1,5 +1,6 @@
 import SwiftUI
 import ZephraEngine
+import ZephraStyle
 
 /// Slides `CanvasOverlay` down by its own height, minus the lip, when the prompt is tucked away.
 ///

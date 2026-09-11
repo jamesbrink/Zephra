@@ -1,5 +1,6 @@
 import SwiftUI
 import ZephraEngine
+import ZephraStyle
 
 /// One album in the sidebar: its name, how many images are in it, and the two things that can
 /// be done to it.

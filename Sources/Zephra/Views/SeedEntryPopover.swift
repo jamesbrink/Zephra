@@ -1,4 +1,5 @@
 import SwiftUI
+import ZephraCore
 import ZephraEngine
 
 /// Typing a seed in, over the seed label: the whole number, the whole value in hex, or the

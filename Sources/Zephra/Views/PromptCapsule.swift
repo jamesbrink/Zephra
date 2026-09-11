@@ -1,5 +1,6 @@
 import SwiftUI
 import ZephraEngine
+import ZephraStyle
 
 /// The one floating control surface, made of system material so the picture behind it tints
 /// every control on it. Step segments ride its top edge; the prompt and its settings sit inside.

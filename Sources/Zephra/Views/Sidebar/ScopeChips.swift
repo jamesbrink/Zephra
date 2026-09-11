@@ -1,6 +1,7 @@
 import SwiftUI
 import ZephraCore
 import ZephraEngine
+import ZephraStyle
 
 /// The two narrowings worth reaching for without moving the eye: everything, and favourites.
 ///

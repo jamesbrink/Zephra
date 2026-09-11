@@ -1,6 +1,7 @@
 import SwiftUI
 import ZephraCore
 import ZephraEngine
+import ZephraStyle
 
 /// The pane below the toolbar strip: graphite ground, the picture letterboxed edge to edge on
 /// it, and the engine's words over the top.

@@ -1,4 +1,5 @@
 import SwiftUI
+import ZephraCore
 import ZephraEngine
 
 /// The inspector's line for a picture that started from another one: the role's own label

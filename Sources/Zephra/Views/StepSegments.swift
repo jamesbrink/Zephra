@@ -1,4 +1,5 @@
 import SwiftUI
+import ZephraStyle
 
 /// One thin segment per denoising step, laid across the top edge of the prompt capsule and
 /// filled left to right as the steps land.

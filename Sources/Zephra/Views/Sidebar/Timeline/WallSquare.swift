@@ -1,5 +1,6 @@
 import SwiftUI
 import ZephraEngine
+import ZephraStyle
 
 /// One square of the wall: the tile, a wash while the pointer is over it, and a ring when it is
 /// the picture the canvas is showing — the last two through `WallSquareChrome`, which is also

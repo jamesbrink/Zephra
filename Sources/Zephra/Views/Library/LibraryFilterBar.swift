@@ -1,5 +1,6 @@
 import SwiftUI
 import ZephraEngine
+import ZephraStyle
 
 /// The strip over the grid: what is narrowing it, and how much of it there is.
 ///

@@ -1,6 +1,7 @@
 import SwiftUI
 import ZephraCore
 import ZephraEngine
+import ZephraStyle
 
 /// A picture the session made and the library has not indexed yet, at length: the picture,
 /// what it was asked for, and how it was made.

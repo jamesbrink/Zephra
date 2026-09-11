@@ -1,5 +1,6 @@
 import SwiftUI
 import ZephraEngine
+import ZephraStyle
 
 /// What the viewer shows before the full-size decode lands: the grid's thumbnail, stretched
 /// over a rectangle of the picture's own shape.

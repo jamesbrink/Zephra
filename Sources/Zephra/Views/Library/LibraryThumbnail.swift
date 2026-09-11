@@ -1,5 +1,6 @@
 import SwiftUI
 import ZephraEngine
+import ZephraStyle
 
 /// One image's pixels, at whatever size the surrounding pane asked for.
 ///

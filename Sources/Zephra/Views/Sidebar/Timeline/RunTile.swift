@@ -1,5 +1,6 @@
 import SwiftUI
 import ZephraEngine
+import ZephraStyle
 
 /// One square of a run: a picture the library knows about, or a picture this session has just
 /// made.

@@ -1,5 +1,6 @@
 import SwiftUI
 import ZephraEngine
+import ZephraStyle
 
 /// The strip over the viewer: a way back to the grid, where the shown image sits among the
 /// rest, and buttons for the same steps the arrow keys already answer to.

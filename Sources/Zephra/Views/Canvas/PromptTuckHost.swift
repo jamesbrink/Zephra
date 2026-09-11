@@ -1,5 +1,6 @@
 import SwiftUI
 import ZephraEngine
+import ZephraStyle
 
 /// Owns bringing the tucked prompt back by anything other than a click on the picture or the
 /// lip: Escape, a View-menu command reaching in through `WorkspaceSelection`, or simply typing.

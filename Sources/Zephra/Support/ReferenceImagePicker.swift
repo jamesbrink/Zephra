@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import ZephraCore
 
 /// Asking for a picture to edit, through the standard open panel.
 enum ReferenceImagePicker {

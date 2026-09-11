@@ -1,4 +1,5 @@
 import SwiftUI
+import ZephraCore
 import ZephraEngine
 
 /// The local-file alternative stays available even when the library has no matches.

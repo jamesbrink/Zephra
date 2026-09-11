@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import ZephraStyle
 
 /// A picture this session made, drawn from `ImageCache`, decoded off the main actor.
 ///

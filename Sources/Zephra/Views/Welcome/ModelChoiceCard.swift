@@ -1,6 +1,7 @@
 import SwiftUI
 import ZephraCore
 import ZephraEngine
+import ZephraStyle
 
 /// One model in the chooser: a picture it made, its name, what it is for, and what choosing it
 /// would cost here.

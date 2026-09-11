@@ -1,4 +1,5 @@
 import SwiftUI
+import ZephraStyle
 
 /// What `WallSquare` lays over its tile: the wash while the pointer is over it, and the ring
 /// when the canvas is showing it. Both draw in front of the tile's button, and neither may take

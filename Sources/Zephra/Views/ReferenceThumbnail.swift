@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import ZephraEngine
+import ZephraStyle
 
 /// The small picture in the reference well, decoded off the main actor.
 ///

@@ -1,6 +1,7 @@
 import SwiftUI
 import ZephraCore
 import ZephraEngine
+import ZephraStyle
 
 /// The sliver left at the bottom edge once the prompt has tucked away: the run's step segments,
 /// so progress keeps showing, and a chevron that brings the capsule back.
