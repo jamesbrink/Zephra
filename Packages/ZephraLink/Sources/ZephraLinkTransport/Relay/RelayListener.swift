@@ -112,11 +112,17 @@ public final class RelayListener: LinkListener, @unchecked Sendable {
     }
 
     /// The host's own road stopped, which ends the guest with it.
+    ///
+    /// Logged with its reason, because from outside this is indistinguishable from a Mac that
+    /// simply has no phone: the listener finishes, `RelayRoad` rejoins, and a guest that had
+    /// just arrived is left holding a channel to a socket nobody reads.
     private func roadEnded(_ error: Error?) {
         let current = lock.withLock { () -> RelayGuestSession? in
             defer { session = nil }
             return session
         }
+        logger.notice(
+            "The relay road ended \(error.map { "with \(String(describing: $0))" } ?? "cleanly", privacy: .public), \(current == nil ? "with no guest on it" : "with a guest on it", privacy: .public).")
         current?.end(error)
         continuation.finish()
     }
