@@ -240,10 +240,24 @@ archive-ios: gen
 	@if ! echo "$(IOS_BUILD_NUMBER)" | grep -Eq '^[1-9][0-9]*$$'; then \
 	  echo "BUILD_NUMBER must be a positive integer, got '$(IOS_BUILD_NUMBER)'"; exit 1; fi
 	rm -rf "$(IOS_ARCHIVE)"
+# -allowProvisioningUpdates needs a developer account, and takes it from Xcode's Accounts
+# settings or from an App Store Connect key on the command line. The key is the same one the
+# export uses, so a Mac with no Apple ID signed in to Xcode can still archive; without either,
+# xcodebuild says "No Accounts: Add a new account in Accounts settings". The credentials are
+# passed as positional parameters rather than a string, since the path has a space in it.
+	@set -a; \
+	if [ -f "$(SIGNING_CONFIG)" ]; then . "$(SIGNING_CONFIG)"; fi; \
+	set +a; \
+	set --; \
+	if [ -n "$${ASC_KEY_PATH:-}" ] && [ -n "$${ASC_KEY_ID:-}" ] && [ -n "$${ASC_ISSUER_ID:-}" ]; then \
+	  set -- -authenticationKeyPath "$$ASC_KEY_PATH" -authenticationKeyID "$$ASC_KEY_ID" \
+	         -authenticationKeyIssuerID "$$ASC_ISSUER_ID"; \
+	  echo "archive-ios: signing with the App Store Connect key $$ASC_KEY_ID"; \
+	else echo "archive-ios: no ASC_* key configured; signing with Xcode's own accounts"; fi; \
 	xcodebuild archive -project "$(PROJECT)" -scheme $(IOS_SCHEME) \
 	  -destination 'generic/platform=iOS' -configuration Release \
 	  -archivePath "$(IOS_ARCHIVE)" -allowProvisioningUpdates \
-	  -derivedDataPath "$(DERIVED)" $(IOS_VERSION_FLAGS)
+	  -derivedDataPath "$(DERIVED)" $(IOS_VERSION_FLAGS) "$$@"
 	@echo "archive-ios: $(IOS_ARCHIVE) is $(IOS_VERSION) ($(IOS_BUILD_NUMBER))"
 
 # Export that archive straight up to App Store Connect, where it becomes a TestFlight build.
