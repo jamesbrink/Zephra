@@ -17,6 +17,12 @@ final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate {
     var onTap: () -> Void = {}
     /// What a change of "is it zoomed in" does; called on the change, not on every frame.
     var onZoom: (Bool) -> Void = { _ in }
+    /// What a pull downwards does, phase by phase; `ZoomingScrollView+Pull` reads it.
+    var onPull: (ViewerGestures.PullPhase) -> Void = { _ in }
+    /// The pull itself, configured in the extension.
+    let pullRecognizer = UIPanGestureRecognizer()
+    /// Whether the touch in `pullRecognizer` has been read as a pull downwards.
+    var isPulling = false
 
     /// The furthest in anybody may go: past this the pixels are the model's rather than the
     /// picture's, and a phone screen has no more to show.
@@ -48,6 +54,7 @@ final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate {
         let single = UITapGestureRecognizer(target: self, action: #selector(tapped))
         single.require(toFail: double)
         addGestureRecognizer(single)
+        configurePull()
     }
 
     @available(*, unavailable)

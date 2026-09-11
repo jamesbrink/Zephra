@@ -45,6 +45,17 @@ struct ViewerPose {
                 || predicted >= 2 * MobileChrome.viewerDismissDistance
         }
 
+        /// How long a fling is credited with carrying on after the finger lifts. A quarter of a
+        /// second at the lift-off speed: a flick of the wrist is a thousand points a second
+        /// and more, and that carries a picture well past twice the distance; a lazy drag
+        /// let go at a few hundred does not.
+        static let flingHorizon: CGFloat = 0.25
+
+        /// Where a pull let go here, moving this fast, would have ended up.
+        static func predictedEnd(offset: CGFloat, velocity: CGFloat) -> CGFloat {
+            offset + velocity * flingHorizon
+        }
+
         /// Follows one change of the drag, locking the axis on the first.
         mutating func follow(_ translation: CGSize) {
             if axis == nil { axis = Self.axis(for: translation) }

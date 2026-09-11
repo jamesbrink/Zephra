@@ -64,6 +64,16 @@ struct ViewerPoseTests {
         #expect(!ViewerPose.Pull.shouldDismiss(offset: 40, predicted: distance * 2 - 1))
     }
 
+    @Test("A fling is credited with a quarter of a second at its lift-off speed")
+    func flingIsProjected() {
+        #expect(ViewerPose.Pull.predictedEnd(offset: 40, velocity: 1400) == 390)
+        #expect(ViewerPose.Pull.predictedEnd(offset: 40, velocity: -400) == -60)
+        #expect(ViewerPose.Pull.shouldDismiss(
+            offset: 40, predicted: ViewerPose.Pull.predictedEnd(offset: 40, velocity: 1400)))
+        #expect(!ViewerPose.Pull.shouldDismiss(
+            offset: 40, predicted: ViewerPose.Pull.predictedEnd(offset: 40, velocity: 400)))
+    }
+
     @Test("Releasing puts the picture back and frees the axis for the next drag")
     func releaseResets() {
         var pull = ViewerPose.Pull()

@@ -40,8 +40,10 @@ struct LibraryViewer: View {
         .scrollPosition(id: $pose.current)
         .scrollIndicators(.hidden)
         .ignoresSafeArea()
-        .environment(\.viewerGestures, gestures)
+        // The pull is inside the environment, not outside it: `ViewerPull` adds its own
+        // closure to what is set here, and an environment set inside it would replace that.
         .modifier(ViewerPull(pull: $pose.pull, isEnabled: !pose.isZoomed))
+        .environment(\.viewerGestures, gestures)
         .overlay(alignment: .top) { chrome { LibraryViewerTitle(entry: shown) } }
         .overlay(alignment: .bottom) {
             if let shown { chrome { LibraryViewerBar(entry: shown) } }

@@ -30,6 +30,7 @@ struct ZoomablePicture: UIViewRepresentable {
         // stale pair would toggle the chrome of a viewer that has since been rebuilt.
         view.onTap = gestures.tapped
         view.onZoom = gestures.zoomed
+        view.onPull = gestures.pulled
         if view.image !== picture { view.image = picture }
         if !isCurrent { view.resetZoom() }
     }
