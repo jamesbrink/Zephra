@@ -46,6 +46,16 @@ extension LibraryCatalog {
         return url
     }
 
+    /// Whether one picture's file is already on this phone.
+    ///
+    /// What Save to Photos and Share are greyed by while the Mac is out of reach: both work
+    /// offline for a file already fetched — you save the one you have been looking at — and
+    /// neither can do anything for one that was never fetched.
+    func hasFile(for entry: CachedEntry) async -> Bool {
+        let name = entry.isVideo ? Self.clipName(of: entry.fileName) : entry.fileName
+        return await fileStore.url(for: name) != nil
+    }
+
     /// The MP4 beside one poster: the same stem, the other extension. `VideoSidecar`'s rule on
     /// the Mac, spelled here because the phone may not import the module it lives in.
     static func clipName(of fileName: String) -> String {
