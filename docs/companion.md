@@ -452,8 +452,8 @@ is already up **leaves it alone**: the relay admits one allow-listed guest at a
 time, so that announcement is the one already talking catching up with its own
 first frame, and closing the session on it would tear the handshake that frame
 began in half. A session stands until a `peer left`, or until the host's own road
-goes. `updateAllowList(_:)` is on the listener too, and rides in the join when it
-is called before `start()`.
+goes. `updateAllowList(_:open:)` is on the listener too, and both the list and the
+open flag ride in the join when it is called before `start()`.
 
 **Reconnecting** is the caller's job, not the road's — the phone's client on one
 side, and `RelayRoad` in the Mac app on the other, which rejoins its room when
