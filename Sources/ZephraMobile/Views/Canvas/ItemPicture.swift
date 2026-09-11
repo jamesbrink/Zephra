@@ -10,40 +10,49 @@ import ZephraStyle
 /// may be a relay. The decode happens inside the cache's actor, off the main actor, because a
 /// full-size PNG is tens of milliseconds and that is a dropped frame in the middle of a scroll.
 ///
-/// Until it lands there is a quiet rectangle rather than a spinner: a fetch that fails — the
-/// Mac gone, or a frozen preview with no road under it — leaves a shape where the picture
-/// would be, and a spinner there would promise something that is not coming.
+/// A fetch that will not arrive says so rather than leaving a blank square: the Mac gone, or a
+/// frozen preview with no road under it, is a fact worth a sentence.
 struct ItemPicture: View {
     /// The file's name in the Mac's library, which is its identity everywhere in the protocol.
     let name: String
     @Environment(LinkClient.self) private var client
-    @State private var picture: UIImage?
+    @State private var phase = FetchPhase<UIImage>.fetching
 
     var body: some View {
         Group {
-            if let picture {
+            if let picture = phase.value {
                 Image(uiImage: picture)
                     .resizable()
                     .interpolation(.high)
                     .aspectRatio(contentMode: .fit)
+                    .clipShape(
+                        RoundedRectangle(
+                            cornerRadius: ZephraChrome.cardRadius, style: .continuous))
             } else {
-                RoundedRectangle(cornerRadius: ZephraChrome.cardRadius, style: .continuous)
-                    .fill(.quaternary)
-                    .aspectRatio(1, contentMode: .fit)
+                PictureUnavailable(isFetching: isFetching)
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: ZephraChrome.cardRadius, style: .continuous))
         .task(id: name) { await load() }
         .accessibilityLabel("The newest picture")
     }
 
+    private var isFetching: Bool {
+        if case .fetching = phase { return true }
+        return false
+    }
+
     private func load() async {
         if let held = await PictureCache.shared.picture(named: name) {
-            picture = held
+            phase = .ready(held)
             return
         }
-        picture = nil
-        guard let data = try? await client.file(name: name) else { return }
-        picture = await PictureCache.shared.store(data, for: name)
+        phase = .fetching
+        guard let data = try? await client.file(name: name),
+            let picture = await PictureCache.shared.store(data, for: name)
+        else {
+            phase = .missing
+            return
+        }
+        phase = .ready(picture)
     }
 }
