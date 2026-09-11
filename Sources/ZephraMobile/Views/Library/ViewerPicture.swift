@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// One picture at its full size, or one clip playing.
 ///
@@ -7,13 +8,16 @@ import SwiftUI
 /// itself. So a picture opened in a tunnel is the small one blown up rather than a grey
 /// rectangle, and a picture opened on the sofa sharpens twice within a second.
 ///
+/// Each of the three is decoded off the main actor before it is shown: the file is megabytes,
+/// and decoding it where the interface runs is a frozen viewer somebody is pinching.
+///
 /// A clip skips all of that and asks for its MP4, because a poster is not a clip.
 struct ViewerPicture: View {
     /// The picture to show.
     let entry: CachedEntry
 
     @Environment(LibraryCatalog.self) private var catalog
-    /// What is on screen so far: nothing, a thumbnail, or the file.
+    /// What is on screen so far: nothing, a picture, or a clip.
     @State private var shown: ViewerPictureState = .waiting
 
     var body: some View {
@@ -21,10 +25,10 @@ struct ViewerPicture: View {
             switch shown {
             case .waiting:
                 ProgressView().tint(.white)
-            case .picture(let data):
-                ZoomablePicture(data: data)
+            case .picture(let image):
+                ZoomablePicture(picture: image)
             case .clip(let url):
-                ClipPlayer(url: url)
+                ClipPlayerView(url: url, showsControls: true)
             case .unavailable(let reason):
                 ContentUnavailableView("Not on This Phone", systemImage: "wifi.slash",
                     description: Text(reason))
@@ -38,18 +42,28 @@ struct ViewerPicture: View {
     /// The thumbnail first, then the larger one, then the file — each shown as it lands.
     private func load() async {
         if let small = await catalog.thumbnail(for: entry), case .waiting = shown {
-            shown = .picture(small)
+            await show(small)
         }
         if entry.isVideo {
             do { shown = .clip(try await catalog.file(for: entry)) } catch { fell(to: error) }
             return
         }
         if let large = await catalog.thumbnail(for: entry, pixels: ThumbnailStore.viewerPixels) {
-            shown = .picture(large)
+            await show(large)
         }
-        do { shown = .picture(try Data(contentsOf: await catalog.file(for: entry))) } catch {
+        do {
+            let url = try await catalog.file(for: entry)
+            guard let picture = await DecodedPicture.contentsOf(url) else { return }
+            shown = .picture(picture)
+        } catch {
             fell(to: error)
         }
+    }
+
+    /// Puts one set of bytes on screen, decoded off the main actor.
+    private func show(_ data: Data) async {
+        guard let picture = await DecodedPicture.from(data) else { return }
+        shown = .picture(picture)
     }
 
     /// A failure that leaves a thumbnail on screen is not worth reporting: what is there is a
@@ -70,8 +84,8 @@ struct ViewerPicture: View {
 enum ViewerPictureState {
     /// Nothing yet.
     case waiting
-    /// Some bytes of a still picture: a thumbnail at first, the file in the end.
-    case picture(Data)
+    /// A still picture: a thumbnail at first, the file in the end.
+    case picture(UIImage)
     /// A clip, as a file on this phone.
     case clip(URL)
     /// Nothing could be got, in the words to show.

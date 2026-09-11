@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// One picture, pinched to zoom and dragged around once it is zoomed.
 ///
@@ -7,15 +8,18 @@ import SwiftUI
 /// animates on its own: the only motion here is the one somebody's fingers are making, and
 /// under Reduce Motion the spring back is instant rather than sprung.
 struct ZoomablePicture: View {
-    /// The picture's bytes.
-    let data: Data
+    /// The picture, decoded already: `ViewerPicture` does that off the main actor, since a
+    /// whole picture off a Mac is megabytes and decoding one here would freeze the pinch.
+    let picture: UIImage
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// How far in, and how far along. One value, because they are settled together.
     @State private var zoom = PictureZoom()
 
     var body: some View {
-        picture
+        Image(uiImage: picture)
+            .resizable()
+            .scaledToFit()
             .scaleEffect(zoom.scale)
             .offset(zoom.offset)
             .gesture(
@@ -29,16 +33,6 @@ struct ZoomablePicture: View {
             )
             .onTapGesture(count: 2) { withAnimation(motion) { zoom.toggle() } }
             .accessibilityLabel("Picture")
-    }
-
-    @ViewBuilder private var picture: some View {
-        if let image = UIImage(data: data) {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFit()
-        } else {
-            Color.black
-        }
     }
 
     /// Puts the picture back where it can be seen, once the fingers are off it.

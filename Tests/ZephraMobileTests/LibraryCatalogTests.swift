@@ -120,6 +120,40 @@ struct LibraryCatalogTests {
         #expect(bed.catalog.entries.count == bed.client.library.count)
     }
 
+    /// The Mac's index is its *pictures*: it resolves a poster's name and nothing else, so a
+    /// request naming the MP4 comes back `notFound` and no clip is ever fetched. What arrives
+    /// is the video all the same, and it is filed beside its poster under the same stem.
+    @Test("A clip is asked for by its poster's name and kept beside it as an MP4")
+    func aClipIsFiledBesideItsPoster() async throws {
+        let bed = try Bed()
+        await bed.catalog.sync(with: bed.client)
+        let clip = try #require(bed.catalog.entries.first { $0.isVideo })
+        let sidecar = LibraryCatalog.clipName(of: clip.fileName)
+        #expect(sidecar.hasSuffix(".mp4"))
+
+        await bed.catalog.fileStore.store(Data("a clip".utf8), as: sidecar)
+
+        let url = try await bed.catalog.file(for: clip)
+        #expect(url.lastPathComponent == sidecar)
+        #expect(await bed.catalog.hasFile(for: clip))
+    }
+
+    /// The canvas and the library read the same store, so a picture crosses what may be a relay
+    /// once rather than once per surface.
+    @Test("One cache: a file already here answers both the whole-file door and the picture one")
+    func oneCacheServesBothSurfaces() async throws {
+        let bed = try Bed()
+        await bed.catalog.sync(with: bed.client)
+        let entry = try #require(bed.catalog.entries.first { !$0.isVideo })
+        let bytes = Data("a picture".utf8)
+
+        await bed.catalog.fileStore.store(bytes, as: entry.fileName)
+
+        #expect(await bed.catalog.picture(named: entry.fileName) == bytes)
+        let url = try await bed.catalog.file(for: entry)
+        #expect(url.lastPathComponent == entry.fileName)
+    }
+
     /// A catalog over a frozen client and a scratch directory, which is every test above.
     struct Bed {
         let scratch: Scratch

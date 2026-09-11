@@ -3,11 +3,14 @@ import ZephraLinkProtocol
 
 /// The bytes behind a picture: its thumbnail, and the whole file.
 ///
-/// Both are the same shape — the store, then the Mac, then the store again — so a picture
-/// already looked at costs nothing the second time and a phone with no Mac in reach draws
-/// whatever it has already seen. Neither throws for a fetch that simply could not be made: a
-/// thumbnail answers nil and a cell shows its placeholder, which is what a grid scrolled past
-/// the end of the cache should do.
+/// Both are the same shape — the store, then the Mac, then the store — so a picture already
+/// looked at costs nothing the second time and a phone with no Mac in reach draws whatever it
+/// has already seen. This is the **one** door whole files and thumbnails cross the link
+/// through, for the canvas as much as for the library: a picture fetched on either surface is
+/// on the phone for the other, and it crosses what may be a relay once.
+///
+/// Neither throws for a fetch that simply could not be made: a thumbnail answers nil and a cell
+/// shows its placeholder, which is what a grid scrolled past the end of the cache should do.
 extension LibraryCatalog {
     /// One picture's thumbnail at one size, from the cache if it is there and from the Mac if
     /// it is not.
@@ -31,24 +34,25 @@ extension LibraryCatalog {
     /// one: `ShareLink`, the photo library and `AVPlayer` all take a file, and holding forty
     /// megabytes of clip in memory to hand it to a player that would rather read it is a way
     /// to be killed by the watchdog.
-    ///
-    /// A clip is two fetches, the poster and the MP4 beside it under the same stem, and it is
-    /// the MP4 that comes back — `LibraryItem.exportURL`'s rule, which is the Mac's rule.
     func file(for entry: CachedEntry) async throws -> URL {
-        try await url(named: entry.isVideo ? Self.clipName(of: entry.fileName) : entry.fileName)
+        try await url(named: entry.fileName, isVideo: entry.isVideo)
     }
 
-    /// One file by the name the Mac's library knows it by, as a URL on this phone.
+    /// One file, asked for by the name the Mac knows it by and kept under the name this phone
+    /// files it under.
     ///
-    /// The name is the whole key, which is what lets the canvas and the library share a fetch:
-    /// a picture the canvas drew a moment ago is already here when the library opens it, and one
-    /// the library fetched is already here when the canvas shows it next. It is what a clip is
-    /// asked for too, since a clip's MP4 crosses under a name of its own.
-    func url(named name: String) async throws -> URL {
-        if let held = await fileStore.url(for: name) { return held }
+    /// **Those are two different names for a clip**, and it matters. The Mac's index is its
+    /// pictures: it resolves a poster's name and nothing else, so a request naming the MP4 is
+    /// a picture the Mac has never heard of and comes back `notFound`. What arrives is the MP4
+    /// all the same — `Command.fetchFile` answers a clip's video for its poster — and that is
+    /// what lands beside the poster under the same stem, which is `VideoSidecar`'s rule and the
+    /// rule `hasFile(for:)` reads back.
+    func url(named name: String, isVideo: Bool) async throws -> URL {
+        let local = isVideo ? Self.clipName(of: name) : name
+        if let held = await fileStore.url(for: local) { return held }
         guard let client, client.connection.isLive else { throw LibraryCacheError.offline }
         let data = try await client.file(name: name)
-        guard let url = await fileStore.store(data, as: name) else {
+        guard let url = await fileStore.store(data, as: local) else {
             throw LibraryCacheError.cannotWrite
         }
         await measureCache()

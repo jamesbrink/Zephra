@@ -1,29 +1,40 @@
 import SwiftUI
-import ZephraLinkClient
 import ZephraStyle
 
 /// The Mac's library, as a grid to pick a reference picture out of.
 ///
-/// Deliberately plain: thumbnails, newest first, over whatever page of the library the phone
-/// has been told about. The library surface proper — its scopes, its search, its albums — is
-/// being built next door, and when it lands this becomes a use of it rather than a second
-/// grid. Picking fetches the whole picture, because a thumbnail is not what a model reads.
+/// Deliberately plain: thumbnails, newest first. It draws `LibraryCatalog` rather than a
+/// library of its own, so it shows what the Library tab shows, works with no Mac in reach, and
+/// costs nothing for a picture already looked at — the squares are the grid's own
+/// `EntryThumbnail`.
+///
+/// Picking says a **name**, through `ReferenceIntent`, exactly as the library's "Use as
+/// Reference" does. One path from a name to the picture in the well, ending at
+/// `ReferenceIntentReader` on the canvas; a second door that fetched and adopted for itself
+/// would be a second set of rules to keep in step.
 struct ReferencePickerSheet: View {
-    @Environment(LinkClient.self) private var client
-    @Environment(PromptDraft.self) private var draft
+    @Environment(LibraryCatalog.self) private var catalog
+    @Environment(ReferenceIntent.self) private var reference
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 LazyVGrid(columns: Self.columns, spacing: 8) {
-                    ForEach(client.library) { entry in
+                    ForEach(catalog.entries) { entry in
                         Button {
-                            adopt(entry.fileName)
+                            reference.use(entry.fileName)
+                            dismiss()
                         } label: {
-                            LibraryThumbnail(name: entry.fileName)
+                            EntryThumbnail(entry: entry)
+                                .aspectRatio(1, contentMode: .fit)
+                                .clipShape(
+                                    RoundedRectangle(
+                                        cornerRadius: ZephraChrome.thumbnailRadius,
+                                        style: .continuous))
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel(entry.label)
                     }
                 }
                 .padding(MobileChrome.sideMargin)
@@ -37,7 +48,7 @@ struct ReferencePickerSheet: View {
                 }
             }
             .overlay {
-                if client.library.isEmpty {
+                if catalog.entries.isEmpty {
                     ContentUnavailableView(
                         "No pictures yet", systemImage: "square.grid.2x2",
                         description: Text("Your Mac's library appears here."))
@@ -47,17 +58,4 @@ struct ReferencePickerSheet: View {
     }
 
     private static let columns = [GridItem(.adaptive(minimum: 96), spacing: 8)]
-
-    /// Fetches the picture itself and hands it to the well, naming the file it came from: the
-    /// origin is provenance the Mac records beside the run.
-    private func adopt(_ name: String) {
-        guard let snapshot = client.snapshot else { return }
-        let capabilities = snapshot.model(named: draft.modelID).capabilities
-        dismiss()
-        Task {
-            guard let data = try? await client.file(name: name) else { return }
-            await ReferenceAdoption.adopt(
-                data, origin: name, into: draft, fitting: capabilities)
-        }
-    }
 }

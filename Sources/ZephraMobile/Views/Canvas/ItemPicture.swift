@@ -1,21 +1,21 @@
 import SwiftUI
 import UIKit
-import ZephraLinkClient
 import ZephraStyle
 
 /// One of the Mac's pictures, at the size the screen has room for.
 ///
-/// The bytes are the file itself, fetched once and kept in `PictureCache`: a picture crosses
-/// the link once, so walking to the library and back does not fetch a megabyte again over what
-/// may be a relay. The decode happens inside the cache's actor, off the main actor, because a
-/// full-size PNG is tens of milliseconds and that is a dropped frame in the middle of a scroll.
+/// The bytes come through `LibraryCatalog`, which is the one cache on this phone: the file the
+/// library already fetched is the file the canvas draws, and the file the canvas fetches is
+/// already here when the library opens it. A picture therefore crosses the link once for both
+/// surfaces, which matters when the link is a relay on the far side of the world.
 ///
-/// A fetch that will not arrive says so rather than leaving a blank square: the Mac gone, or a
-/// frozen preview with no road under it, is a fact worth a sentence.
+/// The decode is off the main actor, because a full-size PNG is tens of milliseconds and that
+/// is a dropped frame. A fetch that will not arrive says so rather than leaving a blank square:
+/// the Mac gone, or a frozen preview with no road under it, is a fact worth a sentence.
 struct ItemPicture: View {
     /// The file's name in the Mac's library, which is its identity everywhere in the protocol.
     let name: String
-    @Environment(LinkClient.self) private var client
+    @Environment(LibraryCatalog.self) private var catalog
     @State private var phase = FetchPhase<UIImage>.fetching
 
     var body: some View {
@@ -42,13 +42,9 @@ struct ItemPicture: View {
     }
 
     private func load() async {
-        if let held = await PictureCache.shared.picture(named: name) {
-            phase = .ready(held)
-            return
-        }
         phase = .fetching
-        guard let data = try? await client.file(name: name),
-            let picture = await PictureCache.shared.store(data, for: name)
+        guard let data = await catalog.picture(named: name),
+            let picture = await DecodedPicture.from(data)
         else {
             phase = .missing
             return

@@ -1,24 +1,23 @@
 import SwiftUI
-import ZephraLinkClient
 import ZephraStyle
 
 /// A clip playing where its poster would be.
 ///
-/// AVKit plays a file and not a buffer, so the MP4 the Mac sends is written into the phone's
-/// temporary directory first, under the name the library knows it by. It is written once: a
-/// file already there is the same file, since the Mac never rewrites a clip under a name it
-/// has used. A clip that will not arrive says so, exactly as a picture does.
+/// AVKit plays a file and not a buffer, and the file is the one `LibraryCatalog` keeps: the
+/// clip the library watched is the clip the canvas plays, under one budget rather than two, and
+/// the phone's temporary directory is left out of it. A clip that will not arrive says so,
+/// exactly as a picture does.
 struct ClipPicture: View {
-    /// The poster's name in the Mac's library; the clip crosses under it too
-    /// (`Command.fetchFile`, which answers a clip's MP4 for its poster).
+    /// The poster's name in the Mac's library; the MP4 sits beside it under the same stem,
+    /// which is `VideoSidecar`'s rule and `LibraryCatalog.clipName(of:)`'s.
     let name: String
-    @Environment(LinkClient.self) private var client
+    @Environment(LibraryCatalog.self) private var catalog
     @State private var phase = FetchPhase<URL>.fetching
 
     var body: some View {
         Group {
             if let url = phase.value {
-                ClipPlayerView(url: url)
+                ClipPlayerView(url: url, showsControls: false)
                     .clipShape(
                         RoundedRectangle(
                             cornerRadius: ZephraChrome.cardRadius, style: .continuous))
@@ -36,21 +35,11 @@ struct ClipPicture: View {
     }
 
     private func load() async {
-        let destination = FileManager.default.temporaryDirectory
-            .appendingPathComponent(name)
-            .deletingPathExtension()
-            .appendingPathExtension("mp4")
-        if FileManager.default.fileExists(atPath: destination.path) {
-            phase = .ready(destination)
-            return
-        }
         phase = .fetching
-        guard let data = try? await client.file(name: name),
-            (try? data.write(to: destination, options: .atomic)) != nil
-        else {
+        guard let url = try? await catalog.url(named: name, isVideo: true) else {
             phase = .missing
             return
         }
-        phase = .ready(destination)
+        phase = .ready(url)
     }
 }
