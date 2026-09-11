@@ -255,3 +255,12 @@ second `hello` replaces it, and only the newest is live.
 A reconnection is a whole new handshake with new ephemerals, and it needs no
 pairing secret: the static keys the two ends already share are what stand in for
 one.
+
+## The road under the channel
+
+`LinkConnection` (`ZephraLinkProtocol/Transport/`) is all the secure channel asks of a
+transport: `frames()`, one `AsyncThrowingStream` of whole frames; `send(_:)`, one frame
+whole; `close()`. A TCP road prefixes each frame with a 4-byte big-endian length itself;
+the relay road maps one WebSocket text message to one frame. `LinkListener` is the Mac's
+side, yielding a `LinkConnection` per peer. `MemoryLinkConnection.pair()` is both ends of a
+road that never leaves the process, for tests and the phone's frozen preview.
