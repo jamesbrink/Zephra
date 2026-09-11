@@ -64,29 +64,48 @@ INFIX_RENAMES = [
 AUDIO_MARKERS = ("audio", "a2v", "v2a", "av_cross")
 
 
-def _pack_name(key: str) -> str | None:
-    """A diffusers parameter name as the pack spells it, or None for the audio lane."""
-    if any(marker in key for marker in AUDIO_MARKERS):
+AUDIO_PREFIX_RENAMES = [
+    ("audio_proj_in.", "audio_patchify_proj."),
+    ("audio_time_embed.", "audio_adaln_single."),
+    ("audio_prompt_adaln.", "audio_prompt_adaln_single."),
+    ("av_cross_attn_video_scale_shift.", "av_ca_video_scale_shift_adaln_single."),
+    ("av_cross_attn_audio_scale_shift.", "av_ca_audio_scale_shift_adaln_single."),
+    ("av_cross_attn_video_a2v_gate.", "av_ca_a2v_gate_adaln_single."),
+    ("av_cross_attn_audio_v2a_gate.", "av_ca_v2a_gate_adaln_single."),
+]
+AUDIO_INFIX_RENAMES = [
+    (".video_a2v_cross_attn_scale_shift_table", ".scale_shift_table_a2v_ca_video"),
+    (".audio_a2v_cross_attn_scale_shift_table", ".scale_shift_table_a2v_ca_audio"),
+    # The audio feed-forward's numbered layers, as the video one's are renamed above.
+    ("_ff.net.0.proj.", "_ff.proj_in."),
+    ("_ff.net.2.", "_ff.proj_out."),
+]
+
+
+def _pack_name(key: str, audio: bool = False) -> str | None:
+    """A diffusers parameter name as the pack spells it, or None for the audio lane unless
+    `audio` asks for it too."""
+    if any(marker in key for marker in AUDIO_MARKERS) and not audio:
         return None
-    for before, after in PREFIX_RENAMES:
+    for before, after in PREFIX_RENAMES + AUDIO_PREFIX_RENAMES:
         if key.startswith(before):
             key = after + key[len(before):]
     padded = "." + key
-    for before, after in INFIX_RENAMES:
+    for before, after in INFIX_RENAMES + AUDIO_INFIX_RENAMES:
         padded = padded.replace(before, after)
     return padded[1:]
 
 
-def _weights(module: torch.nn.Module, prefix: str) -> dict[str, torch.Tensor]:
+def _weights(module: torch.nn.Module, prefix: str, audio: bool = False) -> dict[str, torch.Tensor]:
     tensors = {}
     for name, value in module.state_dict().items():
-        packed = _pack_name(name)
+        packed = _pack_name(name, audio=audio)
         if packed is not None:
             tensors[prefix + packed] = value.float().contiguous()
     return tensors
 
 
-def _model():
+def _model(audio: bool = False):
     from diffusers.models.transformers.transformer_ltx2 import LTX2VideoTransformer3DModel
 
     torch.manual_seed(0)
@@ -102,6 +121,20 @@ def _model():
                 attn.to_gate_logits.bias.normal_()
                 attn.norm_q.weight.normal_()
                 attn.norm_k.weight.normal_()
+        if audio:
+            # The audio lane's own tables and gates, and the cross-modal tables, randomised
+            # after the video lane's so the video fixtures stay byte for byte what they were.
+            model.audio_scale_shift_table.normal_()
+            for block in model.transformer_blocks:
+                block.audio_scale_shift_table.normal_()
+                block.audio_prompt_scale_shift_table.normal_()
+                block.video_a2v_cross_attn_scale_shift_table.normal_()
+                block.audio_a2v_cross_attn_scale_shift_table.normal_()
+                for attn in (block.audio_attn1, block.audio_attn2, block.audio_to_video_attn, block.video_to_audio_attn):
+                    attn.to_gate_logits.weight.normal_()
+                    attn.to_gate_logits.bias.normal_()
+                    attn.norm_q.weight.normal_()
+                    attn.norm_k.weight.normal_()
     return model
 
 
@@ -343,6 +376,103 @@ def dump_conditioned_span(out: pathlib.Path) -> None:
     print(f"transformer_conditioned_span: {len(tensors)} tensors")
 
 
+AUDIO_FRAMES = 4
+
+
+def _audio_conditioning(model, dim, audio_dim):
+    """The per-block conditioning the reference computes at the model level, drawn here at
+    random so the block fixture pins the block alone."""
+    torch.manual_seed(4)
+    return dict(
+        temb=torch.randn(1, 1, 9 * dim), temb_audio=torch.randn(1, 1, 9 * audio_dim),
+        temb_ca_scale_shift=torch.randn(1, 1, 4 * dim), temb_ca_audio_scale_shift=torch.randn(1, 1, 4 * audio_dim),
+        temb_ca_gate=torch.randn(1, 1, dim), temb_ca_audio_gate=torch.randn(1, 1, audio_dim),
+        temb_prompt=torch.randn(1, 1, 2 * dim), temb_prompt_audio=torch.randn(1, 1, 2 * audio_dim),
+    )
+
+
+def dump_audio_block(out: pathlib.Path) -> None:
+    """One block with both lanes and both cross-modal attentions on: what the audio variant runs."""
+    model = _model(audio=True)
+    block = model.transformer_blocks[0]
+    dim, audio_dim = 32, 16
+    inputs = _inputs()
+    conditioning = _audio_conditioning(model, dim, audio_dim)
+    video_coords = model.rope.prepare_video_coords(1, FRAMES, HEIGHT, WIDTH, "cpu", fps=FPS)
+    audio_coords = model.audio_rope.prepare_audio_coords(1, AUDIO_FRAMES, "cpu")
+    with torch.no_grad():
+        video, audio = block(
+            hidden_states=inputs["hidden"], audio_hidden_states=inputs["audio"],
+            encoder_hidden_states=inputs["text"], audio_encoder_hidden_states=inputs["audio_text"],
+            video_rotary_emb=model.rope(video_coords), audio_rotary_emb=model.audio_rope(audio_coords),
+            ca_video_rotary_emb=model.cross_attn_rope(video_coords[:, 0:1, :]),
+            ca_audio_rotary_emb=model.cross_attn_audio_rope(audio_coords[:, 0:1, :]),
+            use_a2v_cross_attention=True, use_v2a_cross_attention=True,
+            **conditioning,
+        )
+    tensors = _weights(block, "model.", audio=True)
+    tensors.update({
+        "in.hidden": inputs["hidden"], "in.text": inputs["text"],
+        "in.audio": inputs["audio"], "in.audio_text": inputs["audio_text"],
+        "in.modulation": conditioning["temb"].reshape(1, 1, 9, dim).contiguous(),
+        "in.prompt": conditioning["temb_prompt"].reshape(1, 1, 2, dim).contiguous(),
+        "in.audio_modulation": conditioning["temb_audio"].reshape(1, 1, 9, audio_dim).contiguous(),
+        "in.audio_prompt": conditioning["temb_prompt_audio"].reshape(1, 1, 2, audio_dim).contiguous(),
+        "in.video_cross": conditioning["temb_ca_scale_shift"].reshape(1, 1, 4, dim).contiguous(),
+        "in.video_gate": conditioning["temb_ca_gate"].reshape(1, 1, 1, dim).contiguous(),
+        "in.audio_cross": conditioning["temb_ca_audio_scale_shift"].reshape(1, 1, 4, audio_dim).contiguous(),
+        "in.audio_gate": conditioning["temb_ca_audio_gate"].reshape(1, 1, 1, audio_dim).contiguous(),
+        "out.hidden": video.contiguous(), "out.audio": audio.contiguous(),
+    })
+    save_file(tensors, str(out / "transformer_audio_block.safetensors"))
+    print(f"transformer_audio_block: {len(tensors)} tensors")
+
+
+def dump_audio_model(out: pathlib.Path) -> None:
+    """The whole two-layer model with both lanes joined, the first frame marked, at one scalar
+    sigma, and the same again with the first frame held — the audio lane and every cross-modal
+    conditioner keeping the scalar sigma, as `use_cross_timestep=True` has every pipeline pass."""
+    model = _model(audio=True)
+    tensors = _weights(model, "model.", audio=True)
+    inputs = _inputs()
+    torch.manual_seed(9)
+    latent = torch.randn(1, TOKENS, VIDEO["in_channels"])
+    audio_latent = torch.randn(1, AUDIO_FRAMES, AUDIO["audio_in_channels"])
+    sigma = torch.tensor([0.725])
+    marked = HEIGHT * WIDTH
+    model.proj_in = _MarkedPatchify(model.proj_in, model.keyframes_abs_pos_embedding, marked)
+    mask = torch.zeros(1, TOKENS, 1)
+    mask[:, :marked] = 1.0
+    for label, strength in (("plain", None), ("held", 1.0), ("held_0_6", 0.6)):
+        timestep = sigma * 1000 if strength is None else (sigma[:, None] * 1000) * (1 - mask[..., 0] * strength)
+        with torch.no_grad():
+            video, audio = model(
+                hidden_states=latent, audio_hidden_states=audio_latent,
+                encoder_hidden_states=inputs["text"], audio_encoder_hidden_states=inputs["audio_text"],
+                timestep=timestep, audio_timestep=sigma * 1000, sigma=sigma * 1000,
+                num_frames=FRAMES, height=HEIGHT, width=WIDTH, fps=FPS, audio_num_frames=AUDIO_FRAMES,
+                isolate_modalities=False, use_cross_timestep=True, return_dict=False,
+            )
+        tensors[f"out.tokens.{label}"] = video.contiguous()
+        tensors[f"out.audio.{label}"] = audio.contiguous()
+    audio_coords = model.audio_rope.prepare_audio_coords(1, AUDIO_FRAMES, "cpu")
+    cos, sin = model.audio_rope(audio_coords)
+    ca_cos, ca_sin = model.cross_attn_audio_rope(audio_coords[:, 0:1, :])
+    video_coords = model.rope.prepare_video_coords(1, FRAMES, HEIGHT, WIDTH, "cpu", fps=FPS)
+    cav_cos, cav_sin = model.cross_attn_rope(video_coords[:, 0:1, :])
+    tensors.update({
+        "in.tokens": latent, "in.audio": audio_latent, "in.text": inputs["text"],
+        "in.audio_text": inputs["audio_text"], "in.sigma": sigma,
+        "in.marked": torch.tensor([marked], dtype=torch.int32),
+        "rope.audio.midpoints": ((audio_coords[..., 0] + audio_coords[..., 1]) / 2)[0].contiguous(),
+        "rope.audio.cos": cos.float().contiguous(), "rope.audio.sin": sin.float().contiguous(),
+        "rope.cross_audio.cos": ca_cos.float().contiguous(), "rope.cross_audio.sin": ca_sin.float().contiguous(),
+        "rope.cross_video.cos": cav_cos.float().contiguous(), "rope.cross_video.sin": cav_sin.float().contiguous(),
+    })
+    save_file(tensors, str(out / "transformer_audio_model.safetensors"))
+    print(f"transformer_audio_model: {len(tensors)} tensors")
+
+
 DUMPERS = {
     "rope": dump_rope,
     "timestep": dump_timestep,
@@ -350,6 +480,8 @@ DUMPERS = {
     "transformer_model": dump_model,
     "transformer_conditioned": dump_conditioned,
     "transformer_conditioned_span": dump_conditioned_span,
+    "transformer_audio_block": dump_audio_block,
+    "transformer_audio_model": dump_audio_model,
 }
 
 

@@ -72,10 +72,18 @@ extension LTX2Pipeline {
                         sample: sample, denoised: estimate, sigma: Float(sigma))
                 )
             }
-            let velocity = conditioned?.velocity ?? predicted
+            let estimate = conditioned?.estimate
+                ?? LTX2DistilledSchedule.denoised(sample, velocity: predicted, sigma: sigma)
             let noise = MLXRandom.normal(sample.shape, key: ancestral[index])
-            var next = schedule.step(sample: sample, velocity: velocity, index: index, noise: noise)
-            if let held {
+            var next = schedule.step(sample: sample, denoised: estimate, index: index, noise: noise)
+            if let held, held.strength < 1 {
+                // A partly held token walks a ladder scaled by what the transformer is told it
+                // carries; see `LTX2DistilledSchedule.step(sample:denoised:index:noise:sigmaScale:)`.
+                let partial = schedule.step(
+                    sample: sample, denoised: estimate, index: index, noise: noise,
+                    sigmaScale: Double(1 - held.strength))
+                next = MLX.where(held.mask .> 0, partial, next)
+            } else if let held {
                 next = LTX2FirstFrameConditioning.imposed(next, clean: held.latent, mask: held.mask)
             }
             MLX.eval(next)

@@ -104,4 +104,24 @@ struct LTX2DistilledScheduleTests {
             + Double(n) * terms.renoise
         #expect(abs(Double(result) - expected) < 1e-5)
     }
+
+    @Test("a partly held token's step walks its ladder scaled by what it is told, re-noise included")
+    func scaledStep() {
+        let schedule = LTX2DistilledSchedule()
+        let sample = MLXArray([0.8] as [Float])
+        let estimate = MLXArray([0.2] as [Float])
+        let noise = MLXArray([1.0] as [Float])
+        let plain = schedule.step(sample: sample, denoised: estimate, index: 5, noise: noise).item(Float.self)
+        let scaled = schedule.step(sample: sample, denoised: estimate, index: 5, noise: noise, sigmaScale: 0.6)
+            .item(Float.self)
+        let terms = LTX2DistilledSchedule.ancestralTerms(sigma: 0.909375 * 0.6, sigmaNext: 0.725 * 0.6, eta: 1)
+        let expected = (0.8 * terms.ratio + 0.2 * (1 - terms.ratio)) * terms.alphaRatio + terms.renoise
+        #expect(abs(Double(scaled) - expected) < 1e-5)
+        #expect(scaled != plain)
+        // A scale of 1 is the plain step, and the velocity form is the estimate form.
+        let unscaled = schedule.step(sample: sample, denoised: estimate, index: 5, noise: noise, sigmaScale: 1).item(Float.self)
+        #expect(unscaled == plain)
+        let velocity = (sample - estimate) / Float(0.909375)
+        #expect(abs(schedule.step(sample: sample, velocity: velocity, index: 5, noise: noise).item(Float.self) - plain) < 1e-6)
+    }
 }

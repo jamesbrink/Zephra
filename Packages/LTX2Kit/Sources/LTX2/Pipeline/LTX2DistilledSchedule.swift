@@ -62,9 +62,26 @@ public struct LTX2DistilledSchedule: Sendable, Hashable {
     /// `noise` is a fresh standard-normal draw of the sample's shape; it is ignored on the last
     /// step, whose answer is the denoised estimate itself.
     public func step(sample: MLXArray, velocity: MLXArray, index: Int, noise: MLXArray) -> MLXArray {
-        let sigma = sigmas[index]
-        let sigmaNext = sigmas[index + 1]
-        let denoised = Self.denoised(sample, velocity: velocity, sigma: sigma)
+        step(sample: sample, denoised: Self.denoised(sample, velocity: velocity, sigma: sigmas[index]), index: index, noise: noise)
+    }
+
+    /// The same step towards an estimate already in hand — a conditioned run's, with the held
+    /// picture blended in — over a ladder scaled by `sigmaScale`.
+    ///
+    /// The scale is what a **partly held** token needs. The reference tells the transformer a
+    /// held token sits at `sigma * (1 - strength)` and then steps every token with one
+    /// deterministic Euler step, where the told level never enters. This port's step is
+    /// ancestral: it re-draws noise scaled for the ladder's own rungs, and a token told it
+    /// carries six tenths of the noise, re-noised as if it carried all of it, drifts further
+    /// from what it is told at every step until the model is trusting noise — eight steps of
+    /// that decoded to confetti. So a held token walks its own ladder, every rung scaled by
+    /// what it is told, and its re-noise with it. At strength 1 the token is re-imposed
+    /// instead and never stepped; at 0 the scale is 1 and this is the plain step.
+    public func step(
+        sample: MLXArray, denoised: MLXArray, index: Int, noise: MLXArray, sigmaScale: Double = 1
+    ) -> MLXArray {
+        let sigma = sigmas[index] * sigmaScale
+        let sigmaNext = sigmas[index + 1] * sigmaScale
         guard sigmaNext > 0 else { return denoised }
         let terms = Self.ancestralTerms(sigma: sigma, sigmaNext: sigmaNext, eta: eta)
         let interpolated = sample * Float(terms.ratio) + denoised * Float(1 - terms.ratio)

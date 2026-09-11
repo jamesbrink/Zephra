@@ -43,7 +43,10 @@ extension BenchRunner {
         if let frames = options.frames { settings.frames = frames }
         settings.seed = 42
         settings.referenceImage = reference
+        // A clip carried on is held as the app holds it unless the flag says otherwise; a
+        // picture is edited at 0.6, the figure the reports have always been taken at.
         settings.referenceStrength = options.referenceStrength
+            ?? (continuation == nil ? 0.6 : descriptor.capabilities.defaultReferenceStrength)
         settings.continuation = continuation
         return descriptor.capabilities.clamp(settings)
     }

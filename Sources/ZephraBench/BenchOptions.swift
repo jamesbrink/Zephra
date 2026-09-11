@@ -32,8 +32,10 @@ struct BenchOptions: Sendable {
     /// A picture to edit, so the editing path is what gets measured.
     var reference: URL?
     /// How far from it the timed runs start, on a model that starts from a noised copy. Only
-    /// read when there is a reference, and clamped to the model's own bounds after that.
-    var referenceStrength = 0.6
+    /// read when there is a reference or a clip, and clamped to the model's own bounds after
+    /// that. Nil is 0.6 for a reference and the model's own default for a clip carried on,
+    /// which is what the app's Extend Clip holds it at (`BenchRunner+Settings`).
+    var referenceStrength: Double?
     /// A clip to carry on, so a continuation is what gets measured: its tail is held at the
     /// head of the run and the run is joined onto it beside `--out`.
     var extend: URL?

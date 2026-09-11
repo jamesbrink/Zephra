@@ -33,9 +33,11 @@ extension BenchOptions {
         frame exactly and ignores the flag. The report, not this flag, says the strength
         that ran and the step it began at.
         --extend takes a clip and measures carrying it on: its last frames (--context of
-        them, else the model's own default, 9 on LTX-2.5 and 1 on Wan 2.2) are held at the
-        head of the run as the app's Extend Clip holds them, and the run is joined onto the
-        clip as <stem>-extended.mp4 beside --out, the held frames dropped at the join.
+        them, else the model's own default, 17 on LTX-2.5 and 1 on Wan 2.2) are held at the
+        head of the run as the app's Extend Clip holds them — at the model's default strength
+        unless --strength says otherwise, so on LTX-2.5 the frames are held exactly — and the
+        run is joined onto the clip as <stem>-extended.mp4 beside --out, the held frames
+        dropped at the join.
         --preview turns on the live preview frames the app shows while a run is going and
         reports what they cost: how many were made and the mean milliseconds one took. The
         last frame is written beside --out as <stem>.preview.png, because a frame unpacked on
