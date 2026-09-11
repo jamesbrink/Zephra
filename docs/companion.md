@@ -49,7 +49,19 @@ kills the connection.
 | `ping` / `pong` | `{}` | either way |
 
 Every command gets exactly one reply, a refusal included, so the phone can hold a
-request open and know it will close.
+request open and know it will close — and **every command is safe to send
+twice**, because a reply can go missing. `LinkClient.request` asks once more
+under a fresh envelope id before it throws, so nothing a command does may count
+how many times it was asked: the queue commands, the library edits and the
+fetches all say what the Mac should end up like. The exception is `enqueue`,
+which adds work, and it is answered from what the session already did rather
+than queued again (below).
+
+`resync` is the phone saying it no longer trusts what it is holding: it stepped
+over a hole in the stream. The Mac answers `.ok` and then a fresh `snapshot`
+envelope, in that order on the one stream, so the request closes before the
+state it asked for arrives. The phone's library pull restarts on a snapshot
+landing, so the window it has been sent is asked for again as well.
 
 ```json
 {"kind":"setFavourite","names":["lighthouse.png"],"on":true}
@@ -76,6 +88,13 @@ clamps what arrives through the same `clamp` a local press of Generate goes
 through. The one thing stripped is `referenceImage`, on the way in and on the way
 out: a picture crosses as a blob and is named by `referenceBlobID`.
 
+It also carries the phone's own `requestID`, made once per press of Generate and
+kept across a retry while the envelope's id changes. `CompanionSession` remembers
+the run each id queued (`runMemory`, 32, oldest forgotten first) and answers a
+repeat with that same `queued(batchID:)` rather than queueing a second time — a
+hole in the stream must not cost somebody two generations. A request from a
+build that sends no id is simply one the Mac cannot recognise again.
+
 ## Blobs
 
 Thumbnails, files and clips do not go in JSON. A `blobStart` announces the id,
@@ -89,7 +108,10 @@ the byte count and the mime; the bytes follow as chunk frames.
   `OrderedInbox`, which has already put an overtaken frame back where it belongs,
   so a gap here means loss or tampering; holding out-of-order pieces at this
   level as well would mean holding arbitrary memory for a sender that never sends
-  the missing one. A duplicate index is the same answer.
+  the missing one. A duplicate index is the same answer. A transfer refused this
+  way is **that transfer** and never the session: the phone asks for the bytes
+  again, and a picture on its way to the Mac is answered `notFound` when the
+  `enqueue` names it.
 - One blob may not exceed 64 MiB while it is being assembled, and it may not
   exceed **what it announced**: `BlobReassembly` takes the `byteCount` at
   construction, trims a claim past the cap down to it, refuses the chunk that
@@ -207,16 +229,37 @@ they were sent.
   on with `released(through:)`, which is what the replay check is measured from.
 - A frame that arrives after the stream moved past it is the channel's
   `replayed`, and the session drops it with a line in the log.
-- A gap nothing fills inside `hold`, or more than `frameLimit` frames waiting on
-  one, is **loss, not reordering**: each hop is TCP under a WebSocket, so
-  overtaking is expected between hops and a hole is not. The channel is closed
-  and the session with it. The phone reconnects, and a new channel opens on a
-  snapshot of the whole state, which is the recovery.
+- A gap nothing fills inside `hold` is **loss, not reordering**: each hop is TCP
+  under a WebSocket, so overtaking is expected between hops and a hole is not.
+  It is **skipped**, not fatal. The release point jumps to the lowest counter
+  waiting, everything contiguous behind the hole is released in order, and
+  `released(through:)` moves the channel's floor with it — so the swallowed
+  counter is `replayed` if it ever does turn up. A live relay run dropped one
+  small frame (the receiver held 3, 4 and 5; frame 2 never came) with no Lambda
+  error and nothing logged at either end, and closing the session over it meant
+  the phone reconnecting every few seconds for the length of a run until it gave
+  up. What a hole actually costs is one message.
+- More than `frameLimit` (256) frames held on one gap is still the end of the
+  session: that is a stream nothing is going to put back together, and not
+  memory worth keeping. `accept` throws `SecureChannelError.lost` and the
+  channel closes.
 - The owner is handed a `FrameGap` — the counter that never came, the lowest one
-  waiting behind it, how many were waiting — and **both ends log it at info**:
-  `CompanionSession+Inbox` and `LinkClient.lost`. A loss is rare, ends the
-  session and leaves nothing else to look at, so the counters are the whole
-  diagnosis, and info is where a line survives a run nobody was watching.
+  waiting behind it, how many were waiting — and the frames the skip released,
+  to dispatch as if they had just arrived. **Both ends log it at error**:
+  `CompanionSession.stepOver` and `LinkClient.lost`. A skip is rare, costs the
+  phone a whole resync, and is the first thing to look for when a session
+  behaves oddly.
+- **The phone answers a gap by resyncing.** Every blob part way through is
+  dropped and every open request failed as `LinkClientError.lost` — both of
+  which are asked again once — and `Command.resync` goes out, so the state the
+  lost deltas were editing is replaced rather than patched around. The road
+  stays up: the session is the same session and the channel the same channel.
+- **The Mac answers a gap by carrying on.** The transfer that was arriving is
+  dropped, since its chunks are an ordered run with one missing, and the
+  `enqueue` naming that picture is answered `notFound`. A lost request never
+  arrives at all and the phone's own retry covers it. A chunk that does not fit
+  its transfer refuses **that transfer**, with a sealed error to the phone, and
+  never the session.
 - The hold is `CompanionHost.frameHold` and `LinkClient.frameHold` rather than
   the constant, so a suite asks the question in milliseconds.
 
@@ -377,6 +420,29 @@ hellos`, and the three a guest may meet: `no host` (the Mac is not in its room),
 on the list). A joined connection may also be told `not host` (a guest sent an
 `allow`), `bad allow`, `bad payload`, `already joined`, `malformed` or `unknown
 action`, and stays open.
+
+**A refusal on a joined connection is a frame the far end never sees**, and the
+far end has no way to know it happened: the hole simply appears in its counters.
+So `RelayConnection` logs it at error *and* yields it on `relayErrors()`, a
+stream beside `peerEvents()` that is empty for a road which refuses nothing, and
+the session over the road logs it again with the phone or the Mac it belongs to.
+
+### What a missing frame writes in the log
+
+Every place a frame can vanish says so at error, under `io.zephra`
+(`make logs`). A live run had one dropped with nothing written anywhere, which
+is what this list is for.
+
+| Where | Category | What it says |
+| --- | --- | --- |
+| `RelayConnection.write` | `link.relay` | the relay action, the byte count and the error, for any send that fails — a `try?` over one still logs here |
+| `RelayConnection.send` | `link.relay` | the frame's size and the error, before the road is taken down |
+| `RelayConnection.streamEnded` | `link.relay` | the socket's close code and the error, for a socket that went on its own |
+| `RelayConnection.dispatch` | `link.relay` | the relay's own reason for refusing a frame after the join |
+| `LinkSession`'s writer | `link.client` | a frame that never left the phone, with its size |
+| `CompanionSession`'s writer | `companion` | the same, from the Mac |
+| `LinkClient.lost` | `link.client` | the `FrameGap`, and that the world is being asked for again |
+| `CompanionSession.stepOver` | `companion` | the `FrameGap`, and that the session carries on |
 
 `RelayError` tells the guest's three apart, and `NetworkLinkRoads.connectRelay`
 is where that turns into behaviour: `no host` and `room busy` are about the
@@ -715,8 +781,15 @@ close, which is the case the envelope's opaque body exists for. An `error` with
 nothing.
 
 `request(_:)` holds a command open for thirty seconds under its envelope's id,
-and every command gets exactly one reply. `fetchBlob(_:)` is a request whose
-reply announces a blob, and the chunks that follow are reassembled in order. The
+and every command gets exactly one reply. A request that times out or is failed
+as `lost` by a gap is **asked once more**, under a fresh envelope id — the first
+may yet turn up, and two requests sharing an id would be two answers to one
+continuation. `fetchBlob(_:)` is a request whose
+reply announces a blob, and the chunks that follow are reassembled in order; it
+retries once as well, since the reply arrived and it is the bytes behind it that
+went missing. A transfer nothing is assembling any more is `lost` at once rather
+than waited out, or a caller that reached its `await` a moment after a gap would
+sit on a continuation nobody can resume. The
 announcement is opened in `dispatch`, where the reply is read, rather than where
 the request that asked for it resumes — the reply and the first chunk are two
 frames on one stream, and a phone that had not got back to its own `await` would

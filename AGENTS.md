@@ -265,7 +265,15 @@ the release point (`replayed`) or a whole 1024-frame window beyond it
 (`outOfWindow`) is dropped rather than fatal. Only a frame that does not
 authenticate closes the channel. `OrderedInbox` releases opened frames in counter
 order, holding an overtaken one for at most 256 frames or 500 ms; a gap that does
-not fill inside that is loss, not reordering, and ends the session.
+not fill inside that is loss, not reordering, and is **skipped** — the release
+point jumps to the lowest counter held, the frames behind it come out, `onGap`
+says so once at error on both ends, and the phone answers by dropping every
+transfer in flight, failing every open request as `lost` and sending
+`Command.resync`, which the Mac answers `.ok` and a fresh snapshot; only more
+than 256 frames held on one gap still ends the session. Every `Command` is safe
+to repeat, so `LinkClient.request` and `fetchBlob` ask once more under a fresh
+id, and the one that adds work — `enqueue` — is answered from the run that
+session already queued for that `GenerationRequest.requestID`.
 
 `ZephraLinkTransport` is the roads under that wire. A TCP frame rides behind a
 four-byte big-endian length and is capped at 1 MiB, a length past which closes
