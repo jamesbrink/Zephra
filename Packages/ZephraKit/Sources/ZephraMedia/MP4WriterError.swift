@@ -6,6 +6,9 @@ public enum MP4WriterError: Error, Equatable, Sendable {
     case emptyClip
     /// The pixel buffer is not `width * height * 4 * frames` bytes.
     case pixelCountMismatch(expected: Int, got: Int)
+    /// A track's samples are not whole frames: interleaved sound is one sample per channel per
+    /// instant, so the count has to be a multiple of the channel count.
+    case unalignedSamples(channels: Int, got: Int)
     /// AVFoundation refused to start, append to, or finish the file; the text is its own.
     case encodingFailed(String)
     /// The file has no video track to read.

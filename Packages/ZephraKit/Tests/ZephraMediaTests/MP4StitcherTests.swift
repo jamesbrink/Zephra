@@ -49,6 +49,28 @@ struct MP4StitcherTests {
         #expect(after.green > after.blue && after.green > after.red, "frame 5 is the second clip's first new frame")
     }
 
+    @Test("the join is as long as the parts decode to, not as long as their headers say")
+    func joinCountsDecodedFrames() async throws {
+        // A header's count is a duration times a nominal rate, rounded; the parts themselves
+        // are what the appender is driven by, so parts of uneven length and a part mostly
+        // held all land exactly.
+        let parts = [
+            ClipPart(mp4: try await Self.clip(colours: Array(repeating: (10, 10, 10), count: 7))),
+            ClipPart(mp4: try await Self.clip(colours: Array(repeating: (20, 20, 20), count: 2))),
+            ClipPart(mp4: try await Self.clip(colours: Array(repeating: (30, 30, 30), count: 5)), dropLeading: 3),
+        ]
+        let joined = try await MP4Stitcher().stitch(parts)
+        #expect(try await Self.frameCount(of: joined).frames == 7 + 2 + 2)
+    }
+
+    @Test("a join with every frame held is an empty clip")
+    func everyFrameHeld() async throws {
+        let two = try await Self.clip(colours: [(1, 2, 3), (1, 2, 3)])
+        await #expect(throws: MP4WriterError.emptyClip) {
+            _ = try await MP4Stitcher().stitch([ClipPart(mp4: two, dropLeading: 2)])
+        }
+    }
+
     @Test("clips of different sizes are refused before anything is written")
     func mismatchedSizes() async throws {
         let first = try await Self.clip(colours: [(1, 2, 3), (1, 2, 3)])

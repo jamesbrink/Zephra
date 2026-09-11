@@ -13,6 +13,12 @@ public enum ClipTail {
     public static func read(from url: URL, frames: Int) async throws -> [Data] {
         guard frames > 0 else { return [] }
         let source = try await MP4FrameSource(url: url, copyingSamples: true)
+        return try await ClipWork.run { try lastFrames(frames, of: source) }
+    }
+
+    /// The last `frames` frames the source hands back, as PNGs. Every call in here blocks
+    /// until its bytes have decoded, which is why the reads above run it on `ClipWork`.
+    private static func lastFrames(_ frames: Int, of source: MP4FrameSource) throws -> [Data] {
         var kept: [CVPixelBuffer] = []
         kept.reserveCapacity(frames)
         while let buffer = source.next() {

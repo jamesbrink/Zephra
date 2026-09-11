@@ -65,7 +65,8 @@ Shared, by what a file actually touches:
                                                   handed an `AudioTrack`), which a video backend
                                                   takes for its clip; a clip's tail read back
                                                   (`ClipTail`) and clips joined (`MP4Stitcher`,
-                                                  the one `ClipEditing`), which the engine
+                                                  the one `ClipEditing`, its blocking reads on
+                                                  `ClipWork`'s own queue), which the engine
                                                   reaches only through the protocol in Core and
                                                   the app links in `ZephraApp.swift` alone, to
                                                   inject it; the player is AVKit's over the file

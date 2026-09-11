@@ -91,7 +91,16 @@ extension MP4Writer {
             do {
                 if let audio {
                     async let sound: Void = audio.run()
-                    try await frames.run()
+                    do {
+                        try await frames.run()
+                    } catch {
+                        // The sound is still waiting on `requestMediaDataWhenReady`, which the
+                        // writer stops calling the moment it is cancelled. Let it go first, or
+                        // the implicit await on `sound` at the end of this scope waits for a
+                        // callback that will never come.
+                        audio.abandon(error)
+                        throw error
+                    }
                     try await sound
                 } else {
                     try await frames.run()

@@ -29,21 +29,27 @@ extension ModelCapabilities {
             referenceStrengthBounds.upperBound
         )
         result.frames = constrainFrames(settings.frames)
-        result.continuation = constrainContinuation(settings.continuation)
+        result.continuation = constrainContinuation(settings.continuation, frames: result.frames)
         return result
     }
 
     /// The continuation as this model can hold it: none on a model that cannot continue a
     /// clip, and otherwise the last frames on the model's own ladder, never more than it
-    /// holds. Rounded down to the ladder rather than up, because the frames that are there
-    /// are all there is; a continuation with no frames at all is dropped.
-    private func constrainContinuation(_ continuation: ClipContinuation?) -> ClipContinuation? {
+    /// holds and never as much as the clip it opens. Rounded down to the ladder rather than
+    /// up, because the frames that are there are all there is; a continuation with no frames
+    /// at all is dropped.
+    ///
+    /// `frames` is the clamped length, so a Duration moved down after Extend Clip trims the
+    /// held run to match: held frames are the clip's own first frames, and a pass with no
+    /// room for a frame it made is one the stitch drops entirely.
+    private func constrainContinuation(_ continuation: ClipContinuation?, frames: Int) -> ClipContinuation? {
         guard supportsContinuation, let continuation, !continuation.frames.isEmpty else {
             return nil
         }
-        let bounded = min(continuation.frames.count, continuationFrames.upperBound)
-        let snapped = max(1 + ((bounded - 1) / frameAlignment) * frameAlignment, 1)
-        return continuation.keepingLast(snapped)
+        let lowest = max(continuationFrames.lowerBound, 1)
+        let room = min(continuation.frames.count, continuationFrames.upperBound, frames - frameAlignment)
+        guard room >= lowest else { return nil }
+        return continuation.keepingLast(max(1 + ((room - 1) / frameAlignment) * frameAlignment, lowest))
     }
 
     /// The nearest legal frame count at or below `frames`, never below the lower bound: a

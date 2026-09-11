@@ -439,8 +439,8 @@ FAMILIES := ZImage QwenImage Flux2 LTX2 Wan
 lint-layers:
 	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|LTX2|Wan|MLX)' Sources/Zephra Sources/ZephraBench Sources/ZephraQuantize --include='*.swift' \
 	  || (echo "LAYER VIOLATION: app or tool target imports a model package or MLX directly"; exit 1)
-	@! grep -rlnE '^import (ZephraBackend|ZephraUpscale)' Sources/Zephra --include='*.swift' | grep -v 'ZephraApp.swift' \
-	  || (echo "LAYER VIOLATION: a backend or upscaler package is imported outside ZephraApp.swift"; exit 1)
+	@! grep -rlnE '^import (ZephraBackend|ZephraUpscale|ZephraMedia)' Sources/Zephra --include='*.swift' | grep -v 'ZephraApp.swift' \
+	  || (echo "LAYER VIOLATION: a backend, upscaler or ZephraMedia is imported outside ZephraApp.swift"; exit 1)
 	@! grep -rlnE '^import (ZImage|QwenImage|Flux2|LTX2|Wan|MLX)' Packages/ZephraKit/Sources 2>/dev/null \
 	  || (echo "LAYER VIOLATION: ZephraKit imports a model package or MLX"; exit 1)
 	@! grep -rlnE '^import (ZephraBackend|ZephraUpscale)' Packages/ZephraBackend*/Sources 2>/dev/null \

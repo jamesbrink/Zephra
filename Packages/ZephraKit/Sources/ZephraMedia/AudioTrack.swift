@@ -18,7 +18,7 @@ public struct AudioTrack: Sendable {
     public init(samples: [Float], channels: Int, sampleRate: Double) throws {
         guard channels > 0, sampleRate > 0, !samples.isEmpty else { throw MP4WriterError.emptyClip }
         guard samples.count % channels == 0 else {
-            throw MP4WriterError.pixelCountMismatch(expected: (samples.count / channels + 1) * channels, got: samples.count)
+            throw MP4WriterError.unalignedSamples(channels: channels, got: samples.count)
         }
         self.samples = samples
         self.channels = channels

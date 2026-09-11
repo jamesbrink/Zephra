@@ -93,9 +93,9 @@ struct MP4WriterAudioTests {
         #expect(abs(duration - 2) < 0.1)
     }
 
-    @Test("a track that is not whole frames is refused")
+    @Test("a track that is not whole frames is refused, and says what is wrong with it")
     func oddSamples() {
-        #expect(throws: MP4WriterError.self) {
+        #expect(throws: MP4WriterError.unalignedSamples(channels: 2, got: 3)) {
             _ = try AudioTrack(samples: [0, 0, 0], channels: 2, sampleRate: 48000)
         }
     }

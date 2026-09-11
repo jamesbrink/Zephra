@@ -13,9 +13,12 @@ final class AudioSampleAppender: @unchecked Sendable {
     let track: AudioTrack
     let input: AVAssetWriterInput
     private let queue = DispatchQueue(label: "io.zephra.mp4-writer-audio")
-    // Both touched only on `queue`, which is what the unchecked Sendable conformance rests on.
+    /// Touched only on `queue`, which is what the unchecked Sendable conformance rests on.
     private var next = 0
-    private var finished = false
+    /// Guards the two below, which `abandon` reaches from wherever the frames failed.
+    private let lock = NSLock()
+    private var waiting: CheckedContinuation<Void, any Error>?
+    private var outcome: Result<Void, any Error>?
 
     init(track: AudioTrack, input: AVAssetWriterInput) {
         self.track = track
@@ -36,8 +39,18 @@ final class AudioSampleAppender: @unchecked Sendable {
     /// Appends every chunk as the input asks for them, and marks the input finished.
     func run() async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+            lock.lock()
+            // Already given up, which is what frames that failed before this started look
+            // like: the writer is being cancelled and must not be asked for anything more.
+            if let settled = outcome {
+                lock.unlock()
+                continuation.resume(with: settled)
+                return
+            }
+            waiting = continuation
+            lock.unlock()
             input.requestMediaDataWhenReady(on: queue) { [self] in
-                guard !finished else { return }
+                guard !isSettled else { return }
                 do {
                     while input.isReadyForMoreMediaData, next < chunkCount {
                         guard input.append(try buffer(chunk: next)) else {
@@ -45,18 +58,35 @@ final class AudioSampleAppender: @unchecked Sendable {
                         }
                         next += 1
                     }
-                    if next == chunkCount {
-                        finished = true
-                        input.markAsFinished()
-                        continuation.resume()
-                    }
+                    if next == chunkCount { settle(.success(()), marking: true) }
                 } catch {
-                    finished = true
-                    input.markAsFinished()
-                    continuation.resume(throwing: error)
+                    settle(.failure(error), marking: true)
                 }
             }
         }
+    }
+
+    /// Gives the track up so `run` returns rather than waiting on a writer that is about to be
+    /// cancelled, and so a `run` that has not started yet never registers with one.
+    ///
+    /// What the session calls when the frames failed. It touches no AVFoundation: a cancelled
+    /// writer raises rather than answers, and this is called a moment before the cancel.
+    func abandon(_ error: any Error) { settle(.failure(error), marking: false) }
+
+    /// Whether the track is done with, either way.
+    private var isSettled: Bool { lock.withLock { outcome != nil } }
+
+    /// Resumes `run` once; the one place the continuation is let go of. `marking` closes the
+    /// input, which only the appender's own two endings do.
+    private func settle(_ result: Result<Void, any Error>, marking: Bool) {
+        lock.lock()
+        guard outcome == nil else { return lock.unlock() }
+        outcome = result
+        let continuation = waiting
+        waiting = nil
+        lock.unlock()
+        if marking { input.markAsFinished() }
+        continuation?.resume(with: result)
     }
 
     /// The input's format: float32 interleaved LPCM at the track's rate and channel count.

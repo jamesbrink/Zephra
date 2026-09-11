@@ -41,6 +41,13 @@ extension GenerationStore {
         guard segment.isLast else {
             let context = job.model.capabilities.defaultContinuationFrames
             let tail = try await clips.tail(ofData: clip.mp4, frames: context)
+            // Stop landing while that tail decoded emptied the queue and dropped the chain.
+            // Putting the next pass back now would start a pass whose chain is gone, and the
+            // guard above would fail it; a stopped chain keeps nothing instead.
+            guard !Task.isCancelled, chains[segment.chainID] != nil else {
+                chains[segment.chainID] = nil
+                return nil
+            }
             var next = job.settings
             next.frames = progress.segments[segment.index + 1]
             next.seed = next.seed &+ 1

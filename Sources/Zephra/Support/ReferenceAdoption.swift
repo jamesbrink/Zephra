@@ -158,20 +158,22 @@ enum ReferenceAdoption {
         store.extend(ContinuationSource(origin: item.fileName, clip: .file(videoURL), record: record))
     }
 
-    /// The same over a clip the session still holds in memory: its saved MP4 when the file has
-    /// landed, else the bytes beside the poster. `FreshImageMenu` and `FreshImageActions` call
+    /// The same over a clip this session made. `FreshImageMenu` and `FreshImageActions` call
     /// this.
+    ///
+    /// Only once the clip has been written: the join at the end of the run finds the source by
+    /// its library name in the images folder or Recently Deleted
+    /// (`GenerationStore+Stitching`), so a clip still only in memory has nothing to be joined
+    /// onto and no name to be found by. The save starts the moment the clip lands and puts the
+    /// MP4 down before the poster, so the wait is a blink and the sidecar is there whenever
+    /// the poster is — which is why this reads the file rather than `image.video?.mp4`.
+    /// `ActionAvailability.extendDisabledReason` greys the button until then.
     @MainActor
     static func extend(_ image: GeneratedImage, into store: GenerationStore) {
-        guard image.isVideo, let origin = image.fileURL?.lastPathComponent else { return }
-        let clip: ContinuationSource.Clip
-        if let fileURL = image.fileURL {
-            clip = .file(VideoSidecar.url(beside: fileURL))
-        } else if let mp4 = image.video?.mp4 {
-            clip = .bytes(mp4)
-        } else {
-            return
-        }
-        store.extend(ContinuationSource(origin: origin, clip: clip, record: GenerationRecord(image)))
+        guard image.isVideo, let fileURL = image.fileURL else { return }
+        store.extend(
+            ContinuationSource(
+                origin: fileURL.lastPathComponent, clip: .file(VideoSidecar.url(beside: fileURL)),
+                record: GenerationRecord(image)))
     }
 }

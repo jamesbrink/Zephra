@@ -10,7 +10,10 @@ import Foundation
 /// keeps only the last few and the stitcher hands each straight to a writer. Frames are
 /// counted rather than trusted from the header, since a frame count is what every caller
 /// here is about.
-final class MP4FrameSource {
+/// `@unchecked Sendable`: one caller reads a source at a time and the reader underneath is
+/// safe used that way from any thread, which is what lets the decode run on `ClipWork`'s queue
+/// rather than on the thread that opened the file.
+final class MP4FrameSource: @unchecked Sendable {
     /// Pixels across.
     let width: Int
     /// Pixels down.

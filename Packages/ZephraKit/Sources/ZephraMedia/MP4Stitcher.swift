@@ -45,23 +45,26 @@ public struct MP4Stitcher: ClipEditing {
     /// Reads each clip in turn and appends its frames past the dropped ones to one writer,
     /// with the parts' sound joined the same way when every part has some.
     private static func join(_ urls: [URL], dropping: [Int], to output: URL) async throws {
-        var sources: [MP4FrameSource] = []
-        for url in urls { sources.append(try await MP4FrameSource(url: url)) }
+        var opened: [MP4FrameSource] = []
+        for url in urls { opened.append(try await MP4FrameSource(url: url)) }
+        let sources = opened
         guard let first = sources.first else { throw MP4WriterError.emptyClip }
         for source in sources {
             guard source.width == first.width, source.height == first.height,
                 abs(source.frameRate - first.frameRate) < 0.01
             else { throw MP4WriterError.mismatchedParts }
         }
-        let audio = try joinedAudio(sources, dropping: dropping, frameRate: first.frameRate)
+        let audio = try await ClipWork.run {
+            try joinedAudio(sources, dropping: dropping, frameRate: first.frameRate)
+        }
         let session = try MP4Writer.Session(
             to: output, width: first.width, height: first.height, frameRate: first.frameRate, audio: audio)
-        let total = try await frameCount(of: urls) - dropping.reduce(0, +)
-        guard total > 0 else { session.abandon(); throw MP4WriterError.emptyClip }
         // Frames are pulled from the parts one at a time as the writer asks for them, the
-        // dropped ones at each part's head read and thrown away.
+        // dropped ones at each part's head read and thrown away, until the parts run out. The
+        // cursor is the count: a header's duration times its rate is a frame either side of
+        // what a file decodes to, and a count one too high fails a good join.
         let cursor = PartCursor(sources: sources, dropping: dropping)
-        try await session.run(frames: FrameAppender(count: total, session: session) { _ in try cursor.next() })
+        try await session.run(frames: FrameAppender(count: nil, session: session) { _ in try cursor.next() })
     }
 
     /// A read position across the parts: the next frame past each part's dropped head.
@@ -106,18 +109,5 @@ public struct MP4Stitcher: ClipEditing {
             joined = joined.map { $0.appending(track) } ?? track
         }
         return joined
-    }
-
-    /// How many frames the clips hold between them, counted off their durations and rates.
-    private static func frameCount(of urls: [URL]) async throws -> Int {
-        var total = 0
-        for url in urls {
-            let asset = AVURLAsset(url: url)
-            let seconds = try await asset.load(.duration).seconds
-            guard let track = try await asset.loadTracks(withMediaType: .video).first else { continue }
-            let rate = Double(try await track.load(.nominalFrameRate))
-            total += Int((seconds * rate).rounded())
-        }
-        return total
     }
 }

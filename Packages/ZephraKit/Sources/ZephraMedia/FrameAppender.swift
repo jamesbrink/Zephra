@@ -18,13 +18,18 @@ final class FrameAppender: @unchecked Sendable {
     /// The frame at `index`, or nil when the clip is over.
     typealias Provider = (Int) throws -> CVPixelBuffer?
 
-    private let count: Int
+    /// How many frames to append, or nil when only the provider knows and it says so by
+    /// running out: what the stitcher uses, since a part's header count is a duration times a
+    /// rate and can be a frame either side of what the file decodes to.
+    private let count: Int?
     private let session: MP4Writer.Session
     private let provider: Provider
     private let queue = DispatchQueue(label: "io.zephra.mp4-writer")
-    // Both touched only on `queue`, which is what the unchecked Sendable conformance rests on.
+    // All three touched only on `queue`, which is what the unchecked Sendable conformance
+    // rests on.
     private var next = 0
     private var finished = false
+    private var ranOut = false
 
     private var adaptor: AVAssetWriterInputPixelBufferAdaptor { session.adaptor }
 
@@ -35,8 +40,9 @@ final class FrameAppender: @unchecked Sendable {
         }
     }
 
-    /// An appender over `count` frames handed back by `provider`.
-    init(count: Int, session: MP4Writer.Session, provider: @escaping Provider) {
+    /// An appender over `count` frames handed back by `provider`, or over as many as it hands
+    /// back when `count` is nil.
+    init(count: Int?, session: MP4Writer.Session, provider: @escaping Provider) {
         self.count = count
         self.session = session
         self.provider = provider
@@ -47,11 +53,12 @@ final class FrameAppender: @unchecked Sendable {
             adaptor.assetWriterInput.requestMediaDataWhenReady(on: queue) { [self] in
                 guard !finished else { return }
                 do {
-                    while adaptor.assetWriterInput.isReadyForMoreMediaData, next < count {
-                        try append(frame: next)
+                    while adaptor.assetWriterInput.isReadyForMoreMediaData, next != count {
+                        guard try append(frame: next) else { break }
                         next += 1
                     }
-                    if next == count {
+                    if next == count || ranOut {
+                        guard next > 0 else { throw MP4WriterError.emptyClip }
                         finished = true
                         adaptor.assetWriterInput.markAsFinished()
                         continuation.resume()
@@ -65,14 +72,22 @@ final class FrameAppender: @unchecked Sendable {
         }
     }
 
-    private func append(frame index: Int) throws {
+    /// Appends the frame at `index`, answering false when the frames ran out — which is the
+    /// end of the clip for an appender with no count, and a clip shorter than promised for one
+    /// that was given a count.
+    private func append(frame index: Int) throws -> Bool {
         guard let buffer = try provider(index) else {
-            throw MP4WriterError.encodingFailed("the clip ended before frame \(index)")
+            guard count == nil else {
+                throw MP4WriterError.encodingFailed("the clip ended before frame \(index)")
+            }
+            ranOut = true
+            return false
         }
         guard adaptor.append(buffer, withPresentationTime: session.time(of: index)) else {
             throw MP4WriterError.encodingFailed(
                 adaptor.assetWriterInput.description + " refused frame \(index)")
         }
+        return true
     }
 
     /// A BGRA pixel buffer from the adaptor's pool, filled from RGBA bytes with the channels

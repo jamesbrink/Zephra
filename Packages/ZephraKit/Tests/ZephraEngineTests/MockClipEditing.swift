@@ -14,19 +14,61 @@ final class MockClipEditing: ClipEditing, @unchecked Sendable {
         var stitchError: (any Error)?
     }
 
+    /// A gate every tail read waits at once one is set, so a test can act on the store while
+    /// a pass sits between passes.
+    final class TailGate: @unchecked Sendable {
+        private let lock = NSLock()
+        private var waiters: [CheckedContinuation<Void, Never>] = []
+        private var opened = false
+        private var arrived = false
+
+        /// True once a tail read is waiting here.
+        var isWaiting: Bool { lock.withLock { arrived && !opened } }
+
+        func wait() async {
+            await withCheckedContinuation { continuation in
+                lock.lock()
+                arrived = true
+                if opened {
+                    lock.unlock()
+                    continuation.resume()
+                    return
+                }
+                waiters.append(continuation)
+                lock.unlock()
+            }
+        }
+
+        /// Lets every waiting read, and every later one, through.
+        func open() {
+            let waiting = lock.withLock { () -> [CheckedContinuation<Void, Never>] in
+                opened = true
+                defer { waiters = [] }
+                return waiters
+            }
+            for continuation in waiting { continuation.resume() }
+        }
+    }
+
     private let storage = NSLock()
     private var calls = Calls()
+    private var gate: TailGate?
+
+    /// Holds every tail read at `gate` until the test opens it.
+    func hold(at gate: TailGate) { storage.withLock { self.gate = gate } }
 
     var recorded: Calls { storage.withLock { calls } }
 
     func update(_ change: (inout Calls) -> Void) { storage.withLock { change(&calls) } }
 
     func tail(of url: URL, frames: Int) async throws -> [Data] {
-        try read(frames: frames, fromFile: true)
+        await storage.withLock { gate }?.wait()
+        return try read(frames: frames, fromFile: true)
     }
 
     func tail(ofData mp4: Data, frames: Int) async throws -> [Data] {
-        try read(frames: frames, fromFile: false)
+        await storage.withLock { gate }?.wait()
+        return try read(frames: frames, fromFile: false)
     }
 
     private func read(frames: Int, fromFile: Bool) throws -> [Data] {

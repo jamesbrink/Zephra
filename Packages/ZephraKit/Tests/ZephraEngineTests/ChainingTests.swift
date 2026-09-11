@@ -64,6 +64,26 @@ struct ChainingTests {
         #expect(store.queue.isEmpty)
     }
 
+    @Test("a stop while a pass's tail is read queues nothing and fails nothing")
+    func stopDuringTailRead() async throws {
+        let bed = EngineTestBed()
+        let store = await Self.store(bed)
+        let gate = MockClipEditing.TailGate()
+        bed.clips.hold(at: gate)
+        store.settings.frames = 241
+
+        store.generate()
+        try await bed.waitUntil { gate.isWaiting }
+        store.cancel()
+        gate.open()
+
+        try await bed.waitUntil { store.state == .ready }
+        #expect(store.queue.isEmpty, "the pass the read was for is not put back")
+        #expect(store.chains.isEmpty)
+        #expect(store.history.isEmpty)
+        #expect(bed.control.settings.generations == 1, "no second pass ran")
+    }
+
     @Test("Extend Clip with a length past one pass joins the source and every pass")
     func extendedChain() async throws {
         let bed = EngineTestBed()
