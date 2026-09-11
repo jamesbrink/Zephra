@@ -27,8 +27,8 @@ public final class TCPListener: LinkListener, @unchecked Sendable {
         listener = try NWListener(using: .tcp, on: endpointPort)
         if let room {
             listener.service = NWListener.Service(
-                name: name, type: BonjourService.type, domain: nil,
-                txtRecord: BonjourService.txtRecord(room: room))
+                name: name, type: BonjourRecord.type, domain: nil,
+                txtRecord: BonjourRecord.txt(room: room))
         }
         (stream, continuation) = AsyncStream.makeStream()
         listener.newConnectionHandler = { [weak self] connection in

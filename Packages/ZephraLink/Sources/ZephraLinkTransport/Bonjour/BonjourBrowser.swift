@@ -16,7 +16,7 @@ public final class BonjourBrowser: @unchecked Sendable {
     /// A browser for `_zephra._tcp`, which starts on the first call to `results()`.
     public init() {
         browser = NWBrowser(
-            for: .bonjourWithTXTRecord(type: BonjourService.type, domain: nil),
+            for: .bonjourWithTXTRecord(type: BonjourRecord.type, domain: nil),
             using: .tcp)
         (stream, continuation) = AsyncStream.makeStream()
         browser.browseResultsChangedHandler = { [weak self] results, _ in
@@ -57,6 +57,6 @@ public final class BonjourBrowser: @unchecked Sendable {
     private static func host(_ result: NWBrowser.Result) -> DiscoveredHost? {
         guard case .service(let name, _, _, _) = result.endpoint else { return nil }
         return DiscoveredHost(
-            name: name, roomID: BonjourService.room(in: result.metadata), endpoint: result.endpoint)
+            name: name, roomID: BonjourRecord.room(in: result.metadata), endpoint: result.endpoint)
     }
 }

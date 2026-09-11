@@ -7,9 +7,10 @@ extension LinkClient {
     ///
     /// Idempotent: a second call while one is running does nothing, which is what lets the
     /// interface call it on every foreground without keeping a flag of its own. The stored
-    /// addresses first because they are usually right and cost one connection each; Bonjour
+    /// addresses first, because they are usually right and cost one connection each; Bonjour
     /// next, for a Mac whose address moved; the relay last, because it is a hop through
-    /// somebody else's machine.
+    /// somebody else's machine. A refusal ends it wherever it comes: it is the same Mac at the
+    /// end of every road.
     public func connect() async {
         guard !isFrozen, !connection.isBusy else { return }
         guard let host = pairedHost else {
@@ -19,20 +20,29 @@ extension LinkClient {
         connection = .searching
         var failure: (any Error)?
         for endpoint in host.endpoints {
-            guard let error = await attempt(.lan, peer: host.keys, secret: nil, open: {
+            switch await attempt(.lan, peer: host.keys, secret: nil, open: {
                 try await self.roads.connectLAN(endpoint)
-            }) else { return }
-            failure = error
+            }) {
+            case .connected: return
+            case .refused(let refusal): return connection = .failed(refusal.reason)
+            case .unreachable(let error): failure = error
+            }
         }
         for candidate in await candidates(in: host.roomID) {
-            guard let error = await attempt(.lan, peer: host.keys, secret: nil, open: {
+            switch await attempt(.lan, peer: host.keys, secret: nil, open: {
                 try await self.roads.connect(candidate)
-            }) else { return }
-            failure = error
+            }) {
+            case .connected: return
+            case .refused(let refusal): return connection = .failed(refusal.reason)
+            case .unreachable(let error): failure = error
+            }
         }
-        if let error = await attempt(.relay, peer: host.keys, secret: nil, open: {
+        switch await attempt(.relay, peer: host.keys, secret: nil, open: {
             try await self.roads.connectRelay(room: host.roomID)
         }) {
+        case .connected: return
+        case .refused(let refusal): connection = .failed(refusal.reason)
+        case .unreachable(let error):
             failure = error
             connection = .failed(Self.words(for: failure, host: host.name))
         }
@@ -51,20 +61,20 @@ extension LinkClient {
         pairedHost = nil
     }
 
-    /// Opens one road and runs the handshake over it, answering the failure where there is one.
+    /// Opens one road and runs the handshake over it.
     func attempt(
         _ kind: LinkRoad, peer: DevicePublicKeys, secret: Data?,
         open: () async throws -> any LinkConnection
-    ) async -> (any Error)? {
+    ) async -> LinkAttempt {
         connection = .connecting(kind)
         do {
             let road = try await open()
             try await openSession(over: road, kind: kind, peer: peer, secret: secret)
-            return nil
+            return .connected
         } catch {
             logger.notice("A road did not open: \(String(describing: error), privacy: .public)")
             await tearDown()
-            return error
+            return (error as? LinkError).map(LinkAttempt.refused) ?? .unreachable(error)
         }
     }
 

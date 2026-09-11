@@ -9,7 +9,7 @@ import ZephraLinkProtocol
 /// is in the record so a phone that has paired already knows which of several Macs is its own
 /// before it opens a connection to any of them: the room is the hash of the Mac's signing key,
 /// so it identifies without naming.
-public enum BonjourService {
+public enum BonjourRecord {
     /// The service type both ends use.
     public static let type = "_zephra._tcp"
     /// The TXT key holding the relay room, which is what names the Mac.
@@ -18,7 +18,7 @@ public enum BonjourService {
     public static let versionKey = "v"
 
     /// The record a listener publishes for one room.
-    public static func txtRecord(room: RoomID) -> NWTXTRecord {
+    public static func txt(room: RoomID) -> NWTXTRecord {
         var record = NWTXTRecord()
         record[roomKey] = room.rawValue
         record[versionKey] = String(LinkProtocolVersion.current)

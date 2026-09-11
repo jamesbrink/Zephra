@@ -19,15 +19,21 @@ extension LinkClient {
         }
         var failure: (any Error)?
         for endpoint in payload.endpoints {
-            guard let error = await attempt(.lan, peer: payload.keys, secret: payload.secret, open: {
+            switch await attempt(.lan, peer: payload.keys, secret: payload.secret, open: {
                 try await self.roads.connectLAN(endpoint)
-            }) else { return remember(payload) }
-            failure = error
+            }) {
+            case .connected: return remember(payload)
+            case .refused(let refusal): throw refused(refusal)
+            case .unreachable(let error): failure = error
+            }
         }
-        guard let error = await attempt(.relay, peer: payload.keys, secret: payload.secret, open: {
+        switch await attempt(.relay, peer: payload.keys, secret: payload.secret, open: {
             try await self.roads.connectRelay(room: payload.roomID)
-        }) else { return remember(payload) }
-        failure = error
+        }) {
+        case .connected: return remember(payload)
+        case .refused(let refusal): throw refused(refusal)
+        case .unreachable(let error): failure = error
+        }
         connection = .failed(Self.words(for: failure, host: payload.hostName))
         throw failure ?? LinkClientError.unreachable
     }
@@ -37,5 +43,11 @@ extension LinkClient {
         let host = PairedHost(payload)
         try? store.save(host)
         pairedHost = host
+    }
+
+    /// A refusal, shown and thrown: the person is owed the Mac's own sentence.
+    private func refused(_ refusal: LinkError) -> LinkError {
+        connection = .failed(refusal.reason)
+        return refusal
     }
 }
