@@ -17,20 +17,14 @@ extension GenerationStore {
     /// for thirty days. A source that is nowhere, or a join that fails, is a failed generation:
     /// the segment alone is not what was asked for.
     func stitched(_ media: GeneratedMedia, job: QueuedGeneration) async throws -> GeneratedMedia {
-        guard let continuation = job.settings.continuation, let clips,
-            case .video(let segment) = media
+        guard let continuation = job.settings.continuation, let origin = continuation.origin,
+            let clips, case .video(let segment) = media
         else { return media }
-        guard let source = library.sourceClip(named: continuation.origin) else {
+        guard let source = library.sourceClip(named: origin) else {
             throw BackendError.generationFailed(
-                "The clip being extended, \(continuation.origin), is no longer in the library.")
+                "The clip being extended, \(origin), is no longer in the library.")
         }
-        // The source's poster, without the source's own record, reference, annotation and
-        // captions: the new clip gets a record of its own when it is written, and a poster
-        // already carrying one would keep it.
-        let poster = try PNGTextChunks.removing(
-            [GenerationRecord.keyword, GenerationRecord.referenceKeyword, LibraryAnnotation.keyword,
-             "Software", "Description"],
-            from: try Data(contentsOf: source.poster))
+        let poster = try Self.bare(poster: try Data(contentsOf: source.poster))
         let joined = try await clips.stitch([
             ClipPart(mp4: try Data(contentsOf: source.mp4)),
             ClipPart(mp4: segment.mp4, dropLeading: continuation.contextFrames),
@@ -40,6 +34,16 @@ extension GenerationStore {
                 poster: poster, mp4: joined,
                 frameCount: continuation.sourceFrameCount + segment.frameCount - continuation.contextFrames,
                 frameRate: segment.frameRate))
+    }
+
+    /// A source's poster without the source's own record, reference, annotation and captions:
+    /// the new clip gets a record of its own when it is written, and a poster already carrying
+    /// one would keep it.
+    static func bare(poster: Data) throws -> Data {
+        try PNGTextChunks.removing(
+            [GenerationRecord.keyword, GenerationRecord.referenceKeyword, LibraryAnnotation.keyword,
+             "Software", "Description"],
+            from: poster)
     }
 
     /// The settings a continued clip is published and recorded with: the tail's pictures

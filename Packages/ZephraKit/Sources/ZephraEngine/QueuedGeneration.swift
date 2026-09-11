@@ -15,18 +15,24 @@ public struct QueuedGeneration: Identifiable, Hashable, Sendable {
     public let batchID: UUID
     /// Where in that run it comes, counting from zero.
     public let batchIndex: Int
+    /// Which pass of a chained clip this is, when the clip is longer than one pass; nil for a
+    /// clip made in one. Every pass but the last carries on into the next rather than being
+    /// published; see `GenerationStore+Chaining.swift`.
+    public let chain: ChainSegment?
 
     /// Wraps a model and its settings for the queue. Left to itself it is a run of one.
     public init(
         model: ModelDescriptor,
         settings: GenerationSettings,
         batchID: UUID = UUID(),
-        batchIndex: Int = 0
+        batchIndex: Int = 0,
+        chain: ChainSegment? = nil
     ) {
         self.id = UUID()
         self.model = model
         self.settings = settings
         self.batchID = batchID
         self.batchIndex = batchIndex
+        self.chain = chain
     }
 }

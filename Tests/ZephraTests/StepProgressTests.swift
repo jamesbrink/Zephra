@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 import ZephraCore
 import ZephraEngine
@@ -27,6 +28,19 @@ struct StepProgressTests {
             state: .generating(GenerationProgressEvent(phase: .denoising(step: 2, of: 4), fraction: 0.5)),
             running: settings(steps: 4), next: settings(steps: 9))
         #expect(reading == StepProgress(completed: 2, total: 4, isRunning: true))
+    }
+
+    @Test("a pass of a chained clip counts as its share of the whole")
+    func chainedPassesReadAsOneRun() {
+        let chain = ChainSegment(chainID: UUID(), index: 1, count: 3)
+        let reading = StepProgress(
+            state: .generating(GenerationProgressEvent(phase: .denoising(step: 2, of: 8), fraction: 0.25)),
+            running: settings(steps: 8), next: settings(steps: 8), chain: chain)
+        #expect(reading == StepProgress(completed: 10, total: 24, isRunning: true))
+        let finishing = StepProgress(
+            state: .generating(GenerationProgressEvent(phase: .decoding, fraction: 1)),
+            running: settings(steps: 8), next: settings(steps: 8), chain: chain)
+        #expect(finishing == StepProgress(completed: 16, total: 24, isRunning: true))
     }
 
     @Test("the bar stays up and full from the last step until the result lands")

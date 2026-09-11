@@ -48,7 +48,9 @@ extension ModelCapabilities {
 
     /// The nearest legal frame count at or below `frames`, never below the lower bound: a
     /// count between two rungs of the `1 + k * alignment` ladder rounds down, because a clip
-    /// a fraction of a second shorter is what was asked for and one longer costs more.
+    /// a fraction of a second shorter is what was asked for and one longer costs more. The
+    /// bound is one pass's: a longer clip is a chain of passes the store plans before it
+    /// clamps (`ChainPlan`), so a request that reaches a backend is never longer than it runs.
     private func constrainFrames(_ frames: Int) -> Int {
         let bounded = min(max(frames, frameBounds.lowerBound), frameBounds.upperBound)
         let snapped = 1 + ((bounded - 1) / frameAlignment) * frameAlignment

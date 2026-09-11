@@ -18,7 +18,9 @@ struct DurationControl: View {
                 Button {
                     store.settings.frames = frames
                 } label: {
-                    let title = Self.label(frames: frames, rate: capabilities.frameRate)
+                    let title = Self.label(
+                        frames: frames, rate: capabilities.frameRate,
+                        passes: ChainPlan.segments(frames: frames, capabilities: capabilities).count)
                     if frames == store.settings.frames {
                         Label(title, systemImage: "checkmark")
                     } else {
@@ -27,7 +29,9 @@ struct DurationControl: View {
                 }
             }
         } label: {
-            Text(Self.label(frames: store.settings.frames, rate: capabilities.frameRate))
+            Text(Self.label(
+                frames: store.settings.frames, rate: capabilities.frameRate,
+                passes: ChainPlan.segments(frames: store.settings.frames, capabilities: capabilities).count))
                 .font(.callout).monospacedDigit() + MenuChevron.text
         }
         .menuStyle(.button)
@@ -38,25 +42,31 @@ struct DurationControl: View {
     }
 
     /// The frame counts offered: the shortest clip the model makes, then one per whole second
-    /// the bounds allow, each the legal count nearest to that many seconds — at 24 fps on a
-    /// ladder of eight, 25, 49, 73, 97 and 121 frames for one to five seconds.
+    /// up to one pass — at 24 fps on a ladder of eight, 25, 49, 73, 97 and 121 frames for one
+    /// to five seconds — and, on a model that carries a clip on, every five seconds past
+    /// that up to `ChainPlan.maxFrames`, each made as a chain of passes.
     static func choices(_ capabilities: ModelCapabilities) -> [Int] {
         let bounds = capabilities.frameBounds
         let alignment = Double(capabilities.frameAlignment)
+        let longest = ChainPlan.maxFrames(capabilities)
         var frames: Set<Int> = [bounds.lowerBound]
         var seconds = 1
-        while Double(seconds) * capabilities.frameRate <= Double(bounds.upperBound) + alignment / 2 {
+        while Double(seconds) * capabilities.frameRate <= Double(longest) + alignment / 2 {
             let rungs = ((Double(seconds) * capabilities.frameRate - 1) / alignment).rounded()
             let count = 1 + Int(rungs) * capabilities.frameAlignment
-            if bounds.contains(count) { frames.insert(count) }
+            if bounds.contains(count) || (count > bounds.upperBound && count <= longest && seconds % 5 == 0) {
+                frames.insert(count)
+            }
             seconds += 1
         }
         return frames.sorted()
     }
 
-    /// "2 s · 49 frames", with the seconds to one decimal only when they are not whole.
-    static func label(frames: Int, rate: Double) -> String {
-        "\(DurationLabel.text(seconds: Double(frames) / rate, fraction: true)) · \(frames) frames"
+    /// "2 s · 49 frames", with the seconds to one decimal only when they are not whole, and
+    /// "in 2 passes" after it when the clip is longer than one.
+    static func label(frames: Int, rate: Double, passes: Int = 1) -> String {
+        let length = "\(DurationLabel.text(seconds: Double(frames) / rate, fraction: true)) · \(frames) frames"
+        return passes > 1 ? "\(length) · \(passes) passes" : length
     }
 }
 

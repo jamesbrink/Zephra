@@ -14,7 +14,7 @@ extension GenerationStore {
     /// The step bar's reading: the run in flight's steps, not the slider's. One place, so the
     /// capsule, its lip and the running card cannot count differently.
     var stepProgress: StepProgress {
-        StepProgress(state: state, running: running?.settings, next: settings)
+        StepProgress(state: state, running: running?.settings, next: settings, chain: running?.chain)
     }
 
     /// Whether the run in flight makes a clip, which is what its phases are worded for.

@@ -27,16 +27,24 @@ nonisolated struct StepProgress: Equatable {
 
     /// Works the bar out from the engine's state, the settings of the run in flight, and the
     /// settings the next run would use. On the main actor because `denoisingProgress` is.
+    ///
+    /// A pass of a chained clip counts as its share of the whole: the bar runs over every
+    /// pass's steps, with the passes already made counted as done, so a four-pass clip reads
+    /// as one run and not as four bars that each fill and empty.
     @MainActor
-    init(state: EngineState, running: GenerationSettings?, next: GenerationSettings) {
+    init(state: EngineState, running: GenerationSettings?, next: GenerationSettings, chain: ChainSegment? = nil) {
+        let passes = chain?.count ?? 1
+        let done = chain?.index ?? 0
         if let progress = state.denoisingProgress {
-            self.init(completed: progress.step, total: progress.total, isRunning: true)
+            self.init(
+                completed: done * progress.total + progress.step, total: passes * progress.total,
+                isRunning: true)
         } else if state.isFinishing {
             // Every step has landed and the latents are being decoded, or the clip encoded. The
             // bar stays up and full: taken down here it said "done" over a decode that runs for
             // tens of seconds on a 121-frame clip, with the last frame sitting still under it.
             let total = running?.steps ?? next.steps
-            self.init(completed: total, total: total, isRunning: true)
+            self.init(completed: (done + 1) * total, total: passes * total, isRunning: true)
         } else {
             self.init(completed: 0, total: running?.steps ?? next.steps, isRunning: false)
         }

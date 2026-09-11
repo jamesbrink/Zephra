@@ -137,6 +137,9 @@ public final class GenerationStore {
     /// Images deleted from the filmstrip before their save landed; `attach` moves the file on
     /// to Recently Deleted when it does.
     @ObservationIgnored var deletedBeforeSave: Set<GeneratedImage.ID> = []
+    /// The chained clips in progress, by chain: the segments made so far and what the clip
+    /// was asked to be. See `GenerationStore+Chaining.swift`.
+    @ObservationIgnored var chains: [UUID: ChainProgress] = [:]
 
     /// The one designated initializer. A nil `registry` makes a preview store: see
     /// `GenerationStore+Preview.swift`.

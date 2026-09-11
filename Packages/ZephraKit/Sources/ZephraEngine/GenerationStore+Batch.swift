@@ -29,7 +29,13 @@ extension GenerationStore {
         modelAwaitsGenerate = false
         capsuleHoldsPicture = false
         let seeds = min(max(count, 1), Self.batchLimit)
-        let request = descriptor.capabilities.clamp(settings)
+        // A clip longer than one pass is a chain of passes: the first is queued here with
+        // the rest planned, and each pass queues the next as it lands. `clamp` keeps a single
+        // pass's bounds, so the request the backend sees is never longer than it can run.
+        let segments = ChainPlan.segments(frames: settings.frames, capabilities: descriptor.capabilities)
+        var first = settings
+        first.frames = segments[0]
+        let request = descriptor.capabilities.clamp(first)
         let batch = UUID()
         let expanded = BatchExpansion.expand(request, count: seeds) { .random(in: .min ... .max) }
         for (index, settings) in expanded.enumerated() {
@@ -38,7 +44,8 @@ extension GenerationStore {
                     model: descriptor,
                     settings: settings,
                     batchID: batch,
-                    batchIndex: index
+                    batchIndex: index,
+                    chain: startChain(segments: segments, continuation: request.continuation)
                 )
             )
         }

@@ -43,14 +43,29 @@ extension GenerationStore {
                 finish()
                 return
             }
-            // A continuation's segment is joined onto its source here, still inside the run,
-            // so what is published is the whole clip (`GenerationStore+Stitching.swift`).
-            let media = try await stitched(segment, job: job)
+            // A pass of a chained clip is kept and carries on into the next, or, as the last,
+            // is joined with the rest (`GenerationStore+Chaining.swift`); a continuation's
+            // segment is joined onto its source (`+Stitching.swift`). Both happen here, still
+            // inside the run, so what is published is always the whole clip.
+            var settings = job.settings
+            let media: GeneratedMedia
+            if let chain = job.chain {
+                guard let joined = try await advanceChain(segment, job: job, segment: chain) else {
+                    finish()
+                    return
+                }
+                media = joined.media
+                if case .video(let clip) = joined.media {
+                    settings = chainedSettings(settings, segment: chain, frames: clip.frameCount, source: joined.source)
+                }
+            } else {
+                media = try await stitched(segment, job: job)
+            }
             guard !Task.isCancelled else {
                 finish()
                 return
             }
-            complete(media, job: job, duration: clock.now - started)
+            complete(media, job: job, settings: settings, duration: clock.now - started)
         } catch is CancellationError {
             finish()
         } catch BackendError.cancelled {
@@ -67,6 +82,7 @@ extension GenerationStore {
     /// they name the error.
     private func fail(with error: EngineError) {
         queue.removeAll()
+        dropChains()
         running = nil
         clearLivePreview()
         transition(to: .failed(error))
@@ -84,12 +100,14 @@ extension GenerationStore {
     ///
     /// A clip arrives as its poster and its MP4; the poster is the picture everything below
     /// handles, and the MP4 rides along to be written beside it.
-    private func complete(_ media: GeneratedMedia, job: QueuedGeneration, duration: Duration) {
+    private func complete(
+        _ media: GeneratedMedia, job: QueuedGeneration, settings: GenerationSettings, duration: Duration
+    ) {
         var video: GeneratedVideo?
         if case .video(let clip) = media { video = clip }
         let image = GeneratedImage(
             pngData: media.posterPNG,
-            settings: Self.published(job.settings),
+            settings: Self.published(settings),
             modelID: job.model.id,
             duration: duration,
             batchID: job.batchID,

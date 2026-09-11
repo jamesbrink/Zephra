@@ -62,6 +62,19 @@ engine be tested in seconds without Metal.
   picture, pinned there by `clamp` for every model whose
   `ModelCapabilities.frameBounds` is the degenerate `1...1`), and a video
   model's `frameAlignment` snaps it to the `1 + 8k` ladder its autoencoder makes.
+  A length past one pass is a **chain**: `generate(count:)` asks `ChainPlan` for
+  the passes (a full one, then passes of the model's `defaultContinuationFrames`
+  held plus new frames, at most `ChainPlan.maxPasses`), queues the first with a
+  `ChainSegment`, and each pass that lands is kept in `chains` rather than
+  published, its tail read through the injected `ClipEditing`, and the next
+  pass put at the head of the queue on the next seed with that tail as its
+  continuation (`GenerationStore+Chaining`). The last pass joins every part —
+  the source clip first when Extend Clip started the chain — and publishes one
+  clip whose settings say the whole length and the first seed. `clamp` keeps a
+  single pass's bounds, so no backend is ever asked for more than it runs; the
+  Duration menu offers the chained lengths every five seconds and says how many
+  passes make them, and `StepProgress` reads the chain's passes as one bar.
+  Stop drops the passes made so far, as it drops a single run.
 - `InferenceActor` is the only place backend code runs. It overrides
   `unownedExecutor` with a serial `DispatchQueue`: a generation is tens of
   seconds of synchronous Metal work, and on the cooperative pool that would

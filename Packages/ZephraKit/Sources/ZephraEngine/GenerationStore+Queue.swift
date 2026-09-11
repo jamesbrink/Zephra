@@ -56,6 +56,7 @@ extension GenerationStore {
         switch state {
         case .generating:
             queue.removeAll()
+            dropChains()
             // The rest of the run is abandoned the moment stopping is asked for, so the queue
             // in the sidebar empties at once rather than a step later, when the backend
             // notices. The image itself finishes its current step and is then thrown away.

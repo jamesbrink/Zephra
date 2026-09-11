@@ -18,8 +18,9 @@ public struct ClipContinuation: Hashable, Sendable, Codable {
     /// clip ends on. The count is on the continuing model's ladder, `1 + k * frameAlignment`.
     public var frames: [Data]
     /// The library file name of the clip being continued, the poster PNG's, so the result can
-    /// be stitched onto it and its record can say what it continues.
-    public var origin: String
+    /// be stitched onto it and its record can say what it continues; nil for a segment of a
+    /// chained clip, which carries on from a segment still in memory rather than from a file.
+    public var origin: String?
     /// How many frames the clip being continued has, so the stitched clip's length is known
     /// before the source is read again.
     public var sourceFrameCount: Int
@@ -27,7 +28,7 @@ public struct ClipContinuation: Hashable, Sendable, Codable {
     /// survives `withoutPixels` and the record can still say how many were held.
     public private(set) var contextFrames: Int
 
-    public init(frames: [Data], origin: String, sourceFrameCount: Int) {
+    public init(frames: [Data], origin: String?, sourceFrameCount: Int) {
         self.frames = frames
         self.origin = origin
         self.sourceFrameCount = sourceFrameCount

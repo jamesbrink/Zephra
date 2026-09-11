@@ -78,8 +78,8 @@ public struct ImageFacts: Hashable, Sendable {
         // takes over the moment the scan lands, which is typically inside a second.
         upscaled = nil
         length = image.video.map { Self.lengthLabel(frames: $0.frameCount, rate: $0.frameRate) }
-        continued = image.settings.continuation.map {
-            Self.continuedLabel(from: $0.origin, held: $0.contextFrames)
+        continued = image.settings.continuation.flatMap { continuation in
+            continuation.origin.map { Self.continuedLabel(from: $0, held: continuation.contextFrames) }
         }
         let settings = image.settings
         referenceStrengthValue = settings.referenceImage == nil
