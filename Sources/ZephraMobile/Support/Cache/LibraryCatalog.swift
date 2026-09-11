@@ -66,13 +66,21 @@ final class LibraryCatalog {
     /// than a second loop over the same client.
     func start(client: LinkClient) {
         guard observation == nil else { return }
-        self.client = client
-        isLive = client.connection.isLive
+        attach(client)
         observation = Task { [weak self] in
             guard let self else { return }
             await self.loadFromDisk(seeding: client)
             await self.follow(client)
         }
+    }
+
+    /// Takes the client without starting the loop.
+    ///
+    /// `start` calls it first; a suite that drives the catalog by hand calls it instead, so
+    /// nothing is arming and re-arming behind the assertions.
+    func attach(_ client: LinkClient) {
+        self.client = client
+        isLive = client.connection.isLive
     }
 
     /// Stops following. Nothing calls it in the app — the catalog lives as long as the process
