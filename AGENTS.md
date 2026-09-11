@@ -838,11 +838,22 @@ US-spelling check.
   zoom, so paging and panning never fight: at fit UIKit hands the pan to the
   pager, zoomed in it scrolls the picture, and a page that stops being current
   goes back to fit. A single tap hides the chrome. Swipe down dismisses through
-  `ZoomingScrollView+Pull`, a pan recognizer read in UIKit beside the pager's
-  (a SwiftUI drag over the pager never sees a touch), and `ViewerPose.Pull`
-  holds the rules `ViewerPoseTests` pin. Everything the fingers do reaches the
-  viewer as `ViewerGestures` closures in the environment; `ViewerPull` is what
-  a pull does to the screen. A clip's page is AVKit's and has no pull.
+  `ViewerPullRecognizer`, one pan recognizer read in UIKit beside the pager's
+  (a SwiftUI drag over the pager never sees a touch), attached to a picture's
+  scroll view and to a clip's player view alike, so a clip drops and closes
+  as a picture does while AVKit's taps and scrubber keep working;
+  `ViewerPose.Pull` holds the rules `ViewerPoseTests` pin. Everything the
+  fingers do reaches the viewer as `ViewerGestures` closures in the
+  environment; `ViewerPull` is what a pull does to the screen. `ViewerCover`
+  is how both surfaces present it: a clear-backed cover with the system's zoom
+  transition out of the tapped cell and back into the cell of the picture the
+  viewer is **now** on — the cover's item is a `ViewerOpening` (identity the
+  opened picture, so paging never re-presents; `shown` reported through
+  `\.viewerPaged`), `ViewerOpening.sourceID(forCell:)` makes the shown
+  picture's cell the one source under that fixed id and every other cell no
+  source at all (the system follows a source added or removed, not one whose
+  id changes; `ViewerOpeningTests` pins it), and the grid scrolls the shown
+  cell into view as the viewer pages.
 - The Today tab is `snapshot.today` drawn in the Mac's order. Nothing in it
   groups anything: `RunSummary` arrives grouped, and `EngineStateDTO` already
   carries the derived facts the running card reads.

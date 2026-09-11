@@ -468,27 +468,55 @@ way Photos is, because Photos is what every thumb on a phone already knows.
 - **Swipe down closes it, and the finger is read in UIKit too.** A SwiftUI
   `DragGesture` over the pager never saw a touch — the two scroll views
   underneath claim every one before SwiftUI's gesture does — so
-  `ZoomingScrollView+Pull` is a `UIPanGestureRecognizer` on the page. It begins
-  for any touch at fit, because UIKit asks a touch held still on a scroll view
+  `ViewerPullRecognizer` is a `UIPanGestureRecognizer` on the page, its own
+  delegate, and one type for both kinds of page: `ZoomingScrollView` attaches
+  it to a picture and `ClipPlayerView` attaches it to the player's view when
+  its `Place` is `.viewer`, so a clip drops and closes under the finger exactly
+  as a picture does. It begins for any touch `mayBegin` allows — a picture at
+  fit, a clip always — because UIKit asks a touch held still on a scroll view
   at zero translation and a refusal there is final; it reads the direction on
-  the first change past `pullDecision` (8 points), and for anything but a pull
+  the first change past `decision` (8 points), and for anything but a pull
   downwards it cancels itself, which is the failure the pager's pan has been
   told to wait for (`shouldBeRequiredToFailBy`). So a sideways drag is the
   pager's, a drag on a zoomed picture is the picture's, and a pull never drags
-  the next picture sideways on its way down. `ViewerPull` is what the phases
-  do to the screen: the picture drops by the offset, shrinks by a quarter at
-  most, and the black behind it thins so the grid shows through
-  (`presentationBackground(.clear)` on the cover, which does show the grid).
-  Letting go past `MobileChrome.viewerDismissDistance`, or flung so that a
-  quarter of a second at lift-off speed would carry it past twice that
-  (`Pull.predictedEnd`), dismisses; short of it the picture springs back, or
-  snaps back under Reduce Motion. The decisions are static functions on
-  `ViewerPose.Pull`, and `ViewerPoseTests` is what pins them.
+  the next picture sideways on its way down. It recognizes beside every other
+  recognizer and cancels no touch in the view under it, which is what keeps
+  AVKit's tap for the controls and its scrubber working under a clip.
+  `ViewerPull` is what the phases do to the screen: the picture drops by the
+  offset, shrinks by a quarter at most, and the black behind it thins so the
+  grid shows through (`presentationBackground(.clear)` on the cover, which
+  does show the grid). Letting go past `MobileChrome.viewerDismissDistance`,
+  or flung so that a quarter of a second at lift-off speed would carry it past
+  twice that (`Pull.predictedEnd`), dismisses; short of it the picture springs
+  back, or snaps back under Reduce Motion. The decisions are static functions
+  on `ViewerPose.Pull`, and `ViewerPoseTests` is what pins them.
+- **It zooms out of the cell and back into one, the way Photos does.**
+  `ViewerCover` is the one place both surfaces present the viewer: a
+  `fullScreenCover` whose content wears `navigationTransition(.zoom)` against
+  a `matchedTransitionSource` on the cell, in a `@Namespace` the cover owns and
+  hands down as `\.viewerNamespace`. The catch is that the zoom's source id is
+  fixed at presentation, and after paging the viewer should close into the
+  cell it is *now* over. So the cover's item is a `ViewerOpening`: the entry
+  opened on, which is its identity so paging changes the content and never the
+  presentation, and `shown`, which the viewer reports through `\.viewerPaged`
+  every time the pager settles. Every `LibraryCell` reads the opening from the
+  environment and answers to `ViewerOpening.sourceID(forCell:)`: while the
+  viewer is up the shown picture's cell is a source under the opened one's
+  name and **no other cell is a source at all**. Not its own name, because the
+  system follows a source that is added or taken away and not one whose id
+  changes — with every cell keeping a source and the two names swapped between
+  the shown cell and the opened one, the zoom back went to the opened cell
+  whatever the pager had done. `ViewerOpeningTests` pins the rule.
+  `LibraryGrid` and `RunThumbnailStrip`
+  scroll the shown cell into view as the viewer pages, unanimated behind a
+  cover that is opaque at rest, so the zoom back has a cell on screen to land
+  on. A pull past the threshold calls `dismiss()` and the system's zoom-back
+  runs from wherever the picture was let go; under Reduce Motion the system
+  cross-dissolves instead, and nothing here decides that.
 - A single tap hides the title strip and the bar and another brings them back,
   faded over 0.2 s or at once under Reduce Motion; hidden chrome takes no hits.
-  A clip's page is `ClipPlayerView` with its controls, whose taps are AVKit's;
-  it has no pull, since the recognizer lives on the picture's scroll view, and
-  the X is a clip's way out.
+  A clip's page is `ClipPlayerView` with its controls, whose taps are AVKit's,
+  and its pull is the same recognizer a picture's page has.
 
 ## Today
 
@@ -580,9 +608,12 @@ needs a picture under the finger: `MobilePreview.pictureFolder()`
 (`MobilePreview+Pictures.swift`) draws one numbered, gridded picture per
 fixture entry at the entry's own size into a folder under the temporary
 directory, emptied at every launch, and the catalog's `FileStore` reads it
-before asking the Mac. The clip's page still says the picture is not here,
-since there is no MP4 to draw. Drawn rather than bundled for the reason
-`frame()` is drawn: what matters is that each page is unmistakably itself.
+before asking the Mac. The fixture's clip gets its poster and, beside it under
+the sidecar's name, two seconds of the same page with a bar sweeping across it,
+written with `AVAssetWriter` on the way in (`MobilePreview+Clip.swift`), so the
+clip's page plays and a pull over it can be tried with no Mac. Drawn rather
+than bundled for the reason `frame()` is drawn: what matters is that each page
+is unmistakably itself.
 
 ## Running it
 
