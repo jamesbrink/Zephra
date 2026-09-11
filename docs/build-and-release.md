@@ -47,8 +47,22 @@ Makefile targets:
   (`MLX_PACKAGES` in the Makefile, written `directory:scheme`). Slower, needs
   `xcodebuild`. `make test-backend` is kept as an alias. Keep `make test`
   MLX-free.
+- `make build-ios` — generate, then `xcodebuild` the `ZephraMobile` scheme for
+  the simulator, Debug. There is no Release lane: the phone renders nothing, so
+  there is nothing to benchmark and nothing to ship on its own yet.
+- `make run-ios` — build, boot the simulator if it is not up, install and launch.
+  `PREVIEW=<state>` launches it frozen, the way `ZEPHRA_PREVIEW_STATE` does on
+  the Mac; `IOS_SIM` names the device (`iPhone 17 Pro` by default).
+- `make test-ios` — `ZephraMobileTests`, hosted inside the companion. Seconds
+  once it is built. CI runs it as `make test-ios IOS_SIM="$(scripts/ios-sim.sh)"`,
+  because a device name pinned in a workflow breaks the day the runner image
+  moves; `scripts/ios-sim.sh` asks the machine for its newest iPhone instead.
+- `make screenshot-ios` — the booted simulator, into `build/ios-<stamp>.png`.
+  Taken into a temporary directory and copied, because `simctl` is refused a
+  write onto an external volume. See `docs/mobile.md`.
 - `make icon` — resize the approved Zephyr PNG masters in `design/branding/zephyr/`
   into `AppIcon.appiconset` and the website icons/marks with `scripts/make-icon.swift`.
+  The phone's single 1024-pixel icon comes out of the same dark master.
   The dark master is the standard Finder/Dock icon; both appearances are retained
   for the website. Do not replace the selected artwork with a procedural glyph.
 - `make signed-build` — build Release and sign the app with a Developer ID
@@ -271,6 +285,14 @@ the snapshot, not whichever is listed first"); match that when adding one.
   test` — `ClipTailTests` is the example. One suite:
   `make test-app` with `-only-testing:ZephraTests/ExportPlanTests` appended to
   the `xcodebuild` line, or from Xcode.
+- `make test-ios` — `ZephraMobileTests` in `Tests/ZephraMobileTests`, the
+  companion's own suites, hosted inside it so they can
+  `@testable import ZephraMobile` — the module name is spelled out in
+  `project.yml`, since the app's product is called Zephra and the Mac's target
+  already owns that module name. Pure interface logic again: the pairing parser
+  and the frozen fixture. The fixture suite is the one that matters beyond the
+  phone — it decodes the two preview JSON files with the wire's own decoder, so
+  a `ZephraLinkProtocol` DTO that moves without its fixture moving fails here.
 - One suite or test:
   `cd Packages/ZephraKit && swift test --filter ModelSwap`. The filter is a
   regex over the *type* names, not the `@Suite` display names, so `ModelSwap`

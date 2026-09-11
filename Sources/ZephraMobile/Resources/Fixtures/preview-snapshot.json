@@ -1,0 +1,347 @@
+{
+  "acceptsWork" : true,
+  "availability" : {
+    "wan-2.2-ti2v-5b-4bit" : {
+      "bytes" : 24000000000,
+      "isObtainable" : true,
+      "kind" : "needsDownload",
+      "label" : "24 GB download",
+      "needsNetwork" : true
+    },
+    "z-image-turbo-4bit" : {
+      "isObtainable" : true,
+      "kind" : "available",
+      "label" : "Downloaded",
+      "needsNetwork" : false
+    }
+  },
+  "downloads" : [
+
+  ],
+  "engine" : {
+    "acceptsGeneration" : true,
+    "isBusy" : false,
+    "isFinishing" : false,
+    "kind" : "ready",
+    "modelID" : "z-image-turbo-4bit"
+  },
+  "history" : [
+    {
+      "fileName" : "2026-09-11 09-41-12 z-image-turbo-4bit.png",
+      "id" : "3C1B7F04-9A2E-4E88-B0D6-6A1E5F2C77A9",
+      "isVideo" : false,
+      "record" : {
+        "batchID" : "1E9C2A60-4E1D-4C35-9F0E-2C7B3A5D8E11",
+        "createdAt" : "2026-09-11T09:41:19Z",
+        "durationSeconds" : 6.2,
+        "guidance" : 0,
+        "height" : 1024,
+        "modelID" : "z-image-turbo-4bit",
+        "prompt" : "a red bicycle against a limestone wall",
+        "seed" : 8123447209115663,
+        "steps" : 9,
+        "version" : 1,
+        "width" : 1024
+      }
+    },
+    {
+      "fileName" : "2026-09-11 09-41-05 z-image-turbo-4bit.png",
+      "id" : "B58E0D31-6F47-4A19-8C52-D4A0E93B2F6C",
+      "isVideo" : false,
+      "record" : {
+        "batchID" : "1E9C2A60-4E1D-4C35-9F0E-2C7B3A5D8E11",
+        "createdAt" : "2026-09-11T09:41:12Z",
+        "durationSeconds" : 6.4,
+        "guidance" : 0,
+        "height" : 1024,
+        "modelID" : "z-image-turbo-4bit",
+        "prompt" : "a red bicycle against a limestone wall",
+        "seed" : 8123447209115662,
+        "steps" : 9,
+        "version" : 1,
+        "width" : 1024
+      }
+    }
+  ],
+  "hostName" : "halcyon",
+  "libraryCount" : 3,
+  "model" : {
+    "capabilities" : {
+      "continuationFrames" : [
+        0,
+        0
+      ],
+      "defaultContinuationFrames" : 0,
+      "defaultFrames" : 1,
+      "defaultGuidance" : 0,
+      "defaultReferenceStrength" : 0.6,
+      "defaultSize" : {
+        "height" : 1024,
+        "width" : 1024
+      },
+      "defaultSteps" : 9,
+      "frameAlignment" : 8,
+      "frameBounds" : [
+        1,
+        1
+      ],
+      "frameRate" : 24,
+      "guidanceBounds" : [
+        0,
+        0
+      ],
+      "producesAudio" : false,
+      "referenceStrengthBounds" : [
+        0.1,
+        0.9
+      ],
+      "sizeAlignment" : 16,
+      "sizeBounds" : [
+        512,
+        2048
+      ],
+      "sizePresets" : [
+        {
+          "height" : 1024,
+          "width" : 1024
+        },
+        {
+          "height" : 768,
+          "width" : 768
+        },
+        {
+          "height" : 896,
+          "width" : 1152
+        },
+        {
+          "height" : 1152,
+          "width" : 896
+        },
+        {
+          "height" : 832,
+          "width" : 1216
+        },
+        {
+          "height" : 1216,
+          "width" : 832
+        },
+        {
+          "height" : 768,
+          "width" : 1344
+        },
+        {
+          "height" : 1344,
+          "width" : 768
+        }
+      ],
+      "stepBounds" : [
+        1,
+        20
+      ],
+      "supportsNegativePrompt" : false,
+      "supportsReferenceImage" : true,
+      "supportsSeed" : true
+    },
+    "displayName" : "Z-Image Turbo",
+    "familyID" : "z-image",
+    "id" : "z-image-turbo-4bit",
+    "variantName" : "4-bit"
+  },
+  "models" : [
+    {
+      "capabilities" : {
+        "continuationFrames" : [
+          0,
+          0
+        ],
+        "defaultContinuationFrames" : 0,
+        "defaultFrames" : 1,
+        "defaultGuidance" : 0,
+        "defaultReferenceStrength" : 0.6,
+        "defaultSize" : {
+          "height" : 1024,
+          "width" : 1024
+        },
+        "defaultSteps" : 9,
+        "frameAlignment" : 8,
+        "frameBounds" : [
+          1,
+          1
+        ],
+        "frameRate" : 24,
+        "guidanceBounds" : [
+          0,
+          0
+        ],
+        "producesAudio" : false,
+        "referenceStrengthBounds" : [
+          0.1,
+          0.9
+        ],
+        "sizeAlignment" : 16,
+        "sizeBounds" : [
+          512,
+          2048
+        ],
+        "sizePresets" : [
+          {
+            "height" : 1024,
+            "width" : 1024
+          },
+          {
+            "height" : 768,
+            "width" : 768
+          },
+          {
+            "height" : 896,
+            "width" : 1152
+          },
+          {
+            "height" : 1152,
+            "width" : 896
+          },
+          {
+            "height" : 832,
+            "width" : 1216
+          },
+          {
+            "height" : 1216,
+            "width" : 832
+          },
+          {
+            "height" : 768,
+            "width" : 1344
+          },
+          {
+            "height" : 1344,
+            "width" : 768
+          }
+        ],
+        "stepBounds" : [
+          1,
+          20
+        ],
+        "supportsNegativePrompt" : false,
+        "supportsReferenceImage" : true,
+        "supportsSeed" : true
+      },
+      "displayName" : "Z-Image Turbo",
+      "familyID" : "z-image",
+      "id" : "z-image-turbo-4bit",
+      "variantName" : "4-bit"
+    },
+    {
+      "capabilities" : {
+        "continuationFrames" : [
+          1,
+          1
+        ],
+        "defaultContinuationFrames" : 1,
+        "defaultFrames" : 49,
+        "defaultGuidance" : 0,
+        "defaultReferenceStrength" : 1,
+        "defaultSize" : {
+          "height" : 480,
+          "width" : 832
+        },
+        "defaultSteps" : 3,
+        "frameAlignment" : 4,
+        "frameBounds" : [
+          5,
+          121
+        ],
+        "frameRate" : 24,
+        "guidanceBounds" : [
+          0,
+          0
+        ],
+        "producesAudio" : false,
+        "referenceStrengthBounds" : [
+          1,
+          1
+        ],
+        "sizeAlignment" : 32,
+        "sizeBounds" : [
+          256,
+          1280
+        ],
+        "sizePresets" : [
+          {
+            "height" : 480,
+            "width" : 832
+          },
+          {
+            "height" : 832,
+            "width" : 480
+          },
+          {
+            "height" : 352,
+            "width" : 640
+          },
+          {
+            "height" : 640,
+            "width" : 352
+          },
+          {
+            "height" : 576,
+            "width" : 1024
+          },
+          {
+            "height" : 704,
+            "width" : 1280
+          },
+          {
+            "height" : 1280,
+            "width" : 704
+          }
+        ],
+        "stepBounds" : [
+          3,
+          3
+        ],
+        "supportsNegativePrompt" : false,
+        "supportsReferenceImage" : true,
+        "supportsSeed" : true
+      },
+      "displayName" : "Wan 2.2",
+      "familyID" : "wan",
+      "id" : "wan-2.2-ti2v-5b-4bit",
+      "variantName" : "5B, 4-bit"
+    }
+  ],
+  "protocolVersion" : 1,
+  "queue" : [
+
+  ],
+  "today" : [
+    {
+      "fileNames" : [
+        "2026-09-11 09-41-05 z-image-turbo-4bit.png",
+        "2026-09-11 09-41-12 z-image-turbo-4bit.png"
+      ],
+      "finishedAt" : "2026-09-10T11:41:12Z",
+      "height" : 1024,
+      "id" : "1E9C2A60-4E1D-4C35-9F0E-2C7B3A5D8E11",
+      "modelID" : "z-image-turbo-4bit",
+      "prompt" : "a red bicycle against a limestone wall",
+      "seedCount" : 2,
+      "startedAt" : "2026-09-10T11:41:05Z",
+      "state" : "finished",
+      "width" : 1024
+    },
+    {
+      "fileNames" : [
+        "2026-09-11 09-12-03 wan-2.2-ti2v-5b-4bit.png"
+      ],
+      "finishedAt" : "2026-09-10T11:12:03Z",
+      "height" : 512,
+      "id" : "7A4F8B21-19C6-4D0A-B2E7-51C90D6F4A32",
+      "modelID" : "wan-2.2-ti2v-5b-4bit",
+      "prompt" : "rain moving across a harbour at dusk",
+      "seedCount" : 1,
+      "startedAt" : "2026-09-10T11:11:21Z",
+      "state" : "finished",
+      "width" : 768
+    }
+  ]
+}

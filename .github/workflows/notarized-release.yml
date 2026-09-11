@@ -99,6 +99,11 @@ jobs:
       - name: Test the MLX packages
         run: make test-mlx
 
+      # The phone, on whatever simulator this runner image happens to carry: `ios-sim.sh` asks
+      # the machine for its newest iPhone rather than pinning a name a new image would retire.
+      - name: Test the iOS app
+        run: make test-ios IOS_SIM="$(scripts/ios-sim.sh)"
+
       # Credentials are imported only once the gates have passed: a failed test should not
       # need the signing keychain to have been created at all.
       - name: Import signing credentials

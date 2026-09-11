@@ -10,6 +10,7 @@ import UniformTypeIdentifiers
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let masters = root.appending(path: "design/branding/zephyr")
 let catalog = root.appending(path: "Sources/Zephra/Resources/Assets.xcassets/AppIcon.appiconset")
+let phone = root.appending(path: "Sources/ZephraMobile/Resources/Assets.xcassets/AppIcon.appiconset")
 let website = root.appending(path: "product-mockups/public/images")
 let space = CGColorSpace(name: CGColorSpace.sRGB)!
 
@@ -60,6 +61,10 @@ for entry in entries {
   else { throw NSError(domain: "ZephraIcon", code: 5) }
   try write(dark, pixels: Int(side * factor), to: catalog.appending(path: name))
 }
+// The phone takes one square and derives every size it shows from it, which is why its
+// catalog names a single file rather than the ten the Mac's does. The same master, so the
+// two apps wear the same mark.
+try write(dark, pixels: 1024, to: phone.appending(path: "icon_1024x1024.png"))
 try write(dark, pixels: 256, to: website.appending(path: "icon-dark.png"))
 try write(light, pixels: 256, to: website.appending(path: "icon-light.png"))
 try write(mark, pixels: 256, to: website.appending(path: "mark.png"))

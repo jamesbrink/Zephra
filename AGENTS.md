@@ -20,6 +20,7 @@ entry), behind one backend seam.
 | One app-target suite | the `test-app` xcodebuild line with `-only-testing:ZephraTests/ExportPlanTests` |
 | Benchmark | `make bench ARGS="--size 1024 --steps 9 --runs 3 --json"` (Release, idle Mac) |
 | Logs, screenshot | `make logs`, `make screenshot WINDOW=<title>` |
+| The phone | `make build-ios`, `make run-ios` (`PREVIEW=<state>`), `make test-ios` |
 
 What trips a first session: `swift build` and `swift test` work only in
 `Packages/ZephraKit`, because everything else links mlx-swift and its Metal
@@ -53,6 +54,9 @@ Sources/Zephra (SwiftUI app) ─→ ZephraEngine ─→ ZephraCore, ZephraSnapsh
                              ─→ ZephraUpscale<Network> ─→ ZephraCore, ZephraMLX
                                                           [imported in ZephraApp.swift ONLY]
                              ─→ ZephraStyle ─→ ZephraCore
+Sources/ZephraMobile (iOS)   ─→ ZephraCore, ZephraLinkProtocol, ZephraStyle
+                                [ZephraLinkTransport and ZephraLinkClient as they land;
+                                 never a backend, MLX, ZephraEngine or AppKit]
 Sources/ZephraBench (tool)   ─→ ZephraCore, every ZephraBackend<Family>
 Sources/ZephraQuantize (tool)─→ ZephraCore, ZephraSnapshot, ZephraQuantization,
                                 every ZephraBackend<Family>
@@ -86,7 +90,18 @@ Shared, by what a file actually touches:
                                                   the Mac and a future iOS app both speak: the
                                                   frames, the state snapshot and its deltas, the
                                                   commands, a Noise-style channel, the QR
-                                                  pairing payload and the relay's JSON; nothing
+                                                  pairing payload and the relay's JSON; no
+                                                  transport and no interface
+  ZephraLink/ZephraLinkTransport   Foundation, Network, os, ZephraLinkProtocol — the roads:
+                                                  TCPConnection and TCPListener behind a
+                                                  four-byte length, the listener's own Bonjour
+                                                  advertisement and BonjourBrowser, and the
+                                                  relay's RelayConnection and RelayListener,
+                                                  which serves one guest at a time
+  ZephraLink/ZephraLinkClient      Foundation, Observation, ZephraLinkProtocol,
+                                                  ZephraLinkTransport — LinkClient, the one
+                                                  object the phone's views observe, over an
+                                                  injected LinkRoads and LinkKeyStore; nothing
                                                   links it yet
   ZephraMLXKit/ZephraMLX           MLX, MLXNN, ZephraCore — the packed loader, the manifest
                                                   reader, the rotary table, the pixel packer,
@@ -177,12 +192,16 @@ Shared, by what a file actually touches:
   `Sources/Zephra/ZephraApp.swift` may import a `ZephraBackend*` or
   `ZephraUpscale*` package, to register it.
 - No backend package may import another backend package.
-- `ZephraLinkProtocol` (`Packages/ZephraLink`) is the one package an iOS app
-  links too, so what it may import is a short list rather than a short ban:
-  Foundation-level frameworks, `ZephraCore`, `ZephraEngine` and itself.
-  `ZephraEngine` is for `GenerationRecord` and `LibraryAnnotation` alone, which
-  cross the wire as themselves: they are the truth inside every PNG, and a second
-  shape of the same provenance is a second thing to keep in step.
+- `Packages/ZephraLink` is the one package an iOS app links too, so what it may
+  import is a short list rather than a short ban: Foundation-level frameworks,
+  `ZephraCore`, `ZephraEngine` and itself. `ZephraEngine` is for
+  `GenerationRecord` and `LibraryAnnotation` alone, which cross the wire as
+  themselves: they are the truth inside every PNG, and a second shape of the same
+  provenance is a second thing to keep in step. Its three targets stack in one
+  direction only: `ZephraLinkProtocol` (the wire, no socket in it),
+  `ZephraLinkTransport` (the roads, no state in it) and `ZephraLinkClient` (the
+  phone's `LinkClient`, which reaches a road only through injected protocols and
+  so is tested without one).
 
 Code rules:
 
@@ -218,6 +237,24 @@ reference picture never rides inside a request — it crosses as a blob and
 `GenerationRequest` strips the bytes on the way in *and* on the way out. And a
 blob's chunks are accepted in order only, because the channel underneath is one
 ordered stream and a gap means loss or tampering.
+
+`ZephraLinkTransport` is the roads under that wire. A TCP frame rides behind a
+four-byte big-endian length and is capped at 1 MiB, a length past which closes
+the road rather than allocating it; the listener publishes its own
+`_zephra._tcp` service with the room in the TXT record, since an advertiser of
+its own would have to be handed the port and kept in step with the listener's
+lifetime. `RelayConnection` speaks the relay's JSON over a
+`URLSessionWebSocketTask` and never reconnects itself — a reconnection is a whole
+new handshake — and `RelayListener` serves **one guest at a time**, because the
+relay gives a host one socket and a frame on it carries no guest id. Several
+phones at once is a LAN feature.
+
+`ZephraLinkClient` is the phone's `LinkClient`: `@MainActor @Observable`, split
+by concern like `GenerationStore`, holding the snapshot the deltas edit, the
+newest preview and the library it has been told about. `LinkKeyStore` and
+`LinkRoads` are injected, so the whole session is tested over a road that never
+leaves the process; the phone reconnects on foreground and after a close on
+`LinkBackoff`'s one, two, four, eight seconds, capped at thirty.
 
 Full detail: `docs/companion.md`.
 
@@ -581,6 +618,32 @@ Rules in `Views/`:
   `FocusedValues`.
 
 Full detail: `docs/app-target.md`.
+
+## The phone
+
+`Sources/ZephraMobile` is the iOS companion: it shows what a paired Mac is
+making and asks it for more, and it renders nothing itself. No MLX, no model
+folder, no library folder, no engine — every number on its screen came over the
+link. It links `ZephraCore`, `ZephraLinkProtocol` and `ZephraStyle` and nothing
+else, which `make lint-layers` enforces along with the model-package ban, the
+repeating-animation ban and the US-spelling check.
+
+- `App/`, `Support/`, `Style/`, `Views/`, laid out like the Mac target's.
+- `MobileSession` is the one type a view may read the Mac through: five facts and
+  an `onPair` closure. `LinkClient` takes its place when it lands, so a view that
+  reaches past it for a fact is a view that swap breaks.
+- `PairingEntry.parse` is the one parser all three pairing doors go through —
+  the camera (VisionKit, hidden where there is none), the paste field (always
+  there), a `zephra://pair` link. Everything it throws is a `LinkError` with a
+  sentence, and an expired code is refused here rather than at the far end.
+- `MobilePreview` is `InterfacePreview`'s shape for the phone:
+  `ZEPHRA_PREVIEW_STATE=pairing|ready|generating|library|offline|settings`,
+  Debug only, over two JSON fixtures decoded with the wire's own decoder.
+- `make build-ios`, `make run-ios PREVIEW=<state>`, `make test-ios`,
+  `make screenshot-ios`. `IOS_SIM` names the simulator; CI passes what
+  `scripts/ios-sim.sh` finds. There is no Release lane and no benchmark.
+
+Full detail: `docs/mobile.md`.
 
 ## Adding a model or a backend
 

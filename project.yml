@@ -3,6 +3,9 @@ options:
   bundleIdPrefix: io.zephra
   deploymentTarget:
     macOS: "15.0"
+    # The phone. 18.0 is what ZephraKit, ZephraLink and ZephraStyle declare, and what the
+    # companion needs: Observation, the modern scene lifecycle, and VisionKit's data scanner.
+    iOS: "18.0"
   createIntermediateGroups: true
   groupSortPosition: top
   minimumXcodeGenVersion: "2.45.0"
@@ -67,7 +70,7 @@ packages:
     path: Packages/QwenImageKit
   ZImageKit:
     path: Packages/ZImageKit
-  # The wire the Mac and a future iOS app share. No target links it yet.
+  # The wire the Mac and the phone share; `ZephraMobile` links it.
   ZephraLink:
     path: Packages/ZephraLink
 
@@ -140,6 +143,79 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.zephra.ZephraTests
         GENERATE_INFOPLIST_FILE: "YES"
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        SWIFT_APPROACHABLE_CONCURRENCY: "YES"
+
+  # The companion on the phone. It links the value layer, the wire and the chrome, and
+  # nothing else: no backend, no MLX, no engine of its own. Everything it shows comes over
+  # the link from a Mac, which is the whole point of the target.
+  ZephraMobile:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources/ZephraMobile
+      - path: THIRD_PARTY_NOTICES.md
+        buildPhase: resources
+    dependencies:
+      - package: ZephraKit
+        product: ZephraCore
+      # The protocol both ends speak: the pairing payload, the state snapshot, the library page.
+      - package: ZephraLink
+        product: ZephraLinkProtocol
+      # The same radii, hairlines and washes the Mac is drawn from, so the two apps look like
+      # one program rather than resemble each other.
+      - package: ZephraStyle
+        product: ZephraStyle
+      # A clip fetched from the Mac plays in an AVKit player, a pairing code is read by
+      # VisionKit's data scanner, and a picture saved goes to the photo library.
+      - sdk: AVKit.framework
+      - sdk: VisionKit.framework
+      - sdk: Photos.framework
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.zephra.ZephraMobile
+        PRODUCT_NAME: Zephra
+        # The app on the phone is called Zephra, but its *module* is not: the Mac's app target
+        # already owns that name, and two modules called Zephra in one project is a trap every
+        # `@testable import` would fall into. The bundle is unaffected.
+        PRODUCT_MODULE_NAME: ZephraMobile
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        INFOPLIST_FILE: Sources/ZephraMobile/Resources/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: "NO"
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        SWIFT_APPROACHABLE_CONCURRENCY: "YES"
+        TARGETED_DEVICE_FAMILY: "1"
+        # iOS has no hardened runtime, and an app signed with one is refused by the installer.
+        ENABLE_HARDENED_RUNTIME: "NO"
+        # The simulator takes the base ad-hoc identity, so `make build-ios` works on a machine
+        # with no certificate; a device build needs a real one, which only iphoneos asks for.
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 28X9H69QGE
+        CODE_SIGN_IDENTITY[sdk=iphoneos*]: "Apple Development"
+
+  # The companion's own suites, hosted inside it so they can `@testable import ZephraMobile`.
+  # Pure interface logic, like the Mac's: parsing a pairing code, reading the frozen fixture.
+  ZephraMobileTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests/ZephraMobileTests
+    dependencies:
+      - target: ZephraMobile
+      - package: ZephraKit
+        product: ZephraTestSupport
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.zephra.ZephraMobileTests
+        GENERATE_INFOPLIST_FILE: "YES"
+        # Spelled out because the host's product is named for the app, not for the target:
+        # XcodeGen's default is `$(TARGET_NAME).app/$(TARGET_NAME)`, which is ZephraMobile,
+        # and the bundle on disk is Zephra.app/Zephra. The Mac pair never noticed, its target
+        # and its product being the one word.
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Zephra.app/Zephra
+        BUNDLE_LOADER: $(TEST_HOST)
         SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
         SWIFT_APPROACHABLE_CONCURRENCY: "YES"
 
@@ -216,6 +292,20 @@ schemes:
       environmentVariables:
         # The host app launches frozen with no model, so no weights load and no MLX limits
         # are set under the tests; see `InterfacePreview`.
+        ZEPHRA_PREVIEW_STATE: ready
+  ZephraMobile:
+    build:
+      targets:
+        ZephraMobile: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - ZephraMobileTests
+      environmentVariables:
+        # The host launches frozen, the way the Mac's test host does, so nothing under the
+        # tests tries to reach a Mac; see `MobilePreview`.
         ZEPHRA_PREVIEW_STATE: ready
   ZephraBench:
     build:
