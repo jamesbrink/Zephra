@@ -14,6 +14,7 @@ import ZephraStyle
 /// blank without a Mac: a run in flight cannot be cached.
 struct TodayScreen: View {
     @Environment(LinkClient.self) private var client
+    @Environment(LibraryCatalog.self) private var catalog
     /// The picture from a finished run that is open full size, or nil.
     @State private var viewing: CachedEntry?
 
@@ -44,8 +45,17 @@ struct TodayScreen: View {
         .environment(\.openLibraryItem) { viewing = $0 }
         .modifier(LibraryRequests())
         .fullScreenCover(item: $viewing) { entry in
-            LibraryViewer(entries: [entry], opening: entry.fileName)
+            LibraryViewer(entries: pictures(around: entry), opening: entry.fileName)
         }
+    }
+
+    /// The pictures the viewer pages through: the run's, in the strip's order, so a swipe
+    /// walks the seeds of one press of Generate and stops at its end.
+    private func pictures(around entry: CachedEntry) -> [CachedEntry] {
+        guard let run = runs.first(where: { $0.fileNames.contains(entry.fileName) }) else {
+            return [entry]
+        }
+        return run.fileNames.compactMap(catalog.entry(named:))
     }
 
     /// The row one run gets, which is decided by where the run stands.

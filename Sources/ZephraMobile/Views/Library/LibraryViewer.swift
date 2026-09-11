@@ -1,77 +1,78 @@
 import SwiftUI
 import ZephraStyle
 
-/// One picture full size, with the rest of its day a swipe away.
+/// One picture full size, with every other picture in the grid a swipe away.
 ///
-/// A paged `TabView` rather than a navigation push, because swiping between pictures is what a
-/// phone's photo viewer *is*; the day is what it pages through, for the reason `LibraryScreen`
-/// gives. A clip plays in place through AVKit rather than showing its poster: the poster is
-/// how a clip is filed, not how it is watched.
+/// Built the way Photos is: a horizontal pager of pages, each a scroll view that zooms, and a
+/// pull downwards that closes it. The pager is a lazy `ScrollView` rather than a `TabView`, so
+/// the whole grid can be handed over and only the pages beside the one on screen are built —
+/// which is what lets a swipe carry on past the day the picture was filed under. A clip plays
+/// in place through AVKit rather than showing its poster: the poster is how a clip is filed,
+/// not how it is watched.
+///
+/// Every gesture but the pull is UIKit's, inside `ZoomingScrollView`; what it saw comes back
+/// up through `\.viewerGestures` and lands in one `ViewerPose`.
 struct LibraryViewer: View {
-    /// The day's pictures, in the order the grid showed them.
+    /// The pictures, in the order the grid showed them.
     let entries: [CachedEntry]
-    /// Which one is on screen.
-    @State private var current: String
+    /// Which one is on screen, whether the chrome is, and how far it has been pulled.
+    @State private var pose: ViewerPose
 
-    /// Opens the day at one picture.
+    /// Opens the pictures at one of them.
     init(entries: [CachedEntry], opening fileName: String) {
         self.entries = entries
-        _current = State(initialValue: fileName)
+        _pose = State(initialValue: ViewerPose(current: fileName))
     }
 
     var body: some View {
-        TabView(selection: $current) {
-            ForEach(entries) { entry in
-                ViewerPicture(entry: entry)
-                    .tag(entry.fileName)
+        ScrollView(.horizontal) {
+            LazyHStack(spacing: MobileChrome.viewerPageGap) {
+                ForEach(entries) { entry in
+                    ViewerPicture(entry: entry)
+                        .containerRelativeFrame(.horizontal)
+                        .environment(\.viewerPageIsCurrent, entry.fileName == pose.current)
+                        .id(entry.fileName)
+                }
             }
+            .scrollTargetLayout()
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
-        .background(.black)
-        .overlay(alignment: .top) { LibraryViewerTitle(entry: shown, of: entries.count) }
+        .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
+        .scrollPosition(id: $pose.current)
+        .scrollIndicators(.hidden)
+        .ignoresSafeArea()
+        .environment(\.viewerGestures, gestures)
+        .modifier(ViewerPull(pull: $pose.pull, isEnabled: !pose.isZoomed))
+        .overlay(alignment: .top) { chrome { LibraryViewerTitle(entry: shown) } }
         .overlay(alignment: .bottom) {
-            if let shown { LibraryViewerBar(entry: shown) }
+            if let shown { chrome { LibraryViewerBar(entry: shown) } }
         }
         .modifier(LibraryRequests())
         .statusBarHidden()
+        .presentationBackground(.clear)
     }
 
-    /// The picture on screen, or nil once the last one in the day has been deleted.
+    /// The picture on screen, or nil once the last one has been deleted.
     private var shown: CachedEntry? {
-        entries.first { $0.fileName == current } ?? entries.first
+        entries.first { $0.fileName == pose.current } ?? entries.first
     }
-}
 
-/// The strip across the top: where in the day this is, and the way out.
-///
-/// Its own view so the viewer holds two stored properties rather than four, and so the way out
-/// is one file — the one thing in here that has nothing to do with pictures.
-private struct LibraryViewerTitle: View {
-    let entry: CachedEntry?
-    let of: Int
+    /// A strip of controls that a tap on the picture puts away and another brings back.
+    private func chrome<Strip: View>(@ViewBuilder _ strip: () -> Strip) -> some View {
+        strip()
+            .opacity(pose.chromeIsHidden ? 0 : 1)
+            .allowsHitTesting(!pose.chromeIsHidden)
+    }
 
-    @Environment(\.dismiss) private var dismiss
+    /// What a page's fingers do to the pose.
+    private var gestures: ViewerGestures {
+        ViewerGestures(
+            tapped: { withAnimation(fade) { pose.chromeIsHidden.toggle() } },
+            zoomed: { pose.isZoomed = $0 })
+    }
 
-    var body: some View {
-        HStack {
-            Button { dismiss() } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.title2)
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(.white, .black.opacity(MobileChrome.viewerChromeOpacity))
-            }
-            .accessibilityLabel("Close")
-            Spacer(minLength: 0)
-            if let entry {
-                Text(entry.label)
-                    .font(.footnote)
-                    .lineLimit(1)
-                    .foregroundStyle(.white.opacity(0.85))
-                    .shadow(color: .black.opacity(ZephraChrome.shadowOpacity), radius: 4)
-            }
-        }
-        .padding(.horizontal, MobileChrome.sideMargin)
-        .padding(.top, 8)
+    /// The chrome's fade, or none at all where somebody has asked for less movement.
+    private var fade: Animation? {
+        UIAccessibility.isReduceMotionEnabled ? nil : .easeInOut(duration: 0.2)
     }
 }
 

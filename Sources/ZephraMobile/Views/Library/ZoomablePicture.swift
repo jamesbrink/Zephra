@@ -1,93 +1,36 @@
 import SwiftUI
 import UIKit
 
-/// One picture, pinched to zoom and dragged around once it is zoomed.
+/// One picture, pinched and double-tapped to zoom, dragged around once it is zoomed.
 ///
-/// The zoom springs back to fit when it is let go under 1, and the offset goes with it, so
-/// there is no state anybody can leave the picture in that they cannot get out of. Nothing
-/// animates on its own: the only motion here is the one somebody's fingers are making, and
-/// under Reduce Motion the spring back is instant rather than sprung.
-struct ZoomablePicture: View {
+/// A `ZoomingScrollView` wrapped for SwiftUI rather than a SwiftUI gesture, because the pager
+/// around it is a scroll view too and UIKit already knows how two nested ones share a finger:
+/// at fit the inner one has nothing to scroll and the pan is the pager's, zoomed in it is the
+/// picture's. A `DragGesture` over the same pixels had to guess, and guessed wrong.
+///
+/// What the fingers do goes up through `\.viewerGestures`; whether this page is the one on
+/// screen comes down through `\.viewerPageIsCurrent`, and a page that stops being it goes
+/// back to fit, so swiping away from a zoomed picture and back finds it as Photos would.
+struct ZoomablePicture: UIViewRepresentable {
     /// The picture, decoded already: `ViewerPicture` does that off the main actor, since a
     /// whole picture off a Mac is megabytes and decoding one here would freeze the pinch.
     let picture: UIImage
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// How far in, and how far along. One value, because they are settled together.
-    @State private var zoom = PictureZoom()
+    @Environment(\.viewerGestures) private var gestures
+    @Environment(\.viewerPageIsCurrent) private var isCurrent
 
-    var body: some View {
-        Image(uiImage: picture)
-            .resizable()
-            .scaledToFit()
-            .scaleEffect(zoom.scale)
-            .offset(zoom.offset)
-            .gesture(
-                MagnifyGesture()
-                    .onChanged { zoom.magnify(to: $0.magnification) }
-                    .onEnded { _ in settle() }
-                    .simultaneously(
-                        with: DragGesture()
-                            .onChanged { zoom.drag(by: $0.translation) }
-                            .onEnded { _ in settle() })
-            )
-            .onTapGesture(count: 2) { withAnimation(motion) { zoom.toggle() } }
-            .accessibilityLabel("Picture")
+    func makeUIView(context: Context) -> ZoomingScrollView {
+        let view = ZoomingScrollView()
+        view.image = picture
+        return view
     }
 
-    /// Puts the picture back where it can be seen, once the fingers are off it.
-    private func settle() {
-        withAnimation(motion) { zoom.settle() }
-    }
-
-    /// The spring, or none at all where somebody has asked for less movement.
-    private var motion: Animation? {
-        reduceMotion ? nil : .spring(duration: 0.25)
-    }
-}
-
-/// How far into a picture somebody has zoomed, and how far they have pushed it.
-struct PictureZoom {
-    /// The scale as it stands.
-    private(set) var scale: CGFloat = 1
-    /// How far the picture has been pushed from the middle.
-    private(set) var offset: CGSize = .zero
-    /// The scale the last gesture ended at, which the next one multiplies.
-    private var committed: CGFloat = 1
-    private var committedOffset: CGSize = .zero
-
-    /// The furthest in anybody may go: past this the pixels are the model's rather than the
-    /// picture's, and a phone screen has no more to show.
-    static let maximum: CGFloat = 6
-
-    /// Follows a pinch.
-    mutating func magnify(to magnification: CGFloat) {
-        scale = min(Self.maximum, max(0.5, committed * magnification))
-    }
-
-    /// Follows a drag, which does nothing at all while the picture fits.
-    mutating func drag(by translation: CGSize) {
-        guard scale > 1 else { return }
-        offset = CGSize(
-            width: committedOffset.width + translation.width,
-            height: committedOffset.height + translation.height)
-    }
-
-    /// Springs back to fit when the picture has been let go smaller than it started.
-    mutating func settle() {
-        if scale <= 1 {
-            scale = 1
-            offset = .zero
-        }
-        committed = scale
-        committedOffset = offset
-    }
-
-    /// A double tap: all the way in, or all the way back.
-    mutating func toggle() {
-        scale = scale > 1 ? 1 : 2.5
-        offset = .zero
-        committed = scale
-        committedOffset = .zero
+    func updateUIView(_ view: ZoomingScrollView, context: Context) {
+        // Set on every update, not once: the closures close over the viewer's state and a
+        // stale pair would toggle the chrome of a viewer that has since been rebuilt.
+        view.onTap = gestures.tapped
+        view.onZoom = gestures.zoomed
+        if view.image !== picture { view.image = picture }
+        if !isCurrent { view.resetZoom() }
     }
 }

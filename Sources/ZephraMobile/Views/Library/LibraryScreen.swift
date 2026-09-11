@@ -31,20 +31,22 @@ struct LibraryScreen: View {
         .environment(\.openLibraryItem) { viewing = $0 }
         .modifier(LibraryRequests())
         .fullScreenCover(item: $viewing) { entry in
-            LibraryViewer(entries: day(of: entry), opening: entry.fileName)
+            LibraryViewer(entries: wall, opening: entry.fileName)
         }
         // Keyed on the count, because the catalog reads the disk and then the client before it
         // has anything: a plain `.task` runs while the grid is still empty.
         .task(id: catalog.entries.count) { openFirstIfPhotographing() }
     }
 
-    /// The pictures the viewer pages through: the day the opened one belongs to.
+    /// The pictures the viewer pages through: the whole grid, in the grid's order.
     ///
-    /// The day rather than the whole library, because the day is what the grid showed above
-    /// it: swiping past the end of a section and landing three weeks earlier is a place nobody
-    /// meant to go.
-    private func day(of entry: CachedEntry) -> [CachedEntry] {
-        catalog.sections.first { $0.day == entry.day }?.entries ?? [entry]
+    /// The whole grid rather than the opened picture's day, because the grid is one continuous
+    /// wall and the day headers are labels on it, not walls of their own: a swipe that stopped
+    /// at midnight stopped at a place nobody could see from the picture they were looking at.
+    /// Photos pages the whole camera roll for the same reason, and the viewer is lazy enough
+    /// that a library of thousands costs the same as a day.
+    private var wall: [CachedEntry] {
+        catalog.sections.flatMap(\.entries)
     }
 
     /// The `viewer` preview state is the library with its first picture open, so a screenshot

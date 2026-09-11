@@ -20,4 +20,10 @@ enum MobileChrome {
     /// numbers for it is two things to keep in step. The Mac has no counterpart: its viewer
     /// puts its controls beside the picture rather than on top of it.
     static let viewerChromeOpacity: Double = 0.45
+    /// The black between two pictures as the viewer pages, so a swipe reads as one picture
+    /// leaving and the next arriving rather than one wide strip sliding by. Photos' gap.
+    static let viewerPageGap: CGFloat = 24
+    /// How far down a picture is pulled before letting go closes the viewer. Short of it the
+    /// picture springs back; the pull's dimming and shrinking are measured against it too.
+    static let viewerDismissDistance: CGFloat = 160
 }
