@@ -1,37 +1,80 @@
 import SwiftUI
+import UIKit
+import ZephraLinkClient
 import ZephraLinkProtocol
+import ZephraLinkTransport
 
 /// The composition root of the phone app: the one place that builds what the whole app
-/// observes, and the one place that will know how a Mac is actually reached.
+/// observes, the one place that knows how a Mac is actually reached, and the one place that
+/// says when to reach for it.
 ///
 /// One `WindowGroup` with one scene, because a phone has one. Everything a screen needs is the
-/// session below, injected once; nothing under here reads the environment or opens a socket of
+/// client below, injected once; nothing under here reads the environment or opens a socket of
 /// its own, exactly as `ZephraApp` is the only file on the Mac that names a backend.
 @main
 struct ZephraMobileApp: App {
     /// The one object every view observes. Frozen from the fixture under
-    /// `ZEPHRA_PREVIEW_STATE`, and otherwise empty and waiting to be paired.
-    @State private var session = MobilePreview.session() ?? ZephraMobileApp.makeSession()
+    /// `ZEPHRA_PREVIEW_STATE`, and otherwise a real client over the real roads.
+    @State private var client: LinkClient
+    /// What keeps that client connected while the app is in front of somebody, or nil for a
+    /// frozen one: a client with no road under it has nothing to reconnect.
+    @State private var reconnect: LinkReconnect?
+    @Environment(\.scenePhase) private var scenePhase
+
+    init() {
+        if let frozen = MobilePreview.client() {
+            _client = State(initialValue: frozen)
+            _reconnect = State(initialValue: nil)
+            return
+        }
+        let live = Self.makeClient()
+        _client = State(initialValue: live)
+        _reconnect = State(initialValue: LinkReconnect(client: live))
+    }
 
     var body: some Scene {
         WindowGroup {
             RootView()
-                .environment(session)
+                .environment(client)
+                // Connect while the app is in front and let the session go when it is not:
+                // a phone in a pocket has no reason to hold a socket open, and the Mac has no
+                // reason to hold a session for it. `initial` covers the launch itself, which
+                // is an arrival at `.active` that no change of phase reports.
+                .onChange(of: scenePhase, initial: true) { _, phase in
+                    switch phase {
+                    case .active: reconnect?.begin()
+                    case .background: reconnect?.end()
+                    default: break
+                    }
+                }
         }
     }
 
-    /// The session an ordinary launch gets.
-    ///
-    /// `onPair` records the Mac and nothing else for now: the client that opens the channel,
-    /// completes the handshake and starts taking deltas is being built beside this, and this
-    /// is the seam it lands on. Until then the phone pairs, names the Mac and shows that
-    /// nothing is answering, which is the truth.
-    private static func makeSession() -> MobileSession {
-        let session = MobileSession()
-        session.onPair = { [weak session] payload in
-            session?.pairedHostName = payload.hostName
-            session?.isLive = false
-        }
-        return session
+    /// The client an ordinary launch gets: this phone's identity and its pairing in the
+    /// keychain, Bonjour and TCP on the local network with the relay behind them, and the name
+    /// of the phone, which is what the Mac shows while somebody decides whether to let it in.
+    private static func makeClient() -> LinkClient {
+        let store = MobileKeychain()
+        let identity = deviceIdentity(in: store)
+        return LinkClient(
+            store: store,
+            roads: NetworkLinkRoads(relayURL: relayURL, identity: identity),
+            deviceName: UIDevice.current.name)
     }
+
+    /// Who this phone is, made the first time it is asked for and kept for good.
+    ///
+    /// Resolved here rather than left to `LinkClient`, which would do the same thing, because
+    /// the roads need it too: the relay is joined with a signature over its challenge, and a
+    /// second identity would be a second device as far as every paired Mac is concerned.
+    private static func deviceIdentity(in store: MobileKeychain) -> DeviceIdentity {
+        if let existing = try? store.loadIdentity() { return existing }
+        let fresh = DeviceIdentity()
+        try? store.save(fresh)
+        return fresh
+    }
+
+    /// The relay, for a phone that is not on the Mac's network. A hop through somebody else's
+    /// machine and the last road tried, never the first.
+    private static let relayURL = URL(string: "wss://zephra-link.urandom.io")!
 }

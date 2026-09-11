@@ -1,19 +1,27 @@
 import SwiftUI
 
-/// The Mac this phone is paired to, and what can be done about it. A placeholder for now:
-/// unpairing, the model picker and the notification switches come next.
+/// The Mac this phone is paired to, how it is being reached, and what can be done about it.
+///
+/// A `Form` rather than a screen of our own drawing: this is the one surface in the app that is
+/// about the phone rather than about the pictures, and it should look like every other settings
+/// screen on the device. Each row is its own view, so what a row says is changed in one file.
 struct SettingsScreen: View {
-    @Environment(MobileSession.self) private var session
-
     var body: some View {
-        SurfacePlaceholder(
-            title: MobileTab.settings.title, symbol: MobileTab.settings.symbol, fact: fact)
+        NavigationStack {
+            Form {
+                Section("Your Mac") {
+                    PairedMacRow()
+                    ConnectionRow()
+                }
+                Section("Storage") { CacheRow() }
+                Section("About") { AboutRow() }
+            }
+            .navigationTitle(MobileTab.settings.title)
+        }
     }
+}
 
-    /// Which Mac, and whether it is answering right now. A paired Mac that is asleep is still
-    /// paired, so the two facts are said separately rather than rolled into one word.
-    private var fact: String? {
-        guard let host = session.pairedHostName else { return nil }
-        return session.isLive ? "Connected to \(host)" : "\(host) is not answering"
-    }
+#Preview("Settings") {
+    SettingsScreen()
+        .environment(MobilePreview.client() ?? MobilePreview.unpairedClient())
 }

@@ -1,4 +1,5 @@
 import Foundation
+import ZephraLinkClient
 import ZephraLinkProtocol
 
 /// The one place a pairing code turns into a payload, whichever of the three doors it came
@@ -35,12 +36,36 @@ enum PairingEntry {
         return payload
     }
 
+    /// The sentence to show for whatever went wrong, preferring the one the client wrote.
+    ///
+    /// `LinkClient.pair(with:)` puts its own words on `connection` as it gives up — the Mac's
+    /// refusal where there was one, and "Zephra could not reach halcyon" where no road opened —
+    /// and those name the Mac, which no error thrown out of a socket ever will.
+    nonisolated static func message(for error: Error, connection: LinkConnectionState) -> String {
+        if case .failed(let reason) = connection { return reason }
+        return message(for: error)
+    }
+
     /// The sentence to show for whatever went wrong.
     ///
     /// A `LinkError` already carries the words to use — everything `parse` throws is one, and
-    /// so is everything the far end refuses with. Anything else is a failure nobody wrote a
-    /// sentence for, so it gets the one sentence that is true of all of them.
+    /// so is everything the far end refuses with. `LinkClientError` is this end's own, and has
+    /// no words in it, so they are here. Anything else is a failure nobody wrote a sentence
+    /// for, so it gets the one sentence that is true of all of them.
     nonisolated static func message(for error: Error) -> String {
-        (error as? LinkError)?.reason ?? "That pairing code could not be read."
+        if let refusal = error as? LinkError { return refusal.reason }
+        guard let ours = error as? LinkClientError else {
+            return "That pairing code could not be read."
+        }
+        switch ours {
+        case .notConnected: return "The connection to your Mac closed."
+        case .notPaired: return "This phone is not paired with a Mac yet."
+        case .unreachable:
+            return "Zephra could not reach that Mac. Check that both are awake and on the "
+                + "same network."
+        case .timedOut: return "Your Mac did not answer in time."
+        case .unexpectedMessage, .unexpectedReply:
+            return "Your Mac answered with something this version of Zephra does not understand."
+        }
     }
 }

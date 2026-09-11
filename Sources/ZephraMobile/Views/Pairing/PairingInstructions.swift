@@ -12,8 +12,8 @@ struct PairingInstructions: View {
                 .font(.title2.weight(.semibold))
             Text(
                 """
-                On your Mac, open Zephra and choose Window > Pair a Device. \
-                Point this phone at the code it shows, or paste the code below.
+                Open Zephra on your Mac, choose Settings > Companion, and point this phone \
+                at the code, or paste it below.
                 """
             )
             .font(.callout)

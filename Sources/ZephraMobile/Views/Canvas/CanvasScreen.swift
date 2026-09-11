@@ -1,10 +1,11 @@
 import SwiftUI
+import ZephraLinkClient
 import ZephraLinkProtocol
 
 /// What the Mac is making. A placeholder for now: the live preview, the prompt sheet and the
 /// step bar come next, and each replaces this from the inside.
 struct CanvasScreen: View {
-    @Environment(MobileSession.self) private var session
+    @Environment(LinkClient.self) private var client
 
     var body: some View {
         SurfacePlaceholder(
@@ -17,7 +18,7 @@ struct CanvasScreen: View {
     /// the Mac's own words, and taking them means the two ends can never disagree about what
     /// is happening. Only the cases that carry no phase get a sentence of their own.
     private var fact: String? {
-        guard let engine = session.snapshot?.engine else { return nil }
+        guard let engine = client.snapshot?.engine else { return nil }
         let headline = engine.phase ?? Self.headline(engine.kind)
         guard let step = engine.step, let steps = engine.steps else { return headline }
         return "\(headline), step \(step) of \(steps)"

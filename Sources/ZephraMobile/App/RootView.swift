@@ -1,11 +1,12 @@
 import SwiftUI
+import ZephraLinkClient
 
 /// The four surfaces, with the pairing screen over them until a Mac has been paired.
 ///
 /// A cover rather than a branch, so the tabs are built once and keep their state: pairing is
 /// something that happens in front of the app, not a different app.
 struct RootView: View {
-    @Environment(MobileSession.self) private var session
+    @Environment(LinkClient.self) private var client
     /// Which surface is up. Its starting value comes from the frozen preview state, so a
     /// screenshot build opens on the surface it was asked for.
     @State private var tab = MobilePreview.tab
@@ -24,7 +25,7 @@ struct RootView: View {
         // Only once a Mac is paired: while the pairing screen is up it owns the link, so a
         // code that arrives as one is read and reported where the person is looking.
         .onOpenURL { url in
-            guard session.isPaired else { return }
+            guard client.pairedHost != nil else { return }
             repair(with: url.absoluteString)
         }
         .alert("That code could not be used", isPresented: alertIsUp) {
@@ -47,7 +48,7 @@ struct RootView: View {
     /// Whether the pairing screen is up. Nothing but pairing takes it down, so the setter is
     /// deliberately empty: a swipe cannot dismiss a `fullScreenCover`, and no button here does.
     private var coverIsUp: Binding<Bool> {
-        Binding(get: { !session.isPaired }, set: { _ in })
+        Binding(get: { client.pairedHost == nil }, set: { _ in })
     }
 
     /// Whether the failure alert is up, which is exactly whether there is a failure.
@@ -60,8 +61,8 @@ struct RootView: View {
         do {
             let payload = try PairingEntry.parse(text)
             Task {
-                do { try await session.onPair(payload) } catch {
-                    failure = PairingEntry.message(for: error)
+                do { try await client.pair(with: payload) } catch {
+                    failure = PairingEntry.message(for: error, connection: client.connection)
                 }
             }
         } catch {

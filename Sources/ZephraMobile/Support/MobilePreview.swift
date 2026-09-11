@@ -1,4 +1,5 @@
 import Foundation
+import ZephraLinkClient
 
 /// Launches the phone app frozen in one state, with no Mac on the other end of the wire, so a
 /// surface can be photographed and inspected on its own.
@@ -26,20 +27,30 @@ enum MobilePreview {
         #endif
     }()
 
-    /// A session frozen in the requested state, or nil for an ordinary launch.
+    /// A client frozen in the requested state, or nil for an ordinary launch.
     ///
-    /// Its `onPair` does nothing, which is what makes the frozen pairing screen safe to leave
-    /// running: a code scanned into it goes nowhere.
-    static func session() -> MobileSession? {
+    /// `LinkClient.frozen` is a client with no road under it: requests answer `.ok` and blobs
+    /// fail, so a screenshot build cannot queue a generation on somebody's Mac. The pairing
+    /// state is the one that is not frozen — it has no snapshot to be frozen over — and is a
+    /// real client over roads that go nowhere, so a code pasted into it says it could not reach
+    /// the Mac rather than doing nothing at all.
+    static func client() -> LinkClient? {
         guard let state else { return nil }
-        guard state != .pairing else { return MobileSession() }
-        return MobileSession(
-            pairedHostName: snapshot()?.hostName ?? "halcyon",
-            snapshot: state == .generating ? midRun(snapshot()) : snapshot(),
+        guard let snapshot = snapshot(), state != .pairing else { return unpairedClient() }
+        return LinkClient.frozen(
+            snapshot: state == .generating ? midRun(snapshot) ?? snapshot : snapshot,
             library: library(),
-            isLive: state != .offline)
+            connection: state == .offline ? .offline : .live(.lan))
     }
 
     /// Which surface a frozen launch opens on, and the canvas for an ordinary one.
     static var tab: MobileTab { state?.tab ?? .canvas }
+
+    /// A client that has never paired and has no road to anything, for the pairing state and
+    /// for an Xcode canvas, which launches no process and so sets no preview state.
+    static func unpairedClient() -> LinkClient {
+        LinkClient(
+            store: MemoryLinkKeyStore(), roads: MemoryLinkRoads.unreachable(),
+            deviceName: "Preview")
+    }
 }

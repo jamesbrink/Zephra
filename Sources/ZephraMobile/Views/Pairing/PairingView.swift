@@ -1,4 +1,5 @@
 import SwiftUI
+import ZephraLinkClient
 import ZephraStyle
 
 /// The screen a phone with no Mac shows, and the only screen it shows until it has one.
@@ -7,7 +8,7 @@ import ZephraStyle
 /// link opened from anywhere else; each hands its text to `PairingEntry.parse`, so what counts
 /// as a code — and what an expired one says — is decided in one place.
 struct PairingView: View {
-    @Environment(MobileSession.self) private var session
+    @Environment(LinkClient.self) private var client
     /// The last thing that went wrong, in the words to show, or nil while nothing has.
     @State private var failure: String?
     /// What is in the paste field.
@@ -50,8 +51,8 @@ struct PairingView: View {
             let payload = try PairingEntry.parse(text)
             failure = nil
             Task {
-                do { try await session.onPair(payload) } catch {
-                    failure = PairingEntry.message(for: error)
+                do { try await client.pair(with: payload) } catch {
+                    failure = PairingEntry.message(for: error, connection: client.connection)
                 }
             }
         } catch {
@@ -62,5 +63,5 @@ struct PairingView: View {
 
 #Preview("Pairing") {
     PairingView()
-        .environment(MobileSession())
+        .environment(MobilePreview.unpairedClient())
 }
