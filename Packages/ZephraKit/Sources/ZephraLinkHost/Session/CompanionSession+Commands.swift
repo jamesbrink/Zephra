@@ -52,7 +52,12 @@ extension CompanionSession {
     ///
     /// The reference picture is the blob the phone sent before the request; `GenerationRequest`
     /// strips the bytes on the way in and out, so this is the one place they are put back.
+    ///
+    /// A request whose id this session has already queued is answered with the run it made, not
+    /// queued again: the phone asks a second time when the first `queued` reply went missing, and
+    /// a hole in the stream must not cost somebody two generations.
     private func submit(_ request: GenerationRequest, to host: CompanionHost) throws -> Reply {
+        if let already = runs[request.requestID] { return .queued(batchID: already) }
         let model = try Self.model(request.modelID)
         var settings = request.settings
         if let blobID = request.referenceBlobID {
@@ -69,7 +74,17 @@ extension CompanionSession {
         guard let batch = host.store.enqueue(settings, on: model, count: request.count) else {
             throw LinkError(code: .refused, reason: "This Mac did not take that request.")
         }
+        remember(batch, for: request.requestID)
         return .queued(batchID: batch)
+    }
+
+    /// Keeps what one request id queued, oldest forgotten first.
+    private func remember(_ batch: UUID, for requestID: UUID) {
+        runs[requestID] = batch
+        runOrder.append(requestID)
+        while runOrder.count > Self.runMemory {
+            runs.removeValue(forKey: runOrder.removeFirst())
+        }
     }
 
     /// Makes one picture larger. Pictures only: `LibraryItem.exportURL` is a clip for a clip, and

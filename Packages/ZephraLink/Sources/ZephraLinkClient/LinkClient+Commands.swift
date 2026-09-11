@@ -12,9 +12,11 @@ extension LinkClient {
         var outgoing = request
         if let reference {
             let blobID = try sendBlob(reference, mime: "image/png")
+            // The request keeps its own id: a retry has to look like the same press of Generate
+            // to the Mac, whatever the envelope around it is called.
             outgoing = GenerationRequest(
                 modelID: request.modelID, count: request.count, settings: request.settings,
-                referenceBlobID: blobID)
+                referenceBlobID: blobID, requestID: request.requestID)
         }
         switch try await self.request(.enqueue(outgoing)) {
         case .queued(let batchID): return batchID

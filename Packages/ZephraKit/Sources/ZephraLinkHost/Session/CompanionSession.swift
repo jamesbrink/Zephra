@@ -1,5 +1,6 @@
 import Foundation
 import ZephraLinkProtocol
+import os
 
 /// One phone, from the moment it connects until the road closes.
 ///
@@ -23,6 +24,9 @@ public final class CompanionSession: Identifiable {
     public internal(set) var isReady = false
 
     let connection: any LinkConnection
+    /// This session's own log, off the main actor, so the writer task can say why a frame never
+    /// left. `nonisolated` for that reason and no other.
+    nonisolated let logger = Logger(subsystem: "io.zephra", category: "companion")
     weak var host: CompanionHost?
     /// The handshake in progress, from the `hello` until the `confirm` settles it. Nil after
     /// that: `channel` is what says the session is past the plaintext stage.
@@ -43,11 +47,19 @@ public final class CompanionSession: Identifiable {
     /// The order they landed in, so the one dropped when the limit is reached is the oldest and
     /// not whichever the dictionary happened to hand back first.
     var blobOrder: [UUID] = []
+    /// The run each of the phone's own request ids made, and the order they were made in. A
+    /// request the phone sends again — because the reply to the first went missing — is answered
+    /// from here rather than queued a second time.
+    var runs: [UUID: UUID] = [:]
+    var runOrder: [UUID] = []
 
     private let outbound: AsyncStream<Data>
     private let sink: AsyncStream<Data>.Continuation
     private var writer: Task<Void, Never>?
     private var reader: Task<Void, Never>?
+    /// The task watching the road's own refusals, where the road has any: a relay `error` frame
+    /// after the join is a frame this Mac sealed that the phone will never see.
+    private var roadErrors: Task<Void, Never>?
     /// The clock on the plaintext stage, cancelled the moment there is a channel.
     private var deadline: Task<Void, Never>?
 
@@ -55,6 +67,11 @@ public final class CompanionSession: Identifiable {
     /// reference picture and then asks for a generation; more than a couple waiting means a
     /// phone that sends and never asks, and that is not memory this Mac should keep.
     static let blobLimit = 4
+
+    /// How many presses of Generate a session remembers having queued. A phone retries the one
+    /// request it is holding open, so this only has to outlast the moment; it is a bound on the
+    /// memory and not a window anybody counts on.
+    static let runMemory = 32
 
     /// Prepares a session. Nothing is read until `start()`.
     init(connection: any LinkConnection, host: CompanionHost) {
@@ -73,6 +90,7 @@ public final class CompanionSession: Identifiable {
     func start() {
         writer = Self.writerTask(connection: connection, outbound: outbound, session: self)
         reader = Task { @MainActor [weak self] in await self?.run() }
+        roadErrors = watchRoadErrors()
         let wait = host?.handshakeDeadline ?? .seconds(10)
         deadline = Task { @MainActor [weak self] in
             try? await Task.sleep(for: wait)
@@ -107,6 +125,8 @@ public final class CompanionSession: Identifiable {
         await connection.close()
         channel?.close()
         reader?.cancel()
+        roadErrors?.cancel()
+        roadErrors = nil
         host?.forget(self)
     }
 
@@ -129,6 +149,10 @@ public final class CompanionSession: Identifiable {
                 do {
                     try await connection.send(bytes)
                 } catch {
+                    session.logger.error(
+                        """
+                        companion could not send a frame of \(bytes.count, privacy: .public)                         bytes: \(String(describing: error), privacy: .public)
+                        """)
                     break
                 }
             }

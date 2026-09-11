@@ -9,11 +9,12 @@ import ZephraCore
 /// to trust a value's invariants.
 extension GenerationRequest: Codable {
     private enum CodingKeys: String, CodingKey {
-        case modelID, count, settings, referenceBlobID
+        case requestID, modelID, count, settings, referenceBlobID
     }
 
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(requestID, forKey: .requestID)
         try container.encode(modelID, forKey: .modelID)
         try container.encode(count, forKey: .count)
         try container.encode(settings, forKey: .settings)
@@ -26,6 +27,9 @@ extension GenerationRequest: Codable {
             modelID: try container.decode(String.self, forKey: .modelID),
             count: try container.decode(Int.self, forKey: .count),
             settings: try container.decode(GenerationSettings.self, forKey: .settings),
-            referenceBlobID: try container.decodeIfPresent(UUID.self, forKey: .referenceBlobID))
+            referenceBlobID: try container.decodeIfPresent(UUID.self, forKey: .referenceBlobID),
+            // An older build sent none, and a request with no name of its own is simply one this
+            // Mac cannot recognise a second time.
+            requestID: try container.decodeIfPresent(UUID.self, forKey: .requestID) ?? UUID())
     }
 }

@@ -5,8 +5,23 @@ import ZephraLinkProtocol
 /// going out.
 extension LinkClient {
     /// A command whose answer is bytes: the reply announces the blob and the chunks follow.
+    ///
+    /// A transfer a hole in the stream swallowed is asked for again, once. The announcement is
+    /// answered before its chunks, so `request`'s own retry cannot cover this half: the reply
+    /// arrived and it is the bytes behind it that went missing.
     public func fetchBlob(_ command: Command) async throws -> Data {
         guard !isFrozen else { throw LinkClientError.notConnected }
+        do {
+            return try await announced(command)
+        } catch let error as LinkClientError where error.isWorthRepeating {
+            logger.notice(
+                "A \(command.kind.rawValue, privacy: .public) lost its bytes; asking once more.")
+            return try await announced(command)
+        }
+    }
+
+    /// One attempt at one transfer: the reply that announces it, then the bytes it named.
+    private func announced(_ command: Command) async throws -> Data {
         switch try await request(command) {
         case .blob(let start): return try await blob(start.blobID)
         case .error(let error): throw error

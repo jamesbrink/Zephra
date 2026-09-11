@@ -192,4 +192,30 @@ struct CompanionHostTests {
         #expect(bed.host.sessions.isEmpty)
         await bed.shutdown()
     }
+
+    @Test("a request the phone sends twice queues one run, not two")
+    func aRepeatedEnqueueQueuesOnce() async throws {
+        let bed = CompanionTestBed()
+        await bed.bootstrap()
+        let phone = try await bed.pairedPhone()
+        _ = try await phone.snapshot()
+
+        // The same request twice, which is what a phone does when the reply to the first went
+        // missing: a fresh envelope around the press of Generate it is still holding.
+        let request = Self.request()
+        let first = try await phone.request(.enqueue(request))
+        let again = try await phone.request(.enqueue(request))
+
+        guard case .queued(let batch) = first, case .queued(let repeated) = again else {
+            Issue.record("expected two run ids, got \(first) and \(again)")
+            return
+        }
+        #expect(batch == repeated, "the same press, answered with the run it already made")
+        try await bed.waitUntil { !bed.store.history.isEmpty }
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(bed.store.history.count == 1, "one run, however many times it was asked for")
+        #expect(bed.store.queue.isEmpty)
+        await bed.shutdown()
+    }
+
 }

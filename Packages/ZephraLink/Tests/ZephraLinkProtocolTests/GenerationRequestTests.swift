@@ -42,6 +42,25 @@ struct GenerationRequestTests {
         #expect(try LinkFixtures.roundTrip(request).referenceBlobID == blob)
     }
 
+    @Test("A request carries its own id, so the Mac can tell a repeat from a second press")
+    func theRequestKeepsItsOwnID() throws {
+        let request = GenerationRequest(
+            modelID: "z-image-turbo-4bit", count: 1, settings: LinkFixtures.settings)
+        #expect(try LinkFixtures.roundTrip(request).requestID == request.requestID)
+    }
+
+    @Test("A request from a build that sent no id is still read, and is simply not recognisable")
+    func anOlderRequestStillDecodes() throws {
+        let older = """
+            {"count":1,"modelID":"z-image-turbo-4bit","settings":\
+            {"guidance":0,"prompt":"x","seed":1,"size":{"height":64,"width":64},"steps":1,\
+            "frames":1,"referenceStrength":1}}
+            """
+        let first = try LinkJSON.decode(GenerationRequest.self, from: Data(older.utf8))
+        let second = try LinkJSON.decode(GenerationRequest.self, from: Data(older.utf8))
+        #expect(first.requestID != second.requestID, "two presses, since neither says otherwise")
+    }
+
     @Test("A count outside the bounds is clamped rather than refused", arguments: [
         (0, 1), (1, 1), (8, 8), (99, 8), (-3, 1),
     ])
