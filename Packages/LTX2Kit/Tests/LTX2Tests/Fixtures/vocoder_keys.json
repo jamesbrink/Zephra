@@ -1,0 +1,4914 @@
+{
+ "vocoder.act_post.act.alpha": [
+  24
+ ],
+ "vocoder.act_post.act.beta": [
+  24
+ ],
+ "vocoder.act_post.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.act_post.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.act_post.act.alpha": [
+  16
+ ],
+ "vocoder.bwe_generator.act_post.act.beta": [
+  16
+ ],
+ "vocoder.bwe_generator.act_post.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.act_post.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.conv_post.weight": [
+  2,
+  7,
+  16
+ ],
+ "vocoder.bwe_generator.conv_pre.bias": [
+  512
+ ],
+ "vocoder.bwe_generator.conv_pre.weight": [
+  512,
+  7,
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts1.0.act.alpha": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts1.0.act.beta": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts1.1.act.alpha": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts1.1.act.beta": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts1.2.act.alpha": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts1.2.act.beta": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts2.0.act.alpha": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts2.0.act.beta": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts2.1.act.alpha": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts2.1.act.beta": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts2.2.act.alpha": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts2.2.act.beta": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.0.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.0.convs1.0.bias": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.0.convs1.0.weight": [
+  256,
+  3,
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.0.convs1.1.bias": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.0.convs1.1.weight": [
+  256,
+  3,
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.0.convs1.2.bias": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.0.convs1.2.weight": [
+  256,
+  3,
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.0.convs2.0.bias": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.0.convs2.0.weight": [
+  256,
+  3,
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.0.convs2.1.bias": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.0.convs2.1.weight": [
+  256,
+  3,
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.0.convs2.2.bias": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.0.convs2.2.weight": [
+  256,
+  3,
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts1.0.act.alpha": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts1.0.act.beta": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts1.1.act.alpha": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts1.1.act.beta": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts1.2.act.alpha": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts1.2.act.beta": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts2.0.act.alpha": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts2.0.act.beta": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts2.1.act.alpha": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts2.1.act.beta": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts2.2.act.alpha": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts2.2.act.beta": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.1.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.1.convs1.0.bias": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.convs1.0.weight": [
+  256,
+  7,
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.convs1.1.bias": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.convs1.1.weight": [
+  256,
+  7,
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.convs1.2.bias": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.convs1.2.weight": [
+  256,
+  7,
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.convs2.0.bias": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.convs2.0.weight": [
+  256,
+  7,
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.convs2.1.bias": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.convs2.1.weight": [
+  256,
+  7,
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.convs2.2.bias": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.1.convs2.2.weight": [
+  256,
+  7,
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts1.0.act.alpha": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts1.0.act.beta": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts1.1.act.alpha": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts1.1.act.beta": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts1.2.act.alpha": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts1.2.act.beta": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts2.0.act.alpha": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts2.0.act.beta": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts2.1.act.alpha": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts2.1.act.beta": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts2.2.act.alpha": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts2.2.act.beta": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.10.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.10.convs1.0.bias": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.10.convs1.0.weight": [
+  32,
+  7,
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.10.convs1.1.bias": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.10.convs1.1.weight": [
+  32,
+  7,
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.10.convs1.2.bias": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.10.convs1.2.weight": [
+  32,
+  7,
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.10.convs2.0.bias": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.10.convs2.0.weight": [
+  32,
+  7,
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.10.convs2.1.bias": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.10.convs2.1.weight": [
+  32,
+  7,
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.10.convs2.2.bias": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.10.convs2.2.weight": [
+  32,
+  7,
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts1.0.act.alpha": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts1.0.act.beta": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts1.1.act.alpha": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts1.1.act.beta": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts1.2.act.alpha": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts1.2.act.beta": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts2.0.act.alpha": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts2.0.act.beta": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts2.1.act.alpha": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts2.1.act.beta": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts2.2.act.alpha": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts2.2.act.beta": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.11.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.11.convs1.0.bias": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.convs1.0.weight": [
+  32,
+  11,
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.convs1.1.bias": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.convs1.1.weight": [
+  32,
+  11,
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.convs1.2.bias": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.convs1.2.weight": [
+  32,
+  11,
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.convs2.0.bias": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.convs2.0.weight": [
+  32,
+  11,
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.convs2.1.bias": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.convs2.1.weight": [
+  32,
+  11,
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.convs2.2.bias": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.11.convs2.2.weight": [
+  32,
+  11,
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts1.0.act.alpha": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts1.0.act.beta": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts1.1.act.alpha": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts1.1.act.beta": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts1.2.act.alpha": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts1.2.act.beta": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts2.0.act.alpha": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts2.0.act.beta": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts2.1.act.alpha": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts2.1.act.beta": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts2.2.act.alpha": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts2.2.act.beta": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.12.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.12.convs1.0.bias": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.12.convs1.0.weight": [
+  16,
+  3,
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.12.convs1.1.bias": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.12.convs1.1.weight": [
+  16,
+  3,
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.12.convs1.2.bias": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.12.convs1.2.weight": [
+  16,
+  3,
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.12.convs2.0.bias": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.12.convs2.0.weight": [
+  16,
+  3,
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.12.convs2.1.bias": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.12.convs2.1.weight": [
+  16,
+  3,
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.12.convs2.2.bias": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.12.convs2.2.weight": [
+  16,
+  3,
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts1.0.act.alpha": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts1.0.act.beta": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts1.1.act.alpha": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts1.1.act.beta": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts1.2.act.alpha": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts1.2.act.beta": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts2.0.act.alpha": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts2.0.act.beta": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts2.1.act.alpha": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts2.1.act.beta": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts2.2.act.alpha": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts2.2.act.beta": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.13.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.13.convs1.0.bias": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.convs1.0.weight": [
+  16,
+  7,
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.convs1.1.bias": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.convs1.1.weight": [
+  16,
+  7,
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.convs1.2.bias": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.convs1.2.weight": [
+  16,
+  7,
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.convs2.0.bias": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.convs2.0.weight": [
+  16,
+  7,
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.convs2.1.bias": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.convs2.1.weight": [
+  16,
+  7,
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.convs2.2.bias": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.13.convs2.2.weight": [
+  16,
+  7,
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts1.0.act.alpha": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts1.0.act.beta": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts1.1.act.alpha": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts1.1.act.beta": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts1.2.act.alpha": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts1.2.act.beta": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts2.0.act.alpha": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts2.0.act.beta": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts2.1.act.alpha": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts2.1.act.beta": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts2.2.act.alpha": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts2.2.act.beta": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.14.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.14.convs1.0.bias": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.convs1.0.weight": [
+  16,
+  11,
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.convs1.1.bias": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.convs1.1.weight": [
+  16,
+  11,
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.convs1.2.bias": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.convs1.2.weight": [
+  16,
+  11,
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.convs2.0.bias": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.convs2.0.weight": [
+  16,
+  11,
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.convs2.1.bias": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.convs2.1.weight": [
+  16,
+  11,
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.convs2.2.bias": [
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.14.convs2.2.weight": [
+  16,
+  11,
+  16
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts1.0.act.alpha": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts1.0.act.beta": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts1.1.act.alpha": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts1.1.act.beta": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts1.2.act.alpha": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts1.2.act.beta": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts2.0.act.alpha": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts2.0.act.beta": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts2.1.act.alpha": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts2.1.act.beta": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts2.2.act.alpha": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts2.2.act.beta": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.2.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.2.convs1.0.bias": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.2.convs1.0.weight": [
+  256,
+  11,
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.2.convs1.1.bias": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.2.convs1.1.weight": [
+  256,
+  11,
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.2.convs1.2.bias": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.2.convs1.2.weight": [
+  256,
+  11,
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.2.convs2.0.bias": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.2.convs2.0.weight": [
+  256,
+  11,
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.2.convs2.1.bias": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.2.convs2.1.weight": [
+  256,
+  11,
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.2.convs2.2.bias": [
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.2.convs2.2.weight": [
+  256,
+  11,
+  256
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts1.0.act.alpha": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts1.0.act.beta": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts1.1.act.alpha": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts1.1.act.beta": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts1.2.act.alpha": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts1.2.act.beta": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts2.0.act.alpha": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts2.0.act.beta": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts2.1.act.alpha": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts2.1.act.beta": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts2.2.act.alpha": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts2.2.act.beta": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.3.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.3.convs1.0.bias": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.3.convs1.0.weight": [
+  128,
+  3,
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.3.convs1.1.bias": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.3.convs1.1.weight": [
+  128,
+  3,
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.3.convs1.2.bias": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.3.convs1.2.weight": [
+  128,
+  3,
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.3.convs2.0.bias": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.3.convs2.0.weight": [
+  128,
+  3,
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.3.convs2.1.bias": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.3.convs2.1.weight": [
+  128,
+  3,
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.3.convs2.2.bias": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.3.convs2.2.weight": [
+  128,
+  3,
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts1.0.act.alpha": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts1.0.act.beta": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts1.1.act.alpha": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts1.1.act.beta": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts1.2.act.alpha": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts1.2.act.beta": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts2.0.act.alpha": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts2.0.act.beta": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts2.1.act.alpha": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts2.1.act.beta": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts2.2.act.alpha": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts2.2.act.beta": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.4.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.4.convs1.0.bias": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.convs1.0.weight": [
+  128,
+  7,
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.convs1.1.bias": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.convs1.1.weight": [
+  128,
+  7,
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.convs1.2.bias": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.convs1.2.weight": [
+  128,
+  7,
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.convs2.0.bias": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.convs2.0.weight": [
+  128,
+  7,
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.convs2.1.bias": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.convs2.1.weight": [
+  128,
+  7,
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.convs2.2.bias": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.4.convs2.2.weight": [
+  128,
+  7,
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts1.0.act.alpha": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts1.0.act.beta": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts1.1.act.alpha": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts1.1.act.beta": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts1.2.act.alpha": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts1.2.act.beta": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts2.0.act.alpha": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts2.0.act.beta": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts2.1.act.alpha": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts2.1.act.beta": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts2.2.act.alpha": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts2.2.act.beta": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.5.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.5.convs1.0.bias": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.convs1.0.weight": [
+  128,
+  11,
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.convs1.1.bias": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.convs1.1.weight": [
+  128,
+  11,
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.convs1.2.bias": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.convs1.2.weight": [
+  128,
+  11,
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.convs2.0.bias": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.convs2.0.weight": [
+  128,
+  11,
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.convs2.1.bias": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.convs2.1.weight": [
+  128,
+  11,
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.convs2.2.bias": [
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.5.convs2.2.weight": [
+  128,
+  11,
+  128
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts1.0.act.alpha": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts1.0.act.beta": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts1.1.act.alpha": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts1.1.act.beta": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts1.2.act.alpha": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts1.2.act.beta": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts2.0.act.alpha": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts2.0.act.beta": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts2.1.act.alpha": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts2.1.act.beta": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts2.2.act.alpha": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts2.2.act.beta": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.6.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.6.convs1.0.bias": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.6.convs1.0.weight": [
+  64,
+  3,
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.6.convs1.1.bias": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.6.convs1.1.weight": [
+  64,
+  3,
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.6.convs1.2.bias": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.6.convs1.2.weight": [
+  64,
+  3,
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.6.convs2.0.bias": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.6.convs2.0.weight": [
+  64,
+  3,
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.6.convs2.1.bias": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.6.convs2.1.weight": [
+  64,
+  3,
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.6.convs2.2.bias": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.6.convs2.2.weight": [
+  64,
+  3,
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts1.0.act.alpha": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts1.0.act.beta": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts1.1.act.alpha": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts1.1.act.beta": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts1.2.act.alpha": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts1.2.act.beta": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts2.0.act.alpha": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts2.0.act.beta": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts2.1.act.alpha": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts2.1.act.beta": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts2.2.act.alpha": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts2.2.act.beta": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.7.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.7.convs1.0.bias": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.convs1.0.weight": [
+  64,
+  7,
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.convs1.1.bias": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.convs1.1.weight": [
+  64,
+  7,
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.convs1.2.bias": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.convs1.2.weight": [
+  64,
+  7,
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.convs2.0.bias": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.convs2.0.weight": [
+  64,
+  7,
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.convs2.1.bias": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.convs2.1.weight": [
+  64,
+  7,
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.convs2.2.bias": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.7.convs2.2.weight": [
+  64,
+  7,
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts1.0.act.alpha": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts1.0.act.beta": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts1.1.act.alpha": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts1.1.act.beta": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts1.2.act.alpha": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts1.2.act.beta": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts2.0.act.alpha": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts2.0.act.beta": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts2.1.act.alpha": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts2.1.act.beta": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts2.2.act.alpha": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts2.2.act.beta": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.8.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.8.convs1.0.bias": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.convs1.0.weight": [
+  64,
+  11,
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.convs1.1.bias": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.convs1.1.weight": [
+  64,
+  11,
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.convs1.2.bias": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.convs1.2.weight": [
+  64,
+  11,
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.convs2.0.bias": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.convs2.0.weight": [
+  64,
+  11,
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.convs2.1.bias": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.convs2.1.weight": [
+  64,
+  11,
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.convs2.2.bias": [
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.8.convs2.2.weight": [
+  64,
+  11,
+  64
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts1.0.act.alpha": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts1.0.act.beta": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts1.1.act.alpha": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts1.1.act.beta": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts1.2.act.alpha": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts1.2.act.beta": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts2.0.act.alpha": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts2.0.act.beta": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts2.1.act.alpha": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts2.1.act.beta": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts2.2.act.alpha": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts2.2.act.beta": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.9.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.bwe_generator.resblocks.9.convs1.0.bias": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.9.convs1.0.weight": [
+  32,
+  3,
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.9.convs1.1.bias": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.9.convs1.1.weight": [
+  32,
+  3,
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.9.convs1.2.bias": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.9.convs1.2.weight": [
+  32,
+  3,
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.9.convs2.0.bias": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.9.convs2.0.weight": [
+  32,
+  3,
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.9.convs2.1.bias": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.9.convs2.1.weight": [
+  32,
+  3,
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.9.convs2.2.bias": [
+  32
+ ],
+ "vocoder.bwe_generator.resblocks.9.convs2.2.weight": [
+  32,
+  3,
+  32
+ ],
+ "vocoder.bwe_generator.ups.0.bias": [
+  256
+ ],
+ "vocoder.bwe_generator.ups.0.weight": [
+  256,
+  12,
+  512
+ ],
+ "vocoder.bwe_generator.ups.1.bias": [
+  128
+ ],
+ "vocoder.bwe_generator.ups.1.weight": [
+  128,
+  11,
+  256
+ ],
+ "vocoder.bwe_generator.ups.2.bias": [
+  64
+ ],
+ "vocoder.bwe_generator.ups.2.weight": [
+  64,
+  4,
+  128
+ ],
+ "vocoder.bwe_generator.ups.3.bias": [
+  32
+ ],
+ "vocoder.bwe_generator.ups.3.weight": [
+  32,
+  4,
+  64
+ ],
+ "vocoder.bwe_generator.ups.4.bias": [
+  16
+ ],
+ "vocoder.bwe_generator.ups.4.weight": [
+  16,
+  4,
+  32
+ ],
+ "vocoder.conv_post.weight": [
+  2,
+  7,
+  24
+ ],
+ "vocoder.conv_pre.bias": [
+  1536
+ ],
+ "vocoder.conv_pre.weight": [
+  1536,
+  7,
+  128
+ ],
+ "vocoder.mel_stft.mel_basis": [
+  64,
+  257
+ ],
+ "vocoder.mel_stft.stft_fn.forward_basis": [
+  514,
+  512,
+  1
+ ],
+ "vocoder.mel_stft.stft_fn.inverse_basis": [
+  514,
+  512,
+  1
+ ],
+ "vocoder.resblocks.0.acts1.0.act.alpha": [
+  768
+ ],
+ "vocoder.resblocks.0.acts1.0.act.beta": [
+  768
+ ],
+ "vocoder.resblocks.0.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.0.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.0.acts1.1.act.alpha": [
+  768
+ ],
+ "vocoder.resblocks.0.acts1.1.act.beta": [
+  768
+ ],
+ "vocoder.resblocks.0.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.0.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.0.acts1.2.act.alpha": [
+  768
+ ],
+ "vocoder.resblocks.0.acts1.2.act.beta": [
+  768
+ ],
+ "vocoder.resblocks.0.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.0.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.0.acts2.0.act.alpha": [
+  768
+ ],
+ "vocoder.resblocks.0.acts2.0.act.beta": [
+  768
+ ],
+ "vocoder.resblocks.0.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.0.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.0.acts2.1.act.alpha": [
+  768
+ ],
+ "vocoder.resblocks.0.acts2.1.act.beta": [
+  768
+ ],
+ "vocoder.resblocks.0.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.0.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.0.acts2.2.act.alpha": [
+  768
+ ],
+ "vocoder.resblocks.0.acts2.2.act.beta": [
+  768
+ ],
+ "vocoder.resblocks.0.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.0.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.0.convs1.0.bias": [
+  768
+ ],
+ "vocoder.resblocks.0.convs1.0.weight": [
+  768,
+  3,
+  768
+ ],
+ "vocoder.resblocks.0.convs1.1.bias": [
+  768
+ ],
+ "vocoder.resblocks.0.convs1.1.weight": [
+  768,
+  3,
+  768
+ ],
+ "vocoder.resblocks.0.convs1.2.bias": [
+  768
+ ],
+ "vocoder.resblocks.0.convs1.2.weight": [
+  768,
+  3,
+  768
+ ],
+ "vocoder.resblocks.0.convs2.0.bias": [
+  768
+ ],
+ "vocoder.resblocks.0.convs2.0.weight": [
+  768,
+  3,
+  768
+ ],
+ "vocoder.resblocks.0.convs2.1.bias": [
+  768
+ ],
+ "vocoder.resblocks.0.convs2.1.weight": [
+  768,
+  3,
+  768
+ ],
+ "vocoder.resblocks.0.convs2.2.bias": [
+  768
+ ],
+ "vocoder.resblocks.0.convs2.2.weight": [
+  768,
+  3,
+  768
+ ],
+ "vocoder.resblocks.1.acts1.0.act.alpha": [
+  768
+ ],
+ "vocoder.resblocks.1.acts1.0.act.beta": [
+  768
+ ],
+ "vocoder.resblocks.1.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.1.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.1.acts1.1.act.alpha": [
+  768
+ ],
+ "vocoder.resblocks.1.acts1.1.act.beta": [
+  768
+ ],
+ "vocoder.resblocks.1.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.1.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.1.acts1.2.act.alpha": [
+  768
+ ],
+ "vocoder.resblocks.1.acts1.2.act.beta": [
+  768
+ ],
+ "vocoder.resblocks.1.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.1.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.1.acts2.0.act.alpha": [
+  768
+ ],
+ "vocoder.resblocks.1.acts2.0.act.beta": [
+  768
+ ],
+ "vocoder.resblocks.1.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.1.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.1.acts2.1.act.alpha": [
+  768
+ ],
+ "vocoder.resblocks.1.acts2.1.act.beta": [
+  768
+ ],
+ "vocoder.resblocks.1.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.1.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.1.acts2.2.act.alpha": [
+  768
+ ],
+ "vocoder.resblocks.1.acts2.2.act.beta": [
+  768
+ ],
+ "vocoder.resblocks.1.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.1.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.1.convs1.0.bias": [
+  768
+ ],
+ "vocoder.resblocks.1.convs1.0.weight": [
+  768,
+  7,
+  768
+ ],
+ "vocoder.resblocks.1.convs1.1.bias": [
+  768
+ ],
+ "vocoder.resblocks.1.convs1.1.weight": [
+  768,
+  7,
+  768
+ ],
+ "vocoder.resblocks.1.convs1.2.bias": [
+  768
+ ],
+ "vocoder.resblocks.1.convs1.2.weight": [
+  768,
+  7,
+  768
+ ],
+ "vocoder.resblocks.1.convs2.0.bias": [
+  768
+ ],
+ "vocoder.resblocks.1.convs2.0.weight": [
+  768,
+  7,
+  768
+ ],
+ "vocoder.resblocks.1.convs2.1.bias": [
+  768
+ ],
+ "vocoder.resblocks.1.convs2.1.weight": [
+  768,
+  7,
+  768
+ ],
+ "vocoder.resblocks.1.convs2.2.bias": [
+  768
+ ],
+ "vocoder.resblocks.1.convs2.2.weight": [
+  768,
+  7,
+  768
+ ],
+ "vocoder.resblocks.10.acts1.0.act.alpha": [
+  96
+ ],
+ "vocoder.resblocks.10.acts1.0.act.beta": [
+  96
+ ],
+ "vocoder.resblocks.10.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.10.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.10.acts1.1.act.alpha": [
+  96
+ ],
+ "vocoder.resblocks.10.acts1.1.act.beta": [
+  96
+ ],
+ "vocoder.resblocks.10.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.10.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.10.acts1.2.act.alpha": [
+  96
+ ],
+ "vocoder.resblocks.10.acts1.2.act.beta": [
+  96
+ ],
+ "vocoder.resblocks.10.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.10.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.10.acts2.0.act.alpha": [
+  96
+ ],
+ "vocoder.resblocks.10.acts2.0.act.beta": [
+  96
+ ],
+ "vocoder.resblocks.10.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.10.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.10.acts2.1.act.alpha": [
+  96
+ ],
+ "vocoder.resblocks.10.acts2.1.act.beta": [
+  96
+ ],
+ "vocoder.resblocks.10.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.10.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.10.acts2.2.act.alpha": [
+  96
+ ],
+ "vocoder.resblocks.10.acts2.2.act.beta": [
+  96
+ ],
+ "vocoder.resblocks.10.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.10.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.10.convs1.0.bias": [
+  96
+ ],
+ "vocoder.resblocks.10.convs1.0.weight": [
+  96,
+  7,
+  96
+ ],
+ "vocoder.resblocks.10.convs1.1.bias": [
+  96
+ ],
+ "vocoder.resblocks.10.convs1.1.weight": [
+  96,
+  7,
+  96
+ ],
+ "vocoder.resblocks.10.convs1.2.bias": [
+  96
+ ],
+ "vocoder.resblocks.10.convs1.2.weight": [
+  96,
+  7,
+  96
+ ],
+ "vocoder.resblocks.10.convs2.0.bias": [
+  96
+ ],
+ "vocoder.resblocks.10.convs2.0.weight": [
+  96,
+  7,
+  96
+ ],
+ "vocoder.resblocks.10.convs2.1.bias": [
+  96
+ ],
+ "vocoder.resblocks.10.convs2.1.weight": [
+  96,
+  7,
+  96
+ ],
+ "vocoder.resblocks.10.convs2.2.bias": [
+  96
+ ],
+ "vocoder.resblocks.10.convs2.2.weight": [
+  96,
+  7,
+  96
+ ],
+ "vocoder.resblocks.11.acts1.0.act.alpha": [
+  96
+ ],
+ "vocoder.resblocks.11.acts1.0.act.beta": [
+  96
+ ],
+ "vocoder.resblocks.11.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.11.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.11.acts1.1.act.alpha": [
+  96
+ ],
+ "vocoder.resblocks.11.acts1.1.act.beta": [
+  96
+ ],
+ "vocoder.resblocks.11.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.11.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.11.acts1.2.act.alpha": [
+  96
+ ],
+ "vocoder.resblocks.11.acts1.2.act.beta": [
+  96
+ ],
+ "vocoder.resblocks.11.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.11.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.11.acts2.0.act.alpha": [
+  96
+ ],
+ "vocoder.resblocks.11.acts2.0.act.beta": [
+  96
+ ],
+ "vocoder.resblocks.11.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.11.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.11.acts2.1.act.alpha": [
+  96
+ ],
+ "vocoder.resblocks.11.acts2.1.act.beta": [
+  96
+ ],
+ "vocoder.resblocks.11.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.11.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.11.acts2.2.act.alpha": [
+  96
+ ],
+ "vocoder.resblocks.11.acts2.2.act.beta": [
+  96
+ ],
+ "vocoder.resblocks.11.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.11.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.11.convs1.0.bias": [
+  96
+ ],
+ "vocoder.resblocks.11.convs1.0.weight": [
+  96,
+  11,
+  96
+ ],
+ "vocoder.resblocks.11.convs1.1.bias": [
+  96
+ ],
+ "vocoder.resblocks.11.convs1.1.weight": [
+  96,
+  11,
+  96
+ ],
+ "vocoder.resblocks.11.convs1.2.bias": [
+  96
+ ],
+ "vocoder.resblocks.11.convs1.2.weight": [
+  96,
+  11,
+  96
+ ],
+ "vocoder.resblocks.11.convs2.0.bias": [
+  96
+ ],
+ "vocoder.resblocks.11.convs2.0.weight": [
+  96,
+  11,
+  96
+ ],
+ "vocoder.resblocks.11.convs2.1.bias": [
+  96
+ ],
+ "vocoder.resblocks.11.convs2.1.weight": [
+  96,
+  11,
+  96
+ ],
+ "vocoder.resblocks.11.convs2.2.bias": [
+  96
+ ],
+ "vocoder.resblocks.11.convs2.2.weight": [
+  96,
+  11,
+  96
+ ],
+ "vocoder.resblocks.12.acts1.0.act.alpha": [
+  48
+ ],
+ "vocoder.resblocks.12.acts1.0.act.beta": [
+  48
+ ],
+ "vocoder.resblocks.12.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.12.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.12.acts1.1.act.alpha": [
+  48
+ ],
+ "vocoder.resblocks.12.acts1.1.act.beta": [
+  48
+ ],
+ "vocoder.resblocks.12.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.12.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.12.acts1.2.act.alpha": [
+  48
+ ],
+ "vocoder.resblocks.12.acts1.2.act.beta": [
+  48
+ ],
+ "vocoder.resblocks.12.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.12.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.12.acts2.0.act.alpha": [
+  48
+ ],
+ "vocoder.resblocks.12.acts2.0.act.beta": [
+  48
+ ],
+ "vocoder.resblocks.12.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.12.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.12.acts2.1.act.alpha": [
+  48
+ ],
+ "vocoder.resblocks.12.acts2.1.act.beta": [
+  48
+ ],
+ "vocoder.resblocks.12.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.12.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.12.acts2.2.act.alpha": [
+  48
+ ],
+ "vocoder.resblocks.12.acts2.2.act.beta": [
+  48
+ ],
+ "vocoder.resblocks.12.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.12.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.12.convs1.0.bias": [
+  48
+ ],
+ "vocoder.resblocks.12.convs1.0.weight": [
+  48,
+  3,
+  48
+ ],
+ "vocoder.resblocks.12.convs1.1.bias": [
+  48
+ ],
+ "vocoder.resblocks.12.convs1.1.weight": [
+  48,
+  3,
+  48
+ ],
+ "vocoder.resblocks.12.convs1.2.bias": [
+  48
+ ],
+ "vocoder.resblocks.12.convs1.2.weight": [
+  48,
+  3,
+  48
+ ],
+ "vocoder.resblocks.12.convs2.0.bias": [
+  48
+ ],
+ "vocoder.resblocks.12.convs2.0.weight": [
+  48,
+  3,
+  48
+ ],
+ "vocoder.resblocks.12.convs2.1.bias": [
+  48
+ ],
+ "vocoder.resblocks.12.convs2.1.weight": [
+  48,
+  3,
+  48
+ ],
+ "vocoder.resblocks.12.convs2.2.bias": [
+  48
+ ],
+ "vocoder.resblocks.12.convs2.2.weight": [
+  48,
+  3,
+  48
+ ],
+ "vocoder.resblocks.13.acts1.0.act.alpha": [
+  48
+ ],
+ "vocoder.resblocks.13.acts1.0.act.beta": [
+  48
+ ],
+ "vocoder.resblocks.13.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.13.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.13.acts1.1.act.alpha": [
+  48
+ ],
+ "vocoder.resblocks.13.acts1.1.act.beta": [
+  48
+ ],
+ "vocoder.resblocks.13.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.13.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.13.acts1.2.act.alpha": [
+  48
+ ],
+ "vocoder.resblocks.13.acts1.2.act.beta": [
+  48
+ ],
+ "vocoder.resblocks.13.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.13.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.13.acts2.0.act.alpha": [
+  48
+ ],
+ "vocoder.resblocks.13.acts2.0.act.beta": [
+  48
+ ],
+ "vocoder.resblocks.13.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.13.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.13.acts2.1.act.alpha": [
+  48
+ ],
+ "vocoder.resblocks.13.acts2.1.act.beta": [
+  48
+ ],
+ "vocoder.resblocks.13.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.13.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.13.acts2.2.act.alpha": [
+  48
+ ],
+ "vocoder.resblocks.13.acts2.2.act.beta": [
+  48
+ ],
+ "vocoder.resblocks.13.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.13.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.13.convs1.0.bias": [
+  48
+ ],
+ "vocoder.resblocks.13.convs1.0.weight": [
+  48,
+  7,
+  48
+ ],
+ "vocoder.resblocks.13.convs1.1.bias": [
+  48
+ ],
+ "vocoder.resblocks.13.convs1.1.weight": [
+  48,
+  7,
+  48
+ ],
+ "vocoder.resblocks.13.convs1.2.bias": [
+  48
+ ],
+ "vocoder.resblocks.13.convs1.2.weight": [
+  48,
+  7,
+  48
+ ],
+ "vocoder.resblocks.13.convs2.0.bias": [
+  48
+ ],
+ "vocoder.resblocks.13.convs2.0.weight": [
+  48,
+  7,
+  48
+ ],
+ "vocoder.resblocks.13.convs2.1.bias": [
+  48
+ ],
+ "vocoder.resblocks.13.convs2.1.weight": [
+  48,
+  7,
+  48
+ ],
+ "vocoder.resblocks.13.convs2.2.bias": [
+  48
+ ],
+ "vocoder.resblocks.13.convs2.2.weight": [
+  48,
+  7,
+  48
+ ],
+ "vocoder.resblocks.14.acts1.0.act.alpha": [
+  48
+ ],
+ "vocoder.resblocks.14.acts1.0.act.beta": [
+  48
+ ],
+ "vocoder.resblocks.14.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.14.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.14.acts1.1.act.alpha": [
+  48
+ ],
+ "vocoder.resblocks.14.acts1.1.act.beta": [
+  48
+ ],
+ "vocoder.resblocks.14.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.14.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.14.acts1.2.act.alpha": [
+  48
+ ],
+ "vocoder.resblocks.14.acts1.2.act.beta": [
+  48
+ ],
+ "vocoder.resblocks.14.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.14.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.14.acts2.0.act.alpha": [
+  48
+ ],
+ "vocoder.resblocks.14.acts2.0.act.beta": [
+  48
+ ],
+ "vocoder.resblocks.14.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.14.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.14.acts2.1.act.alpha": [
+  48
+ ],
+ "vocoder.resblocks.14.acts2.1.act.beta": [
+  48
+ ],
+ "vocoder.resblocks.14.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.14.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.14.acts2.2.act.alpha": [
+  48
+ ],
+ "vocoder.resblocks.14.acts2.2.act.beta": [
+  48
+ ],
+ "vocoder.resblocks.14.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.14.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.14.convs1.0.bias": [
+  48
+ ],
+ "vocoder.resblocks.14.convs1.0.weight": [
+  48,
+  11,
+  48
+ ],
+ "vocoder.resblocks.14.convs1.1.bias": [
+  48
+ ],
+ "vocoder.resblocks.14.convs1.1.weight": [
+  48,
+  11,
+  48
+ ],
+ "vocoder.resblocks.14.convs1.2.bias": [
+  48
+ ],
+ "vocoder.resblocks.14.convs1.2.weight": [
+  48,
+  11,
+  48
+ ],
+ "vocoder.resblocks.14.convs2.0.bias": [
+  48
+ ],
+ "vocoder.resblocks.14.convs2.0.weight": [
+  48,
+  11,
+  48
+ ],
+ "vocoder.resblocks.14.convs2.1.bias": [
+  48
+ ],
+ "vocoder.resblocks.14.convs2.1.weight": [
+  48,
+  11,
+  48
+ ],
+ "vocoder.resblocks.14.convs2.2.bias": [
+  48
+ ],
+ "vocoder.resblocks.14.convs2.2.weight": [
+  48,
+  11,
+  48
+ ],
+ "vocoder.resblocks.15.acts1.0.act.alpha": [
+  24
+ ],
+ "vocoder.resblocks.15.acts1.0.act.beta": [
+  24
+ ],
+ "vocoder.resblocks.15.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.15.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.15.acts1.1.act.alpha": [
+  24
+ ],
+ "vocoder.resblocks.15.acts1.1.act.beta": [
+  24
+ ],
+ "vocoder.resblocks.15.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.15.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.15.acts1.2.act.alpha": [
+  24
+ ],
+ "vocoder.resblocks.15.acts1.2.act.beta": [
+  24
+ ],
+ "vocoder.resblocks.15.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.15.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.15.acts2.0.act.alpha": [
+  24
+ ],
+ "vocoder.resblocks.15.acts2.0.act.beta": [
+  24
+ ],
+ "vocoder.resblocks.15.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.15.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.15.acts2.1.act.alpha": [
+  24
+ ],
+ "vocoder.resblocks.15.acts2.1.act.beta": [
+  24
+ ],
+ "vocoder.resblocks.15.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.15.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.15.acts2.2.act.alpha": [
+  24
+ ],
+ "vocoder.resblocks.15.acts2.2.act.beta": [
+  24
+ ],
+ "vocoder.resblocks.15.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.15.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.15.convs1.0.bias": [
+  24
+ ],
+ "vocoder.resblocks.15.convs1.0.weight": [
+  24,
+  3,
+  24
+ ],
+ "vocoder.resblocks.15.convs1.1.bias": [
+  24
+ ],
+ "vocoder.resblocks.15.convs1.1.weight": [
+  24,
+  3,
+  24
+ ],
+ "vocoder.resblocks.15.convs1.2.bias": [
+  24
+ ],
+ "vocoder.resblocks.15.convs1.2.weight": [
+  24,
+  3,
+  24
+ ],
+ "vocoder.resblocks.15.convs2.0.bias": [
+  24
+ ],
+ "vocoder.resblocks.15.convs2.0.weight": [
+  24,
+  3,
+  24
+ ],
+ "vocoder.resblocks.15.convs2.1.bias": [
+  24
+ ],
+ "vocoder.resblocks.15.convs2.1.weight": [
+  24,
+  3,
+  24
+ ],
+ "vocoder.resblocks.15.convs2.2.bias": [
+  24
+ ],
+ "vocoder.resblocks.15.convs2.2.weight": [
+  24,
+  3,
+  24
+ ],
+ "vocoder.resblocks.16.acts1.0.act.alpha": [
+  24
+ ],
+ "vocoder.resblocks.16.acts1.0.act.beta": [
+  24
+ ],
+ "vocoder.resblocks.16.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.16.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.16.acts1.1.act.alpha": [
+  24
+ ],
+ "vocoder.resblocks.16.acts1.1.act.beta": [
+  24
+ ],
+ "vocoder.resblocks.16.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.16.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.16.acts1.2.act.alpha": [
+  24
+ ],
+ "vocoder.resblocks.16.acts1.2.act.beta": [
+  24
+ ],
+ "vocoder.resblocks.16.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.16.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.16.acts2.0.act.alpha": [
+  24
+ ],
+ "vocoder.resblocks.16.acts2.0.act.beta": [
+  24
+ ],
+ "vocoder.resblocks.16.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.16.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.16.acts2.1.act.alpha": [
+  24
+ ],
+ "vocoder.resblocks.16.acts2.1.act.beta": [
+  24
+ ],
+ "vocoder.resblocks.16.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.16.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.16.acts2.2.act.alpha": [
+  24
+ ],
+ "vocoder.resblocks.16.acts2.2.act.beta": [
+  24
+ ],
+ "vocoder.resblocks.16.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.16.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.16.convs1.0.bias": [
+  24
+ ],
+ "vocoder.resblocks.16.convs1.0.weight": [
+  24,
+  7,
+  24
+ ],
+ "vocoder.resblocks.16.convs1.1.bias": [
+  24
+ ],
+ "vocoder.resblocks.16.convs1.1.weight": [
+  24,
+  7,
+  24
+ ],
+ "vocoder.resblocks.16.convs1.2.bias": [
+  24
+ ],
+ "vocoder.resblocks.16.convs1.2.weight": [
+  24,
+  7,
+  24
+ ],
+ "vocoder.resblocks.16.convs2.0.bias": [
+  24
+ ],
+ "vocoder.resblocks.16.convs2.0.weight": [
+  24,
+  7,
+  24
+ ],
+ "vocoder.resblocks.16.convs2.1.bias": [
+  24
+ ],
+ "vocoder.resblocks.16.convs2.1.weight": [
+  24,
+  7,
+  24
+ ],
+ "vocoder.resblocks.16.convs2.2.bias": [
+  24
+ ],
+ "vocoder.resblocks.16.convs2.2.weight": [
+  24,
+  7,
+  24
+ ],
+ "vocoder.resblocks.17.acts1.0.act.alpha": [
+  24
+ ],
+ "vocoder.resblocks.17.acts1.0.act.beta": [
+  24
+ ],
+ "vocoder.resblocks.17.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.17.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.17.acts1.1.act.alpha": [
+  24
+ ],
+ "vocoder.resblocks.17.acts1.1.act.beta": [
+  24
+ ],
+ "vocoder.resblocks.17.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.17.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.17.acts1.2.act.alpha": [
+  24
+ ],
+ "vocoder.resblocks.17.acts1.2.act.beta": [
+  24
+ ],
+ "vocoder.resblocks.17.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.17.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.17.acts2.0.act.alpha": [
+  24
+ ],
+ "vocoder.resblocks.17.acts2.0.act.beta": [
+  24
+ ],
+ "vocoder.resblocks.17.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.17.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.17.acts2.1.act.alpha": [
+  24
+ ],
+ "vocoder.resblocks.17.acts2.1.act.beta": [
+  24
+ ],
+ "vocoder.resblocks.17.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.17.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.17.acts2.2.act.alpha": [
+  24
+ ],
+ "vocoder.resblocks.17.acts2.2.act.beta": [
+  24
+ ],
+ "vocoder.resblocks.17.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.17.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.17.convs1.0.bias": [
+  24
+ ],
+ "vocoder.resblocks.17.convs1.0.weight": [
+  24,
+  11,
+  24
+ ],
+ "vocoder.resblocks.17.convs1.1.bias": [
+  24
+ ],
+ "vocoder.resblocks.17.convs1.1.weight": [
+  24,
+  11,
+  24
+ ],
+ "vocoder.resblocks.17.convs1.2.bias": [
+  24
+ ],
+ "vocoder.resblocks.17.convs1.2.weight": [
+  24,
+  11,
+  24
+ ],
+ "vocoder.resblocks.17.convs2.0.bias": [
+  24
+ ],
+ "vocoder.resblocks.17.convs2.0.weight": [
+  24,
+  11,
+  24
+ ],
+ "vocoder.resblocks.17.convs2.1.bias": [
+  24
+ ],
+ "vocoder.resblocks.17.convs2.1.weight": [
+  24,
+  11,
+  24
+ ],
+ "vocoder.resblocks.17.convs2.2.bias": [
+  24
+ ],
+ "vocoder.resblocks.17.convs2.2.weight": [
+  24,
+  11,
+  24
+ ],
+ "vocoder.resblocks.2.acts1.0.act.alpha": [
+  768
+ ],
+ "vocoder.resblocks.2.acts1.0.act.beta": [
+  768
+ ],
+ "vocoder.resblocks.2.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.2.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.2.acts1.1.act.alpha": [
+  768
+ ],
+ "vocoder.resblocks.2.acts1.1.act.beta": [
+  768
+ ],
+ "vocoder.resblocks.2.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.2.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.2.acts1.2.act.alpha": [
+  768
+ ],
+ "vocoder.resblocks.2.acts1.2.act.beta": [
+  768
+ ],
+ "vocoder.resblocks.2.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.2.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.2.acts2.0.act.alpha": [
+  768
+ ],
+ "vocoder.resblocks.2.acts2.0.act.beta": [
+  768
+ ],
+ "vocoder.resblocks.2.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.2.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.2.acts2.1.act.alpha": [
+  768
+ ],
+ "vocoder.resblocks.2.acts2.1.act.beta": [
+  768
+ ],
+ "vocoder.resblocks.2.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.2.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.2.acts2.2.act.alpha": [
+  768
+ ],
+ "vocoder.resblocks.2.acts2.2.act.beta": [
+  768
+ ],
+ "vocoder.resblocks.2.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.2.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.2.convs1.0.bias": [
+  768
+ ],
+ "vocoder.resblocks.2.convs1.0.weight": [
+  768,
+  11,
+  768
+ ],
+ "vocoder.resblocks.2.convs1.1.bias": [
+  768
+ ],
+ "vocoder.resblocks.2.convs1.1.weight": [
+  768,
+  11,
+  768
+ ],
+ "vocoder.resblocks.2.convs1.2.bias": [
+  768
+ ],
+ "vocoder.resblocks.2.convs1.2.weight": [
+  768,
+  11,
+  768
+ ],
+ "vocoder.resblocks.2.convs2.0.bias": [
+  768
+ ],
+ "vocoder.resblocks.2.convs2.0.weight": [
+  768,
+  11,
+  768
+ ],
+ "vocoder.resblocks.2.convs2.1.bias": [
+  768
+ ],
+ "vocoder.resblocks.2.convs2.1.weight": [
+  768,
+  11,
+  768
+ ],
+ "vocoder.resblocks.2.convs2.2.bias": [
+  768
+ ],
+ "vocoder.resblocks.2.convs2.2.weight": [
+  768,
+  11,
+  768
+ ],
+ "vocoder.resblocks.3.acts1.0.act.alpha": [
+  384
+ ],
+ "vocoder.resblocks.3.acts1.0.act.beta": [
+  384
+ ],
+ "vocoder.resblocks.3.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.3.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.3.acts1.1.act.alpha": [
+  384
+ ],
+ "vocoder.resblocks.3.acts1.1.act.beta": [
+  384
+ ],
+ "vocoder.resblocks.3.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.3.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.3.acts1.2.act.alpha": [
+  384
+ ],
+ "vocoder.resblocks.3.acts1.2.act.beta": [
+  384
+ ],
+ "vocoder.resblocks.3.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.3.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.3.acts2.0.act.alpha": [
+  384
+ ],
+ "vocoder.resblocks.3.acts2.0.act.beta": [
+  384
+ ],
+ "vocoder.resblocks.3.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.3.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.3.acts2.1.act.alpha": [
+  384
+ ],
+ "vocoder.resblocks.3.acts2.1.act.beta": [
+  384
+ ],
+ "vocoder.resblocks.3.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.3.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.3.acts2.2.act.alpha": [
+  384
+ ],
+ "vocoder.resblocks.3.acts2.2.act.beta": [
+  384
+ ],
+ "vocoder.resblocks.3.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.3.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.3.convs1.0.bias": [
+  384
+ ],
+ "vocoder.resblocks.3.convs1.0.weight": [
+  384,
+  3,
+  384
+ ],
+ "vocoder.resblocks.3.convs1.1.bias": [
+  384
+ ],
+ "vocoder.resblocks.3.convs1.1.weight": [
+  384,
+  3,
+  384
+ ],
+ "vocoder.resblocks.3.convs1.2.bias": [
+  384
+ ],
+ "vocoder.resblocks.3.convs1.2.weight": [
+  384,
+  3,
+  384
+ ],
+ "vocoder.resblocks.3.convs2.0.bias": [
+  384
+ ],
+ "vocoder.resblocks.3.convs2.0.weight": [
+  384,
+  3,
+  384
+ ],
+ "vocoder.resblocks.3.convs2.1.bias": [
+  384
+ ],
+ "vocoder.resblocks.3.convs2.1.weight": [
+  384,
+  3,
+  384
+ ],
+ "vocoder.resblocks.3.convs2.2.bias": [
+  384
+ ],
+ "vocoder.resblocks.3.convs2.2.weight": [
+  384,
+  3,
+  384
+ ],
+ "vocoder.resblocks.4.acts1.0.act.alpha": [
+  384
+ ],
+ "vocoder.resblocks.4.acts1.0.act.beta": [
+  384
+ ],
+ "vocoder.resblocks.4.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.4.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.4.acts1.1.act.alpha": [
+  384
+ ],
+ "vocoder.resblocks.4.acts1.1.act.beta": [
+  384
+ ],
+ "vocoder.resblocks.4.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.4.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.4.acts1.2.act.alpha": [
+  384
+ ],
+ "vocoder.resblocks.4.acts1.2.act.beta": [
+  384
+ ],
+ "vocoder.resblocks.4.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.4.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.4.acts2.0.act.alpha": [
+  384
+ ],
+ "vocoder.resblocks.4.acts2.0.act.beta": [
+  384
+ ],
+ "vocoder.resblocks.4.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.4.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.4.acts2.1.act.alpha": [
+  384
+ ],
+ "vocoder.resblocks.4.acts2.1.act.beta": [
+  384
+ ],
+ "vocoder.resblocks.4.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.4.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.4.acts2.2.act.alpha": [
+  384
+ ],
+ "vocoder.resblocks.4.acts2.2.act.beta": [
+  384
+ ],
+ "vocoder.resblocks.4.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.4.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.4.convs1.0.bias": [
+  384
+ ],
+ "vocoder.resblocks.4.convs1.0.weight": [
+  384,
+  7,
+  384
+ ],
+ "vocoder.resblocks.4.convs1.1.bias": [
+  384
+ ],
+ "vocoder.resblocks.4.convs1.1.weight": [
+  384,
+  7,
+  384
+ ],
+ "vocoder.resblocks.4.convs1.2.bias": [
+  384
+ ],
+ "vocoder.resblocks.4.convs1.2.weight": [
+  384,
+  7,
+  384
+ ],
+ "vocoder.resblocks.4.convs2.0.bias": [
+  384
+ ],
+ "vocoder.resblocks.4.convs2.0.weight": [
+  384,
+  7,
+  384
+ ],
+ "vocoder.resblocks.4.convs2.1.bias": [
+  384
+ ],
+ "vocoder.resblocks.4.convs2.1.weight": [
+  384,
+  7,
+  384
+ ],
+ "vocoder.resblocks.4.convs2.2.bias": [
+  384
+ ],
+ "vocoder.resblocks.4.convs2.2.weight": [
+  384,
+  7,
+  384
+ ],
+ "vocoder.resblocks.5.acts1.0.act.alpha": [
+  384
+ ],
+ "vocoder.resblocks.5.acts1.0.act.beta": [
+  384
+ ],
+ "vocoder.resblocks.5.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.5.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.5.acts1.1.act.alpha": [
+  384
+ ],
+ "vocoder.resblocks.5.acts1.1.act.beta": [
+  384
+ ],
+ "vocoder.resblocks.5.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.5.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.5.acts1.2.act.alpha": [
+  384
+ ],
+ "vocoder.resblocks.5.acts1.2.act.beta": [
+  384
+ ],
+ "vocoder.resblocks.5.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.5.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.5.acts2.0.act.alpha": [
+  384
+ ],
+ "vocoder.resblocks.5.acts2.0.act.beta": [
+  384
+ ],
+ "vocoder.resblocks.5.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.5.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.5.acts2.1.act.alpha": [
+  384
+ ],
+ "vocoder.resblocks.5.acts2.1.act.beta": [
+  384
+ ],
+ "vocoder.resblocks.5.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.5.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.5.acts2.2.act.alpha": [
+  384
+ ],
+ "vocoder.resblocks.5.acts2.2.act.beta": [
+  384
+ ],
+ "vocoder.resblocks.5.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.5.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.5.convs1.0.bias": [
+  384
+ ],
+ "vocoder.resblocks.5.convs1.0.weight": [
+  384,
+  11,
+  384
+ ],
+ "vocoder.resblocks.5.convs1.1.bias": [
+  384
+ ],
+ "vocoder.resblocks.5.convs1.1.weight": [
+  384,
+  11,
+  384
+ ],
+ "vocoder.resblocks.5.convs1.2.bias": [
+  384
+ ],
+ "vocoder.resblocks.5.convs1.2.weight": [
+  384,
+  11,
+  384
+ ],
+ "vocoder.resblocks.5.convs2.0.bias": [
+  384
+ ],
+ "vocoder.resblocks.5.convs2.0.weight": [
+  384,
+  11,
+  384
+ ],
+ "vocoder.resblocks.5.convs2.1.bias": [
+  384
+ ],
+ "vocoder.resblocks.5.convs2.1.weight": [
+  384,
+  11,
+  384
+ ],
+ "vocoder.resblocks.5.convs2.2.bias": [
+  384
+ ],
+ "vocoder.resblocks.5.convs2.2.weight": [
+  384,
+  11,
+  384
+ ],
+ "vocoder.resblocks.6.acts1.0.act.alpha": [
+  192
+ ],
+ "vocoder.resblocks.6.acts1.0.act.beta": [
+  192
+ ],
+ "vocoder.resblocks.6.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.6.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.6.acts1.1.act.alpha": [
+  192
+ ],
+ "vocoder.resblocks.6.acts1.1.act.beta": [
+  192
+ ],
+ "vocoder.resblocks.6.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.6.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.6.acts1.2.act.alpha": [
+  192
+ ],
+ "vocoder.resblocks.6.acts1.2.act.beta": [
+  192
+ ],
+ "vocoder.resblocks.6.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.6.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.6.acts2.0.act.alpha": [
+  192
+ ],
+ "vocoder.resblocks.6.acts2.0.act.beta": [
+  192
+ ],
+ "vocoder.resblocks.6.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.6.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.6.acts2.1.act.alpha": [
+  192
+ ],
+ "vocoder.resblocks.6.acts2.1.act.beta": [
+  192
+ ],
+ "vocoder.resblocks.6.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.6.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.6.acts2.2.act.alpha": [
+  192
+ ],
+ "vocoder.resblocks.6.acts2.2.act.beta": [
+  192
+ ],
+ "vocoder.resblocks.6.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.6.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.6.convs1.0.bias": [
+  192
+ ],
+ "vocoder.resblocks.6.convs1.0.weight": [
+  192,
+  3,
+  192
+ ],
+ "vocoder.resblocks.6.convs1.1.bias": [
+  192
+ ],
+ "vocoder.resblocks.6.convs1.1.weight": [
+  192,
+  3,
+  192
+ ],
+ "vocoder.resblocks.6.convs1.2.bias": [
+  192
+ ],
+ "vocoder.resblocks.6.convs1.2.weight": [
+  192,
+  3,
+  192
+ ],
+ "vocoder.resblocks.6.convs2.0.bias": [
+  192
+ ],
+ "vocoder.resblocks.6.convs2.0.weight": [
+  192,
+  3,
+  192
+ ],
+ "vocoder.resblocks.6.convs2.1.bias": [
+  192
+ ],
+ "vocoder.resblocks.6.convs2.1.weight": [
+  192,
+  3,
+  192
+ ],
+ "vocoder.resblocks.6.convs2.2.bias": [
+  192
+ ],
+ "vocoder.resblocks.6.convs2.2.weight": [
+  192,
+  3,
+  192
+ ],
+ "vocoder.resblocks.7.acts1.0.act.alpha": [
+  192
+ ],
+ "vocoder.resblocks.7.acts1.0.act.beta": [
+  192
+ ],
+ "vocoder.resblocks.7.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.7.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.7.acts1.1.act.alpha": [
+  192
+ ],
+ "vocoder.resblocks.7.acts1.1.act.beta": [
+  192
+ ],
+ "vocoder.resblocks.7.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.7.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.7.acts1.2.act.alpha": [
+  192
+ ],
+ "vocoder.resblocks.7.acts1.2.act.beta": [
+  192
+ ],
+ "vocoder.resblocks.7.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.7.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.7.acts2.0.act.alpha": [
+  192
+ ],
+ "vocoder.resblocks.7.acts2.0.act.beta": [
+  192
+ ],
+ "vocoder.resblocks.7.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.7.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.7.acts2.1.act.alpha": [
+  192
+ ],
+ "vocoder.resblocks.7.acts2.1.act.beta": [
+  192
+ ],
+ "vocoder.resblocks.7.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.7.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.7.acts2.2.act.alpha": [
+  192
+ ],
+ "vocoder.resblocks.7.acts2.2.act.beta": [
+  192
+ ],
+ "vocoder.resblocks.7.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.7.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.7.convs1.0.bias": [
+  192
+ ],
+ "vocoder.resblocks.7.convs1.0.weight": [
+  192,
+  7,
+  192
+ ],
+ "vocoder.resblocks.7.convs1.1.bias": [
+  192
+ ],
+ "vocoder.resblocks.7.convs1.1.weight": [
+  192,
+  7,
+  192
+ ],
+ "vocoder.resblocks.7.convs1.2.bias": [
+  192
+ ],
+ "vocoder.resblocks.7.convs1.2.weight": [
+  192,
+  7,
+  192
+ ],
+ "vocoder.resblocks.7.convs2.0.bias": [
+  192
+ ],
+ "vocoder.resblocks.7.convs2.0.weight": [
+  192,
+  7,
+  192
+ ],
+ "vocoder.resblocks.7.convs2.1.bias": [
+  192
+ ],
+ "vocoder.resblocks.7.convs2.1.weight": [
+  192,
+  7,
+  192
+ ],
+ "vocoder.resblocks.7.convs2.2.bias": [
+  192
+ ],
+ "vocoder.resblocks.7.convs2.2.weight": [
+  192,
+  7,
+  192
+ ],
+ "vocoder.resblocks.8.acts1.0.act.alpha": [
+  192
+ ],
+ "vocoder.resblocks.8.acts1.0.act.beta": [
+  192
+ ],
+ "vocoder.resblocks.8.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.8.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.8.acts1.1.act.alpha": [
+  192
+ ],
+ "vocoder.resblocks.8.acts1.1.act.beta": [
+  192
+ ],
+ "vocoder.resblocks.8.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.8.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.8.acts1.2.act.alpha": [
+  192
+ ],
+ "vocoder.resblocks.8.acts1.2.act.beta": [
+  192
+ ],
+ "vocoder.resblocks.8.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.8.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.8.acts2.0.act.alpha": [
+  192
+ ],
+ "vocoder.resblocks.8.acts2.0.act.beta": [
+  192
+ ],
+ "vocoder.resblocks.8.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.8.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.8.acts2.1.act.alpha": [
+  192
+ ],
+ "vocoder.resblocks.8.acts2.1.act.beta": [
+  192
+ ],
+ "vocoder.resblocks.8.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.8.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.8.acts2.2.act.alpha": [
+  192
+ ],
+ "vocoder.resblocks.8.acts2.2.act.beta": [
+  192
+ ],
+ "vocoder.resblocks.8.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.8.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.8.convs1.0.bias": [
+  192
+ ],
+ "vocoder.resblocks.8.convs1.0.weight": [
+  192,
+  11,
+  192
+ ],
+ "vocoder.resblocks.8.convs1.1.bias": [
+  192
+ ],
+ "vocoder.resblocks.8.convs1.1.weight": [
+  192,
+  11,
+  192
+ ],
+ "vocoder.resblocks.8.convs1.2.bias": [
+  192
+ ],
+ "vocoder.resblocks.8.convs1.2.weight": [
+  192,
+  11,
+  192
+ ],
+ "vocoder.resblocks.8.convs2.0.bias": [
+  192
+ ],
+ "vocoder.resblocks.8.convs2.0.weight": [
+  192,
+  11,
+  192
+ ],
+ "vocoder.resblocks.8.convs2.1.bias": [
+  192
+ ],
+ "vocoder.resblocks.8.convs2.1.weight": [
+  192,
+  11,
+  192
+ ],
+ "vocoder.resblocks.8.convs2.2.bias": [
+  192
+ ],
+ "vocoder.resblocks.8.convs2.2.weight": [
+  192,
+  11,
+  192
+ ],
+ "vocoder.resblocks.9.acts1.0.act.alpha": [
+  96
+ ],
+ "vocoder.resblocks.9.acts1.0.act.beta": [
+  96
+ ],
+ "vocoder.resblocks.9.acts1.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.9.acts1.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.9.acts1.1.act.alpha": [
+  96
+ ],
+ "vocoder.resblocks.9.acts1.1.act.beta": [
+  96
+ ],
+ "vocoder.resblocks.9.acts1.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.9.acts1.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.9.acts1.2.act.alpha": [
+  96
+ ],
+ "vocoder.resblocks.9.acts1.2.act.beta": [
+  96
+ ],
+ "vocoder.resblocks.9.acts1.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.9.acts1.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.9.acts2.0.act.alpha": [
+  96
+ ],
+ "vocoder.resblocks.9.acts2.0.act.beta": [
+  96
+ ],
+ "vocoder.resblocks.9.acts2.0.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.9.acts2.0.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.9.acts2.1.act.alpha": [
+  96
+ ],
+ "vocoder.resblocks.9.acts2.1.act.beta": [
+  96
+ ],
+ "vocoder.resblocks.9.acts2.1.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.9.acts2.1.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.9.acts2.2.act.alpha": [
+  96
+ ],
+ "vocoder.resblocks.9.acts2.2.act.beta": [
+  96
+ ],
+ "vocoder.resblocks.9.acts2.2.downsample.lowpass.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.9.acts2.2.upsample.filter": [
+  1,
+  12,
+  1
+ ],
+ "vocoder.resblocks.9.convs1.0.bias": [
+  96
+ ],
+ "vocoder.resblocks.9.convs1.0.weight": [
+  96,
+  3,
+  96
+ ],
+ "vocoder.resblocks.9.convs1.1.bias": [
+  96
+ ],
+ "vocoder.resblocks.9.convs1.1.weight": [
+  96,
+  3,
+  96
+ ],
+ "vocoder.resblocks.9.convs1.2.bias": [
+  96
+ ],
+ "vocoder.resblocks.9.convs1.2.weight": [
+  96,
+  3,
+  96
+ ],
+ "vocoder.resblocks.9.convs2.0.bias": [
+  96
+ ],
+ "vocoder.resblocks.9.convs2.0.weight": [
+  96,
+  3,
+  96
+ ],
+ "vocoder.resblocks.9.convs2.1.bias": [
+  96
+ ],
+ "vocoder.resblocks.9.convs2.1.weight": [
+  96,
+  3,
+  96
+ ],
+ "vocoder.resblocks.9.convs2.2.bias": [
+  96
+ ],
+ "vocoder.resblocks.9.convs2.2.weight": [
+  96,
+  3,
+  96
+ ],
+ "vocoder.ups.0.bias": [
+  768
+ ],
+ "vocoder.ups.0.weight": [
+  768,
+  11,
+  1536
+ ],
+ "vocoder.ups.1.bias": [
+  384
+ ],
+ "vocoder.ups.1.weight": [
+  384,
+  4,
+  768
+ ],
+ "vocoder.ups.2.bias": [
+  192
+ ],
+ "vocoder.ups.2.weight": [
+  192,
+  4,
+  384
+ ],
+ "vocoder.ups.3.bias": [
+  96
+ ],
+ "vocoder.ups.3.weight": [
+  96,
+  4,
+  192
+ ],
+ "vocoder.ups.4.bias": [
+  48
+ ],
+ "vocoder.ups.4.weight": [
+  48,
+  4,
+  96
+ ],
+ "vocoder.ups.5.bias": [
+  24
+ ],
+ "vocoder.ups.5.weight": [
+  24,
+  4,
+  48
+ ]
+}

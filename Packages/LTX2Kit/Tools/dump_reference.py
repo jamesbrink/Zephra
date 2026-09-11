@@ -35,6 +35,7 @@ import torch
 # Each component's dumper lives beside this script in a module of its own, so a component can
 # be regenerated alone with --only and its dumper read next to its Swift test.
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import dump_audio  # noqa: E402
 import dump_text_encoder  # noqa: E402
 import dump_transformer  # noqa: E402
 import dump_upsampler  # noqa: E402
@@ -66,6 +67,7 @@ def main() -> None:
     dumpers.update(dump_transformer.DUMPERS)
     dumpers.update(dump_vae.DUMPERS)
     dumpers.update(dump_upsampler.DUMPERS)
+    dumpers.update(dump_audio.DUMPERS)
     selected = arguments.only or list(dumpers)
     unknown = [name for name in selected if name not in dumpers]
     if unknown:
