@@ -85,10 +85,27 @@ struct PreviewFixtureTests {
 
     @Test("Every preview state names a surface")
     func everyStateOpensSomewhere() {
-        #expect(MobilePreviewState.allCases.count == 7)
+        #expect(MobilePreviewState.allCases.count == 9)
         #expect(MobilePreviewState.library.tab == .library)
+        #expect(MobilePreviewState.viewer.tab == .library)
+        #expect(MobilePreviewState.today.tab == .today)
         #expect(MobilePreviewState.settings.tab == .settings)
         #expect(MobilePreviewState.pairing.tab == .canvas)
         #expect(MobilePreviewState.capsule.tab == .canvas)
+    }
+
+    /// The one state the fixture cannot hold either: a run in flight with another behind it.
+    /// Both carry batch identities of their own, since a list cannot hold one run twice.
+    @Test("The Today state has one run going and one waiting, on top of the fixture's own")
+    func todayHasARunAndAQueue() throws {
+        let today = try #require(MobilePreview.todayRuns(MobilePreview.snapshot()))
+
+        #expect(today.engine.kind == .generating)
+        #expect(today.queue.count == 1)
+        #expect(today.running != nil)
+        #expect(today.today.filter { $0.state == .running }.count == 1)
+        #expect(today.today.filter { $0.state == .waiting }.count == 1)
+        #expect(today.today.filter { $0.state == .finished }.count == 2, "the fixture's own")
+        #expect(Set(today.today.map(\.id)).count == today.today.count, "no run listed twice")
     }
 }

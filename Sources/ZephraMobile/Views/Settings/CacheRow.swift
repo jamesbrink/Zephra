@@ -2,16 +2,42 @@ import SwiftUI
 
 /// What the phone is holding of the Mac's library, and how to be rid of it.
 ///
-/// A placeholder, and its own file so that the agent who builds the library's cache replaces
-/// this one file rather than editing a settings screen around it. What goes here is the size
-/// on disk and a button that empties it; there is nothing to empty yet, because nothing is
-/// kept yet.
+/// The number is the three stores together: the entries, the thumbnails and whatever whole
+/// files have been fetched. Clearing asks first, because on a phone with no signal it is the
+/// difference between having your library and not — and says as much, since what makes it safe
+/// is that the Mac is the truth and this was only ever a copy.
 struct CacheRow: View {
+    @Environment(LibraryCatalog.self) private var catalog
+    /// Whether the question is up.
+    @State private var isAsking = false
+
     var body: some View {
-        LabeledContent("Cache", value: "Coming with the library")
+        LabeledContent("Library cache", value: size)
+        Button("Clear Cache", role: .destructive) { isAsking = true }
+            .disabled(catalog.cacheBytes == 0)
+            .confirmationDialog(
+                "Clear the library cache?", isPresented: $isAsking, titleVisibility: .visible
+            ) {
+                Button("Clear Cache", role: .destructive) {
+                    Task { await catalog.clearCache() }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text(
+                    "The pictures stay on your Mac. This phone fetches them again the next "
+                        + "time it needs them, which it cannot do while your Mac is out of reach.")
+            }
+    }
+
+    /// The size, in the units a person reads. Zero is a word rather than "0 bytes", which
+    /// reads like a failure.
+    private var size: String {
+        guard catalog.cacheBytes > 0 else { return "Empty" }
+        return catalog.cacheBytes.formatted(.byteCount(style: .file))
     }
 }
 
 #Preview("Cache") {
     Form { CacheRow() }
+        .environment(LibraryCatalog(libraryRoot: nil, filesRoot: nil))
 }
