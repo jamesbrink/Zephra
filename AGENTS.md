@@ -289,7 +289,13 @@ a pairing code is on screen and drops the moment it goes: a phone pairing for th
 first time is on no list, and an open room buys it a handshake the Mac still
 refuses unless it can answer the code. A `peer joined`
 over a live session is that guest's own announcement arriving late and never ends
-it; only a `peer left` or the road going does.
+it; only a `peer left` or the road going does. A send that fails or a socket that
+closes marks the road closed and finishes `frames()`, so no session is left over a
+dead socket: `RelayListener` ends its guest as the road stops and `RelayRoad` ends
+a join's guests before the next join yields any. On the phone a `peer left` — read
+through `LinkConnection.peerEvents()`, empty for a road that cannot tell — ends the
+session, and `LinkClient.sessionEndings()` is what wakes `LinkReconnect` at once
+rather than on its poll or the next foreground.
 
 `ZephraLinkHost` (`Packages/ZephraKit`) is the Mac's side. `CompanionHost` is
 `@MainActor @Observable`: it owns the sessions, the paired devices and the

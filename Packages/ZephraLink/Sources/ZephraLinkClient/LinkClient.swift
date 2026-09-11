@@ -54,11 +54,17 @@ public final class LinkClient {
     /// How long a session's `OrderedInbox` holds a gap open before it calls it loss. A property
     /// rather than the constant so a suite can ask the question in milliseconds.
     @ObservationIgnored var frameHold: Duration = OrderedInbox.hold
+    /// Every time a session ended, so whoever reconnects starts at once rather than on the next
+    /// beat of a poll. Newest-only: what a waiter needs to know is that the session it was
+    /// sitting on is gone, not how many have been.
+    @ObservationIgnored private let endings: AsyncStream<Void>
+    @ObservationIgnored private let endingSink: AsyncStream<Void>.Continuation
 
     /// Takes the device's identity and its pairing out of the store, making an identity the
     /// first time there is none: a new identity every launch would look like a new device and
     /// every pairing would be gone.
     public init(store: any LinkKeyStore, roads: any LinkRoads, deviceName: String) {
+        (endings, endingSink) = AsyncStream.makeStream(bufferingPolicy: .bufferingNewest(1))
         self.store = store
         self.roads = roads
         self.deviceName = deviceName
@@ -74,6 +80,14 @@ public final class LinkClient {
 
     /// This device's published keys, which is what a Mac is shown while it asks to pair.
     public var publicKeys: DevicePublicKeys { identity.publicKeys }
+
+    /// A session ending, as it happens. `LinkReconnect` waits on this instead of asking every
+    /// couple of seconds whether the Mac is still there, so a socket that died mid-session —
+    /// which over the relay is how a sleeping Mac looks — is reconnected to immediately.
+    public func sessionEndings() -> AsyncStream<Void> { endings }
+
+    /// Says the session that was live has gone. Called wherever one is let go.
+    func sessionEnded() { endingSink.yield(()) }
 
     /// A client that shows one state and touches no network, for a preview or a screenshot.
     ///

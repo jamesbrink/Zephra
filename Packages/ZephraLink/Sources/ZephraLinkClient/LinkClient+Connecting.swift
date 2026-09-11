@@ -109,6 +109,7 @@ extension LinkClient {
         preview = nil
         settleEverything(with: LinkClientError.notConnected)
         await session.end(LinkClientError.notConnected)
+        sessionEnded()
     }
 
     /// What to tell the person when no road worked.

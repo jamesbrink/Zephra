@@ -467,6 +467,22 @@ minutes against the ten-minute idle timeout, and it does **not** reconnect: a
 reconnection is a whole new handshake, and pretending otherwise would hand the
 channel above a stream with a hole in it.
 
+**A road that cannot carry ends.** A `send` that fails, or a socket that closes,
+marks the connection closed and finishes `frames()` — with the error where there
+was one. A session over a dead socket is the failure that made this a rule: the
+Mac kept a `CompanionSession` on a socket API Gateway had closed, `RelayRoad`
+rejoined the room beside it, and the phone still said "Live through relay" while
+every request timed out. `RelayListener` ends the guest session its road carried
+as that road stops, and `RelayRoad` ends every guest of a join after the join
+does and before the next one yields any.
+
+On the phone, `LinkConnection.peerEvents()` is how a road says the other end
+arrived or went — the relay can, a TCP road answers a stream that finishes at
+once — and a `peer left` ends the session as a failed send does. Both announce
+themselves on `LinkClient.sessionEndings()`, which is what `LinkReconnect` waits
+on: a session that dies is reconnected to at once rather than on the next beat of
+a poll or the next foreground.
+
 **One guest at a time over the relay.** `RelayListener` is a `LinkListener` like
 the TCP one, so the Mac's session code is the same over either road, but with a
 limit the local network does not have. The relay gives a host one connection and
@@ -486,7 +502,7 @@ open flag ride in the join when it is called before `start()`.
 
 **Reconnecting** is the caller's job, not the road's — the phone's client on one
 side, and `RelayRoad` in the Mac app on the other, which rejoins its room when
-the socket goes. `LinkBackoff` (`ZephraLinkTransport`) is the one
+the socket goes and ends that join's guests before the new join yields its own. `LinkBackoff` (`ZephraLinkTransport`) is the one
 place the numbers live: a second, then two, four, eight, capped at thirty. The
 count is the caller's, because the caller is what knows a connection succeeded —
 it resets on a live session and on the app coming to the foreground, which is

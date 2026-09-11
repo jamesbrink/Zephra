@@ -16,6 +16,8 @@ extension LinkClient {
         self.session = session
         let frames = road.frames()
         session.reader = Task { [weak self] in await self?.read(frames, for: session) }
+        let events = road.peerEvents()
+        session.peers = Task { [weak self] in await self?.watch(events, for: session) }
         connection = .handshaking(kind)
         let initiator = HandshakeInitiator(
             identity: identity, peer: peer, pairingSecret: secret, deviceName: deviceName)
@@ -49,6 +51,22 @@ extension LinkClient {
     func lost(_ session: LinkSession) async {
         logger.error("A frame was lost on the way here; the session is finished.")
         await roadEnded(session, error: LinkClientError.notConnected)
+    }
+
+    /// The road saying the Mac arrived or went, for as long as it can say.
+    ///
+    /// A `left` is the end of the session and not a hint: over the relay the Mac's own socket is
+    /// gone, so the room has nobody in it and every request on this channel would sit until it
+    /// timed out. Ending here also wakes the reconnection, which opens a road to whichever
+    /// listener the Mac has rejoined with.
+    private func watch(
+        _ events: AsyncStream<RelayPeerEvent>, for session: LinkSession
+    ) async {
+        for await event in events where event == .left {
+            guard self.session === session else { return }
+            logger.notice("The Mac left the room; the session is finished.")
+            return await roadEnded(session, error: nil)
+        }
     }
 
     /// Every frame one road carries, until it stops.
@@ -90,6 +108,7 @@ extension LinkClient {
         await session.end(error ?? LinkClientError.notConnected)
         connection = error.map { .failed(Self.words(for: $0, host: pairedHost?.name ?? "the Mac")) }
             ?? .offline
+        sessionEnded()
     }
 
     /// The next plaintext message, as the type that kind carries.

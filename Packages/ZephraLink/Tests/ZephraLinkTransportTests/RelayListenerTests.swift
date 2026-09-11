@@ -59,6 +59,39 @@ struct RelayListenerTests {
         #expect(try await frames.next() == Data("confirm".utf8))
     }
 
+    @Test("the host's socket dying ends the guest's session and the listener with it")
+    func aDeadSocketEndsTheSession() async throws {
+        let relay = try FakeRelay()
+        let listener = RelayListener(url: try await relay.start(), identity: DeviceIdentity())
+        defer { Task { await listener.stop() } }
+        try await listener.start()
+        var connections = listener.connections().makeAsyncIterator()
+        relay.push(.peer(event: .joined))
+        let session = try #require(await connections.next())
+        let frames = FrameReader(session.frames())
+        // The relay drops the socket, which is what it does to a frame past 32 KB. The Mac used
+        // to keep this session, answer nothing on it, and rejoin the room beside it.
+        relay.stop()
+        await #expect(throws: (any Error).self) { try await frames.next() }
+        #expect(await connections.next() == nil, "the listener is done with that join")
+    }
+
+    @Test("a write that fails takes the road down rather than leaving a session on it")
+    func aFailedWriteEndsTheRoad() async throws {
+        let relay = try FakeRelay()
+        defer { relay.stop() }
+        let identity = DeviceIdentity()
+        let road = RelayConnection(
+            url: try await relay.start(), identity: identity, room: identity.roomID, role: .host)
+        defer { Task { await road.close() } }
+        try await road.start()
+        let frames = FrameReader(road.frames())
+        road.fail(RelayError.closed)
+        await #expect(throws: (any Error).self) { try await frames.next() }
+        #expect(road.isClosed)
+        await #expect(throws: RelayError.closed) { try await road.send(Data([0x01])) }
+    }
+
     @Test("the allow-list reaches the relay with the join and again when it moves")
     func theAllowListReachesTheRelay() async throws {
         let relay = try FakeRelay()

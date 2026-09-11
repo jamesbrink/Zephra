@@ -16,16 +16,20 @@ import ZephraLinkTransport
 /// foreground does not restart the wait.
 @MainActor
 final class LinkReconnect {
-    /// How often a live session is looked at to see whether it is still live.
+    /// How often a live session is looked at when there is nothing else to wake on.
     ///
-    /// `connection` is observable, but the sequence that would wake a task on a change of it is
-    /// iOS 26, and the phone runs on 18. So the loop asks, cheaply and rarely: this is one
-    /// enum read on the main actor, and only while the app is in front and the session is up.
+    /// `LinkClient.sessionEndings()` is what the wait normally sits on, so a session that ends —
+    /// a `peer left`, a send that failed, a socket that went — is reconnected at once rather
+    /// than on the next beat. This is the fallback for a stream that has finished: one enum read
+    /// on the main actor, and only while the app is in front and the session is up.
     static let heartbeat: Duration = .seconds(2)
 
     private let client: LinkClient
     private var task: Task<Void, Never>?
     private var attempt = 0
+    /// The client's endings, iterated once and for the life of this object: a second iterator
+    /// over one `AsyncStream` would share its elements with the first.
+    private var endings: AsyncStream<Void>.Iterator?
 
     /// Reconnection for one client.
     init(client: LinkClient) {
@@ -77,9 +81,15 @@ final class LinkReconnect {
     }
 
     /// Sits on a live session until it is not one, so the next turn of the loop reconnects.
+    ///
+    /// The client says so itself. Only where that stream has finished does this fall back to
+    /// asking every couple of seconds, since a wait on a finished stream would spin.
     private func waitForTheSessionToEnd() async {
+        if endings == nil { endings = client.sessionEndings().makeAsyncIterator() }
         while !Task.isCancelled, client.connection.isLive {
-            do { try await Task.sleep(for: Self.heartbeat) } catch { return }
+            if await endings?.next() == nil {
+                do { try await Task.sleep(for: Self.heartbeat) } catch { return }
+            }
         }
     }
 }

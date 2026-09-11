@@ -25,6 +25,8 @@ final class RelayRoad: LinkListener, @unchecked Sendable {
         var isStopped = false
         var rejoining: Task<Void, Never>?
         var listener: RelayListener?
+        /// The guests of the join that is up right now, so they can be ended with it.
+        var guests: [any LinkConnection] = []
         var allow: [Data] = []
         var isOpen = false
     }
@@ -75,7 +77,23 @@ final class RelayRoad: LinkListener, @unchecked Sendable {
         }
         task?.cancel()
         await task?.value
+        await endGuests()
         continuation.finish()
+    }
+
+    /// Ends every guest of the join that has just gone, before the next one yields any.
+    ///
+    /// The socket under them is dead, and a session left over one is the failure this exists to
+    /// stop: the Mac held a channel to a guest it could not answer while the phone still said
+    /// "Live through relay" and every request timed out. `RelayListener` ends the session it
+    /// knows about when its own road stops; this is the same rule one level up, and it holds for
+    /// a listener that was replaced before it noticed.
+    private func endGuests() async {
+        let guests = lock.withLock { () -> [any LinkConnection] in
+            defer { state.guests = [] }
+            return state.guests
+        }
+        for guest in guests { await guest.close() }
     }
 
     /// One join after another, with a doubling wait between failures.
@@ -99,6 +117,7 @@ final class RelayRoad: LinkListener, @unchecked Sendable {
                 logger.info("companion relay joined \(self.url.absoluteString, privacy: .public)")
                 for await guest in listener.connections() {
                     attempt = 0
+                    lock.withLock { state.guests.append(guest) }
                     continuation.yield(guest)
                 }
                 logger.info("companion relay left \(self.url.absoluteString, privacy: .public)")
@@ -106,6 +125,7 @@ final class RelayRoad: LinkListener, @unchecked Sendable {
                 logger.notice("companion relay could not be joined: \(error.localizedDescription, privacy: .public)")
             }
             await listener.stop()
+            await endGuests()
             lock.withLock { state.listener = nil }
             guard !Task.isCancelled else { break }
             attempt += 1

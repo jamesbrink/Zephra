@@ -13,9 +13,12 @@ import ZephraLinkProtocol
 /// phone sends them one after the other on one connection.
 final class ShufflingConnection: LinkConnection, @unchecked Sendable {
     private let inner: any LinkConnection
+    private let peers: AsyncStream<RelayPeerEvent>
+    private let peerSink: AsyncStream<RelayPeerEvent>.Continuation
     private let lock = NSLock()
     private var shuffles = false
     private var swaps = 0
+    private var refusesSends = false
 
     /// How many frames were let past the one before them, so a test can say it really happened.
     var swapCount: Int { lock.withLock { swaps } }
@@ -23,7 +26,17 @@ final class ShufflingConnection: LinkConnection, @unchecked Sendable {
     /// Wraps one end of a road.
     init(_ inner: any LinkConnection) {
         self.inner = inner
+        (peers, peerSink) = AsyncStream.makeStream()
     }
+
+    /// The relay's word that the other end arrived or went, which only a relay road has.
+    func peerEvents() -> AsyncStream<RelayPeerEvent> { peers }
+
+    /// Says the Mac arrived or went, as the relay would.
+    func announce(_ event: RelayPeerEvent) { peerSink.yield(event) }
+
+    /// Makes every later `send` fail, which is what a socket the far end has dropped does.
+    func refuseSends() { lock.withLock { refusesSends = true } }
 
     /// Starts letting frames overtake each other.
     func startShuffling() { lock.withLock { shuffles = true } }
@@ -64,7 +77,10 @@ final class ShufflingConnection: LinkConnection, @unchecked Sendable {
         }
     }
 
-    func send(_ frame: Data) async throws { try await inner.send(frame) }
+    func send(_ frame: Data) async throws {
+        guard !lock.withLock({ refusesSends }) else { throw MemoryLinkConnectionError.closed }
+        try await inner.send(frame)
+    }
 
     func close() async { await inner.close() }
 }

@@ -26,6 +26,10 @@ final class LinkSession {
     var inbox: OrderedInbox?
     /// The task reading `road.frames()`.
     var reader: Task<Void, Never>?
+    /// The task watching the road for the Mac leaving, where the road can tell. The relay can,
+    /// and a `left` is the Mac asleep or its own socket gone: it ends this session at once
+    /// rather than leaving every request to time out against a room with nobody in it.
+    var peers: Task<Void, Never>?
     /// The plaintext frames that arrived before anyone asked for them.
     var handshakeInbox: [Data] = []
     /// Whoever is waiting for the next plaintext frame.
@@ -72,6 +76,8 @@ final class LinkSession {
     func end(_ error: any Error) async {
         reader?.cancel()
         reader = nil
+        peers?.cancel()
+        peers = nil
         sink.finish()
         await writer?.value
         writer = nil
