@@ -49,7 +49,8 @@ engine be tested in seconds without Metal.
   the reference picture, the library, following the run, upscaling and filing
   the upscaled result, the interface's own questions (`+Interaction`), the
   download requests it keeps alive (`+Downloads`), the two folder changes
-  (`+ImageDirectory`, `+ModelDirectory`), and weight residency (`+Residency`).
+  (`+ImageDirectory`, `+ModelDirectory`), weight residency (`+Residency`), and
+  the seam a paired device submits through (`+Remote`).
   Add a new concern as another extension file, not as more lines in
   `GenerationStore.swift`.
 
@@ -93,6 +94,44 @@ engine be tested in seconds without Metal.
   `AsyncStream` buffers the newest four events and drops the rest — progress is
   a snapshot, not a log — and `run` drains before returning, so the state a
   caller sets after an operation is never clobbered by an event still in flight.
+
+### Work that did not come from the keyboard
+
+`GenerationStore+Remote.swift` is the one seam a companion device submits
+through: `enqueue(_:on:count:)` takes the settings and the model as arguments and
+puts a batch in the queue, answering the batch id. Everything it *does not* do is
+the point. The store's other two doors both move the capsule to say what is about
+to run — `generate(count:)` reads `settings`, starts following the run and clears
+`modelAwaitsGenerate`; `queueVariation(of:)` replaces `settings` and `descriptor`
+outright and claims the reference ticket. A request that arrives over the network
+must touch none of that: the person at the Mac may be halfway through a prompt,
+may be watching a run of their own, and may have a picture on its way into the
+well, and a remote submit that overwrote any of it would be a bug nobody could
+explain from the interface. So `enqueue` writes to `queue` alone, and the result
+enters history, the wall and the library the ordinary way while the canvas stays
+where it was — `followsRun` was never turned on for it, which is the rule that
+already governs a picture finished while the user looks elsewhere. What it
+*does* share with `generate(count:)` is the run's shape: the chain planned before
+the clamp, `model.capabilities.clamp` fitting the request to the model that will
+run it (a size off the grid comes back on it rather than being refused), the
+first seed kept and the rest fresh, one `batchID` across the batch, and the same
+drain-or-log tail. `GenerationSettings` carries no model of its own, so there is
+no second schedule to come off; `on model:` is the schedule.
+
+`remoteAdmission(for:settings:count:)` is the same question asked before the
+submit, and answers `RemoteAdmission` rather than a Bool because the device has
+to say something: `.busy` when `acceptsWork` is closed (a folder change, a
+storage deletion, a quit), `.refused` when the engine is not in a state that
+takes a generation (worded from the same vocabulary as `EngineState+Display`, in
+`EngineState+Remote`), and `.badRequest` when nothing about the request could
+ever run — no prompt, a count outside 1...`batchLimit`, a model this build's
+catalog does not know. A bad request is answered first, whatever the Mac is
+doing: telling a phone to wait for a load that will never make its empty prompt
+runnable helps nobody. The first two are worth retrying in a moment and the
+third never is, which is the distinction a host adapter needs. Like
+`canQueueVariation(of:)` and unlike `canQueue`, it does not wait on a reference
+picture still being read: that well belongs to the Mac, and a remote request
+carries its own picture in its settings.
 
 `current` is what the canvas is showing, and only that.
 `GenerationStore+FollowingRun.swift` is the other half of that sentence: pressing

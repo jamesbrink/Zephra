@@ -269,6 +269,12 @@ Metal:
   buffering the newest four events and dropping the rest; `run` drains before
   returning so a later state set is never clobbered.
 
+`GenerationStore.enqueue(_:on:count:)` (`+Remote`) is the door a paired device
+submits through: it queues settings and a model handed in from outside and
+writes nothing back to the capsule, the canvas or the reference ticket, and
+`remoteAdmission(for:settings:count:)` is what it answers a phone that cannot be
+queued — `.busy`, `.refused` or `.badRequest`, each with its one sentence.
+
 A backend returns `GeneratedMedia`: `.image(png:)` or `.video(GeneratedVideo)`
 (MP4, poster PNG, frame count and rate). One return type, because only the last
 step reads the kind. `GenerationSettings.frames` is 1 for a picture, pinned by
