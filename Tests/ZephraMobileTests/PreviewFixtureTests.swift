@@ -57,6 +57,24 @@ struct PreviewFixtureTests {
         #expect(!running.acceptsWork)
     }
 
+    /// The test host launches under `ZEPHRA_PREVIEW_STATE=ready`, so this is the frozen client
+    /// the screenshot builds get, checked here rather than looked at in a picture.
+    @Test("The frozen client is paired, live, and holding what the fixture holds")
+    func freezesAPairedClient() throws {
+        let client = try #require(MobilePreview.client())
+        #expect(client.pairedHost?.name == "halcyon")
+        #expect(client.connection == .live(.lan))
+        #expect(client.snapshot?.engine.kind == .ready)
+        #expect(client.library.count == 3)
+    }
+
+    @Test("A client with no preview state behind it is paired with nobody")
+    func theUnpairedOneIsUnpaired() {
+        let client = MobilePreview.unpairedClient()
+        #expect(client.pairedHost == nil)
+        #expect(client.connection == .offline)
+    }
+
     @Test("Every preview state names a surface")
     func everyStateOpensSomewhere() {
         #expect(MobilePreviewState.allCases.count == 6)
