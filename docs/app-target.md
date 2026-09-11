@@ -200,7 +200,17 @@ Four directories, by what a file is rather than what screen it is on:
   (`ZephraCommands`, `WorkspaceCommands`, `LibraryCommands`,
   `ThumbnailSizeCommands`); a button that shows a chord shows it as text, the
   way `GenerateButton` writes ⌘⏎, and never declares it too, because a chord
-  declared twice is one stray SwiftUI change from firing twice. Return in the
+  declared twice is one stray SwiftUI change from firing twice. The two
+  routes call one method, `generateFromInterface`, so what can part them is
+  only the click itself: `GenerateClickTests` hosts `CanvasPane` in an
+  off-screen window, idle and mid-run, sends a real mouse-down and mouse-up to
+  the button's middle and expects the store to take the run, since an
+  accessibility press goes straight to the action and would pass with the
+  button under an overlay. The button reports where it is through the
+  `GenerateButtonFrame` preference (`Support/`), because SwiftUI's controls are
+  not views AppKit can find and its accessibility tree stays empty in-process.
+  A press `generate(count:)` refuses logs which gate refused it, so `make logs`
+  says whether a press that seemed to do nothing arrived. Return in the
   library belongs to the grid's `LibraryOpenCommand` alone. The only
   `.keyboardShortcut` outside the menu bar are a sheet's own `.defaultAction`
   and `.cancelAction`, which is a key loop of its own. File > "Stop
@@ -221,7 +231,11 @@ Four directories, by what a file is rather than what screen it is on:
   the model's presets grouped by `SizeTier` (`ZephraCore`) — Faster under
   three quarters of the default's pixels, Larger over one and a half times,
   Standard between — with headings only when there is more than one group,
-  then "Custom Size…", which opens `SizeEntryPopover`. A size is typed there
+  then "Custom Size…", which opens `SizeEntryPopover`. With a picture in the
+  well each tier also leads with that picture's own shape at the tier's cost,
+  its first preset's pixel count, marked "Matches Picture" (`SizeChoice`,
+  `Support/`), so a quick clip of a portrait photograph is one click and not a
+  typed size; a shape that is a preset already marks the preset instead. A size is typed there
   as two numbers with anything between them (`800 × 512`, `800x512`, `800 by
   512`), a button turns the frame the other way, and `SizeEntry` (`Support/`)
   is the one parser: it fits what was typed to the model's grid through

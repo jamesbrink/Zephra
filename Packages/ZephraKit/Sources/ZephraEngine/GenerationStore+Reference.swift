@@ -26,6 +26,12 @@ extension GenerationStore {
         useAsReference(pngData, origin: origin)
     }
 
+    /// The pixel size of the picture in the well, read from its own header, or nil without one.
+    /// What the Size menu offers the picture's shape from.
+    public var referencePictureSize: ImageSize? {
+        settings.referenceImage.flatMap(PNGImageSize.read)
+    }
+
     /// Whether a picture is still on its way into the well. Generate waits for it: a request
     /// snapshotted a moment before the read landed would carry the picture before, or none.
     public var isAdoptingReference: Bool { referenceRead != nil }

@@ -414,8 +414,9 @@ Rules in `Support/`:
   costs first. `StepProgress` is the step bar's reading, so it never counts the
   slider. `SeedEntry` is the one seed parser and `SizeEntry` the one size
   parser (two numbers with anything between, fitted to the model's grid
-  through `ModelCapabilities.fit`); `SizeMenu` groups presets by `SizeTier`
-  and offers Custom Size… on every model. `AppSettings.seedFormat` is how a
+  through `ModelCapabilities.fit`); `SizeMenu` groups presets by `SizeTier`,
+  leads each tier with the well's picture's shape at that tier's cost
+  (`SizeChoice`), and offers Custom Size… on every model. `AppSettings.seedFormat` is how a
   seed is spelled on screen, read from the environment everywhere — nothing on
   disk follows it.
 - `BackgroundNotice` is a pure function over two engine states saying what is
@@ -447,6 +448,12 @@ Rules in `Views/`:
   strings) and Acknowledgments, which lays `THIRD_PARTY_NOTICES.md` out through
   `NoticesDocument`. There is no Settings > About. `HelpCommands` replaces the
   synthesized Help menu.
+- `GenerateClickTests` sends a real mouse-down and mouse-up through an
+  off-screen window hosting `CanvasPane`, idle and mid-run, and expects the
+  store to take the run: ⌘⏎ goes through the menu bar and would keep working
+  with the button under an overlay. `GenerateButtonFrame` (`Support/`) is the
+  preference the button reports its place through, since SwiftUI's controls
+  are not views AppKit can find. A press the store refuses logs which gate did.
 - A keyboard shortcut has one owner, the menu bar; a button shows its chord as
   text and never declares it too. The only `.keyboardShortcut` outside the menu
   bar are a sheet's `.defaultAction` and `.cancelAction`. Return in the library
