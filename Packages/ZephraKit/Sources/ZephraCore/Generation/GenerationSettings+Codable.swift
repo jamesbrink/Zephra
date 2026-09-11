@@ -26,6 +26,7 @@ extension GenerationSettings {
         case referenceStrength
         case referenceOrigin
         case frames
+        case continuation
     }
 
     public init(from decoder: any Decoder) throws {
@@ -41,7 +42,8 @@ extension GenerationSettings {
             referenceStrength: try container.decodeIfPresent(
                 Double.self, forKey: .referenceStrength) ?? 1,
             referenceOrigin: try container.decodeIfPresent(String.self, forKey: .referenceOrigin),
-            frames: try container.decodeIfPresent(Int.self, forKey: .frames) ?? 1
+            frames: try container.decodeIfPresent(Int.self, forKey: .frames) ?? 1,
+            continuation: try container.decodeIfPresent(ClipContinuation.self, forKey: .continuation)
         )
     }
 }

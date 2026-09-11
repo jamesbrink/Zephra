@@ -14,14 +14,24 @@ extension PNGTextChunks {
     /// after the image data are left alone too, including text ones: this rewrites the header,
     /// which is the only place anything writes text.
     public static func replacing(_ entries: [Entry], in data: Data) throws -> Data {
+        var written = Data()
+        for entry in entries { written.append(try chunk(for: entry)) }
+        return try rewriting(data, dropping: Set(entries.map(\.keyword)), inserting: written)
+    }
+
+    /// A copy of `data` with every text chunk under `keywords` gone from its header and
+    /// nothing put in their place: a poster borrowed from another file, about to be given a
+    /// record of its own.
+    public static func removing(_ keywords: Set<String>, from data: Data) throws -> Data {
+        try rewriting(data, dropping: keywords, inserting: Data())
+    }
+
+    private static func rewriting(_ data: Data, dropping dropped: Set<String>, inserting written: Data) throws -> Data {
         let bytes = Array(data)
         let spans = try spans(in: bytes)
         guard let image = spans.first(where: { $0.type == "IDAT" }) else {
             throw Failure.noImageData
         }
-        var written = Data()
-        for entry in entries { written.append(try chunk(for: entry)) }
-        let dropped = Set(entries.map(\.keyword))
         var result = Data(capacity: bytes.count + written.count)
         result.append(contentsOf: bytes[0..<8])
         for span in spans where span.start < image.start {

@@ -132,6 +132,14 @@ final class MockBackend: ImageGenerationBackend {
         onProgress(GenerationProgressEvent(phase: .decoding, fraction: 1))
         // Deliberately sleeps through a cancel: a decode is Metal work nothing interrupts.
         if dials.decodeDelay > .zero { try? await Task.sleep(for: dials.decodeDelay) }
+        // A clip model's request is answered with a clip: the poster, and an MP4 that is only
+        // a marker of the segment's length, since nothing here plays it.
+        if settings.frames > 1 {
+            return .video(
+                GeneratedVideo(
+                    poster: Self.pngData, mp4: Data("segment:\(settings.frames)".utf8),
+                    frameCount: settings.frames, frameRate: 24))
+        }
         return .image(png: Self.pngData)
     }
 

@@ -11,4 +11,16 @@ extension ModelCatalog {
     public static func animator(among models: [ModelDescriptor] = all) -> ModelDescriptor? {
         models.first { $0.capabilities.producesVideo && $0.capabilities.supportsReferenceImage }
     }
+
+    /// The model a clip made by `modelID` would be carried on with: the clip's own model when
+    /// it can hold a clip's end, or else whichever model animates a picture, which continues
+    /// from the last frame alone. Nil when nothing in `models` makes clips from a picture.
+    public static func continuer(
+        for modelID: String, among models: [ModelDescriptor] = all
+    ) -> ModelDescriptor? {
+        if let own = models.first(where: { $0.id == modelID }), own.capabilities.supportsContinuation {
+            return own
+        }
+        return animator(among: models)
+    }
 }

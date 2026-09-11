@@ -8,7 +8,8 @@ import Foundation
 /// directory and come back as bytes; the file is removed either way. Video only for now: when a
 /// model produces audio, its track is appended *before* the frames, because appending a second
 /// track after a long video track deadlocks the writer's interleaving (the two-track stall the
-/// Swift LTX port hit and fixed the same way).
+/// Swift LTX port hit and fixed the same way). The track itself is `MP4Writer.Session`, which
+/// `MP4Stitcher` shares to join clips.
 public enum MP4Writer {
     /// Encodes `frames` at `frameRate` frames per second and returns the MP4's bytes.
     public static func encode(_ frames: RGBAFrameSequence, frameRate: Double) async throws -> Data {
@@ -22,42 +23,14 @@ public enum MP4Writer {
     private static func write(_ frames: RGBAFrameSequence, frameRate: Double, to url: URL)
         async throws
     {
-        let writer: AVAssetWriter
+        let session = try Session(
+            to: url, width: frames.width, height: frames.height, frameRate: frameRate)
         do {
-            writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
+            try await FrameAppender(frames: frames, session: session).run()
         } catch {
-            throw MP4WriterError.encodingFailed(error.localizedDescription)
+            session.abandon()
+            throw error
         }
-        // Width is the frame's columns and height its rows, which sounds obvious until the
-        // decoder's `[frames, height, width, 3]` layout tempts a swap: the writer refuses a
-        // size whose axes are crossed rather than making a sideways clip.
-        let input = AVAssetWriterInput(
-            mediaType: .video,
-            outputSettings: [
-                AVVideoCodecKey: AVVideoCodecType.h264,
-                AVVideoWidthKey: frames.width,
-                AVVideoHeightKey: frames.height,
-            ])
-        input.expectsMediaDataInRealTime = false
-        let adaptor = AVAssetWriterInputPixelBufferAdaptor(
-            assetWriterInput: input,
-            sourcePixelBufferAttributes: [
-                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
-                kCVPixelBufferWidthKey as String: frames.width,
-                kCVPixelBufferHeightKey as String: frames.height,
-            ])
-        guard writer.canAdd(input) else {
-            throw MP4WriterError.encodingFailed("The writer refused a \(frames.width) x \(frames.height) H.264 track.")
-        }
-        writer.add(input)
-        guard writer.startWriting() else {
-            throw MP4WriterError.encodingFailed(writer.error?.localizedDescription ?? "startWriting failed")
-        }
-        writer.startSession(atSourceTime: .zero)
-        try await FrameAppender(frames: frames, frameRate: frameRate, adaptor: adaptor).run()
-        await writer.finishWriting()
-        if writer.status != .completed {
-            throw MP4WriterError.encodingFailed(writer.error?.localizedDescription ?? "finishWriting failed")
-        }
+        try await session.finish()
     }
 }

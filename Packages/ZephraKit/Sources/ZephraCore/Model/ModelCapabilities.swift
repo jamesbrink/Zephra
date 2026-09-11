@@ -45,6 +45,13 @@ public struct ModelCapabilities: Hashable, Sendable {
     public let frameAlignment: Int
     /// Frames per second the model was trained to make, which is what its clips play at.
     public let frameRate: Double
+    /// How many of a finished clip's last frames the model can hold at the head of a new one,
+    /// to carry the clip on: `0...0` on a model that cannot continue a clip, by the rule the
+    /// other degenerate ranges follow. A family that holds one latent frame declares `1...1`;
+    /// one that holds a run of them declares a range on its own ladder, `1 + k * frameAlignment`.
+    public let continuationFrames: ClosedRange<Int>
+    /// How many of those frames to hold when nothing else is said.
+    public let defaultContinuationFrames: Int
 
     /// Creates a capability set describing one model's accepted inputs.
     ///
@@ -68,7 +75,9 @@ public struct ModelCapabilities: Hashable, Sendable {
         frameBounds: ClosedRange<Int> = 1...1,
         defaultFrames: Int = 1,
         frameAlignment: Int = 8,
-        frameRate: Double = 24
+        frameRate: Double = 24,
+        continuationFrames: ClosedRange<Int> = 0...0,
+        defaultContinuationFrames: Int = 0
     ) {
         self.sizeAlignment = sizeAlignment
         self.sizePresets = sizePresets
@@ -87,6 +96,8 @@ public struct ModelCapabilities: Hashable, Sendable {
         self.defaultFrames = defaultFrames
         self.frameAlignment = frameAlignment
         self.frameRate = frameRate
+        self.continuationFrames = continuationFrames
+        self.defaultContinuationFrames = defaultContinuationFrames
     }
 
     /// Whether guidance is a choice on this model. A distilled model declares a single legal
@@ -108,4 +119,7 @@ public struct ModelCapabilities: Hashable, Sendable {
 
     /// Whether this model makes clips rather than pictures.
     public var producesVideo: Bool { frameBounds.upperBound > 1 }
+
+    /// Whether this model can carry a finished clip on from its last frames.
+    public var supportsContinuation: Bool { continuationFrames.upperBound > 0 }
 }

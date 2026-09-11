@@ -111,6 +111,10 @@ public final class GenerationStore {
     /// How to build the one upscaler, or nil for a build that carries none — a preview store,
     /// or a tool. Nil is what greys every Upscale button, with no other rule needed.
     let upscalerFactory: UpscalerFactory?
+    /// How a clip's last frames are read back and how clips are joined, or nil for a build
+    /// that cannot — a preview store, or a tool. Nil is what greys Extend Clip, with no other
+    /// rule needed; see `GenerationStore+Extend.swift`.
+    public let clips: (any ClipEditing)?
     var library: ImageLibrary
     let logger = Logger(subsystem: "io.zephra", category: "engine")
     /// The folder models are downloaded and built in, forwarded to the inference actor as it
@@ -139,9 +143,11 @@ public final class GenerationStore {
     init(
         descriptor: ModelDescriptor, registry: BackendRegistry?, output: URL?,
         locations: ModelLocations = .default, upscaler: UpscalerFactory? = nil,
-        downloads: ModelDownloads = ModelDownloads(), runtime: (any InferenceRuntime)? = nil
+        downloads: ModelDownloads = ModelDownloads(), runtime: (any InferenceRuntime)? = nil,
+        clips: (any ClipEditing)? = nil
     ) {
         self.downloads = downloads
+        self.clips = clips
         self.descriptor = descriptor
         self.settings = GenerationSettings.defaults(for: descriptor)
         self.registry = registry

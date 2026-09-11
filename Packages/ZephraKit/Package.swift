@@ -19,12 +19,15 @@ let package = Package(
         .target(name: "ZephraCore"),
         .target(name: "ZephraSnapshot", dependencies: ["ZephraCore"]),
         .target(name: "ZephraEngine", dependencies: ["ZephraCore", "ZephraSnapshot"]),
-        .target(name: "ZephraMedia"),
+        // ZephraCore for `ClipEditing`, the seam the engine reads clips back through.
+        .target(name: "ZephraMedia", dependencies: ["ZephraCore"]),
         // ZephraCore for the catalog and the models folder: SnapshotUnderTest looks where the app
         // would have built or downloaded a model before it looks in the hub cache.
         .target(name: "ZephraTestSupport", dependencies: ["ZephraCore"]),
         .testTarget(name: "ZephraCoreTests", dependencies: ["ZephraCore"]),
-        .testTarget(name: "ZephraMediaTests", dependencies: ["ZephraMedia"]),
+        .testTarget(
+            name: "ZephraMediaTests", dependencies: ["ZephraMedia", "ZephraCore"],
+            resources: [.copy("Fixtures")]),
         .testTarget(
             name: "ZephraSnapshotTests",
             dependencies: ["ZephraSnapshot", "ZephraCore", "ZephraTestSupport"]

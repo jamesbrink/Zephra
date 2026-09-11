@@ -78,6 +78,9 @@ extension GenerationStore {
     public func useAsReference(_ pngData: Data?, origin: String? = nil) {
         let capabilities = descriptor.capabilities
         let picture = capabilities.supportsReferenceImage ? pngData : nil
+        // A clip's end rides with the picture in the well (`GenerationStore+Extend.swift`):
+        // any other picture, or none, is no longer that clip's end.
+        settings.continuation = nil
         settings.referenceImage = picture
         guard let picture else {
             settings.referenceOrigin = nil

@@ -13,6 +13,8 @@ final class EngineTestBed {
     let control = MockBackendControl()
     /// The upscaler's behaviour, shared the same way.
     let upscalerControl = MockUpscalerControl()
+    /// The clip reader and joiner every store this bed makes is given.
+    let clips = MockClipEditing()
     /// Where generated images are written.
     let directory = URL(filePath: NSTemporaryDirectory())
         .appending(path: "ZephraEngineTests-\(UUID().uuidString)", directoryHint: .isDirectory)
@@ -75,7 +77,8 @@ final class EngineTestBed {
             outputDirectory: directory,
             locations: locations ?? ModelLocations(root: directory.appending(path: "models")),
             upscaler: upscaler,
-            runtime: MockInferenceRuntime(control: control)
+            runtime: MockInferenceRuntime(control: control),
+            clips: clips
         )
     }
 

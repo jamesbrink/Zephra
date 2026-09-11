@@ -6,21 +6,22 @@ import Foundation
 ///
 /// `requestMediaDataWhenReady` calls back on its queue whenever the input can accept more;
 /// each call appends until the input is full or the frames run out, and the last one marks
-/// the input finished and resumes the waiting caller. Timestamps are frame indices over the
-/// frame rate as an exact rational, so a 24 fps clip is 24 fps and not 23.98.
+/// the input finished and resumes the waiting caller; the session closes the track. Timestamps
+/// are `Session.time(of:)`, frame indices over the rate as an exact rational, so a 24 fps clip
+/// is 24 fps and not 23.98.
 final class FrameAppender: @unchecked Sendable {
     private let frames: RGBAFrameSequence
-    private let frameRate: Double
-    private let adaptor: AVAssetWriterInputPixelBufferAdaptor
+    private let session: MP4Writer.Session
     private let queue = DispatchQueue(label: "io.zephra.mp4-writer")
     // Both touched only on `queue`, which is what the unchecked Sendable conformance rests on.
     private var next = 0
     private var finished = false
 
-    init(frames: RGBAFrameSequence, frameRate: Double, adaptor: AVAssetWriterInputPixelBufferAdaptor) {
+    private var adaptor: AVAssetWriterInputPixelBufferAdaptor { session.adaptor }
+
+    init(frames: RGBAFrameSequence, session: MP4Writer.Session) {
         self.frames = frames
-        self.frameRate = frameRate
-        self.adaptor = adaptor
+        self.session = session
     }
 
     func run() async throws {
@@ -34,7 +35,6 @@ final class FrameAppender: @unchecked Sendable {
                     }
                     if next == frames.frameCount {
                         finished = true
-                        adaptor.assetWriterInput.markAsFinished()
                         continuation.resume()
                     }
                 } catch {
@@ -48,10 +48,7 @@ final class FrameAppender: @unchecked Sendable {
 
     private func append(frame index: Int) throws {
         let buffer = try pixelBuffer(for: frames.frame(index))
-        // A timescale of a thousand times the rate keeps 23.976 as well as 24 exact to the
-        // millihertz, rather than rounding the rate to a whole number.
-        let time = CMTime(value: CMTimeValue(index) * 1000, timescale: CMTimeScale((frameRate * 1000).rounded()))
-        guard adaptor.append(buffer, withPresentationTime: time) else {
+        guard adaptor.append(buffer, withPresentationTime: session.time(of: index)) else {
             throw MP4WriterError.encodingFailed(
                 adaptor.assetWriterInput.description + " refused frame \(index)")
         }

@@ -34,11 +34,18 @@ extension GenerationStore {
         let started = clock.now
         let pump = EngineEventPump { [weak self] event in self?.applyGenerationEvent(event) }
         do {
-            let media = try await pump.run { sink in
+            let segment = try await pump.run { sink in
                 try await inference.generate(job.settings, tile: vaeTile(for: job.model), events: sink)
             }
             // Stop pressed during the decode: the backend never looked, and the bytes are not
             // wanted. A stopped run keeps no image, whenever the stop landed.
+            guard !Task.isCancelled else {
+                finish()
+                return
+            }
+            // A continuation's segment is joined onto its source here, still inside the run,
+            // so what is published is the whole clip (`GenerationStore+Stitching.swift`).
+            let media = try await stitched(segment, job: job)
             guard !Task.isCancelled else {
                 finish()
                 return
@@ -82,7 +89,7 @@ extension GenerationStore {
         if case .video(let clip) = media { video = clip }
         let image = GeneratedImage(
             pngData: media.posterPNG,
-            settings: job.settings,
+            settings: Self.published(job.settings),
             modelID: job.model.id,
             duration: duration,
             batchID: job.batchID,

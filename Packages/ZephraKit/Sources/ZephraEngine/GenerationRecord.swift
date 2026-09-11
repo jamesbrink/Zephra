@@ -86,6 +86,13 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
     public var frameCount: Int?
     /// Frames per second the clip plays at, when there is one.
     public var frameRate: Double?
+    /// The library file name of the clip this one carries on from, when it was made by
+    /// Extend Clip, and nil when it started from nothing or from a picture. The clip on disk
+    /// is the source and the new segment joined; `frameCount` counts the whole. A name rather
+    /// than a path, for the reason `upscaledFrom` is; optional, so the version stays 1.
+    public var continuedFrom: String?
+    /// How many of the source's last frames the model held to carry it on, when it did.
+    public var contextFrames: Int?
 
     /// The record for a finished image.
     public init(_ image: GeneratedImage) {
@@ -110,6 +117,8 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
         upscaleFactor = nil
         frameCount = image.video?.frameCount
         frameRate = image.video?.frameRate
+        continuedFrom = image.settings.continuation?.origin
+        contextFrames = image.settings.continuation?.contextFrames
     }
 
     /// Whether the picture is a clip's first frame.

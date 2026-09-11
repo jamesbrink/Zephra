@@ -29,7 +29,21 @@ extension ModelCapabilities {
             referenceStrengthBounds.upperBound
         )
         result.frames = constrainFrames(settings.frames)
+        result.continuation = constrainContinuation(settings.continuation)
         return result
+    }
+
+    /// The continuation as this model can hold it: none on a model that cannot continue a
+    /// clip, and otherwise the last frames on the model's own ladder, never more than it
+    /// holds. Rounded down to the ladder rather than up, because the frames that are there
+    /// are all there is; a continuation with no frames at all is dropped.
+    private func constrainContinuation(_ continuation: ClipContinuation?) -> ClipContinuation? {
+        guard supportsContinuation, let continuation, !continuation.frames.isEmpty else {
+            return nil
+        }
+        let bounded = min(continuation.frames.count, continuationFrames.upperBound)
+        let snapped = max(1 + ((bounded - 1) / frameAlignment) * frameAlignment, 1)
+        return continuation.keepingLast(snapped)
     }
 
     /// The nearest legal frame count at or below `frames`, never below the lower bound: a

@@ -98,6 +98,11 @@ extension ModelCatalog {
         frameBounds: 5...121,
         defaultFrames: 49,
         frameAlignment: 4,
-        frameRate: 24
+        frameRate: 24,
+        // A clip is carried on from its last frame alone, held exactly as a first frame is:
+        // the base model was trained to hold one frame, and holding a run of them is the
+        // untrained case ROADMAP.md leaves out.
+        continuationFrames: 1...1,
+        defaultContinuationFrames: 1
     )
 }

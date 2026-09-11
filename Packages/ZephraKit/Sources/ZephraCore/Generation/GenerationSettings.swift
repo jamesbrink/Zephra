@@ -50,6 +50,14 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
     /// nothing. `ModelCapabilities.frameBounds` says whether it applies, and `clamp` pins it
     /// to 1 for every model that makes pictures.
     public var frames: Int
+    /// The end of a finished clip to carry on from, on models that continue one; nil for a
+    /// clip made from nothing or from a picture.
+    ///
+    /// Optional, unlike `frames` and `referenceStrength`, because there is no value that
+    /// changes nothing: a continuation is either there or it is not, the way a reference
+    /// picture is. `ModelCapabilities.continuationFrames` says whether a model reads one, and
+    /// `clamp` drops it for every model that cannot and trims it to what one can hold.
+    public var continuation: ClipContinuation?
 
     /// Creates a settings value from explicit choices.
     public init(
@@ -62,7 +70,8 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
         referenceImage: Data? = nil,
         referenceStrength: Double = 1,
         referenceOrigin: String? = nil,
-        frames: Int = 1
+        frames: Int = 1,
+        continuation: ClipContinuation? = nil
     ) {
         self.prompt = prompt
         self.negativePrompt = negativePrompt
@@ -74,6 +83,7 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
         self.referenceStrength = referenceStrength
         self.referenceOrigin = referenceOrigin
         self.frames = frames
+        self.continuation = continuation
     }
 
     /// The starting point for a model: an empty prompt, its own defaults, and a fresh seed.
