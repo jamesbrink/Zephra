@@ -234,9 +234,11 @@ Four directories, by what a file is rather than what screen it is on:
   the label and come back as the seed's leading half over zeros, sixteen are
   the whole value, and any other count is refused rather than guessed at
   (`SeedEntryTests`). How a seed is spelled on screen is one preference,
-  `AppSettings.seedFormat`, a `SeedFormat` in `ZephraEngine` beside
-  `shortSeedLabel`: the short hex label by default, or the whole number, set
-  in General under "Show seeds as". `SizeMenu` is the same shape over sizes:
+  `AppSettings.seedFormat`, a `SeedFormat` in `ZephraCore` beside
+  `SeedEntry` and `shortSeedLabel` — there rather than in the engine because
+  the phone spells a seed too, and `SeedFormat.hex` is what it draws: the short
+  hex label by default, or the whole number, set in General under "Show seeds
+  as". `SizeMenu` is the same shape over sizes:
   the model's presets grouped by `SizeTier` (`ZephraCore`) — Faster under
   three quarters of the default's pixels, Larger over one and a half times,
   Standard between — with headings only when there is more than one group,
@@ -336,9 +338,12 @@ Four directories, by what a file is rather than what screen it is on:
   `AVKit.framework` in the app's link rather than leaving it to autolink.
   `ZephraStyle`'s `VideoBadge` is the clip's mark on a grid cell and a sidebar square, in
   the corner `UpscaleBadge` uses, since a picture is one or the other. The
-  capsule shows `DurationControl` — the shortest clip, then one choice per
-  whole second, each snapped to the model's ladder (9, 25, 49, 73, 97, 121
-  frames at 24 fps) — only when `frameBounds` is a range, and hides
+  capsule shows `DurationControl` — chrome over `ClipLength` (`ZephraCore`,
+  because the phone's capsule draws the same menu): the shortest clip, then one
+  choice per whole second, each snapped to the model's ladder (9, 25, 49, 73,
+  97, 121 frames at 24 fps), then every five seconds up to
+  `ChainPlan.maxFrames` as a chain of passes, labelled with how many passes make
+  it — only when `frameBounds` is a range, and hides
   `StepsControl` when `stepBounds` is a single value, the way it already hides
   guidance: a slider over one value is not a slider, and LTX-2.5's eight steps
   are the checkpoint's. The inspector's Length row comes from `ImageFacts`.

@@ -384,13 +384,17 @@ step reads the kind. `GenerationSettings.frames` is 1 for a picture, pinned by
 `clamp` where `frameBounds` is `1...1`, and snapped to `frameAlignment` for a
 video model.
 
-A length past one pass is a chain (`ChainPlan`, `GenerationStore+Chaining`):
-the store plans the passes before it clamps, so `clamp` keeps a single pass's
-bounds and no backend is asked for more than it runs; each pass but the last is
-kept in `chains`, its tail read through `clips` and the next pass queued at the
-head on the next seed; the last joins them (the source clip first when Extend
-Clip started it) and publishes one clip. `QueuedGeneration.chain` is what
-`StepProgress` reads the passes as one bar by. Stop drops the passes made.
+A length past one pass is a chain (`ChainPlan` in `ZephraCore`,
+`GenerationStore+Chaining`): the store plans the passes before it clamps, so
+`clamp` keeps a single pass's bounds and no backend is asked for more than it
+runs; each pass but the last is kept in `chains`, its tail read through `clips`
+and the next pass queued at the head on the next seed; the last joins them (the
+source clip first when Extend Clip started it) and publishes one clip.
+`QueuedGeneration.chain` is what `StepProgress` reads the passes as one bar by.
+Stop drops the passes made. The planning is in Core because both apps' Duration
+menus are `ClipLength` over it: a request composed anywhere but the store —
+a phone's — carries the whole length through `ChainPlan.frames`, since `clamp`
+alone would cut it to its first pass.
 
 `current` is what the canvas shows, and only that (`+FollowingRun`). Generate or
 a variation starts following the run; opening or selecting any other picture
@@ -687,14 +691,20 @@ US-spelling check.
   picture's own shape at the pixel budget in force
   (`ModelCapabilities.size(matchingAspectOf:budget:)`), a picture model leaves
   the size alone — which is `useAsReference`'s rule, shared because both ends
-  read the same capabilities.
+  read the same capabilities. The one thing it does not clamp is the clip's
+  length: `clamp` bounds that at one pass and the Mac plans the chain from what
+  it is handed, so the request carries the whole length through
+  `ChainPlan.frames`.
 - The canvas is `Views/Canvas/` and `Views/Capsule/`: the run's frames while
   there is a run (`LivePreviewView`, then `RunPlaceholderView` before the first
   one), otherwise the newest picture or clip, with the capsule in the bottom
   safe area rather than in a sheet, which would cover the tab bar. Every control
   is drawn and hidden by the capabilities the way `ControlsRow` is, `SeedEntry`
-  and `SizeEntry` read what is typed, `ReferenceRole` captions the well, and a
-  refusal is the Mac's own sentence under Generate rather than an alert.
+  and `SizeEntry` read what is typed, `SeedFormat.hex` spells a seed and
+  `ClipLength` is the Duration menu — both `ZephraCore`'s, so neither is a copy
+  of the Mac's and the phone offers the same chained lengths — `ReferenceRole`
+  captions the well, and a refusal is the Mac's own sentence under Generate
+  rather than an alert.
 - `PairingEntry.parse` is the one parser all three pairing doors go through —
   the camera (VisionKit, hidden where there is none), the paste field (always
   there), a `zephra://pair` link. Everything it throws is a `LinkError` with a

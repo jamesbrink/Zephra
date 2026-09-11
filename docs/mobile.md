@@ -23,9 +23,10 @@ Sources/ZephraMobile -> ZephraCore, ZephraLinkProtocol, ZephraLinkTransport,
 ```
 
 - `ZephraCore` for the value layer both apps read: `ModelCapabilities` and the
-  `clamp` that goes with it, `ImageSize`, `SeedEntry`, `SizeEntry`,
-  `ReferenceRole`, `DurationLabel`. The phone runs the Mac's own rules rather
-  than a second copy of them that could drift.
+  `clamp` that goes with it, `ImageSize`, `SeedEntry`, `SeedFormat`,
+  `SizeEntry`, `ReferenceRole`, `DurationLabel`, `ChainPlan` and `ClipLength`.
+  The phone runs the Mac's own rules rather than a second copy of them that
+  could drift.
 - `ZephraLinkProtocol` for the wire: the pairing payload, the state snapshot and
   its deltas, the commands, the library page. See `docs/companion.md`.
 - `ZephraLinkTransport` for the roads and for `LinkBackoff`. The app names them
@@ -175,7 +176,14 @@ about the Mac. The facts stay on `LinkClient`.
   rewrites while the controls go on showing what was asked for. The picture is
   put back into the settings just long enough to be clamped, since `clamp` is
   what drops it for a model that reads none; `GenerationRequest` strips the
-  bytes on the way out, because a picture crosses as a blob.
+  bytes on the way out, because a picture crosses as a blob. The clip's length
+  is the one thing put back after the clamp: `clamp` bounds it at one pass on
+  purpose, since no backend runs more, and a longer clip is a chain the Mac
+  plans from the length it is handed (`GenerationStore.enqueue` calls
+  `ChainPlan.segments` and clamps only the first pass). So the request carries
+  the whole length through `ChainPlan.frames`, bounded by `ChainPlan.maxFrames`
+  and snapped to the model's ladder; a clamped length here would be a
+  ten-second clip quietly cut to five.
 - `choose(_ model:)` puts steps, guidance, strength and length on the new
   model's ladder, which is `GenerationSettings.onSchedule(of:)`'s rule: a number
   inside both models' bounds survives clamping while meaning something else on
@@ -229,10 +237,14 @@ the Mac once crashed on a model switch.
   `SizeEntry`.
 - `StepsControl` as a stepper where the count is a choice, `GuidanceControl`
   where the model responds to guidance, `DurationControl` where `frameBounds` is
-  a range, `ReferenceStrengthControl` only while there is a picture and the
+  a range — `ClipLength`'s menu, which is the Mac's: one pass by the second,
+  then the longer clips the Mac makes as a chain of passes, each saying how many
+  — `ReferenceStrengthControl` only while there is a picture and the
   bounds are a real range, with `ReferenceRole`'s own sentence under it.
-- `SeedControl` spells the seed as `SeedFormat.hex` does and reads one back
-  through `SeedEntry`. `CountControl` is `GenerationRequest.countBounds`, read
+- `SeedControl` spells the seed with `SeedFormat.hex` itself — `ZephraCore`'s,
+  not a copy of it — and reads one back through `SeedEntry`. Hex always: there
+  is no Settings > General here to choose the decimal in, and hex is the Mac's
+  default. `CountControl` is `GenerationRequest.countBounds`, read
   from the protocol rather than written down again.
 - `ReferenceWell` captions itself from `ReferenceRole`, so a clip's first frame
   is called a first frame here as it is there. Two doors, one rule:
@@ -247,8 +259,8 @@ the Mac is rendering, Stop replaces it. Offline, the last picture stays and the
 capsule says so in one line, because everything on the screen is still the last
 thing the Mac said.
 
-What this surface deliberately leaves out — a chained clip's lengths, a picture
-saved to the camera roll — is in `ROADMAP.md`.
+What this surface deliberately leaves out — a picture saved to the camera roll —
+is in `ROADMAP.md`.
 
 ## Frozen preview states
 
