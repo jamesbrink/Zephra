@@ -514,10 +514,13 @@ TestFlight upload and never an App Store submission.
 
 The two things that are the phone's own rather than the recipe's:
 
-- `ITSAppUsesNonExemptEncryption` is `true` in the companion's `Info.plist`.
-  The link uses CryptoKit — Curve25519 and AES-GCM — so the app does use
-  encryption, and declaring it in the bundle means the upload does not stop to
-  ask. Standard algorithms only; nothing of our own.
+- `ITSAppUsesNonExemptEncryption` is `false` in the companion's `Info.plist`.
+  The link uses CryptoKit — Curve25519 and AES-GCM — standard algorithms the
+  platform ships and nothing of our own, which is the exempt case in Apple's
+  questionnaire; `false` is that answer stated in the bundle, so an upload does
+  not stop at "Missing Compliance". What the exemption still asks for is the
+  annual self-classification report to the US Bureau of Industry and Security,
+  James's to file.
 - `CODE_SIGN_IDENTITY[sdk=iphoneos*]` is `Apple Development`, which is what a
   device build wants. The archive is signed with it and the export re-signs
   with the distribution certificate it fetches, which is what `signingStyle:

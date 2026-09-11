@@ -334,14 +334,14 @@ What James does by hand, once:
 - The phone added to internal testing in App Store Connect, on the build's
   group. Internal TestFlight needs **no review** — a build reaches the testers
   as soon as App Store Connect finishes processing it, which is minutes.
-- The export-compliance questionnaire, answered once for the app: standard
-  algorithms only. The link uses CryptoKit — Curve25519 and AES-GCM — nothing
-  of our own and nothing beyond what the platform ships, which is exactly what
-  the question is asking about. The companion's `Info.plist` already declares
-  `ITSAppUsesNonExemptEncryption` as `true`, so the bundle states the use up
-  front instead of every upload asking; if App Store Connect asks for
-  compliance documentation anyway, that key is the thing to revisit, not this
-  recipe.
+- Export compliance. The link uses CryptoKit — Curve25519 and AES-GCM —
+  standard algorithms the platform ships and nothing of our own, which is the
+  exempt case in Apple's questionnaire; the companion's `Info.plist` declares
+  `ITSAppUsesNonExemptEncryption` as `false`, the bundle's way of giving that
+  answer, so a build never sits at "Missing Compliance". The exemption still
+  owes an annual self-classification report to the US Bureau of Industry and
+  Security, filed by hand; if App Store Connect ever asks for documentation,
+  that key is the thing to revisit, not this recipe.
 
 
 ## Tests
