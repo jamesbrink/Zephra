@@ -40,8 +40,10 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
     let peerStream: AsyncStream<RelayPeerEvent>
     /// The slices of payloads too big for one WebSocket frame, put back together here.
     let fragments = RelayFragments()
-    private let lock = NSLock()
-    private var state = State()
+    /// Not private: `RelayConnection+Closing` is the rest of this type, and the lock is what
+    /// the two halves share.
+    let lock = NSLock()
+    var state = State()
 
     /// A road into one room, as one role. Nothing happens until `start()`.
     public init(
@@ -122,63 +124,6 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
                 "The relay socket refused a frame: \(error.localizedDescription, privacy: .public)")
             fail(error)
             throw error
-        }
-    }
-
-    /// The socket is gone, from a read that failed or a write that did. Marks the road closed and
-    /// finishes both streams, so the session over it ends rather than waiting on a dead socket.
-    func fail(_ error: any Error) {
-        let wasOpen: Bool = lock.withLock {
-            guard !state.isClosed else { return false }
-            state.isClosed = true
-            return true
-        }
-        guard wasOpen else { return }
-        let running = lock.withLock { state }
-        running.reader?.cancel()
-        running.pinger?.cancel()
-        task.cancel(with: .goingAway, reason: nil)
-        frameContinuation.finish(throwing: error)
-        peerContinuation.finish()
-    }
-
-    public func close() async {
-        let running: State? = lock.withLock {
-            guard !state.isClosed else { return nil }
-            state.isClosed = true
-            return state
-        }
-        guard let running else { return }
-        running.reader?.cancel()
-        running.pinger?.cancel()
-        task.cancel(with: .goingAway, reason: nil)
-        frameContinuation.finish()
-        peerContinuation.finish()
-    }
-
-    /// Whether this road has been closed from this end.
-    var isClosed: Bool { lock.withLock { state.isClosed } }
-
-    /// Marks the road closed as its reader stops, and says whether it was already closed —
-    /// which is what tells a close from this end apart from a socket that went on its own.
-    func readerStopped() -> Bool {
-        lock.withLock {
-            defer { state.isClosed = true }
-            return state.isClosed
-        }
-    }
-
-    /// Keeps the two long-lived tasks, so `close()` can stop them.
-    func hold(reader: Task<Void, Never>, pinger: Task<Void, Never>) {
-        let alreadyClosed = lock.withLock { () -> Bool in
-            guard !state.isClosed else { return true }
-            state.reader = reader
-            state.pinger = pinger
-            return false
-        }
-        if alreadyClosed {
-            reader.cancel()
-            pinger.cancel()
         }
     }
 }
