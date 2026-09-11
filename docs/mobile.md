@@ -15,10 +15,11 @@ protecting.
 
 `ZephraMobile` in `project.yml`: an iOS 18 application, arm64, portrait, iPhone
 only (`TARGETED_DEVICE_FAMILY: "1"`), `io.zephra.ZephraMobile`, product name
-`Zephra`. It links exactly three of our own modules:
+`Zephra`. It links exactly five of our own modules:
 
 ```
-Sources/ZephraMobile -> ZephraCore, ZephraLinkProtocol, ZephraStyle
+Sources/ZephraMobile -> ZephraCore, ZephraLinkProtocol, ZephraLinkTransport,
+                        ZephraLinkClient, ZephraStyle
 ```
 
 - `ZephraCore` for the value layer both apps read: `ModelCapabilities` and the
@@ -27,6 +28,11 @@ Sources/ZephraMobile -> ZephraCore, ZephraLinkProtocol, ZephraStyle
   than a second copy of them that could drift.
 - `ZephraLinkProtocol` for the wire: the pairing payload, the state snapshot and
   its deltas, the commands, the library page. See `docs/companion.md`.
+- `ZephraLinkTransport` for the roads and for `LinkBackoff`. The app names them
+  because the app is what knows the relay's URL and what hands
+  `NetworkLinkRoads` this device's identity; nothing under the root opens a road.
+- `ZephraLinkClient` for `LinkClient`, which is the one type a view reads the Mac
+  through.
 - `ZephraStyle` for the chrome: every radius, hairline, wash and colour set the
   Mac is drawn from. The two apps look like one program because they are drawn
   from one set of numbers.
@@ -64,43 +70,57 @@ the US-spelling check cover it the same way they cover the Mac, and
 Four directories, by what a file is, the way the Mac's target is laid out.
 
 - `App/` — `ZephraMobileApp` is the composition root: it builds the one object
-  every view observes and injects it, and it is the only file that will know how
-  a Mac is actually reached. `RootView` is the four surfaces behind a `TabView`,
+  every view observes and injects it, and it is the only file that knows how a
+  Mac is actually reached. `RootView` is the four surfaces behind a `TabView`,
   with `PairingView` over them as a `.fullScreenCover` until a Mac is paired. A
   cover rather than a branch, so the tabs are built once and keep their state.
-- `Support/` — the cross-cutting answers. `MobileSession`, `MobileTab`,
-  `PairingEntry`, `MobilePreview`.
+- `Support/` — the cross-cutting answers. `MobileKeychain`, `LinkReconnect`,
+  `MobileTab`, `PairingEntry`, `MobilePreview`.
 - `Style/` — `MobileChrome`, and only what has no counterpart on the Mac: the
   prompt sheet's heights, the room the tab bar takes, the side margin. Anything
   a radius, a hairline or a wash could be belongs in `Packages/ZephraStyle`.
-- `Views/` — one subfolder per surface. `CanvasScreen`, `TodayScreen`,
-  `LibraryScreen` and `SettingsScreen` are placeholders that already show the
-  one fact the snapshot knows about them, so the tabs, the paired state and the
-  frozen previews are exercised from the first commit; each is replaced from the
-  inside as its surface is built. `SurfacePlaceholder` is what they all draw.
+- `Views/` — one subfolder per surface. `CanvasScreen`, `TodayScreen` and
+  `LibraryScreen` are placeholders that already show the one fact the snapshot
+  knows about them, so the tabs, the paired state and the frozen previews are
+  exercised from the first commit; each is replaced from the inside as its
+  surface is built. `SurfacePlaceholder` is what they all draw. `SettingsScreen`
+  is real: `PairedMacRow`, `ConnectionRow`, `CacheRow` and `AboutRow`, a row to
+  a file, so a later agent replaces one of them rather than editing a screen
+  around it.
 
-### `MobileSession`, and what replaces it
+### `LinkClient`, and how it stays connected
 
-`MobileSession` (`Support/`) is `@MainActor @Observable` and holds five things
-and a closure:
+`LinkClient` (`ZephraLinkClient`, see `docs/companion.md`) is the one type a view
+reads the Mac through: `pairedHost`, `snapshot`, `preview`, `library` and
+`connection`, with `pair(with:)`, `connect()`, `disconnect()`, `forgetHost()` and
+the commands. Every view takes it from `@Environment(LinkClient.self)`. **Keep it
+that way**: a second object holding a fact that came over the link is a fact that
+can disagree with the Mac.
 
-| | |
-| --- | --- |
-| `pairedHostName: String?` | the Mac, or nil: the whole pairing decision |
-| `snapshot: StateSnapshot?` | its state as of the last message |
-| `library: [LibraryEntry]` | the page of its library being held |
-| `isLive: Bool` | whether the wire is up right now |
-| `onPair: (PairingPayload) async throws -> Void` | what a scanned code does |
+The composition root builds exactly one, and it is the only file that knows:
 
-`LinkClient` — the real client, which owns the socket, the handshake and the
-deltas — is being built beside this and takes this type's place. Every view
-reads the Mac through those five properties and nothing else, so that swap is
-one file changed rather than a sweep through the interface. **Keep it that way**:
-a view that reaches past the session for a fact is a view the swap breaks.
+- **Where the secrets are.** `MobileKeychain` (`Support/`) is a `LinkKeyStore`
+  over two generic-password items under the service `io.zephra.link`, the
+  identity's sixty-four raw bytes and the `PairedHost` as `LinkJSON`, both
+  `AfterFirstUnlockThisDeviceOnly` — the phone reconnects while it is locked in a
+  pocket, and a backup restored onto another phone must not arrive already paired
+  with somebody's Mac. The identity is resolved by the root rather than left to
+  `LinkClient`, because `NetworkLinkRoads` needs the same one to sign a relay
+  join with.
+- **Which roads.** `NetworkLinkRoads(relayURL:identity:)` over
+  `wss://zephra-link.urandom.io`, with `UIDevice.current.name` as the name the
+  Mac is shown while somebody decides whether to let this phone in.
+- **When to reach.** `LinkReconnect` (`Support/`) owns one task: `connect()` on
+  `scenePhase == .active`, `disconnect()` on `.background`, and after a failure
+  or a session that dropped, `LinkBackoff`'s one, two, four, eight seconds capped
+  at thirty until one works — the count reset by a live session and by the app
+  coming to the front. `connect()` is idempotent, so nothing here keeps a flag of
+  its own; the loop watches a live session at `heartbeat` rather than waking on
+  an observation, because the sequence that would do that is iOS 26 and the phone
+  runs on 18.
 
-Until `LinkClient` lands, the root's `onPair` records the Mac's name and leaves
-`isLive` false, so the phone pairs, names the Mac and says it is not answering,
-which is the truth.
+Under a frozen preview state the root builds `LinkClient.frozen` instead and no
+`LinkReconnect` at all: a client with no road under it has nothing to reconnect.
 
 ### Pairing
 
@@ -140,8 +160,15 @@ once, in `MobilePreview`, `#if DEBUG` only.
 | `ready` | paired and idle, on the canvas |
 | `generating` | paired, four steps into a nine-step ladder |
 | `library` | paired, opened on the library |
-| `offline` | paired, `isLive` false: everything is the last thing known |
+| `offline` | paired, the connection `.offline`: everything is the last thing known |
 | `settings` | paired, opened on the settings surface |
+
+Every state but `pairing` is a `LinkClient.frozen`: paired with the Mac the
+snapshot names, live over the LAN as far as the interface can tell, requests
+answering `.ok` and blobs failing, and no road under it at all. `pairing` is a
+real client over roads that go nowhere, so a code pasted into a screenshot build
+says it could not reach a Mac rather than doing nothing at all — and reaches no
+network either way.
 
 The state on screen comes from two JSON files in the bundle,
 `Resources/Fixtures/preview-snapshot.json` and `preview-library.json`, read with

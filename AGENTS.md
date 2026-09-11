@@ -658,21 +658,34 @@ Full detail: `docs/app-target.md`.
 `Sources/ZephraMobile` is the iOS companion: it shows what a paired Mac is
 making and asks it for more, and it renders nothing itself. No MLX, no model
 folder, no library folder, no engine — every number on its screen came over the
-link. It links `ZephraCore`, `ZephraLinkProtocol` and `ZephraStyle` and nothing
-else, which `make lint-layers` enforces along with the model-package ban, the
-repeating-animation ban and the US-spelling check.
+link. It links `ZephraCore`, `ZephraLinkProtocol`, `ZephraLinkTransport`,
+`ZephraLinkClient` and `ZephraStyle` and nothing else, which `make lint-layers`
+enforces along with the model-package ban, the repeating-animation ban and the
+US-spelling check.
 
 - `App/`, `Support/`, `Style/`, `Views/`, laid out like the Mac target's.
-- `MobileSession` is the one type a view may read the Mac through: five facts and
-  an `onPair` closure. `LinkClient` takes its place when it lands, so a view that
-  reaches past it for a fact is a view that swap breaks.
+- `LinkClient` is the one type a view may read the Mac through, taken from
+  `@Environment(LinkClient.self)`: `pairedHost` is the whole pairing decision,
+  and `snapshot`, `library`, `preview` and `connection` are the rest. A view that
+  holds a fact of its own that came over the link is a view that can disagree
+  with the Mac.
+- `ZephraMobileApp` is the only file that knows how a Mac is reached: it builds
+  the one client over `MobileKeychain` (`LinkKeyStore` on two generic passwords
+  under `io.zephra.link`, after first unlock and this device only) and
+  `NetworkLinkRoads`, and `LinkReconnect` (`Support/`) drives it — `connect()` on
+  `scenePhase == .active`, `disconnect()` on `.background`, and `LinkBackoff`
+  between a failure or a dropped session and the next attempt, while active.
 - `PairingEntry.parse` is the one parser all three pairing doors go through —
   the camera (VisionKit, hidden where there is none), the paste field (always
   there), a `zephra://pair` link. Everything it throws is a `LinkError` with a
-  sentence, and an expired code is refused here rather than at the far end.
+  sentence, and an expired code is refused here rather than at the far end. The
+  screen sends people to **Settings > Companion** on the Mac, which is where the
+  code is.
 - `MobilePreview` is `InterfacePreview`'s shape for the phone:
   `ZEPHRA_PREVIEW_STATE=pairing|ready|generating|library|offline|settings`,
-  Debug only, over two JSON fixtures decoded with the wire's own decoder.
+  Debug only, over two JSON fixtures decoded with the wire's own decoder. Every
+  state but `pairing` is a `LinkClient.frozen`, which has no road under it;
+  nothing reconnects behind one.
 - `make build-ios`, `make run-ios PREVIEW=<state>`, `make test-ios`,
   `make screenshot-ios`. `IOS_SIM` names the simulator; CI passes what
   `scripts/ios-sim.sh` finds. There is no Release lane and no benchmark.
