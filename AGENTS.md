@@ -323,6 +323,15 @@ logs, since an ad-hoc-signed Debug build cannot reach the first and would open n
 road at all), `CompanionThumbnails`, `CompanionEndpoints`, `CompanionRoads` and
 `RelayRoad`.
 
+The relay itself is in this repository now, at `Relay/link` — one Lambda file,
+its README (the wire contract as the relay states it) and its tests. Nothing
+imports it: it and `RelayConnection` are two implementations of one contract, and
+keeping them in one repository is what lets a change to that contract be one
+commit. `make relay-test` covers it against fakes in seconds and `make
+relay-deploy` puts it up, which CI does on every push to `main`. Terraform in the
+urandom.io repository still owns the function, the table, the API and the domain,
+and deliberately not the code.
+
 `ZephraLinkClient` is the phone's `LinkClient`: `@MainActor @Observable`, split
 by concern like `GenerationStore`, holding the snapshot the deltas edit, the
 newest preview and the library it has been told about. `LinkKeyStore` and
@@ -1111,7 +1120,20 @@ Makefile targets:
   did with it; `ARGS=--watch` waits rather than asking once, and
   `scripts/asc-build-status.sh` also carries `attach`, `detail` and
   `compliance`, which put a valid build in front of the internal testers over
-  the same minted token.
+  the same minted token. **Say which build**: `BUILD_NUMBER=<stamp>` (or
+  `--build`) is what makes the watch and the attach mean the build just
+  uploaded. Without one they take the newest build App Store Connect *lists*,
+  and for some minutes after an upload that is the build before it — a watch
+  that answers VALID at once and an attach that hands the testers the wrong
+  build. `attach` refuses a build that is not VALID rather than attaching one
+  nothing will install.
+- `relay-test` — the link relay (`Relay/link`) against fakes for DynamoDB and
+  the API Gateway management API, `node --test`, seconds and no AWS account.
+  `relay-deploy` — that, then the zipped `index.mjs` up with
+  `lambda:UpdateFunctionCode`, a wait for the function to settle, and a real
+  socket to `wss://zephra-link.urandom.io` checking that `hello` is answered
+  with a `challenge`. `RELAY_FUNCTION`, `RELAY_WSS` and `RELAY_PROFILE` (empty
+  in CI, which is the OIDC role).
 - `lint-layers` — the gate, before every commit. `lint-size` — advisory list
   of files over 150 lines.
 - `icon` — resize the approved masters in `design/branding/zephyr/`; never
@@ -1163,6 +1185,23 @@ ship and not before, because the shipped app matches the mirror index's
 `source` to its own descriptor word for word. `release-commit` stages the one
 manifest path and nothing else, commits it naming the build, and pushes the
 current branch; a re-run with nothing changed stops rather than committing.
+
+**CI ships main.** `.github/workflows/release.yml` runs on every push to `main`
+and does the whole of a ship with no manual step: `gate`, then `mac-release`
+(`make publish-release`), `ios-testflight` (`make testflight`, the watch and the
+attach) and `relay-deploy` (`make relay-deploy`) in parallel, then
+`release-commit`. Every step is a Makefile target, so the local path and the CI
+path are one path. The version is still `0.1.0` and the build number is still the
+UTC minute — computed once in `gate` and handed to the Mac and the phone alike,
+so one push is one build number everywhere. Two tiers of gate: every push runs
+`doctor`, `lint-layers`, `test`, `relay-test` and `test-ios`; `test-app` and
+`test-mlx` are an hour of Metal and run only under `workflow_dispatch` with
+`full_gates: true` — locally before every merge as always. A push touching only
+`docs/**`, any `.md`, or `product-mockups/app/release.json` ships nothing, and
+`release-commit`'s message carries `[skip ci]`, so a release cannot start
+another. The website is **not** deployed by it: `deploy-website.yml` stays
+manual, because production goes out when James says so. `make ship` remains the
+by-hand path and is unchanged.
 
 `ZephraQuantize` safety: `--family` is required with no default; `BITS` other
 than 4 is refused unless `--out` is explicit, since every default name says

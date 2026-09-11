@@ -4,6 +4,7 @@
 #
 #   scripts/asc-build-status.sh                 the newest build, once
 #   scripts/asc-build-status.sh --watch         every 60 s until it is VALID
+#   scripts/asc-build-status.sh --build N ...   that exact build number, not the newest
 #   scripts/asc-build-status.sh attach [id]     add a build to the internal group
 #   scripts/asc-build-status.sh detail [id]     what TestFlight makes of a build
 #   scripts/asc-build-status.sh compliance [id] answer the export-compliance question
@@ -11,6 +12,15 @@
 # An upload succeeding is not a build reaching a phone: App Store Connect takes
 # five to thirty minutes to process one, and only `processingState == VALID` says
 # it is installable. This asks, rather than making somebody watch a web page.
+#
+# **Name the build you mean.** Without `--build` (or `BUILD_NUMBER` in the
+# environment, which is what the Makefile already knows) this takes the newest
+# build App Store Connect *lists*, and a build just uploaded is not listed for
+# several minutes. So `--watch` straight after an upload found the build before
+# it, said VALID at once, and `attach` then put yesterday's build in front of the
+# testers while the new one was still processing. With a build number the wait is
+# for that number to appear at all and then to go VALID, which is the question
+# anybody running this after an upload was actually asking.
 #
 # The four build subcommands live here rather than in scripts of their own
 # because they are one conversation about one build. The token they all need is
@@ -23,6 +33,10 @@ APP_ID="${ASC_APP_ID:-6811136175}"   # Zephra Companion
 GROUP_ID="${ASC_GROUP_ID:-3ef9f46a-3906-4689-8d11-dbfcd73176cb}"   # the "Internal" beta group
 COMMAND=status
 BUILD_ID=""
+# The build number to wait for and act on -- CFBundleVersion, the UTC minute the
+# build started. BUILD_NUMBER is what `make testflight` stamped the archive with,
+# so `make testflight-status BUILD_NUMBER=... ARGS=--watch` needs no flag.
+WANT_BUILD="${BUILD_NUMBER:-}"
 WATCH=0
 INTERVAL="${ASC_POLL_INTERVAL:-60}"
 ATTEMPTS="${ASC_POLL_ATTEMPTS:-40}"  # 40 minutes at the default interval
@@ -30,6 +44,7 @@ ATTEMPTS="${ASC_POLL_ATTEMPTS:-40}"  # 40 minutes at the default interval
 while [ $# -gt 0 ]; do
     case "$1" in
         --watch) WATCH=1 ;;
+        --build) shift; WANT_BUILD="${1:?--build needs a build number}" ;;
         --app) shift; APP_ID="${1:?--app needs an Apple ID}" ;;
         --group) shift; GROUP_ID="${1:?--group needs a beta group id}" ;;
         -h|--help) sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
@@ -39,6 +54,14 @@ while [ $# -gt 0 ]; do
     shift
 done
 
+# A marketing version or a stray "v" here would match no build and look exactly
+# like a build that has not appeared yet, which is a forty-minute way to find out
+# about a typo.
+if [ -n "$WANT_BUILD" ] && ! printf '%s' "$WANT_BUILD" | grep -Eq '^[1-9][0-9]*$'; then
+    echo "asc-build-status: --build must be a build number, got '$WANT_BUILD'"
+    exit 1
+fi
+
 ASC_TOOL=asc-build-status
 # shellcheck disable=SC1091
 . "$(dirname "$0")/asc-api.sh"
@@ -47,13 +70,23 @@ API="$ASC_API/v1"
 WORK="$ASC_WORK"
 request() { asc_request "$@"; }
 
+# `filter[version]` on /v1/builds is the build number, not the marketing version,
+# so it names exactly one build. Without one, the newest build that is listed --
+# which, in the minutes after an upload, is the build before it.
 fetch() {
-    request GET "$API/builds?filter%5Bapp%5D=$APP_ID&sort=-uploadedDate&limit=1&include=preReleaseVersion"
+    if [ -n "$WANT_BUILD" ]; then
+        request GET "$API/builds?filter%5Bapp%5D=$APP_ID&filter%5Bversion%5D=$WANT_BUILD&limit=1&include=preReleaseVersion"
+    else
+        request GET "$API/builds?filter%5Bapp%5D=$APP_ID&sort=-uploadedDate&limit=1&include=preReleaseVersion"
+    fi
 }
 
 report() {
-    jq -r '
-      if (.data | length) == 0 then "asc-build-status: the app has no builds yet"
+    jq -r --arg want "$WANT_BUILD" '
+      if (.data | length) == 0 then
+        if $want == "" then "asc-build-status: the app has no builds yet"
+        else "asc-build-status: build \($want) is not listed yet"
+        end
       else
         (.data[0]) as $b
         | ((.included // [])[0].attributes.version // "?") as $v
@@ -63,12 +96,20 @@ report() {
 
 state() { jq -r '.data[0].attributes.processingState // "NONE"' < "$WORK/body"; }
 
-# Without an id, whichever build was uploaded last -- the one just sent up.
+# An id if one was given; otherwise the build `fetch` names -- the one `--build`
+# asked for, or whichever was uploaded last.
 resolve_build() {
     [ -n "$BUILD_ID" ] && return 0
     fetch || exit 1
     BUILD_ID=$(jq -r '.data[0].id // ""' < "$WORK/body")
-    [ -n "$BUILD_ID" ] || { echo "asc-build-status: the app has no builds yet"; exit 1; }
+    [ -n "$BUILD_ID" ] && return 0
+    if [ -n "$WANT_BUILD" ]; then
+        echo "asc-build-status: build $WANT_BUILD is not listed. Wait for it first:"
+        echo "      scripts/asc-build-status.sh --build $WANT_BUILD --watch"
+    else
+        echo "asc-build-status: the app has no builds yet"
+    fi
+    exit 1
 }
 
 # internalBuildState is what a tester's TestFlight shows: READY_FOR_BETA_TESTING
@@ -79,9 +120,22 @@ detail() {
         --arg b "$BUILD_ID" < "$WORK/body"
 }
 
+# A build that is still processing can be attached, and then nothing installs it
+# and nothing says why. Ask before, so an attach that is too early fails loudly
+# and names the wait that fixes it.
+require_valid() {
+    request GET "$API/builds/$BUILD_ID" || exit 1
+    processing=$(jq -r '.data.attributes.processingState // "NONE"' < "$WORK/body")
+    [ "$processing" = VALID ] && return 0
+    echo "asc-build-status: build $BUILD_ID is $processing, not VALID; nothing would install it."
+    echo "      Wait for it first: scripts/asc-build-status.sh${WANT_BUILD:+ --build $WANT_BUILD} --watch"
+    exit 1
+}
+
 case "$COMMAND" in
     attach)
         resolve_build
+        require_valid
         printf '{"data":[{"type":"builds","id":"%s"}]}' "$BUILD_ID" > "$WORK/attach.json"
         request POST "$API/betaGroups/$GROUP_ID/relationships/builds" "$WORK/attach.json" || exit 1
         echo "asc-build-status: build $BUILD_ID is in beta group $GROUP_ID"

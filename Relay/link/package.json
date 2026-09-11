@@ -1,0 +1,12 @@
+{
+  "name": "zephra-link-relay",
+  "version": "0.1.0",
+  "description": "The WebSocket relay the Zephra companion reaches a Mac through when neither end can see the other.",
+  "private": true,
+  "type": "module",
+  "main": "index.mjs",
+  "license": "SEE LICENSE IN ../../LICENSE",
+  "scripts": {
+    "test": "node --test test/"
+  }
+}

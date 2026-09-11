@@ -1,0 +1,371 @@
+name: Release
+
+# A push to main ships everything: the notarized Mac app to the download bucket, the
+# companion to TestFlight, and the link relay's Lambda. There is no manual step and no
+# version to type -- the version is 0.1.0 until further notice (AGENTS.md, "Build & run")
+# and what tells two builds apart is the build number, the UTC minute of the run. That
+# minute is computed once, in `gate`, and handed to the Mac and the phone alike, so one
+# push produces one build number everywhere.
+#
+# Everything runs through the Makefile, and nothing here does by hand what a target does:
+# the local path and the CI path are the same path, so a target that breaks breaks in
+# front of whoever changed it rather than a month later in a release nobody can cut.
+#
+# Two tiers of gate, because the whole suite is about an hour of Metal compilation and a
+# push should not wait for it. On every push: `doctor`, `lint-layers`, `test` (the
+# MLX-free packages), `relay-test` and `test-ios`, which is minutes. `test-app` and
+# `test-mlx` are the hour, and they run only behind `workflow_dispatch` with
+# `full_gates: true` -- run them that way before a change that touches MLX, and locally
+# before every merge, which is the standing rule they have always been under.
+#
+# Docs-only pushes ship nothing: `paths-ignore` covers `docs/**` and every `.md`, and
+# also `product-mockups/app/release.json`, which is the one file a release writes back
+# into the repository. That file and the `[skip ci]` in `release-commit`'s message are
+# two independent reasons a ship cannot start another ship.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'product-mockups/app/release.json'
+      - 'docs/**'
+      - '**.md'
+  workflow_dispatch:
+    inputs:
+      full_gates:
+        description: 'Also run make test-app and make test-mlx (about an hour)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# One release at a time, and never cancelled: a run that is half-way through notarization
+# or has already uploaded a DMG must be allowed to finish writing what it started.
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+env:
+  # No version bumps until further notice. The Makefile's own `ship` uses the same pair.
+  VERSION: 0.1.0
+
+jobs:
+  gate:
+    name: Gates
+    runs-on: macos-26
+    timeout-minutes: 240
+    outputs:
+      build_number: ${{ steps.stamp.outputs.build_number }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      # The UTC minute this run started, which is what every artifact of this run is
+      # stamped with. Computed once and passed on, so the Mac app and the TestFlight
+      # build carry the same number even when the jobs cross a minute boundary.
+      - name: Stamp the build number
+        id: stamp
+        run: |
+          set -euo pipefail
+          stamp=$(date -u +%Y%m%d%H%M)
+          echo "build_number=$stamp" >>"$GITHUB_OUTPUT"
+          echo "Zephra $VERSION ($stamp)"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      # Xcode 26 ships without the Metal toolchain and mlx-swift's kernels cannot compile
+      # without it; `make doctor` counts its absence as a failure, so it is installed even
+      # in the job that only lints and tests. The status check is doctor's own, so this is
+      # a no-op on an image that already has it.
+      - name: Install the Metal toolchain
+        run: |
+          set -euo pipefail
+          status=$(xcodebuild -showComponent MetalToolchain 2>/dev/null \
+            | awk -F': ' '/^Status/ { print $2 }')
+          if [ "$status" = "installed" ]; then
+            echo "Metal toolchain already installed"
+          else
+            echo "Metal toolchain status: ${status:-unknown}; downloading"
+            xcodebuild -downloadComponent MetalToolchain
+          fi
+
+      - name: Check prerequisites
+        run: make doctor
+
+      - name: Lint the module boundaries
+        run: make lint-layers
+
+      - name: Test ZephraKit
+        run: make test
+
+      - name: Test the link relay
+        run: make relay-test
+
+      # The phone, on whatever simulator this runner image happens to carry: `ios-sim.sh`
+      # asks the machine for its newest iPhone rather than pinning a name an image retires.
+      - name: Test the iOS app
+        run: make test-ios IOS_SIM="$(scripts/ios-sim.sh)"
+
+      - name: Test the app target
+        if: inputs.full_gates
+        run: make test-app
+
+      - name: Test the MLX packages
+        if: inputs.full_gates
+        run: make test-mlx
+
+  mac-release:
+    name: Notarize and publish the Mac app
+    needs: gate
+    runs-on: macos-26
+    timeout-minutes: 240
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      BUILD_NUMBER: ${{ needs.gate.outputs.build_number }}
+      DEVELOPER_ID_APPLICATION_P12_BASE64: ${{ secrets.DEVELOPER_ID_APPLICATION_P12_BASE64 }}
+      DEVELOPER_ID_APPLICATION_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_APPLICATION_P12_PASSWORD }}
+      APPLE_API_KEY_P8_BASE64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
+      NOTARY_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      NOTARY_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Install the Metal toolchain
+        run: |
+          set -euo pipefail
+          status=$(xcodebuild -showComponent MetalToolchain 2>/dev/null \
+            | awk -F': ' '/^Status/ { print $2 }')
+          if [ "$status" = "installed" ]; then
+            echo "Metal toolchain already installed"
+          else
+            echo "Metal toolchain status: ${status:-unknown}; downloading"
+            xcodebuild -downloadComponent MetalToolchain
+          fi
+
+      # Developer ID material into a keychain of this run's own, deleted at the end
+      # whatever happens. The notarization key is written where notarytool looks for it.
+      - name: Import signing credentials
+        env:
+          KEYCHAIN_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          certificate="$RUNNER_TEMP/developer-id-application.p12"
+          keychain="$RUNNER_TEMP/zephra-signing.keychain-db"
+          api_key_dir="$RUNNER_TEMP/app-store-connect-private-keys"
+          api_key="$api_key_dir/AuthKey_${NOTARY_KEY_ID}.p8"
+
+          /usr/bin/base64 -D <<<"$DEVELOPER_ID_APPLICATION_P12_BASE64" >"$certificate"
+          mkdir -p "$api_key_dir"
+          /usr/bin/base64 -D <<<"$APPLE_API_KEY_P8_BASE64" >"$api_key"
+          chmod 600 "$certificate" "$api_key"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security set-keychain-settings -lut 7200 "$keychain"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security import "$certificate" -k "$keychain" \
+            -P "$DEVELOPER_ID_APPLICATION_P12_PASSWORD" -A -t agg -f pkcs12
+          security set-key-partition-list -S apple-tool:,apple: -s \
+            -k "$KEYCHAIN_PASSWORD" "$keychain"
+          security list-keychains -d user -s "$keychain"
+
+          echo "NOTARY_KEY=$api_key" >>"$GITHUB_ENV"
+
+      # The bucket is written as the OIDC role, so there is no AWS profile to name:
+      # RELEASE_PROFILE is emptied and the aws CLI takes the environment's credentials,
+      # which is what the empty WEBSITE_PROFILE in the website workflow has always done.
+      - name: Assume the AWS role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # Build, sign, notarize, staple, upload, verify the public download, and rewrite
+      # product-mockups/app/release.json -- `notarized-release` then `release-upload`.
+      - name: Build, notarize and publish
+        run: |
+          make publish-release \
+            SIGNING_CONFIG=/dev/null \
+            RELEASE_PROFILE= \
+            VERSION="$VERSION" \
+            BUILD_NUMBER="$BUILD_NUMBER"
+
+      # The manifest the upload rewrote, for the commit job: it is the only file a
+      # release changes in the repository, and the job that commits it runs elsewhere.
+      - name: Keep the release manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-manifest
+          path: product-mockups/app/release.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Keep the notarized packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: Zephra-${{ env.VERSION }}-${{ needs.gate.outputs.build_number }}
+          path: |
+            build/Zephra.dmg
+            build/Zephra.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Remove signing keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/zephra-signing.keychain-db" || true
+
+  ios-testflight:
+    name: Upload the companion to TestFlight
+    needs: gate
+    runs-on: macos-26
+    timeout-minutes: 120
+    env:
+      BUILD_NUMBER: ${{ needs.gate.outputs.build_number }}
+      IOS_DIST_P12_BASE64: ${{ secrets.IOS_DIST_P12_BASE64 }}
+      IOS_DIST_P12_PASSWORD: ${{ secrets.IOS_DIST_P12_PASSWORD }}
+      ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      # The phone links no MLX package, so no Metal toolchain here.
+      #
+      # The Apple Distribution certificate comes from a secret rather than being issued
+      # on the runner: Apple caps a team at three distribution certificates and a runner
+      # is thrown away minutes later. `scripts/testflight-signing.sh` sees CI=true and so
+      # issues nothing -- it only fetches the ACTIVE App Store profile and installs it.
+      - name: Import the distribution certificate
+        env:
+          KEYCHAIN_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          certificate="$RUNNER_TEMP/ios-distribution.p12"
+          keychain="$RUNNER_TEMP/zephra-ios.keychain-db"
+
+          /usr/bin/base64 -D <<<"$IOS_DIST_P12_BASE64" >"$certificate"
+          chmod 600 "$certificate"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security set-keychain-settings -lut 7200 "$keychain"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security import "$certificate" -k "$keychain" \
+            -P "$IOS_DIST_P12_PASSWORD" -A -t agg -f pkcs12
+          security set-key-partition-list -S apple-tool:,apple: -s \
+            -k "$KEYCHAIN_PASSWORD" "$keychain"
+          security list-keychains -d user -s "$keychain"
+          rm -f "$certificate"
+
+      # The App Store Connect key, as a file, since that is what xcodebuild and the
+      # scripts' ES256 signing both take. SIGNING_CONFIG=/dev/null below is not a regular
+      # file, so nothing is sourced and these three are read from the environment.
+      - name: Write the App Store Connect key
+        run: |
+          set -euo pipefail
+          key_dir="$RUNNER_TEMP/asc-private-keys"
+          mkdir -p "$key_dir"
+          key="$key_dir/AuthKey_${ASC_KEY_ID}.p8"
+          /usr/bin/base64 -D <<<"$ASC_KEY_P8_BASE64" >"$key"
+          chmod 600 "$key"
+          echo "ASC_KEY_PATH=$key" >>"$GITHUB_ENV"
+
+      - name: Archive and upload to TestFlight
+        run: |
+          make testflight \
+            SIGNING_CONFIG=/dev/null \
+            VERSION="$VERSION" \
+            BUILD_NUMBER="$BUILD_NUMBER"
+
+      # An upload is not an installable build: App Store Connect takes five to thirty
+      # minutes to process one, and only processingState == VALID says a phone can have
+      # it. Then `attach` puts it in front of the internal testers, which is the whole
+      # point of the upload and the one step that was still done by hand.
+      #
+      # BUILD_NUMBER is passed explicitly, and it is load-bearing: a build just uploaded
+      # is not listed for some minutes, so without it the watch would answer about the
+      # build before this one -- VALID at once -- and the attach would hand the testers
+      # that older build. Named, both wait for this exact build.
+      - name: Wait for App Store Connect to process it
+        run: |
+          make testflight-status \
+            SIGNING_CONFIG=/dev/null BUILD_NUMBER="$BUILD_NUMBER" ARGS=--watch
+
+      - name: Give it to the internal testers
+        run: |
+          make testflight-status \
+            SIGNING_CONFIG=/dev/null BUILD_NUMBER="$BUILD_NUMBER" ARGS=attach
+
+      - name: Remove signing keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/zephra-ios.keychain-db" || true
+
+  relay-deploy:
+    name: Deploy the link relay
+    needs: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Assume the AWS role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # Terraform in the urandom.io repository owns the function; this owns what it runs.
+      # The target ends by opening a real socket to the public endpoint and checking that
+      # a `hello` comes back a `challenge`, so a relay that deploys but does not answer
+      # fails the run rather than waiting for a phone to find out.
+      - name: Deploy and smoke-test the relay
+        run: make relay-deploy RELAY_PROFILE=
+
+  release-commit:
+    name: Commit the release manifest
+    needs: mac-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      # main's tip rather than the pushed commit: the manifest is written on top of
+      # whatever is there now, and nothing else in the tree is staged.
+      - name: Check out main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Take the release manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: release-manifest
+          path: product-mockups/app
+
+      # `make release-commit` stages that one path, commits it naming the build, and
+      # pushes. Its message carries `[skip ci]`, which with the `paths-ignore` above is
+      # the second of two independent reasons this push starts no further run.
+      - name: Commit and push it
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          make release-commit

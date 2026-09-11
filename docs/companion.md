@@ -250,6 +250,21 @@ sealed frame and the relay has no key. The relay is a Lambda behind API Gateway;
 this package and that Lambda are two implementations of one contract, so the
 field names below are the relay's own and not ours.
 
+**The Lambda is in this repository**, at `Relay/link/` — `index.mjs`, a README
+stating the contract as the relay states it, and `test/`, which drives the
+handler the way API Gateway drives it against fakes for DynamoDB and the API
+Gateway management API (`make relay-test`, seconds, no AWS account). It lives
+here so that a change to the contract is one commit rather than two in two
+repositories drifting apart; nothing links it, and nothing in Swift may. `make
+relay-deploy` zips the one file, replaces the function's code, waits for it to
+settle and then opens a real socket to `wss://zephra-link.urandom.io` to check
+that `hello` comes back a `challenge`; CI runs that on every push to `main`
+(`docs/build-and-release.md`). Terraform in the urandom.io repository still owns
+the function, its role, the DynamoDB table, the API, the stage and the domain,
+and deliberately not the code: its `aws_lambda_function.link` ignores `filename`
+and `source_code_hash`, so an apply there cannot roll a deployed relay back to
+the bootstrap copy it keeps.
+
 A room is the lowercase hex of the first 16 bytes of `SHA-256` over the raw
 32-byte Ed25519 public key — `RoomID(signingPublicKey:)`, the one place that rule
 lives. The relay checks that the key hashes to the room **for a host only**.

@@ -100,10 +100,9 @@ Makefile targets:
   build carries `project.yml`'s defaults, which is what an ordinary build gets
   and where they are never bumped for a release. The app is unsandboxed and
   Developer ID only, never an App Store build. The release workflow
-  (`.github/workflows/notarized-release.yml`, dispatched by hand) is the same
-  path with the gates in front: `make doctor`, `make lint-layers`, `make test`,
-  `make test-app` and `make test-mlx`, then `make release` with the dispatch
-  input as `VERSION` and the run number as `BUILD_NUMBER`, then `make notarize`.
+  (`.github/workflows/release.yml`, on every push to `main`) is the same path
+  with the gates in front and the whole ship behind it; see Continuous
+  integration below.
 - `make notarize` — submit the ZIP, require Accepted, staple and verify the app,
   then rebuild both packages. Submit the signed DMG separately, staple it, and
   verify its ticket, image checksum, signature, and Gatekeeper assessment. It reads
@@ -301,10 +300,24 @@ How the companion reaches a phone. Two targets:
   seconds for forty minutes and exits when the build is valid. `ASC_APP_ID`
   (or `--app`) points it at an app record other than Zephra Companion's
   `6811136175`.
+- **Name the build.** `BUILD_NUMBER=<stamp>` on the make line, or `--build
+  <stamp>` on the script's, and the wait is for *that* build to appear and go
+  valid. Without one the script takes the newest build App Store Connect
+  **lists**, and a build just uploaded is not listed for several minutes: the
+  watch found the build before it, reported `VALID` immediately, and the
+  `attach` that followed put the previous build in front of the testers while
+  the new one was still processing. `filter[version]` on `/v1/builds` is the
+  build number, so a named build is one exact row; a build number that is not
+  there reads as "not listed yet" and the watch keeps waiting, while something
+  that is not a build number at all (a marketing version, a stray `v`) is
+  refused up front rather than waited on for forty minutes. CI passes the
+  number it archived.
 - The same script carries the three acts that follow a valid build, because
   they want the same token and a second copy of that ES256 minting is a second
-  place to get it wrong. Each takes a build id, or the newest build when given
-  none: `attach` adds it to the internal beta group (`ASC_GROUP_ID`, or
+  place to get it wrong. Each takes a build id, the build `--build` named, or
+  the newest build when given neither. `attach` refuses a build whose
+  `processingState` is not `VALID` — attaching one is allowed and then nothing
+  installs it and nothing says why — and adds it to the internal beta group (`ASC_GROUP_ID`, or
   `--group`, defaulting to the "Internal" group
   `3ef9f46a-3906-4689-8d11-dbfcd73176cb`) and then reports what TestFlight
   makes of it; `detail` reports that alone, the build's `internalBuildState`,
@@ -420,6 +433,130 @@ What James does by hand, once:
   owes an annual self-classification report to the US Bureau of Industry and
   Security, filed by hand; if App Store Connect ever asks for documentation,
   that key is the thing to revisit, not this recipe.
+
+
+## Continuous integration
+
+`.github/workflows/release.yml` is the whole of it, and it replaced
+`notarized-release.yml`, which had to be dispatched by hand and was never run end
+to end. It triggers on a push to `main` and, as a second door,
+`workflow_dispatch`. A push ships: there is no separate "release" gesture any
+more, and `make ship` is now the by-hand alternative rather than the way.
+
+**Every step is a Makefile target.** That is the rule the old workflow was
+written under and the reason it is kept: a CI that does by hand what a target
+does is a CI that drifts from the machine it was tested on, and the first anyone
+hears of it is a release that cannot be cut. If CI needs something new, it goes
+in the Makefile and a person can run it.
+
+### The jobs
+
+- **`gate`** (macos-26) — `make doctor`, `make lint-layers`, `make test`, `make
+  relay-test`, `make test-ios IOS_SIM="$(scripts/ios-sim.sh)"`. It also computes
+  the build number, `date -u +%Y%m%d%H%M`, once, and publishes it as a job
+  output. One push is one build number: the Mac app and the TestFlight build
+  carry the same stamp even when the jobs cross a minute boundary.
+- **`mac-release`** (macos-26, after `gate`) — the Developer ID material from
+  secrets into a keychain of the run's own, then `make publish-release
+  SIGNING_CONFIG=/dev/null RELEASE_PROFILE= VERSION=0.1.0 BUILD_NUMBER=<stamp>`,
+  which is `notarized-release` and then `release-upload`. The bucket is written
+  as the OIDC role, so `RELEASE_PROFILE` is emptied and the aws CLI takes the
+  environment's credentials — the same thing the empty `WEBSITE_PROFILE` in the
+  website workflow has always done. It keeps the DMG, the ZIP and the rewritten
+  `product-mockups/app/release.json` as artifacts.
+- **`ios-testflight`** (macos-26, after `gate`) — the Apple Distribution
+  certificate from `IOS_DIST_P12_BASE64` into a temporary keychain, the App Store
+  Connect key written to a file, then `make testflight`, `make testflight-status
+  ARGS=--watch` and `ARGS=attach`, all with `BUILD_NUMBER` named.
+- **`relay-deploy`** (ubuntu-latest, after `gate`) — `make relay-deploy
+  RELAY_PROFILE=`. No Mac needed: it is a Lambda code update and a smoke test.
+- **`release-commit`** (ubuntu-latest, after `mac-release`) — takes the manifest
+  artifact, puts it on main's tip and runs `make release-commit`, the only job
+  with `contents: write`.
+
+### Why a docs push ships nothing
+
+`paths-ignore` covers `docs/**`, every `**.md` and
+`product-mockups/app/release.json`. A push whose every changed file matches does
+not start the workflow at all, so editing this file does not notarize an app.
+`release-commit`'s message also carries `[skip ci]`, which is the second and
+independent reason a ship cannot start another ship: the manifest path alone
+would be enough, and it is belt and braces because a loop here costs a
+notarization every time round. `concurrency: release-main` with
+`cancel-in-progress: false` is the third safeguard — a run half-way through
+notarization or with a DMG already uploaded is never cancelled by the next push.
+
+### The two tiers of gate
+
+`make test-app` and `make test-mlx` are about an hour, most of it compiling MLX's
+Metal kernels twice. They are not on the push path. Run them with
+`workflow_dispatch` and `full_gates: true` before merging anything that touches
+MLX or the app target — and locally before every merge, which is the standing
+rule and has not changed. What a push does run is minutes: the MLX-free packages,
+the layer lint, the relay's own suite and the companion's.
+
+### The credentials
+
+Repository **secrets**, all set already:
+
+| secret | what it is |
+| --- | --- |
+| `DEVELOPER_ID_APPLICATION_P12_BASE64` | the Developer ID Application certificate and key |
+| `DEVELOPER_ID_APPLICATION_P12_PASSWORD` | its passphrase |
+| `APPLE_API_KEY_P8_BASE64` | the notarization key (`.p8`) |
+| `APPLE_API_KEY_ID`, `APPLE_API_ISSUER_ID` | that key's ids |
+| `ASC_KEY_P8_BASE64`, `ASC_KEY_ID`, `ASC_ISSUER_ID` | the App Store Connect key, Admin, for TestFlight |
+| `IOS_DIST_P12_BASE64`, `IOS_DIST_P12_PASSWORD` | the Apple Distribution certificate and key |
+
+Repository **variables**: `AWS_REGION`, `AWS_ROLE_ARN` (the OIDC role
+`github-actions-zephra`, `arn:aws:iam::042506291754:role/service-role/github-actions-zephra`),
+`ZEPHRA_ASSETS_BUCKET`, `ZEPHRA_ASSETS_HOST`.
+
+There is no AWS access key anywhere. `aws-actions/configure-aws-credentials`
+exchanges the run's OIDC token for the role, whose trust policy pins the
+repository; the role grants the assets bucket, the two CloudFront distributions
+and — as of this change — `lambda:UpdateFunctionCode`, `lambda:GetFunction` and
+`lambda:GetFunctionConfiguration` on the `zephra-link` function alone. Not
+`UpdateFunctionConfiguration`: the runtime, memory, timeout and environment are
+Terraform's, and a deploy able to change them would be a deploy able to take the
+relay off the table it reads.
+
+`SIGNING_CONFIG=/dev/null` is how the scripts are told there is no `signing.env`:
+it is not a regular file, so nothing is sourced and the `ASC_*` variables are
+read from the environment. The scripts also let the environment win over the file
+where both exist, which is what makes a local dry run of the CI path possible.
+
+`scripts/testflight-signing.sh` takes a different branch when `CI` is set: it
+issues no certificate and writes no `.p12`, and only fetches the ACTIVE App Store
+profile and installs it. Apple caps a team at three distribution certificates,
+and spending one on a runner that is deleted minutes later is not a trade worth
+making; a missing or inactive profile fails the job and says to run `make
+testflight` once on the Mac that holds the signing material.
+
+### Diagnosing a failed run
+
+```
+gh run list --workflow release.yml --limit 5
+gh run view <id> --log-failed
+```
+
+`--log-failed` prints only the failing steps' logs, which for a two-hour run is
+the difference between reading a page and reading a book. The usual suspects, in
+the order they happen:
+
+- `make doctor` failing means the runner image moved — Xcode, or the Metal
+  toolchain the workflow installs before it.
+- A notarization that hangs is Apple's queue, not the workflow; the step's own
+  timeout is what ends it.
+- `publish-download.sh` refusing a key that "already exists with different
+  bytes" means two runs produced the same UTC minute. Re-run; the next minute is
+  a different number.
+- `testflight` failing at export is nearly always signing: read
+  `testflight-signing`'s own lines first, since they say whether the profile was
+  found and whether the identity was in the keychain.
+- `relay-deploy` failing at the smoke test means the code went up and the relay
+  does not answer — which is exactly when to look, since the previous code is
+  already gone.
 
 
 ## Tests

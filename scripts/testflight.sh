@@ -36,13 +36,26 @@ SIGNING="$(dirname "$0")/testflight-signing.sh"
 
 # Sourced the way signed-build sources it, so a machine can keep its credentials in
 # Documents rather than in the environment of whatever shell make was run from.
+#
+# The environment wins over the file, matching `scripts/asc-api.sh`: CI exports
+# the three from repository secrets and runs with SIGNING_CONFIG=/dev/null, which
+# is not a regular file and so is not sourced at all, while a Mac has the file and
+# usually nothing in its environment. The one case the order decides is a Mac with
+# both, where what was exported on purpose should be what is used.
 SIGNING_CONFIG="${SIGNING_CONFIG:-$HOME/Documents/Zephra Signing/signing.env}"
+given_key_path="${ASC_KEY_PATH:-}"
+given_key_id="${ASC_KEY_ID:-}"
+given_issuer_id="${ASC_ISSUER_ID:-}"
 if [ -f "$SIGNING_CONFIG" ]; then
     set -a
     # shellcheck disable=SC1090
     . "$SIGNING_CONFIG"
     set +a
 fi
+if [ -n "$given_key_path" ]; then ASC_KEY_PATH="$given_key_path"; fi
+if [ -n "$given_key_id" ]; then ASC_KEY_ID="$given_key_id"; fi
+if [ -n "$given_issuer_id" ]; then ASC_ISSUER_ID="$given_issuer_id"; fi
+export ASC_KEY_PATH ASC_KEY_ID ASC_ISSUER_ID
 
 missing=""
 for name in ASC_KEY_PATH ASC_KEY_ID ASC_ISSUER_ID; do

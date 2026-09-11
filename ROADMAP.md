@@ -4,13 +4,17 @@ What Zephra should build next, in order, and what was deliberately left out of t
 work already done. The order was set on 3 September 2026 after FLUX.2 klein and
 reference-picture editing landed; the survey behind it lives in the session notes.
 
-Standing decisions: no CI on pull requests (`make test` and `make test-mlx` are the
-gate, run locally before every merge). The one workflow,
-`.github/workflows/notarized-release.yml`, is a manually dispatched release build,
-gated: it runs `make doctor`, `make lint-layers`, `make test`, `make test-app` and
-`make test-mlx` before it signs, and takes the version from its dispatch input and
-the build number from the run number. It has not yet been run end to end. Nothing
-is distributed until the app is ready to ship.
+Standing decisions: **a push to `main` ships.**
+`.github/workflows/release.yml` gates, notarizes and publishes the Mac app,
+uploads the companion to TestFlight and deploys the link relay, every step a
+Makefile target, with no manual step and no version to type. Pull requests are
+still ungated: the gate is local, before every merge. The push gate is the
+minutes' worth — `doctor`, `lint-layers`, `test`, `relay-test`, `test-ios`;
+`test-app` and `test-mlx` are the hour and run under `workflow_dispatch` with
+`full_gates: true`, and locally before a merge as they always have.
+`deploy-website.yml` stays manual, because production goes out when James says
+so. See "Build & run" in AGENTS.md and the CI section of
+`docs/build-and-release.md`.
 
 ## Next steps, in order
 

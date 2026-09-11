@@ -297,10 +297,16 @@ certificate. Notarization accepts `NOTARY_KEY`, `NOTARY_KEY_ID`, and
 Keep credentials outside the repository. See [Build & run](AGENTS.md#build--run)
 for the full setup.
 
-The manual [Notarized Release workflow](.github/workflows/notarized-release.yml)
-runs prerequisite, layer, and test checks before signing. It takes a version
-input, uses the workflow run number as the build number, and uploads DMG and ZIP
-artifacts. It does not run on pushes or publish a GitHub release.
+The [Release workflow](.github/workflows/release.yml) runs on every push to
+`main` and does the whole ship with no manual step: prerequisite, layer and test
+checks, then the notarized Mac app to the download bucket, the companion to
+TestFlight, and the link relay's Lambda, in parallel, then a commit of the one
+release manifest. Every step is a Makefile target. The version stays `0.1.0` and
+the build number is the UTC minute of the run, computed once and used everywhere.
+A push touching only docs or Markdown ships nothing; the hour-long `test-app` and
+`test-mlx` suites run under `workflow_dispatch` with `full_gates: true`. It does
+not publish a GitHub release, and it does not deploy the website, which stays a
+manual dispatch.
 
 ## License
 

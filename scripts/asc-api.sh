@@ -25,14 +25,28 @@ ASC_TOOL="${ASC_TOOL:-asc}"
 
 # Reads the signing config, refuses a partial key by name, and opens the private
 # working directory the token and every response body live in.
+#
+# The environment wins over the file. A Mac keeps the three in
+# `~/Documents/Zephra Signing/signing.env`; CI has no such file (it runs with
+# SIGNING_CONFIG=/dev/null, which is not a regular file and so is not sourced)
+# and hands them in from repository secrets instead. Sourcing as it stands would
+# put a file's copy over a variable somebody deliberately exported, so whatever
+# was already set is put back afterwards.
 asc_load_credentials() {
     SIGNING_CONFIG="${SIGNING_CONFIG:-$HOME/Documents/Zephra Signing/signing.env}"
+    asc_given_key_path="${ASC_KEY_PATH:-}"
+    asc_given_key_id="${ASC_KEY_ID:-}"
+    asc_given_issuer_id="${ASC_ISSUER_ID:-}"
     if [ -f "$SIGNING_CONFIG" ]; then
         set -a
         # shellcheck disable=SC1090
         . "$SIGNING_CONFIG"
         set +a
     fi
+    if [ -n "$asc_given_key_path" ]; then ASC_KEY_PATH="$asc_given_key_path"; fi
+    if [ -n "$asc_given_key_id" ]; then ASC_KEY_ID="$asc_given_key_id"; fi
+    if [ -n "$asc_given_issuer_id" ]; then ASC_ISSUER_ID="$asc_given_issuer_id"; fi
+    export ASC_KEY_PATH ASC_KEY_ID ASC_ISSUER_ID
 
     missing=""
     for name in ASC_KEY_PATH ASC_KEY_ID ASC_ISSUER_ID; do

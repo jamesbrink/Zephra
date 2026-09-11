@@ -257,6 +257,40 @@ ensure_profile() {
         "$(jq -r '.data.attributes.name' < "$ASC_WORK/body")"
 }
 
+# On a CI runner there is no certificate to issue and no decision to make. The
+# workflow has already imported the distribution certificate from a secret into a
+# keychain it deletes at the end, and the profile is whatever App Store Connect
+# holds: issuing here would spend one of the team's three certificates on a
+# machine that is thrown away minutes later, and the .p12 and its passphrase
+# would be written to a runner's disk. So CI only fetches the ACTIVE profile and
+# installs it, and says plainly when there is not one -- making a profile is a
+# person's job on the Mac that holds the signing material.
+ci_install_profile() {
+    has_identity || {
+        say "no Apple Distribution identity in the keychain. CI imports one from"
+        say "IOS_DIST_P12_BASE64 before running this; see docs/build-and-release.md."
+        exit 1
+    }
+    encoded=$(printf '%s' "$PROFILE_NAME" | jq -sRr @uri)
+    asc_request GET "$API/profiles?filter%5Bname%5D=$encoded" || exit 1
+    state=$(jq -r '.data[0].attributes.profileState // ""' < "$ASC_WORK/body")
+    if [ "$state" != ACTIVE ]; then
+        say "the \"$PROFILE_NAME\" profile is ${state:-not there}; CI does not make one."
+        say "Run 'make testflight' once on the Mac that holds the signing material,"
+        say "which issues or replaces it, then run this workflow again."
+        exit 1
+    fi
+    install_profile "$(jq -r '.data[0].attributes.profileContent' < "$ASC_WORK/body")" "$PROFILE_NAME"
+    say "ready: manual signing with \"Apple Distribution\" and \"$PROFILE_NAME\""
+    exit 0
+}
+
+# GitHub Actions sets CI=true, as does every other runner worth naming.
+case "${CI:-}" in
+    ""|false|0) ;;
+    *) ci_install_profile ;;
+esac
+
 ensure_certificate
 ensure_profile
 say "ready: manual signing with \"Apple Distribution\" and \"$PROFILE_NAME\""

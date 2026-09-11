@@ -275,8 +275,16 @@ testflight: archive-ios
 # What App Store Connect did with it. An upload is not an installable build: processing takes
 # five to thirty minutes and only processingState == VALID says a phone can have it. ARGS is
 # passed through, so `make testflight-status ARGS=--watch` waits instead of asking once.
+#
+# Say which build. BUILD_NUMBER is handed to the script, which waits for that exact build to
+# appear and go VALID; without it the script takes the newest build App Store Connect *lists*,
+# and for the first minutes after an upload that is the build before this one -- a watch that
+# returns VALID at once and an attach that hands the testers the wrong build. CI passes the
+# number it archived; by hand it is `make testflight-status BUILD_NUMBER=<stamp> ARGS=--watch`,
+# the stamp being what `archive-ios` printed.
 testflight-status:
-	SIGNING_CONFIG="$(SIGNING_CONFIG)" ./scripts/asc-build-status.sh $(ARGS)
+	SIGNING_CONFIG="$(SIGNING_CONFIG)" BUILD_NUMBER="$(BUILD_NUMBER)" \
+	  ./scripts/asc-build-status.sh $(ARGS)
 
 # The booted simulator, as a PNG under build/. The Mac's `screenshot` takes a window by its
 # CoreGraphics id; a simulator has one screen, so this takes that.
@@ -648,6 +656,42 @@ deploy-production: website-build
 	WEBSITE_DISTRIBUTION="$(WEBSITE_DISTRIBUTION)" WEBSITE_URL="$(WEBSITE_URL)" \
 	./scripts/deploy-website.sh
 
+# The link relay: the Lambda a phone reaches this Mac through when neither end can
+# see the other. Its code lives in `Relay/link` (see that README), and Terraform in the
+# urandom.io repository owns everything around it -- the function, the table, the API,
+# the domain -- but not what the function runs, which is why its `aws_lambda_function`
+# ignores `filename` and `source_code_hash`. Deploying it is a code update and nothing
+# else, so it needs no Mac and rides on ubuntu-latest in CI.
+#
+# RELAY_PROFILE is the local AWS profile; CI leaves it empty, since the OIDC role is
+# already the environment's credentials, exactly as WEBSITE_PROFILE does.
+RELAY_FUNCTION ?= zephra-link
+RELAY_WSS      ?= wss://zephra-link.urandom.io
+RELAY_PROFILE  ?= dev.urandom.io
+RELAY_REGION   ?= us-west-2
+RELAY_ZIP      := $(BUILD)/relay-link.zip
+.PHONY: relay-test relay-deploy
+# Seconds, no network and no AWS account: the relay against fakes for DynamoDB and the
+# API Gateway management API. Part of the push gate, so a broken relay never deploys.
+relay-test:
+	node --test Relay/link/test
+
+# The deployment package is one file -- the AWS SDK comes from the Lambda runtime -- so
+# there is no build step and nothing to install. `wait function-updated` is not optional:
+# update-function-code returns while the function is still InProgress, and the smoke test
+# would then be answered by the copy being replaced.
+relay-deploy: relay-test
+	@mkdir -p "$(BUILD)"
+	@rm -f "$(RELAY_ZIP)"
+	zip -j -q "$(RELAY_ZIP)" Relay/link/index.mjs
+	aws lambda update-function-code --function-name "$(RELAY_FUNCTION)" \
+	  --zip-file "fileb://$(RELAY_ZIP)" \
+	  $(if $(RELAY_PROFILE),--profile "$(RELAY_PROFILE)") --region "$(RELAY_REGION)" \
+	  --no-cli-pager --query 'LastUpdateStatus' --output text
+	aws lambda wait function-updated --function-name "$(RELAY_FUNCTION)" \
+	  $(if $(RELAY_PROFILE),--profile "$(RELAY_PROFILE)") --region "$(RELAY_REGION)"
+	node Relay/link/smoke.mjs "$(RELAY_WSS)"
+
 # macOS-only: validates notarization before upload, then verifies the public download.
 RELEASE_PROFILE ?= dev.urandom.io
 # What `publish-download.sh` rewrites with the URL, version, build and SHA-256 of the upload,
@@ -694,6 +738,6 @@ release-commit:
 	stamp=$$(python3 -c 'import json;print(json.load(open("$(RELEASE_MANIFEST)"))["build"])'); \
 	branch=$$(git rev-parse --abbrev-ref HEAD); \
 	git add "$(RELEASE_MANIFEST)" && \
-	git commit -m "chore(release): publish Zephra-0.1.0-$$stamp" && \
+	git commit -m "chore(release): publish Zephra-0.1.0-$$stamp [skip ci]" && \
 	git push origin "$$branch" && \
 	echo "release-commit: pushed $$branch"
