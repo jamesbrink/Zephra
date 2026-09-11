@@ -291,7 +291,10 @@ by concern like `GenerationStore`, holding the snapshot the deltas edit, the
 newest preview and the library it has been told about. `LinkKeyStore` and
 `LinkRoads` are injected, so the whole session is tested over a road that never
 leaves the process; the phone reconnects on foreground and after a close on
-`LinkBackoff`'s one, two, four, eight seconds, capped at thirty.
+`LinkBackoff`'s one, two, four, eight seconds, capped at thirty. Everything
+sealed leaves through one `AsyncStream<Data>` on `LinkSession`, drained by a
+writer task, and `send` is synchronous: a frame's nonce is its position in the
+stream, so no await may sit between taking the counter and queueing the bytes.
 
 Full detail: `docs/companion.md`.
 

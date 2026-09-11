@@ -51,11 +51,11 @@ extension LinkClient {
     ///
     /// The announcement first for the reason the Mac sends one: the far end can refuse a blob
     /// it does not want before any of it is read.
-    func sendBlob(_ bytes: Data, mime: String) async throws -> UUID {
+    func sendBlob(_ bytes: Data, mime: String) throws -> UUID {
         let start = BlobStart(byteCount: bytes.count, mime: mime)
-        try await send(.envelope(try Envelope.encoding(start, kind: .blobStart)))
+        try send(.envelope(try Envelope.encoding(start, kind: .blobStart)))
         for chunk in BlobChunker.chunks(of: bytes, blobID: start.blobID) {
-            try await send(.chunk(chunk))
+            try send(.chunk(chunk))
         }
         return start.blobID
     }

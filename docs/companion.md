@@ -487,6 +487,15 @@ person's time and lose the sentence the Mac wrote for them. `pair(with:)` is the
 same walk carrying the code's secret, and it saves the `PairedHost` only once a
 handshake has succeeded.
 
+Everything sealed leaves through one `AsyncStream<Data>` on the `LinkSession`,
+drained by a writer task of its own — the Mac's shape, for the Mac's reason. The
+channel's nonce is a frame's position in the stream, so a frame's counter must be
+taken in the order the frames go out; sealing on a task per request left two
+requests, or a request and the pong an incoming ping asks for, free to take two
+counters and reach the socket the other way round, which the far end cannot open
+and never recovers from. `LinkSession.send(_:)` is synchronous for exactly that:
+no await between taking the counter and queueing the bytes.
+
 The session loop reads `frames()`, opens each through the `SecureChannel` and
 dispatches by kind. The reader starts **before** the first plaintext message goes
 out, not after the handshake: the Mac's answer can be on its way back before this

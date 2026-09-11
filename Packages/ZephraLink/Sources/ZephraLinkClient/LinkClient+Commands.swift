@@ -11,7 +11,7 @@ extension LinkClient {
     public func enqueue(_ request: GenerationRequest, reference: Data? = nil) async throws -> UUID {
         var outgoing = request
         if let reference {
-            let blobID = try await sendBlob(reference, mime: "image/png")
+            let blobID = try sendBlob(reference, mime: "image/png")
             outgoing = GenerationRequest(
                 modelID: request.modelID, count: request.count, settings: request.settings,
                 referenceBlobID: blobID)

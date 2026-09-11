@@ -7,6 +7,12 @@ import ZephraLinkProtocol
 /// the session?" by identity: a road that fails while another is already being opened must not
 /// tear the new one down. `channel` is nil until the handshake finishes, which is also what
 /// says a frame arriving now is one of the three plaintext ones.
+///
+/// Everything sealed goes out through one `AsyncStream<Data>` drained by a writer task of its
+/// own, which is the Mac's shape for the Mac's reason: the channel's nonce is a frame's position
+/// in the stream, so the order frames are sealed in must be the order they leave in. Sealing and
+/// yielding are one step on the main actor, with no await between them, so two requests and an
+/// answered ping cannot interleave and leave the far end unable to open what arrives.
 @MainActor
 final class LinkSession {
     /// The road underneath.
@@ -22,10 +28,25 @@ final class LinkSession {
     /// Whoever is waiting for the next plaintext frame.
     var handshakeWaiter: CheckedContinuation<Data, any Error>?
 
-    /// Opens a session over one road.
+    private let outbound: AsyncStream<Data>
+    private let sink: AsyncStream<Data>.Continuation
+    private var writer: Task<Void, Never>?
+
+    /// Opens a session over one road, with its writer already draining.
     init(road: any LinkConnection, kind: LinkRoad) {
         self.road = road
         self.kind = kind
+        (outbound, sink) = AsyncStream.makeStream(bufferingPolicy: .unbounded)
+        writer = Self.writerTask(road: road, outbound: outbound)
+    }
+
+    /// Seals one frame and hands it to the writer, in one step.
+    ///
+    /// Synchronous on purpose: an await between taking the counter and queueing the bytes is
+    /// exactly where a second caller could take the next counter and reach the socket first.
+    func send(_ frame: Frame) throws {
+        guard let channel else { throw LinkClientError.notConnected }
+        sink.yield(try channel.seal(frame))
     }
 
     /// Hands one plaintext frame to whoever is waiting, or keeps it until someone is.
@@ -48,11 +69,28 @@ final class LinkSession {
     func end(_ error: any Error) async {
         reader?.cancel()
         reader = nil
+        sink.finish()
+        await writer?.value
+        writer = nil
         channel?.close()
         if let waiter = handshakeWaiter {
             handshakeWaiter = nil
             waiter.resume(throwing: error)
         }
         await road.close()
+    }
+
+    /// The writer: one task per session, draining the stream in the order it was sealed in.
+    ///
+    /// A send that fails closes the road rather than reporting: the reader is the one place a
+    /// session is torn down, and a closed road is what it notices.
+    private static func writerTask(
+        road: any LinkConnection, outbound: AsyncStream<Data>
+    ) -> Task<Void, Never> {
+        Task.detached(priority: .utility) {
+            for await bytes in outbound {
+                do { try await road.send(bytes) } catch { return await road.close() }
+            }
+        }
     }
 }

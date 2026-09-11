@@ -37,7 +37,7 @@ extension LinkClient {
             guard let error = decode(LinkError.self, from: envelope) else { return }
             received(error, inReplyTo: envelope.inReplyTo)
         case .ping:
-            Task { try? await self.send(.envelope(Envelope(kind: .pong, body: Data("{}".utf8)))) }
+            try? send(.envelope(Envelope(kind: .pong, body: Data("{}".utf8))))
         case .pong:
             break
         case .hello, .accept, .confirm, .request:

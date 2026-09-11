@@ -15,20 +15,17 @@ extension LinkClient {
         return try await withCheckedThrowingContinuation { continuation in
             pending[envelope.id] = continuation
             timers[envelope.id] = expire(envelope.id, after: LinkClient.requestTimeout)
-            Task { [weak self] in
-                guard let self else { return }
-                do { try await self.send(.envelope(envelope)) } catch {
-                    self.fail(envelope.id, with: error)
-                }
-            }
+            // Sealed and queued here rather than on a task of its own: the counter a frame is
+            // sealed under is its position in the stream, and a task per request is two requests
+            // taking two counters and reaching the socket in whichever order they are scheduled.
+            do { try send(.envelope(envelope)) } catch { fail(envelope.id, with: error) }
         }
     }
 
-    /// One sealed frame out.
-    func send(_ frame: Frame) async throws {
-        guard let session, let channel = session.channel else { throw LinkClientError.notConnected }
-        let bytes = try channel.seal(frame)
-        try await session.road.send(bytes)
+    /// One sealed frame out, through the session's one writer.
+    func send(_ frame: Frame) throws {
+        guard let session else { throw LinkClientError.notConnected }
+        try session.send(frame)
     }
 
     /// The reply to one request, which is what closes it.
