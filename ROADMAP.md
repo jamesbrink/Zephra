@@ -576,3 +576,20 @@ Left out of the first pass on purpose, each a small change to one file unless no
   lasts two minutes, showing it again is the whole remedy. Watching
   `NWPathMonitor` to re-open the road is a real improvement only once somebody
   reports a Mac that stopped answering after moving networks.
+- **The phone cannot ask for a chained clip.** `DurationControl` offers one
+  pass's lengths only. Longer clips are a chain of passes the Mac plans itself
+  (`ChainPlan`), which lives in `ZephraEngine`, and the phone may not link that;
+  the honest fixes are either a `chainedFrames` bound on `CapabilitiesSummary`,
+  computed once on the Mac, or moving `ChainPlan` down into `ZephraCore` beside
+  the capabilities it reads. Neither is worth doing before somebody asks for a
+  ten-second clip from a sofa.
+- **`SeedFormat` is spelled twice.** The phone's `SeedLabel` is
+  `SeedFormat.hex`'s spelling, copied, because `SeedFormat` and `shortSeedLabel`
+  live in `ZephraEngine` and the phone links `ZephraCore`. They are pure
+  functions over a `UInt64` and belong in `ZephraCore` beside `SeedEntry`, which
+  already moved for exactly this reason; the move touches seven files in the Mac
+  target and was left for a change that is already opening them.
+- **Nothing on the phone saves a picture to the camera roll.** `Photos` is
+  linked and the fetched bytes are in hand, so it is a menu item and a
+  permission string, but the canvas has no such menu yet; it belongs with the
+  library surface's own share and export, not beside the capsule.

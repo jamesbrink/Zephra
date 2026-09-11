@@ -79,14 +79,15 @@ Four directories, by what a file is, the way the Mac's target is laid out.
 - `Style/` — `MobileChrome`, and only what has no counterpart on the Mac: the
   prompt sheet's heights, the room the tab bar takes, the side margin. Anything
   a radius, a hairline or a wash could be belongs in `Packages/ZephraStyle`.
-- `Views/` — one subfolder per surface. `CanvasScreen`, `TodayScreen` and
-  `LibraryScreen` are placeholders that already show the one fact the snapshot
-  knows about them, so the tabs, the paired state and the frozen previews are
-  exercised from the first commit; each is replaced from the inside as its
-  surface is built. `SurfacePlaceholder` is what they all draw. `SettingsScreen`
-  is real: `PairedMacRow`, `ConnectionRow`, `CacheRow` and `AboutRow`, a row to
-  a file, so a later agent replaces one of them rather than editing a screen
-  around it.
+- `Views/` — one subfolder per surface. `Canvas/` and `Capsule/` are the two
+  halves of the first one built: what the Mac is making, and what asks it for
+  more. `TodayScreen` and `LibraryScreen` are still placeholders that show the
+  one fact the snapshot knows about them, so the tabs, the paired state and the
+  frozen previews are exercised whatever is built; `SurfacePlaceholder` is what
+  they draw, and each is replaced from the inside as its surface is built.
+  `SettingsScreen` is real: `PairedMacRow`, `ConnectionRow`, `CacheRow` and
+  `AboutRow`, a row to a file, so a later agent replaces one of them rather than
+  editing a screen around it.
 
 ### `LinkClient`, and how it stays connected
 
@@ -148,6 +149,107 @@ a `DecodingError` complaining about an unexpected end of file, which is not a
 sentence to put in front of anybody. `PairingEntry.message(for:)` is the one
 that goes on screen, for a refusal from the far end as much as for a bad code.
 
+## Canvas and capsule
+
+The canvas is the surface the app opens on, and it is two things: what the Mac
+is making, and the capsule that asks it for more.
+
+### `PromptDraft`, the phone's capsule
+
+`Support/PromptDraft.swift` is `@MainActor @Observable`, built once by the
+composition root beside the client and injected with it. It holds
+`GenerationSettings` — the Mac's own type — the model the next press names, the
+reference picture as PNG bytes and the shape they came out at, and how many
+seeds one press is worth.
+
+It is the one object on the phone that holds something the Mac did not say, and
+that is exactly the line: a draft is a request being composed, never a fact
+about the Mac. The facts stay on `LinkClient`.
+
+- `adopt(_ snapshot:)` seeds the model and its defaults, **the first snapshot
+  only**. Every snapshot after it would land on a prompt somebody is in the
+  middle of typing.
+- `request(clampedBy:)` rebuilds the real `ModelCapabilities` from
+  `CapabilitiesSummary` and runs the Mac's own `clamp`. The phone therefore asks
+  for what the Mac would have allowed, rather than for something the Mac quietly
+  rewrites while the controls go on showing what was asked for. The picture is
+  put back into the settings just long enough to be clamped, since `clamp` is
+  what drops it for a model that reads none; `GenerationRequest` strips the
+  bytes on the way out, because a picture crosses as a blob.
+- `choose(_ model:)` puts steps, guidance, strength and length on the new
+  model's ladder, which is `GenerationSettings.onSchedule(of:)`'s rule: a number
+  inside both models' bounds survives clamping while meaning something else on
+  the other side of it. The prompt, the size and the seed carry over.
+- `adopt(_ picture:origin:fitting:)` is where **the size follows the picture**,
+  the same rule as the Mac's `useAsReference`: on a model that makes clips the
+  frame becomes the picture's own shape at the pixel budget in force
+  (`ModelCapabilities.size(matchingAspectOf:budget:)`), because a clip is the
+  picture moving; a model that makes pictures leaves the size alone.
+
+### What the canvas shows
+
+`CanvasPicture` follows the Mac's order of precedence. A run showing its frames
+beats a finished picture, because what the model is doing now is what somebody
+picked the phone up to see: `client.preview` through `LivePreviewView`, the
+JPEG letterboxed into the run's own aspect at `.medium` interpolation, since a
+frame is an estimate and should not pretend to be the print. Before the first
+frame lands, `RunPlaceholderView` — the safelight card, the system's spinner and
+the Mac's own word for the phase. Otherwise the newest history entry's picture,
+through `ItemPicture` and `PictureCache`, or `ClipPicture` and AVKit's
+`AVPlayerViewController` for a clip, looped and muted unless the asset itself
+says it has a track.
+
+A fetch has three states and not two (`FetchPhase`): a picture that is not
+coming says so, because a blank square reads as a bug rather than as a link that
+is down. `PictureCache` is an actor holding a dozen decoded pictures, so a walk
+to the library and back does not fetch a megabyte again over what may be a
+relay, and nothing is decoded on the main actor.
+
+Neither the placeholder nor anything else on this surface animates. The ban is
+the Mac's, for the Mac's reason, and `make lint-layers` covers both targets.
+
+### The capsule
+
+`PromptCapsule` sits in the canvas's bottom safe area, **not** in a sheet: a
+sheet covers the tab bar, and the four surfaces have to stay one tap apart
+while a prompt is being typed. Collapsed it is one line of prompt and the
+button, which is what a phone in a pocket is for. Expanded it is the Mac's
+capsule, read top to bottom instead of left to right — the editor and the well,
+the negative prompt, the settings, the count and the button.
+
+Every control is drawn from the capabilities and hidden by the same rules the
+Mac follows, and each re-checks the bounds itself: when the model changes, a
+control's body can be re-evaluated with the new bounds before the row above
+takes it away, and a `Slider` over a single value stops the app, which is how
+the Mac once crashed on a model switch.
+
+- `SizeMenu` over `SizeOptions.grouped(capabilities:reference:)`, the Mac's
+  `SizeChoice.grouped` rule: presets by `SizeTier`, the well's picture's shape
+  leading each tier at that tier's cost, "Custom Size…" into a sheet that reads
+  `SizeEntry`.
+- `StepsControl` as a stepper where the count is a choice, `GuidanceControl`
+  where the model responds to guidance, `DurationControl` where `frameBounds` is
+  a range, `ReferenceStrengthControl` only while there is a picture and the
+  bounds are a real range, with `ReferenceRole`'s own sentence under it.
+- `SeedControl` spells the seed as `SeedFormat.hex` does and reads one back
+  through `SeedEntry`. `CountControl` is `GenerationRequest.countBounds`, read
+  from the protocol rather than written down again.
+- `ReferenceWell` captions itself from `ReferenceRole`, so a clip's first frame
+  is called a first frame here as it is there. Two doors, one rule:
+  `PhotosPicker` for the camera roll and `ReferencePickerSheet` for the Mac's own
+  library, both through `ReferenceAdoption`, which encodes off the main actor
+  with `ReferenceImageEncoder` — ImageIO, PNG, 1024 pixels an edge.
+
+`GenerateButton` is enabled on three things: a live session, `acceptsWork`, and
+a prompt. A refusal is the Mac's own sentence under the button rather than an
+alert, since an alert over a phone's canvas hides the picture it is about. While
+the Mac is rendering, Stop replaces it. Offline, the last picture stays and the
+capsule says so in one line, because everything on the screen is still the last
+thing the Mac said.
+
+What this surface deliberately leaves out — a chained clip's lengths, a picture
+saved to the camera roll — is in `ROADMAP.md`.
+
 ## Frozen preview states
 
 The same mechanism as the Mac's `InterfacePreview`, in the same shape, so a
@@ -158,7 +260,8 @@ once, in `MobilePreview`, `#if DEBUG` only.
 | --- | --- |
 | `pairing` | no Mac paired: the pairing screen over nothing |
 | `ready` | paired and idle, on the canvas |
-| `generating` | paired, four steps into a nine-step ladder |
+| `generating` | paired, four steps into a nine-step ladder, with a frame of it in |
+| `capsule` | paired and idle, with the capsule showing every control the model has |
 | `library` | paired, opened on the library |
 | `offline` | paired, the connection `.offline`: everything is the last thing known |
 | `settings` | paired, opened on the settings surface |
@@ -177,7 +280,12 @@ code on purpose: a fixture that decodes is proof the DTOs still read what a Mac
 would send, which a Swift literal could never be, and `PreviewFixtureTests` is
 that proof run on every build. The one state the fixture cannot hold is the
 mid-run one, since a frozen step count goes stale the moment the numbers move:
-`MobilePreview.midRun` swaps the engine state and the running entry in.
+`MobilePreview.midRun` swaps the engine state and the running entry in, and
+`MobilePreview.frame` draws the preview frame that rides beside it — a gradient
+made with `UIGraphicsImageRenderer`, since a photograph of one particular run
+saved in the bundle would prove nothing about a canvas that draws whatever
+arrives. `capsule` is `ready` with `MobilePreview.capsuleIsExpanded` true, which
+is the only way to photograph the settings: a screenshot build cannot tap.
 
 ## Running it
 

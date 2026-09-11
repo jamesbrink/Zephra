@@ -676,6 +676,25 @@ US-spelling check.
   `NetworkLinkRoads`, and `LinkReconnect` (`Support/`) drives it — `connect()` on
   `scenePhase == .active`, `disconnect()` on `.background`, and `LinkBackoff`
   between a failure or a dropped session and the next attempt, while active.
+- `PromptDraft` (`Support/`) is the phone's capsule: the settings, the model, the
+  picture in the well and the seeds one press is worth, injected beside the
+  client and the one object here holding something the Mac did not say. It seeds
+  itself from the **first** snapshot only and clamps every request through the
+  Mac's own `ModelCapabilities`, rebuilt from `CapabilitiesSummary`, so the phone
+  asks for what the Mac would have allowed rather than for what the Mac then
+  quietly rewrites. Taking a picture into the well runs the Mac's
+  size-follows-the-picture rule — on a clip model the frame becomes the
+  picture's own shape at the pixel budget in force
+  (`ModelCapabilities.size(matchingAspectOf:budget:)`), a picture model leaves
+  the size alone — which is `useAsReference`'s rule, shared because both ends
+  read the same capabilities.
+- The canvas is `Views/Canvas/` and `Views/Capsule/`: the run's frames while
+  there is a run (`LivePreviewView`, then `RunPlaceholderView` before the first
+  one), otherwise the newest picture or clip, with the capsule in the bottom
+  safe area rather than in a sheet, which would cover the tab bar. Every control
+  is drawn and hidden by the capabilities the way `ControlsRow` is, `SeedEntry`
+  and `SizeEntry` read what is typed, `ReferenceRole` captions the well, and a
+  refusal is the Mac's own sentence under Generate rather than an alert.
 - `PairingEntry.parse` is the one parser all three pairing doors go through —
   the camera (VisionKit, hidden where there is none), the paste field (always
   there), a `zephra://pair` link. Everything it throws is a `LinkError` with a
@@ -683,7 +702,7 @@ US-spelling check.
   screen sends people to **Settings > Companion** on the Mac, which is where the
   code is.
 - `MobilePreview` is `InterfacePreview`'s shape for the phone:
-  `ZEPHRA_PREVIEW_STATE=pairing|ready|generating|library|offline|settings`,
+  `ZEPHRA_PREVIEW_STATE=pairing|ready|generating|capsule|library|offline|settings`,
   Debug only, over two JSON fixtures decoded with the wire's own decoder. Every
   state but `pairing` is a `LinkClient.frozen`, which has no road under it;
   nothing reconnects behind one.
