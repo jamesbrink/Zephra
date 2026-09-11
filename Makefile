@@ -149,7 +149,7 @@ VERSION      ?=
 BUILD_NUMBER ?=
 VERSION_FLAGS := $(if $(VERSION),MARKETING_VERSION=$(VERSION)) $(if $(BUILD_NUMBER),CURRENT_PROJECT_VERSION=$(BUILD_NUMBER))
 
-.PHONY: doctor gen build run run-fresh bench quantize quantize-qwen quantize-flux2 quantize-ltx2 quantize-ltx2-audio quantize-wan mirror mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-ltx2 mirror-ltx2-audio mirror-wan mirror-index mirror-sync prefetch prefetch-qwen prefetch-flux2 prefetch-ltx2 prefetch-wan open clean lint-layers lint-size vendored-diff logs screenshot screenshot-ios test test-app test-mlx test-backend test-ios build-ios run-ios archive-ios testflight icon signed-build release notarize notarized-release
+.PHONY: doctor gen build run run-fresh bench quantize quantize-qwen quantize-flux2 quantize-ltx2 quantize-ltx2-audio quantize-wan mirror mirror-z-image mirror-qwen mirror-flux2-4bit mirror-flux2-8bit mirror-ltx2 mirror-ltx2-audio mirror-wan mirror-index mirror-sync prefetch prefetch-qwen prefetch-flux2 prefetch-ltx2 prefetch-wan open clean lint-layers lint-size vendored-diff logs screenshot screenshot-ios test test-app test-mlx test-backend test-ios build-ios run-ios archive-ios testflight testflight-status icon signed-build release notarize notarized-release
 
 # What a fresh Mac needs before `make build` can work, each with its fix printed.
 doctor:
@@ -268,6 +268,12 @@ archive-ios: gen
 # soon as App Store Connect finishes processing it.
 testflight: archive-ios
 	SIGNING_CONFIG="$(SIGNING_CONFIG)" ./scripts/testflight.sh "$(IOS_ARCHIVE)" "$(IOS_EXPORT)"
+
+# What App Store Connect did with it. An upload is not an installable build: processing takes
+# five to thirty minutes and only processingState == VALID says a phone can have it. ARGS is
+# passed through, so `make testflight-status ARGS=--watch` waits instead of asking once.
+testflight-status:
+	SIGNING_CONFIG="$(SIGNING_CONFIG)" ./scripts/asc-build-status.sh $(ARGS)
 
 # The booted simulator, as a PNG under build/. The Mac's `screenshot` takes a window by its
 # CoreGraphics id; a simulator has one screen, so this takes that.

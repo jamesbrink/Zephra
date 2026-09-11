@@ -278,6 +278,15 @@ How the companion reaches a phone. Two targets:
   exports the archive through `scripts/ExportOptions-testflight.plist`. The
   method is `app-store-connect` and the destination is `upload`, so the build
   goes straight up and no `.ipa` is left behind to be sent by hand.
+- `make testflight-status` — what App Store Connect has done with the newest
+  build: its marketing version, its build number and its `processingState`,
+  through `scripts/asc-build-status.sh`, which mints an ES256 token from the
+  same `ASC_*` key the upload uses. An upload succeeding is not a build
+  reaching a phone: processing takes five to thirty minutes and only `VALID`
+  is installable, so `make testflight-status ARGS=--watch` asks every 60
+  seconds for forty minutes and exits when the build is valid. `ASC_APP_ID`
+  (or `--app`) points it at an app record other than Zephra Companion's
+  `6811136175`.
 
 **It is a TestFlight upload and never an App Store submission.** Releasing a
 build to the store is a separate act performed in App Store Connect; nothing
@@ -302,21 +311,26 @@ All three or none. `scripts/testflight.sh` refuses by name and says where the
 key is made rather than letting `xcodebuild` complain about a missing issuer
 id, which says nothing useful. They are kept apart from the `NOTARY_*` key the
 Mac's notarization uses: that one is scoped for notarization, and an upload
-wants a key with the App Manager role. `archive-ios` passes them too when they
-are set — Xcode
-takes a developer account from its Accounts settings *or* from a key on the
-command line, and with neither it stops at "No Accounts: Add a new account in
-Accounts settings" before a line is compiled.
+wants a key that can sign, which is the Admin role. `archive-ios` passes them
+too when they are set — Xcode takes a developer account from its Accounts
+settings *or* from a key on the command line, and with neither it stops at
+"No Accounts: Add a new account in Accounts settings" before a line is compiled.
 
 What James does by hand, once:
 
 - An App Store Connect app record for `io.zephra.ZephraMobile`, named Zephra,
   under team `28X9H69QGE`. The bundle identifier is already what the target
   builds.
-- An API key with the **App Manager** role (App Store Connect > Users and
+- An API key with the **Admin** role (App Store Connect > Users and
   Access > Integrations), its `.p8` saved beside the Developer ID material and
   its key id and issuer id written into `signing.env`. A `.p8` is downloadable
-  exactly once.
+  exactly once. App Manager is not enough: the export has no distribution
+  certificate of its own and asks Xcode's cloud signing for one, and a key
+  below Admin is refused it — `Cloud signing permission error`, `You haven't
+  been given access to cloud-managed distribution certificates`, and then `No
+  profiles for 'io.zephra.ZephraMobile' were found`, which reads like a missing
+  profile and is not one. Signing in to Xcode with the Account Holder's Apple
+  ID is the other way to the same access.
 - The phone added to internal testing in App Store Connect, on the build's
   group. Internal TestFlight needs **no review** — a build reaches the testers
   as soon as App Store Connect finishes processing it, which is minutes.

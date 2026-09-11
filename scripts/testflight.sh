@@ -48,7 +48,9 @@ if [ -n "$missing" ]; then
     echo "        ASC_KEY_ID=<key id>"
     echo "        ASC_ISSUER_ID=<issuer id>"
     echo "      The key is made in App Store Connect > Users and Access > Integrations,"
-    echo "      with the App Manager role. See docs/build-and-release.md, TestFlight."
+    echo "      with the Admin role -- App Manager cannot reach the cloud-managed"
+    echo "      distribution certificate the export signs with. See"
+    echo "      docs/build-and-release.md, TestFlight."
     exit 1
 fi
 [ -f "$ASC_KEY_PATH" ] || { echo "testflight: no API key at $ASC_KEY_PATH"; exit 1; }
