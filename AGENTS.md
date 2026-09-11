@@ -23,8 +23,9 @@ entry), behind one backend seam.
 | The phone | `make build-ios`, `make run-ios` (`PREVIEW=<state>`), `make test-ios` |
 | The phone, to TestFlight | `make testflight` (`archive-ios` first; needs the `ASC_*` key in `signing.env`) |
 
-What trips a first session: `swift build` and `swift test` work only in
-`Packages/ZephraKit`, because everything else links mlx-swift and its Metal
+What trips a first session: `swift build` and `swift test` work only in the
+MLX-free packages, `Packages/ZephraKit`, `Packages/ZephraLink` and
+`Packages/ZephraStyle`, because everything else links mlx-swift and its Metal
 kernels need `xcodebuild`; a test filter matches *type* names, never `@Suite`
 display names; tests are Swift Testing, never XCTest; and on this volume use
 `/bin/ls`, since the shell's `ls` function can hang.
@@ -100,7 +101,7 @@ Shared, by what a file actually touches:
                                                   packer, and the one descriptor build every
                                                   family runs through it
   ZephraLink/ZephraLinkProtocol    Foundation, CryptoKit, ZephraCore, ZephraEngine — the wire
-                                                  the Mac and a future iOS app both speak: the
+                                                  the Mac and the phone both speak: the
                                                   frames, the state snapshot and its deltas, the
                                                   commands, a Noise-style channel, the QR
                                                   pairing payload and the relay's JSON; no
@@ -114,8 +115,8 @@ Shared, by what a file actually touches:
   ZephraLink/ZephraLinkClient      Foundation, Observation, ZephraLinkProtocol,
                                                   ZephraLinkTransport — LinkClient, the one
                                                   object the phone's views observe, over an
-                                                  injected LinkRoads and LinkKeyStore; nothing
-                                                  links it yet
+                                                  injected LinkRoads and LinkKeyStore;
+                                                  Sources/ZephraMobile is what links it
   ZephraMLXKit/ZephraMLX           MLX, MLXNN, ZephraCore — the packed loader, the manifest
                                                   reader, the rotary table, the pixel packer,
                                                   the tiled decode, the allocator's knobs and
@@ -227,7 +228,7 @@ Code rules:
 
 Run `make lint-layers` before every commit. It fails on forbidden imports across
 the layers above (`ZephraLink`'s by an allow-list rather than a ban), on any
-repeating animation in the app target, on `hoverWash` used anywhere but under
+repeating animation in either app target, on `hoverWash` used anywhere but under
 `allowsHitTesting(false)`, on British spelling in user-facing string literals
 (except `LibraryScope`'s persisted `"favourites"`), and on the type-name ban.
 `make lint-size` is advisory only: it lists files over 150 lines. The
@@ -237,14 +238,14 @@ Full detail: `docs/architecture.md`.
 
 ## The companion link
 
-`Packages/ZephraLink/Sources/ZephraLinkProtocol` is the protocol a phone app will
-talk to this Mac over: two frame kinds, a state snapshot and its deltas, the
+`Packages/ZephraLink/Sources/ZephraLinkProtocol` is the protocol the phone talks
+to this Mac over: two frame kinds, a state snapshot and its deltas, the
 commands a phone may send, a Noise-style handshake on CryptoKit with an AES-GCM
 channel counted per direction, the QR pairing payload, and the relay's routing
 JSON. Every way the responder turns a device away before it is authenticated is
 the same `LinkError.notPaired` and the same sentence, which names no Mac and does
 not say whether a code is on screen: two answers there were two oracles. No transport and no interface are in it, so both ends are tested in
-milliseconds without a socket. Nothing links it yet.
+milliseconds without a socket — `cd Packages/ZephraLink && swift test`.
 
 Three rules it is built on. A preview frame never rides inside a state update —
 `EngineStateDTO` is scalars, and previews have a message kind of their own. A
@@ -541,8 +542,8 @@ Five directories, by what a file is rather than what screen it is on:
 - `Companion/` — everything the link needs that is the Mac's rather than the
   protocol's: `LinkKeychain` (the identity and the pairings), `CompanionThumbnails`,
   `CompanionEndpoints`, `CompanionRoads`, `RelayRoad` and `PairingQRCode`. The one
-  place outside `ZephraApp.swift` that may import `ZephraLinkTransport`, since a
-  road is what it opens.
+  place in the app target that may import `ZephraLinkTransport`, since a road is
+  what it opens; `ZephraApp.swift` itself takes only `ZephraLinkHost`.
 - `Views/` — one subfolder per surface; the capsule, its controls, the
   commands and Settings sit at the top because they belong to no surface.
 
@@ -701,8 +702,8 @@ US-spelling check.
 - `ZephraMobileApp` is the only file that knows how a Mac is reached: it builds
   the one client over `MobileKeychain` (`LinkKeyStore` on two generic passwords
   under `io.zephra.link`, after first unlock and this device only) and
-  `NetworkLinkRoads`, and `LinkReconnect` (`Support/`) drives it — `connect()` on
-  `scenePhase == .active`, `disconnect()` on `.background`, and `LinkBackoff`
+  `NetworkLinkRoads`, and `LinkReconnect` (`Support/`) drives it — `begin()` on
+  `scenePhase == .active`, `end()` on `.background`, and `LinkBackoff`
   between a failure or a dropped session and the next attempt, while active.
 - `PromptDraft` (`Support/`) is the phone's capsule: the settings, the model, the
   picture in the well and the seeds one press is worth, injected beside the
@@ -1040,7 +1041,8 @@ checks each and prints the fix.
 
 `Zephra.xcodeproj` is generated from `project.yml` and gitignored; never edit
 it. mlx-swift's Metal kernels need `xcodebuild`: `swift build` and `swift test`
-work only in `Packages/ZephraKit`. The first Release build compiles the kernels
+work only in the MLX-free packages, `Packages/ZephraKit`, `Packages/ZephraLink`
+and `Packages/ZephraStyle`. The first Release build compiles the kernels
 and takes minutes. Benchmark and make performance claims against Release only.
 
 Makefile targets:
@@ -1055,6 +1057,11 @@ Makefile targets:
 - `test` — `swift test` in `Packages/ZephraKit`, no MLX. `test-app` —
   `ZephraTests` hosted in the Debug app. `test-mlx` — every package in
   `MLX_PACKAGES` (`directory:scheme`); `test-backend` is an alias.
+- `build-ios` — the companion for the simulator, Debug only, since there is
+  nothing to benchmark on a phone that renders nothing. `run-ios` — that,
+  booted and launched (`PREVIEW=<state>` freezes it in one). `test-ios` —
+  `ZephraMobileTests` hosted in it. `screenshot-ios` — the simulator's window.
+  `IOS_SIM` names the simulator; `scripts/ios-sim.sh` finds one.
 - `archive-ios` — the phone's Release archive into
   `build/ZephraMobile.xcarchive`, signed automatically, stamped 0.1.0 and the
   UTC minute because App Store Connect refuses a build number it has seen.
@@ -1062,7 +1069,8 @@ Makefile targets:
   TestFlight build, through `scripts/ExportOptions-testflight.plist` and
   `scripts/testflight.sh`, which sources `signing.env` for `ASC_KEY_PATH`,
   `ASC_KEY_ID` and `ASC_ISSUER_ID` and refuses by name without all three.
-  Never an App Store submission.
+  Never an App Store submission. `testflight-status` — what App Store Connect
+  did with it; `ARGS=--watch` waits rather than asking once.
 - `lint-layers` — the gate, before every commit. `lint-size` — advisory list
   of files over 150 lines.
 - `icon` — resize the approved masters in `design/branding/zephyr/`; never
@@ -1131,7 +1139,15 @@ sentences about behaviour.
 
 - `make test` — `ZephraCoreTests`, `ZephraSnapshotTests`, `ZephraEngineTests`,
   `ZephraMediaTests`; seconds, no Metal. Anything testable without Metal
-  belongs here.
+  belongs here. `CompanionHost`'s own suites are in `ZephraEngineTests`, not
+  beside the host: what they drive is `EngineTestBed` and `MockBackend`.
+- `cd Packages/ZephraLink && swift test` — the wire, the roads and the phone's
+  client, over doubles rather than a socket; seconds, and not in `make test`,
+  which stays inside `Packages/ZephraKit`.
+- `make test-ios` — `ZephraMobileTests`, hosted in the companion on the
+  simulator `IOS_SIM` names. Seconds once the app is built; the first build is
+  minutes, since `ZephraCore` and the protocol compile for the simulator from
+  scratch.
 - `make test-app` — `Tests/ZephraTests`, hosted in the Debug app
   (`@testable import Zephra`; Release turns testability off). Pure interface
   logic, nothing that needs a window. The scheme sets
@@ -1494,6 +1510,17 @@ environment value.
 - `make screenshot` photographs the window by its CoreGraphics id and fails
   rather than grabbing the screen when there is no window; `WINDOW=<title>`
   takes the window with that title (a Settings window is titled after its tab).
+  A frozen Mac build opens no road at all: `startCompanion` refuses while
+  `InterfacePreview.requestedState` is set, so a screenshot build is never on
+  the network.
+- The phone has the same switch and a shorter list:
+  `make run-ios PREVIEW=<state>` passes `SIMCTL_CHILD_ZEPHRA_PREVIEW_STATE` to
+  the simulator, and `MobilePreviewState` is
+  `pairing|ready|generating|capsule|library|viewer|today|offline|settings` —
+  which surface is up and whether the wire is live, since there is no engine
+  here to freeze. Every state but `pairing` is a `LinkClient.frozen` with no
+  road under it. `make screenshot-ios` photographs the simulator; see
+  `docs/mobile.md`.
 - `swift scripts/ax-press.swift "<title>" [role]` presses a control by
   `AXTitle` or `AXDescription` through the accessibility tree without
   activating the app or moving the mouse, or, for a Form `Toggle` with

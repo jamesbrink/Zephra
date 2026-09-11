@@ -12,6 +12,13 @@ Sources/Zephra (SwiftUI app) ─→ ZephraEngine ─→ ZephraCore, ZephraSnapsh
                              ─→ ZephraUpscale<Network> ─→ ZephraCore, ZephraMLX
                                                           [imported in ZephraApp.swift ONLY]
                              ─→ ZephraStyle ─→ ZephraCore
+                             ─→ ZephraLinkHost ─→ ZephraCore, ZephraEngine,
+                                                   ZephraLinkProtocol
+                             ─→ ZephraLinkTransport ─→ ZephraLinkProtocol
+                                                   [Companion/ only, to open a road]
+Sources/ZephraMobile (iOS)   ─→ ZephraCore, ZephraLinkProtocol, ZephraLinkTransport,
+                                ZephraLinkClient, ZephraStyle
+                                [never a backend, MLX, ZephraEngine or AppKit]
 Sources/ZephraBench (tool)   ─→ ZephraCore, every ZephraBackend<Family>
 Sources/ZephraQuantize (tool)─→ ZephraCore, ZephraSnapshot, ZephraQuantization,
                                 every ZephraBackend<Family>
@@ -24,9 +31,34 @@ Shared, by what a file actually touches:
                                                   (`MP4Writer`), which a video backend takes
                                                   for its clip; the app never reads it, its
                                                   player is AVKit's over the file
+  ZephraKit/ZephraLinkHost     Foundation, Observation, ImageIO, CoreGraphics, os,
+                                                  ZephraCore, ZephraEngine,
+                                                  ZephraLinkProtocol — the Mac's side of the
+                                                  link: CompanionHost, the sessions a paired
+                                                  phone talks through, the projections that
+                                                  turn the store and the index into what
+                                                  crosses, and the JPEG a preview frame
+                                                  becomes. No UI framework and no road
   ZephraKit/ZephraTestSupport  Foundation, ZephraCore — Scratch, the filesystem test
                                                   fixture, and SnapshotUnderTest, the real
                                                   snapshot a kit's suite may read
+  ZephraLink/ZephraLinkProtocol    Foundation, CryptoKit, ZephraCore, ZephraEngine — the wire
+                                                  the Mac and the phone both speak: the
+                                                  frames, the state snapshot and its deltas, the
+                                                  commands, a Noise-style channel, the QR
+                                                  pairing payload and the relay's JSON; no
+                                                  transport and no interface
+  ZephraLink/ZephraLinkTransport   Foundation, Network, os, ZephraLinkProtocol — the roads:
+                                                  TCPConnection and TCPListener behind a
+                                                  four-byte length, the listener's own Bonjour
+                                                  advertisement and BonjourBrowser, and the
+                                                  relay's RelayConnection and RelayListener,
+                                                  which serves one guest at a time
+  ZephraLink/ZephraLinkClient      Foundation, Observation, ZephraLinkProtocol,
+                                                  ZephraLinkTransport — LinkClient, the one
+                                                  object the phone's views observe, over an
+                                                  injected LinkRoads and LinkKeyStore;
+                                                  Sources/ZephraMobile is what links it
   ZephraStyle                  SwiftUI, ZephraCore — the chrome both apps draw with:
                                                   ZephraChrome's radii, hairlines and
                                                   heights, the washes, the palette's colour
@@ -215,6 +247,18 @@ Shared, by what a file actually touches:
   app target goes through `ZephraEngine` and `ZephraCore`.
 - No backend package may import another backend package, or a build for one
   family drags in every other family's pipeline.
+- `Packages/ZephraLink` is the one package an iOS app links too, so what it may
+  import is a short allow-list rather than a short ban: Foundation-level
+  frameworks, `ZephraCore`, `ZephraEngine` and itself. `ZephraEngine` is there
+  for `GenerationRecord` and `LibraryAnnotation` alone, which cross the wire as
+  themselves rather than as a second shape of the same provenance. Its three
+  targets stack in one direction only — `ZephraLinkProtocol`, then
+  `ZephraLinkTransport`, then `ZephraLinkClient` — so the wire is tested without
+  a socket and the client without a network. See `docs/companion.md`.
+- `Sources/ZephraMobile` links the value layer, the wire and the chrome and
+  nothing else: no engine, no folder on disk, no backend, and no AppKit, which
+  would compile on nothing and mean the file was written for the wrong app. See
+  `docs/mobile.md`.
 
 Code rules:
 
@@ -232,7 +276,7 @@ Code rules:
 Run `make lint-layers` before every commit. It greps for forbidden imports
 across the layers above and fails the build if any are found, and beside those
 it enforces four smaller rules that had each drifted at least once: no repeating
-animation in the app target, `hoverWash` named only where `allowsHitTesting(false)`
+animation in either app target, `hoverWash` named only where `allowsHitTesting(false)`
 keeps it off a button, US spelling in user-facing string literals, and the
 `Manager`/`Helper`/`Utils`/`Service` type-name ban with `PromptLayoutManager` as
 its one documented exception. The spelling rule matches whole lines rather than

@@ -27,7 +27,7 @@ texts appear once per license type at the end of this file.
 - **Copyright:** Copyright (c) 2023 ml-explore
 - **License:** MIT
 - **Used as:** the Metal/MLX runtime every pipeline is built on, a dependency
-  of `ZImageKit`, `QwenImageKit`, `Flux2Kit`, `LTX2Kit`, `ZephraMLXKit`, the four
+  of `ZImageKit`, `QwenImageKit`, `Flux2Kit`, `LTX2Kit`, `WanKit`, `ZephraMLXKit`, the five
   backend packages, and `ZephraUpscaleRealESRGAN`. It compiles the following libraries
   into the same binary:
   - **mlx** — https://github.com/ml-explore/mlx — Copyright © 2023 Apple

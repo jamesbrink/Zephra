@@ -1,7 +1,7 @@
 # The companion link
 
 `Packages/ZephraLink` is three targets. `ZephraLinkProtocol` is the wire the Mac
-app and a future iOS app both speak: no transport and no interface are in it, so
+app and the iOS companion both speak: no transport and no interface are in it, so
 both ends are tested in milliseconds without a socket. `ZephraLinkTransport` is
 the roads under it — TCP and Bonjour on the local network, the relay's WebSocket
 from anywhere — and `ZephraLinkClient` is the phone's side over one of those, the
@@ -248,20 +248,21 @@ connection index is eventually consistent.
 
 A `send` is forwarded verbatim, the `a` field included, so the receiver sees the
 same JSON the sender wrote and extra fields survive the trip. A host's frame goes
-to every guest in the room; a guest's goes to the host alone. `d` is opaque to
+to the room's one guest; a guest's goes to the host alone. `d` is opaque to
 the relay, which is not a trust boundary: the payload is a sealed frame.
 
 A `peer` event fires on a disconnect in both directions — a host leaving notifies
-every guest, a guest leaving notifies the host — and both say `left`.
+its guest, a guest leaving notifies the host — and both say `left`.
 
 An `error` during the handshake, or on a frame from a connection that has not
 joined, is followed by the relay closing the connection. An error on a joined
 connection leaves it open. The handshake's reasons are `malformed`, `bad room`,
 `bad role`, `bad key`, `no challenge`, `challenge expired`, `bad signature`,
-`room does not match key`, `bad allow`, and the three a guest may meet: `no host`
-(the Mac is not in its room), `room busy` (its one guest slot is taken) and `not
-allowed` (this device is not on the list). A joined connection may also be told
-`not host` (a guest sent an `allow`), `bad allow`, `malformed` or `unknown
+`room does not match key`, `bad allow`, `malformed`, `not joined` and `too many
+hellos`, and the three a guest may meet: `no host` (the Mac is not in its room),
+`room busy` (its one guest slot is taken) and `not allowed` (this device is not
+on the list). A joined connection may also be told `not host` (a guest sent an
+`allow`), `bad allow`, `bad payload`, `already joined`, `malformed` or `unknown
 action`, and stays open.
 
 `RelayError` tells the guest's three apart, and `NetworkLinkRoads.connectRelay`

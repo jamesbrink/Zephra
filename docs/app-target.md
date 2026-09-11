@@ -29,7 +29,7 @@ directory's `Models` and `Images` in place of Application Support and
 `~/Pictures/Zephra`. The Hugging Face cache is deliberately not redirected: it is a
 read-only fallback a real new Mac may equally have. `make run-fresh` asks for it.
 
-Four directories, by what a file is rather than what screen it is on:
+Five directories, by what a file is rather than what screen it is on:
 
 - `Style/` — the chrome. The tokens themselves are one package up, in
   `Packages/ZephraStyle` (SwiftUI and `ZephraCore`, macOS and iOS), because the
@@ -141,6 +141,15 @@ Four directories, by what a file is rather than what screen it is on:
   that would run is not the one resident, read against an arbitrary target
   rather than only `store.descriptor`, since Animate's tooltip has to say
   this before Animate has been pressed and the clip model chosen.
+- `Companion/` — everything the link needs that is the Mac's rather than the
+  protocol's: `LinkKeychain` (this Mac's identity and its pairings, in two
+  generic passwords), `CompanionThumbnails` (the baked thumbnail a phone asks
+  for, read through the app's own folder), `CompanionEndpoints` (the addresses
+  a QR code names), `CompanionRoads` (the LAN listener) and `RelayRoad` (the
+  relay's), and `PairingQRCode`. It is the one place in the app target that may
+  import `ZephraLinkTransport`, since a road is what it opens; `ZephraApp.swift`
+  itself takes only `ZephraLinkHost`, which knows nothing of sockets. See
+  `docs/companion.md`.
 - `Views/` — one subfolder per surface (`Canvas/`, `Library/`,
   `Library/Inspector/`, `Library/Viewer/`, `ReferencePicker/`, `Sidebar/`,
   `Sidebar/Timeline/`, `Toolbar/`); the prompt capsule, its controls, the

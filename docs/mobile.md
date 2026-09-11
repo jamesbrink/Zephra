@@ -38,9 +38,12 @@ Sources/ZephraMobile -> ZephraCore, ZephraLinkProtocol, ZephraLinkTransport,
   Mac is drawn from. The two apps look like one program because they are drawn
   from one set of numbers.
 
-Three system frameworks are linked by name: `AVKit` for a clip fetched from the
+Four system frameworks are linked by name: `AVKit` for a clip fetched from the
 Mac, `VisionKit` for the pairing scanner, `Photos` for saving a picture to the
-camera roll.
+camera roll, and `PhotosUI` for `PhotosPicker`, the camera-roll door into the
+reference well — its own framework and not part of `Photos`, because the picker
+runs out of process, so the app never asks for a photo permission of its own and
+only the picture somebody chose crosses.
 
 `ZephraLinkProtocol` depends on `ZephraEngine`, which depends on
 `ZephraSnapshot`, so both compile for iOS as well. Three places in them reached
@@ -121,12 +124,12 @@ The composition root builds exactly one, and it is the only file that knows:
 - **Which roads.** `NetworkLinkRoads(relayURL:identity:)` over
   `wss://zephra-link.urandom.io`, with `UIDevice.current.name` as the name the
   Mac is shown while somebody decides whether to let this phone in.
-- **When to reach.** `LinkReconnect` (`Support/`) owns one task: `connect()` on
-  `scenePhase == .active`, `disconnect()` on `.background`, and after a failure
+- **When to reach.** `LinkReconnect` (`Support/`) owns one task: `begin()` on
+  `scenePhase == .active`, `end()` on `.background`, and after a failure
   or a session that dropped, `LinkBackoff`'s one, two, four, eight seconds capped
   at thirty until one works — the count reset by a live session and by the app
-  coming to the front. `connect()` is idempotent, so nothing here keeps a flag of
-  its own; the loop watches a live session at `heartbeat` rather than waking on
+  coming to the front. Both call the client's own `connect()` and `disconnect()`,
+  and `connect()` is idempotent, so nothing here keeps a flag of its own; the loop watches a live session at `heartbeat` rather than waking on
   an observation, because the sequence that would do that is iOS 26 and the phone
   runs on 18.
 

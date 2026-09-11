@@ -56,6 +56,15 @@ the same override the store runs under without a second read of the process envi
   exists in Release; ordinary Debug launches still use real backends.
 - `ZEPHRA_PREVIEW_STATE=settings` freezes the engine but uses a live library index
   at the configured `imagesDirectory`, for native folder-change UAT with temporary fixtures.
+- The phone has the same switch and a shorter list. `make run-ios PREVIEW=<state>` hands it to
+  the simulator as `SIMCTL_CHILD_ZEPHRA_PREVIEW_STATE`, and `MobilePreviewState` is
+  `pairing`, `ready`, `generating`, `capsule`, `library`, `viewer`, `today`, `offline` and
+  `settings`: the Mac's list is longer because the Mac has an engine to freeze, while here
+  there are only two axes — which surface is up, and whether the wire is live. Every state but
+  `pairing` is a `LinkClient.frozen` over two JSON fixtures, with no road under it, so nothing
+  reconnects behind a screenshot and the catalog writes nothing. `docs/mobile.md` has the
+  rest. A frozen *Mac* build opens no road either: `startCompanion` refuses while
+  `InterfacePreview.requestedState` is set.
 - `make logs` streams `os.Logger` output for subsystem `io.zephra`.
 - `make screenshot` photographs the app's window by its CoreGraphics id, so it captures the
   window rather than the rectangle of screen it sits in, and it fails rather than falling back
@@ -63,7 +72,9 @@ the same override the store runs under without a second read of the process envi
   which on a shared machine means somebody else's windows end up in `out/`. With no argument
   it takes the largest window; `make screenshot WINDOW=General` takes the one titled
   "General" — the Settings window is titled after its tab — through the optional title
-  argument of `scripts/window-id.swift`.
+  argument of `scripts/window-id.swift`. `make screenshot-ios` is the simulator's equivalent;
+  it captures into a temporary directory and copies into `build/` afterwards, because `simctl`
+  is refused a write onto the external volume this repository lives on.
 - `swift scripts/ax-press.swift "<title>" [role]` presses the control with that `AXTitle` or
   `AXDescription` in the running Zephra through the accessibility tree, without activating the
   app, moving the mouse, or posting an event, so it can open Settings > Models or click a
