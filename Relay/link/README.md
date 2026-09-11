@@ -449,7 +449,12 @@ no AWS account, no `npm install`.
 `test/fake-aws/client-dynamodb.mjs` is the membership table in a `Map`, with the
 conditional writes the guest slot is claimed by, and
 `test/fake-aws/client-apigatewaymanagementapi.mjs` records what was posted to
-each connection and can declare one `Gone`. `test/fake-aws/hooks.mjs` is a
+each connection, can declare one `Gone` and can make one fail for a reason that
+is not a dead peer (`broken`), which is what the `forward failed` answer is
+pinned by. The suite also stubs `console.log` and asserts over the lines
+themselves — the shape of a forwarded frame, a gone peer and a host with no
+guest, and that no line has ever carried a payload or a signature.
+`test/fake-aws/hooks.mjs` is a
 resolve hook that puts the fakes where the bare `@aws-sdk/...` specifiers point,
 so the file under test is the file that is deployed, with no seam cut into it.
 
