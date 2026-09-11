@@ -1,11 +1,13 @@
 import SwiftUI
+import ZephraCore
 
-/// The noise seed, as `SeedLabel` spells it, with a shuffle for a fresh one; a tap on the
+/// The noise seed, as `SeedFormat` spells it, with a shuffle for a fresh one; a tap on the
 /// label opens the sheet a seed is typed into.
 ///
-/// The label is the leading eight hex digits, which is `SeedFormat.hex` on the Mac and its
-/// default there. The whole number is in the accessibility label and in the sheet, because the
-/// whole number is what reproduces a picture.
+/// `SeedFormat.hex` always: the Mac's own type and its default there, and the only spelling the
+/// phone offers, since there is no Settings > General here to choose the decimal in. The whole
+/// number is in the accessibility label and in the sheet, because the whole number is what
+/// reproduces a picture.
 struct SeedControl: View {
     @Environment(PromptDraft.self) private var draft
     /// Whether the sheet for typing a seed is up.
@@ -16,7 +18,7 @@ struct SeedControl: View {
             Button {
                 isEntering = true
             } label: {
-                Text(SeedLabel.text(draft.settings.seed))
+                Text(SeedFormat.hex.label(draft.settings.seed))
                     .font(.callout.monospaced())
                     .foregroundStyle(.secondary)
             }

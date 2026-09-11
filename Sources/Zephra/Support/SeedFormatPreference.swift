@@ -1,5 +1,5 @@
 import SwiftUI
-import ZephraEngine
+import ZephraCore
 
 /// Puts the General tab's seed spelling into the environment as `\.seedFormat`.
 ///

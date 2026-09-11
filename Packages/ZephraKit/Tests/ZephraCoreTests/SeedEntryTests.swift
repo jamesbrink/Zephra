@@ -1,9 +1,5 @@
 import Testing
 import ZephraCore
-import ZephraEngine
-
-// The parser is ZephraCore's; the labels it has to read back are the engine's, which is why
-// this suite sits here rather than beside the other ZephraCore tests.
 
 @Suite("Reading a typed seed")
 struct SeedEntryTests {

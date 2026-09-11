@@ -35,7 +35,7 @@ struct SeedEntrySheet: View {
                     Button("Cancel", role: .cancel) { dismiss() }
                 }
             }
-            .task { text = SeedLabel.exactText(draft.settings.seed) }
+            .task { text = SeedFormat.hex.exactText(draft.settings.seed) }
         }
         .presentationDetents([.medium])
     }

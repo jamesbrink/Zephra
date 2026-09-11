@@ -1,5 +1,5 @@
 import SwiftUI
-import ZephraEngine
+import ZephraCore
 
 extension EnvironmentValues {
     /// How every seed on screen is spelled: the chip, the inspectors' Seed row, the running

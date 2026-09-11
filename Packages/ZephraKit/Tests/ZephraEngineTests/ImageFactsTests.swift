@@ -20,6 +20,15 @@ struct ImageFactsTests {
         #expect(facts.took == "3 s \u{00B7} \(Self.number(3.0 / 9)) s/step")
     }
 
+    @Test("the Seed row follows the format it was asked for")
+    func seedFollowsTheFormat() {
+        let seed: UInt64 = 0x7A3F_9C2E_0000_0042
+        let item = LibraryFilteringTests.item(prompt: "a lighthouse", seed: seed)
+        #expect(ImageFacts(item).seed == "7A3F\u{00B7}9C2E")
+        #expect(ImageFacts(item, seedFormat: .decimal).seed == "8808931117542408258")
+        #expect(ImageFacts.seedLabel(nil, as: .decimal) == ImageFacts.unknown)
+    }
+
     @Test("a clip carried on names its source and how many frames were held")
     func continuedClip() {
         #expect(ImageFacts.continuedLabel(from: "a.png", held: 9) == "a.png, 9 frames held")

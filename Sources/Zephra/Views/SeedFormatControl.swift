@@ -1,5 +1,5 @@
 import SwiftUI
-import ZephraEngine
+import ZephraCore
 
 /// Whether seeds are shown as the short hex label or as the whole number.
 ///
