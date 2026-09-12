@@ -6,11 +6,11 @@ extension LinkClient {
     /// Connects to the Mac this phone knows, over the best road that answers.
     ///
     /// Idempotent: a second call while one is running does nothing, which is what lets the
-    /// interface call it on every foreground without keeping a flag of its own. The stored
-    /// addresses first, because they are usually right and cost one connection each; Bonjour
-    /// next, for a Mac whose address moved; the relay last, because it is a hop through
-    /// somebody else's machine. A refusal ends it wherever it comes: it is the same Mac at the
-    /// end of every road.
+    /// interface call it on every foreground without keeping a flag of its own. The local
+    /// network first — the stored addresses and a Bonjour browse of the room, dialled together
+    /// and the first to open taken (`LocalRoadRace`) — because it is direct and usually right;
+    /// the relay after, because it is a hop through somebody else's machine. A refusal ends it
+    /// wherever it comes: it is the same Mac at the end of every road.
     public func connect() async {
         guard !isFrozen, !connection.isBusy else { return }
         guard let host = pairedHost else {
@@ -19,24 +19,16 @@ extension LinkClient {
         }
         connection = .searching
         var failure: (any Error)?
-        for endpoint in host.endpoints {
-            switch await attempt(.lan, peer: host.keys, secret: nil, open: {
-                try await self.roads.connectLAN(endpoint)
-            }) {
+        let local = await LocalRoadRace(roads: roads).open(
+            endpoints: host.endpoints, room: host.roomID, window: Self.lanWindow)
+        if let local {
+            switch await attempt(.lan, peer: host.keys, secret: nil, open: { local }) {
             case .connected: return
             case .refused(let refusal): return connection = .failed(refusal.reason)
             case .unreachable(let error): failure = error
             }
         }
-        for candidate in await candidates(in: host.roomID) {
-            switch await attempt(.lan, peer: host.keys, secret: nil, open: {
-                try await self.roads.connect(candidate)
-            }) {
-            case .connected: return
-            case .refused(let refusal): return connection = .failed(refusal.reason)
-            case .unreachable(let error): failure = error
-            }
-        }
+        guard !Task.isCancelled else { return connection = .offline }
         switch await attempt(.relay, peer: host.keys, secret: nil, open: {
             try await self.roads.connectRelay(room: host.roomID)
         }) {
@@ -75,30 +67,6 @@ extension LinkClient {
             logger.notice("A road did not open: \(String(describing: error), privacy: .public)")
             await tearDown()
             return (error as? LinkError).map(LinkAttempt.refused) ?? .unreachable(error)
-        }
-    }
-
-    /// The Macs Bonjour turns up in this room, or nothing after the browse window.
-    ///
-    /// Bounded rather than open-ended: a browse that never answers must not hold the phone off
-    /// the relay, which is the road that works when the local network is the problem.
-    func candidates(in room: RoomID) async -> [LinkCandidate] {
-        let stream = roads.browse()
-        return await withTaskGroup(of: [LinkCandidate].self) { group in
-            group.addTask {
-                for await found in stream {
-                    let matches = found.filter { $0.roomID == room }
-                    if !matches.isEmpty { return matches }
-                }
-                return []
-            }
-            group.addTask {
-                try? await Task.sleep(for: LinkClient.browseWindow)
-                return []
-            }
-            let first = await group.next() ?? []
-            group.cancelAll()
-            return first
         }
     }
 

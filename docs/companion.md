@@ -813,11 +813,18 @@ and a blob are all exercised with nothing between the two ends but an
 `AsyncStream` and no permission dialog for the local network.
 
 `connect()` is idempotent, so the interface calls it on every foreground without
-a flag of its own: the stored addresses first, then a three-second Bonjour browse
-filtered to the room, then the relay. A refusal ends it wherever it comes — it is
-the same Mac at the end of every road, and trying the rest would waste the
-person's time and lose the sentence the Mac wrote for them. `pair(with:)` is the
-same walk carrying the code's secret, and it saves the `PairedHost` only once a
+a flag of its own: the local network first, then the relay. The local network is
+one race (`LocalRoadRace`): every stored address and every Mac a Bonjour browse
+turns up in the room are dialled at once inside `LinkClient.lanWindow` (3 s),
+the first road to open is taken, any that opens after it is closed, and a dial
+still ringing when it is over is left to ring out on its own, since a Network
+connect does not stop when its task is cancelled. Every address refusing is an
+answer at once, so a phone away from home reaches the relay in well under a
+second; the sequential walk it replaced dialled up to five addresses at ten
+seconds each. A refusal ends it wherever it comes — it is the same Mac at the
+end of every road, and trying the rest would waste the person's time and lose
+the sentence the Mac wrote for them. `pair(with:)` is the same race and the same
+relay carrying the code's secret, and it saves the `PairedHost` only once a
 handshake has succeeded.
 
 Everything sealed leaves through one `AsyncStream<Data>` on the `LinkSession`,

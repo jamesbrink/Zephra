@@ -25,6 +25,7 @@ struct PairingView: View {
                     .padding(.horizontal, MobileChrome.sideMargin)
             }
             PairingPasteField(code: $code) { submit(code) }
+            PairingProgress()
             if let failure {
                 Text(failure)
                     .font(.footnote)

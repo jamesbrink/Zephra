@@ -22,8 +22,10 @@ public final class LinkClient {
     public static let blobTimeout: Duration = .seconds(120)
     /// How many blobs may be part way through at once. The oldest is dropped past this.
     public static let blobLimit = 4
-    /// How long a browse runs before the relay is tried.
-    public static let browseWindow: Duration = .seconds(3)
+    /// How long the local network gets before the relay is tried: every stored address and every
+    /// Mac Bonjour turns up in the room are dialled at once inside it (`LocalRoadRace`), and a
+    /// Mac on the same network answers in a fraction of it.
+    public static let lanWindow: Duration = .seconds(3)
 
     /// Where the connection has got to.
     public internal(set) var connection: LinkConnectionState = .offline

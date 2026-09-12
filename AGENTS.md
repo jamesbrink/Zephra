@@ -756,6 +756,12 @@ US-spelling check.
   `NetworkLinkRoads`, and `LinkReconnect` (`Support/`) drives it — `begin()` on
   `scenePhase == .active`, `end()` on `.background`, and `LinkBackoff`
   between a failure or a dropped session and the next attempt, while active.
+  One attempt is the local network then the relay: `LocalRoadRace` dials every
+  stored address and every Bonjour match in the room at once inside
+  `LinkClient.lanWindow` (3 s) and takes the first to open, so a phone away
+  from home reaches the relay in under a second rather than after five
+  ten-second dials. `pair(with:)` is the same race with the code's secret, and
+  `PairingProgress` says which road the screen is on the whole time.
 - `PromptDraft` (`Support/`) is the phone's capsule: the settings, the model, the
   picture in the well and the seeds one press is worth, injected beside the
   client and the one object here holding something the Mac did not say. It seeds

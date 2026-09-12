@@ -15,6 +15,9 @@ public final class MemoryLinkConnection: LinkConnection, @unchecked Sendable {
         (inbound, inboundContinuation) = AsyncThrowingStream.makeStream()
     }
 
+    /// Whether this end is still open, which is what a test of who closed what reads.
+    public var isOpen: Bool { lock.withLock { !isClosed } }
+
     /// Both ends of one road.
     public static func pair() -> (MemoryLinkConnection, MemoryLinkConnection) {
         let a = MemoryLinkConnection()

@@ -5,11 +5,13 @@ import ZephraLinkProtocol
 extension LinkClient {
     /// Pairs with the Mac a scanned code names, and stays connected to it.
     ///
-    /// The code's own addresses first, then the relay: a phone in the same room as the Mac
-    /// should not have to reach the internet to pair with it, and a phone that is not should
-    /// still be able to. The secret rides in the handshake's key schedule as its salt, so a
-    /// device that did not read the code derives different keys and fails at the first tag —
-    /// a refusal with words for a person, not a frame that will not decrypt.
+    /// The code's own addresses and a Bonjour browse of its room first, dialled together and
+    /// the first to open taken, then the relay: a phone in the same room as the Mac should not
+    /// have to reach the internet to pair with it, and a phone that is not should still be able
+    /// to, and neither should wait on an address the other cannot see. The secret rides in the
+    /// handshake's key schedule as its salt, so a device that did not read the code derives
+    /// different keys and fails at the first tag — a refusal with words for a person, not a
+    /// frame that will not decrypt.
     public func pair(with payload: PairingPayload) async throws {
         guard !isFrozen else { return }
         await disconnect()
@@ -18,10 +20,11 @@ extension LinkClient {
                 code: .refused, reason: "That pairing code has expired. Show a new one on the Mac.")
         }
         var failure: (any Error)?
-        for endpoint in payload.endpoints {
-            switch await attempt(.lan, peer: payload.keys, secret: payload.secret, open: {
-                try await self.roads.connectLAN(endpoint)
-            }) {
+        connection = .searching
+        let local = await LocalRoadRace(roads: roads).open(
+            endpoints: payload.endpoints, room: payload.roomID, window: Self.lanWindow)
+        if let local {
+            switch await attempt(.lan, peer: payload.keys, secret: payload.secret, open: { local }) {
             case .connected: return remember(payload)
             case .refused(let refusal): throw refused(refusal)
             case .unreachable(let error): failure = error

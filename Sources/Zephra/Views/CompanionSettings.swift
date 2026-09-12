@@ -14,11 +14,14 @@ struct CompanionSettings: View {
         Form {
             Section {
                 Toggle("Allow Zephra for iPhone to connect", isOn: $isEnabled)
-                Toggle("Allow access outside home network", isOn: $usesRelay)
+                Toggle("Secure access from anywhere", isOn: $usesRelay)
                     .disabled(!isEnabled)
                 CompanionNameField()
             } footer: {
-                Text("Your pictures and prompts stay on this Mac. A phone sees what this Mac shows it, and only while it is paired.")
+                Text(
+                    "Your pictures and prompts stay on this Mac. A phone sees what this Mac shows it, and only while it is paired. "
+                        + "Away from home the phone reaches this Mac through an encrypted relay that cannot read what passes: only the two paired devices hold the keys."
+                )
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
