@@ -565,6 +565,19 @@ Left out of the first pass on purpose, each a small change to one file unless no
   with `revoked`, which is what it has always done. Evicting from the relay's side
   as well means a message that names a guest, which the contract has no room for
   until guests have ids at all — the same change as several guests above.
+- **A phone revoked while it was away keeps trying, over the relay.** The relay's
+  `not allowed` on a reconnect is `LinkClientError.notAdmitted` now — a wait, not
+  a revocation — because that list is the Mac's and a Mac that has just restarted
+  is a beat behind it, and a phone that forgot its Mac over that needed a new code
+  for a pairing nobody withdrew. The cost is the other way round: a phone revoked
+  while it was not connected, and which can only reach its Mac through the relay,
+  retries on `LinkBackoff` and is never told. A phone that was connected is told
+  at once (`CompanionHost.revoke` closes that session with `revoked`), and one on
+  the same network learns it from the Mac's own handshake on the next attempt.
+  Telling the other case means a refusal the relay can state about this device
+  without becoming an oracle for anybody who knows a room id — the same shape as
+  the "this room has never existed" answer the phone would like for a Mac whose
+  identity changed.
 - **A phone cannot start a download.** `Command` has no case for one and
   `CompanionHost` refuses anything it does not know. Fetching a model is
   gigabytes onto somebody else's Mac, over their network, and the person holding

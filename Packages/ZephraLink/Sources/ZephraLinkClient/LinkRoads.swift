@@ -14,5 +14,10 @@ public protocol LinkRoads: Sendable {
     /// A road straight to an address off a pairing code.
     func connectLAN(_ endpoint: Endpoint) async throws -> any LinkConnection
     /// A road through the relay to a room.
-    func connectRelay(room: RoomID) async throws -> any LinkConnection
+    ///
+    /// `pairing` is what a phone reading a code is doing, and it changes one answer: the relay
+    /// refusing a key it does not have on its list is worth telling a person about while they are
+    /// holding a code up to a Mac, and is worth nothing at all on a reconnection, where the list
+    /// is simply a moment out of date.
+    func connectRelay(room: RoomID, pairing: Bool) async throws -> any LinkConnection
 }

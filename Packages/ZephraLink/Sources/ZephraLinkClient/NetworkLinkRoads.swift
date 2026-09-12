@@ -52,24 +52,34 @@ public final class NetworkLinkRoads: LinkRoads, @unchecked Sendable {
         return road
     }
 
-    /// The relay, whose three refusals of a guest mean three different things to the phone.
+    /// The relay, whose three refusals of a guest mean four different things to the phone.
     ///
-    /// `not allowed` is about this device — the Mac has not paired it, or has revoked it — so it
-    /// becomes the `LinkError` a person is shown and the walk of the roads stops. `no host` and
-    /// `room busy` are about the moment: the Mac is asleep, or its one guest slot is still held
-    /// by a session that has not finished going. Those read as unreachable, which is what the
-    /// caller waits on `LinkBackoff` and tries again after.
-    public func connectRelay(room: RoomID) async throws -> any LinkConnection {
+    /// `no host` and `room busy` are about the moment: the Mac is asleep, or its one guest slot is
+    /// still held by a session that has not finished going. Those read as unreachable, which is
+    /// what the caller waits on `LinkBackoff` and tries again after.
+    ///
+    /// `not allowed` is about this device, and what it is worth depends on what the phone is
+    /// doing. Reading a code, it is the refusal a person is owed and the walk of the roads stops.
+    /// Reconnecting, it is `notAdmitted` and the phone waits: the list the relay read is the Mac's
+    /// and the Mac may only just have joined its room — its own allow-list arrives in the join or
+    /// a moment behind it — so a refusal here is a list a beat out of date and not a pairing
+    /// withdrawn. Only the Mac's own handshake may say that.
+    public func connectRelay(room: RoomID, pairing: Bool) async throws -> any LinkConnection {
         let road = RelayConnection(url: relayURL, identity: identity, room: room, role: .guest)
         do {
             try await road.start()
         } catch {
             await road.close()
             guard let refusal = error as? RelayError else { throw error }
-            if let shown = refusal.refusalToShow { throw shown }
-            throw refusal.isTemporary ? LinkClientError.unreachable : refusal
+            throw Self.failure(for: refusal, pairing: pairing)
         }
         return road
+    }
+
+    /// What one of the relay's refusals is to the phone, given what the phone was doing.
+    static func failure(for refusal: RelayError, pairing: Bool) -> any Error {
+        if let shown = refusal.refusalToShow { return pairing ? shown : LinkClientError.notAdmitted }
+        return refusal.isTemporary ? LinkClientError.unreachable : refusal
     }
 
     /// Stops browsing, which the phone does when it leaves the screen that lists Macs.

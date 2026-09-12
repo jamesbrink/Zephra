@@ -30,7 +30,7 @@ extension LinkClient {
         }
         guard !Task.isCancelled else { return connection = .offline }
         switch await attempt(.relay, peer: host.keys, secret: nil, open: {
-            try await self.roads.connectRelay(room: host.roomID)
+            try await self.roads.connectRelay(room: host.roomID, pairing: false)
         }) {
         case .connected: return
         case .refused(let refusal): await refused(refusal, by: host)
@@ -48,6 +48,12 @@ extension LinkClient {
     /// Mac, so "not paired" from it now means the pairing was withdrawn, and the phone says so
     /// itself and lets the Mac go — keeping the keys would only make every later attempt fail
     /// the same way, and reading as "offline".
+    ///
+    /// Only the Mac's own handshake reaches here. The **relay** refusing a key is
+    /// `LinkClientError.notAdmitted` and never a refusal at all: the list it reads is one the Mac
+    /// wrote, and a Mac that has just restarted spends a moment in its room with a list that is
+    /// not yet right. A phone that forgot its Mac over that would need a new code for a Mac that
+    /// never withdrew anything.
     private func refused(_ refusal: LinkError, by host: PairedHost) async {
         guard refusal.code == .notPaired || refusal.code == .revoked else {
             return connection = .failed(refusal.reason)
@@ -105,6 +111,9 @@ extension LinkClient {
     /// What to tell the person when no road worked.
     static func words(for failure: (any Error)?, host: String) -> String {
         if let refusal = failure as? LinkError { return refusal.reason }
+        if failure as? LinkClientError == .notAdmitted {
+            return "\(host) has not let this phone into its room yet. Zephra will keep trying."
+        }
         return "Zephra could not reach \(host)."
     }
 }

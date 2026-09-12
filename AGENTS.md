@@ -782,7 +782,13 @@ US-spelling check.
   and `snapshot`, `library`, `preview` and `connection` are the rest. A
   `revoked` frame, or `notPaired` from the Mac this phone is paired with, makes
   the client forget the Mac and set `farewell`, which the pairing screen shows;
-  the Mac's refusal itself stays one plain sentence. A view that
+  the Mac's refusal itself stays one plain sentence. **Only the Mac's own
+  handshake unpairs.** The relay's `not allowed` on a reconnect is
+  `LinkClientError.notAdmitted`, which reads as unreachable and is retried: that
+  list is one the Mac wrote and a Mac that has just restarted is a beat behind
+  it, so a phone that forgot its Mac over it would need a new code for a pairing
+  nobody withdrew. `connectRelay(room:pairing:)` is where the two part;
+  `pair(with:)` keeps the refusal a person reading a code is owed. A view that
   holds a fact of its own that came over the link is a view that can disagree
   with the Mac.
 - `ZephraMobileApp` is the only file that knows how a Mac is reached: it builds

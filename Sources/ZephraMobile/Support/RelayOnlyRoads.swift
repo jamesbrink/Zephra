@@ -44,7 +44,7 @@ nonisolated struct RelayOnlyRoads: LinkRoads {
         throw LinkClientError.unreachable
     }
 
-    func connectRelay(room: RoomID) async throws -> any LinkConnection {
-        try await roads.connectRelay(room: room)
+    func connectRelay(room: RoomID, pairing: Bool) async throws -> any LinkConnection {
+        try await roads.connectRelay(room: room, pairing: pairing)
     }
 }

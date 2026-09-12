@@ -502,11 +502,28 @@ rather than the LAN — the line shape and the filters are under "Logs" in
 runtime prefixes each line with `<timestamp>\t<requestId>\tINFO\t`, so the line
 is not pure JSON and a JSON filter pattern matches nothing.
 
-`RelayError` tells the guest's three apart, and `NetworkLinkRoads.connectRelay`
-is where that turns into behaviour: `no host` and `room busy` are about the
-moment and read as unreachable, so the phone waits on `LinkBackoff` and tries
-again; `not allowed` is about this device and becomes `LinkError.notPaired`,
-whose one sentence the person is shown, and the walk of the roads stops there.
+`RelayError` tells the guest's three apart, and
+`NetworkLinkRoads.connectRelay(room:pairing:)` is where that turns into
+behaviour: `no host` and `room busy` are about the moment and read as
+unreachable, so the phone waits on `LinkBackoff` and tries again; `not allowed`
+is about this device, and what it is worth depends on what the phone was doing.
+
+Reading a code, it becomes `LinkError.notPaired`, whose one sentence the person
+is shown with "Check that the code is still showing on your Mac" added, and the
+walk of the roads stops there. **Reconnecting, it is `LinkClientError.notAdmitted`
+and the phone waits.** It used to be the same refusal either way, and
+`LinkClient.refused(_:by:)` reads a `notPaired` from the Mac this phone is paired
+with as a pairing withdrawn — so a phone would forget a Mac over a list the relay
+read a beat too early. That list is the Mac's, not the relay's: it rides in the
+host's `join` and is replaced by `allow`, so a Mac that has just restarted, or one
+whose road joined before it had read its own pairings (which is the bug
+`RelayRoad.rejoin()` fixes above), is briefly a Mac whose room admits nobody. The
+cost of treating that as a revocation is a person hunting for a pairing code to
+get back a pairing nobody withdrew; the cost of treating a real revocation as a
+wait is a phone that retries on `LinkBackoff` until the Mac's own handshake tells
+it — which it does, over the local road at once and over the relay as soon as the
+Mac lets it in. Only the Mac's own `notPaired` or `revoked` unpairs.
+
 A guest's `send` before the host is in the room is not forwarded.
 
 ### The signature

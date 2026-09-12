@@ -9,6 +9,14 @@ public enum LinkClientError: Error, Hashable, Sendable {
     case notPaired
     /// No road to the Mac worked.
     case unreachable
+    /// The relay would not let this phone into the Mac's room.
+    ///
+    /// Apart from the Mac's own `notPaired`, which is an answer this phone's key was weighed
+    /// against: this one is the relay reading a list the Mac wrote, and a Mac that has just
+    /// restarted, or that joined its room a moment before it knew its own pairings, is on the
+    /// far side of a list that will be right again shortly. So it reads as "not yet", never as
+    /// "you have been forgotten".
+    case notAdmitted
     /// The Mac did not answer inside the time allowed.
     case timedOut
     /// A message arrived where another was expected, which means the two ends disagree.

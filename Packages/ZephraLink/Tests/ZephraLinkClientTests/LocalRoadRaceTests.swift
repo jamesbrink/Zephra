@@ -40,7 +40,7 @@ private final class ScriptedRoads: LinkRoads, @unchecked Sendable {
         try await answer(endpoint.host)
     }
 
-    func connectRelay(room: RoomID) async throws -> any LinkConnection {
+    func connectRelay(room: RoomID, pairing: Bool) async throws -> any LinkConnection {
         throw LinkClientError.unreachable
     }
 

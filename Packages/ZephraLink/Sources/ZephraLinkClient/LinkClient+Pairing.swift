@@ -32,7 +32,7 @@ extension LinkClient {
             }
         }
         switch await attempt(.relay, peer: payload.keys, secret: payload.secret, open: {
-            try await self.roads.connectRelay(room: payload.roomID)
+            try await self.roads.connectRelay(room: payload.roomID, pairing: true)
         }) {
         case .connected: return remember(payload)
         case .refused(let refusal): throw refused(refusal)

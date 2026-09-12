@@ -63,6 +63,12 @@ enum PairingEntry {
         case .unreachable:
             return "Zephra could not reach that Mac. Check that both are awake and on the "
                 + "same network."
+        case .notAdmitted:
+            // The relay would not let this phone into the room. On the pairing screen that is
+            // the same thing a person can act on as any other road that did not open: a Mac
+            // with its code up has its room open, so this is a Mac that is not showing one.
+            return "That Mac is not letting this phone in. Check that the code is still "
+                + "showing on your Mac."
         case .timedOut: return "Your Mac did not answer in time."
         case .lost:
             return "A message between your Mac and this phone went missing. Try that again."

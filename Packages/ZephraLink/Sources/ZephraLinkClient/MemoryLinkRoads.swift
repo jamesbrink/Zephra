@@ -41,7 +41,7 @@ public final class MemoryLinkRoads: LinkRoads, @unchecked Sendable {
         try await open(.lan)
     }
 
-    public func connectRelay(room: RoomID) async throws -> any LinkConnection {
+    public func connectRelay(room: RoomID, pairing: Bool) async throws -> any LinkConnection {
         try await open(.relay)
     }
 }
