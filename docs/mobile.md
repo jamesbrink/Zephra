@@ -148,7 +148,14 @@ Three doors, one parser.
 - `PairingScanner` (`Views/Pairing/`) is VisionKit's `DataScannerViewController`
   over `.barcode(symbologies: [.qr])`, the one piece of UIKit in the app. Shown
   only when `DataScannerViewController.isSupported && .isAvailable`, which is
-  never in the simulator.
+  never in the simulator. It reads each code **once**: `ScanGate` in the
+  coordinator drops a text equal to the last one handed on, and the view pauses
+  the scanner while `client.connection.isBusy`. Both exist because the first
+  real phone never paired by camera: every SwiftUI update restarted the scanner,
+  a restart reports the code in frame again, each report was a `pair(with:)`,
+  and each `pair` begins by closing the session before it. The relay saw the
+  phone join and leave 260 ms later without a frame, as long as the code was in
+  view. A new code is read; the same code again is the paste field's job.
 - `PairingPasteField` is always shown, for that reason and two others: a code
   can arrive by message as easily as on a screen, and nobody using VoiceOver
   should have to aim a camera.

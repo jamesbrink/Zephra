@@ -19,7 +19,7 @@ struct PairingView: View {
             Spacer(minLength: 0)
             PairingInstructions()
             if PairingScanner.isAvailable {
-                PairingScanner(onScan: submit)
+                PairingScanner(onScan: submit, isPaused: client.connection.isBusy)
                     .frame(height: 260)
                     .clipShape(RoundedRectangle(cornerRadius: ZephraChrome.cardRadius))
                     .padding(.horizontal, MobileChrome.sideMargin)

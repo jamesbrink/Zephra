@@ -10,6 +10,9 @@ import VisionKit
 struct PairingScanner: UIViewControllerRepresentable {
     /// What to do with the text inside the code.
     let onScan: (String) -> Void
+    /// Whether to hold the camera still: true while a pairing is running, so a second reading
+    /// cannot start a second pairing over the first.
+    let isPaused: Bool
 
     /// Whether this device can scan at all: the hardware supports it and nothing (a missing
     /// camera, a denied permission, a restriction) is in the way right now.
@@ -29,9 +32,19 @@ struct PairingScanner: UIViewControllerRepresentable {
         return scanner
     }
 
+    /// Every SwiftUI update passes through here, and while a pairing runs the client's state
+    /// changes several times. Starting the scanner on each one restarted VisionKit's tracking,
+    /// which read the code in frame again, which paired again, which tore down the pairing in
+    /// flight: a phone at the Mac's screen looped for as long as the code was in view. So the
+    /// scanner is started only when it is not already running and not asked to pause, and
+    /// `ScanGate` in the coordinator drops the re-reading a restart still produces.
     func updateUIViewController(_ scanner: DataScannerViewController, context: Context) {
         context.coordinator.onScan = onScan
-        try? scanner.startScanning()
+        if isPaused {
+            if scanner.isScanning { scanner.stopScanning() }
+        } else if !scanner.isScanning {
+            try? scanner.startScanning()
+        }
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(onScan: onScan) }
@@ -41,6 +54,8 @@ struct PairingScanner: UIViewControllerRepresentable {
         /// What to do with that string. Replaced on every update, so the closure never holds a
         /// stale view.
         var onScan: (String) -> Void
+        /// Each code once, however many times the camera reports it.
+        var gate = ScanGate()
 
         init(onScan: @escaping (String) -> Void) {
             self.onScan = onScan
@@ -51,10 +66,10 @@ struct PairingScanner: UIViewControllerRepresentable {
             allItems: [RecognizedItem]
         ) {
             for case .barcode(let barcode) in items {
-                guard let text = barcode.payloadStringValue else { continue }
-                // One code is the whole of this screen's job: stop looking the moment one is
-                // read, so a second code in frame cannot pair to a different Mac.
-                scanner.stopScanning()
+                guard let text = barcode.payloadStringValue, gate.admits(text) else { continue }
+                // One code is the whole of this screen's job. The scanner is not stopped here:
+                // the view pauses it while the pairing runs, and the gate keeps the same code
+                // from pairing twice, so what a running camera can still take is a new code.
                 onScan(text)
                 return
             }

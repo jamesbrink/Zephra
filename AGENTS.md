@@ -803,7 +803,9 @@ US-spelling check.
   there), a `zephra://pair` link. Everything it throws is a `LinkError` with a
   sentence, and an expired code is refused here rather than at the far end. The
   screen sends people to **Settings > Companion** on the Mac, which is where the
-  code is.
+  code is. The camera reads each code **once** (`ScanGate`) and is paused while
+  `client.connection.isBusy`: a scanner restarted by a SwiftUI update reports
+  the code in frame again, and a second `pair(with:)` closes the first.
 - The Library tab is the Mac's library, cached. `Support/Cache/` is three stores
   — `EntryStore` (a JSON file per picture under Application Support, the wire's
   own entry written back byte for byte), `ThumbnailStore` (the JPEG as it
