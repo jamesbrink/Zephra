@@ -7,10 +7,14 @@ extension UpdateInstaller {
     /// The order runs cheapest and most specific first: is there an app there at all, is it
     /// intact, will macOS run it, is it ours, and is it the release the manifest named.
     nonisolated static func verify(
-        _ candidate: URL, manifest: ReleaseManifest, identifier: String
+        _ candidate: URL, manifest: ReleaseManifest, identifier: String, overridden: Bool
     ) throws {
         let path = candidate.path(percentEncoded: false)
-        guard FileManager.default.fileExists(atPath: path) else {
+        // A link rather than a bundle: `codesign` and `spctl` would follow it and report on
+        // whatever it points at, and `ditto` would then copy that instead. Refused before any
+        // of them is asked.
+        let attributes = try? FileManager.default.attributesOfItem(atPath: path)
+        guard let attributes, (attributes[.type] as? FileAttributeType) != .typeSymbolicLink else {
             throw UpdateInstallError.notAZephra
         }
         let signature = try UpdateTool.run(
@@ -19,12 +23,13 @@ extension UpdateInstaller {
             throw UpdateInstallError.signatureInvalid(reason: signature.lastLine)
         }
         // Gatekeeper's own answer, which honours the stapled notarization ticket and so needs
-        // no network. This is the check that makes the copy below as safe as a double-click.
+        // no network. It is necessary and not sufficient: it accepts any notarized Developer
+        // ID app, which is why the team identifier is asked for next.
         let assessment = try UpdateTool.run("/usr/sbin/spctl", ["--assess", "--type", "execute", path])
         guard assessment.succeeded else {
             throw UpdateInstallError.gatekeeperRefused(reason: assessment.lastLine)
         }
-        guard UpdateSignature.matches(ours: UpdateSignature.ours, theirs: UpdateSignature.team(at: candidate))
+        guard UpdateSignature.matches(theirs: UpdateSignature.team(at: candidate), overridden: overridden)
         else { throw UpdateInstallError.differentSigner }
         if let refusal = acceptance(
             info: information(of: candidate), manifest: manifest, ourIdentifier: identifier)

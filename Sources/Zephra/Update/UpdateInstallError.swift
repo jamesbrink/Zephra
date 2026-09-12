@@ -23,6 +23,10 @@ enum UpdateInstallError: Error, Hashable, Sendable {
     case cannotReplaceItself(folder: String)
     /// The copy into place did not finish; whatever was moved aside has been put back.
     case copyFailed(reason: String)
+    /// The copy failed *and* putting the original back failed, so there is no Zephra where
+    /// there was one. Nothing can be done about that automatically, so the sentence says where
+    /// the app actually is and what to rename it to.
+    case rollbackFailed(aside: String)
 
     /// What to tell someone, without the jargon of the layer it came from.
     var message: String {
@@ -46,6 +50,11 @@ enum UpdateInstallError: Error, Hashable, Sendable {
             """
         case .copyFailed(let reason):
             "The update could not be put in place: \(reason)"
+        case .rollbackFailed(let aside):
+            """
+            The update could not be put in place, and Zephra could not be moved back. \
+            Your copy of Zephra is at \(aside); rename it back to Zephra.app.
+            """
         }
     }
 

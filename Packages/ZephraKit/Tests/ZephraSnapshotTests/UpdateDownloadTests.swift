@@ -67,6 +67,19 @@ struct UpdateDownloadTests {
         #expect(left.isEmpty)
     }
 
+    @Test("a build that is not a stamp never reaches the file system")
+    func aNonStampIsRefused() async throws {
+        StubFeed.reset(host: Self.host, StubFeed.Behaviour(bodies: [Self.path: Self.image]))
+        let scratch = Scratch("Update")
+        var odd = manifest(sha256: Self.digest)
+        odd.build = "../../etc"
+
+        await #expect(throws: UpdateDownloadError.notARelease) {
+            _ = try await download().fetch(odd, into: scratch.url("Updates")) { _ in }
+        }
+        #expect(!FileManager.default.fileExists(atPath: scratch.url("Updates").path(percentEncoded: false)))
+    }
+
     @Test("a status that is not 200 is a refusal that names it")
     func refusalNamesTheStatus() async throws {
         StubFeed.reset(host: Self.host, StubFeed.Behaviour(status: 403))

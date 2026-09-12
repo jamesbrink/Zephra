@@ -33,6 +33,10 @@ public struct UpdateDownload: Sendable {
         into directory: URL,
         onProgress: @escaping @Sendable (Double) -> Void
     ) async throws -> URL {
+        // The build becomes a file name below, so the manifest's word for it is checked here
+        // rather than trusted from wherever this was called: `latest()` decodes whatever the
+        // server sent, and "12 ASCII digits" is the only thing that makes it a safe component.
+        guard manifest.isStamp else { throw UpdateDownloadError.notARelease }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let target = directory.appending(path: "Zephra-\(manifest.build).dmg")
         let partial = target.appendingPathExtension("incomplete")
@@ -119,12 +123,17 @@ public struct UpdateDownload: Sendable {
 
     /// A session configuration for one large transfer: no response cache at all, and a stalled
     /// connection giving up in a minute so the retry can start over.
+    ///
+    /// `waitsForConnectivity` is off, as it is on the feed. A model download waits because it
+    /// is an errand nobody is watching; this one is a button somebody pressed, and a request
+    /// that sits silently until the network comes back is a progress bar at zero with no
+    /// explanation. Offline is a failure with a sentence, and Update Now is still there.
     public static func defaultConfiguration() -> URLSessionConfiguration {
         let configuration = URLSessionConfiguration.default
         configuration.urlCache = nil
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.timeoutIntervalForRequest = 60
-        configuration.waitsForConnectivity = true
+        configuration.waitsForConnectivity = false
         return configuration
     }
 }

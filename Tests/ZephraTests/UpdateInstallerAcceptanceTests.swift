@@ -43,13 +43,26 @@ struct UpdateInstallerAcceptanceTests {
         ]) == nil)
     }
 
-    @Test("an ad-hoc copy of our own has no team to compare, so the signer check is skipped")
-    func adHocSkipsTheTeamCheck() {
-        #expect(UpdateSignature.matches(ours: nil, theirs: nil))
-        #expect(UpdateSignature.matches(ours: nil, theirs: "28X9H69QGE"))
-        #expect(UpdateSignature.matches(ours: "28X9H69QGE", theirs: "28X9H69QGE"))
-        #expect(!UpdateSignature.matches(ours: "28X9H69QGE", theirs: "SOMEBODYELSE"))
-        #expect(!UpdateSignature.matches(ours: "28X9H69QGE", theirs: nil))
+    @Test("only our own team's signature is accepted, and an unreadable one fails closed")
+    func theTeamMustBeOurs() {
+        #expect(UpdateSignature.matches(theirs: AppFacts.teamIdentifier))
+        // Notarized, so `spctl` passes it, and signed by somebody else.
+        #expect(!UpdateSignature.matches(theirs: "SOMEBODYELSE"))
+        // Unsigned, or a signature the Security framework would not read: refused, rather
+        // than treated as "nothing to compare against".
+        #expect(!UpdateSignature.matches(theirs: nil))
+    }
+
+    @Test("a Debug feed override may take an unsigned candidate, and still not another team's")
+    func theOverrideTakesAnAdHocCandidateOnly() {
+        #expect(UpdateSignature.matches(theirs: nil, overridden: true))
+        #expect(!UpdateSignature.matches(theirs: "SOMEBODYELSE", overridden: true))
+        #expect(UpdateSignature.matches(theirs: AppFacts.teamIdentifier, overridden: true))
+    }
+
+    @Test("the team is a constant, not whatever this process says about itself")
+    func theTeamIsWrittenDown() {
+        #expect(AppFacts.teamIdentifier == "28X9H69QGE")
     }
 
     @Test("only the folder failure offers the disk image to install by hand")
@@ -58,5 +71,12 @@ struct UpdateInstallerAcceptanceTests {
         #expect(!UpdateInstallError.differentSigner.offersTheDiskImage)
         #expect(!UpdateInstallError.notAZephra.offersTheDiskImage)
         #expect(UpdateInstallError.notAZephra.message.isEmpty == false)
+    }
+
+    @Test("a rollback that did not land says where the app actually is")
+    func aFailedRollbackNamesTheAside() {
+        let said = UpdateInstallError.rollbackFailed(aside: "/Applications/Zephra.previous.app").message
+        #expect(said.contains("/Applications/Zephra.previous.app"))
+        #expect(said.contains("Zephra.app"))
     }
 }

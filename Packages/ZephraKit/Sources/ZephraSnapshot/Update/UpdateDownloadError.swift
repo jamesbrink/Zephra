@@ -9,6 +9,9 @@ public enum UpdateDownloadError: Error, Hashable, Sendable {
     case refused(status: Int)
     /// The image arrived whole and its digest was not the one the manifest published.
     case checksumMismatch
+    /// The manifest's build is not a twelve-digit stamp, so it names no release of ours — and
+    /// it is what the downloaded file is named after, so it never reaches the file system.
+    case notARelease
 
     /// Whether another try could end differently. A refusal and a mismatched digest are both
     /// answers about the bytes on the server, not accidents on the way here.
@@ -16,7 +19,7 @@ public enum UpdateDownloadError: Error, Hashable, Sendable {
         switch self {
         case .interrupted: false
         case .refused(let status): DownloadRetry.isPermanentStatus(status)
-        case .checksumMismatch: true
+        case .checksumMismatch, .notARelease: true
         }
     }
 
@@ -29,6 +32,8 @@ public enum UpdateDownloadError: Error, Hashable, Sendable {
             "The update server refused to serve the download (HTTP \(status))."
         case .checksumMismatch:
             "The download did not match its published checksum, so it was discarded."
+        case .notARelease:
+            "The update server named something that is not a Zephra release."
         }
     }
 }

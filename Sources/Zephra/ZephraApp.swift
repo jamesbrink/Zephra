@@ -147,6 +147,9 @@ struct ZephraApp: App {
                     AppSettings.write(store.rememberedModel.id, to: AppSettings.selectedModelID)
                 }
                 .task {
+                    // Quit waits for a swap in flight: between the rename and the end of
+                    // `ditto` there is no Zephra where there was one.
+                    termination.isInstalling = { updates.isInstalling }
                     termination.shutdown = {
                         // The link first: a phone holding a request open is the one reader that
                         // could still ask the store for work while it is trying to finish.

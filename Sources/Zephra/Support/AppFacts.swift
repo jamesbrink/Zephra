@@ -10,6 +10,19 @@ import AppKit
 enum AppFacts {
     static let name = "Zephra"
 
+    /// The Apple Developer team every shipped Zephra is signed by, written down rather than
+    /// read back from this process.
+    ///
+    /// The updater compares a downloaded app's team identifier against this literal, and this
+    /// is the one fact here that is deliberately *not* taken from the bundle. Asking the
+    /// running copy who signed it makes the check only as good as the Security call: any
+    /// failure there — and there are several, none of them signalled apart from a nil — would
+    /// answer "no team", and a check that skips itself when it cannot run is not a check. A
+    /// constant cannot fail to be read.
+    ///
+    /// `nonisolated` because the installer's verification runs off the main actor.
+    nonisolated static let teamIdentifier = "28X9H69QGE"
+
     /// What Zephra is, in the words a person meeting it for the first time needs: what it
     /// makes, where it runs, and what stays on the Mac.
     static let summary = """

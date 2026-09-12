@@ -30,6 +30,13 @@ final class UpdateChecker {
     /// whose Applications folder cannot be written to still has something to drag.
     var imageToShow: URL?
 
+    /// Whether the swap is happening right now — the window in which there is no `Zephra.app`
+    /// where there was one. `AppLifecycle` holds Quit open on it; nothing draws it, so it is
+    /// deliberately outside observation.
+    @ObservationIgnored var isInstalling = false
+    /// The download and install in flight, held so Cancel has something to cancel.
+    @ObservationIgnored var installTask: Task<Void, Never>?
+
     @ObservationIgnored let environment: UpdateEnvironment
     @ObservationIgnored private var loop: Task<Void, Never>?
     @ObservationIgnored private var notifiedBuild: String?
@@ -70,9 +77,15 @@ final class UpdateChecker {
         loop = Task { [weak self] in
             try? await Task.sleep(for: Self.launchDelay)
             while !Task.isCancelled {
+                // Re-read at each tick, so switching the preference off stops the checking
+                // rather than only stopping the next launch's.
+                guard AppSettings.flag(AppSettings.checksForUpdates) else { break }
                 _ = await self?.checkNow(manual: false)
                 try? await Task.sleep(for: Self.interval)
             }
+            // Cleared so a later `start()` can begin again, which is what switching the
+            // preference back on and relaunching-free recovery both want.
+            self?.stopLoop()
         }
     }
 
@@ -81,6 +94,9 @@ final class UpdateChecker {
     /// was, over the window somebody is working in, is how updates get switched off.
     @discardableResult
     func checkNow(manual: Bool) async -> UpdateOutcome? {
+        // A frozen screenshot build reaches no network at all, however it is asked — the menu
+        // item included. The same rule `startCompanion` follows.
+        guard InterfacePreview.requestedState == nil else { return nil }
         let eligibility = UpdateEligibility.current(environment)
         guard eligibility.canInstall else {
             return manual ? .ineligible(reason: eligibility.refusal ?? "") : nil
@@ -116,6 +132,11 @@ final class UpdateChecker {
         guard notifiedBuild != release.build else { return }
         notifiedBuild = release.build
         BackgroundNotices.post(.updateAvailable(version: release.version, build: release.build))
+    }
+
+    /// Forgets the timer, so `start()` may begin one again.
+    private func stopLoop() {
+        loop = nil
     }
 
     /// Puts the banner away. A failure is simply cleared, since there is nothing to come back

@@ -33,7 +33,13 @@ struct UpdateBannerActions: View {
                 }
                 Button(updates.phase.dismissTitle) { updates.later() }
                     .buttonStyle(.bordered)
-            case .idle, .checking, .downloading, .ready, .installing:
+            case .downloading:
+                // The one phase with a way out. Once the swap has started the bundle has been
+                // renamed aside and stopping is worse than waiting, so nothing is offered
+                // there — and `AppLifecycle` holds Quit open for the same window.
+                Button("Cancel") { updates.cancelInstall() }
+                    .buttonStyle(.bordered)
+            case .idle, .checking, .ready, .installing:
                 EmptyView()
             }
         }
