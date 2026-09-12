@@ -79,6 +79,28 @@ struct EngineStateDTOTests {
         #expect(!EngineStateDTO(.cancelling).acceptsGeneration)
     }
 
+    @Test("Whether another may be queued is carried, and survives the trip")
+    func queueingIsCarried() throws {
+        var dto = EngineStateDTO(
+            .generating(GenerationProgressEvent(phase: .denoising(step: 1, of: 9), fraction: 0.1)))
+        #expect(!dto.canQueue, "the state alone knows only that the engine is not idle")
+        dto.canQueue = true
+        let read = try LinkFixtures.roundTrip(dto)
+        #expect(read.canQueue, "what the host stamps is what the phone reads")
+        #expect(!read.acceptsGeneration, "and it is not the same fact")
+    }
+
+    @Test("A Mac too old to have an opinion reads as one picture at a time")
+    func anOlderMacReadsAsOneAtATime() throws {
+        let older = #"{"kind":"ready","isBusy":false,"isFinishing":false,"acceptsGeneration":true}"#
+        let ready = try LinkJSON.decode(EngineStateDTO.self, from: Data(older.utf8))
+        #expect(ready.canQueue, "a Mac that takes a generation takes this one")
+
+        let busy = #"{"kind":"generating","isBusy":true,"isFinishing":false,"acceptsGeneration":false}"#
+        let running = try LinkJSON.decode(EngineStateDTO.self, from: Data(busy.utf8))
+        #expect(!running.canQueue, "and one already rendering takes nothing behind it")
+    }
+
     @Test("A download's bytes and files come across")
     func downloadCarriesItsNumbers() {
         let dto = EngineStateDTO(

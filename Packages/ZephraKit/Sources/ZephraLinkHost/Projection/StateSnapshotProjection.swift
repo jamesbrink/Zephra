@@ -19,7 +19,7 @@ public enum StateSnapshotProjection {
             hostName: hostName,
             model: ModelSummary(store.descriptor),
             models: ModelCatalog.all.map(ModelSummary.init),
-            engine: EngineStateDTO(store.state, modelID: store.descriptor.id),
+            engine: EngineStateProjection.engine(store),
             queue: QueuedEntryProjection.entries(store.queue),
             running: QueuedEntryProjection.running(store.running),
             history: HistoryEntryProjection.entries(store.history),

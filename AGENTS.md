@@ -257,6 +257,19 @@ already made the stream ordered and a gap above it means loss or tampering;
 for a blob nothing announced is dropped rather than opening a transfer of
 whatever size it likes.
 
+Every fact the Mac derives from its own state is **stamped into
+`EngineStateDTO`** rather than worked out again on the phone: `isBusy`,
+`isFinishing`, `acceptsGeneration` and `canQueue`. The last is the one the
+phone's Generate button reads — whether a generation may be started *or queued
+behind the one being rendered* — and it is `GenerationStore.acceptsQueuedGeneration`,
+which `remoteAdmission` gates on, so the button and the refusal are one answer.
+`EngineState` alone cannot answer it, so `EngineStateProjection`
+(`ZephraLinkHost`) is the one place the DTO is built for a phone and both
+projection sites go through it. A field added to the DTO after a Mac has
+shipped is read with `decodeIfPresent` and a default that is what the field's
+absence used to mean (`canQueue` falls back to `acceptsGeneration`);
+`EngineStateDTO+Codable` and `QueuedEntry` are the two hand-written readers.
+
 The channel's counter is **sent**, between the kind byte and the ciphertext —
 `kind || counter || ciphertext || tag` — because the relay is one Lambda
 invocation per frame and those post concurrently, so frames arrive overtaken; the
@@ -740,7 +753,8 @@ US-spelling check.
 
 - `App/`, `Support/`, `Style/`, `Views/`, laid out like the Mac target's.
   `Views/Shared/` is the one folder that is not a surface, and it holds exactly
-  what two surfaces draw the same way: `ClipPlayerView` and `EntryThumbnail`.
+  what two surfaces draw the same way: `ClipPlayerView`, `EntryThumbnail` and
+  `StopRunButton`.
 - `MobileSelection` (`Support/`) is where the phone is looking — which tab is up,
   whether the capsule is expanded and whether the prompt wants the keyboard —
   the Mac's `WorkspaceSelection` in a phone's shape and for its reason: which
@@ -871,7 +885,17 @@ US-spelling check.
   cell into view as the viewer pages.
 - The Today tab is `snapshot.today` drawn in the Mac's order. Nothing in it
   groups anything: `RunSummary` arrives grouped, and `EngineStateDTO` already
-  carries the derived facts the running card reads.
+  carries the derived facts the running card reads (`isBusy`, `isFinishing`,
+  `acceptsGeneration`, `canQueue`).
+- Generate never becomes Stop. `GenerateAvailability` (`Support/`) is the whole
+  of what the button may do, from a live session, `acceptsWork`,
+  `engine.canQueue` and a prompt — the Mac's own answers, so a press the button
+  offers is a press the Mac takes; `StopRunButton` (`Views/Shared/`) appears
+  *beside* it while a run is in flight rather than in its place, and a second
+  press queues behind the picture being rendered the way it does on the Mac.
+  `GeneratePress` (`Support/`) is where one press has got to, and the line under
+  the button is the Mac's refusal or what is waiting. `CountChip` shows the
+  seeds a press is worth on the collapsed capsule when it is more than one.
 - `MobilePreview` is `InterfacePreview`'s shape for the phone:
   `ZEPHRA_PREVIEW_STATE=pairing|ready|generating|capsule|library|viewer|today|offline|settings`,
   Debug only, over two JSON fixtures decoded with the wire's own decoder. Every

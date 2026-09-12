@@ -54,7 +54,8 @@ struct PreviewFixtureTests {
         #expect(running.engine.isBusy)
         #expect(running.engine.step == 4)
         #expect(running.running?.modelID == running.model.id)
-        #expect(!running.acceptsWork)
+        #expect(running.acceptsWork, "a run in flight closes none of the Mac's gates")
+        #expect(running.engine.canQueue, "and another may be queued behind it")
     }
 
     /// The test host launches under `ZEPHRA_PREVIEW_STATE=ready`, so this is the frozen client

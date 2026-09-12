@@ -42,7 +42,10 @@ extension MobilePreview {
             modelID: snapshot.model.id,
             isBusy: true,
             isFinishing: false,
-            acceptsGeneration: false)
+            acceptsGeneration: false,
+            // A Mac rendering a picture still queues another behind it, which is the whole of
+            // what this state is photographed for: Generate live, Stop beside it.
+            canQueue: true)
         snapshot.running = QueuedEntry(
             id: UUID(uuidString: "9D4C0F55-2B31-4E6A-A7C8-1F0B6E3D5A24")!,
             batchID: UUID(uuidString: "1E9C2A60-4E1D-4C35-9F0E-2C7B3A5D8E11")!,
@@ -52,7 +55,9 @@ extension MobilePreview {
                 prompt: "a red bicycle against a limestone wall",
                 size: ImageSize(width: 1024, height: 1024), steps: 9, guidance: 0,
                 seed: 8_123_447_209_115_664))
-        snapshot.acceptsWork = false
+        // `acceptsWork` is the Mac's one gate — a folder being moved, a quit — and a run in
+        // flight closes none of it, so a mid-run Mac still takes work.
+        snapshot.acceptsWork = true
         return snapshot
     }
 

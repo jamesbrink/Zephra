@@ -92,7 +92,9 @@ Four directories, by what a file is, the way the Mac's target is laid out.
   `ConnectionRow`, `CacheRow` and `AboutRow`, a row to a file, so a later change
   replaces one of them rather than editing a screen around it. `Shared/` is the
   one exception to "a subfolder per surface", and it holds exactly what two
-  surfaces draw the same way: `ClipPlayerView` and `EntryThumbnail`.
+  surfaces draw the same way: `ClipPlayerView`, `EntryThumbnail` and
+  `StopRunButton`, which the Today tab's running card and the capsule both
+  draw.
 
 `MobileSelection` (`Support/`) is where the phone is looking: which tab is up,
 whether the capsule is showing its settings, and whether the prompt wants the
@@ -333,12 +335,40 @@ the Mac once crashed on a model switch.
   own, so it shows what the Library tab shows, works with no Mac in reach, and
   shares every thumbnail with the grid.
 
-`GenerateButton` is enabled on three things: a live session, `acceptsWork`, and
-a prompt. A refusal is the Mac's own sentence under the button rather than an
-alert, since an alert over a phone's canvas hides the picture it is about. While
-the Mac is rendering, Stop replaces it. Offline, the last picture stays and the
-capsule says so in one line, because everything on the screen is still the last
-thing the Mac said.
+`GenerateButton` never changes its word and never goes away. `GenerateAvailability`
+(`Support/`) is the whole of what it may do, read off four things the Mac said:
+a live session, `acceptsWork`, `engine.canQueue`, and a prompt to make. Nothing
+there is recomputed from the engine's case — `canQueue` is the Mac's own answer,
+the one `remoteAdmission` gates on, so a press the button offers is a press the
+Mac takes and a button that is grey is grey for the Mac's own reason.
+
+That is what makes queueing from the phone work at all. The engine, the wire and
+the host have always admitted work mid-run; what stopped it was this button
+swapping itself for Stop while `kind == .generating`, which is the one state a
+second press is most wanted in. So Stop moved out of the way: `StopRunButton`
+(`Views/Shared/`, shared with the Today tab's running card) sits *beside*
+Generate while a run is in flight rather than in its place. A thumb on its way
+down to queue a second picture lands on Generate, not on the control that throws
+away the first — and the Mac's own capsule has always behaved this way, where
+Generate mid-run queues and File > Stop Generating is somewhere else entirely.
+
+`GeneratePress` (`Support/`) is where one press has got to: `idle`, `sending`
+while the Mac is being asked, or `refused` with the Mac's own sentence. The
+button is disabled while a press is in the air, since a relay round trip is long
+enough for a second press to arrive before the first is answered — and though
+`enqueue` is idempotent by `requestID` at the far end, a button that looks live
+while nothing has happened is a button somebody presses again. One line under it
+carries the refusal, or, with nothing refused, how many runs are waiting
+("3 waiting"). A sentence rather than an alert, since an alert over a phone's
+canvas hides the picture it is about.
+
+`CountChip` (`Views/Capsule/`) is the collapsed capsule's one reading of what a
+press costs: "×3" when `draft.count` is more than one, tapping through to the
+settings where the stepper is. Nothing at a count of one, which is every session
+that never touched it.
+
+Offline, the last picture stays and the capsule says so in one line, because
+everything on the screen is still the last thing the Mac said.
 
 What this surface deliberately leaves out — a picture saved to the camera roll —
 is in `ROADMAP.md`.
@@ -566,8 +596,9 @@ work on the Mac and the phone would only be a second copy of it.
 - `RunningRunCard` is the only amber thing on the phone, for the reason
   safelight amber is the only amber on the Mac. Its step count, its pace and its
   phase are read straight off `EngineStateDTO`, which already carries the
-  derived facts (`isBusy`, `isFinishing`): the phone never works out a rule the
-  Mac knows. Stop is `client.cancel()`.
+  derived facts (`isBusy`, `isFinishing`, `canQueue`): the phone never works out
+  a rule the Mac knows. Stop is `StopRunButton`, shared with the capsule, over
+  `client.cancel()`.
 - `WaitingRunCard` takes the **whole run** out of the queue rather than one seed
   of it, finding its entries in `snapshot.queue` by their batch. A run is what
   was asked for, so a run is what can be taken back.

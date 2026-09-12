@@ -58,8 +58,15 @@ public struct EngineStateDTO: Codable, Hashable, Sendable {
     public var isFinishing: Bool
     /// Whether a new generation may start right now.
     public var acceptsGeneration: Bool
+    /// Whether a generation may be *queued* right now: started at once, or put behind the one
+    /// the Mac is already rendering. Wider than `acceptsGeneration`, which is the engine
+    /// standing idle, and it is the fact a phone's Generate button reads — the Mac's own
+    /// `canQueue` says the same thing about the Mac's button. Stamped by the host rather than
+    /// derived from `EngineState` alone, since whether the store is working down its queue is
+    /// the store's fact and not the state's.
+    public var canQueue: Bool
 
-    /// Creates a state update. Everything but the case and the three derived facts defaults to
+    /// Creates a state update. Everything but the case and the four derived facts defaults to
     /// absent, since each case fills in only its own fields.
     public init(
         kind: Kind,
@@ -82,7 +89,8 @@ public struct EngineStateDTO: Codable, Hashable, Sendable {
         message: String? = nil,
         isBusy: Bool = false,
         isFinishing: Bool = false,
-        acceptsGeneration: Bool = false
+        acceptsGeneration: Bool = false,
+        canQueue: Bool = false
     ) {
         self.kind = kind
         self.phase = phase
@@ -105,5 +113,6 @@ public struct EngineStateDTO: Codable, Hashable, Sendable {
         self.isBusy = isBusy
         self.isFinishing = isFinishing
         self.acceptsGeneration = acceptsGeneration
+        self.canQueue = canQueue
     }
 }

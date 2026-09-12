@@ -33,6 +33,7 @@ struct CapsuleCollapsed: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Prompt")
             .accessibilityHint("Opens the prompt and the keyboard")
+            CountChip()
             GenerateButton()
         }
         .padding(.horizontal, 14)

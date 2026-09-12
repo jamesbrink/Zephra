@@ -95,6 +95,61 @@ extension RemoteEnqueueTests {
         await store.shutdown()
     }
 
+    @Test("a run in flight takes another behind it, and says so")
+    func queueableMidRun() async throws {
+        let bed = EngineTestBed()
+        bed.control.update { $0.stepDelay = .milliseconds(20) }
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        #expect(store.acceptsQueuedGeneration, "an idle engine, before anything runs")
+
+        store.settings.prompt = "a lighthouse"
+        store.settings.steps = 8
+        store.generate()
+        try await bed.waitForStep()
+
+        #expect(store.acceptsQueuedGeneration, "and one working down its queue")
+        #expect(store.remoteAdmission(for: ModelCatalog.default, settings: Self.request()) == .admitted)
+        #expect(store.enqueue(Self.request(), on: ModelCatalog.default) != nil)
+        #expect(store.queue.count == 1, "behind the one being rendered")
+
+        store.cancel()
+        await store.settle()
+        while store.isDraining || !store.queue.isEmpty { await store.settle() }
+        await store.shutdown()
+    }
+
+    @Test("an upscale is not a queue, so nothing may be queued behind one")
+    func refusedWhileUpscaling() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        bed.upscalerControl.update { $0.tiles = 20; $0.tileDelay = .milliseconds(5) }
+        var settings = GenerationSettings(
+            prompt: "a lighthouse at dusk", size: ImageSize(width: 1024, height: 1024),
+            steps: 9, guidance: 0, seed: 99)
+        settings.frames = 1
+        let parent = try bed.library.write(
+            GeneratedImage(
+                pngData: MockBackend.pngData, settings: settings,
+                modelID: ModelCatalog.default.id, duration: .seconds(3)))
+
+        store.upscale(.file(parent), factor: 2)
+        try await bed.waitForTile()
+
+        #expect(!store.acceptsQueuedGeneration, "no model need even be loaded for an upscale")
+        #expect(
+            store.remoteAdmission(for: ModelCatalog.default, settings: Self.request())
+                == .refused("Zephra is upscaling a picture."))
+        #expect(store.enqueue(Self.request(), on: ModelCatalog.default) == nil)
+        #expect(store.queue.isEmpty)
+
+        await store.settle()
+        await store.shutdown()
+    }
+
     @Test("a bad request is named as one even while the Mac is busy with something else")
     func badRequestBeatsBusy() async throws {
         let bed = EngineTestBed()

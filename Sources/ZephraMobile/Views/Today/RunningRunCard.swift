@@ -70,24 +70,3 @@ struct RunningRunCard: View {
         return parts.isEmpty ? "Working" : parts.joined(separator: " \u{00B7} ")
     }
 }
-
-/// Stop, which is the one thing a phone may do to a run in flight.
-///
-/// Its own view so the card holds two stored properties rather than three, and because Stop is
-/// the one control here that is a command rather than a reading.
-private struct StopRunButton: View {
-    @Environment(LinkClient.self) private var client
-
-    var body: some View {
-        Button {
-            Task { try? await client.cancel() }
-        } label: {
-            Image(systemName: "stop.circle.fill")
-                .font(.title3)
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(.secondary)
-        .disabled(!client.connection.isLive)
-        .accessibilityLabel("Stop Generating")
-    }
-}

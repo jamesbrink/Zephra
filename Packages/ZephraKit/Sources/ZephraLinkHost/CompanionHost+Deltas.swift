@@ -11,7 +11,7 @@ import ZephraLinkProtocol
 extension CompanionHost {
     /// Where the engine is, and whether the Mac is taking work at all.
     func publishEngine() {
-        let engine = EngineStateDTO(store.state, modelID: store.descriptor.id)
+        let engine = EngineStateProjection.engine(store)
         if engine != published.engine {
             published.engine = engine
             broadcast(.engine(engine))

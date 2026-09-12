@@ -40,6 +40,10 @@ extension EngineStateDTO {
         dto.modelID = modelID
         dto.isBusy = state.isBusy
         dto.acceptsGeneration = state.acceptsGeneration
+        // What the engine alone can say: idle takes work. Whether a run already in flight would
+        // take one behind it is the store's fact, so the host stamps it over this
+        // (`EngineStateProjection`); a DTO built straight from a state is honest without it.
+        dto.canQueue = state.acceptsGeneration
         self = dto
     }
 

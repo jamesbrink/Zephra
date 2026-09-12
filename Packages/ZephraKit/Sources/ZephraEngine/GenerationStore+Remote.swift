@@ -15,6 +15,17 @@ import ZephraCore
 /// the wall and the library the way any queued generation does; it simply never takes the
 /// canvas, because `followsRun` was never turned on for it.
 extension GenerationStore {
+    /// Whether the engine would take a queued generation right now: start one, or put it
+    /// behind the one it is already rendering.
+    ///
+    /// `canQueue` without the capsule's half of the question. The Mac's own button asks about
+    /// the prompt being typed and the picture on its way into the well; a device's request
+    /// brings both with it, so what is left is the engine — idle, or working down its queue,
+    /// which is a queue one more entry may join. It is `EngineStateDTO.canQueue` on the wire,
+    /// stamped by `EngineStateProjection`, so a phone's Generate button and this gate are one
+    /// answer rather than two that can disagree.
+    public var acceptsQueuedGeneration: Bool { state.acceptsGeneration || isDraining }
+
     /// Whether a request from a paired device would be queued right now, and if not, why.
     ///
     /// `settings` and `count` carry defaults so the question can be asked about the Mac alone —
@@ -34,7 +45,7 @@ extension GenerationStore {
         // runnable helps nobody.
         if let request = badRequest(model, settings, count) { return .badRequest(request) }
         if let busy = busyReason { return .busy(busy) }
-        guard state.acceptsGeneration || isDraining else { return .refused(state.remoteRefusal) }
+        guard acceptsQueuedGeneration else { return .refused(state.remoteRefusal) }
         return .admitted
     }
 

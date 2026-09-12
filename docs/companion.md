@@ -80,8 +80,35 @@ strings in `CommandCodingTests` and `StateCodingTests` pin them.
 carries progress events that carry a decoded preview frame, and a quarter of a
 megabyte of pixels must never ride inside a state update; previews have a message
 kind of their own. The facts the Mac derives from a case (`isBusy`,
-`isFinishing`, `acceptsGeneration`) are stored fields, so the phone never has to
-know a rule the Mac already knows.
+`isFinishing`, `acceptsGeneration`, `canQueue`) are stored fields, so the phone
+never has to know a rule the Mac already knows.
+
+`canQueue` is the odd one out, and the reason it exists is worth writing down.
+The other three are functions of `EngineState` alone, so
+`EngineStateDTO(_ state:)` in the shared package derives them and a new case of
+the engine's fails to compile there rather than reaching a phone as `idle`.
+Whether a generation may be *queued* is not: a Mac four steps into a picture is
+`.generating`, which says a run is in flight and nothing about whether another
+may wait behind it. That is `GenerationStore.acceptsQueuedGeneration`
+(`state.acceptsGeneration || isDraining`), the store's own fact and the one
+`remoteAdmission` gates on — so if the phone worked it out from `kind` it would
+be a second copy of a rule that can disagree with the Mac that then refuses the
+press. `EngineStateProjection` (`ZephraLinkHost/Projection/`) is where the store
+stamps it, and the two sites that build the DTO for a phone —
+`StateSnapshotProjection` and `CompanionHost.publishEngine` — both go through
+it. An upscale is deliberately not a queue: nothing is draining, no model need
+even be loaded, and a request arriving then is refused with "Zephra is upscaling
+a picture."
+
+`EngineStateDTO` reads itself by hand (`EngineStateDTO+Codable`) for one field.
+`canQueue` shipped after the first Macs did, and a state without it is not a Mac
+that takes no queued work — it is a Mac that never had an opinion. Read as
+absent it would grey out Generate for good against an older Mac, so it is
+`decodeIfPresent ?? acceptsGeneration`, which is exactly what the field's
+absence used to mean: one picture at a time. Encoding stays synthesised, since
+what this Mac sends is everything it has. That is the rule for every field added
+to a DTO after a release — default it to what its absence meant — and
+`QueuedEntry` is the other hand-written reader, for its own reason.
 
 `GenerationRequest` carries `ZephraCore`'s own `GenerationSettings`, so the Mac
 clamps what arrives through the same `clamp` a local press of Generate goes
