@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 import ZephraLinkClient
 
@@ -14,5 +15,6 @@ struct PairingProgressTests {
         #expect(PairingProgress.words(for: .live(.lan)) == "Paired")
         #expect(PairingProgress.words(for: .offline) == nil)
         #expect(PairingProgress.words(for: .failed("no")) == nil)
+        #expect(PairingProgress.words(for: .waiting(reason: "no", until: Date())) == nil)
     }
 }

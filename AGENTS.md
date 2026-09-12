@@ -841,13 +841,20 @@ US-spelling check.
 - `ZephraMobileApp` is the only file that knows how a Mac is reached: it builds
   the one client over `MobileKeychain` (`LinkKeyStore` on two generic passwords
   under `io.zephra.link`, after first unlock and this device only) and
-  `NetworkLinkRoads`, and `LinkReconnect` (`Support/`) drives it — `begin()` on
+  `NetworkLinkRoads`, and `LinkReconnect` (`Support/`, `@Observable` and injected
+  beside the client, nil under a frozen state) drives it — `begin()` on
   `scenePhase == .active`, `end()` on `.background`, and `LinkBackoff`
   between a failure or a dropped session and the next attempt, while active.
   One attempt is `LocalRoadRace` — every stored address and Bonjour match in
   the room dialled at once inside `LinkClient.lanWindow` (3 s), first to open
   taken — then the relay; `pair(with:)` is the same with the code's secret, and
-  `PairingProgress` shows the road in progress.
+  `PairingProgress` shows the road in progress. The wait is said out loud:
+  `markWaiting(until:)` puts the client in
+  `LinkConnectionState.waiting(reason:until:)`, which keeps the failure's
+  sentence and carries the moment `nextAttemptAt` counts down to, Settings draws
+  with `Text(timerInterval:)` (never a repeating animation) beside Retry Now, and
+  `retryNow()` skips. Every way the loop is taken down leaves what it cancelled
+  on `settling`, which `run()` awaits first: two loops are two roads to one Mac.
 - `PromptDraft` (`Support/`) is the phone's capsule: the settings, the model, the
   picture in the well and the seeds one press is worth, injected beside the
   client and the one object here holding something the Mac did not say. It seeds

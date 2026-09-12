@@ -61,6 +61,22 @@ extension LinkClient {
         await unpair(saying: "\(host.name) no longer shares with this phone. Pair again with a new code.")
     }
 
+    /// Says that nothing is connected and the next attempt is at a known moment.
+    ///
+    /// The policy is the app's — `LinkReconnect` owns the waiting and the count of failures —
+    /// but the state a view reads is the client's, and a drop that read as `failed` while the
+    /// phone was about to dial again a second later was a screen saying "that is that" about a
+    /// phone that had not given up at all. The sentence is the one the failure carried, since
+    /// it is still why nothing is connected.
+    ///
+    /// - Parameter date: when the next attempt is due.
+    public func markWaiting(until date: Date) {
+        guard !isFrozen, !connection.isLive else { return }
+        let reason = connection.reason
+            ?? Self.words(for: nil, host: pairedHost?.name ?? "your Mac")
+        connection = .waiting(reason: reason, until: date)
+    }
+
     /// Closes the session and everything waiting on it.
     public func disconnect() async {
         await tearDown()

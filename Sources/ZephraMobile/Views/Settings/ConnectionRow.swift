@@ -19,6 +19,9 @@ struct ConnectionRow: View {
     var body: some View {
         LabeledContent("Connection", value: Self.words(for: client.connection))
             .task(id: client.connection) { await watchForASlowSearch() }
+        if let until = client.connection.nextAttempt {
+            ReconnectingRow(until: until)
+        }
         if isSlow, case .searching = client.connection {
             Text(
                 "If this goes on, check that Zephra is allowed on the local network in "
@@ -32,7 +35,9 @@ struct ConnectionRow: View {
     /// One line for one state.
     ///
     /// A failure says the Mac's own sentence, or the client's: both were written for a person
-    /// to read, and a word of our own here would only be a worse version of one of them.
+    /// to read, and a word of our own here would only be a worse version of one of them. A wait
+    /// keeps that sentence for the row below it and says the plain thing here, since "trying
+    /// again in a moment" is the fact somebody glancing at Settings wants.
     static func words(for state: LinkConnectionState) -> String {
         switch state {
         case .offline: "Offline"
@@ -41,6 +46,7 @@ struct ConnectionRow: View {
         case .live(.lan): "Live on local network"
         case .live(.relay): "Live through relay"
         case .failed(let reason): reason
+        case .waiting: "Reconnecting"
         }
     }
 

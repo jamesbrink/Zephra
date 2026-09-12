@@ -59,9 +59,40 @@ struct LinkReconnectTests {
         let reconnect = LinkReconnect(client: client)
         reconnect.begin()
         try await settle { client.connection.hasFailed }
-        #expect(client.connection == .failed("Zephra could not reach halcyon."))
+        #expect(client.connection.reason == "Zephra could not reach halcyon.")
         // The loop is still there, waiting out `LinkBackoff` before it tries again.
         #expect(reconnect.isRunning)
+        reconnect.end()
+    }
+
+    @Test("no road opening says when the next attempt is")
+    func saysWhenTheNextAttemptIs() async throws {
+        let client = client(pairedTo: host())
+        let reconnect = LinkReconnect(client: client)
+        reconnect.begin()
+        try await settle { client.connection.nextAttempt != nil }
+        // The sentence the failure carried is kept: it is still why nothing is connected.
+        #expect(client.connection.reason == "Zephra could not reach halcyon.")
+        let due = try #require(reconnect.nextAttemptAt)
+        #expect(due == client.connection.nextAttempt)
+        // `LinkBackoff.first`, and never further off than that.
+        #expect(due.timeIntervalSinceNow <= 1.01)
+        reconnect.end()
+    }
+
+    @Test("Retry now dials before the wait is up")
+    func retryingNowDialsAtOnce() async throws {
+        let client = client(pairedTo: host())
+        let reconnect = LinkReconnect(client: client)
+        reconnect.begin()
+        try await settle { reconnect.nextAttemptAt != nil }
+        // The wait goes the moment it is skipped, and a fresh one is scheduled by the attempt
+        // that follows — inside the second the loop would otherwise have been sitting out.
+        reconnect.retryNow()
+        #expect(reconnect.nextAttemptAt == nil)
+        try await settle(within: 60) { reconnect.nextAttemptAt != nil }
+        #expect(reconnect.isRunning)
+        reconnect.end()
     }
 
     @Test("going to the background stops the trying and closes the session")
@@ -101,7 +132,14 @@ struct LinkReconnectTests {
     }
 }
 
-/// Whether the client has given up on an attempt, whatever it gave up saying.
+/// Whether the client has given up on an attempt, whatever it gave up saying and whether or
+/// not the next one has been scheduled yet: the two are a moment apart, and no assertion here
+/// is about which side of that moment the poll landed on.
 extension LinkConnectionState {
-    fileprivate var hasFailed: Bool { if case .failed = self { true } else { false } }
+    fileprivate var hasFailed: Bool {
+        switch self {
+        case .failed, .waiting: true
+        default: false
+        }
+    }
 }

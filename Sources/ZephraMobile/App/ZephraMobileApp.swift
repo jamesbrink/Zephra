@@ -49,6 +49,9 @@ struct ZephraMobileApp: App {
                 .modifier(SeedFormatPreference())
                 .defaultAppStorage(MobileSettings.store)
                 .environment(client)
+                // The reconnection policy, for the one row that draws its wait and skips it.
+                // Nil under a frozen state, where there is nothing to reconnect.
+                .environment(reconnect)
                 // What the next press of Generate will ask for. Built once and injected, so a
                 // prompt survives a walk to the library and back; it holds no fact that came
                 // over the link, which is the client's alone.

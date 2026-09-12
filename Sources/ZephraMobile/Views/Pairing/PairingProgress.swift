@@ -24,6 +24,10 @@ struct PairingProgress: View {
     }
 
     /// The line for a state, or nil for a state that is nothing to wait on.
+    ///
+    /// A wait is one of those. `waiting` belongs to a phone that is already paired and is
+    /// being reconnected to its Mac by `LinkReconnect`; a phone on this screen is not paired
+    /// with anybody, so a spinner here would be about a Mac it no longer has.
     static func words(for state: LinkConnectionState) -> String? {
         switch state {
         case .searching: "Looking for your Mac nearby…"
@@ -31,7 +35,7 @@ struct PairingProgress: View {
         case .connecting(.relay): "Reaching your Mac through the secure relay…"
         case .handshaking: "Pairing…"
         case .live: "Paired"
-        case .offline, .failed: nil
+        case .offline, .failed, .waiting: nil
         }
     }
 }

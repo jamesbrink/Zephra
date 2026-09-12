@@ -36,12 +36,7 @@ struct PromptCapsule: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 14)
             }
-            if !client.connection.isLive {
-                Label("Offline. This is the last thing your Mac said.", systemImage: "wifi.slash")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 14)
-            }
+            ConnectionNote(state: client.connection)
         }
         .padding(.vertical, 12)
         .background(

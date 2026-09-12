@@ -23,6 +23,23 @@ struct SettingsCopyTests {
         #expect(ConnectionRow.words(for: .live(.lan)) == "Live on local network")
         #expect(ConnectionRow.words(for: .live(.relay)) == "Live through relay")
         #expect(ConnectionRow.words(for: .failed("halcyon is asleep.")) == "halcyon is asleep.")
+        #expect(
+            ConnectionRow.words(for: .waiting(reason: "halcyon is asleep.", until: Date()))
+                == "Reconnecting")
+    }
+
+    @Test("A wait keeps the sentence the failure carried, for the surfaces that show one")
+    func keepsTheReasonThroughAWait() {
+        let waiting = LinkConnectionState.waiting(
+            reason: "Zephra could not reach halcyon.", until: Date())
+        #expect(waiting.reason == "Zephra could not reach halcyon.")
+        #expect(!waiting.isBusy)
+        #expect(!waiting.isLive)
+        #expect(ConnectionNote.words(for: waiting) == "Reconnecting to your Mac.")
+        #expect(ConnectionNote.words(for: .live(.lan)) == nil)
+        #expect(
+            ConnectionNote.words(for: .offline) == "Offline. This is the last thing your Mac said."
+        )
     }
 
     @Test("The version is the bundle's two numbers, in the Mac's order")

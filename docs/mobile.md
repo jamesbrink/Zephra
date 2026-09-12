@@ -177,6 +177,26 @@ The composition root builds exactly one, and it is the only file that knows:
   for a stream that has finished, since waking on the observable state itself is
   iOS 26 and the phone runs on 18.
 
+  It is `@Observable`, because the wait is on screen. Before each sleep it writes
+  the moment the next attempt is due to `nextAttemptAt` and to the client, through
+  `markWaiting(until:)`, which is `LinkConnectionState.waiting(reason:until:)` —
+  the failure's own sentence, kept, and a date. `retryNow()` cancels the sleeping
+  loop and starts another, which is the Settings row's Retry Now and what a change
+  of network path does. Three ways in take the loop down — `end()`, `retryNow()`,
+  and nothing else — and each leaves what it cancelled on `settling`, which `run()`
+  awaits before it does anything: an attempt already in flight is not something a
+  cancellation stops part way through, and a second loop over one would be two
+  roads to one Mac.
+
+  What that looks like: Settings shows "Reconnecting" with a countdown under it,
+  `Text(timerInterval:)` so the clock is the system's own view and not a timer
+  ticking state — the repeating-animation ban is `make lint-layers`' and it covers
+  this target — beside a Retry Now button, since thirty seconds is right for a Mac
+  that is asleep and wrong for one somebody has just woken up. The capsule says
+  "Reconnecting to your Mac." for every state that is on its way to a session and
+  "Offline. This is the last thing your Mac said." for the two that are not
+  (`ConnectionNote`, the one place either sentence is written).
+
 Under a frozen preview state the root builds `LinkClient.frozen` instead and no
 `LinkReconnect` at all: a client with no road under it has nothing to reconnect.
 

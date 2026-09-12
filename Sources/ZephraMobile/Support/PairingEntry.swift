@@ -41,8 +41,12 @@ enum PairingEntry {
     /// `LinkClient.pair(with:)` puts its own words on `connection` as it gives up — the Mac's
     /// refusal where there was one, and "Zephra could not reach halcyon" where no road opened —
     /// and those name the Mac, which no error thrown out of a socket ever will.
+    ///
+    /// A wait carries the sentence its failure did, so it reads the same either way: which of
+    /// the two the client happens to be in is a matter of whether the reconnection has got as
+    /// far as scheduling its next attempt, and that is nothing to change the words over.
     nonisolated static func message(for error: Error, connection: LinkConnectionState) -> String {
-        if case .failed(let reason) = connection { return reason }
+        if let reason = connection.reason { return reason }
         return message(for: error)
     }
 

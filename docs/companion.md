@@ -773,6 +773,13 @@ count is the caller's, because the caller is what knows a connection succeeded �
 it resets on a live session and on the app coming to the foreground, which is
 also when it reconnects.
 
+The wait is said out loud. `LinkClient.markWaiting(until:)` puts the client in
+`LinkConnectionState.waiting(reason:until:)` — the sentence the failure carried,
+and the moment the next attempt is due — because `failed` and nothing else read
+as "that is that" about a phone that was in fact about to dial again a second
+later. A wait is not `isBusy`, so `connect()` is exactly what ends it, and the
+phone's Settings counts it down and offers to skip it.
+
 ## The Mac host
 
 `ZephraLinkHost` (`Packages/ZephraKit`) is the Mac's side: `CompanionHost`, the
