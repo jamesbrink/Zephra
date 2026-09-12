@@ -48,7 +48,9 @@ public final class LinkClient {
     public internal(set) var farewell: String?
     /// The Mac's whole state, as of the last snapshot and every delta since.
     public internal(set) var snapshot: StateSnapshot?
-    /// The newest frame of the run in flight, cleared whenever a run ends or the link does.
+    /// The newest frame of the run in flight, cleared when the Mac says the engine is not busy
+    /// and at no other time: a link that drops under a run that is still going leaves the frame
+    /// on screen, which is a truer picture than the spinner it used to fall back to.
     public internal(set) var preview: PreviewFrameDTO?
     /// The library, as far as the Mac has said and the phone has asked.
     public internal(set) var library: [LibraryEntry] = []

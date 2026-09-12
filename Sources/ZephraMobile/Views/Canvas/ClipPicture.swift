@@ -7,16 +7,19 @@ import ZephraStyle
 /// clip the library watched is the clip the canvas plays, under one budget rather than two, and
 /// the phone's temporary directory is left out of it. A clip that will not arrive says so,
 /// exactly as a picture does.
+///
+/// Keyed like `ItemPicture`, on the Mac being in reach as well as on the name, so a clip that
+/// could not be fetched during a drop is fetched when the link comes back.
 struct ClipPicture: View {
     /// The poster's name in the Mac's library; the MP4 sits beside it under the same stem,
     /// which is `VideoSidecar`'s rule and `LibraryCatalog.clipName(of:)`'s.
     let name: String
     @Environment(LibraryCatalog.self) private var catalog
-    @State private var phase = FetchPhase<URL>.fetching
+    @State private var phase = FetchPhase<Fetched<URL>>.fetching
 
     var body: some View {
         Group {
-            if let url = phase.value {
+            if let url = phase.value?.value {
                 ClipPlayerView(url: url, place: .canvas)
                     .clipShape(
                         RoundedRectangle(
@@ -25,7 +28,7 @@ struct ClipPicture: View {
                 PictureUnavailable(isFetching: isFetching)
             }
         }
-        .task(id: name) { await load() }
+        .task(id: FetchKey(name: name, isLive: catalog.isLive)) { await load() }
         .accessibilityLabel("The newest clip")
     }
 
@@ -35,11 +38,12 @@ struct ClipPicture: View {
     }
 
     private func load() async {
+        guard phase.value?.matches(name) != true else { return }
         phase = .fetching
         guard let url = try? await catalog.url(named: name, isVideo: true) else {
             phase = .missing
             return
         }
-        phase = .ready(url)
+        phase = .ready(Fetched(name: name, value: url))
     }
 }

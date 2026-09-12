@@ -788,6 +788,11 @@ has answered one with a `pong` carrying `inReplyTo` since the first build, so a
 phone that hears nothing inside `probeTimeout` (5 s) ends the session itself and
 reconnects. The phone answers the Mac's pings the same way.
 
+`preview` outlives the road it arrived on. A run is the Mac's, and a road that
+drops under one that is still going leaves the phone holding the best account of
+the Mac it has; only a snapshot or a delta saying the engine is not busy clears
+a frame.
+
 ## The Mac host
 
 `ZephraLinkHost` (`Packages/ZephraKit`) is the Mac's side: `CompanionHost`, the

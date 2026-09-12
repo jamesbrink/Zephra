@@ -352,7 +352,22 @@ the bytes in memory to go stale.
 
 A fetch has three states and not two (`FetchPhase`): a picture that is not
 coming says so, because a blank square reads as a bug rather than as a link that
-is down.
+is down. It is keyed on `FetchKey` — the name **and** `LibraryCatalog.isLive` —
+so a picture that could not be fetched during a drop is fetched again when the
+Mac comes back, rather than staying grey until the view is built again, which
+for a cell somebody is looking at means until they scroll it away and back. What
+arrived is kept as a `Fetched`, under the name it arrived for, so the link
+coming back is not a reason to fetch what is already here; that is also what
+keeps these views inside their three stored properties. `EntryThumbnail` is the
+same, keyed on the entry's version.
+
+The frame itself survives a drop. `LinkClient.preview` is cleared only by a
+snapshot or a delta that says the engine is not busy, because a road that went
+under a run that did not is a phone whose newest frame is still the best account
+of what the Mac is doing; clearing it put a spinner and the word "Denoising" in
+its place. `RunPlaceholderView` — the rectangle before the first frame — takes
+`isLive` and says "Reconnecting" rather than repeating the phase the Mac was in
+when the link went.
 
 Neither the placeholder nor anything else on this surface animates. The ban is
 the Mac's, for the Mac's reason, and `make lint-layers` covers both targets.

@@ -118,7 +118,6 @@ extension LinkClient {
     func tearDown() async {
         guard let session else { return }
         self.session = nil
-        preview = nil
         settleEverything(with: LinkClientError.notConnected)
         await session.end(LinkClientError.notConnected)
         sessionEnded()

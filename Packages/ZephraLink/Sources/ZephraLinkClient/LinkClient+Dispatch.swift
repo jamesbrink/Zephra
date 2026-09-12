@@ -20,6 +20,10 @@ extension LinkClient {
         switch envelope.kind {
         case .snapshot:
             snapshot = decode(StateSnapshot.self, from: envelope)
+            // A frame kept through a drop belongs to a run; the first thing the Mac says on the
+            // way back is whether there is still one. This and the delta below are the only two
+            // ways a preview is ever cleared.
+            if snapshot?.engine.isBusy == false { preview = nil }
             // Every connect brings one, and it is the frame that says the session is up: the
             // library the Mac holds is read across from here, since nothing else will send it.
             startLibraryPull()
@@ -63,7 +67,8 @@ extension LinkClient {
     ///
     /// The library list is the client's, not the snapshot's: the snapshot counts the folder and
     /// the phone holds the window it has been sent. The preview goes when the engine stops
-    /// being busy, which is every way a run ends.
+    /// being busy, which is every way a run ends — and is the only thing that clears one, so a
+    /// frame survives a road that dropped under a run that did not.
     private func apply(_ delta: StateDelta) {
         switch delta {
         case .library(let change): apply(change)

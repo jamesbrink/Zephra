@@ -893,8 +893,15 @@ US-spelling check.
   `ChainPlan.frames`.
 - The canvas is `Views/Canvas/` and `Views/Capsule/`: the run's frames while
   there is a run (`LivePreviewView`, then `RunPlaceholderView` before the first
-  one), otherwise the newest picture or clip, with the capsule in the bottom
-  safe area rather than in a sheet, which would cover the tab bar. Every control
+  one, which says "Reconnecting" while the link is not live rather than
+  repeating a stale phase), otherwise the newest picture or clip, with the
+  capsule in the bottom safe area rather than in a sheet, which would cover the
+  tab bar. A frame already here survives a drop: `LinkClient.preview` is cleared
+  only by a snapshot or a delta saying the engine is not busy. Every picture
+  fetch is keyed on `FetchKey` (the name and `LibraryCatalog.isLive`) and keeps
+  what arrived as a `Fetched` under the name it arrived for, so a square that
+  went grey during a drop fills in when the Mac comes back and one that is
+  already drawn is not fetched twice. Every control
   is drawn and hidden by the capabilities the way `ControlsRow` is, `SeedEntry`
   and `SizeEntry` read what is typed, `\.seedFormat` spells a seed — the
   Settings tab's `SeedFormat`, put in the environment once by

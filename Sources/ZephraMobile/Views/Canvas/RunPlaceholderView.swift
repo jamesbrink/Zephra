@@ -16,6 +16,10 @@ import ZephraStyle
 struct RunPlaceholderView: View {
     /// What the Mac is doing, or nil between phases.
     let phase: String?
+    /// Whether the Mac can be heard at all. A phase is the Mac's word for what it was doing
+    /// when the link went, and repeating it at somebody with no link is the app claiming to
+    /// know something it does not.
+    var isLive: Bool = true
 
     var body: some View {
         ZStack {
@@ -25,11 +29,11 @@ struct RunPlaceholderView: View {
             VStack(spacing: 10) {
                 ProgressView()
                     .tint(.safelight)
-                Text(phase ?? "Starting")
+                Text(Self.headline(phase: phase, isLive: isLive))
                     .font(.callout)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
-                Text("A preview appears after the first step.")
+                Text(Self.note(isLive: isLive))
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
@@ -37,12 +41,32 @@ struct RunPlaceholderView: View {
             .padding(24)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(phase ?? "Starting")
+        .accessibilityLabel(Self.headline(phase: phase, isLive: isLive))
+    }
+
+    /// The word in the middle of the card.
+    static func headline(phase: String?, isLive: Bool) -> String {
+        guard isLive else { return "Reconnecting" }
+        return phase ?? "Starting"
+    }
+
+    /// The line under it.
+    static func note(isLive: Bool) -> String {
+        isLive
+            ? "A preview appears after the first step."
+            : "The run carries on at your Mac."
     }
 }
 
 #Preview("Waiting for the first frame") {
     RunPlaceholderView(phase: "Denoising")
+        .aspectRatio(1, contentMode: .fit)
+        .padding(40)
+        .background(Color.canvasBackground)
+}
+
+#Preview("Reconnecting") {
+    RunPlaceholderView(phase: "Denoising", isLive: false)
         .aspectRatio(1, contentMode: .fit)
         .padding(40)
         .background(Color.canvasBackground)

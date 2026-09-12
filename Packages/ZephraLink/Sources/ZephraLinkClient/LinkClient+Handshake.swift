@@ -90,10 +90,14 @@ extension LinkClient {
 
     /// The road stopped, from the far end, from a frame that did not authenticate, or from a
     /// probe the Mac never answered.
+    ///
+    /// The preview stays. It is the last frame of the run the Mac was making, and the run is
+    /// very likely still being made; throwing it away put the canvas back to a spinner over
+    /// "Denoising" for a phone that had lost the link, which is a worse picture of the truth
+    /// than the frame it already had. Only the Mac saying the engine is not busy clears it.
     func roadEnded(_ session: LinkSession, error: (any Error)?) async {
         guard self.session === session else { return }
         self.session = nil
-        preview = nil
         settleEverything(with: error ?? LinkClientError.notConnected)
         await session.end(error ?? LinkClientError.notConnected)
         connection = error.map { .failed(Self.words(for: $0, host: pairedHost?.name ?? "the Mac")) }
