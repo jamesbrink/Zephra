@@ -16,7 +16,7 @@ changes nothing. (`ZephraQuantize` honours none of them, so it reads nothing.)
 value, and `AppSettings.residencyPolicy(mode:budget:override:)` is pure, so the picker applies
 the same override the store runs under without a second read of the process environment.
 
-- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|clip|generating|starting|queued|watching|finishing|batch|library|viewer|picker|welcome|downloading|building|failed`
+- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|clip|generating|starting|queued|watching|finishing|batch|library|viewer|picker|welcome|downloading|building|update|failed`
   launches a Debug build frozen in that state with no model, for screenshots (`make screenshot`).
   `tucked` is `image` with the canvas's floating prompt slid down to its lip.
   `welcome` opens the first-launch model chooser over a frozen engine, whatever this Mac's
@@ -45,11 +45,42 @@ the same override the store runs under without a second read of the process envi
   a clip run after its last step, the latents being developed: the bar full and
   `FinishingNote` over the frame.
   `downloading` and `failed` sit over a picture, since that is where they must stay
-  legible, and `failed` is a download that gave up.
+  legible, and `failed` is a download that gave up. `update` sits over a picture for the same
+  reason: the banner is a strip across the top of the window, and a window with nothing in it
+  says nothing about how the strip reads over the panes. Its checker is
+  `UpdateChecker.frozen(.available(...))` — a made-up release, no timer, no feed, and
+  `UpdateChecker.start()` returns before anything else while a preview state is set, so a
+  screenshot build never reaches the update server any more than it opens a link road.
 - `ZEPHRA_FRESH_START=<directory>` launches the app as a Mac that has never run it: its
   preferences go to a suite of their own, its models folder is `<directory>/Models` and its
   library `<directory>/Images`, and the single-instance guard lets it run beside a real
   Zephra. `make run-fresh` is the way in; `FreshStart` in `Support/` is the whole of it.
+- `ZEPHRA_UPDATE_FEED=<url>` and `ZEPHRA_UPDATE_BUILD=<stamp>` are the updater's two hooks,
+  read once at the composition root into `UpdateEnvironment` and handed down as a value, the
+  way `InferenceEnvironment` is. The first points the check at another manifest; the second
+  makes this build claim to be an older one, so a published release reads as newer without a
+  ship being made for the test. Both are `#if DEBUG` inside `UpdateEnvironment.current`, for
+  the reason `ZEPHRA_PREVIEW_STATE` is: a shipped, signed Zephra has no business fetching its
+  next version from wherever an environment variable happens to point.
+
+  Either one set also lifts one rule — `UpdateEligibility`'s "must be in `/Applications`" —
+  because the hand run is exactly a Debug build in `build/Debug` pointed at a local feed. The
+  other two rules stand: a translocated copy is still refused, and so is a build whose number
+  is not a twelve-digit stamp, which is every ordinary Debug build. So the hand run needs
+  both hooks, not just the feed:
+
+  ```
+  make build CONFIG=Debug
+  ditto build/Debug/Zephra.app /tmp/zephra-update/Zephra.app   # a copy to sacrifice
+  ( cd /tmp/feed && python3 -m http.server 8000 )              # holding releases/latest.json
+  open -n --env ZEPHRA_UPDATE_FEED=http://127.0.0.1:8000/releases/latest.json \
+          --env ZEPHRA_UPDATE_BUILD=202601010000 /tmp/zephra-update/Zephra.app
+  ```
+
+  The manifest's `url` points at a DMG the same server holds and its `sha256` is that file's;
+  the installer refuses anything else long before it copies. A locally signed copy is refused
+  at `spctl` — that is the check doing its job — so the swap itself is only ever exercised
+  end to end against a notarized build.
 - Debug only: `ZEPHRA_DOWNLOAD_TEST_HUB=http://127.0.0.1:<port>` uses the real
   downloader and UI with an unloaded exercise backend for disposable HTTP fixtures.
   Use a separate bundle identifier/preferences domain and models folder. No such hook

@@ -29,7 +29,7 @@ directory's `Models` and `Images` in place of Application Support and
 `~/Pictures/Zephra`. The Hugging Face cache is deliberately not redirected: it is a
 read-only fallback a real new Mac may equally have. `make run-fresh` asks for it.
 
-Five directories, by what a file is rather than what screen it is on:
+Six directories, by what a file is rather than what screen it is on:
 
 - `Style/` — the chrome. The tokens themselves are one package up, in
   `Packages/ZephraStyle` (SwiftUI and `ZephraCore`, macOS and iOS), because the
@@ -300,7 +300,15 @@ Five directories, by what a file is rather than what screen it is on:
   `UNUserNotificationCenter` is touched: it posts only when `NSApp` is not
   active and the General toggle (`AppSettings.backgroundNotifications`)
   allows, and asks permission the first time it has something to say rather
-  than at launch. `Sidebar/CanvasSidebar` is the canvas sidebar,
+  than at launch. A published update is the third
+  (`BackgroundNotice.updateAvailable`, posted by `UpdateChecker`), which is why
+  the toggle's label names all three. What a click on one does is
+  `AppLifecycle+Notifications`, which adopts `UNUserNotificationCenterDelegate`
+  in `applicationDidFinishLaunching` and, on a response, activates the app and
+  orders the main window front: every notice Zephra posts is about that one
+  window, so none of them carries a destination, and without a delegate a Mac
+  whose window had been closed with Command W gets a Dock icon and nothing
+  else. `Sidebar/CanvasSidebar` is the canvas sidebar,
   which builds today's runs once and hands them to `Sidebar/Timeline/` — a
   card per run still waiting, the running run's card in amber, and under those
   the wall of today's pictures in small squares — and to the "Today in

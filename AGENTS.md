@@ -622,7 +622,7 @@ builds, the app-hosted tests, and `ZEPHRA_FRESH_START` (`FreshStart` in
 `Support/`, which gives `AppSettings.store` a throwaway suite and its own
 `Models` and `Images` folders; the hub cache is deliberately not redirected).
 
-Five directories, by what a file is rather than what screen it is on:
+Six directories, by what a file is rather than what screen it is on:
 
 - `Style/` — the chrome drawn on top of the shared tokens. The tokens
   themselves live in `Packages/ZephraStyle`, since the iOS companion is drawn
@@ -646,6 +646,12 @@ Five directories, by what a file is rather than what screen it is on:
   `CompanionEndpoints`, `CompanionRoads`, `RelayRoad` and `PairingQRCode`. The one
   place in the app target that may import `ZephraLinkTransport`, since a road is
   what it opens; `ZephraApp.swift` itself takes only `ZephraLinkHost`.
+- `Update/` — everything the hand-rolled updater is, for the reason
+  `Companion/` exists: `UpdateEnvironment` (the two hooks, read once at the
+  root), `RunningBuild`, `UpdateEligibility`, `UpdatePhase`, `UpdateDecision`,
+  `UpdateOutcome`, `UpdateChecker` (`@MainActor @Observable`, injected from
+  `ZephraApp`), `UpdateInstaller`, `UpdateSignature`, `UpdateTool` and
+  `Relaunch`. See "Updates" below.
 - `Views/` — one subfolder per surface; the capsule, its controls, the
   commands and Settings sit at the top because they belong to no surface.
 
@@ -687,7 +693,10 @@ Rules in `Support/`:
   worth a notification while another app is in front; `BackgroundNotices.post`
   is the one place `UNUserNotificationCenter` is touched, posts only when
   `NSApp` is inactive and the General toggle allows, and asks permission the
-  first time it has something to say.
+  first time it has something to say. A click on any of them goes through
+  `AppLifecycle+Notifications`, which brings the app forward and the window with
+  it: every notice is about the one window, so none of them carries a
+  destination.
 
 Rules in `Views/`:
 
@@ -1366,6 +1375,83 @@ accepts; and Qwen-Image refuses to build without `--lora`
 (`QuantizeFamily.requiresAdapter`) — `--no-lora` needs an `--out` other than the
 catalog's.
 
+## Updates
+
+Zephra updates itself, from the feed `scripts/publish-download.sh` already
+writes. No Sparkle and no publish-path change: the ship is unchanged, and the
+updater reads what a ship leaves behind.
+
+- The feed is `https://zephra-assets.urandom.io/releases/latest.json`, four
+  fields — `url` (the immutable stamped DMG), `version`, `build`, `sha256` —
+  cached for a minute and revalidated. `UpdateFeed` reads it over an ephemeral
+  session with no cache at all, `Cache-Control: no-cache`, a 15 s timeout and
+  `waitsForConnectivity` off; offline is an answer, not a wait.
+- **Newer is the build compared as an integer, never the version.** Every build
+  is `0.1.0`, so the version orders nothing; the build is the UTC minute
+  (`YYYYMMDDHHMM`). `ReleaseManifest.isNewer(than:)` refuses anything that is
+  not twelve ASCII digits at either end, so `project.yml`'s own `1` never
+  updates.
+- `UpdateEligibility` is the safety gate, in order: a translocated copy (its
+  path carries `/AppTranslocation/`, so it is running from a disk image and
+  nothing near it may be written), a build that is not a stamp (every
+  development build), then a copy outside `/Applications` and `~/Applications`
+  or nested inside another app's bundle. Only the last is lifted, and only for
+  a launch driving its own feed through the Debug hooks.
+- **Nothing is fetched before the click.** A check that finds a release puts it
+  on the banner and stops there. `UpdateDownload` then streams the image
+  through the same `ChunkedDownload` a model transfer uses, into
+  `<Application Support>/Zephra/Updates/<build>.dmg.incomplete`, and renames it
+  only once its SHA-256 is the published one. No resume: a release is one file
+  and a minute, so a broken transfer starts over (`ROADMAP`).
+- **Verify before copy, on the mounted image.** `hdiutil attach -nobrowse
+  -readonly -noautoopen` on a mount point of ours, then `codesign --verify
+  --deep --strict`, `spctl --assess --type execute` (Gatekeeper's own verdict,
+  which honours the stapled ticket with no network), the team identifier
+  through `SecCodeCopySelf` / `SecStaticCodeCreateWithPath` — skipped when our
+  own copy is ad-hoc, which `UpdateEligibility` has already refused anyway —
+  and the `Info.plist`'s identifier and `CFBundleVersion` against the manifest
+  (`UpdateInstaller.acceptance`, pure and tested). `stapler` is Xcode's, not
+  macOS's, so it is never run in the app.
+- **Rename aside, then `ditto`.** The running bundle becomes
+  `Zephra.previous.app` — a running bundle may be renamed, since its executable
+  is mapped by inode — and `ditto` copies the new one into its place, because
+  it carries extended attributes, resource forks and symbolic links that a
+  plain copy drops. The copy is `codesign --verify`ed, and any failure removes
+  it and moves the original back. A parent folder that cannot be written to is
+  refused before anything moves, with the drag-it-yourself sentence and Show in
+  Finder on the verified image. No quarantine handling:
+  `LSFileQuarantineEnabled` is unset, a mounted image's files carry no such
+  attribute, and `spctl` already assessed these bytes.
+- **Quit through the normal path.** `Relaunch.afterExit` spawns
+  `/bin/sh -c 'while /bin/kill -0 <pid>; do /bin/sleep 0.2; done; exec
+  /usr/bin/open -n "<bundle>"'` and calls `NSApp.terminate(nil)`, never
+  `exit()`, so `AppLifecycle` runs `GenerationStore.shutdown`,
+  `LibraryIndex.shutdown` and the Metal synchronize. The helper has to wait for
+  the pid: a copy opened while this one lives is stood down at once by
+  `SingleInstance.yieldToRunningCopy`. `UpdateChecker.start()` sweeps
+  `Zephra.previous.app` and empties `Updates/` at the next launch.
+- `UpdateChecker` is `@MainActor @Observable`, built in `ZephraApp` and handed
+  down; never a singleton. It checks ten seconds after launch and every six
+  hours, and `start()` returns at once for a frozen `ZEPHRA_PREVIEW_STATE`
+  build, for a copy `UpdateEligibility` refuses, and while Settings > General's
+  "Check for new versions of Zephra automatically" is off — **a preview build
+  reaches no network at all**, the rule `startCompanion` follows.
+- The banner is `RootView`'s `.safeAreaInset(edge: .top)`, a `ZephraChrome.barHeight`
+  strip with a determinate `ProgressView` and no repeating animation; Update Now
+  is greyed by `UpdateDecision.installBlockedReason` (downloading, building,
+  generating, upscaling, cancelling, or a transfer in flight) with the reason as
+  its tooltip. Later snoozes the build **for the session only**: with no version
+  bumps, a persisted skip is a skip of every later ship.
+- Zephra > Check for Updates… reports through `ModalHost.report`, except a
+  release found, which brings the app forward to the banner already saying so.
+  A check nobody asked for reports nothing. A published release is announced by
+  `BackgroundNotice.updateAvailable` through the existing `BackgroundNotices.post`,
+  so it honours `!NSApp.isActive` and the one General toggle.
+- The two hooks are in "Debugging hooks"; `ZEPHRA_PREVIEW_STATE=update`
+  photographs the banner.
+
+Full detail: `docs/build-and-release.md`.
+
 ## Tests
 
 Swift Testing (`@Suite`/`@Test`), never XCTest. Name suites and tests as
@@ -1720,7 +1806,7 @@ reads `ProcessInfo`, and changing a variable after launch changes nothing.
 Performance tab's picker the same way, as the `\.weightResidencyOverride`
 environment value.
 
-- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|clip|generating|starting|queued|watching|finishing|batch|library|viewer|picker|welcome|downloading|building|failed|settings`
+- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|clip|generating|starting|queued|watching|finishing|batch|library|viewer|picker|welcome|downloading|building|update|failed|settings`
   launches a Debug build frozen in that state with no model, for `make
   screenshot`. `tucked` is `image` with the prompt slid to its lip; `welcome`
   opens the chooser whatever the preferences say; `viewer` opens the library on
@@ -1730,9 +1816,18 @@ environment value.
   `ModelCatalog.ltx2Distilled4bit`, since the inspector reads the record's
   model; `generating` and `queued` follow a made-up run, `watching` does not,
   `starting` has no frame yet, `finishing` is a clip after its last step;
-  `downloading` and `failed` sit over a picture. `settings` freezes the engine
+  `downloading`, `update` and `failed` sit over a picture, `update` with a
+  frozen `UpdateChecker` holding a made-up release and no timer or feed under
+  it. `settings` freezes the engine
   but uses a live library index at the configured `imagesDirectory`, for
   folder-change UAT with temporary fixtures.
+- `ZEPHRA_UPDATE_FEED=<url>` points the update check at another manifest and
+  `ZEPHRA_UPDATE_BUILD=<stamp>` makes this build claim to be an older one, so
+  the whole updater runs against `python3 -m http.server` without a ship. Both
+  are Debug-only (`UpdateEnvironment.current`, read once in `ZephraApp`), and
+  either one also lifts `UpdateEligibility`'s "must be in Applications" rule —
+  a development build is still refused, so the hand run needs `ZEPHRA_UPDATE_BUILD`
+  set to a twelve-digit stamp.
 - `ZEPHRA_FRESH_START=<directory>` launches as a Mac that has never run Zephra:
   its own preferences suite, `<directory>/Models` and `<directory>/Images`, and
   the single-instance guard lets it run beside a real Zephra. `make run-fresh`.

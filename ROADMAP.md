@@ -639,3 +639,47 @@ Left out of the first pass on purpose, each a small change to one file unless no
   linked and the fetched bytes are in hand, so it is a menu item and a
   permission string, but the canvas has no such menu yet; it belongs with the
   library surface's own share and export, not beside the capsule.
+
+## Updates: left out on purpose
+
+The updater is in AGENTS.md under "Updates"; the reasoning is in
+`docs/build-and-release.md`. What it deliberately does not do:
+
+- **Delta updates.** Every update is the whole disk image, a few hundred
+  megabytes. A binary diff needs a patch published beside each release, a
+  patcher, and a fallback when the local bytes are not what the patch expects —
+  and the saving is invisible next to a thirteen-gigabyte model download the
+  same Mac has already made.
+- **Fetching before the click.** A release found by the six-hourly check sits on
+  the banner and nothing is fetched. Downloading it in the background would make
+  Update Now instant, and would also spend a few hundred megabytes of somebody's
+  connection for a button they may never press.
+- **Sparkle.** The reasons are in `docs/build-and-release.md`; the day delta
+  updates or a privileged install are wanted, Sparkle is the answer and this is
+  a week's work to replace.
+- **A persisted skip.** Later hides a release for the session. With every build
+  at `0.1.0` a skip written to disk is either useless (the next build is a
+  different stamp) or too strong (a Mac that has quietly stopped updating). The
+  General toggle is the honest way to switch checks off.
+- **`AuthorizationExecuteWithPrivileges` for a read-only `/Applications`.** A
+  managed Mac is answered with the drag-it-yourself sentence and Show in Finder
+  on the verified disk image. A privileged install is a helper tool, an
+  authorization right and a second signing story, for a case where the user is
+  not allowed to install software anyway.
+- **`notes` and `minimumSystemVersion` in the manifest.** Release notes would
+  want somewhere to write them per build and a view to show them; a minimum
+  system version would want the publish script to read the deployment target and
+  the app to refuse an update it cannot run. Both are additive fields the reader
+  ignores today (`ReleaseManifest` decodes what it names and no more), so
+  neither is a migration when they arrive.
+- **Resuming a stopped download.** `UpdateDownload` starts the file over, up to
+  `DownloadRetry.attempts` times. A release is one file and a minute, and a
+  `Range` request against a mutable CDN object is the correctness problem
+  `ModelDownloader` needed `ETag` and `If-Range` to solve — worth it for
+  thirteen gigabytes of shards, not for this.
+- **A signature over the manifest itself.** The manifest is served over HTTPS
+  from the bucket only a release can write, and nothing in it is trusted: the
+  image is checked against the published SHA-256, then `codesign`, then `spctl`,
+  then the team identifier, then the `Info.plist`'s own build. A forged manifest
+  can at most point at a Zephra Apple notarized and we signed. Signing it would
+  add a key to keep, and would defend the step that is already the most checked.

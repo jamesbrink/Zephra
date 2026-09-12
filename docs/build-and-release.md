@@ -273,6 +273,99 @@ several minutes. Always benchmark and make performance claims against
 Release, never Debug — Debug has Metal validation and full debug info on.
 
 
+## Updates
+
+The rules are in AGENTS.md, "Updates". This is why each of them is what it is.
+
+**Why not Sparkle.** Sparkle is the right answer to a problem Zephra does not
+have: a signed appcast, delta updates, an installer that survives an app that
+cannot write to itself, an XPC helper for the cases that need one. What Zephra
+has instead is one publisher, one immutable URL per build, and a manifest the
+ship already writes. The whole updater is four small types in `ZephraSnapshot`
+and a directory in the app target, every one of them testable in seconds; the
+dependency, its framework, its update-check UI and its own signing story are
+none of them free, and a vendored copy would be another `VENDORED.md` and
+another `THIRD_PARTY_NOTICES.md` entry to keep true. The day delta updates or a
+privileged install are actually wanted, Sparkle is the answer and this is a
+week's work to replace.
+
+**Why the publish path did not change.** `scripts/publish-download.sh` already
+wrote `releases/latest.json` — `{url, version, build, sha256}`, a minute's cache
+and revalidated — because the stable `Zephra-latest.dmg` alias needed something
+naming the bytes behind it. That is exactly an update feed, so the updater reads
+it and the ship is untouched. Nothing in `make ship` or the release workflow
+knows the updater exists, which is what keeps a shipping change from being an
+updating change.
+
+**Why the build and not the version.** Until further notice every build is
+`0.1.0` (see "Build & run" above), so a version comparison orders nothing and a
+semantic-version library would be dead weight. The build number is the UTC
+minute the build started, twelve digits, which compares as an `Int64`. The rule
+is spelled so that anything else is *never* newer, at either end: a build of `1`
+— `project.yml`'s default, and so every development build — cannot be offered a
+release, and a manifest whose build is not a stamp cannot offer one. When
+versions do start moving, `ReleaseManifest.isNewer(than:)` is the one function
+that changes.
+
+**Why `spctl` and not `stapler`.** Both would answer "is this notarized". Only
+one ships with macOS: `xcrun stapler` is Xcode's, so `verify-dmg.sh` may use it
+on a build machine and the app may not use it on a user's Mac. `spctl --assess
+--type execute` is Gatekeeper's own verdict on the very bundle about to be
+copied, it reads the stapled ticket without a network, and it is the same
+assessment a double-click would make — which is the point: what the installer
+copies has passed the check the user would otherwise have passed for it.
+`codesign --verify` alone says a signature is intact, not that macOS will run
+it, and neither says the signer is us, which is why the team identifier is read
+through the Security framework as well. A Developer ID certificate is something
+anyone can buy.
+
+**Why no quarantine flag is set or cleared.** The usual reason an updater
+touches `com.apple.quarantine` is that it downloaded a file through an API that
+sets one. `LSFileQuarantineEnabled` is not set in `Info.plist`, so nothing
+Zephra writes is quarantined; the files inside a mounted disk image carry no
+attribute of their own; and `ditto` copies what is there. Adding a `xattr -d`
+sweep over a freshly copied app would be a line that does nothing on a good day
+and removes a signal on a bad one.
+
+**Why the copy is in process.** Zephra is unsandboxed, Developer ID, and lives
+in a folder its own user can write. The install is a rename and a `ditto`, which
+needs no privilege and so needs no helper tool, no `SMJobBless`, and no
+authorization prompt. The one case that genuinely cannot be done this way — an
+`/Applications` the user may not write to, a managed Mac — is detected before
+anything moves and answered with the drag-it-yourself sentence and the verified
+disk image in the Finder, which is the same thing the user would have done with
+a download.
+
+The rename is what makes it reversible. A running bundle may be renamed on APFS
+because the executable is mapped by inode, not by path, so `Zephra.previous.app`
+is the running app, still running, under another name; if the copy or its
+signature check fails, the half-copy goes and the original comes back under its
+own name with nothing lost. `ditto` rather than `FileManager.copyItem` because
+an app bundle is not only its files: extended attributes, resource forks and
+symbolic links all matter, `create-dmg.sh` already learned that lesson on the
+volume icon, and a copy that quietly drops one of them is an app that will not
+launch.
+
+**Why the quit goes through `NSApp.terminate`.** `AppLifecycle` defers Quit
+while `GenerationStore.shutdown` settles, then `LibraryIndex.shutdown`, then the
+Metal synchronize. An `exit()` in the installer would be the one way out of the
+app that skips all three, and the failure it buys is a picture that was being
+written when the update landed. The relaunch helper then has to wait for the
+process id rather than opening the new copy at once: `SingleInstance.yieldToRunningCopy`
+brings a running copy forward and exits, so a copy opened a moment too early
+stands down and the user is left with nothing on screen.
+
+**Why the snooze is the session's.** A persisted "skip this version" is the
+right shape when versions move. Here they do not: a build written to disk as
+skipped is compared against the next build, which is a different stamp, so the
+banner would come back — unless the skip were written as "no more updates", and
+a Mac that has quietly stopped updating is a worse outcome than a banner. Later
+therefore hides the release until the next launch and no longer. The preference
+in Settings > General is the honest way to switch updates off, and it is one
+toggle that says what it does.
+
+**What is left out** is in `ROADMAP.md` under "Updates: left out on purpose".
+
 ## TestFlight
 
 How the companion reaches a phone. Two targets:
