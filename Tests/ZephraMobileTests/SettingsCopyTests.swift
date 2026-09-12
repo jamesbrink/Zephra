@@ -42,6 +42,15 @@ struct SettingsCopyTests {
         )
     }
 
+    @Test("A countdown to a moment that has passed is still a countdown and not a trap")
+    func clampsACountdownThatHasRunOut() {
+        let now = Date(timeIntervalSince1970: 1_789_040_400)
+        let ahead = ReconnectingRow.countdown(to: now.addingTimeInterval(4), from: now)
+        #expect(ahead == now...now.addingTimeInterval(4))
+        let behind = ReconnectingRow.countdown(to: now.addingTimeInterval(-4), from: now)
+        #expect(behind == now...now)
+    }
+
     @Test("The version is the bundle's two numbers, in the Mac's order")
     func readsTheBuildFromTheBundle() {
         #expect(AboutRow.version.hasPrefix("0.1.0"))

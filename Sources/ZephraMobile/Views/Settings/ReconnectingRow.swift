@@ -18,7 +18,7 @@ struct ReconnectingRow: View {
 
     var body: some View {
         HStack {
-            Text("Reconnecting in \(Text(timerInterval: Date()...until, countsDown: true))")
+            Text("Reconnecting in \(Text(timerInterval: Self.countdown(to: until), countsDown: true))")
                 .font(.footnote)
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
@@ -29,6 +29,16 @@ struct ReconnectingRow: View {
                     .buttonStyle(.borderless)
             }
         }
+    }
+
+    /// The span the countdown runs over, which is never a backwards one.
+    ///
+    /// A deadline can be in the past by the time this draws: the attempt it was waiting for is
+    /// under way, or the phone was asleep through the whole wait. `Date()...until` would then
+    /// be a range whose upper bound is below its lower, and that is a trap and not a shrug —
+    /// the app would stop at a countdown, which is the least deserving place to stop at.
+    static func countdown(to until: Date, from now: Date = Date()) -> ClosedRange<Date> {
+        now...max(until, now)
     }
 }
 
