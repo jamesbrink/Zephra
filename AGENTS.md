@@ -853,13 +853,19 @@ US-spelling check.
   `LinkConnectionState.waiting(reason:until:)`, which keeps the failure's
   sentence and carries the moment `nextAttemptAt` counts down to, Settings draws
   with `Text(timerInterval:)` (never a repeating animation) beside Retry Now, and
-  `retryNow()` skips. Every way the loop is taken down leaves what it cancelled
-  on `settling`, which `run()` awaits first: two loops are two roads to one Mac.
+  `retryNow()` skips. `end()` and `retryNow()` leave what they cancelled on
+  `settling`, which `begin()` reads once and hands to the loop it makes — read
+  inside the loop instead, it would wait on the task that is waiting for it:
+  two loops are two roads to one Mac. A loop that stops itself — no
+  Mac paired — clears `task`, and the root's `onChange` of `pairedHost` starts
+  one when a phone pairs in the foreground it launched in.
   `LinkPathWatch` (`Support/`) is the `NWPathMonitor` beside it, started and
   stopped with the loop: `reaction(from:to:isLive:)` is pure and answers
   `retryNow()` for a new path with nothing connected and `LinkClient.probe()`
   for one under a live session, which pings and ends the session after
-  `probeTimeout` (5 s) unanswered — a phone that left Wi-Fi keeps a socket that
+  `probeTimeout` (5 s) unanswered; reports are drained in order by one task and
+  anything inside `coalesce` (1 s) of the last action is ignored, since a
+  handover is several reports and one change — a phone that left Wi-Fi keeps a socket that
   delivers nothing and tells neither end.
 - `PromptDraft` (`Support/`) is the phone's capsule: the settings, the model, the
   picture in the well and the seeds one press is worth, injected beside the

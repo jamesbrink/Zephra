@@ -82,6 +82,13 @@ struct ZephraMobileApp: App {
                     default: break
                     }
                 }
+                // A phone that launches with no Mac has no loop running — there was nothing to
+                // dial — so pairing is the moment to start one. Here rather than at the pairing
+                // screen, because when to reach for a Mac is this file's business and no view's.
+                .onChange(of: client.pairedHost) { _, host in
+                    guard host != nil, scenePhase == .active else { return }
+                    reconnect?.begin()
+                }
         }
     }
 

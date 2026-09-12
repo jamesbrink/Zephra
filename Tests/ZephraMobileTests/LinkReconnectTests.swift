@@ -53,6 +53,41 @@ struct LinkReconnectTests {
         #expect(client.connection == .offline)
     }
 
+    @Test("pairing after an unpaired launch starts the loop")
+    func anUnpairedLaunchLeavesTheLoopStartable() async throws {
+        let client = client(pairedTo: nil)
+        let reconnect = LinkReconnect(client: client)
+        reconnect.begin()
+        // The loop takes itself down rather than sitting there with nothing to dial, so
+        // `isRunning` tells the truth and the `begin()` the root makes when a Mac is paired
+        // is not a no-op for the rest of the launch.
+        try await settle { !reconnect.isRunning }
+        #expect(!reconnect.isRunning)
+        reconnect.begin()
+        #expect(reconnect.isRunning)
+        reconnect.end()
+    }
+
+    @Test("a background flip while a retry is settling still closes the session")
+    func endingUnderARetrySurvives() async throws {
+        let client = client(pairedTo: host())
+        let reconnect = LinkReconnect(client: client)
+        reconnect.begin()
+        try await settle { reconnect.nextAttemptAt != nil }
+        // Retry Now leaves the cancelled loop to be waited on, and the app goes away before the
+        // loop that replaced it has got past that wait: the disconnect `end()` installs must be
+        // what the next `begin()` waits on, not something the resuming loop cleared away.
+        reconnect.retryNow()
+        reconnect.end()
+        #expect(!reconnect.isRunning)
+        try await settle { client.connection == .offline }
+        #expect(client.connection == .offline)
+        // And the app coming back still runs, on the far side of that disconnect.
+        reconnect.begin()
+        try await settle { client.connection.hasFailed }
+        reconnect.end()
+    }
+
     @Test("no road opening leaves a sentence up and another attempt scheduled")
     func retriesAfterAFailure() async throws {
         let client = client(pairedTo: host())

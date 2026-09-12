@@ -182,11 +182,19 @@ The composition root builds exactly one, and it is the only file that knows:
   `markWaiting(until:)`, which is `LinkConnectionState.waiting(reason:until:)` —
   the failure's own sentence, kept, and a date. `retryNow()` cancels the sleeping
   loop and starts another, which is the Settings row's Retry Now and what a change
-  of network path does. Three ways in take the loop down — `end()`, `retryNow()`,
-  and nothing else — and each leaves what it cancelled on `settling`, which `run()`
-  awaits before it does anything: an attempt already in flight is not something a
-  cancellation stops part way through, and a second loop over one would be two
-  roads to one Mac.
+  of network path does. Three ways take the loop down — `end()`, `retryNow()`, and
+  the loop itself on a phone with no Mac paired — and the first two leave what they
+  cancelled on `settling`, which the next loop waits out before it does anything:
+  an attempt already in flight is not something a cancellation stops part way
+  through, and a second loop over one would be two roads to one Mac. What a loop
+  waits on is read by `begin()` and **handed** to it, never read inside the loop:
+  a loop that read it when it finally ran could find the wait `end()` had installed
+  in the meantime, which is `await theLoop.value` with a disconnect behind it — the
+  loop waiting on the task that is waiting for the loop, and a session never closed.
+  The loop that stops itself clears `task` on its way out, or `isRunning` would lie
+  and `begin()` would do nothing for the rest of the launch; the root calls
+  `begin()` again when `client.pairedHost` becomes something, which is how a phone
+  that pairs in the foreground it launched in gets a reconnection at all.
 
 - **Which network.** `LinkPathWatch` (`Support/`) is an `NWPathMonitor` started with the
   reconnection and stopped with it. Every report becomes a `LinkPathMark` — satisfied,
@@ -195,6 +203,10 @@ The composition root builds exactly one, and it is the only file that knows:
   an unchanged path are nothing, a path that carries nothing is nothing (no road would open
   over it, and the wait already running is the right thing to be doing), a new path with
   nothing connected is `retryNow()`, and a new path under a live session is `client.probe()`.
+  Reports are drained in order by one task off an `AsyncStream`, so two hops to the main actor
+  cannot land the other way round and leave `mark` holding the older path, and anything inside
+  `coalesce` (1 s) of the last thing acted on is ignored: a handover is three or four reports
+  and one change, and dialling on each is a dial that cancels the dial before it.
   The two failures are one moment from either side: a phone that walks out of the house sits
   out a thirty-second wait it was given for a Mac that was asleep, and a phone that leaves
   Wi-Fi mid-session keeps a socket whose interface is gone, which delivers nothing and tells

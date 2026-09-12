@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import ZephraMobile
@@ -43,6 +44,29 @@ struct LinkPathWatchTests {
     @Test("a new path under a live session asks the Mac whether it is still there")
     func aNewPathUnderASessionProbes() {
         #expect(LinkPathWatch.reaction(from: wifi, to: cellular, isLive: true) == .probe)
+    }
+
+    @Test("a handover is several reports and one dial")
+    func aFlappingPathActsOnce() {
+        let now = Date(timeIntervalSince1970: 1_789_040_400)
+        // The system says the path went, then that it is back over something else, then that it
+        // has settled, inside a second. Acting on each is a dial that cancels the one before it.
+        #expect(
+            LinkPathWatch.reaction(
+                from: nothing, to: cellular, isLive: false, lastAction: nil, now: now) == .redial)
+        #expect(
+            LinkPathWatch.reaction(
+                from: cellular, to: wifi, isLive: false, lastAction: now,
+                now: now.addingTimeInterval(0.4)) == .nothing)
+        #expect(
+            LinkPathWatch.reaction(
+                from: cellular, to: wifi, isLive: true, lastAction: now,
+                now: now.addingTimeInterval(0.4)) == .nothing)
+        // Past the damping, a change is a change again.
+        #expect(
+            LinkPathWatch.reaction(
+                from: cellular, to: wifi, isLive: false, lastAction: now,
+                now: now.addingTimeInterval(1.2)) == .redial)
     }
 
     @Test("Wi-Fi giving way to cellular is a change, whatever else the two share")

@@ -32,19 +32,20 @@ final class LinkReconnect {
     static let heartbeat: Duration = .seconds(2)
 
     /// When the next attempt is due, or nil whenever nothing is being waited out.
-    private(set) var nextAttemptAt: Date?
+    ///
+    /// Written by the waits in `LinkReconnect+Waiting` and by nothing outside this type.
+    var nextAttemptAt: Date?
 
-    @ObservationIgnored private let client: LinkClient
+    @ObservationIgnored let client: LinkClient
     @ObservationIgnored private var task: Task<Void, Never>?
     /// Whatever has to finish before a new loop may start: the loop `end()` cancelled and the
-    /// disconnect behind it, or the loop `retryNow()` cancelled. Awaited at the top of `run()`,
-    /// because an attempt already in flight is not something a cancellation stops part way
-    /// through, and a second loop over one is two roads to one Mac.
+    /// disconnect behind it, or the loop `retryNow()` cancelled. Read once, by `begin()`, and
+    /// handed to the loop it makes.
     @ObservationIgnored private var settling: Task<Void, Never>?
-    @ObservationIgnored private var attempt = 0
+    @ObservationIgnored var attempt = 0
     /// The client's endings, iterated once and for the life of this object: an `AsyncStream`
     /// has one consumer, and an iterator that is dropped ends the stream behind it.
-    @ObservationIgnored private var endings: SessionEndings?
+    @ObservationIgnored var endings: SessionEndings?
 
     /// Reconnection for one client.
     init(client: LinkClient) {
@@ -61,7 +62,13 @@ final class LinkReconnect {
     func begin() {
         guard task == nil else { return }
         attempt = 0
-        task = Task { [weak self] in await self?.run() }
+        // What to wait on is taken **here**, not read inside the loop. A loop that read the
+        // property when it finally ran could find a wait that `end()` had installed in the
+        // meantime — and that wait is `await theLoop.value` and a disconnect behind it, so the
+        // loop would be waiting for the task that is waiting for the loop, and the session
+        // would never be closed at all.
+        let previous = settling
+        task = Task { [weak self] in await self?.run(after: previous) }
     }
 
     /// The app went to the background: stop trying, and let the session go.
@@ -99,11 +106,22 @@ final class LinkReconnect {
     }
 
     /// Try, wait, try again, until the app goes away.
-    private func run() async {
-        await settling?.value
-        settling = nil
+    ///
+    /// - Parameter previous: whatever the loop this one replaces left behind, as of the moment
+    ///   this loop was made: a cancelled loop being waited out, and the disconnect behind it
+    ///   where `end()` was what took it down. An attempt already in flight is not something a
+    ///   cancellation stops part way through, and a second loop over one would be two roads to
+    ///   one Mac.
+    private func run(after previous: Task<Void, Never>?) async {
+        await previous?.value
         while !Task.isCancelled {
-            guard client.pairedHost != nil else { return }
+            // A phone with no Mac has nothing to dial, and the loop stops rather than spinning.
+            // It takes itself down with it: a loop that has stopped while `task` still holds it
+            // is an `isRunning` that lies and a `begin()` that does nothing for the rest of the
+            // launch, so a phone that pairs in the same foreground it launched in would have no
+            // reconnection at all. The composition root calls `begin()` again when a Mac is
+            // paired, and this is what lets that mean something.
+            guard client.pairedHost != nil else { return finished() }
             await client.connect()
             guard !Task.isCancelled else { return }
             if client.connection.isLive {
@@ -116,33 +134,11 @@ final class LinkReconnect {
         }
     }
 
-    /// The wait between two attempts, said out loud.
-    ///
-    /// The moment is written to the client and to `nextAttemptAt` before the sleep rather than
-    /// after it, so nothing on screen shows a bare failure through a wait that is already
-    /// running. A cancellation is the answer to `end()` and to `retryNow()` alike: the loop
-    /// stops, and whichever of the two cancelled it decides what happens next.
-    private func waitBeforeTheNextAttempt() async -> Bool {
-        let delay = LinkBackoff.delay(after: attempt)
-        let due = Date().addingTimeInterval(Double(delay.components.seconds))
-        nextAttemptAt = due
-        client.markWaiting(until: due)
-        do { try await Task.sleep(for: delay) } catch { return false }
+    /// The loop stopping of its own accord. Nothing to do where somebody else has already taken
+    /// it down, since `task` is then not this loop.
+    private func finished() {
+        guard !Task.isCancelled else { return }
+        task = nil
         nextAttemptAt = nil
-        return true
-    }
-
-    /// Sits on a live session until it is not one, so the next turn of the loop reconnects.
-    ///
-    /// The client says so itself. Only where that stream has finished does this fall back to
-    /// asking every couple of seconds, since a wait on a finished stream would spin.
-    private func waitForTheSessionToEnd() async {
-        let endings = endings ?? SessionEndings(client.sessionEndings())
-        self.endings = endings
-        while !Task.isCancelled, client.connection.isLive {
-            if await endings.next() == nil {
-                do { try await Task.sleep(for: Self.heartbeat) } catch { return }
-            }
-        }
     }
 }
