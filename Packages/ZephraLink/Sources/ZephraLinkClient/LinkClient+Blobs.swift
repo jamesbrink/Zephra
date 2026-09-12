@@ -27,7 +27,12 @@ extension LinkClient {
             blobs[start.blobID] = BlobReassembly(blobID: start.blobID, byteCount: start.byteCount)
         }
         timers[start.blobID] = expire(start.blobID, after: LinkClient.blobIdleTimeout)
-        guard !wanted else { return }
+        guard !wanted else {
+            // Remembered rather than inferred later: this is the one moment that knows the
+            // transfer was asked for, and it is what says whose partial is worth keeping.
+            wantedBlobs.insert(start.blobID)
+            return
+        }
         blobOrder.removeAll { $0 == start.blobID }
         blobOrder.append(start.blobID)
         while blobOrder.count > LinkClient.blobLimit {
@@ -56,7 +61,7 @@ extension LinkClient {
         guard
             chunk.index == 0
                 || (chunk.index == assembly.nextIndex
-                    && assembly.chunkCount ?? chunk.count == chunk.count)
+                    && (assembly.chunkCount ?? chunk.count) == chunk.count)
         else {
             logger.notice("A hole in the stream cost a transfer its bytes; the caller asks again.")
             return fail(chunk.blobID, with: LinkClientError.lost)
@@ -110,6 +115,7 @@ extension LinkClient {
     private func finish(_ id: UUID, with whole: Data) {
         blobs[id] = nil
         blobOrder.removeAll { $0 == id }
+        wantedBlobs.remove(id)
         timers.removeValue(forKey: id)?.cancel()
         if let waiter = blobWaiters.removeValue(forKey: id) {
             waiter.resume(returning: whole)

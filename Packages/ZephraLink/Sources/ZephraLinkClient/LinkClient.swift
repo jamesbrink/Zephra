@@ -76,6 +76,12 @@ public final class LinkClient {
     @ObservationIgnored var blobOrder: [UUID] = []
     @ObservationIgnored var blobWaiters: [UUID: CheckedContinuation<Data, any Error>] = [:]
     @ObservationIgnored var arrivedBlobs: [UUID: Data] = [:]
+    /// The transfers this phone actually asked for, which are the only ones worth keeping a
+    /// partial of. A Mac announcing unsolicited blobs and sending one chunk of each would
+    /// otherwise park a resumption apiece for the length of the session, and nobody would ever
+    /// come to collect them. `blobWaiters` cannot answer this: a wanted transfer can fail in the
+    /// window between its announcement and the `await` that registers a waiter for it.
+    @ObservationIgnored var wantedBlobs: Set<UUID> = []
     /// What survived of a transfer that stopped, by the blob it was, until the attempt that was
     /// waiting on it picks it up. `arrivedBlobs`' shape and for its reason: the failure and the
     /// `await` for it are two turns of the main actor either way round.

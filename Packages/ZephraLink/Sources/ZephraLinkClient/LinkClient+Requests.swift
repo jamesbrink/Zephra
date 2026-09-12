@@ -65,9 +65,12 @@ extension LinkClient {
         pending.removeValue(forKey: id)?.resume(throwing: error)
         resumptions.removeValue(forKey: id)
         // What the transfer got to is kept for whoever asks again, so the next attempt asks for
-        // the tail rather than the whole file. Nothing is kept for a transfer that ended well or
-        // never started.
-        if let assembly = blobs.removeValue(forKey: id), let resumption = BlobResumption(assembly) {
+        // the tail rather than the whole file — but only for a transfer this phone asked for,
+        // since that is the only one anybody will ever come back for. A Mac announcing
+        // unsolicited blobs and sending a chunk of each would otherwise park a partial apiece
+        // until the session ended.
+        let assembly = blobs.removeValue(forKey: id)
+        if wantedBlobs.remove(id) != nil, let assembly, let resumption = BlobResumption(assembly) {
             salvaged[id] = resumption
         }
         blobWaiters.removeValue(forKey: id)?.resume(throwing: error)
@@ -89,6 +92,7 @@ extension LinkClient {
         blobWaiters.removeAll()
         blobs.removeAll()
         blobOrder.removeAll()
+        wantedBlobs.removeAll()
         arrivedBlobs.removeAll()
         salvaged.removeAll()
         resumptions.removeAll()

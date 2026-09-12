@@ -72,6 +72,27 @@ struct LinkBlobAdmissionTests {
         #expect(bed.client.blobOrder.count == LinkClient.blobLimit)
     }
 
+    @Test("an unsolicited transfer that fails keeps no partial")
+    func onlyAWantedTransferKeepsItsPartial() async throws {
+        // A partial is kept so the attempt that asks again can ask for the tail. Nobody ever asks
+        // again for a transfer this phone did not ask for in the first place, so keeping one for
+        // every blob a Mac announces and abandons is memory held for the length of the session.
+        let bed = await connected()
+        defer { Task { await bed.host.stop() } }
+        let unasked = BlobStart(byteCount: 200_000, mime: "image/png")
+        let asked = BlobStart(byteCount: 200_000, mime: "image/png")
+
+        for start in [unasked, asked] {
+            bed.client.announce(start, wanted: start.blobID == asked.blobID)
+            bed.client.receive(BlobChunker.chunks(of: Data(count: 200_000), blobID: start.blobID)[0])
+            bed.client.fail(start.blobID, with: LinkClientError.lost)
+        }
+
+        #expect(bed.client.salvaged[unasked.blobID] == nil, "nobody will come back for it")
+        #expect(bed.client.salvaged[asked.blobID] != nil, "and the one somebody is waiting on")
+        #expect(bed.client.wantedBlobs.isEmpty, "a transfer that ended is in nobody's count")
+    }
+
     @Test("a blob that never finishes is given up on rather than held for the session")
     func anUnfinishedTransferIsGivenUpOn() async throws {
         let bed = await connected()

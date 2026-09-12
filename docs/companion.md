@@ -1039,8 +1039,10 @@ as `lost` by a gap is **asked once more**, under a fresh envelope id — the fir
 may yet turn up, and two requests sharing an id would be two answers to one
 continuation. `fetchBlob(_:)` is a request whose
 reply announces a blob, and the chunks that follow are reassembled in order; it
-retries once as well, since the reply arrived and it is the bytes behind it that
-went missing. A transfer nothing is assembling any more is `lost` at once rather
+asks up to `blobAttempts` (4) times with `LinkBackoff` between, **from the chunk
+the last attempt reached** rather than from the top, since the reply arrived and
+it is the bytes behind it that went missing. A transfer nothing is assembling any
+more is `lost` at once rather
 than waited out, or a caller that reached its `await` a moment after a gap would
 sit on a continuation nobody can resume. The
 announcement is opened in `dispatch`, where the reply is read, rather than where
@@ -1049,9 +1051,14 @@ frames on one stream, and a phone that had not got back to its own `await` would
 drop the second. A chunk for a blob **nothing announced** is dropped with a log
 line: the announcement is what says how much memory a transfer may take, so
 without one there is nothing to assemble it into. At most `LinkClient.blobLimit`
-(4) are part way through at once, oldest dropped, and each is given
-`blobTimeout`, two minutes from the announcement rather than from the first
-`await` for it. `enqueue(_:reference:)`
+(4) **unsolicited** transfers are part way through at once, oldest dropped; one
+the phone asked for is in no such count, or the grid's next five thumbnails would
+evict the clip somebody is waiting on. Each is given `blobIdleTimeout`, fifteen
+seconds of **idle** time re-armed by every chunk that lands, since a wall clock
+from the announcement caught neither a clip crossing slowly nor a transfer that
+stopped at chunk 630. A partial is kept for a failed transfer only where this
+phone asked for it (`wantedBlobs`): nobody comes back for the rest of a blob
+nobody asked for. `enqueue(_:reference:)`
 sends the picture as a blob first and names it in the request, for the reason
 `GenerationRequest` strips the bytes at all.
 
