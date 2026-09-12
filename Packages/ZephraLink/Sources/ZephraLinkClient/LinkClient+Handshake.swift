@@ -88,8 +88,9 @@ extension LinkClient {
         }
     }
 
-    /// The road stopped, from the far end or from a frame that did not authenticate.
-    private func roadEnded(_ session: LinkSession, error: (any Error)?) async {
+    /// The road stopped, from the far end, from a frame that did not authenticate, or from a
+    /// probe the Mac never answered.
+    func roadEnded(_ session: LinkSession, error: (any Error)?) async {
         guard self.session === session else { return }
         self.session = nil
         preview = nil

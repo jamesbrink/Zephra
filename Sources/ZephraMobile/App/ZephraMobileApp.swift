@@ -16,9 +16,11 @@ struct ZephraMobileApp: App {
     /// The one object every view observes. Frozen from the fixture under
     /// `ZEPHRA_PREVIEW_STATE`, and otherwise a real client over the real roads.
     @State private var client: LinkClient
-    /// What keeps that client connected while the app is in front of somebody, or nil for a
-    /// frozen one: a client with no road under it has nothing to reconnect.
+    /// What keeps that client connected while the app is in front of somebody, and what
+    /// notices that this phone is on a different network — or nil for a frozen one: a client
+    /// with no road under it has nothing to reconnect and nothing to watch a path for.
     @State private var reconnect: LinkReconnect?
+    @State private var path: LinkPathWatch?
     /// The capsule's own state: what the next press of Generate would ask for.
     @State private var draft = PromptDraft()
     /// The Mac's library as this phone holds it, and "use that one as the reference" on its way
@@ -35,11 +37,14 @@ struct ZephraMobileApp: App {
         if let frozen = MobilePreview.client() {
             _client = State(initialValue: frozen)
             _reconnect = State(initialValue: nil)
+            _path = State(initialValue: nil)
             return
         }
         let live = Self.makeClient()
+        let reconnect = LinkReconnect(client: live)
         _client = State(initialValue: live)
-        _reconnect = State(initialValue: LinkReconnect(client: live))
+        _reconnect = State(initialValue: reconnect)
+        _path = State(initialValue: LinkPathWatch(client: live, reconnect: reconnect))
     }
 
     var body: some Scene {
@@ -68,8 +73,12 @@ struct ZephraMobileApp: App {
                 // is an arrival at `.active` that no change of phase reports.
                 .onChange(of: scenePhase, initial: true) { _, phase in
                     switch phase {
-                    case .active: reconnect?.begin()
-                    case .background: reconnect?.end()
+                    case .active:
+                        reconnect?.begin()
+                        path?.start()
+                    case .background:
+                        reconnect?.end()
+                        path?.stop()
                     default: break
                     }
                 }

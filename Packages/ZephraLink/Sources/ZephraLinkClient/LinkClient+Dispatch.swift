@@ -48,7 +48,10 @@ extension LinkClient {
         case .ping:
             try? send(.envelope(Envelope(kind: .pong, body: Data("{}".utf8))))
         case .pong:
-            break
+            // The answer to `probe()`, which is waiting on the id this pong names. A pong for
+            // anything else is a Mac being friendly and is nothing to act on.
+            guard let id = envelope.inReplyTo else { return }
+            answer(id, with: .ok)
         case .hello, .accept, .confirm, .request:
             logger.notice(
                 "A \(envelope.kind.rawValue, privacy: .public) arrived from the Mac and was dropped."

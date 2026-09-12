@@ -33,6 +33,9 @@ final class FakeHost {
     var ignoresFromChunk = false
     /// The chunk each `fetchFile` asked to start at, in the order they were asked.
     private(set) var sentFromChunk: [UInt32] = []
+    /// Whether a ping is answered, as the real Mac always answers one. False is a Mac that has
+    /// gone quiet on a socket nobody has closed, which is what a probe is for.
+    var answersPings = true
 
     private var secret: Data?
     private var known: Set<Data>
@@ -123,6 +126,11 @@ final class FakeHost {
             assembling[start.blobID] = BlobReassembly(
                 blobID: start.blobID, byteCount: start.byteCount)
             return
+        }
+        if envelope.kind == .ping {
+            guard answersPings else { return }
+            return try await send(
+                .envelope(Envelope(kind: .pong, inReplyTo: envelope.id, body: Data("{}".utf8))))
         }
         guard envelope.kind == .request else { return }
         let command = try envelope.decode(Command.self)

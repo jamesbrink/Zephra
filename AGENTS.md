@@ -855,6 +855,12 @@ US-spelling check.
   with `Text(timerInterval:)` (never a repeating animation) beside Retry Now, and
   `retryNow()` skips. Every way the loop is taken down leaves what it cancelled
   on `settling`, which `run()` awaits first: two loops are two roads to one Mac.
+  `LinkPathWatch` (`Support/`) is the `NWPathMonitor` beside it, started and
+  stopped with the loop: `reaction(from:to:isLive:)` is pure and answers
+  `retryNow()` for a new path with nothing connected and `LinkClient.probe()`
+  for one under a live session, which pings and ends the session after
+  `probeTimeout` (5 s) unanswered — a phone that left Wi-Fi keeps a socket that
+  delivers nothing and tells neither end.
 - `PromptDraft` (`Support/`) is the phone's capsule: the settings, the model, the
   picture in the well and the seeds one press is worth, injected beside the
   client and the one object here holding something the Mac did not say. It seeds

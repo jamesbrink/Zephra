@@ -780,6 +780,14 @@ as "that is that" about a phone that was in fact about to dial again a second
 later. A wait is not `isBusy`, so `connect()` is exactly what ends it, and the
 phone's Settings counts it down and offers to skip it.
 
+`LinkClient.probe()` is the other half. A phone that changes network keeps the
+socket it had — the interface it was opened on is gone, nothing is delivered over
+it, and neither end is told — so the session looks live until somebody presses
+something and waits out `requestTimeout`. A `ping` costs one frame, and the Mac
+has answered one with a `pong` carrying `inReplyTo` since the first build, so a
+phone that hears nothing inside `probeTimeout` (5 s) ends the session itself and
+reconnects. The phone answers the Mac's pings the same way.
+
 ## The Mac host
 
 `ZephraLinkHost` (`Packages/ZephraKit`) is the Mac's side: `CompanionHost`, the

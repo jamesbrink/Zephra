@@ -188,6 +188,22 @@ The composition root builds exactly one, and it is the only file that knows:
   cancellation stops part way through, and a second loop over one would be two
   roads to one Mac.
 
+- **Which network.** `LinkPathWatch` (`Support/`) is an `NWPathMonitor` started with the
+  reconnection and stopped with it. Every report becomes a `LinkPathMark` — satisfied,
+  expensive, constrained, and the interface names **in the system's own order of
+  preference** — and `reaction(from:to:isLive:)` is the whole decision: the first report and
+  an unchanged path are nothing, a path that carries nothing is nothing (no road would open
+  over it, and the wait already running is the right thing to be doing), a new path with
+  nothing connected is `retryNow()`, and a new path under a live session is `client.probe()`.
+  The two failures are one moment from either side: a phone that walks out of the house sits
+  out a thirty-second wait it was given for a Mac that was asleep, and a phone that leaves
+  Wi-Fi mid-session keeps a socket whose interface is gone, which delivers nothing and tells
+  neither end. `probe()` sends a `ping` and gives the Mac `probeTimeout` (5 s) to answer the
+  `pong` that names it, ending the session as `timedOut` where it does not; the Mac has
+  answered pings with `inReplyTo` since the first build, so nothing at that end changed. The
+  decision is pure and `LinkPathWatchTests` pins it; the monitor itself is exercised by hand,
+  by turning Wi-Fi off.
+
   What that looks like: Settings shows "Reconnecting" with a countdown under it,
   `Text(timerInterval:)` so the clock is the system's own view and not a timer
   ticking state — the repeating-animation ban is `make lint-layers`' and it covers
