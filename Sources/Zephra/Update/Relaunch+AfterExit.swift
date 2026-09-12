@@ -19,6 +19,11 @@ extension Relaunch {
         process.standardError = FileHandle.nullDevice
         process.standardInput = FileHandle.nullDevice
         try? process.run()
-        NSApp.terminate(nil)
+        // Handed to the run loop rather than called here. `terminate(_:)` answers a deferred
+        // reply by spinning a nested event loop *inside the call*, and the shutdown that
+        // produces the reply is a main-actor task: called from a main-actor job, that loop sat
+        // on the one executor the reply needed, and the app never quit. From a run-loop
+        // perform the call comes the way a menu's Quit does, with the main actor free.
+        NSApp.perform(#selector(NSApplication.terminate(_:)), with: nil, afterDelay: 0)
     }
 }

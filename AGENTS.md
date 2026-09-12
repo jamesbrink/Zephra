@@ -1484,9 +1484,14 @@ updater reads what a ship leaves behind.
   attribute, and `spctl` already assessed these bytes.
 - **Quit through the normal path.** `Relaunch.afterExit` spawns
   `/bin/sh -c 'while /bin/kill -0 <pid>; do /bin/sleep 0.2; done; exec
-  /usr/bin/open -n "<bundle>"'` and calls `NSApp.terminate(nil)`, never
-  `exit()`, so `AppLifecycle` runs `GenerationStore.shutdown`,
-  `LibraryIndex.shutdown` and the Metal synchronize. The helper has to wait for
+  /usr/bin/open -n "<bundle>"'` and has the **run loop** call
+  `NSApp.terminate(_:)` (`perform(_:with:afterDelay:)`), never `exit()` and
+  never `terminate` from the main-actor task itself: a deferred reply spins a
+  nested event loop inside that call, and the shutdown that answers it is a
+  main-actor task, so a job that calls `terminate` directly holds the one
+  executor the reply needs and the app never quits — which is exactly what the
+  first shipped updater did. Through the run loop, `AppLifecycle` runs
+  `GenerationStore.shutdown`, `LibraryIndex.shutdown` and the Metal synchronize. The helper has to wait for
   the pid: a copy opened while this one lives is stood down at once by
   `SingleInstance.yieldToRunningCopy`. `UpdateChecker.start()` sweeps
   `Zephra.previous.app` and empties `Updates/` at the next launch.

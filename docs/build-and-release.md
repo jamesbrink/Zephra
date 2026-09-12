@@ -384,6 +384,18 @@ process id rather than opening the new copy at once: `SingleInstance.yieldToRunn
 brings a running copy forward and exits, so a copy opened a moment too early
 stands down and the user is left with nothing on screen.
 
+**Why the run loop makes the call.** The first shipped updater called
+`NSApp.terminate(nil)` from inside `UpdateChecker.install`, a main-actor task,
+and the app never quit: AppKit answers a `.terminateLater` by running a nested
+event loop *inside* `terminate(_:)`, waiting for the reply, and the reply comes
+from the shutdown `Task` in `AppLifecycle`, another main-actor job, which could
+not run while the caller sat on the main actor inside that loop. The swap had
+landed, the helper was waiting on the pid, and the picture on screen was a Mac
+that had updated and would not go. A menu's Quit never hit it because AppKit
+sends that `terminate` from its own event dispatch, with the actor free. So
+`Relaunch.afterExit` asks the run loop to make the call
+(`perform(_:with:afterDelay:)`), which is the same footing as the menu.
+
 **Why the snooze is the session's.** A persisted "skip this version" is the
 right shape when versions move. Here they do not: a build written to disk as
 skipped is compared against the next build, which is a different stamp, so the
