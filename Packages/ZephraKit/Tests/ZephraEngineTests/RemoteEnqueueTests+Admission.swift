@@ -115,8 +115,10 @@ extension RemoteEnqueueTests {
         #expect(store.queue.count == 1, "behind the one being rendered")
 
         store.cancel()
-        await store.settle()
-        while store.isDraining || !store.queue.isEmpty { await store.settle() }
+        // Bounded, and sleeping between looks: a loop that only awaits `settle()` never
+        // leaves the main actor when there is nothing to settle, and the finish it waits
+        // for is a main-actor task that then never runs.
+        try await bed.waitUntil { !store.isDraining && store.queue.isEmpty }
         await store.shutdown()
     }
 
