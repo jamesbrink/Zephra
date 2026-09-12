@@ -312,9 +312,18 @@ An error on an **already-joined** connection leaves the connection open:
   invocations, and nothing serialises the `PostToConnection` calls they make, so
   a receiver can see two frames in the order opposite to the one they were sent
   in. A client that cares must carry its own sequence number inside `d`.
-- The relay does not stop a second host from joining a room if it holds the
-  matching key. The newest host row carries no guest, so a host reconnect ends
-  the guest's session and the guest must rejoin.
+- **A host that joins again supersedes the one before it.** The relay does not
+  stop a second host from joining a room if it holds the matching key, and the
+  newest one is taken to be the real one: every other host row in the room is
+  deleted and its socket closed, and every guest row is told
+  `{"a":"peer","event":"left"}` and deleted, so the guest rejoins rather than
+  waiting on a connection nobody is reading. The join logs
+  `"result":"superseded"` with the connections it swept. This is what a Mac
+  killed without a `$disconnect` — a `kill -9`, a crash, a battery — leaves
+  behind: rows that would otherwise sit out the three-hour TTL, answering the
+  phone `room busy` or binding it to a dead host. Where a delete did not land,
+  `claimGuestSlot` still prefers the host row with the latest `expiresAt`, which
+  is the one a join or a `ping` moved most recently.
 - The `byConnection` index is eventually consistent. The Lambda retries the
   membership lookup once after 150 ms, and **only for a connection whose own
   pending row says it has joined**; a connection that never joined is answered
@@ -506,6 +515,7 @@ What a `result` means, by `at`:
 | any action | `index-lag` | its own pending row says it joined and the index still had nothing after the 150 ms retry |
 | any action | `unknown-action` | a joined connection sent an `a` the relay has no branch for |
 | `join` | `refused` \| `already-joined` \| — | `error` names the refusal |
+| `join` | `superseded` | a host joined a room that still held older rows; `to` names the host connections closed and the guests told `peer left`, all of them deleted |
 | `joined` | `joined` | the membership row is written |
 | `hello` | `challenged` \| `already-joined` \| `too-many` | |
 | `allow` | `allowed` \| `not-host` \| `bad-allow` \| `bad-open` | `count` and `open` say what the policy became |

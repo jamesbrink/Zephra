@@ -566,3 +566,71 @@ const lineFor = (lines, at, result) =>
     closed,
   );
 }
+
+// 19. A Mac that was killed leaves its row behind, and the next host join takes
+// the room from it: no `$disconnect` ever ran, so without this the phone meets a
+// host row naming a dead socket and a guest row holding the room's one slot.
+{
+  fresh();
+  const host = key();
+  const guest = key();
+  await joinAs("H", host, host.room, "host", { allow: [guest.pub] });
+  await joinAs("G", guest, host.room, "guest");
+  await msg("G", { a: "send", d: "aGk=" });
+  sinceLogs();
+
+  const again = await joinAs("H2", host, host.room, "host", { allow: [guest.pub] });
+  check("a host that joins again is admitted", again.a === "joined", again);
+
+  const lines = sinceLogs();
+  const superseded = lineFor(lines, "join", "superseded");
+  check(
+    "the stale rows are superseded, and the line says so",
+    superseded !== undefined,
+    lines.map((l) => `${l.at}:${l.result}`),
+  );
+  check(
+    "the line names what it swept",
+    JSON.stringify(superseded?.to) === JSON.stringify(["H", "G"]),
+    superseded,
+  );
+  check(
+    "and carries nothing but the shape of what happened",
+    JSON.stringify(Object.keys(superseded ?? {}).sort()) ===
+      JSON.stringify(["at", "from", "result", "role", "room", "to"].sort()),
+    superseded,
+  );
+  check("the old host socket is closed", gw.closed.has("H"));
+  check(
+    "the old guest is told the peer left",
+    last("G").a === "peer" && last("G").event === "left",
+    last("G"),
+  );
+
+  const back = await joinAs("G2", guest, host.room, "guest");
+  check("a stale guest row does not make the room busy", back.a === "joined", back);
+  await msg("G2", { a: "send", d: "eW8=" });
+  check(
+    "and the phone reaches the host that is really there",
+    last("H2").a === "send" && last("H2").d === "eW8=",
+    last("H2"),
+  );
+  check(
+    "the room holds one host row",
+    [...db.store.values()].filter((i) => i.room.S === host.room && i.role?.S === "host").length === 1,
+    [...db.store.values()].map((i) => `${i.room.S}:${i.role?.S}`),
+  );
+}
+
+// 20. Nothing to supersede: the ordinary first join says nothing about it.
+{
+  fresh();
+  const host = key();
+  await joinAs("H", host, host.room, "host", { allow: [] });
+  const lines = sinceLogs();
+  check(
+    "a first join supersedes nothing and logs nothing about it",
+    lineFor(lines, "join", "superseded") === undefined,
+    lines.map((l) => `${l.at}:${l.result}`),
+  );
+}

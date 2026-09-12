@@ -305,6 +305,9 @@ async function onJoin(connectionId, message, state) {
   }
 
   let hostConnectionId = null;
+  if (role === "host") {
+    await supersedeHosts(connectionId, room, line);
+  }
   if (role === "guest") {
     const claim = await claimGuestSlot(connectionId, room, publicKey);
     if (claim.refusal) {
@@ -364,6 +367,41 @@ async function refuseJoin(connectionId, line, reason) {
   await reject(connectionId, reason);
 }
 
+// A host that joins again takes the room from whatever the last one left behind.
+//
+// A Mac that goes without a `$disconnect` -- a kill -9, a crash, a battery --
+// leaves its host row and the guest bound to it in the table for the three-hour
+// TTL. It comes back on a new connection, and the room it rejoins still holds a
+// host row naming a socket nobody is reading and a guest row holding the room's
+// one slot: the phone is answered `room busy`, or it binds to the dead connection
+// and waits for a Mac that cannot hear it. The newest host is the real one, so the
+// rows behind it go: any other host row is deleted and its socket closed, and any
+// guest is told its peer left and cleared, since the connection it was talking to
+// is not this one and cannot become it.
+async function supersedeHosts(connectionId, room, line) {
+  const stale = (await roomRows(room)).filter((peer) => peer.connectionId !== connectionId);
+  const hosts = stale.filter((peer) => peer.role === "host");
+  const guests = stale.filter((peer) => peer.role === "guest");
+  if (hosts.length === 0 && guests.length === 0) {
+    return;
+  }
+
+  for (const host of hosts) {
+    await drop(host);
+    await closeSocket(host.connectionId);
+  }
+  for (const guest of guests) {
+    await post(guest.connectionId, { a: "peer", event: "left" });
+    await drop(guest);
+  }
+
+  logLine({
+    ...line,
+    result: "superseded",
+    to: [...hosts, ...guests].map((peer) => peer.connectionId),
+  });
+}
+
 // `{ host }` with the host's connection id, or `{ refusal }` with the reason
 // this guest cannot have the room. The caller answers and logs, so every refusal
 // leaves the same line behind. The slot is taken on the host's own row, so two
@@ -371,7 +409,13 @@ async function refuseJoin(connectionId, line, reason) {
 // read followed by a write.
 async function claimGuestSlot(connectionId, room, publicKey) {
   const rows = await roomRows(room);
-  const host = rows.find((peer) => peer.role === "host");
+  // The newest host row, by the expiry a join and every `touch` since have moved
+  // forward. A host join supersedes the rows before it, so there is normally one;
+  // where a delete did not land, the room is the newest host's and not a row that
+  // outlived the Mac that wrote it.
+  const host = rows
+    .filter((peer) => peer.role === "host")
+    .sort((a, b) => b.expiresAt - a.expiresAt)[0];
   if (!host) {
     return { refusal: "no host" };
   }
@@ -860,6 +904,9 @@ function readRow(item) {
     open: item.open?.BOOL === true,
     guest: item.guest?.S ?? null,
     host: item.host?.S ?? null,
+    // Written at the join and moved forward by every `touch`, so of two host rows
+    // it is the later one that belongs to the Mac that is still here.
+    expiresAt: Number(item.expiresAt?.N ?? "0"),
   };
 }
 
@@ -914,10 +961,16 @@ async function fail(state, connectionId, reason) {
 
 async function reject(connectionId, reason) {
   await post(connectionId, { a: "error", reason });
+  await closeSocket(connectionId);
+}
+
+// Closes a socket. A connection that is already gone is the thing being asked
+// for, not a failure.
+async function closeSocket(connectionId) {
   try {
     await gateway.send(new DeleteConnectionCommand({ ConnectionId: connectionId }));
   } catch (error) {
-    if (error.name !== "GoneException") {
+    if (error.name !== "GoneException" && error.$metadata?.httpStatusCode !== 410) {
       throw error;
     }
   }

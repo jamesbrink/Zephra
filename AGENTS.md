@@ -362,8 +362,12 @@ The relay itself is in this repository now, at `Relay/link` — one Lambda file,
 its README (the wire contract as the relay states it) and its tests. Nothing
 imports it: it and `RelayConnection` are two implementations of one contract, and
 keeping them in one repository is what lets a change to that contract be one
-commit. `make relay-test` covers it against fakes in seconds and `make
-relay-deploy` puts it up, which CI does on every push to `main`. Terraform in the
+commit. A host's `join` supersedes any older host row in the same room: those rows
+are deleted and their sockets closed, and any guest bound to them is told `peer
+left` and cleared, because a Mac killed without a `$disconnect` otherwise leaves
+a room that answers a phone `room busy` for three hours. `make relay-test` covers
+it against fakes in seconds and `make relay-deploy` puts it up, which CI does on
+every push to `main`. Terraform in the
 urandom.io repository still owns the function, the table, the API and the domain,
 and deliberately not the code.
 

@@ -55,12 +55,20 @@ extension LinkSecretStore {
         if let bytes = try identityBytes(), let identity = try? DeviceIdentity(rawRepresentation: bytes) {
             return identity
         }
-        let paired = ((try? load()) ?? []).count
-        if paired > 0 {
+        // A store that will not answer is not an empty list: a keychain that fails here is the
+        // loudest case, not the quietest, so it gets a sentence of its own.
+        switch Result(catching: load) {
+        case .success(let devices) where devices.isEmpty: break
+        case .success(let devices):
             report(
                 "companion secrets: no identity was stored, so a new one is being made while "
-                    + "\(paired) paired device(s) are still on file. Those devices are paired with "
-                    + "the identity that has gone and have to be paired again.")
+                    + "\(devices.count) paired device(s) are still on file. Those devices are paired "
+                    + "with the identity that has gone and have to be paired again.")
+        case .failure(let failure):
+            report(
+                "companion secrets: no identity was stored and the paired devices could not be "
+                    + "read (\(failure)), so a new identity is being made; any phone paired with "
+                    + "this Mac has to be paired again.")
         }
         let identity = DeviceIdentity()
         try writeIdentity(identity.rawRepresentation)

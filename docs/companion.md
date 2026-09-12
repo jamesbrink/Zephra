@@ -368,6 +368,19 @@ It governs **future joins only**: it does not evict a guest already in the room,
 so a revoke still closes that guest's own session with `revoked`, which is what
 `CompanionHost.revoke` has always done.
 
+**A host that joins again supersedes the one before it.** A Mac that goes without
+a `$disconnect` — `kill -9`, a crash, a battery — leaves its host row and the
+guest bound to it in the table until the three-hour TTL sweeps them. It comes back
+on a new connection and finds its own room already occupied: a host row naming a
+socket nobody reads, and a guest row holding the room's one slot, so the phone is
+answered `room busy` or binds to the dead host and waits. The newest host is the
+real one, so its join deletes every other host row in the room and closes those
+sockets, tells every guest `{"a":"peer","event":"left"}` and deletes its row, and
+logs `"result":"superseded"` naming what it swept. The phone rejoins within a
+backoff step. `claimGuestSlot` prefers the host row with the latest `expiresAt`
+besides, so a delete that did not land still leaves the room to the Mac that is
+there rather than to a row that outlived it.
+
 **A room is open while a code is on screen.** A phone pairing for the first time
 holds a key that is on no list — the pairing is what puts it there — so an
 allow-list alone refused the one guest the code was put up for, and a first
