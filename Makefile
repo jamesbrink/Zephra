@@ -715,8 +715,10 @@ relay-deploy: relay-test
 
 # macOS-only: validates notarization before upload, then verifies the public download.
 RELEASE_PROFILE ?= dev.urandom.io
-# What `publish-download.sh` rewrites with the URL, version, build and SHA-256 of the upload,
-# and what the website's Download button reads. The one file a ship changes in the repo.
+# What `publish-download.sh` rewrites with the URL, version, build and SHA-256 of the upload.
+# The one file a ship changes in the repo. The website reads only the version out of it: its
+# Download button links the `Zephra-latest.dmg` alias, so the page serves the newest build
+# whether or not the site has been redeployed since (see `product-mockups/app/download.ts`).
 RELEASE_MANIFEST := product-mockups/app/release.json
 # The distribution in front of the assets bucket, so the ship can forget the cached copy of the
 # one key it mutates (`releases/Zephra-latest.dmg`). The same distribution the mirror uses --

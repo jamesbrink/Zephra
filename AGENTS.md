@@ -1206,6 +1206,9 @@ Makefile targets:
   when James says "deploy to production".
 - `release-upload` — `scripts/publish-download.sh`: upload the DMG, copy the
   alias, verify the public download, write `product-mockups/app/release.json`.
+  The website's Download button links the `Zephra-latest.dmg` alias
+  (`product-mockups/app/download.ts`), not the pinned name, so it serves the
+  newest build without a site deploy; the manifest gives the page its version.
 - `prefetch`, `prefetch-flux2`, `prefetch-qwen`, `prefetch-ltx2`,
   `prefetch-wan` — `hf download` a release to where the app would have written
   it (`MODELS_DIR`, `QWEN_MODELS`, `LTX2_MODELS`, `WAN_MODELS`); the Qwen, LTX

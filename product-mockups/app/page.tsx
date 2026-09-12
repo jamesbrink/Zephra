@@ -1,7 +1,7 @@
 'use client';
 /* oxlint-disable next/no-img-element -- Static PNGs also deploy to S3 without an image optimization server. */
 import { useState } from 'react';
-import release from './release.json';
+import { latestDownloadURL } from './download';
 import GettingStarted from './getting-started';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -165,7 +165,7 @@ export default function Page() {
             feels at home on your Mac. Powerful models. Native controls.
             Everything stays with you.
           </p>
-          <a className="button" href={release.url}>
+          <a className="button" href={latestDownloadURL}>
             Download for Mac <ArrowDown size={17} />
           </a>
           <span className="compatibility">

@@ -1,4 +1,5 @@
 import release from './release.json';
+import { latestManifestURL } from './download';
 
 const models = [
   {
@@ -157,7 +158,8 @@ export default function GettingStarted({ id }: { id: string }) {
         <span className="eyebrow">WHAT’S NEW</span>
         <h2 id="release-heading">More ways to make it yours.</h2>
         <p className="release-version">
-          Version {release.version} · Build {release.build}
+          Version {release.version} · The download is always the newest build;{' '}
+          <a href={latestManifestURL}>latest.json</a> names it and its SHA-256.
         </p>
         <ul>
           <li>

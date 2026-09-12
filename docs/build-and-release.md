@@ -119,7 +119,8 @@ Makefile targets:
   which builds, signs, notarizes both packages, uploads the DMG to the
   releases prefix of the assets bucket under that immutable name and verifies
   the public download, writing `product-mockups/app/release.json`; then
-  `deploy-production`, so the site's Download button names the new file; then
+  `deploy-production`, so the site's version line names the new build (its
+  Download button links the `Zephra-latest.dmg` alias and needs no deploy); then
   `release-commit`, which stages that one manifest path and nothing else,
   commits it naming the build it read back out of the file, and pushes the
   current branch. Nothing is left dirty for someone to remember, and a re-run
