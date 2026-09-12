@@ -83,7 +83,7 @@ export const handler = async (event) => {
       return { statusCode: 200 };
     }
     if (routeKey === "$disconnect") {
-      await onDisconnect(connectionId);
+      await onDisconnect(connectionId, closing(event.requestContext));
       return { statusCode: 200 };
     }
     await onMessage(connectionId, event.body);
@@ -553,7 +553,7 @@ async function onSend(member, message, body) {
   logLine({ ...line, result: "gone" });
 }
 
-async function onDisconnect(connectionId) {
+async function onDisconnect(connectionId, close = {}) {
   const member = await findMember(connectionId);
 
   // A connection that never got past the challenge leaves a pending row behind,
@@ -561,7 +561,7 @@ async function onDisconnect(connectionId) {
   await dropPending(connectionId);
 
   if (!member) {
-    logLine({ at: "$disconnect", from: connectionId, to: [], result: "unknown" });
+    logLine({ at: "$disconnect", from: connectionId, ...close, to: [], result: "unknown" });
     return;
   }
 
@@ -572,6 +572,7 @@ async function onDisconnect(connectionId) {
     from: connectionId,
     role: member.role,
     room: member.room,
+    ...close,
   };
 
   // The host leaving ends the session for the guest; a guest leaving is news the
@@ -712,6 +713,20 @@ function logLine(fields) {
 
 // A string a client chose, bounded, or null. Nothing unbounded reaches the log,
 // so a peer cannot write a megabyte of its own into it.
+// How the socket closed, as API Gateway reports it on `$disconnect`: the close
+// code and the reason the closing side gave, or what the gateway saw when the
+// connection simply went. A `1001` with a client reason is an end that closed on
+// purpose; a `1006` is a phone that crashed, slept or lost the network. Without
+// these, a session that ends the moment it joins reads the same as one that
+// was torn down cleanly, and only the client's own log could tell them apart.
+function closing(context) {
+  const code = Number(context?.disconnectStatusCode);
+  return {
+    code: Number.isInteger(code) ? code : null,
+    reason: short(context?.disconnectReason, 64),
+  };
+}
+
 function short(value, limit = 64) {
   return typeof value === "string" && value.length <= limit ? value : null;
 }

@@ -549,4 +549,20 @@ const lineFor = (lines, at, result) =>
     lineFor(left, "$disconnect")?.result === "no-peer",
     left,
   );
+
+  await handler({
+    requestContext: {
+      routeKey: "$disconnect",
+      connectionId: "N",
+      disconnectStatusCode: 1001,
+      disconnectReason: "Going away",
+    },
+  });
+  const closed = sinceLogs();
+  const closeLine = lineFor(closed, "$disconnect");
+  check(
+    "a disconnect logs the close code and reason the gateway saw",
+    closeLine?.code === 1001 && closeLine?.reason === "Going away",
+    closed,
+  );
 }

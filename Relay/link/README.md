@@ -510,7 +510,7 @@ What a `result` means, by `at`:
 | `hello` | `challenged` \| `already-joined` \| `too-many` | |
 | `allow` | `allowed` \| `not-host` \| `bad-allow` \| `bad-open` | `count` and `open` say what the policy became |
 | `peer` | `forwarded` \| `gone` | a `peer` notice pushed; `event` is `joined` or `left` |
-| `$disconnect` | `left` \| `gone` \| `no-peer` \| `unknown` | whether the other side was told; `unknown` is a connection with no row |
+| `$disconnect` | `left` \| `gone` \| `no-peer` \| `unknown` | whether the other side was told; `unknown` is a connection with no row. `code` and `reason` are the close as API Gateway saw it: `1001` with a reason is an end that closed on purpose, `1006` one that crashed, slept or lost the network |
 
 **Reading them.** A line is not pure JSON on the way out: the Node runtime
 prefixes everything `console.log` writes with
