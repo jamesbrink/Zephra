@@ -266,6 +266,16 @@ they were sent.
 - A frame that overtook its neighbours waits, at most `frameLimit` (256) frames
   and no longer than `hold` (500 ms). Releasing moves the channel's release point
   on with `released(through:)`, which is what the replay check is measured from.
+- **The hold is one clock per gap, re-armed whenever the release point moves.**
+  It was armed when `held` first became non-empty and cancelled only when `held`
+  emptied, so under sustained reordering — which is what a relay is — it ran
+  across a chain of gaps that each filled in milliseconds, and stepped over
+  whichever gap happened to be open when the half-second ran out. The frame it
+  called lost then arrived a beat later as `replayed`: the receiver was
+  manufacturing holes with no loss underneath it at all, which over a picture's
+  hundreds of chunks is a failed transfer every few seconds. `State.armedFor`
+  records the counter a clock was started against, and a clock that outlives its
+  gap does nothing.
 - A frame that arrives after the stream moved past it is the channel's
   `replayed`, and the session drops it with a line in the log.
 - A gap nothing fills inside `hold` is **loss, not reordering**: each hop is TCP

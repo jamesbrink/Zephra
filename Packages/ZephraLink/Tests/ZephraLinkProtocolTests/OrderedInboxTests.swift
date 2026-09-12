@@ -109,6 +109,37 @@ struct OrderedInboxTests {
         #expect(told.count == 1, "one skip, one word about it")
     }
 
+    @Test("A gap that fills leaves no clock running against the gap after it")
+    func theHoldIsMeasuredPerGap() async throws {
+        // Sustained reordering: something is always waiting, so the stream never empties, and
+        // each gap fills long before the hold runs out. A clock armed once and left running would
+        // reach the end of its half-second with a gap that was milliseconds old open, and step
+        // over a frame that was on its way.
+        let (sender, receiver) = SecureChannelTests.channels()
+        let inbox = OrderedInbox(channel: receiver, hold: .milliseconds(100))
+        let told = ToldTheGap()
+        inbox.onGap { told.say($0, $1) }
+        let sealed = try (0...4).map { try sender.seal(Self.frame("\($0)")) }
+
+        var released: [String] = []
+        released += try inbox.accept(sealed[2]).compactMap(Self.name)
+        released += try inbox.accept(sealed[4]).compactMap(Self.name)
+        try await Task.sleep(for: .milliseconds(50))
+        released += try inbox.accept(sealed[0]).compactMap(Self.name)
+        try await Task.sleep(for: .milliseconds(20))
+        released += try inbox.accept(sealed[1]).compactMap(Self.name)
+        // Past where a clock armed at the first gap would have run out, and not past where one
+        // armed at the gap that is actually open will.
+        try await Task.sleep(for: .milliseconds(40))
+
+        #expect(told.count == 0, "no gap here was ever older than the hold")
+        released += try inbox.accept(sealed[3]).compactMap(Self.name)
+        #expect(
+            released == (0...4).map { #"{"n":"\#($0)"}"# },
+            "every frame comes out, in order, with nothing stepped over")
+        #expect(!receiver.isClosed)
+    }
+
     @Test("More held frames than the limit is loss too")
     func tooManyHeldFramesIsLoss() throws {
         let (sender, receiver) = SecureChannelTests.channels()

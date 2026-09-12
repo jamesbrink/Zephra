@@ -35,8 +35,11 @@ public final class OrderedInbox: Sendable {
         var held: [UInt64: Frame] = [:]
         /// The counter the next frame to be released will carry.
         var next: UInt64 = 0
-        /// The clock on the gap that is open right now, armed when it opened and not since.
+        /// The clock on the gap that is open right now.
         var timer: Task<Void, Never>?
+        /// The counter that clock is running against, so a clock armed for a gap that has since
+        /// filled cannot be the one that steps over the gap after it.
+        var armedFor: UInt64?
         var onGap: (@Sendable (FrameGap, [Frame]) -> Void)?
         var hasFailed = false
     }
@@ -97,13 +100,21 @@ public final class OrderedInbox: Sendable {
         state.withLock { state in
             state.timer?.cancel()
             state.timer = nil
+            state.armedFor = nil
             state.hasFailed = true
         }
     }
 
-    /// Arms the clock when a gap is open and nothing is timing it, and stops it when the gap has
-    /// filled. Armed once per gap and never restarted by a later frame: the hold is measured from
-    /// when the stream broke, not from the last thing that arrived behind the break.
+    /// Arms the clock against the gap that is open now, and stops it when nothing is waiting.
+    ///
+    /// **One clock per gap.** The hold is measured from when *this* gap opened, not from when the
+    /// stream first had anything waiting: a frame arriving behind the break can fill the gap it
+    /// was waiting on and leave a later one open, and a clock that kept running across that chain
+    /// would step over whichever gap happened to be open when it ran out. Under sustained
+    /// reordering — which is what a relay is — every gap fills in milliseconds and the stream
+    /// never empties, so that clock ran out on a gap that was moments old and the frame it called
+    /// lost arrived a beat later as `replayed`. The receiver was manufacturing holes with no loss
+    /// underneath it at all. So the clock is re-armed whenever `next` moves.
     private func armOrDisarm() {
         let wait = holdTime
         state.withLock { state in
@@ -111,13 +122,17 @@ public final class OrderedInbox: Sendable {
             guard !state.held.isEmpty else {
                 state.timer?.cancel()
                 state.timer = nil
+                state.armedFor = nil
                 return
             }
-            guard state.timer == nil else { return }
+            guard state.armedFor != state.next else { return }
+            state.timer?.cancel()
+            let gap = state.next
+            state.armedFor = gap
             state.timer = Task { [weak self] in
                 try? await Task.sleep(for: wait)
                 guard !Task.isCancelled else { return }
-                self?.gapRanOut()
+                self?.gapRanOut(armedFor: gap)
             }
         }
     }
@@ -128,9 +143,15 @@ public final class OrderedInbox: Sendable {
     /// comes out. `released(through:)` moves the channel's floor with it, which is what makes a
     /// frame the hole swallowed `replayed` rather than openable if it ever does turn up. A second
     /// hole behind the first arms the clock again.
-    private func gapRanOut() {
+    ///
+    /// `armedFor` is the counter this clock was started against. A clock that outlived its gap —
+    /// cancelled a moment too late to stop it — finds the release point has moved and does
+    /// nothing, because the gap it was measuring is one somebody already filled.
+    private func gapRanOut(armedFor: UInt64) {
         let skip: (gap: FrameGap, frames: [Frame], through: UInt64)? = state.withLock { state in
+            guard state.armedFor == armedFor else { return nil }
             state.timer = nil
+            state.armedFor = nil
             guard !state.hasFailed, let lowest = state.held.keys.min() else { return nil }
             let gap = FrameGap(expected: state.next, nextHeld: lowest, held: state.held.count)
             state.next = lowest
@@ -158,6 +179,7 @@ public final class OrderedInbox: Sendable {
             state.hasFailed = true
             state.timer?.cancel()
             state.timer = nil
+            state.armedFor = nil
             state.held.removeAll()
             return true
         }
