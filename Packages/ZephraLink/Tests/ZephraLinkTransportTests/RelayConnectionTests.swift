@@ -135,6 +135,37 @@ struct RelayConnectionTests {
             "every frame that arrived is one that was sent, whole")
     }
 
+    @Test("a host writes the guest a frame is for on every slice of it")
+    func aHostNamesTheGuestItIsWritingTo() async throws {
+        let relay = try FakeRelay()
+        defer { relay.stop() }
+        let identity = DeviceIdentity()
+        let road = RelayConnection(
+            url: try await relay.start(), identity: identity, room: identity.roomID, role: .host)
+        defer { Task { await road.close() } }
+        try await road.start()
+        // Big enough to be cut up: every slice has to name the same phone, or half a sealed
+        // frame lands on one and half on nobody.
+        let payload = Data((0..<(64 * 1024 + 25)).map { UInt8($0 % 251) })
+        try await road.send(payload, to: "G1")
+        try await FakeRelay.waitUntil("four slices") { relay.sendTargets.count == 4 }
+        #expect(relay.sendTargets.allSatisfy { $0 == "G1" }, "\(relay.sendTargets)")
+    }
+
+    @Test("a phone names no guest, since it has one peer")
+    func aGuestNamesNobody() async throws {
+        let relay = try FakeRelay()
+        defer { relay.stop() }
+        let identity = DeviceIdentity()
+        let road = RelayConnection(
+            url: try await relay.start(), identity: identity, room: identity.roomID, role: .guest)
+        defer { Task { await road.close() } }
+        try await road.start()
+        try await road.send(Data("sealed".utf8))
+        try await FakeRelay.waitUntil("the phone's frame") { relay.sendTargets.count == 1 }
+        #expect(relay.sendTargets == [nil])
+    }
+
     @Test("the other end arriving reaches the owner as a peer event")
     func peerEventsSurface() async throws {
         let relay = try FakeRelay()

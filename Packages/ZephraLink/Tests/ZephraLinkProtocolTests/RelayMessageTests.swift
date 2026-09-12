@@ -139,6 +139,30 @@ struct RelayMessageTests {
         ) { try LinkJSON.decode(RelayMessage.self, from: Data(#"{"hello":1}"#.utf8)) }
     }
 
+    @Test("A send says which guest it is for and which guest it came from")
+    func aSendNamesTheGuestsOfTheRoom() throws {
+        // The room may hold several phones and the Mac has one socket for all of them, so the
+        // two ids are how a frame finds the phone it belongs to. Both are the relay's spelling.
+        let golden = #"{"a":"send","d":"qw==","from":"G2","to":"G1"}"#
+        let message = RelayMessage.send(payload: Data([0xAB]), to: "G1", from: "G2")
+        #expect(String(decoding: try LinkJSON.encode(message), as: UTF8.self) == golden)
+        #expect(try LinkJSON.decode(RelayMessage.self, from: Data(golden.utf8)) == message)
+        #expect(message.from == "G2")
+        // A relay that names nobody is the build before the room held several.
+        #expect(RelayMessage.send(payload: Data([0xAB])).from == nil)
+    }
+
+    @Test("A peer notice says which guest moved, where the relay named one")
+    func aPeerNoticeNamesTheGuest() throws {
+        let message = RelayMessage.peer(event: .left, from: "G1")
+        #expect(
+            String(decoding: try LinkJSON.encode(message), as: UTF8.self)
+                == #"{"a":"peer","event":"left","from":"G1"}"#)
+        #expect(try LinkFixtures.roundTrip(message) == message)
+        #expect(message.from == "G1")
+        #expect(RelayMessage.peer(event: .left).from == nil)
+    }
+
     @Test("A signed join is ASCII text a 128 KB frame carries easily")
     func joinIsTextFriendly() throws {
         let mac = DeviceIdentity()

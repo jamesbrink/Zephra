@@ -41,15 +41,25 @@ public enum RelayMessage: Hashable, Sendable {
     case error(reason: String)
     /// One sealed frame, to be copied to the other end verbatim.
     ///
-    /// The three optional fields are one slice of a payload too big for a single WebSocket
+    /// The three fragment fields are one slice of a payload too big for a single WebSocket
     /// frame: `message` (`m`) the id every slice of one payload shares, `index` (`i`) which
     /// slice this is and `count` (`n`) how many there are. All three are absent on a payload
     /// that fits, which is every frame a previous build sent. The relay neither reads nor
     /// rewrites them — a `send` is forwarded verbatim — so reassembly is the receiver's,
     /// `RelayFragments`.
-    case send(payload: Data, message: String? = nil, index: Int? = nil, count: Int? = nil)
-    /// The other end arrived or went. A guest leaving notifies the host too.
-    case peer(event: RelayPeerEvent)
+    ///
+    /// The last two are the room's several guests. `to` is the host's, naming which phone the
+    /// frame is for, since the host has one socket for all of them; a host that names none is
+    /// answered `ambiguous` where there is more than one. `from` is the relay's, written on
+    /// every frame it hands a host, and never read from a sender: a guest that writes its own is
+    /// overwritten. Both are absent between a phone and a relay that has not got them, which is
+    /// what keeps an older Mac and an older relay working unchanged.
+    case send(
+        payload: Data, message: String? = nil, index: Int? = nil, count: Int? = nil,
+        to: String? = nil, from: String? = nil)
+    /// The other end arrived or went. A guest leaving notifies the host too, and `from` is which
+    /// guest it was; a phone is told nothing of the kind, so it reads nil.
+    case peer(event: RelayPeerEvent, from: String? = nil)
     /// Keep the connection alive. Every five minutes, against a ten-minute idle timeout.
     case ping
     /// The answer to a ping.
@@ -81,6 +91,17 @@ public enum RelayMessage: Hashable, Sendable {
         switch self {
         case .join(_, _, _, _, _, let open), .allow(_, let open): open == true
         default: false
+        }
+    }
+
+    /// Which guest of the room this came from, where the relay named one.
+    ///
+    /// Nil from a relay that does not name guests, and nil on everything a phone is sent: it has
+    /// one peer and needs no id for it. The Mac routes by this, so it is read in one place.
+    public var from: String? {
+        switch self {
+        case .send(_, _, _, _, _, let from), .peer(_, let from): from
+        default: nil
         }
     }
 

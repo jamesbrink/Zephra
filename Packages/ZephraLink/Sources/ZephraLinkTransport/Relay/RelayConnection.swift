@@ -54,6 +54,10 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
     /// which session lost it.
     let errorContinuation: AsyncStream<String>.Continuation
     let errorStream: AsyncStream<String>
+    /// The host's own reading of the room: every frame and every peer notice with the guest the
+    /// relay named on it. A guest's road feeds `frames()` instead, since a phone has one peer.
+    let signalStream: AsyncThrowingStream<RelayGuestSignal, Error>
+    let signalContinuation: AsyncThrowingStream<RelayGuestSignal, Error>.Continuation
     /// The slices of payloads too big for one WebSocket frame, put back together here.
     let fragments = RelayFragments()
     /// Not private: `RelayConnection+Closing` is the rest of this type, and the lock is what
@@ -75,6 +79,7 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
         (frameStream, frameContinuation) = AsyncThrowingStream.makeStream()
         (peerStream, peerContinuation) = AsyncStream.makeStream()
         (errorStream, errorContinuation) = AsyncStream.makeStream()
+        (signalStream, signalContinuation) = AsyncThrowingStream.makeStream()
     }
 
     /// Opens the socket and joins the room, or throws the relay's refusal.
@@ -122,6 +127,10 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
     }
 
     public func frames() -> AsyncThrowingStream<Data, Error> { frameStream }
+
+    /// The room as a host reads it: frames and peer notices in the order they arrived, each
+    /// naming the guest it is about. `RelayListener` is what routes them.
+    func guestSignals() -> AsyncThrowingStream<RelayGuestSignal, Error> { signalStream }
 
     /// The other end arriving and going, which is how a Mac knows a phone is there and how a
     /// phone knows the Mac is asleep without waiting for a request to time out.

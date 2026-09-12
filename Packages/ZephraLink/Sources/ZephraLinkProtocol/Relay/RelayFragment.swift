@@ -33,14 +33,20 @@ public enum RelayFragment {
 
     /// One payload as the messages to send: a single unfragmented `send` when it fits, and a run
     /// of slices sharing one message id when it does not.
-    public static func messages(for payload: Data, id: String = newID()) -> [RelayMessage] {
-        guard needsFragmenting(payload) else { return [.send(payload: payload)] }
+    ///
+    /// `guest` is a host's answer to which phone the payload is for, written on every slice; a
+    /// phone sends none, since it has one peer.
+    public static func messages(
+        for payload: Data, to guest: String? = nil, id: String = newID()
+    ) -> [RelayMessage] {
+        guard needsFragmenting(payload) else { return [.send(payload: payload, to: guest)] }
         let slices = stride(from: 0, to: payload.count, by: byteLimit).map { start in
             payload[payload.startIndex + start..<payload.index(
                 payload.startIndex, offsetBy: min(start + byteLimit, payload.count))]
         }
         return slices.enumerated().map { index, slice in
-            .send(payload: Data(slice), message: id, index: index, count: slices.count)
+            .send(
+                payload: Data(slice), message: id, index: index, count: slices.count, to: guest)
         }
     }
 }

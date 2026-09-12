@@ -44,14 +44,16 @@ extension RelayError: CustomStringConvertible {
 
 /// What the relay's three refusals of a guest mean to the phone.
 ///
-/// Two of them are about the moment — the Mac is not in its room yet, or its one guest slot is
-/// taken — and are worth another attempt after a wait. The third is about this device, and no
-/// number of attempts will change it, so it is a sentence for a person rather than a retry.
+/// Two of them are about the moment — the Mac is not in its room yet, or its room is holding as
+/// many phones as it may — and are worth another attempt after a wait. The third is about this
+/// device, and no number of attempts will change it, so it is a sentence for a person rather than
+/// a retry.
 extension RelayError {
     /// The relay's own word for a guest whose key is not on the host's allow-list.
     public static let notAllowed = "not allowed"
-    /// The relay's own words for the refusals a later attempt could get past.
-    public static let temporaryReasons: Set<String> = ["no host", "room busy"]
+    /// The relay's own words for the refusals a later attempt could get past. `room busy` is the
+    /// relay before rooms held several phones, and is still deployed until this one is.
+    public static let temporaryReasons: Set<String> = ["no host", "room busy", "room full"]
 
     /// Whether waiting and trying again is worth doing.
     public var isTemporary: Bool {

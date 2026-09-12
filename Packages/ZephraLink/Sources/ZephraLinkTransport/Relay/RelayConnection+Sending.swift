@@ -36,10 +36,16 @@ extension RelayConnection {
     /// that stays open over a dead socket is a session the Mac keeps and the phone cannot reach:
     /// the failure finishes `frames()`, which is what everything above reads the end of a
     /// session from.
-    public func send(_ frame: Data) async throws {
+    ///
+    /// A phone's road, which has one peer. A host names the guest instead: `send(_:to:)`, the
+    /// same path with the guest written on every slice.
+    public func send(_ frame: Data) async throws { try await send(frame, to: nil) }
+
+    /// One sealed frame to one guest, or to the sole peer where `guest` is nil, paced as above.
+    public func send(_ frame: Data, to guest: String?) async throws {
         guard lock.withLock({ state.isJoined && !state.isClosed }) else { throw RelayError.closed }
         do {
-            for message in RelayFragment.messages(for: frame) {
+            for message in RelayFragment.messages(for: frame, to: guest) {
                 await cadence.wait()
                 try await write(message)
             }

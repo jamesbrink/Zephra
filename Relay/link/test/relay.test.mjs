@@ -147,7 +147,7 @@ const lineFor = (lines, at, result) =>
   check("guest with no host gets no host", r.a === "error" && r.reason === "no host", r);
 }
 
-// 4. A second guest is refused while one is joined.
+// 4. A second guest joins beside the first, and every notice says which one.
 {
   fresh();
   const host = key();
@@ -156,14 +156,21 @@ const lineFor = (lines, at, result) =>
   await joinAs("H", host, host.room, "host", { allow: [a.pub, b.pub] });
   await joinAs("A", a, host.room, "guest");
   const r = await joinAs("B", b, host.room, "guest");
-  check("second guest gets room busy", r.a === "error" && r.reason === "room busy", r);
-  check("second guest is closed", gw.closed.has("B"));
+  check("a second guest joins beside the first", r.a === "joined", r);
+  check(
+    "and the host is told which one arrived",
+    last("H").a === "peer" && last("H").event === "joined" && last("H").from === "B",
+    last("H"),
+  );
 
-  // The first guest leaving frees the slot.
   await bye("A");
-  check("host told the peer left", last("H").a === "peer" && last("H").event === "left");
-  const again = await joinAs("B2", b, host.room, "guest");
-  check("slot freed for the next guest", again.a === "joined", again);
+  check(
+    "host told which peer left",
+    last("H").a === "peer" && last("H").event === "left" && last("H").from === "A",
+    last("H"),
+  );
+  const again = await joinAs("A2", a, host.room, "guest");
+  check("the phone that left comes back on a new connection", again.a === "joined", again);
 }
 
 // 5. The allow action replaces the set, and only a host may send it.
@@ -327,7 +334,7 @@ const lineFor = (lines, at, result) =>
   );
   const paired = await joinAs("P", phone, host.room, "guest");
   check("an open room admits an unlisted guest", paired.a === "joined", paired);
-  check("it is still one at a time", (await joinAs("Q", later, host.room, "guest")).reason === "room busy");
+  check("an open room admits a second one too", (await joinAs("Q", later, host.room, "guest")).a === "joined");
 
   // The host names the phone it just paired and closes the room.
   await msg("H", { a: "allow", pubs: [phone.pub] });
@@ -387,16 +394,17 @@ const lineFor = (lines, at, result) =>
   const got = gw.frames("H").filter((f) => f.a === "send");
   check("every slice is forwarded", got.length === 3, got.length);
   check(
-    "the fragment fields survive untouched",
-    JSON.stringify(got) === JSON.stringify(slices),
+    "the fragment fields survive untouched, with the guest written on them",
+    JSON.stringify(got) === JSON.stringify(slices.map((slice) => ({ ...slice, from: "G" }))),
     got,
   );
 
-  // The text itself, not just an equal object: the relay forwards the original.
+  // The text itself, not just an equal object: a frame to a host is the sender's
+  // own with `from` added, and nothing else moved.
   const rawSent = (gw.sent.get("H") ?? []).filter((t) => t.includes('"send"'));
   check(
-    "the original text is what arrives",
-    rawSent[0] === JSON.stringify(slices[0]),
+    "the original text is what arrives, plus the guest it came from",
+    rawSent[0] === JSON.stringify({ ...slices[0], from: "G" }),
     rawSent[0],
   );
 
@@ -408,6 +416,11 @@ const lineFor = (lines, at, result) =>
     odd.room === "nope" && odd.role === "host" && odd.extra.deep[1] === 2,
     odd,
   );
+
+  // A guest cannot write its own `from`: the relay's is the last word.
+  await msg("G", { a: "send", d: "eA==", from: "somebody-else" });
+  const forged = gw.frames("H").filter((f) => f.a === "send").pop();
+  check("a guest cannot forge the from field", forged.from === "G", forged);
 
   // A 24,000-byte slice is still one frame the relay forwards whole.
   const big = "A".repeat(24000);
@@ -633,4 +646,124 @@ const lineFor = (lines, at, result) =>
     lineFor(lines, "join", "superseded") === undefined,
     lines.map((l) => `${l.at}:${l.result}`),
   );
+}
+
+// 21. Several phones on one Mac. The host has one socket, so a frame to it says
+// which guest it came from and a frame from it says which guest it is for.
+{
+  fresh();
+  const host = key();
+  const one = key();
+  const two = key();
+  await joinAs("H", host, host.room, "host", { allow: [one.pub, two.pub] });
+  await joinAs("G1", one, host.room, "guest");
+  await joinAs("G2", two, host.room, "guest");
+
+  await msg("G1", { a: "send", d: "b25l" });
+  check(
+    "a guest frame says which guest it came from",
+    last("H").a === "send" && last("H").d === "b25l" && last("H").from === "G1",
+    last("H"),
+  );
+  await msg("G2", { a: "send", d: "dHdv" });
+  check(
+    "and the other guest is told apart from it",
+    last("H").d === "dHdv" && last("H").from === "G2",
+    last("H"),
+  );
+
+  await msg("H", { a: "send", d: "YWE=", to: "G1" });
+  check("the host's frame reaches the guest it named", last("G1").d === "YWE=", last("G1"));
+  check(
+    "and nobody else",
+    !gw.frames("G2").some((f) => f.a === "send" && f.d === "YWE="),
+    gw.frames("G2"),
+  );
+
+  await msg("H", { a: "send", d: "YmI=" });
+  check(
+    "a host frame naming nobody is refused as ambiguous",
+    last("H").a === "error" && last("H").reason === "ambiguous",
+    last("H"),
+  );
+
+  await msg("H", { a: "send", d: "Y2M=", to: "gone" });
+  check(
+    "a host frame to a guest that is not in the room is answered peer left",
+    last("H").a === "peer" && last("H").event === "left" && last("H").from === "gone",
+    last("H"),
+  );
+
+  await bye("G1");
+  check(
+    "one phone leaving is news about that one",
+    last("H").a === "peer" && last("H").event === "left" && last("H").from === "G1",
+    last("H"),
+  );
+  await msg("G2", { a: "send", d: "ZWU=" });
+  check(
+    "the other phone's session is untouched",
+    last("H").a === "send" && last("H").d === "ZWU=" && last("H").from === "G2",
+    last("H"),
+  );
+  await msg("H", { a: "send", d: "ZGQ=" });
+  check(
+    "and it is the sole guest again, so a frame naming nobody reaches it",
+    last("G2").a === "send" && last("G2").d === "ZGQ=",
+    last("G2"),
+  );
+}
+
+// 22. The cap: eight phones, and the ninth is told the room is full.
+{
+  fresh();
+  const host = key();
+  const phones = Array.from({ length: 9 }, () => key());
+  await joinAs("H", host, host.room, "host", { allow: phones.map((phone) => phone.pub) });
+
+  const admitted = [];
+  for (let at = 0; at < 8; at += 1) {
+    admitted.push((await joinAs(`P${at}`, phones[at], host.room, "guest")).a === "joined");
+  }
+  check("eight phones join one room", admitted.every(Boolean), admitted);
+
+  const full = await joinAs("P8", phones[8], host.room, "guest");
+  check("the ninth is refused as room full", full.a === "error" && full.reason === "room full", full);
+  check("and is closed", gw.closed.has("P8"));
+
+  await bye("P0");
+  const back = await joinAs("P9", phones[8], host.room, "guest");
+  check("a phone leaving frees a slot for it", back.a === "joined", back);
+}
+
+// 23. A host row written by the build before this one holds its guest in `guest`
+// rather than in the set. It is read as one guest until the row is rewritten, and
+// the next join moves it into the set.
+{
+  fresh();
+  const host = key();
+  const first = key();
+  const second = key();
+  await joinAs("H", host, host.room, "host", { allow: [first.pub, second.pub] });
+  await joinAs("A", first, host.room, "guest");
+
+  const row = db.store.get(`${host.room} H`);
+  row.guest = { S: "A" };
+  delete row.guests;
+
+  await msg("H", { a: "send", d: "aGk=" });
+  check("the legacy slot is read as the room's one guest", last("A").d === "aGk=", last("A"));
+
+  const r = await joinAs("B", second, host.room, "guest");
+  check("and a second phone still joins beside it", r.a === "joined", r);
+  const after = db.store.get(`${host.room} H`);
+  check("the legacy attribute is gone", after.guest === undefined, after);
+  check(
+    "and both phones are in the set",
+    JSON.stringify([...after.guests.SS].sort()) === JSON.stringify(["A", "B"]),
+    after.guests,
+  );
+
+  await msg("H", { a: "send", d: "eW8=", to: "A" });
+  check("the phone the legacy slot named still receives", last("A").d === "eW8=", last("A"));
 }

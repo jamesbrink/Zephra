@@ -2,6 +2,10 @@ import Foundation
 
 /// The JSON one relay message is: a tagged object, for the reason a `Command`'s is.
 ///
+/// `to` and `from` are the room's several guests: a host names which phone a frame is for, and
+/// the relay names which phone a frame came from. Both are absent where there is nothing to
+/// name, so the JSON a previous build wrote is unchanged.
+///
 /// The field names are the relay's, not ours. This package is one of two implementations of
 /// the same contract — the other is a Lambda — and the names in the deployed one are what both
 /// have to agree on. `n` and `d` are the two the relay spells short.
@@ -19,6 +23,7 @@ extension RelayMessage: Codable {
         case allow, pubs, count, open
         /// API Gateway's own word for itself, on the JSON it answers with in front of the relay.
         case foreign = "message"
+        case to, from
     }
 
     /// A flag as the relay spells it: present only when it is true, so a shut room says nothing
@@ -49,12 +54,16 @@ extension RelayMessage: Codable {
             try container.encodeIfPresent(Self.flag(open), forKey: .open)
         case .allowed(let count): try container.encode(count, forKey: .count)
         case .error(let reason): try container.encode(reason, forKey: .reason)
-        case .send(let payload, let fragment, let index, let count):
+        case .send(let payload, let fragment, let index, let count, let to, let from):
             try container.encode(payload, forKey: .payload)
             try container.encodeIfPresent(fragment, forKey: .fragment)
             try container.encodeIfPresent(index, forKey: .index)
             try container.encodeIfPresent(count, forKey: .nonce)
-        case .peer(let event): try container.encode(event, forKey: .event)
+            try container.encodeIfPresent(to, forKey: .to)
+            try container.encodeIfPresent(from, forKey: .from)
+        case .peer(let event, let from):
+            try container.encode(event, forKey: .event)
+            try container.encodeIfPresent(from, forKey: .from)
         case .foreign: break
         }
     }
@@ -95,8 +104,13 @@ extension RelayMessage: Codable {
                 payload: try value(Data.self, .payload),
                 message: try container.decodeIfPresent(String.self, forKey: .fragment),
                 index: try container.decodeIfPresent(Int.self, forKey: .index),
-                count: try container.decodeIfPresent(Int.self, forKey: .nonce))
-        case .peer: self = .peer(event: try value(RelayPeerEvent.self, .event))
+                count: try container.decodeIfPresent(Int.self, forKey: .nonce),
+                to: try container.decodeIfPresent(String.self, forKey: .to),
+                from: try container.decodeIfPresent(String.self, forKey: .from))
+        case .peer:
+            self = .peer(
+                event: try value(RelayPeerEvent.self, .event),
+                from: try container.decodeIfPresent(String.self, forKey: .from))
         case .ping: self = .ping
         case .pong: self = .pong
         case .foreign: self = .foreign(message: try value(String.self, .foreign))

@@ -111,7 +111,8 @@ Shared, by what a file actually touches:
                                                   four-byte length, the listener's own Bonjour
                                                   advertisement and BonjourBrowser, and the
                                                   relay's RelayConnection and RelayListener,
-                                                  which serves one guest at a time
+                                                  which routes the room's phones by the
+                                                  guest id on every frame
   ZephraLink/ZephraLinkClient      Foundation, Observation, ZephraLinkProtocol,
                                                   ZephraLinkTransport — LinkClient, the one
                                                   object the phone's views observe, over an
@@ -322,9 +323,17 @@ the allow-list and the join do not come through `send` and are not paced. A
 message with a `message` and no `a` is API Gateway answering for itself rather
 than the relay, and it is `RelayMessage.foreign`, logged and carried up
 `relayErrors()` rather than failing the decode and ending the road.
-`RelayListener` serves **one guest at a time**, because the
-relay gives a host one socket and a frame on it carries no guest id. Several
-phones at once is a LAN feature. The relay admits a guest only when its signing
+`RelayListener` serves **every phone in the room**, up to the relay's
+`MAX_GUESTS` (8), because the relay gives a host one socket and every frame on it
+names the guest: the relay writes `from` on what arrives, `RelayGuestSession`
+writes `to` on what leaves, and `RelayListener+Guests` keeps one session per
+`from`, opened by whichever of the phone's first frame and its `peer joined`
+comes first and ended by the `left` that names it. Frames and peer notices reach
+it as one ordered `guestSignals()` stream, since a `left` that overtook the
+frames behind it would end a session still being read. A host with several guests
+that names none is refused `ambiguous` rather than guessing, and a signal naming
+nobody — an older relay — is the room's one guest, which is what keeps either end
+working against the other's previous build. The relay admits a guest only when its signing
 key is on the host's allow-list: the host's `join` carries it (`allow`, at most
 `RelayJoin.allowLimit`, from `CompanionHost.relayAllowList`) and an `allow`
 message replaces it whenever a pairing completes or is revoked. Both messages also
@@ -339,8 +348,8 @@ join that went out first carried `allow: []` — a room admitting nobody until t
 over a live session is that guest's own announcement arriving late and never ends
 it; only a `peer left` or the road going does. A send that fails or a socket that
 closes marks the road closed and finishes `frames()`, so no session is left over a
-dead socket: `RelayListener` ends its guest as the road stops and `RelayRoad` ends
-a join's guests before the next join yields any. On the phone a `peer left` — read
+dead socket: `RelayListener` ends every guest of its road as that road stops and
+`RelayRoad` ends a join's guests before the next join yields any. On the phone a `peer left` — read
 through `LinkConnection.peerEvents()`, empty for a road that cannot tell — ends the
 session, and `LinkClient.sessionEndings()` is what wakes `LinkReconnect` at once
 rather than on its poll or the next foreground.
@@ -388,7 +397,11 @@ keeping them in one repository is what lets a change to that contract be one
 commit. A host's `join` supersedes any older host row in the same room: those rows
 are deleted and their sockets closed, and any guest bound to them is told `peer
 left` and cleared, because a Mac killed without a `$disconnect` otherwise leaves
-a room that answers a phone `room busy` for three hours. `make relay-test` covers
+a room holding slots for phones that are gone, and a phone bound to a socket
+nobody reads, for three hours. A room holds `MAX_GUESTS` (8) guests in a string
+set on the host's own row, claimed by a conditional `ADD` and refused past the cap
+as `room full`; a host row from the build before it, holding one `guest`, is read
+as a one-element set until the next join moves it in. `make relay-test` covers
 it against fakes in seconds and `make relay-deploy` puts it up, which CI does on
 every push to `main`. Terraform in the
 urandom.io repository still owns the function, the table, the API and the domain,

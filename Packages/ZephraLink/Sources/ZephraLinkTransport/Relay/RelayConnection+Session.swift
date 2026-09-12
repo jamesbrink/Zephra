@@ -71,8 +71,10 @@ extension RelayConnection {
             // A payload that came in slices is yielded once, whole. Slices arrive out of order,
             // because every `send` is a Lambda invocation of its own, so `RelayFragments` holds
             // them by message id until the set is complete.
-            if let whole = fragments.accept(message) { frameContinuation.yield(whole) }
-        case .peer(let event): peerContinuation.yield(event)
+            if let whole = fragments.accept(message) { yield(whole, from: message.from) }
+        case .peer(let event, let from):
+            peerContinuation.yield(event)
+            signalContinuation.yield(.peer(event, from: from))
         case .error(let reason):
             logger.error("The relay refused a frame: \(reason, privacy: .public)")
             errorContinuation.yield(reason)
@@ -89,6 +91,19 @@ extension RelayConnection {
         }
     }
 
+    /// One whole payload, to whichever stream this road's owner reads.
+    ///
+    /// A host routes by the guest the relay named, so its frames go out as signals; a phone has
+    /// one peer and reads `frames()`. Only one of the two is ever consumed, so only one is fed:
+    /// frames yielded into a stream nobody reads are frames nothing ever releases.
+    private func yield(_ payload: Data, from guest: String?) {
+        if role == .host {
+            signalContinuation.yield(.frame(payload, from: guest))
+        } else {
+            frameContinuation.yield(payload)
+        }
+    }
+
     /// The socket stopped. A close from this end finishes the stream; anything else fails it.
     ///
     /// Either way the road is marked closed before the stream finishes, so a `send` that arrives
@@ -99,6 +114,7 @@ extension RelayConnection {
         let closedFromHere = readerStopped()
         if closedFromHere {
             frameContinuation.finish()
+            signalContinuation.finish()
         } else {
             logger.error(
                 """
@@ -106,6 +122,7 @@ extension RelayConnection {
                 \(String(describing: error), privacy: .public)
                 """)
             frameContinuation.finish(throwing: error)
+            signalContinuation.finish(throwing: error)
         }
         peerContinuation.finish()
         errorContinuation.finish()

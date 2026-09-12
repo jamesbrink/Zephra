@@ -1,27 +1,33 @@
 import Foundation
 import ZephraLinkProtocol
 
-/// One guest's turn on the Mac's relay road.
+/// One guest's session on the Mac's relay road.
 ///
-/// The relay multiplexes nothing: a host has one socket and a frame arriving on it carries no
-/// guest id, so the Mac cannot tell two phones apart over the relay. This is the shape that
-/// makes that honest — a connection per guest that all write to the one socket, with only one
-/// alive at a time. Its stream is its own, so a guest leaving ends that session and not the
-/// road; `RelayListener` finishes it and yields a fresh one when the next guest joins.
+/// The relay gives a host one socket for every phone in its room, so the guest a frame belongs to
+/// is written on the frame: the relay stamps `from` on what arrives, and this writes `to` on what
+/// leaves. That is what makes a connection per guest honest — each has its own stream, so a phone
+/// leaving ends that session and not the road, and `RelayListener` yields a fresh one when the
+/// next phone joins.
+///
+/// A nil `guest` is a relay that names nobody, which is the build before the room held several:
+/// its frames go out as they always did, and the room's one phone receives them.
 final class RelayGuestSession: LinkConnection, @unchecked Sendable {
     private let host: RelayConnection
+    /// Which phone this is, as the relay's connection id.
+    let guest: String?
     private let stream: AsyncThrowingStream<Data, Error>
     private let continuation: AsyncThrowingStream<Data, Error>.Continuation
 
-    /// A session writing to one host road.
-    init(host: RelayConnection) {
+    /// A session writing to one host road, for one guest.
+    init(host: RelayConnection, guest: String?) {
         self.host = host
+        self.guest = guest
         (stream, continuation) = AsyncThrowingStream.makeStream()
     }
 
     func frames() -> AsyncThrowingStream<Data, Error> { stream }
 
-    func send(_ frame: Data) async throws { try await host.send(frame) }
+    func send(_ frame: Data) async throws { try await host.send(frame, to: guest) }
 
     func close() async { continuation.finish() }
 

@@ -15,10 +15,11 @@ the file is the one that was deployed, unchanged.
 anything here: the relay and `RelayConnection` are two implementations of the
 same wire, and `docs/companion.md` is where the two are described together.
 
-A WebSocket relay that pairs the Zephra Mac app (the **host**) with one iPhone
-companion (a **guest**) inside a room. The relay is a dumb pipe: it
+A WebSocket relay that pairs the Zephra Mac app (the **host**) with the iPhone
+companions (the **guests**) inside a room. The relay is a dumb pipe: it
 authenticates who may join a room, then forwards opaque payloads between the
-host and its guest. It never reads, stores, or rewrites a payload.
+host and its guests. It never reads, stores, or rewrites a payload; the one
+thing it writes is the connection id that says which guest a frame is about.
 
 - Endpoint: `wss://zephra-link.urandom.io` (module output `link_wss_url`)
 - Room membership: DynamoDB table `zephra-link-rooms` (output `link_table_name`)
@@ -33,7 +34,14 @@ is always 32 hex characters and only the holder of that private key can host it.
 
 **The room id is not a credential.** A guest learns it out of band (a QR code,
 say), but knowing it admits nobody by itself: the host decides what the room
-admits. A room carries **at most one guest at a time**.
+admits. A room carries **at most 8 guests at a time** (`MAX_GUESTS`).
+
+**Which guest.** A host has one socket for every phone in its room, so a frame
+that crosses it names the phone it belongs to: the relay writes `from` on every
+frame and notice it hands a host, and a host writes `to` on every frame it
+sends. Neither is required of a guest, which has one peer. Both are absent
+between ends that have not got them, so a phone or a Mac from the build before
+this one keeps working: it is answered as the room's one guest.
 
 **Admission.** A host's room is either open or closed, and closed is the
 default. A closed room admits only the keys the host has named in its allow
@@ -128,7 +136,7 @@ For `"role": "guest"` the relay requires, in this order:
 | ------------- | ------------------------------------------------------------ |
 | `no host`     | no host has joined this room yet                             |
 | `not allowed` | the room is closed and `pub` is not in the host's allow list |
-| `room busy`   | another guest is already joined in this room                 |
+| `room full`   | the room already holds `MAX_GUESTS` (8) guests               |
 
 A guest's `room` is not checked against its own key; the allow list is what
 authorizes it.
@@ -142,10 +150,10 @@ On success:
 { "a": "joined", "role": "host" }
 ```
 
-When a **guest** joins, the room's host receives:
+When a **guest** joins, the room's host receives, `from` naming the guest:
 
 ```json
-{ "a": "peer", "event": "joined" }
+{ "a": "peer", "event": "joined", "from": "<connectionId>" }
 ```
 
 A join from a connection that has already joined is answered
@@ -153,7 +161,7 @@ A join from a connection that has already joined is answered
 other failure replies with an error frame and then closes the connection.
 Reasons: `bad room`, `bad role`, `bad key`, `bad allow`, `bad open`,
 `no challenge`, `challenge expired`, `bad signature`, `room does not match key`,
-`no host`, `not allowed`, `room busy`.
+`no host`, `not allowed`, `room full`.
 
 ### `allow` — host only
 
@@ -186,15 +194,29 @@ without closing.
 ### `send`
 
 ```json
-{ "a": "send", "d": "<base64 payload>" }
+{ "a": "send", "d": "<base64 payload>", "to": "<connectionId>" }
 ```
 
-Forwarded **verbatim** — the same JSON text, `a` field included — to the other
-side: a host's frame goes to the room's one guest, a guest's frame goes to the
-host. Receivers therefore see `{"a":"send","d":"..."}` exactly as the sender
-wrote it. The relay parses the frame only far enough to read `a` and check that
-`d` is a string; it forwards the original text, so **extra fields survive the
-trip untouched** and are the place to put anything the two peers need.
+Forwarded to the other side, with the guest written on it.
+
+**A guest's frame** goes to its host as the frame the guest wrote plus
+`from: "<its own connectionId>"`, which the relay writes over whatever the
+sender put there. Every other field is carried across as it arrived, `d`, `m`,
+`i` and `n` included, so **extra fields survive the trip** and are the place to
+put anything the two peers need; the JSON is written out again rather than
+passed through, so the bytes are equal and not identical.
+
+**A host's frame** goes **verbatim** — the same JSON text, `a` field included —
+to the guest named in `to`. A host with one guest may omit `to` and the relay
+answers the one that is there; with several, an omitted `to` is
+`{"a":"error","reason":"ambiguous"}` and nothing is forwarded, because a sealed
+frame opened by the wrong phone closes that phone's channel rather than merely
+arriving late. A `to` naming a connection that is not in the room forwards
+nothing either and answers the host `{"a":"peer","event":"left","from":"<that
+connectionId>"}`, which is the session to drop.
+
+The relay parses a frame only far enough to read `a`, `to` and `from` and to
+check that `d` is a string. `d` itself is never read.
 
 #### Fragmenting a large payload
 
@@ -223,7 +245,9 @@ sequence.
 
 A **host's** `send` with no guest in the room is **dropped silently**; wait for
 `{"a":"peer","event":"joined"}` before a host sends anything. It is logged as
-`"result":"no-peer"` (see Logs), which is the only trace of it.
+`"result":"no-peer"` (see Logs), which is the only trace of it. A `to` naming a
+guest the room does not hold is dropped the same way and logged
+`"result":"unknown-peer"`, and the host is told that peer left.
 
 A **guest's** `send` whose host is gone is answered
 `{"a":"error","reason":"no host"}` and `{"a":"peer","event":"left"}`: a guest has
@@ -232,9 +256,10 @@ join.
 
 A forward that fails for a reason that is **not** a dead peer — a throttle, a
 timeout, a permission — is answered `{"a":"error","reason":"forward failed"}` and
-the sender keeps its socket. A forward to a peer that is **gone** frees the
-room's guest slot as before and tells the sender `{"a":"peer","event":"left"}`,
-so a frame never disappears with nothing said to anybody.
+the sender keeps its socket. A forward to a peer that is **gone** frees that
+guest's slot and tells the sender `{"a":"peer","event":"left"}` — with `from`
+when the sender is the host — so a frame never disappears with nothing said to
+anybody.
 
 `d` is opaque to the relay. Encrypt end to end; the relay is not a trust
 boundary for payload contents.
@@ -253,13 +278,17 @@ to stay under the idle timeout.
 Pushed, never sent by a client:
 
 ```json
-{ "a": "peer", "event": "joined" }
-{ "a": "peer", "event": "left" }
+{ "a": "peer", "event": "joined", "from": "<connectionId>" }
+{ "a": "peer", "event": "left", "from": "<connectionId>" }
 ```
 
 A guest joining notifies the host. A **disconnect notifies the other side in
-both directions**: a host leaving notifies its guest, and a guest leaving
+both directions**: a host leaving notifies every guest, and a guest leaving
 notifies the host. Both use `event: "left"`.
+
+`from` is on everything a **host** is told, since it has to know which of its
+sessions moved. A **guest** is told nothing of the kind: it has one peer, so its
+notices carry no `from` at all.
 
 ### `error`
 
@@ -273,8 +302,9 @@ closing the connection: the handshake reasons above, plus `malformed`,
 
 An error on an **already-joined** connection leaves the connection open:
 `malformed`, `unknown action`, `bad payload`, `bad allow`, `bad open`,
-`not host`, `already joined`, `no host` (a guest whose host is gone) and
-`forward failed` (the forward failed for a reason that is not a dead peer).
+`not host`, `already joined`, `no host` (a guest whose host is gone),
+`ambiguous` (a host with several guests and no `to`) and `forward failed` (the
+forward failed for a reason that is not a dead peer).
 
 ## Rules and limits
 
@@ -301,13 +331,15 @@ An error on an **already-joined** connection leaves the connection open:
   ran.
 - A stale connection that returns `GoneException` (HTTP 410) on a forward is
   deleted from the table as a side effect of that forward, and a guest that goes
-  that way frees the room's guest slot with it.
-- **One guest per room**, open or closed. The slot is claimed by a conditional
-  write on the host's own row, so two guests racing for the same room cannot
-  both win.
+  that way frees its slot with it.
+- **Eight guests per room**, open or closed. A slot is claimed by a conditional
+  write on the host's own row — `ADD` to a string set under a `size` check — so
+  guests racing for the last one cannot both win, and the ninth is answered
+  `room full`. A host join writes a fresh row, so the slots a Mac that was
+  killed left behind are gone the moment it comes back.
 - **An open room is a pairing window, not a mode to live in.** Any key on the
-  internet that learns the room id can take the room's one guest slot while it
-  is open.
+  internet that learns the room id can take one of the room's guest slots while
+  it is open.
 - **Frames are not ordered end to end.** Rapid frames land in concurrent Lambda
   invocations, and nothing serialises the `PostToConnection` calls they make, so
   a receiver can see two frames in the order opposite to the one they were sent
@@ -320,8 +352,9 @@ An error on an **already-joined** connection leaves the connection open:
   waiting on a connection nobody is reading. The join logs
   `"result":"superseded"` with the connections it swept. This is what a Mac
   killed without a `$disconnect` — a `kill -9`, a crash, a battery — leaves
-  behind: rows that would otherwise sit out the three-hour TTL, answering the
-  phone `room busy` or binding it to a dead host. Where a delete did not land,
+  behind: rows that would otherwise sit out the three-hour TTL, holding slots
+  against phones that are gone or binding one to a dead host. Where a delete did
+  not land,
   `claimGuestSlot` still prefers the host row with the latest `expiresAt`, which
   is the one a join or a `ping` moved most recently.
 - The `byConnection` index is eventually consistent. The Lambda retries the
@@ -339,15 +372,19 @@ One table holds both states, keyed `(room, connectionId)`:
 | ------------------------ | ---------------------------- | ---------------------------------------------------- |
 | `pending#<connectionId>` | an issued, unspent challenge | `nonce`, `hellos`, `expiresAt` (+60 s)               |
 | `pending#<connectionId>` | the same row after a join    | `joined`, `expiresAt` (+3 h)                         |
-| `<32 hex>`               | a joined host                | `role`, `pub`, `allow`, `open`, `guest`, `expiresAt` |
+| `<32 hex>`               | a joined host                | `role`, `pub`, `allow`, `open`, `guests`, `expiresAt` |
 | `<32 hex>`               | a joined guest               | `role`, `pub`, `host`, `expiresAt`                   |
 
 A join overwrites the pending row rather than deleting it: that spends the nonce
 and leaves behind the marker that gates the 150 ms index retry. `hellos` counts
 the challenges issued. The host row's `allow` is a string set of base64 public
 keys, present only when the list is not empty; `open` is present only while the
-room is open; `guest` names the connection holding the room's one guest slot; the
-guest row's `host` points the other way, so a forward needs no lookup.
+room is open; `guests` is a string set of the connections holding the room's
+guest slots, absent while there are none; the guest row's `host` points the other
+way, so a forward needs no lookup. A host row written by the build before this
+one holds a single `guest` string instead: it is read as a one-element set, and
+the next guest to join that room moves it into `guests` and removes it. Rows like
+that exist only until the three-hour TTL sweeps the last of them.
 
 The `byConnection` global secondary index maps a connection id back to its rows,
 which is how `$disconnect` finds what to clean up. A pending row's key is
@@ -445,8 +482,11 @@ closing the guest should push `{"a":"peer","event":"left"}`.
 
 **5. The refusals.** With the host still up, a third session joining as a guest
 with a key the host never named should get
-`{"a":"error","reason":"not allowed"}` and be closed; joining a second guest
-while the first is up should get `{"a":"error","reason":"room busy"}`.
+`{"a":"error","reason":"not allowed"}` and be closed; a ninth guest in one room
+should get `{"a":"error","reason":"room full"}`. With two guests up, a host
+`{"a":"send","d":"aGk="}` with no `to` should come back
+`{"a":"error","reason":"ambiguous"}`, and the same frame with
+`"to":"<the guest's connectionId>"` should reach that one alone.
 
 ## Tests
 
@@ -456,7 +496,8 @@ no AWS account, no `npm install`.
 `test/relay.test.mjs` drives `index.mjs` the way API Gateway drives it, one
 `handler` call per frame, against fakes for the two AWS clients it imports:
 `test/fake-aws/client-dynamodb.mjs` is the membership table in a `Map`, with the
-conditional writes the guest slot is claimed by, and
+conditional writes a guest slot is claimed by — `ADD` and `DELETE` over a string
+set, and a `size` check under an `OR` — and
 `test/fake-aws/client-apigatewaymanagementapi.mjs` records what was posted to
 each connection, can declare one `Gone` and can make one fail for a reason that
 is not a dead peer (`broken`), which is what the `forward failed` answer is
@@ -492,7 +533,8 @@ what this shape exists for.
   `allow`, `peer`, `$connect`, `$disconnect`, `malformed`, or the `a` of a frame
   that got no further.
 - `from` — the connection the frame came from. `to` — the connections it was
-  posted to, `[]` when it reached nobody.
+  posted to, `[]` when it reached nobody, and on an `ambiguous` line the guests
+  it could have meant.
 - `role`, `room` — the sender's, from its membership row; on a `join` they are
   what the client claimed, bounded, before anything checked them.
 - `bytes` — the length of `d` as base64. **Never `d` itself, and never `sig`:
@@ -508,6 +550,8 @@ What a `result` means, by `at`:
 | `send` | `forwarded` | posted to the peer |
 | `send` | `gone` | the peer was 410; its row is swept, a host's slot freed, the sender told `peer left` |
 | `send` | `no-peer` | a host with no guest in the room; dropped, as the contract says |
+| `send` | `unknown-peer` | a host named a `to` the room does not hold; dropped, and the host told `peer left` |
+| `send` | `ambiguous` | a host with several guests named none; refused, and `to` lists the guests it could have meant |
 | `send` | `no-host` | a guest whose row points at no host; the sender is told |
 | `send` | `error` | the forward threw; the sender is told `forward failed` |
 | `send` | `bad-payload` | `d` was not a string |
@@ -520,7 +564,7 @@ What a `result` means, by `at`:
 | `hello` | `challenged` \| `already-joined` \| `too-many` | |
 | `allow` | `allowed` \| `not-host` \| `bad-allow` \| `bad-open` | `count` and `open` say what the policy became |
 | `peer` | `forwarded` \| `gone` | a `peer` notice pushed; `event` is `joined` or `left` |
-| `$disconnect` | `left` \| `gone` \| `no-peer` \| `unknown` | whether the other side was told; `unknown` is a connection with no row. `code` and `reason` are the close as API Gateway saw it: `1001` with a reason is an end that closed on purpose, `1006` one that crashed, slept or lost the network |
+| `$disconnect` | `left` \| `gone` \| `no-peer` \| `unknown` | whether the other side was told, `to` naming every guest a host's departure reached; `unknown` is a connection with no row. `code` and `reason` are the close as API Gateway saw it: `1001` with a reason is an end that closed on purpose, `1006` one that crashed, slept or lost the network |
 
 **Reading them.** A line is not pure JSON on the way out: the Node runtime
 prefixes everything `console.log` writes with

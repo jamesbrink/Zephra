@@ -1,13 +1,17 @@
 // Zephra link relay.
 //
-// A WebSocket bridge between one host (a Mac running Zephra) and one guest (an
-// iPhone companion) in a room. The relay never sees plaintext: `d` is an opaque
+// A WebSocket bridge between one host (a Mac running Zephra) and the iPhone
+// companions in its room. The relay never sees plaintext: `d` is an opaque
 // base64 payload the peers encrypt for each other.
 //
 // A host names the keys it will accept (`allow`), so holding a room id is not
-// enough to join it, and a room carries at most one guest at a time. A host
-// pairing for the first time has no key to name yet, so it may open the room
-// (`open`) for as long as that takes.
+// enough to join it, and a room carries at most `MAX_GUESTS` of them at a time.
+// A host pairing for the first time has no key to name yet, so it may open the
+// room (`open`) for as long as that takes.
+//
+// A room with several guests in it is why a frame to a host carries `from`, the
+// guest's connection id, and why a host's frame carries `to`: the host has one
+// socket, so the guest a frame belongs to has to be written on it.
 //
 // Dependencies: none beyond the AWS SDK v3 that the Lambda runtime already
 // provides, so the deployment package is this file alone. The runtime is
@@ -54,6 +58,12 @@ const INDEX_RETRY_MS = 150;
 
 // A bound on the host's allow list, which is one DynamoDB attribute.
 const MAX_ALLOWED_KEYS = 16;
+
+// How many guests one room holds at once. The slots are a string set on the
+// host's own row, claimed by a conditional update, so guests racing for the last
+// one cannot both win. Eight is a household's phones and a bound on the fan-out
+// a host leaving has to write.
+const MAX_GUESTS = 8;
 
 // A pending row hides in the same table under a synthetic room name. The key is
 // derivable from the connection id alone, so the challenge is read back with a
@@ -344,7 +354,9 @@ async function onJoin(connectionId, message, state) {
   logLine({ ...line, at: "joined", result: "joined" });
 
   if (hostConnectionId) {
-    const told = await post(hostConnectionId, { a: "peer", event: "joined" }, {
+    // `from` is what tells the host which of its guests arrived, since one socket
+    // carries them all.
+    const told = await post(hostConnectionId, { a: "peer", event: "joined", from: connectionId }, {
       room,
       connectionId: hostConnectionId,
     });
@@ -404,8 +416,8 @@ async function supersedeHosts(connectionId, room, line) {
 
 // `{ host }` with the host's connection id, or `{ refusal }` with the reason
 // this guest cannot have the room. The caller answers and logs, so every refusal
-// leaves the same line behind. The slot is taken on the host's own row, so two
-// guests racing for the same room cannot both win: DynamoDB decides it, not a
+// leaves the same line behind. The slot is taken on the host's own row, so
+// guests racing for the last one cannot both win: DynamoDB decides it, not a
 // read followed by a write.
 async function claimGuestSlot(connectionId, room, publicKey) {
   const rows = await roomRows(room);
@@ -423,38 +435,67 @@ async function claimGuestSlot(connectionId, room, publicKey) {
   if (!host.open && !host.allow.includes(publicKey)) {
     return { refusal: "not allowed" };
   }
-  if (rows.some((peer) => peer.role === "guest")) {
-    return { refusal: "room busy" };
-  }
 
-  // A slot naming a guest whose row is gone is stale — the row was swept by the
-  // TTL or dropped on a failed forward — so it may be taken over.
-  const stale = host.guest ?? null;
+  await adoptLegacySlot(room, host);
 
   try {
     await dynamo.send(
       new UpdateItemCommand({
         TableName: TABLE_NAME,
         Key: { room: { S: room }, connectionId: { S: host.connectionId } },
-        UpdateExpression: "SET #guest = :c",
-        ConditionExpression: stale
-          ? "attribute_exists(connectionId) AND #guest = :stale"
-          : "attribute_exists(connectionId) AND attribute_not_exists(#guest)",
-        ExpressionAttributeNames: { "#guest": "guest" },
-        ExpressionAttributeValues: stale
-          ? { ":c": { S: connectionId }, ":stale": { S: stale } }
-          : { ":c": { S: connectionId } },
+        UpdateExpression: "ADD #guests :c",
+        // The cap is checked where the write happens, so the last slot goes to one
+        // guest and not to two. An absent set is a room with nobody in it.
+        ConditionExpression:
+          "attribute_exists(connectionId) AND "
+          + "(attribute_not_exists(#guests) OR size(#guests) < :cap)",
+        ExpressionAttributeNames: { "#guests": "guests" },
+        ExpressionAttributeValues: {
+          ":c": { SS: [connectionId] },
+          ":cap": { N: String(MAX_GUESTS) },
+        },
       }),
     );
   } catch (error) {
     if (error.name === "ConditionalCheckFailedException") {
-      // Either another guest won the race or the host left mid-join.
-      return { refusal: "room busy" };
+      // Either the room is full or the host left mid-join.
+      return { refusal: "room full" };
     }
     throw error;
   }
 
   return { host: host.connectionId };
+}
+
+// The slot a host row written by the build before this one holds: one `guest`
+// attribute rather than the `guests` set. It is read as a one-element set
+// everywhere, and moved into the set here the first time a guest joins that room,
+// so the cap counts it and a `$disconnect` clears it like any other. Rows like
+// this exist only until the three-hour TTL sweeps the last of them.
+async function adoptLegacySlot(room, host) {
+  if (!host.guest || host.guests.length > 0) {
+    return;
+  }
+  try {
+    await dynamo.send(
+      new UpdateItemCommand({
+        TableName: TABLE_NAME,
+        Key: { room: { S: room }, connectionId: { S: host.connectionId } },
+        UpdateExpression: "SET #guests = :s REMOVE #guest",
+        ConditionExpression: "#guest = :legacy AND attribute_not_exists(#guests)",
+        ExpressionAttributeNames: { "#guest": "guest", "#guests": "guests" },
+        ExpressionAttributeValues: {
+          ":s": { SS: [host.guest] },
+          ":legacy": { S: host.guest },
+        },
+      }),
+    );
+  } catch (error) {
+    // Another guest's join moved it first, which is the whole of what this does.
+    if (error.name !== "ConditionalCheckFailedException") {
+      throw error;
+    }
+  }
 }
 
 // The host's admission policy, replaced wholesale: the frame says what the room
@@ -549,16 +590,21 @@ async function onSend(member, message, body) {
     return;
   }
 
-  // One peer each way: a host talks to its one guest, a guest to its host.
-  const target = member.role === "host" ? await resolveGuest(member) : member.host;
-  if (!target) {
-    if (member.role === "host") {
-      // The documented silent drop: a host may write before its guest has
-      // arrived, and an error frame for each of those would tell it nothing it
-      // does not already know. The line is the record that it happened.
-      logLine({ ...line, result: "no-peer" });
-      return;
-    }
+  if (member.role === "guest") {
+    await sendToHost(member, message, line);
+    return;
+  }
+  await sendToGuest(member, message, body, line);
+}
+
+// A guest's frame goes to the one host it is bound to, stamped with the guest it
+// came from: the host has one socket for every phone in the room, so the id is
+// the only thing that says which session the frame belongs to. It is written by
+// the relay over whatever the sender put there, and the rest of the frame --
+// `d`, `m`, `i`, `n` and any field the two peers invented -- is carried across
+// as it arrived.
+async function sendToHost(member, message, line) {
+  if (!member.host) {
     // A guest whose row points at no host has nothing to wait for: rejoining is
     // the only way back, so it is told rather than left writing into nothing.
     await post(member.connectionId, { a: "error", reason: "no host" });
@@ -567,6 +613,69 @@ async function onSend(member, message, body) {
     return;
   }
 
+  line.to = [member.host];
+  // `to` is the host's field and means nothing here, so it is dropped rather than
+  // carried; `undefined` is what JSON.stringify leaves out.
+  const stamped = JSON.stringify({ ...message, to: undefined, from: member.connectionId });
+
+  let delivered;
+  try {
+    delivered = await post(member.host, stamped, {
+      room: member.room,
+      connectionId: member.host,
+    });
+  } catch (error) {
+    await forwardFailed(member, line, error);
+    return;
+  }
+
+  if (delivered) {
+    logLine({ ...line, result: "forwarded" });
+    return;
+  }
+  // The host is gone and `post` took its row with it.
+  await post(member.connectionId, { a: "peer", event: "left" });
+  logLine({ ...line, result: "gone" });
+}
+
+// A host's frame goes to the guest it names in `to`, or to its one guest where it
+// names none. Several guests and no `to` is the one thing the relay cannot guess:
+// a sealed frame delivered to the wrong phone is a channel that closes rather
+// than a frame that is merely late, so it is refused instead.
+async function sendToGuest(member, message, body, line) {
+  const asked = typeof message.to === "string" ? message.to : null;
+  const known = guestSlots(member);
+
+  if (asked) {
+    // The host's own row reaches this frame through an eventually consistent
+    // index, so a guest it does not list yet is looked up in the room itself
+    // before it is called gone.
+    const present = known.includes(asked) || (await roomGuests(member.room)).includes(asked);
+    if (!present) {
+      // The host is talking to a phone that has left. Nothing is forwarded, and
+      // the host is told which session to drop.
+      await post(member.connectionId, { a: "peer", event: "left", from: asked });
+      logLine({ ...line, result: "unknown-peer" });
+      return;
+    }
+  }
+
+  const guests = asked ? [asked] : known.length > 0 ? known : await roomGuests(member.room);
+
+  if (guests.length === 0) {
+    // The documented silent drop: a host may write before its guest has
+    // arrived, and an error frame for each of those would tell it nothing it
+    // does not already know. The line is the record that it happened.
+    logLine({ ...line, result: "no-peer" });
+    return;
+  }
+  if (guests.length > 1) {
+    await post(member.connectionId, { a: "error", reason: "ambiguous" });
+    logLine({ ...line, result: "ambiguous", to: guests });
+    return;
+  }
+
+  const target = guests[0];
   line.to = [target];
 
   let delivered;
@@ -574,11 +683,7 @@ async function onSend(member, message, body) {
     // Forwarded verbatim: the relay does not read or rewrite `d`.
     delivered = await post(target, body, { room: member.room, connectionId: target });
   } catch (error) {
-    // Anything that is not a dead peer: a throttle, a timeout, a permission.
-    // Swallowing it is what made the last drop invisible, so the sender is told
-    // and keeps its socket.
-    await post(member.connectionId, { a: "error", reason: "forward failed" });
-    logLine({ ...line, result: "error", error: describe(error) });
+    await forwardFailed(member, line, error);
     return;
   }
 
@@ -587,14 +692,20 @@ async function onSend(member, message, body) {
     return;
   }
 
-  // The peer is gone and `post` took its row with it. A host frees the room's
-  // slot too, or the room stays busy against a connection that no longer
-  // exists, and either sender is told its peer left rather than left to guess.
-  if (member.role === "host") {
-    await releaseGuestSlot(member.room, member.connectionId, target);
-  }
-  await post(member.connectionId, { a: "peer", event: "left" });
+  // The guest is gone and `post` took its row with it. The host's slot goes too,
+  // or the room stays full against connections that no longer exist, and the host
+  // is told which session left rather than left to guess.
+  await releaseGuestSlot(member.room, member.connectionId, target);
+  await post(member.connectionId, { a: "peer", event: "left", from: target });
   logLine({ ...line, result: "gone" });
+}
+
+// Anything that is not a dead peer: a throttle, a timeout, a permission.
+// Swallowing it is what made the last drop invisible, so the sender is told and
+// keeps its socket.
+async function forwardFailed(member, line, error) {
+  await post(member.connectionId, { a: "error", reason: "forward failed" });
+  logLine({ ...line, result: "error", error: describe(error) });
 }
 
 async function onDisconnect(connectionId, close = {}) {
@@ -619,19 +730,23 @@ async function onDisconnect(connectionId, close = {}) {
     ...close,
   };
 
-  // The host leaving ends the session for the guest; a guest leaving is news the
-  // host needs to drop its own peer state, and frees the room's one slot.
+  // The host leaving ends the session for every guest; a guest leaving is news
+  // the host needs to drop that one session, and frees the slot it held.
   if (member.role === "host") {
-    const guest = await resolveGuest(member);
-    if (!guest) {
+    const guests = await resolveGuests(member);
+    if (guests.length === 0) {
       logLine({ ...line, to: [], result: "no-peer" });
       return;
     }
-    const told = await post(guest, { a: "peer", event: "left" }, {
-      room: member.room,
-      connectionId: guest,
-    });
-    logLine({ ...line, to: [guest], result: told ? "left" : "gone" });
+    let told = false;
+    for (const guest of guests) {
+      const reached = await post(guest, { a: "peer", event: "left" }, {
+        room: member.room,
+        connectionId: guest,
+      });
+      told = told || reached;
+    }
+    logLine({ ...line, to: guests, result: told ? "left" : "gone" });
     return;
   }
 
@@ -641,40 +756,68 @@ async function onDisconnect(connectionId, close = {}) {
   }
 
   await releaseGuestSlot(member.room, member.host, connectionId);
-  const told = await post(member.host, { a: "peer", event: "left" }, {
+  const told = await post(member.host, { a: "peer", event: "left", from: connectionId }, {
     room: member.room,
     connectionId: member.host,
   });
   logLine({ ...line, to: [member.host], result: told ? "left" : "gone" });
 }
 
-// A guest's connection id reaches the host's row by a later UpdateItem, so the
-// eventually consistent index can hand back a host row that predates its guest.
-// Falling back to a strongly consistent read of the room costs a query only
-// while the host believes it has no guest.
-async function resolveGuest(member) {
-  if (member.guest) {
-    return member.guest;
-  }
-  const guest = (await roomRows(member.room)).find((peer) => peer.role === "guest");
-  return guest?.connectionId ?? null;
+// The guests a host row names, the legacy single slot read as one of them.
+function guestSlots(member) {
+  const slots = member.guests ?? [];
+  return member.guest && !slots.includes(member.guest) ? [...slots, member.guest] : slots;
 }
 
+// A guest's connection id reaches the host's row by a later UpdateItem, so the
+// eventually consistent index can hand back a host row that predates its guests.
+// Falling back to a strongly consistent read of the room costs a query only
+// while the host believes it has none.
+async function resolveGuests(member) {
+  const slots = guestSlots(member);
+  return slots.length > 0 ? slots : await roomGuests(member.room);
+}
+
+// Every guest actually in the room, read strongly consistently.
+async function roomGuests(room) {
+  return (await roomRows(room))
+    .filter((peer) => peer.role === "guest")
+    .map((peer) => peer.connectionId);
+}
+
+// The slot one guest held, given back. Two writes because a host row written by
+// the build before this one holds its guest in `guest` rather than in the set,
+// and a row that has both would keep the stale one otherwise.
 async function releaseGuestSlot(room, hostConnectionId, guestConnectionId) {
+  await forgiving(
+    new UpdateItemCommand({
+      TableName: TABLE_NAME,
+      Key: { room: { S: room }, connectionId: { S: hostConnectionId } },
+      UpdateExpression: "DELETE #guests :c",
+      ConditionExpression: "attribute_exists(connectionId)",
+      ExpressionAttributeNames: { "#guests": "guests" },
+      ExpressionAttributeValues: { ":c": { SS: [guestConnectionId] } },
+    }),
+  );
+  await forgiving(
+    new UpdateItemCommand({
+      TableName: TABLE_NAME,
+      Key: { room: { S: room }, connectionId: { S: hostConnectionId } },
+      UpdateExpression: "REMOVE #guest",
+      ConditionExpression: "#guest = :c",
+      ExpressionAttributeNames: { "#guest": "guest" },
+      ExpressionAttributeValues: { ":c": { S: guestConnectionId } },
+    }),
+  );
+}
+
+// A write whose condition failing is an answer rather than a fault: the host is
+// gone, or the slot it named is not this guest's any more. Either way there is
+// nothing of this guest's left to clear.
+async function forgiving(command) {
   try {
-    await dynamo.send(
-      new UpdateItemCommand({
-        TableName: TABLE_NAME,
-        Key: { room: { S: room }, connectionId: { S: hostConnectionId } },
-        UpdateExpression: "REMOVE #guest",
-        ConditionExpression: "#guest = :c",
-        ExpressionAttributeNames: { "#guest": "guest" },
-        ExpressionAttributeValues: { ":c": { S: guestConnectionId } },
-      }),
-    );
+    await dynamo.send(command);
   } catch (error) {
-    // The host is gone, or a newer guest already holds the slot. Either way
-    // there is nothing of this guest's left to clear.
     if (error.name !== "ConditionalCheckFailedException") {
       throw error;
     }
@@ -902,6 +1045,9 @@ function readRow(item) {
     role: item.role?.S ?? null,
     allow: item.allow?.SS ?? [],
     open: item.open?.BOOL === true,
+    // The set of guests in the room, and the single slot a row written by the
+    // build before this one holds instead, read as one of them.
+    guests: item.guests?.SS ?? [],
     guest: item.guest?.S ?? null,
     host: item.host?.S ?? null,
     // Written at the join and moved forward by every `touch`, so of two host rows

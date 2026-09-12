@@ -558,13 +558,14 @@ Left out of the first pass on purpose, each a small change to one file unless no
   minds that the queue on screen is stale while it does. On the local network
   nothing is paced.
 
-- **Several guests over the relay.** `RelayListener` serves one phone at a time,
-  because the relay hands a host one socket and a `send` carries no guest id: two
-  phones would be one interleaved stream that no channel could open. Multiplexing
-  them needs a guest id in the relay's own `send` and `peer` messages — the
-  Lambda's contract, not just ours — and a demultiplexer on the Mac that keeps a
-  session per id. The local network already allows several phones at once, so the
-  limit is the relay's alone.
+- **Eight phones in one relay room.** `RelayListener` serves several phones now —
+  the relay writes `from` on every frame it hands a host and the host writes `to`
+  on every frame it sends, and `RelayListener+Guests` keeps a session per id — but
+  `MAX_GUESTS` in the Lambda caps a room at eight. The slots are one string set on
+  the host's row, claimed by a conditional `ADD` under a `size` check, so lifting
+  the cap is a row that grows rather than a contract that changes; eight is a
+  household's phones and a bound on the fan-out a host leaving has to write. The
+  local network has no cap at all.
 - **Sixteen phones on the relay allow-list.** The host's `join` carries the
   signing keys the relay admits a guest out of, and `RelayJoin.allowLimit` is 16:
   a longer list is `bad allow` and closes the connection, so

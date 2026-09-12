@@ -22,6 +22,7 @@ extension RelayConnection {
         running.pinger?.cancel()
         task.cancel(with: .goingAway, reason: nil)
         frameContinuation.finish(throwing: error)
+        signalContinuation.finish(throwing: error)
         peerContinuation.finish()
         errorContinuation.finish()
     }
@@ -37,6 +38,7 @@ extension RelayConnection {
         running.pinger?.cancel()
         task.cancel(with: .goingAway, reason: nil)
         frameContinuation.finish()
+        signalContinuation.finish()
         peerContinuation.finish()
         errorContinuation.finish()
     }

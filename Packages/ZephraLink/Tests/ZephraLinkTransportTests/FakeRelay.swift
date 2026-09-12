@@ -1,5 +1,6 @@
 import Foundation
 import Network
+import Testing
 import ZephraLinkProtocol
 
 /// A relay, in the process, for as long as one test needs one.
@@ -25,6 +26,7 @@ final class FakeRelay: @unchecked Sendable {
     private let forwardJitter: ClosedRange<Duration>?
     private var seen = 0
     private var swallowed = 0
+    private var targets: [String?] = []
 
     /// The room the last good join asked for, which is what a test checks the signature bought.
     var joinedRoom: RoomID? { lock.withLock { joined } }
@@ -38,6 +40,10 @@ final class FakeRelay: @unchecked Sendable {
 
     /// How many `send` frames this relay threw away rather than forwarding.
     var dropCount: Int { lock.withLock { swallowed } }
+
+    /// The guest each `send` frame named, in the order they came, which is how a test asks
+    /// whether a host wrote the phone it meant on the frame.
+    var sendTargets: [String?] { lock.withLock { targets } }
 
     /// The allow-list this relay last heard, from the join or from an `allow` after it.
     var allowList: [Data]? { lock.withLock { allow } }
@@ -122,9 +128,10 @@ final class FakeRelay: @unchecked Sendable {
                 allow = pubs
                 isOpen = message.isOpen
             }
-        case .send:
+        case .send(_, _, _, _, let to, _):
             let swallows: Bool = lock.withLock {
                 sends.append(raw.count)
+                targets.append(to)
                 arrivals.append(ContinuousClock.now)
                 seen += 1
                 guard let dropEvery, dropEvery > 0, seen % dropEvery == 0 else { return false }
@@ -172,6 +179,22 @@ final class FakeRelay: @unchecked Sendable {
     private func send(_ message: RelayMessage, to connection: NWConnection) {
         guard let bytes = try? LinkJSON.encode(message) else { return }
         send(bytes, to: connection)
+    }
+
+    /// Waits for the relay's own timing rather than for a sleep guessed at: a frame is written to
+    /// one socket and read off another queue, so what the relay heard is true a moment later.
+    static func waitUntil(
+        _ what: String, _ condition: @Sendable () -> Bool,
+        sourceLocation: SourceLocation = #_sourceLocation
+    ) async throws {
+        let deadline = ContinuousClock.now + .seconds(2)
+        while !condition() {
+            guard ContinuousClock.now < deadline else {
+                return #expect(
+                    Bool(false), "the relay never heard \(what)", sourceLocation: sourceLocation)
+            }
+            try await Task.sleep(for: .milliseconds(5))
+        }
     }
 
     private func send(_ bytes: Data, to connection: NWConnection) {

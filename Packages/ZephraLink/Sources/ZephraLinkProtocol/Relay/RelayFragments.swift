@@ -69,7 +69,8 @@ public final class RelayFragments: Sendable {
     /// A `send` with no `m` is not a fragment and passes straight through, which is every frame
     /// a previous build sent and every small one this build sends.
     public func accept(_ message: RelayMessage) -> Data? {
-        guard case .send(let payload, let id, let index, let count) = message else { return nil }
+        guard case .send(let payload, let id, let index, let count, _, _) = message
+        else { return nil }
         guard let id, let index, let count else { return payload }
         guard count > 0, count <= RelayFragment.sliceLimit, index >= 0, index < count else {
             return nil

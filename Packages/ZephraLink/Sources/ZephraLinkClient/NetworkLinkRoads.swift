@@ -54,9 +54,10 @@ public final class NetworkLinkRoads: LinkRoads, @unchecked Sendable {
 
     /// The relay, whose three refusals of a guest mean four different things to the phone.
     ///
-    /// `no host` and `room busy` are about the moment: the Mac is asleep, or its one guest slot is
-    /// still held by a session that has not finished going. Those read as unreachable, which is
-    /// what the caller waits on `LinkBackoff` and tries again after.
+    /// `no host` and `room full` are about the moment: the Mac is asleep, or its room already
+    /// holds as many phones as it may, some of them perhaps sessions that have not finished
+    /// going. Those read as unreachable, which is what the caller waits on `LinkBackoff` and
+    /// tries again after.
     ///
     /// `not allowed` is about this device, and what it is worth depends on what the phone is
     /// doing. Reading a code, it is the refusal a person is owed and the walk of the roads stops.

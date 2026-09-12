@@ -24,7 +24,7 @@ struct RelayFragmentTests {
         #expect(messages.count == 4)
         var ids: Set<String> = []
         for (index, message) in messages.enumerated() {
-            guard case .send(let slice, let id, let at, let count) = message else {
+            guard case .send(let slice, let id, let at, let count, _, _) = message else {
                 Issue.record("a slice is not a send")
                 return
             }

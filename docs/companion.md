@@ -410,8 +410,8 @@ lives. The relay checks that the key hashes to the room **for a host only**.
 
 **A guest is admitted only off the host's allow-list.** The host's `join` carries
 `allow`, the raw signing key of every device it has paired, and the relay lets a
-guest in only when the key it signed with is one of them — and only when no other
-guest holds the room. Before that check existed, any device that could sign for
+guest in only when the key it signed with is one of them — and only while the room
+has a slot free. Before that check existed, any device that could sign for
 any key was let into any room it knew the name of, and the room's name is in a
 Bonjour TXT record; the host's refusal of an unknown static came one handshake
 too late to stop it taking the room. The list is `RelayJoin.allowLimit` keys at
@@ -429,8 +429,8 @@ so a revoke still closes that guest's own session with `revoked`, which is what
 a `$disconnect` — `kill -9`, a crash, a battery — leaves its host row and the
 guest bound to it in the table until the three-hour TTL sweeps them. It comes back
 on a new connection and finds its own room already occupied: a host row naming a
-socket nobody reads, and a guest row holding the room's one slot, so the phone is
-answered `room busy` or binds to the dead host and waits. The newest host is the
+socket nobody reads, and guest rows holding slots, so the phone binds to the dead
+host and waits. The newest host is the
 real one, so its join deletes every other host row in the room and closes those
 sockets, tells every guest `{"a":"peer","event":"left"}` and deletes its row, and
 logs `"result":"superseded"` naming what it swept. The phone rejoins within a
@@ -442,8 +442,8 @@ there rather than to a row that outlived it.
 holds a key that is on no list — the pairing is what puts it there — so an
 allow-list alone refused the one guest the code was put up for, and a first
 pairing over the relay could not be made at all. Both `join` and `allow` carry an
-optional `"open"`, and while it is true the relay admits any guest, still one at a
-time; while it is false or absent, only listed keys. It is written **only when
+optional `"open"`, and while it is true the relay admits any guest, still within
+the room's cap; while it is false or absent, only listed keys. It is written **only when
 true**: a shut room says nothing, so every message a previous build sent is
 unchanged on the wire. `RelayMessage.isOpen` is the one place absent and false are
 read as the same answer, and only a host's join carries either flag.
@@ -485,9 +485,11 @@ connection with no membership is `{"a":"error","reason":"not joined"}` and an
 immediate close. Wait for `joined` before the first `send`: the relay's
 connection index is eventually consistent.
 
-A `send` is forwarded verbatim, the `a` field included, so the receiver sees the
-same JSON the sender wrote and extra fields survive the trip. A host's frame goes
-to the room's one guest; a guest's goes to the host alone. `d` is opaque to
+A guest's `send` goes to its host with `from` written on it — the guest's own
+connection id, over whatever the sender put there — and everything else carried
+across as it arrived. A host's `send` goes verbatim to the guest it names in
+`to`; with one guest it may name none, and with several an omitted `to` is
+`{"a":"error","reason":"ambiguous"}` and nothing is forwarded. `d` is opaque to
 the relay, which is not a trust boundary: the payload is a sealed frame.
 
 #### A payload too big for one frame
@@ -548,7 +550,9 @@ a token" and waking together. It is injected at `init`, so a suite asks the
 question in milliseconds.
 
 A `peer` event fires on a disconnect in both directions — a host leaving notifies
-its guest, a guest leaving notifies the host — and both say `left`.
+every guest, a guest leaving notifies the host — and both say `left`. The ones a
+**host** is told carry `from`, since it has to know which of its sessions moved;
+the ones a phone is told carry none, because a phone has one peer.
 
 An `error` during the handshake, or on a frame from a connection that has not
 joined, is followed by the relay closing the connection. An error on a joined
@@ -556,10 +560,11 @@ connection leaves it open. The handshake's reasons are `malformed`, `bad room`,
 `bad role`, `bad key`, `no challenge`, `challenge expired`, `bad signature`,
 `room does not match key`, `bad allow`, `malformed`, `not joined` and `too many
 hellos`, and the three a guest may meet: `no host` (the Mac is not in its room),
-`room busy` (its one guest slot is taken) and `not allowed` (this device is not
-on the list). A joined connection may also be told `not host` (a guest sent an
-`allow`), `bad allow`, `bad payload`, `already joined`, `malformed` or `unknown
-action`, and stays open.
+`room full` (the room already holds `MAX_GUESTS`, which is eight) and `not
+allowed` (this device is not on the list). A joined connection may also be told
+`not host` (a guest sent an `allow`), `bad allow`, `bad payload`, `already
+joined`, `ambiguous` (a host with several guests named none), `malformed` or
+`unknown action`, and stays open.
 
 **A refusal on a joined connection is a frame the far end never sees**, and the
 far end has no way to know it happened: the hole simply appears in its counters.
@@ -608,8 +613,10 @@ is not pure JSON and a JSON filter pattern matches nothing.
 
 `RelayError` tells the guest's three apart, and
 `NetworkLinkRoads.connectRelay(room:pairing:)` is where that turns into
-behaviour: `no host` and `room busy` are about the moment and read as
-unreachable, so the phone waits on `LinkBackoff` and tries again; `not allowed`
+behaviour: `no host` and `room full` are about the moment and read as
+unreachable, so the phone waits on `LinkBackoff` and tries again — as does `room
+busy`, which is the relay before rooms held several and is what a phone meets
+until this one is deployed; `not allowed`
 is about this device, and what it is worth depends on what the phone was doing.
 
 Reading a code, it becomes `LinkError.notPaired`, whose one sentence the person
@@ -748,22 +755,42 @@ themselves on `LinkClient.sessionEndings()`, which is what `LinkReconnect` waits
 on: a session that dies is reconnected to at once rather than on the next beat of
 a poll or the next foreground.
 
-**One guest at a time over the relay.** `RelayListener` is a `LinkListener` like
-the TCP one, so the Mac's session code is the same over either road, but with a
-limit the local network does not have. The relay gives a host one connection and
-a frame on it carries no guest id, so two phones at once would be one interleaved
-stream that no channel could open. Several phones at once is a LAN feature; over
-the relay it is one, and per-guest multiplexing is in `ROADMAP.md`.
+**Several phones over the relay, told apart by the id on every frame.**
+`RelayListener` is a `LinkListener` like the TCP one, so the Mac's session code is
+the same over either road. The relay gives a host **one** connection for every
+phone in its room, so what makes several of them possible is that the frame says
+which phone it is about: the relay writes `from`, the guest's own connection id,
+on everything it hands a host, and a host writes `to` on everything it sends.
+Without those, two phones at once were one interleaved stream no channel could
+open, which is why the relay carried one guest until now.
+
+The routing is `RelayListener+Guests`: one `RelayGuestSession` per `from`, opened
+by whichever of the guest's first frame and its `peer joined` arrives first, and
+ended by the `left` that names it. Each session writes `to` its own guest
+(`RelayGuestSession.send` over `RelayConnection.send(_:to:)`), so a frame the Mac
+seals for one phone cannot be opened by another — a misdelivered frame would not
+be late, it would close that phone's channel. `RelayConnection.guestSignals()` is
+the host's one stream of frames and peer notices in the order they arrived,
+rather than the two it read before: a `left` that overtook the frames behind it
+would end a session still being read from.
 
 A frame that arrives with no session behind it opens one, because the relay's
 connection index is eventually consistent and a guest's first frame can beat the
-`peer joined` that announces it. Which is why a `peer joined` over a session that
-is already up **leaves it alone**: the relay admits one allow-listed guest at a
-time, so that announcement is the one already talking catching up with its own
-first frame, and closing the session on it would tear the handshake that frame
-began in half. A session stands until a `peer left`, or until the host's own road
-goes. `updateAllowList(_:open:)` is on the listener too, and both the list and the
-open flag ride in the join when it is called before `start()`.
+`peer joined` that announces it. Which is why a `peer joined` for a guest already
+talking **leaves that session alone**: it is the same phone catching up with its
+own first frame, and closing the session on it would tear the handshake that
+frame began in half. A session stands until a `peer left` naming it, or until the
+host's own road goes, which ends every session on it.
+
+**A relay that names nobody is the one before this.** `from` and `to` are absent
+from everything an older relay writes, and a signal that names no guest lands on
+the room's one session — the session that is up, or a fresh one where there is
+none. So a Mac from this build against the relay before it behaves exactly as it
+did, and so does a Mac from the build before this one against the relay it
+deploys with: it sends no `to`, and the relay answers its one guest.
+
+`updateAllowList(_:open:)` is on the listener too, and both the list and the open
+flag ride in the join when it is called before `start()`.
 
 **Reconnecting** is the caller's job, not the road's — the phone's client on one
 side, and `RelayRoad` in the Mac app on the other, which rejoins its room when
