@@ -13,8 +13,9 @@ import os
 ///   entitlement that comes with a real signing identity.
 /// - The **legacy** file-based login keychain is where a signed build lands if that entitlement
 ///   is refused after all. It is reached lazily, on the first call that comes back
-///   `errSecMissingEntitlement`, rather than through a probe: a probe is a keychain call of its
-///   own, and the point of all this is to make fewer of them.
+///   `errSecMissingEntitlement` — which moves that store's `LinkKeychainLatch` and not this
+///   answer — rather than through a probe: a probe is a keychain call of its own, and the point
+///   of all this is to make fewer of them.
 /// - **Files** under Application Support are what a build signed ad hoc gets, and such a build
 ///   never queries a keychain at all. Every `make run`, `make build` and `CODE_SIGN_IDENTITY "-"`
 ///   build carries a brand new signature, so the login keychain asks for the password every time
@@ -41,25 +42,20 @@ nonisolated enum LinkKeychainKind: Sendable {
         return kind
     }()
 
-    /// Whether a keychain query should ask for the data-protection keychain right now.
+    /// Whether this build's signature allows the data-protection keychain at all.
     ///
-    /// Not a constant: a build carrying a team identifier may still be refused the entitlement,
-    /// and the first call that is refused latches this to false for the rest of the process.
-    static var usesDataProtection: Bool {
-        current == .dataProtection && !refused.withLock { $0 }
-    }
+    /// What a launch actually spells its queries with is `LinkKeychainLatch`, which starts here
+    /// and moves to the legacy spelling if the entitlement is refused after all.
+    static var usesDataProtection: Bool { current == .dataProtection }
 
-    /// Records that the data-protection keychain refused this build's entitlement, so every call
-    /// after this one is spelled the legacy way. Said once.
-    static func fallBackToLegacy() {
-        let first = refused.withLock { refused -> Bool in
-            defer { refused = true }
-            return !refused
-        }
-        guard first else { return }
-        logger.info(
-            "companion secrets: legacy keychain, since the data-protection one refused this build")
-    }
+    /// Settles the question here, on this thread, before anything reads a secret.
+    ///
+    /// The reads themselves run off the main actor, and two of them at a launch: the identity
+    /// and the paired devices. Resolving the kind inside one of those would have both of them
+    /// racing a `SecCodeCopySelf` whose answer they are about to spell their queries with, and
+    /// the log line that says which keychain this launch uses would land after the reads it
+    /// explains. Called once, from `startCompanion`.
+    @discardableResult static func settle() -> LinkKeychainKind { current }
 
     /// What the one log line says.
     private var reason: String {
@@ -90,9 +86,6 @@ nonisolated enum LinkKeychainKind: Sendable {
         else { return .file }
         return .dataProtection
     }
-
-    /// Whether the data-protection keychain has already refused this build.
-    private static let refused = OSAllocatedUnfairLock(initialState: false)
 
     /// The one logger this Mac's link secrets speak through.
     private static let logger = Logger(subsystem: "io.zephra", category: "companion")

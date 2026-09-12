@@ -739,13 +739,17 @@ and logged: does this code carry a team identifier
   `kSecAttrAccessible` means anything: without it the items sit in the file-based
   login keychain under whatever its own unlock state happens to be, and
   `ThisDeviceOnly` is silently nothing. An item a build before that wrote is found
-  by `legacyQuery`, moved across on the first read and deleted from where it was;
+  by `legacyQuery`, moved across on the first read and deleted from where it was —
+  **only where the write landed in the other keychain**, which is the rule below;
   `removeAll` clears both. The phone's `MobileKeychain` asks for the same flag,
   which is iOS's default, so both ends read the same.
 - **Legacy** if that keychain refuses the entitlement after all. It is found out
-  lazily, on the first call that answers `errSecMissingEntitlement`, which latches
-  the kind for the process and tries again the old way. No probe: a probe is one
-  more keychain call, and calls are the thing being counted here.
+  lazily, on the first call that answers `errSecMissingEntitlement`, which moves
+  that store's `LinkKeychainLatch` and tries again the old way. No probe: a probe
+  is one more keychain call, and calls are the thing being counted here. The latch
+  is one object per store rather than a static, so the identity read and the
+  devices read that follow it at a launch share one answer instead of racing a
+  process-wide flag, and a test can hand a store the other answer.
 - **Files** where there is no team identifier, which is every `make run`, `make
   build` and `CODE_SIGN_IDENTITY "-"` build. `LinkFileStore` keeps `identity` (the
   raw 64 bytes) and `devices.json` under `<Application Support>/Zephra/Companion`,
@@ -759,6 +763,24 @@ and logged: does this code carry a team identifier
   raise the very prompt this avoids, so a local build pairs its phone once more and
   the log line says so. A Developer ID build, which has a stable designated
   requirement, is unaffected either way.
+
+**The migration must never delete what it did not move.** It did once, and it cost
+a Mac on the test bench its whole link. `read` copied the legacy item, called
+`write`, and deleted the legacy item; the write hit `errSecMissingEntitlement`,
+latched to legacy and wrote the bytes straight back into the item that was about
+to be deleted. `remove` swallows its own errors, so nothing said anything. The
+next launch found no identity, `LinkSecretStore.identity()` minted a new one, and
+the Mac joined a brand-new relay room while the phone went on knocking at the old
+one every thirty-four seconds and being told `no host`. Nothing in the log said
+the identity had changed. So: the spelling is read once at the top of `read` and
+again after the write, and the delete happens only when both say the bytes went
+somewhere else; a write refused the data-protection keychain falls back once and
+not twice, since a keychain that refuses both spellings would otherwise recurse;
+`LinkKeychainKind.settle()` resolves the kind on one thread at the top of
+`startCompanion`, before the detached read; and `identity()` logs at **error**
+when it mints over devices that are still on file — there is no way back from a
+lost identity, but the next time it happens `make logs` will say so rather than
+leaving a phone that simply never connects again.
 
 `LinkSecretCache` sits between the facade and whichever store, because a keychain
 call on a signature the keychain does not recognise is a password prompt and

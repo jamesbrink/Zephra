@@ -345,7 +345,14 @@ keychain for a signed build, the legacy one lazily if that is refused, and
 `LinkFileStore` under `<Application Support>/Zephra/Companion` for an ad-hoc
 build, which queries no keychain at all and so pairs once per machine rather than
 once per rebuild), `CompanionThumbnails`, `CompanionEndpoints`, `CompanionRoads`
-and `RelayRoad`.
+and `RelayRoad`. Three rules about those secrets, each of which cost a Mac its
+identity once: `LinkKeychainKind.settle()` resolves which keychain this launch
+uses on one thread, at the top of `startCompanion`, before either secret is read;
+the migration out of the legacy keychain deletes the old item **only** where the
+write landed somewhere else, which `LinkKeychainLatch` — one per store, not one
+per process — is what says; and minting an identity while paired devices are
+still on file is logged at error, since from the outside that Mac is simply a Mac
+no phone can find any more.
 
 The relay itself is in this repository now, at `Relay/link` — one Lambda file,
 its README (the wire contract as the relay states it) and its tests. Nothing

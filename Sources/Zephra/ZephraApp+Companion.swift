@@ -17,6 +17,9 @@ extension ZephraApp {
     /// keychain or its port, and a screenshot build listening on the network would be a surprise.
     func startCompanion() async {
         guard companion == nil, InterfacePreview.requestedState == nil else { return }
+        // Which keychain this launch uses, settled here and once, before the two reads below go
+        // looking for secrets in it.
+        LinkKeychainKind.settle()
         let keychain = LinkKeychain(freshStart: FreshStart.current)
         // Off the main actor, and both reads in one pass, which is every read this launch
         // makes: `LinkSecretCache` keeps what comes back. A keychain item whose access list no
