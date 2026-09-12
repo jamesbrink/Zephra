@@ -15,12 +15,18 @@ import os
 public final class LinkClient {
     /// How long a command may go unanswered before the phone gives up on it.
     public static let requestTimeout: Duration = .seconds(30)
-    /// How long the bytes of a blob may take after the reply that announced them, and how many
-    /// may be part way through at once. A phone asks for a thumbnail or a file and waits for it;
-    /// more than a handful in flight means a Mac announcing transfers nobody asked for, and that
-    /// is not memory this phone should keep.
-    public static let blobTimeout: Duration = .seconds(120)
-    /// How many blobs may be part way through at once. The oldest is dropped past this.
+    /// How long a transfer may go without a chunk before the phone gives up on it.
+    ///
+    /// **Idle time, not a wall clock.** It was two minutes from the announcement, which a 40 MB
+    /// clip over a paced relay road legitimately passes and a transfer that died at chunk 630
+    /// spends sitting there doing nothing. Re-armed by every chunk accepted, fifteen seconds is
+    /// far longer than any gap the road and the cadence between them can open, and short enough
+    /// that a transfer nothing is going to finish is asked for again rather than waited out.
+    public static let blobIdleTimeout: Duration = .seconds(15)
+    /// How many **unsolicited** blobs may be part way through at once. The oldest is dropped past
+    /// this. A blob the phone asked for is not in this count: the limit is there to bound what a
+    /// Mac can make this phone hold, and the grid announcing five thumbnails used to evict the
+    /// 40 MB clip somebody was waiting on.
     public static let blobLimit = 4
     /// How long the local network gets before the relay is tried: every stored address and every
     /// Mac Bonjour turns up in the room are dialled at once inside it (`LocalRoadRace`), and a

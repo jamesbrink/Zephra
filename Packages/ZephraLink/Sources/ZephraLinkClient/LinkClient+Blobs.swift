@@ -36,11 +36,15 @@ extension LinkClient {
     /// had not got back to its own `await` would otherwise drop the second. An announcement no
     /// request asked for is still an announcement; what is refused is a chunk for a blob nothing
     /// announced at all, which before this opened a transfer of whatever size it liked.
-    func announce(_ start: BlobStart) {
+    /// `wanted` is the answer to a request this phone made, and is **not** in `blobLimit`'s count:
+    /// the limit bounds what a Mac can make this phone hold unasked, and a grid announcing five
+    /// thumbnails used to evict the forty-megabyte clip somebody was waiting on.
+    func announce(_ start: BlobStart, wanted: Bool = false) {
         blobs[start.blobID] = BlobReassembly(blobID: start.blobID, byteCount: start.byteCount)
+        timers[start.blobID] = expire(start.blobID, after: LinkClient.blobIdleTimeout)
+        guard !wanted else { return }
         blobOrder.removeAll { $0 == start.blobID }
         blobOrder.append(start.blobID)
-        timers[start.blobID] = expire(start.blobID, after: LinkClient.blobTimeout)
         while blobOrder.count > LinkClient.blobLimit {
             fail(blobOrder.removeFirst(), with: LinkClientError.tooManyTransfers)
         }
@@ -69,6 +73,11 @@ extension LinkClient {
         do {
             guard let whole = try assembly.accept(chunk) else {
                 blobs[chunk.blobID] = assembly
+                // The clock is idle time: every chunk that lands buys the transfer another
+                // fifteen seconds, so a clip that is crossing slowly is not given up on and a
+                // transfer that stopped is.
+                timers.removeValue(forKey: chunk.blobID)?.cancel()
+                timers[chunk.blobID] = expire(chunk.blobID, after: LinkClient.blobIdleTimeout)
                 return
             }
             finish(chunk.blobID, with: whole)
@@ -87,9 +96,9 @@ extension LinkClient {
         guard blobs[id] != nil else { throw LinkClientError.lost }
         return try await withCheckedThrowingContinuation { continuation in
             blobWaiters[id] = continuation
-            // The clock started at the announcement; a second one here would move the deadline
-            // every time somebody asked.
-            if timers[id] == nil { timers[id] = expire(id, after: LinkClient.blobTimeout) }
+            // The clock started at the announcement and is re-armed by the chunks themselves; a
+            // second one here would move the deadline every time somebody asked.
+            if timers[id] == nil { timers[id] = expire(id, after: LinkClient.blobIdleTimeout) }
         }
     }
 

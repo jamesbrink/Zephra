@@ -53,6 +53,25 @@ struct LinkBlobAdmissionTests {
         #expect(bed.client.blobOrder == starts.dropFirst().map(\.blobID))
     }
 
+    @Test("a file part way through is not evicted by thumbnails announced after it")
+    func aWantedTransferSurvivesTheLimit() async throws {
+        // The grid announcing five thumbnails used to evict the forty-megabyte clip somebody was
+        // waiting on: the limit is there to bound what a Mac can make this phone hold unasked,
+        // and a transfer the phone asked for is not that.
+        let bed = await connected()
+        defer { Task { await bed.host.stop() } }
+        let file = BlobStart(byteCount: 40_000_000, mime: "video/mp4")
+
+        bed.client.announce(file, wanted: true)
+        for _ in 0..<(LinkClient.blobLimit + 2) {
+            bed.client.announce(BlobStart(byteCount: 40_000, mime: "image/jpeg"))
+        }
+
+        #expect(bed.client.blobs[file.blobID] != nil, "the clip is still being assembled")
+        #expect(!bed.client.blobOrder.contains(file.blobID), "and it is in nobody's count")
+        #expect(bed.client.blobOrder.count == LinkClient.blobLimit)
+    }
+
     @Test("a blob that never finishes is given up on rather than held for the session")
     func anUnfinishedTransferIsGivenUpOn() async throws {
         let bed = await connected()
@@ -73,9 +92,20 @@ struct LinkBlobAdmissionTests {
         #expect(bed.client.timers[start.blobID] == nil)
     }
 
-    @Test("the two minutes a blob is given is the same clock a request is held on")
-    func theClockIsTheOneDocumented() {
-        #expect(LinkClient.blobTimeout == .seconds(120))
+    @Test("a transfer's clock is idle time, re-armed by every chunk that lands")
+    func theClockIsIdleTime() async throws {
+        let bed = await connected()
+        defer { Task { await bed.host.stop() } }
+        let start = BlobStart(byteCount: 200_000, mime: "image/png")
+        let chunks = BlobChunker.chunks(of: Data(count: 200_000), blobID: start.blobID)
+
+        bed.client.announce(start, wanted: true)
+        let announced = bed.client.timers[start.blobID]
+        bed.client.receive(chunks[0])
+
+        #expect(announced?.isCancelled == true, "the clock the announcement started is off")
+        #expect(bed.client.timers[start.blobID] != nil, "and the chunk bought a fresh one")
+        #expect(LinkClient.blobIdleTimeout == .seconds(15))
         #expect(LinkClient.blobLimit == 4)
     }
 }

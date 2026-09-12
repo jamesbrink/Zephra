@@ -154,6 +154,19 @@ the byte count and the mime; the bytes follow as chunk frames.
   chunk out of its turn is what a hole in the stream leaves behind, and the phone
   tells that apart from a sender that is misbehaving — the first fails the
   transfer as `lost` and is asked again, the second keeps its refusal.
+- **A transfer's clock is idle time.** `LinkClient.blobIdleTimeout` is fifteen
+  seconds, re-armed by every chunk that lands and expiring as `timedOut`. It was
+  two minutes from the announcement, which a 40 MB clip over a paced relay road
+  legitimately passes and which a transfer that died at chunk 630 spends sitting
+  there doing nothing — the wall clock caught neither case. Fifteen seconds is far
+  longer than any gap the road and its cadence between them can open, and short
+  enough that a transfer nothing will finish is asked for again rather than waited
+  out.
+- **`blobLimit` (4) counts only the transfers nobody asked for.** `announce` takes
+  a `wanted` flag, true for the announcement that answers a request this phone
+  made. The limit is there to bound what a Mac can make this phone hold unasked,
+  and counting wanted transfers in it meant the grid announcing five thumbnails
+  evicted the forty-megabyte clip somebody was waiting on.
 - One blob may not exceed 64 MiB while it is being assembled, and it may not
   exceed **what it announced**: `BlobReassembly` takes the `byteCount` at
   construction, trims a claim past the cap down to it, refuses the chunk that

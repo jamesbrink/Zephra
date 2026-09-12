@@ -255,7 +255,11 @@ blob's chunks are accepted in order only, because `OrderedInbox` underneath has
 already made the stream ordered and a gap above it means loss or tampering;
 `BlobReassembly` also holds a sender to the `byteCount` it announced, and a chunk
 for a blob nothing announced is dropped rather than opening a transfer of
-whatever size it likes.
+whatever size it likes. A transfer's clock is **idle time** (`blobIdleTimeout`,
+15 s, re-armed by every chunk), since a wall clock caught neither a clip crossing
+slowly nor a transfer that stopped at chunk 630; and `blobLimit` (4) counts only
+the transfers nobody asked for, or the grid's next five thumbnails evict the clip
+somebody is waiting on.
 
 Every fact the Mac derives from its own state is **stamped into
 `EngineStateDTO`** rather than worked out again on the phone: `isBusy`,

@@ -33,8 +33,9 @@ extension LinkClient {
             guard let id = envelope.inReplyTo, let reply = decode(Reply.self, from: envelope)
             else { return }
             // The announcement is opened before the request that asked for it is resumed: the
-            // chunks behind it are the next frames on this same stream.
-            if case .blob(let start) = reply { announce(start) }
+            // chunks behind it are the next frames on this same stream. It is `wanted`, so the
+            // limit on unsolicited transfers cannot evict it.
+            if case .blob(let start) = reply { announce(start, wanted: true) }
             answer(id, with: reply)
         case .blobStart:
             guard let start = decode(BlobStart.self, from: envelope) else { return }
