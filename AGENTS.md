@@ -387,8 +387,9 @@ uses on one thread, at the top of `startCompanion`, before either secret is read
 the migration out of the legacy keychain deletes the old item **only** where the
 write landed somewhere else, which `LinkKeychainLatch` — one per store, not one
 per process — is what says; and minting an identity while paired devices are
-still on file is logged at error, since from the outside that Mac is simply a Mac
-no phone can find any more.
+still on file is logged at error, as is an identity that cannot be read at all
+(`startCompanion` says so and opens no road), since from the outside either Mac
+is simply a Mac no phone can find any more.
 
 The relay itself is in this repository now, at `Relay/link` — one Lambda file,
 its README (the wire contract as the relay states it) and its tests. Nothing

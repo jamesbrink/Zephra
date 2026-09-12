@@ -3,6 +3,7 @@ import SwiftUI
 import ZephraEngine
 import ZephraLinkHost
 import ZephraLinkProtocol
+import os
 
 /// The composition root's other wiring: the link a paired phone talks to this Mac over.
 ///
@@ -10,6 +11,9 @@ import ZephraLinkProtocol
 /// preference is on, because Settings has to be able to show the paired devices and put a code
 /// up before anything is listening; what the preference decides is whether a road is opened at
 /// all. Nothing is reachable until one is.
+/// The one line this file says when the link cannot start.
+private nonisolated let companionLogger = Logger(subsystem: "io.zephra", category: "companion")
+
 extension ZephraApp {
     /// Builds the host and opens its roads if the person has allowed it.
     ///
@@ -28,11 +32,20 @@ extension ZephraApp {
         // that is the whole app stopped before its first window, with nothing on screen to
         // explain why. Read here, the worst a prompt left unanswered costs is a link that has
         // not started yet; on a build signed ad hoc there is no keychain and no prompt at all.
-        let opened = await Task.detached(priority: .userInitiated) { () -> (DeviceIdentity, [PairedDevice])? in
-            guard let identity = try? keychain.identity() else { return nil }
-            return (identity, (try? keychain.load()) ?? [])
+        let opened = await Task.detached(priority: .userInitiated) { () -> Result<(DeviceIdentity, [PairedDevice]), any Error> in
+            Result { (try keychain.identity(), (try? keychain.load()) ?? []) }
         }.value
-        guard let (identity, devices) = opened else { return }
+        // A keychain that will not answer used to leave the companion off with nothing said:
+        // from the outside that is a Mac no phone can find. Say why, since the fix is at the
+        // keyboard (a keychain prompt, a denied item) and nowhere in here.
+        let (identity, devices): (DeviceIdentity, [PairedDevice])
+        switch opened {
+        case .success(let secrets): (identity, devices) = secrets
+        case .failure(let failure):
+            companionLogger.error(
+                "companion did not start: the link identity could not be read (\(String(describing: failure), privacy: .public))")
+            return
+        }
         roads.remember(identity)
         // The port is asked for when the code goes up, not now: the local road may have taken a
         // different one, and a code that named 7723 when the listener is elsewhere is a code
