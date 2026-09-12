@@ -741,10 +741,17 @@ US-spelling check.
 - `App/`, `Support/`, `Style/`, `Views/`, laid out like the Mac target's.
   `Views/Shared/` is the one folder that is not a surface, and it holds exactly
   what two surfaces draw the same way: `ClipPlayerView` and `EntryThumbnail`.
-- `MobileSelection` (`Support/`) is where the phone is looking — which tab is up
-  and whether the capsule is expanded — the Mac's `WorkspaceSelection` in a
-  phone's shape and for its reason: which surface is up is a fact several places
-  write, and the library's "Use as Reference" is one of them.
+- `MobileSelection` (`Support/`) is where the phone is looking — which tab is up,
+  whether the capsule is expanded and whether the prompt wants the keyboard —
+  the Mac's `WorkspaceSelection` in a phone's shape and for its reason: which
+  surface is up is a fact several places write, and the library's "Use as
+  Reference" is one of them. Focus is there for the same reason: the collapsed
+  prompt line is gone by the time `PromptEditor` exists, so the tap records the
+  wish (`expandCapsule(focusingPrompt:)`) and the editor mirrors it into its own
+  `@FocusState` in a `.task` after one `Task.yield()`, both ways. One tap opens
+  the prompt with the keyboard up; `collapseCapsule()` — the chevron and the
+  keyboard's Done — takes both down; a tap on the canvas picture drops focus
+  alone. A frozen launch never asks for the keyboard.
 - `LinkClient` is the one type a view may read the Mac through, taken from
   `@Environment(LinkClient.self)`: `pairedHost` is the whole pairing decision,
   and `snapshot`, `library`, `preview` and `connection` are the rest. A

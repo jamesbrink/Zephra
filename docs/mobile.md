@@ -95,12 +95,20 @@ Four directories, by what a file is, the way the Mac's target is laid out.
   surfaces draw the same way: `ClipPlayerView` and `EntryThumbnail`.
 
 `MobileSelection` (`Support/`) is where the phone is looking: which tab is up,
-and whether the capsule is showing its settings. The Mac's `WorkspaceSelection`
-in a phone's shape, and it exists for the same reason — which surface is up is a
-fact several places **write**. The library's "Use as Reference" moves it, and a
-binding threaded down through four surfaces to let one menu item change a tab is
-worse than one object in the environment. Nothing in it is persisted: a launch
-opens on the canvas, or wherever a frozen preview state asked for.
+whether the capsule is showing its settings, and whether the prompt wants the
+keyboard. The Mac's `WorkspaceSelection` in a phone's shape, and it exists for
+the same reason — which surface is up is a fact several places **write**. The
+library's "Use as Reference" moves it, and a binding threaded down through four
+surfaces to let one menu item change a tab is worse than one object in the
+environment. Nothing in it is persisted: a launch opens on the canvas, or
+wherever a frozen preview state asked for, and always with the keyboard down.
+
+Focus is there rather than in the capsule for a reason of the same kind. The
+view that asks for the keyboard is the collapsed prompt line, and it no longer
+exists by the time the editor is on screen; a `@FocusState` can only be written
+by a view that is still there. So the wish outlives the tap —
+`expandCapsule(focusingPrompt:)` records it, `collapseCapsule()` clears it, and
+`PromptEditor` mirrors it into its own `@FocusState` both ways.
 
 ### `LinkClient`, and how it stays connected
 
@@ -269,7 +277,29 @@ sheet covers the tab bar, and the four surfaces have to stay one tap apart
 while a prompt is being typed. Collapsed it is one line of prompt and the
 button, which is what a phone in a pocket is for. Expanded it is the Mac's
 capsule, read top to bottom instead of left to right — the editor and the well,
-the negative prompt, the settings, the count and the button.
+the negative prompt, the settings, the count and the button. Whether it is up is
+`MobileSelection`'s, not a `@Binding` threaded down from the canvas: the chevron,
+the collapsed line and the keyboard's Done button all write it.
+
+**One tap opens the prompt with the keyboard up.** It used to take two, and the
+reason is worth writing down, because the obvious fix does not work. The
+collapsed line was a `Button` over a `Text`; the tap flipped the capsule open,
+`CapsuleExpanded` then mounted `PromptEditor`, and the `TextEditor` that should
+take the keyboard did not exist when the tap began. A `@FocusState` cannot be
+written by a view that is going away, so the wish for the keyboard is kept where
+the rest of "where the phone is looking" is kept: `expandCapsule(focusingPrompt:)`
+on `MobileSelection`. `PromptEditor` reads it once it is mounted, in a `.task`
+after one `Task.yield()` — the Mac's `AlbumNameField` rule, since focus set in
+the same pass as the view's first layout is dropped — and mirrors its own
+`@FocusState` back with two `onChange`es, so the interactive dismissal of the
+keyboard is seen too. The collapsed line is drawn as a field rather than as plain
+text: it behaves like one, so it should look like one. `collapseCapsule()` takes
+the keyboard down with the settings, because the editor is inside them and a wish
+left standing would bring the keyboard back the next time the capsule opened. A
+tap on the canvas picture drops focus as a `simultaneousGesture`, which leaves a
+clip's own controls the taps they are waiting for. Nothing here changes the
+frozen `capsule` state: it opens the settings and asks for no keyboard, since a
+screenshot of the controls with a keyboard over them shows half of them.
 
 Every control is drawn from the capabilities and hidden by the same rules the
 Mac follows, and each re-checks the bounds itself: when the model changes, a

@@ -16,8 +16,8 @@ import ZephraStyle
 struct PromptCapsule: View {
     @Environment(LinkClient.self) private var client
     @Environment(PromptDraft.self) private var draft
-    /// Whether the settings are showing.
-    @Binding var isExpanded: Bool
+    /// Where the phone is looking, which owns whether the settings are showing.
+    @Environment(MobileSelection.self) private var selection
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -25,10 +25,10 @@ struct PromptCapsule: View {
                 .padding(.horizontal, ZephraChrome.capsuleRadius)
             if let snapshot = client.snapshot {
                 let capabilities = snapshot.model(named: draft.modelID).capabilities
-                if isExpanded {
-                    CapsuleExpanded(capabilities: capabilities, isExpanded: $isExpanded)
+                if selection.capsuleIsExpanded {
+                    CapsuleExpanded(capabilities: capabilities)
                 } else {
-                    CapsuleCollapsed(isExpanded: $isExpanded)
+                    CapsuleCollapsed()
                 }
             } else {
                 Text("Waiting for your Mac.")

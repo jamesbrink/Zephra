@@ -10,8 +10,9 @@ import ZephraLinkProtocol
 struct CapsuleExpanded: View {
     /// What the model in force will accept, which decides every control that is drawn.
     let capabilities: CapabilitiesSummary
-    /// Whether the settings are showing; the chevron puts them away.
-    @Binding var isExpanded: Bool
+    /// Where the phone is looking, which owns whether the settings are showing; the chevron
+    /// puts them away, and the keyboard with them.
+    @Environment(MobileSelection.self) private var selection
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -30,7 +31,7 @@ struct CapsuleExpanded: View {
                 CountControl()
                 Spacer(minLength: 8)
                 Button {
-                    isExpanded = false
+                    selection.collapseCapsule()
                 } label: {
                     Image(systemName: "chevron.down")
                 }

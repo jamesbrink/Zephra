@@ -11,13 +11,9 @@ import ZephraStyle
 struct CanvasScreen: View {
     @Environment(LinkClient.self) private var client
     @Environment(PromptDraft.self) private var draft
-    /// Where the phone is looking, which is where the capsule's own open-or-shut lives: a
-    /// frozen launch can open with it up, which is the only way to photograph the controls.
-    @Environment(MobileSelection.self) private var selection
 
     var body: some View {
-        @Bindable var selection = selection
-        return NavigationStack {
+        NavigationStack {
             CanvasPicture()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.horizontal, MobileChrome.sideMargin)
@@ -26,7 +22,7 @@ struct CanvasScreen: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .topBarTrailing) { ModelMenu() } }
                 .safeAreaInset(edge: .bottom, spacing: 0) {
-                    PromptCapsule(isExpanded: $selection.capsuleIsExpanded)
+                    PromptCapsule()
                 }
                 // The first snapshot seeds the capsule, and a run the Mac starts fills it in
                 // the way the Mac's own capsule follows the run; never over a prompt somebody

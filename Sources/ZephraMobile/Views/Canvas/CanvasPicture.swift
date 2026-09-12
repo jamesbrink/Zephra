@@ -11,10 +11,16 @@ import ZephraLinkProtocol
 /// the honest thing to show.
 struct CanvasPicture: View {
     @Environment(LinkClient.self) private var client
+    /// Where the phone is looking, so a tap on the picture puts the keyboard away.
+    @Environment(MobileSelection.self) private var selection
 
     var body: some View {
         picture
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // A tap up here means "I am looking at the picture, not typing". Simultaneous
+            // rather than an `onTapGesture`, which would swallow the taps a clip's own
+            // controls are waiting for.
+            .simultaneousGesture(TapGesture().onEnded { selection.promptIsFocused = false })
     }
 
     @ViewBuilder private var picture: some View {
