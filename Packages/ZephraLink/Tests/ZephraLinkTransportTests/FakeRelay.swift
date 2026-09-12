@@ -20,6 +20,11 @@ final class FakeRelay: @unchecked Sendable {
     private var isOpen = false
     private var joined: RoomID?
     private var sends: [Int] = []
+    private var arrivals: [ContinuousClock.Instant] = []
+    private let dropEvery: Int?
+    private let forwardJitter: ClosedRange<Duration>?
+    private var seen = 0
+    private var swallowed = 0
 
     /// The room the last good join asked for, which is what a test checks the signature bought.
     var joinedRoom: RoomID? { lock.withLock { joined } }
@@ -28,6 +33,12 @@ final class FakeRelay: @unchecked Sendable {
     /// which is how a test asks whether a large payload was cut up before it left.
     var sendFrameSizes: [Int] { lock.withLock { sends } }
 
+    /// When each of those arrived, which is how a test asks whether a road paced them.
+    var sendArrivals: [ContinuousClock.Instant] { lock.withLock { arrivals } }
+
+    /// How many `send` frames this relay threw away rather than forwarding.
+    var dropCount: Int { lock.withLock { swallowed } }
+
     /// The allow-list this relay last heard, from the join or from an `allow` after it.
     var allowList: [Data]? { lock.withLock { allow } }
 
@@ -35,8 +46,18 @@ final class FakeRelay: @unchecked Sendable {
     var isRoomOpen: Bool { lock.withLock { isOpen } }
 
     /// A relay that lets a well-signed join in, or one that refuses every join with `refusing`.
-    init(refusing: String? = nil) throws {
+    ///
+    /// `dropEvery` throws away one `send` in that many, which is what a throttled or unlucky
+    /// invocation does — the frame is simply never forwarded and neither end is told.
+    /// `forwardJitter` delays each forward by a random span out of that range, which is what a
+    /// Lambda per frame does to order: a frame sealed second arrives first.
+    init(
+        refusing: String? = nil, dropEvery: Int? = nil,
+        forwardJitter: ClosedRange<Duration>? = nil
+    ) throws {
         refusal = refusing
+        self.dropEvery = dropEvery
+        self.forwardJitter = forwardJitter
         let parameters = NWParameters.tcp
         let websocket = NWProtocolWebSocket.Options()
         websocket.autoReplyPing = true
@@ -102,8 +123,23 @@ final class FakeRelay: @unchecked Sendable {
                 isOpen = message.isOpen
             }
         case .send:
-            lock.withLock { sends.append(raw.count) }
-            send(raw, to: connection)
+            let swallows: Bool = lock.withLock {
+                sends.append(raw.count)
+                arrivals.append(ContinuousClock.now)
+                seen += 1
+                guard let dropEvery, dropEvery > 0, seen % dropEvery == 0 else { return false }
+                swallowed += 1
+                return true
+            }
+            guard !swallows else { return }
+            guard let forwardJitter else { return send(raw, to: connection) }
+            let wait = Duration.milliseconds(
+                Int.random(in: Self.milliseconds(forwardJitter.lowerBound)...Self.milliseconds(
+                    forwardJitter.upperBound)))
+            Task { [weak self] in
+                try? await Task.sleep(for: wait)
+                self?.send(raw, to: connection)
+            }
         case .ping:
             send(.pong, to: connection)
         default:
@@ -126,6 +162,11 @@ final class FakeRelay: @unchecked Sendable {
         }
         lock.withLock { joined = room }
         return .joined(role: role)
+    }
+
+    /// A span as whole milliseconds, which is the only unit the jitter is asked for in.
+    private static func milliseconds(_ span: Duration) -> Int {
+        Int(span.components.seconds * 1000 + span.components.attoseconds / 1_000_000_000_000_000)
     }
 
     private func send(_ message: RelayMessage, to connection: NWConnection) {

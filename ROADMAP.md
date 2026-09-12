@@ -544,6 +544,20 @@ Left out of the first pass on purpose, each a small change to one file unless no
 
 ## The companion link: left out on purpose
 
+- **A bulk lane beside the interactive one on a relay road.** `RelayCadence`
+  paces every slice a road writes at 120 messages a second, because the account's
+  throttle is 500 a second shared by every invocation and a picture's six hundred
+  slices written back to back arrive as a burst whose tail is refused. One
+  ordered lane is what the channel's counter is: frames are sealed in the order
+  they are queued, so a delta sealed behind a clip's chunks waits behind all of
+  them — up to about 21 seconds for a 40 MB clip. Splitting transfers onto a lane
+  of their own means a second channel with a counter of its own, a second
+  `OrderedInbox`, and a rule for which lane each message kind rides; the relay's
+  `send` would have to carry a lane id, which is the Lambda's contract and the
+  same change as guest ids. Worth it the day somebody watches a clip cross and
+  minds that the queue on screen is stale while it does. On the local network
+  nothing is paced.
+
 - **Several guests over the relay.** `RelayListener` serves one phone at a time,
   because the relay hands a host one socket and a `send` carries no guest id: two
   phones would be one interleaved stream that no channel could open. Multiplexing

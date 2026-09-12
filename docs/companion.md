@@ -478,6 +478,28 @@ with the set's `m`, how many of its `n` had arrived and how long it had waited:
 a set dropped part way through is a hole in the stream above, and it was silent
 once.
 
+#### The cadence a road writes at
+
+`RelayCadence` is a token bucket in front of `RelayConnection.send`, and every
+slice waits its turn at it: `messagesPerSecond` (120) refilling a bucket of
+`burst` (40). The ping, the allow-list and the join do not come through `send`
+and are not paced — each is one message and none of them is ever the burst.
+
+The account's throttle is 500 requests a second, shared by every invocation in
+it, both directions of every session included. A 6 MB picture is about
+ninety-six 64 KiB chunks of six slices each, nearly six hundred writes; a 40 MB
+clip is four thousand. Written back to back they reach the throttle as one burst,
+and what a throttle does with a burst is refuse the tail of it — which is a frame
+the far end never sees, a hole in its counters, and the whole transfer. A run
+publishes about thirty messages a second of deltas and previews, so 120 leaves
+the interactive traffic four times the room it needs while a transfer is going,
+and puts a picture across in 3.2 seconds and a clip in 21.
+
+The bucket's allowance goes negative and each waiter sleeps off its own deficit,
+so two writers queue behind one another rather than both reading "how long until
+a token" and waking together. It is injected at `init`, so a suite asks the
+question in milliseconds.
+
 A `peer` event fires on a disconnect in both directions — a host leaving notifies
 its guest, a guest leaving notifies the host — and both say `left`.
 

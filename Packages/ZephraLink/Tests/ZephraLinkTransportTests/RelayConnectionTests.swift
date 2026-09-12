@@ -65,6 +65,76 @@ struct RelayConnectionTests {
         #expect(sizes.allSatisfy { $0 < 32_000 }, "every frame is inside the relay's own limit")
     }
 
+    @Test("slices leave at the road's cadence rather than as fast as the socket takes them")
+    func slicesArePaced() async throws {
+        let relay = try FakeRelay()
+        defer { relay.stop() }
+        let identity = DeviceIdentity()
+        // Two hundred a second with two in hand, so six slices are four waits and the arithmetic
+        // is in tens of milliseconds rather than the seconds a real road's rate would cost.
+        let road = RelayConnection(
+            url: try await relay.start(), identity: identity, room: identity.roomID, role: .guest,
+            cadence: RelayCadence(messagesPerSecond: 200, burst: 2))
+        defer { Task { await road.close() } }
+        try await road.start()
+        let frames = FrameReader(road.frames())
+
+        let payload = Data((0..<(RelayFragment.byteLimit * 5 + 1)).map { UInt8($0 % 251) })
+        try await road.send(payload)
+        #expect(try await frames.next() == payload, "and the whole of it still arrives")
+
+        let arrivals = relay.sendArrivals
+        #expect(arrivals.count == 6, "six slices")
+        guard let first = arrivals.first, let last = arrivals.last else { return }
+        // Four of the six had to wait for a token; at two hundred a second that is 20 ms.
+        #expect(last - first >= .milliseconds(18), "the tail of a transfer waited its turn")
+    }
+
+    @Test("a lossy, reordering relay costs the frames it swallowed and nothing else")
+    func aLossyRelayDoesNotEndTheRoad() async throws {
+        // The relay as it behaves under load: one invocation per frame, posting concurrently, and
+        // now and then one that never forwards. Nothing above the road may be asked to survive
+        // this until the road itself does.
+        let relay = try FakeRelay(
+            dropEvery: 37, forwardJitter: .milliseconds(0)...(.milliseconds(40)))
+        defer { relay.stop() }
+        let identity = DeviceIdentity()
+        let road = RelayConnection(
+            url: try await relay.start(), identity: identity, room: identity.roomID, role: .guest)
+        defer { Task { await road.close() } }
+        try await road.start()
+
+        // Two megabytes as the chunks a picture crosses in: 64 KiB each, six slices each.
+        let chunks = (0..<32).map { index in
+            Data((0..<(64 * 1024)).map { UInt8(($0 &+ index) % 251) })
+        }
+        let stream = road.frames()
+        let received = Task { () -> [Data] in
+            var seen: [Data] = []
+            guard
+                (try? await {
+                    for try await bytes in stream {
+                        seen.append(bytes)
+                        if seen.count == chunks.count { return }
+                    }
+                }()) != nil
+            else { return seen }
+            return seen
+        }
+        for chunk in chunks { try await road.send(chunk) }
+        // Long enough for the jitter to have delivered everything it is going to.
+        try await Task.sleep(for: .milliseconds(600))
+        received.cancel()
+        let arrived = await received.value
+
+        #expect(relay.dropCount > 0, "the relay has to have actually lost some")
+        #expect(!road.isClosed, "lost slices are lost frames, not a lost road")
+        #expect(!arrived.isEmpty, "and most of the picture still crosses")
+        #expect(
+            arrived.allSatisfy { chunks.contains($0) },
+            "every frame that arrived is one that was sent, whole")
+    }
+
     @Test("the other end arriving reaches the owner as a peer event")
     func peerEventsSurface() async throws {
         let relay = try FakeRelay()

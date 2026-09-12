@@ -298,7 +298,12 @@ lifetime. `RelayConnection` speaks the relay's JSON over a
 new handshake. A payload whose base64 passes 24,000 bytes goes as `RelayFragment`
 slices (`m`, `i`, `n` on a `send`, which the relay forwards verbatim), because API
 Gateway allows one 32 KB frame and a sealed 64 KiB chunk is about 87 KB of base64;
-`RelayFragments` puts a set back together whatever order it arrives in. A
+`RelayFragments` puts a set back together whatever order it arrives in. Every
+slice waits at the road's own `RelayCadence` — 120 a second refilling a bucket of
+40 — because the account's throttle is 500 a second shared by both directions of
+every session and a picture's six hundred slices written back to back arrive as a
+burst whose tail is refused, which is a hole in the far end's counters; the ping,
+the allow-list and the join do not come through `send` and are not paced. A
 message with a `message` and no `a` is API Gateway answering for itself rather
 than the relay, and it is `RelayMessage.foreign`, logged and carried up
 `relayErrors()` rather than failing the decode and ending the road.

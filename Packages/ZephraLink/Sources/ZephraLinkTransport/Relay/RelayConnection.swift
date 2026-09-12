@@ -38,6 +38,9 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
 
     let task: URLSessionWebSocketTask
     let handshake: RelayHandshake
+    /// What paces the slices this road writes. Injected, so a suite can ask the question in
+    /// milliseconds rather than at the rate a relay is worth pacing to.
+    let cadence: RelayCadence
     /// Which end of the room this is, which is what decides whether it carries an allow-list.
     public let role: RelayRole
     let logger = Logger(subsystem: "io.zephra", category: "link.relay")
@@ -61,9 +64,12 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
     /// A road into one room, as one role. Nothing happens until `start()`.
     public init(
         url: URL, identity: DeviceIdentity, room: RoomID, role: RelayRole,
-        session: URLSession = .shared
+        session: URLSession = .shared,
+        cadence: RelayCadence = RelayCadence(
+            messagesPerSecond: RelayConnection.messagesPerSecond, burst: RelayConnection.burst)
     ) {
         task = session.webSocketTask(with: url)
+        self.cadence = cadence
         self.role = role
         handshake = RelayHandshake(identity: identity, room: room, role: role)
         (frameStream, frameContinuation) = AsyncThrowingStream.makeStream()
@@ -145,31 +151,5 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
         // `write` logs its own failure: an allow-list that never reached the relay is a phone
         // that cannot join, and it used to be swallowed here without a word.
         try? await write(.allow(pubs: trimmed, open: open ? true : nil))
-    }
-
-    /// One sealed frame to the other end, cut into slices where it is too big for one frame.
-    ///
-    /// API Gateway allows a 128 KB *message* but a 32 KB *frame*, and `URLSessionWebSocketTask`
-    /// sends a message as one frame: a 64 KiB blob chunk sealed and base64'd is about 87 KB, and
-    /// the relay closed the socket on the first one with nothing said about why. So a large
-    /// payload goes as `RelayFragment` slices, which the far end puts back together.
-    ///
-    /// A write that fails takes the road down with it. The socket is dead either way, and a road
-    /// that stays open over a dead socket is a session the Mac keeps and the phone cannot reach:
-    /// the failure finishes `frames()`, which is what everything above reads the end of a
-    /// session from.
-    public func send(_ frame: Data) async throws {
-        guard lock.withLock({ state.isJoined && !state.isClosed }) else { throw RelayError.closed }
-        do {
-            for message in RelayFragment.messages(for: frame) { try await write(message) }
-        } catch {
-            logger.error(
-                """
-                The relay socket refused a frame of \(frame.count, privacy: .public) bytes: \
-                \(String(describing: error), privacy: .public)
-                """)
-            fail(error)
-            throw error
-        }
     }
 }
