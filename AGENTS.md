@@ -849,7 +849,15 @@ US-spelling check.
   last one it followed or sent (`followedPrompt`, set by `follow` and by
   `noteSubmitted` once the Mac answers `queued`). A prompt somebody typed on the
   phone is never written over; `DraftFollowsMac` is the one modifier that calls
-  both. It clamps every request through the
+  both. A press is `submission(clampedBy:randomizingSeed:)`
+  (`PromptDraft+Submission`), which picks a fresh seed **before** the clamp and
+  writes it back into the draft, so the capsule shows the seed that went; the
+  flag is `MobileSettings.randomizeSeedEachRun`, read in `GenerateButton`'s
+  action the way the Mac reads it in `generateFromInterface`, and
+  `SeedLockToggle` beside the seed writes the same key. The Mac's own
+  `enqueue` still randomises nothing — a request that crossed the link is one
+  somebody composed — and the lock guards the press, never `follow`, which takes
+  a run's whole settings as `watchRun()` does. It clamps every request through the
   Mac's own `ModelCapabilities`, rebuilt from `CapabilitiesSummary`, so the phone
   asks for what the Mac would have allowed rather than for what the Mac then
   quietly rewrites. Taking a picture into the well runs the Mac's

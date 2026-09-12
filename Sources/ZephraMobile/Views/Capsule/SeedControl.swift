@@ -1,8 +1,8 @@
 import SwiftUI
 import ZephraCore
 
-/// The noise seed, as `SeedFormat` spells it, with a shuffle for a fresh one; a tap on the
-/// label opens the sheet a seed is typed into.
+/// The noise seed, as `SeedFormat` spells it, with a shuffle for a fresh one and a lock that
+/// keeps this one across runs; a tap on the label opens the sheet a seed is typed into.
 ///
 /// The spelling is `\.seedFormat` from the Settings tab, exactly as on the Mac: the short hex
 /// label by default, the whole number for the person who copies seeds between tools. The whole
@@ -33,6 +33,7 @@ struct SeedControl: View {
             }
             .buttonStyle(.bordered)
             .accessibilityLabel("Pick a new seed")
+            SeedLockToggle()
         }
         .sheet(isPresented: $isEntering) { SeedEntrySheet() }
     }

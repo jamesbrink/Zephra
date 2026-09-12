@@ -43,7 +43,12 @@ struct GenerateButton: View {
     private func generate() {
         guard let snapshot = client.snapshot else { return }
         let capabilities = snapshot.model(named: draft.modelID).capabilities
-        let request = draft.request(clampedBy: capabilities)
+        // The seed rule is read here rather than held as a fourth stored property, which is the
+        // Mac's own pattern in `generateFromInterface`: it is a preference the press consults,
+        // not a fact the button draws itself from.
+        let request = draft.submission(
+            clampedBy: capabilities,
+            randomizingSeed: MobileSettings.flag(MobileSettings.randomizeSeedEachRun))
         let reference = draft.reference(allowedBy: capabilities)
         press = .sending
         Task {

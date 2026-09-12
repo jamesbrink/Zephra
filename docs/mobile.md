@@ -262,6 +262,26 @@ about the Mac. The facts stay on `LinkClient`.
   the whole length through `ChainPlan.frames`, bounded by `ChainPlan.maxFrames`
   and snapped to the model's ladder; a clamped length here would be a
   ten-second clip quietly cut to five.
+- `submission(clampedBy:randomizingSeed:)` (`PromptDraft+Submission`) is the
+  press itself, and the one moment a seed changes without anybody asking. The
+  phone used to send the same seed every time: the draft seeds itself once a
+  launch, `randomizeSeed()` was the shuffle button's alone, and `follow` copies
+  the running run's seed back — so two presses of Generate made the same
+  picture twice. The Mac picks its fresh seed in `generateFromInterface`, under
+  `randomizeSeedEachRun`, *before* the request is built; `GenerationStore.enqueue`
+  — the door a phone's request comes through — deliberately randomises nothing,
+  since a request that crossed the link is one somebody already composed. So the
+  phone does its own, in the same place the Mac's own interface does. The seed is
+  written back into the draft rather than only into the request, because a chip
+  showing the last run's seed is a chip lying about the picture being made, and
+  it is picked before the clamp, since the clamp is what will actually run.
+  `GenerateButton` reads the flag in its action rather than holding a fourth
+  stored property — again the Mac's pattern. `SeedLockToggle` (`Views/Capsule/`)
+  writes the same key from beside the seed, closed for a seed held and open for
+  a fresh one each press, because the moment somebody wants a seed kept is the
+  moment they are looking at it. The lock guards the press and nothing else:
+  `follow` still takes a run's whole settings, seed included, exactly as the
+  Mac's `watchRun()` does.
 - `choose(_ model:)` puts steps, guidance, strength and length on the new
   model's ladder, which is `GenerationSettings.onSchedule(of:)`'s rule: a number
   inside both models' bounds survives clamping while meaning something else on
@@ -362,7 +382,9 @@ the Mac once crashed on a model switch.
   only what the sheet's footer names first changes with the setting
   (`SeedEntrySheet.footer(for:)`). `SeedEntryField` is split off it the way
   `SizeEntryField` is, so the sheet can hold the draft, the spelling and the way
-  to close without a fourth property. `CountControl` is
+  to close without a fourth property. Beside the shuffle is `SeedLockToggle`,
+  the Mac's own lock over the Mac's own preference: open, every press picks a
+  fresh seed; closed, the seed on screen is kept. `CountControl` is
   `GenerationRequest.countBounds`, read from the protocol rather than written
   down again.
 - `ReferenceWell` captions itself from `ReferenceRole`, so a clip's first frame

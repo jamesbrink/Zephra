@@ -87,6 +87,8 @@ struct PromptDraftFollowingTests {
         draft.noteSubmitted(draft.request(clampedBy: picture.capabilities))
         draft.follow(run("a lighthouse", seed: 99))
         #expect(draft.settings.prompt == "a lighthouse")
+        // Seed and all, whichever way the seed lock is set: the lock guards the press, not the
+        // following, exactly as the Mac's `watchRun()` restores a run's whole settings.
         #expect(draft.settings.seed == 99, "the phone's own run is followed, seed and all")
         draft.follow(nil)
         #expect(draft.settings.prompt == "a lighthouse", "a run ending changes nothing")

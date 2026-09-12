@@ -2,7 +2,9 @@ import SwiftUI
 
 /// Whether every press of Generate picks a fresh seed, or keeps repeating the last one.
 ///
-/// Only the switch: nothing reads this key yet but `GenerateButton`, which is Item 3's wiring.
+/// What reads it is the press itself (`PromptDraft.submission(clampedBy:randomizingSeed:)`,
+/// from `GenerateButton`), and `SeedLockToggle` in the capsule writes the same key, so the lock
+/// beside the seed and this switch are one preference shown twice.
 struct RandomizeSeedRow: View {
     @AppStorage(MobileSettings.randomizeSeedEachRun) private var randomize =
         MobileSettings.initialRandomizeSeedEachRun
