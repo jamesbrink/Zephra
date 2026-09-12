@@ -50,9 +50,21 @@ extension LinkClient {
     ///
     /// A chunk for anything else is dropped with a line in the log: the announcement is what
     /// says how much memory this transfer may take, so there is nothing to assemble it into.
+    ///
+    /// A chunk out of its turn, or one whose transfer changed length part way through, is what a
+    /// hole in the stream leaves behind: the frame before it is gone, the run is broken, and this
+    /// transfer is over. It fails as `LinkClientError.lost`, which the caller asks again — and it
+    /// is **this** transfer alone, which is the whole point of not settling everything on a gap.
+    /// Anything else `accept` refuses is a sender that is misbehaving rather than a road that
+    /// dropped something, and keeps its refusal: a transfer larger than it announced most of all.
     func receive(_ chunk: BlobChunk) {
         guard var assembly = blobs[chunk.blobID] else {
             return logger.notice("A chunk arrived for a transfer the Mac never announced.")
+        }
+        guard chunk.index == assembly.nextIndex, assembly.chunkCount ?? chunk.count == chunk.count
+        else {
+            logger.notice("A hole in the stream cost a transfer its bytes; the caller asks again.")
+            return fail(chunk.blobID, with: LinkClientError.lost)
         }
         do {
             guard let whole = try assembly.accept(chunk) else {

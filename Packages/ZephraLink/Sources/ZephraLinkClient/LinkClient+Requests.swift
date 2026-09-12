@@ -33,7 +33,7 @@ extension LinkClient {
         let envelope = try Envelope.encoding(command, kind: .request)
         return try await withCheckedThrowingContinuation { continuation in
             pending[envelope.id] = continuation
-            timers[envelope.id] = expire(envelope.id, after: LinkClient.requestTimeout)
+            timers[envelope.id] = expire(envelope.id, after: requestTimeout)
             // Sealed and queued here rather than on a task of its own: the counter a frame is
             // sealed under is its position in the stream, and a task per request is two requests
             // taking two counters and reaching the socket in whichever order they are scheduled.
@@ -64,6 +64,10 @@ extension LinkClient {
     }
 
     /// Everything waiting, told the session is over.
+    ///
+    /// For a session that has actually ended — the road going, or the phone letting the Mac go —
+    /// and not for a gap: a hole in the stream swallows one message, and the transfer or the
+    /// request it swallowed is the one that pays for it.
     func settleEverything(with error: any Error) {
         for timer in timers.values { timer.cancel() }
         timers.removeAll()

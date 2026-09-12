@@ -150,7 +150,10 @@ the byte count and the mime; the bytes follow as chunk frames.
   the missing one. A duplicate index is the same answer. A transfer refused this
   way is **that transfer** and never the session: the phone asks for the bytes
   again, and a picture on its way to the Mac is answered `notFound` when the
-  `enqueue` names it.
+  `enqueue` names it. `nextIndex` and `chunkCount` are public for one reason: a
+  chunk out of its turn is what a hole in the stream leaves behind, and the phone
+  tells that apart from a sender that is misbehaving — the first fails the
+  transfer as `lost` and is asked again, the second keeps its refusal.
 - One blob may not exceed 64 MiB while it is being assembled, and it may not
   exceed **what it announced**: `BlobReassembly` takes the `byteCount` at
   construction, trims a claim past the cap down to it, refuses the chunk that
@@ -298,11 +301,25 @@ they were sent.
   `CompanionSession.stepOver` and `LinkClient.lost`. A skip is rare, costs the
   phone a whole resync, and is the first thing to look for when a session
   behaves oddly.
-- **The phone answers a gap by resyncing.** Every blob part way through is
-  dropped and every open request failed as `LinkClientError.lost` — both of
-  which are asked again once — and `Command.resync` goes out, so the state the
-  lost deltas were editing is replaced rather than patched around. The road
-  stays up: the session is the same session and the channel the same channel.
+- **The phone answers a gap by resyncing.** `Command.resync` goes out, so the
+  state the lost deltas were editing is replaced rather than patched around, and
+  the frames the skip released are dispatched behind it. The road stays up: the
+  session is the same session and the channel the same channel.
+- **A hole costs the one thing it swallowed.** `LinkClient.lost` used to call
+  `settleEverything`, failing every open request and dropping every transfer in
+  flight, on the reasoning that the hole might have been any of them. Over the
+  relay it is not: a picture is hundreds of chunks and a clip thousands, so a hole
+  lands in the middle of transfers that are *still going*, and one lost message
+  became five — the grid's other thumbnails, the library page and the clip all
+  failed together. What the hole actually swallowed says so itself. A transfer
+  whose next chunk is out of turn, or whose length moved, fails as
+  `LinkClientError.lost` in `LinkClient.receive` and is asked for again; anything
+  else `BlobReassembly.accept` refuses is a sender misbehaving rather than a road
+  dropping something, and keeps its refusal. A reply that never comes is closed by
+  `requestTimeout`, which is this end's own promise and was always what closed a
+  request the Mac did not answer; it is an instance property, so a suite asks in
+  milliseconds. `settleEverything` stays for the session actually ending — the
+  road going, or the phone letting the Mac go.
 - **The Mac answers a gap by carrying on.** The transfer that was arriving is
   dropped, since its chunks are an ordered run with one missing, and the
   `enqueue` naming that picture is answered `notFound`. A lost request never

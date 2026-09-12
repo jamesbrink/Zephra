@@ -23,6 +23,15 @@ public struct BlobReassembly: Sendable {
     private var next: UInt32 = 0
     private var total: UInt32?
 
+    /// The index the next chunk has to carry. A receiver reads it to tell the one thing a hole in
+    /// the stream looks like here — a chunk out of its turn — apart from a sender that is
+    /// misbehaving, which is the difference between failing this transfer and refusing it.
+    public var nextIndex: UInt32 { next }
+
+    /// How many chunks this transfer said it has, once a chunk has said. Read for the same
+    /// reason as `nextIndex`.
+    public var chunkCount: UInt32? { total }
+
     /// Starts assembling the blob with this id, of the length its announcement claimed.
     ///
     /// The claim is trimmed to `byteCap` rather than refused, so a sender that announces more

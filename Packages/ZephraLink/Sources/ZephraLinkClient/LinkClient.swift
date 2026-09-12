@@ -73,6 +73,11 @@ public final class LinkClient {
     /// How long a session's `OrderedInbox` holds a gap open before it calls it loss. A property
     /// rather than the constant so a suite can ask the question in milliseconds.
     @ObservationIgnored var frameHold: Duration = OrderedInbox.hold
+    /// How long a command may go unanswered before this end gives up on it. A property rather
+    /// than the constant for the reason `frameHold` is one, and it carries more weight now: a
+    /// reply a hole swallowed is closed by this clock rather than by the gap, so a suite that
+    /// asks what a lost reply costs has to be able to ask it in milliseconds.
+    @ObservationIgnored var requestTimeout: Duration = LinkClient.requestTimeout
     /// Every time a session ended, so whoever reconnects starts at once rather than on the next
     /// beat of a poll. Newest-only: what a waiter needs to know is that the session it was
     /// sitting on is gone, not how many have been.

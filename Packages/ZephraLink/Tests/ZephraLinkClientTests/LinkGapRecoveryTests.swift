@@ -14,11 +14,19 @@ struct LinkGapRecoveryTests {
     static func connected() async throws -> LinkClientUnderTest {
         let bed = LinkClientUnderTest(remembering: DeviceIdentity())
         bed.client.frameHold = .milliseconds(30)
+        // A reply a hole swallowed is closed by this end's own clock rather than by the gap, so
+        // the suite asks the question in milliseconds rather than in the thirty seconds a phone
+        // gives a Mac.
+        bed.client.requestTimeout = .milliseconds(100)
         await bed.client.connect()
         for _ in 0..<8 { await Task.yield() }
         #expect(bed.client.connection == .live(.lan))
         try await bed.host.announce(ClientFixtures.snapshot, kind: .snapshot)
         try await settle { bed.client.snapshot != nil }
+        // The library pull the snapshot starts is a request and a reply of its own, and a hole
+        // now costs the one message it swallowed: a suite that drops "the next frame" has to know
+        // which frame that is.
+        try await settle { bed.client.libraryIsComplete }
         return bed
     }
 
@@ -50,16 +58,13 @@ struct LinkGapRecoveryTests {
     func aLostChunkIsFetchedAgain() async throws {
         let bed = try await Self.connected()
         defer { Task { await bed.host.stop() } }
-        let payload = Data((0..<2048).map { UInt8($0 % 251) })
+        let payload = Data((0..<200_000).map { UInt8($0 % 251) })
         bed.host.payload = payload
 
-        // The reply announcing the transfer goes past; the one chunk behind it is lost.
-        bed.road.dropFrame(after: 1)
-        async let bytes = bed.client.thumbnail(name: "a.png", pixels: 256)
-        try await Self.settle { !bed.host.commands.isEmpty }
-        // Something has to arrive behind the hole for it to be a hole at all: a gap is only seen
-        // when a later frame is waiting on it.
-        try await bed.host.announce(LinkReorderingTests.progress(step: 1), kind: .delta)
+        // The reply and the first chunk go past; the one behind them is lost, and the chunk after
+        // *that* arriving out of its turn is what says so.
+        bed.road.dropFrame(after: 2)
+        async let bytes = bed.client.file(name: "a.png")
 
         #expect(try await bytes == payload, "the retry is what the caller sees")
         #expect(bed.road.dropCount == 1)
@@ -67,17 +72,49 @@ struct LinkGapRecoveryTests {
         #expect(bed.client.connection == .live(.lan))
     }
 
+    @Test("a gap does not throw away a transfer that is still arriving")
+    func aGapCostsOnlyWhatItSwallowed() async throws {
+        // A hole used to fail every open request and drop every transfer in flight, on the
+        // reasoning that it might have been any of them. Over the relay a picture is hundreds of
+        // chunks, so a hole lands in the middle of transfers that are still going, and one lost
+        // message became five.
+        let bed = try await Self.connected()
+        defer { Task { await bed.host.stop() } }
+        let start = BlobStart(byteCount: 200_000, mime: "image/png")
+        bed.client.announce(start)
+        bed.client.receive(BlobChunker.chunks(of: Data(count: 200_000), blobID: start.blobID)[0])
+
+        bed.road.dropFrame()
+        try await bed.host.announce(LinkReorderingTests.progress(step: 1), kind: .delta)
+        try await bed.host.announce(LinkReorderingTests.progress(step: 2), kind: .delta)
+        try await Self.settle { bed.host.commands.contains(.resync) }
+
+        #expect(bed.road.dropCount == 1, "the road has to have actually lost one")
+        #expect(bed.host.commands.contains(.resync), "the world is still asked for")
+        #expect(
+            bed.client.blobs[start.blobID] != nil,
+            "the transfer the hole was not in the middle of is still being assembled")
+        #expect(bed.client.blobOrder == [start.blobID])
+    }
+
     @Test("a request whose reply the road swallows is asked again under a fresh id")
     func aLostReplyIsAskedAgain() async throws {
+        // The gap no longer closes this: `requestTimeout` does, which is this end's own promise
+        // and was always what closed a request the Mac never answered.
         let bed = try await Self.connected()
         defer { Task { await bed.host.stop() } }
 
+        let favourite = Command.setFavourite(names: ["a.png"], on: true)
         bed.road.dropFrame()
         async let done: Void = bed.client.setFavourite(names: ["a.png"], on: true)
-        try await Self.settle { !bed.host.commands.isEmpty }
+        try await Self.settle { bed.host.commands.contains(favourite) }
+        // Something has to arrive behind the hole for it to be a hole at all: a gap is only seen
+        // when a later frame is waiting on it.
         try await bed.host.announce(LinkReorderingTests.progress(step: 1), kind: .delta)
 
         try await done
+        try await Self.settle { bed.host.commands.contains(.resync) }
+        #expect(bed.road.dropCount == 1, "the road has to have actually lost the reply")
         #expect(
             bed.host.commands.filter { $0 == .setFavourite(names: ["a.png"], on: true) }.count == 2,
             "the same command, twice")
