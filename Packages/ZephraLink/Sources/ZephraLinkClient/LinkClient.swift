@@ -95,6 +95,9 @@ public final class LinkClient {
     @ObservationIgnored var timers: [UUID: Task<Void, Never>] = [:]
     /// The pull reading the library across, one per session.
     @ObservationIgnored var libraryPull: Task<Void, Never>?
+    /// How far that pull has got, or nil when none is running. What a fresh snapshot on the
+    /// same session is measured against, so a resync does not start the library again.
+    @ObservationIgnored var libraryProgress: LibraryPullProgress?
     @ObservationIgnored var isFrozen = false
     /// How long a session's `OrderedInbox` holds a gap open before it calls it loss. A property
     /// rather than the constant so a suite can ask the question in milliseconds.

@@ -951,7 +951,11 @@ US-spelling check.
   **pulled**: `LinkClient+LibraryPull` pages `libraryPage` after every connect, a
   hundred at a time, one in flight, each page into `client.library` as it lands,
   retried from the same offset after `LinkBackoff` while the session is live,
-  and `libraryIsComplete` is what says the last page arrived. A reset carries at
+  and `libraryIsComplete` is what says the last page arrived. A resync mid-pull
+  carries the pull on rather than starting the folder again — the Mac answers a
+  resync with a snapshot on the same session, and `LibraryPullProgress`'s total
+  matching `libraryCount` is what says nothing has happened to the folder; a new
+  session, or a count that moved, still pulls from nothing. A reset carries at
   most a hundred entries, so `LibraryCatalog` applies its removals only once that
   flag is up — `LibrarySync.plan` is pure and answers with them regardless. Browsing, searching, the viewer over
   anything fetched, Share and Save to Photos work offline; favoriting, tagging,

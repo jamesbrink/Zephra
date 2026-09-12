@@ -571,6 +571,15 @@ connection is live; a session ending cancels the pull and the next session's
 snapshot starts a fresh one. Nothing in it touches the Mac's store, so it keeps
 going while the Mac is generating.
 
+A resync is the exception. The Mac answers one with a fresh snapshot on the very
+session the pull is reading over, and starting again there threw a few hundred
+entries and several seconds of what may be a relay away for a folder that had not
+changed. `LibraryPullProgress` — the offset the next page is due at, and what the
+last page said the folder held — is what settles it: a snapshot whose
+`libraryCount` equals that total leaves the pull to carry on. A count that moved,
+or a new session, still reads the folder from nothing, which is the answer that
+cannot be wrong.
+
 One rule is worth spelling out because it is not obvious. A `LibraryChange.reset`
 carries at most `CompanionPublication.resetThreshold` entries — a hundred — so a
 phone that treated every reset as the whole library would throw the rest of its

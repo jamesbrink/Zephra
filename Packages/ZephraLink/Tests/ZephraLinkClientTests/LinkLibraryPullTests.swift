@@ -86,11 +86,71 @@ struct LinkLibraryPullTests {
         #expect(bed.client.libraryIsComplete)
     }
 
+    @Test("a resync mid-pull carries the pull on rather than starting the library again")
+    func aResyncCarriesThePullOn() async throws {
+        let bed = LinkClientUnderTest(remembering: DeviceIdentity())
+        defer { Task { await bed.host.stop() } }
+        bed.host.library = (0..<350).map { ClientFixtures.entry("picture-\($0).png") }
+        await bed.client.connect()
+        for _ in 0..<8 { await Task.yield() }
+        let witness = PageWitness()
+        bed.host.onCommand = { command in
+            guard case .libraryPage(let offset, let limit) = command else { return }
+            witness.record(offset: offset, limit: limit, held: bed.client.library.count)
+            // A gap in the stream costs a resync, which the Mac answers with a fresh snapshot
+            // over the very folder this pull is reading.
+            guard offset == 100 else { return }
+            Task { try? await bed.host.announce(Self.snapshot(counting: 350), kind: .snapshot) }
+        }
+
+        try await bed.host.announce(Self.snapshot(counting: 350), kind: .snapshot)
+        try await settle { bed.client.libraryIsComplete }
+
+        #expect(
+            witness.asked.map(\.offset) == [0, 100, 200, 300],
+            "the second snapshot left the pull where it was rather than sending it back to 0")
+        #expect(bed.client.library.count == 350)
+    }
+
+    @Test("a snapshot over a folder that has changed starts the library again")
+    func aChangedCountStartsAgain() async throws {
+        let bed = LinkClientUnderTest(remembering: DeviceIdentity())
+        defer { Task { await bed.host.stop() } }
+        bed.host.library = (0..<350).map { ClientFixtures.entry("picture-\($0).png") }
+        await bed.client.connect()
+        for _ in 0..<8 { await Task.yield() }
+        let witness = PageWitness()
+        bed.host.onCommand = { command in
+            guard case .libraryPage(let offset, let limit) = command else { return }
+            witness.record(offset: offset, limit: limit, held: bed.client.library.count)
+            // Once, at the same point as the test above it: the pull that starts again asks
+            // for offset 100 too, and announcing on every one of those would never end.
+            guard offset == 100, witness.asked.filter({ $0.offset == 100 }).count == 1
+            else { return }
+            Task { try? await bed.host.announce(Self.snapshot(counting: 351), kind: .snapshot) }
+        }
+
+        try await bed.host.announce(Self.snapshot(counting: 350), kind: .snapshot)
+        try await settle { bed.client.libraryIsComplete }
+
+        #expect(
+            witness.asked.map(\.offset).filter { $0 == 0 }.count == 2,
+            "a count that moved is a folder to read again from the top")
+        #expect(bed.client.library.count == 350)
+    }
+
     @Test("a frozen client is complete the moment it is made")
     func aFrozenClientIsComplete() {
         let client = LinkClient.frozen(
             snapshot: ClientFixtures.snapshot, library: [ClientFixtures.entry("one.png")])
         #expect(client.libraryIsComplete)
+    }
+
+    /// The fixture's snapshot, saying the Mac's folder holds this many.
+    private static func snapshot(counting entries: Int) -> StateSnapshot {
+        var snapshot = ClientFixtures.snapshot
+        snapshot.libraryCount = entries
+        return snapshot
     }
 
     private static func isPage(_ command: Command) -> Bool {

@@ -1084,7 +1084,14 @@ sends the picture as a blob first and names it in the request, for the reason
 
 `LinkClient+LibraryPull` is the phone's half of the library. A snapshot landing —
 which is every connect — cancels any pull in flight, sets `libraryIsComplete`
-false and starts one: `libraryPage` at offset 0 in pages of
+false and starts one, **unless the pull in flight is still the right one**: a
+snapshot is also what the Mac answers a `resync` with, on the very session the
+pull is reading over, and a gap in the stream is one message lost rather than a
+new Mac. `LibraryPullProgress` is what settles it — the offset the next page is
+due at, and what the last page said the folder held — and a snapshot whose
+`libraryCount` equals that total leaves the pull alone to carry on. Everything
+else starts again from nothing: a new session (the progress goes with it), a
+count that moved, or no pull running. The pull itself is: `libraryPage` at offset 0 in pages of
 `LinkClient.libraryPageSize` (100), one in flight at a time, each page absorbed
 into `library` as it arrives so the grid fills progressively rather than after
 the last one. The total is re-read from every page, since the folder may move

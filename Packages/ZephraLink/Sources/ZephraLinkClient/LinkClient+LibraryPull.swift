@@ -23,31 +23,58 @@ extension LinkClient {
     /// a few dozen round trips rather than a few hundred.
     public static let libraryPageSize = 100
 
-    /// Starts the pull again, from the top.
+    /// Starts the pull again, from the top — unless the one already running is still the right
+    /// one, in which case it is left to carry on.
     ///
     /// Called wherever a snapshot lands, which is every connect: a listing may have moved while
-    /// the phone was away, and the snapshot is the one frame that says a session is up.
+    /// the phone was away, and the snapshot is the one frame that says a session is up. But a
+    /// snapshot is also what the Mac answers a `resync` with, and a resync happens on the very
+    /// session a pull is running over — a gap in the stream is one message lost, not a new Mac.
+    /// Starting again there threw away a few hundred entries and several seconds of a link that
+    /// may be a relay, for a folder that had not changed.
+    ///
+    /// "Still the right one" is the count: the Mac counts its folder in every snapshot and in
+    /// every page, so a snapshot whose `libraryCount` is what the last page said the total was
+    /// is a folder nothing has happened to. Anything else — a new session, a count that moved,
+    /// no pull running — starts again from nothing, which is the answer that cannot be wrong.
     func startLibraryPull() {
         guard !isFrozen else { return }
+        if let progress = libraryProgress, progress.total == snapshot?.libraryCount {
+            logger.notice(
+                "A snapshot arrived mid-pull over the same folder; carrying on from \(progress.offset, privacy: .public)."
+            )
+            return
+        }
         libraryPull?.cancel()
+        libraryProgress = nil
         libraryIsComplete = false
         libraryPull = Task { [weak self] in await self?.pullLibrary() }
     }
 
-    /// Stops it, wherever a session ends. The next snapshot starts a new one.
+    /// Stops it, wherever a session ends. The next snapshot starts a new one, from nothing:
+    /// a new session is a new Mac as far as this is concerned.
     func endLibraryPull() {
         libraryPull?.cancel()
         libraryPull = nil
+        libraryProgress = nil
+    }
+
+    /// The pull, and the one thing that is true however it ends: there is nothing left to
+    /// carry on from.
+    private nonisolated func pullLibrary() async {
+        await readEveryPage()
+        await note(nil)
     }
 
     /// The loop: one page, applied, then the next, until the offset reaches the total.
     ///
-    /// `nonisolated`, so the waiting between pages is nobody's main actor; the only thing that
-    /// runs there is `absorb`, which is the one mutation. The total is re-read from every page
-    /// rather than taken once from the snapshot, because the folder may move underneath a pull
-    /// that takes a few seconds. A page that answers no entries stops it — there is no offset to
-    /// advance to — but only a page whose own total was reached says the listing is complete.
-    private nonisolated func pullLibrary() async {
+    /// `nonisolated`, so the waiting between pages is nobody's main actor; the only things that
+    /// run there are `absorb` and `note`, which are the two mutations. The total is re-read from
+    /// every page rather than taken once from the snapshot, because the folder may move
+    /// underneath a pull that takes a few seconds. A page that answers no entries stops it —
+    /// there is no offset to advance to — but only a page whose own total was reached says the
+    /// listing is complete.
+    private nonisolated func readEveryPage() async {
         var offset = 0
         var failures = 0
         while !Task.isCancelled {
@@ -56,6 +83,7 @@ extension LinkClient {
                 failures = 0
                 let next = page.offset + page.entries.count
                 await absorb(page, complete: next >= page.total)
+                await note(LibraryPullProgress(offset: next, total: page.total))
                 guard next > offset, next < page.total else { return }
                 offset = next
             } catch {
@@ -80,6 +108,16 @@ extension LinkClient {
     /// at the front: the pages arrive newest first, so the front is where the page before it
     /// already is. The list is rebuilt once and assigned once, so a page is one observation and
     /// not a hundred.
+    /// Where the pull has got to, for a snapshot that lands while it is running.
+    ///
+    /// A cancelled pull writes nothing: whoever cancelled it has already said what should be
+    /// there, and a task resuming after that should not put its own answer back.
+    @MainActor
+    private func note(_ progress: LibraryPullProgress?) {
+        guard !Task.isCancelled else { return }
+        libraryProgress = progress
+    }
+
     @MainActor
     private func absorb(_ page: LibraryPage, complete: Bool) {
         var entries = library

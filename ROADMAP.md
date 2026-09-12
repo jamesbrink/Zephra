@@ -626,15 +626,33 @@ Left out of the first pass on purpose, each a small change to one file unless no
   `errSecMissingEntitlement` and a suite over it would be a suite over that. It
   is exercised by running the app and pairing. A device test target with an
   entitlement would pin it properly.
+- **The library pull reads the whole folder, not what changed.** A pull that is
+  interrupted carries on across a resync now, and a new session still asks for
+  every page from nothing — a few dozen round trips for a library of a few
+  thousand, most of them entries the phone already holds and can tell are
+  unchanged (`CachedEntry.isStale(against:)`). The fix is a `modifiedAfter`
+  cursor on `Command.libraryPage`: the phone sends the newest
+  `contentModifiedAt` it holds and the Mac answers only what moved since, with
+  the count still saying whether anything was removed. It is a wire change on
+  both ends, so it waits for a library big enough to be worth one.
+- **The phone dials every road on every attempt.** `LocalRoadRace` gives the
+  local network `lanWindow` (3 s) before the relay is tried, on every reconnect,
+  which away from home is three seconds of nothing before the road that was
+  always going to work. Remembering the road the last session was on — and
+  trying that one first, with the rest behind it — would take most of that back.
+  What it must not become is a phone that has moved and keeps dialling the road
+  it used at home, so the memory has to be beaten by a `LinkPathMark` that says
+  the network is a different one.
 - **The phone's cache is not built.** `CacheRow` in Settings says so in as many
   words. It is one file, so whoever builds the library's cache replaces it rather
   than editing a settings screen around it.
-- **The local road is not re-opened when the network changes.** `TCPListener`
-  keeps its port across a Wi-Fi change, and Bonjour re-advertises; what goes
-  stale is the address list inside a pairing code already on screen. Since a code
-  lasts two minutes, showing it again is the whole remedy. Watching
-  `NWPathMonitor` to re-open the road is a real improvement only once somebody
-  reports a Mac that stopped answering after moving networks.
+- **The Mac's local road is not re-opened when the network changes.**
+  `TCPListener` keeps its port across a Wi-Fi change, and Bonjour re-advertises;
+  what goes stale is the address list inside a pairing code already on screen.
+  Since a code lasts two minutes, showing it again is the whole remedy. The
+  phone watches `NWPathMonitor` itself now (`LinkPathWatch`); doing the same on
+  the Mac, to re-open the road, is a real improvement only once somebody reports
+  a Mac that stopped answering after moving networks.
 - **Nothing on the phone saves a picture to the camera roll.** `Photos` is
   linked and the fetched bytes are in hand, so it is a menu item and a
   permission string, but the canvas has no such menu yet; it belongs with the
