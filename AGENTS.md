@@ -866,7 +866,10 @@ US-spelling check.
   one), otherwise the newest picture or clip, with the capsule in the bottom
   safe area rather than in a sheet, which would cover the tab bar. Every control
   is drawn and hidden by the capabilities the way `ControlsRow` is, `SeedEntry`
-  and `SizeEntry` read what is typed, `SeedFormat.hex` spells a seed and
+  and `SizeEntry` read what is typed, `\.seedFormat` spells a seed — the
+  Settings tab's `SeedFormat`, put in the environment once by
+  `SeedFormatPreference` as the Mac does it, so no view below the root binds the
+  key and the sheet opens on the whole seed either way — and
   `ClipLength` is the Duration menu — both `ZephraCore`'s, so neither is a copy
   of the Mac's and the phone offers the same chained lengths — `ReferenceRole`
   captions the well, and a refusal is the Mac's own sentence under Generate

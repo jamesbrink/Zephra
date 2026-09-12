@@ -348,11 +348,23 @@ the Mac once crashed on a model switch.
   then the longer clips the Mac makes as a chain of passes, each saying how many
   — `ReferenceStrengthControl` only while there is a picture and the
   bounds are a real range, with `ReferenceRole`'s own sentence under it.
-- `SeedControl` spells the seed with `SeedFormat.hex` itself — `ZephraCore`'s,
-  not a copy of it — and reads one back through `SeedEntry`. Hex always: there
-  is no Settings > General here to choose the decimal in, and hex is the Mac's
-  default. `CountControl` is `GenerationRequest.countBounds`, read
-  from the protocol rather than written down again.
+- `SeedControl` spells the seed with `SeedFormat` — `ZephraCore`'s, not a copy
+  of it — and reads one back through `SeedEntry`. Which spelling is the Settings
+  tab's, reaching the chip as `\.seedFormat`: `SeedFormatPreference` is one
+  `@AppStorage` at the root writing one environment value, the Mac's own shape,
+  because the views that draw a seed are already at their three stored
+  properties and the preference is one fact for the whole app. Hex is still the
+  default, for the reason it is the Mac's — eight characters tell two seeds
+  apart on a chip a phone has little room for — and the number is for the person
+  who copies seeds between tools. Whichever is shown, the whole seed is in the
+  accessibility label and the entry sheet opens on the whole seed exactly
+  (`SeedFormat.exactText`), so Return with nothing typed keeps the seed it had;
+  only what the sheet's footer names first changes with the setting
+  (`SeedEntrySheet.footer(for:)`). `SeedEntryField` is split off it the way
+  `SizeEntryField` is, so the sheet can hold the draft, the spelling and the way
+  to close without a fourth property. `CountControl` is
+  `GenerationRequest.countBounds`, read from the protocol rather than written
+  down again.
 - `ReferenceWell` captions itself from `ReferenceRole`, so a clip's first frame
   is called a first frame here as it is there. Three doors, one rule:
   `PhotosPicker` for the camera roll, `ReferencePickerSheet` for the Mac's own

@@ -46,6 +46,7 @@ struct ZephraMobileApp: App {
         WindowGroup {
             RootView()
                 .modifier(AppearancePreference())
+                .modifier(SeedFormatPreference())
                 .defaultAppStorage(MobileSettings.store)
                 .environment(client)
                 // What the next press of Generate will ask for. Built once and injected, so a

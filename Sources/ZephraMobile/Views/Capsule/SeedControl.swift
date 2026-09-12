@@ -4,12 +4,13 @@ import ZephraCore
 /// The noise seed, as `SeedFormat` spells it, with a shuffle for a fresh one; a tap on the
 /// label opens the sheet a seed is typed into.
 ///
-/// `SeedFormat.hex` always: the Mac's own type and its default there, and the only spelling the
-/// phone offers, since there is no Settings > General here to choose the decimal in. The whole
-/// number is in the accessibility label and in the sheet, because the whole number is what
-/// reproduces a picture.
+/// The spelling is `\.seedFormat` from the Settings tab, exactly as on the Mac: the short hex
+/// label by default, the whole number for the person who copies seeds between tools. The whole
+/// number is in the accessibility label and in the sheet whichever is chosen, because the whole
+/// number is what reproduces a picture.
 struct SeedControl: View {
     @Environment(PromptDraft.self) private var draft
+    @Environment(\.seedFormat) private var format
     /// Whether the sheet for typing a seed is up.
     @State private var isEntering = false
 
@@ -18,7 +19,7 @@ struct SeedControl: View {
             Button {
                 isEntering = true
             } label: {
-                Text(SeedFormat.hex.label(draft.settings.seed))
+                Text(format.label(draft.settings.seed))
                     .font(.callout.monospaced())
                     .foregroundStyle(.secondary)
             }

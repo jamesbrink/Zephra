@@ -9,9 +9,9 @@
 /// too, so a seed read off the screen under either setting is found by the search box.
 ///
 /// It lives in `ZephraCore` beside `SeedEntry`, which reads its spellings back, because both
-/// apps spell a seed: `ImageFacts` formats the Seed row off the view for the Mac, and the
-/// phone's capsule draws `hex` because that is the Mac's default and the only spelling a
-/// device without a General tab can choose. The raw value is a preference key in the Mac app.
+/// apps spell a seed and both let somebody choose which way: `ImageFacts` formats the Seed row
+/// off the view for the Mac, and the phone's capsule reads the same choice from its own
+/// Settings tab. The raw value is a preference key in either app.
 public enum SeedFormat: String, CaseIterable, Sendable, Codable {
     /// The leading eight hex digits, split in the middle: `7A3F·9C2E`.
     case hex

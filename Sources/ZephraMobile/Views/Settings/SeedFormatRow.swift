@@ -3,9 +3,9 @@ import ZephraCore
 
 /// Whether seeds are shown as the short hex label or as the whole number.
 ///
-/// Only the picker: nothing reads this key but the capsule and the inspectors that spell a
-/// seed, which is Item 2's wiring. The example beside the names is the same seed both ways,
-/// which says more than the names do.
+/// What reads it is `SeedFormatPreference`, once, at the root: everything that spells a seed
+/// takes `\.seedFormat` from the environment. The example beside the names is the same seed
+/// both ways, which says more than the names do.
 struct SeedFormatRow: View {
     @AppStorage(MobileSettings.seedFormat) private var format = MobileSettings.initialSeedFormat
 
