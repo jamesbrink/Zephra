@@ -438,11 +438,32 @@ async function claimGuestSlot(connectionId, room, publicKey) {
 
   await adoptLegacySlot(room, host);
 
+  if (await addGuestSlot(room, host.connectionId, connectionId)) {
+    return { host: host.connectionId };
+  }
+  // The cap refused. A slot may be a phantom: a guest whose `$disconnect` never
+  // ran (API Gateway does not promise it) and that nothing has addressed since,
+  // so nothing has met the 410 that would have freed it. Reconcile the set against
+  // the guest rows that actually exist and try once more; a room that is full of
+  // live phones is refused the same way after the check.
+  const live = new Set(rows.filter((peer) => peer.role === "guest").map((peer) => peer.connectionId));
+  const phantoms = guestSlots(host).filter((slot) => !live.has(slot));
+  for (const phantom of phantoms) {
+    await releaseGuestSlot(room, host.connectionId, phantom);
+  }
+  if (phantoms.length > 0 && (await addGuestSlot(room, host.connectionId, connectionId))) {
+    return { host: host.connectionId };
+  }
+  return { refusal: "room full" };
+}
+
+// Puts one guest on the host's row under the cap, answering whether it went in.
+async function addGuestSlot(room, hostConnectionId, connectionId) {
   try {
     await dynamo.send(
       new UpdateItemCommand({
         TableName: TABLE_NAME,
-        Key: { room: { S: room }, connectionId: { S: host.connectionId } },
+        Key: { room: { S: room }, connectionId: { S: hostConnectionId } },
         UpdateExpression: "ADD #guests :c",
         // The cap is checked where the write happens, so the last slot goes to one
         // guest and not to two. An absent set is a room with nobody in it.
@@ -456,15 +477,14 @@ async function claimGuestSlot(connectionId, room, publicKey) {
         },
       }),
     );
+    return true;
   } catch (error) {
     if (error.name === "ConditionalCheckFailedException") {
       // Either the room is full or the host left mid-join.
-      return { refusal: "room full" };
+      return false;
     }
     throw error;
   }
-
-  return { host: host.connectionId };
 }
 
 // The slot a host row written by the build before this one holds: one `guest`

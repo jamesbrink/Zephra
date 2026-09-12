@@ -736,6 +736,33 @@ const lineFor = (lines, at, result) =>
   check("a phone leaving frees a slot for it", back.a === "joined", back);
 }
 
+// 22b. A slot whose guest row is gone is a phantom: a phone whose $disconnect never
+// ran, which API Gateway does not promise. The cap must not count it forever.
+{
+  fresh();
+  const host = key();
+  const phones = Array.from({ length: 9 }, () => key());
+  await joinAs("H", host, host.room, "host", { allow: phones.map((phone) => phone.pub) });
+  for (let at = 0; at < 8; at += 1) {
+    await joinAs(`P${at}`, phones[at], host.room, "guest");
+  }
+  // P0 vanishes without a $disconnect: its row is swept by the TTL, its slot stays.
+  db.store.delete(`${host.room} P0`);
+  const before = db.store.get(`${host.room} H`);
+  check("the phantom still holds a slot", before.guests.SS.includes("P0"), before.guests);
+
+  const back = await joinAs("P8", phones[8], host.room, "guest");
+  check("a phone joining at the cap reclaims the phantom's slot", back.a === "joined", back);
+  const after = db.store.get(`${host.room} H`);
+  check("the phantom is out of the set", !after.guests.SS.includes("P0"), after.guests);
+  check("and the newcomer is in it", after.guests.SS.includes("P8"), after.guests);
+
+  const ninth = key();
+  await msg("H", { a: "allow", pubs: [...phones.map((phone) => phone.pub), ninth.pub] });
+  const full = await joinAs("P9", ninth, host.room, "guest");
+  check("a room full of live phones is still refused", full.a === "error" && full.reason === "room full", full);
+}
+
 // 23. A host row written by the build before this one holds its guest in `guest`
 // rather than in the set. It is read as one guest until the row is rewritten, and
 // the next join moves it into the set.
