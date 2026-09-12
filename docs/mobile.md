@@ -89,12 +89,12 @@ Four directories, by what a file is, the way the Mac's target is laid out.
   `Canvas/` and `Capsule/` are the two halves of the first, what the Mac is
   making and what asks it for more; `LibraryScreen` and `TodayScreen` are the
   Mac's library and its canvas sidebar; `SettingsScreen` is `PairedMacRow`,
-  `ConnectionRow`, `CacheRow` and `AboutRow`, a row to a file, so a later change
-  replaces one of them rather than editing a screen around it. `Shared/` is the
-  one exception to "a subfolder per surface", and it holds exactly what two
-  surfaces draw the same way: `ClipPlayerView`, `EntryThumbnail` and
-  `StopRunButton`, which the Today tab's running card and the capsule both
-  draw.
+  `ConnectionRow`, `AppearanceRow`, `RandomizeSeedRow`, `SeedFormatRow`,
+  `CacheRow` and `AboutRow`, a row to a file, so a later change replaces one of
+  them rather than editing a screen around it. `Shared/` is the one exception
+  to "a subfolder per surface", and it holds exactly what two surfaces draw the
+  same way: `ClipPlayerView`, `EntryThumbnail` and `StopRunButton`, which the
+  Today tab's running card and the capsule both draw.
 
 `MobileSelection` (`Support/`) is where the phone is looking: which tab is up,
 whether the capsule is showing its settings, and whether the prompt wants the
@@ -111,6 +111,35 @@ exists by the time the editor is on screen; a `@FocusState` can only be written
 by a view that is still there. So the wish outlives the tap —
 `expandCapsule(focusingPrompt:)` records it, `collapseCapsule()` clears it, and
 `PromptEditor` mirrors it into its own `@FocusState` both ways.
+
+### Settings
+
+`MobileSettings` (`Support/`) is the phone's whole preference layer — the Mac's
+`AppSettings` in a phone's shape, and deliberately the first thing built rather
+than grown one item at a time, so the surfaces landing after it (seed spelling,
+the seed rule, the rest) bind an `@AppStorage` key that already exists instead
+of inventing their own store.
+
+`store` is `.standard` for an ordinary launch. Under a frozen preview state —
+which is every screenshot *and* every hosted test, since the `ZephraMobile`
+scheme's test action always sets `ZEPHRA_PREVIEW_STATE` — it is a suite of its
+own, `io.zephra.ZephraMobile.preview`, with its persistent domain removed
+before anything reads it. Without that a screenshot taken with Appearance set
+to Dark would leave the next hosted test run reading Dark too, since
+`UserDefaults` suites persist to disk like any other; emptying the domain at
+each frozen launch is what makes a screenshot and a test start at the same
+defaults every time, the same problem `FreshStart` solves for the Mac's own
+preferences.
+
+Applying the choice is simpler here than on the Mac. `AppearanceApplier` sets
+`NSApplication.appearance`, because a `preferredColorScheme` on one scene would
+leave Settings, menus and alerts on the system's own appearance — the Mac has
+several windows. The phone has one `WindowGroup`, so `AppearancePreference`
+puts `preferredColorScheme` at the root and every sheet and alert under it
+inherits it for free. `AppearanceMode` itself is `ZephraStyle`'s rather than
+either app's own: it is one preference two apps apply their own way, and a
+type an iOS target and a macOS target can both compile is what a shared
+package is for.
 
 ### `LinkClient`, and how it stays connected
 

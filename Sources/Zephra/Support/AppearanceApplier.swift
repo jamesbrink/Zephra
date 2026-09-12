@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import ZephraStyle
 
 /// Puts the stored appearance preference onto the application, once at launch and again
 /// whenever the preference moves.

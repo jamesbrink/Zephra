@@ -45,6 +45,8 @@ struct ZephraMobileApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .modifier(AppearancePreference())
+                .defaultAppStorage(MobileSettings.store)
                 .environment(client)
                 // What the next press of Generate will ask for. Built once and injected, so a
                 // prompt survives a walk to the library and back; it holds no fact that came

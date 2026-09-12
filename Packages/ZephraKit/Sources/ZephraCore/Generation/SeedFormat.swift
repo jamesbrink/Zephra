@@ -18,6 +18,14 @@ public enum SeedFormat: String, CaseIterable, Sendable, Codable {
     /// The whole seed as a decimal number.
     case decimal
 
+    /// How the setting reads in a settings picker, on either app.
+    public var title: String {
+        switch self {
+        case .hex: "Short Hex"
+        case .decimal: "Number"
+        }
+    }
+
     /// How `seed` is shown in a row or on a chip under this setting.
     public func label(_ seed: UInt64) -> String {
         switch self {

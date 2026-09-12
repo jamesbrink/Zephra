@@ -641,7 +641,9 @@ Rules in `Support/`:
   actor: every door into the reference well hands `adoptReference` a closure.
 - `AppSettings` is the one list of preference keys; bind with `@AppStorage` at
   the picker, read elsewhere through its helpers. `AppearanceApplier` sets the
-  appearance on `NSApp` so Settings, menus and alerts follow.
+  appearance on `NSApp` so Settings, menus and alerts follow. `AppearanceMode`
+  itself is `ZephraStyle`'s, not this app's: the phone reads the same enum and
+  applies it through `preferredColorScheme` instead.
 - `CommandTarget` is what the file commands are about: the canvas's picture
   while the canvas shows one with a file, else the grid's focused selection,
   else nothing — no fallback from an empty selection to the picture behind it.
@@ -781,6 +783,15 @@ US-spelling check.
   the prompt with the keyboard up; `collapseCapsule()` — the chevron and the
   keyboard's Done — takes both down; a tap on the canvas picture drops focus
   alone. A frozen launch never asks for the keyboard.
+- `MobileSettings` (`Support/`) is the phone's one list of preference keys, the
+  Mac's `AppSettings` in a phone's shape: `store` is `.standard` for an ordinary
+  launch and a throwaway suite, emptied at launch, under a frozen preview state,
+  so a screenshot or a hosted test never inherits or pollutes a person's own
+  preferences. `AppearancePreference` reads its `appearance` key and applies
+  `preferredColorScheme` at the root — enough on a phone's one `WindowGroup`,
+  where the Mac's `AppearanceApplier` has to reach for `NSApplication.appearance`
+  instead. `AppearanceMode` itself lives in `ZephraStyle`, since both apps read
+  one preference and draw it their own way.
 - `LinkClient` is the one type a view may read the Mac through, taken from
   `@Environment(LinkClient.self)`: `pairedHost` is the whole pairing decision,
   and `snapshot`, `library`, `preview` and `connection` are the rest. A

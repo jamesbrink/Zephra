@@ -13,6 +13,11 @@ struct SettingsScreen: View {
                     PairedMacRow()
                     ConnectionRow()
                 }
+                Section("Appearance") { AppearanceRow() }
+                Section("Generation") {
+                    RandomizeSeedRow()
+                    SeedFormatRow()
+                }
                 Section("Storage") { CacheRow() }
                 Section("About") { AboutRow() }
             }
