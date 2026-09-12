@@ -17,6 +17,8 @@ extension RelayMessage: Codable {
         case fragment = "m", index = "i"
         case event, reason
         case allow, pubs, count, open
+        /// API Gateway's own word for itself, on the JSON it answers with in front of the relay.
+        case foreign = "message"
     }
 
     /// A flag as the relay spells it: present only when it is true, so a shut room says nothing
@@ -25,6 +27,11 @@ extension RelayMessage: Codable {
 
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        // A foreign message has no `a` at all — that absence is what it *is* — so it is written
+        // back exactly as the gateway wrote it and nothing of ours is added to it.
+        if case .foreign(let message) = self {
+            return try container.encode(message, forKey: .foreign)
+        }
         try container.encode(action, forKey: .action)
         switch self {
         case .hello, .ping, .pong: break
@@ -48,6 +55,7 @@ extension RelayMessage: Codable {
             try container.encodeIfPresent(index, forKey: .index)
             try container.encodeIfPresent(count, forKey: .nonce)
         case .peer(let event): try container.encode(event, forKey: .event)
+        case .foreign: break
         }
     }
 
@@ -55,6 +63,14 @@ extension RelayMessage: Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         func value<T: Decodable>(_ type: T.Type, _ key: CodingKeys) throws -> T {
             try container.decode(type, forKey: key)
+        }
+        // No `a` and a `message` is API Gateway answering for itself rather than the relay
+        // answering at all. It reads as `foreign` rather than throwing, because throwing here is
+        // a road that ends: the decode failure used to cost a whole session over one gateway
+        // hiccup in the middle of a picture.
+        guard container.contains(.action) else {
+            self = .foreign(message: try value(String.self, .foreign))
+            return
         }
         switch try container.decode(Action.self, forKey: .action) {
         case .hello: self = .hello
@@ -83,6 +99,7 @@ extension RelayMessage: Codable {
         case .peer: self = .peer(event: try value(RelayPeerEvent.self, .event))
         case .ping: self = .ping
         case .pong: self = .pong
+        case .foreign: self = .foreign(message: try value(String.self, .foreign))
         }
     }
 }

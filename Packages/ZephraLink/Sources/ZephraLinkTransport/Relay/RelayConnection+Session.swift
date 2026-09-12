@@ -78,6 +78,13 @@ extension RelayConnection {
             errorContinuation.yield(reason)
         case .allowed(let count):
             logger.debug("The relay now holds \(count, privacy: .public) allowed keys.")
+        case .foreign(let text):
+            // API Gateway answering for itself, in front of the relay. The frame that drew it is
+            // gone the same way a relay refusal's is, so it is said in the same two places and
+            // the road carries on: a decode that threw here took the session down over one
+            // gateway hiccup in the middle of a picture.
+            logger.error("The relay's gateway said: \(text, privacy: .public)")
+            errorContinuation.yield(text)
         case .hello, .challenge, .join, .joined, .allow, .ping, .pong: break
         }
     }

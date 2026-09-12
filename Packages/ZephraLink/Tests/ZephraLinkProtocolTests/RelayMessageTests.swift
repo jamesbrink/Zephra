@@ -78,6 +78,7 @@ struct RelayMessageTests {
             .peer(event: .joined),
             .ping,
             .pong,
+            .foreign(message: "Forbidden"),
         ]
         #expect(messages.count == RelayMessage.Action.allCases.count)
         for message in messages {
@@ -111,12 +112,31 @@ struct RelayMessageTests {
             (.peer(event: .left), #"{"a":"peer","event":"left"}"#),
             (.ping, #"{"a":"ping"}"#),
             (.pong, #"{"a":"pong"}"#),
+            // Not the relay's shape at all: API Gateway's own, which carries no `a`.
+            (.foreign(message: "Internal server error"),
+             #"{"message":"Internal server error"}"#),
         ]
         #expect(goldens.count == RelayMessage.Action.allCases.count)
         for (message, golden) in goldens {
             #expect(String(decoding: try LinkJSON.encode(message), as: UTF8.self) == golden)
             #expect(try LinkJSON.decode(RelayMessage.self, from: Data(golden.utf8)) == message)
         }
+    }
+
+    @Test("A message with no action but a message is the gateway's, not the relay's")
+    func theGatewaysOwnJSONIsReadRatherThanRefused() throws {
+        // API Gateway sits in front of the relay and answers for itself. Refusing to decode this
+        // threw, and a throw in the read loop takes the road down: one gateway hiccup in the
+        // middle of a picture cost the whole session rather than the one frame it swallowed.
+        #expect(
+            try LinkJSON.decode(
+                RelayMessage.self,
+                from: Data(#"{"message":"Forbidden","connectionId":"abc"}"#.utf8))
+                == .foreign(message: "Forbidden"))
+        #expect(
+            throws: (any Error).self,
+            "a message that is neither the relay's nor the gateway's is still refused"
+        ) { try LinkJSON.decode(RelayMessage.self, from: Data(#"{"hello":1}"#.utf8)) }
     }
 
     @Test("A signed join is ASCII text a 128 KB frame carries easily")

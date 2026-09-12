@@ -298,7 +298,10 @@ lifetime. `RelayConnection` speaks the relay's JSON over a
 new handshake. A payload whose base64 passes 24,000 bytes goes as `RelayFragment`
 slices (`m`, `i`, `n` on a `send`, which the relay forwards verbatim), because API
 Gateway allows one 32 KB frame and a sealed 64 KiB chunk is about 87 KB of base64;
-`RelayFragments` puts a set back together whatever order it arrives in.
+`RelayFragments` puts a set back together whatever order it arrives in. A
+message with a `message` and no `a` is API Gateway answering for itself rather
+than the relay, and it is `RelayMessage.foreign`, logged and carried up
+`relayErrors()` rather than failing the decode and ending the road.
 `RelayListener` serves **one guest at a time**, because the
 relay gives a host one socket and a frame on it carries no guest id. Several
 phones at once is a LAN feature. The relay admits a guest only when its signing

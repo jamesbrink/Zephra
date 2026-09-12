@@ -99,6 +99,10 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
         try await write(handshake.opening)
         while true {
             let message = try await read()
+            if case .foreign(let text) = message {
+                logger.error(
+                    "The relay's gateway answered the join with: \(text, privacy: .public)")
+            }
             let room = lock.withLock { (allow: state.allow, isOpen: state.isOpen) }
             switch try handshake.receive(message, allow: room.allow, open: room.isOpen) {
             case .send(let answer): try await write(answer)

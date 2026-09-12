@@ -54,10 +54,23 @@ public enum RelayMessage: Hashable, Sendable {
     case ping
     /// The answer to a ping.
     case pong
+    /// Something that is not the relay's at all: API Gateway's own JSON, which carries a
+    /// `message` and no `a`.
+    ///
+    /// The gateway sits in front of the relay and answers for itself — `{"message":"Forbidden"}`
+    /// when a route refuses, `{"message":"Internal server error"}` when the Lambda throws — and
+    /// nothing in the relay's own contract has that shape. Without a case for it the read failed
+    /// to decode and took the road down, so one bad invocation in the middle of a picture cost
+    /// the whole session instead of the one frame the gateway swallowed. It is carried up as a
+    /// road error, which is what the far end's gap will be about.
+    case foreign(message: String)
 
     /// The tag, which is also the case name.
+    ///
+    /// `foreign` is never written as `a` and never read from one: it is the *absence* of `a`,
+    /// and it is in this list so that every case has exactly one tag to be named by.
     public enum Action: String, Codable, Hashable, Sendable, CaseIterable {
-        case hello, challenge, join, joined, allow, allowed, error, send, peer, ping, pong
+        case hello, challenge, join, joined, allow, allowed, error, send, peer, ping, pong, foreign
     }
 
     /// Whether this message declares the room open to a guest that is on no list yet.
@@ -85,6 +98,7 @@ public enum RelayMessage: Hashable, Sendable {
         case .peer: .peer
         case .ping: .ping
         case .pong: .pong
+        case .foreign: .foreign
         }
     }
 }

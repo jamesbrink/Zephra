@@ -498,6 +498,18 @@ So `RelayConnection` logs it at error *and* yields it on `relayErrors()`, a
 stream beside `peerEvents()` that is empty for a road which refuses nothing, and
 the session over the road logs it again with the phone or the Mac it belongs to.
 
+**API Gateway also answers for itself**, in front of the relay and in its own
+shape: `{"message":"Forbidden"}` when a route refuses, `{"message":"Internal
+server error"}` when the Lambda throws. Nothing in the relay's contract has a
+`message` and no `a`, so the decode threw, and a throw in the read loop is
+`RelayError.malformed` and a road that ends — one gateway hiccup in the middle of
+a picture cost the whole session rather than the one frame it swallowed. So
+`RelayMessage.foreign(message:)` is the absence of `a` with a string `message`,
+and it goes the same two places a relay refusal does: the log at error, and
+`relayErrors()`. During the join it is logged and ignored, and `joinDeadline`
+still bounds the wait. Anything that is neither the relay's shape nor the
+gateway's is still refused.
+
 ### What a missing frame writes in the log
 
 Every place a frame can vanish says so at error, under `io.zephra`
@@ -509,7 +521,7 @@ is what this list is for.
 | `RelayConnection.write` | `link.relay` | the relay action, the byte count and the error, for any send that fails — a `try?` over one still logs here |
 | `RelayConnection.send` | `link.relay` | the frame's size and the error, before the road is taken down |
 | `RelayConnection.streamEnded` | `link.relay` | the socket's close code and the error, for a socket that went on its own |
-| `RelayConnection.dispatch` | `link.relay` | the relay's own reason for refusing a frame after the join |
+| `RelayConnection.dispatch` | `link.relay` | the relay's own reason for refusing a frame after the join, and API Gateway's own words when it answered instead of the relay |
 | `LinkSession`'s writer | `link.client` | a frame that never left the phone, with its size |
 | `CompanionSession`'s writer | `companion` | the same, from the Mac |
 | `LinkClient.lost` | `link.client` | the `FrameGap`, and that the world is being asked for again |

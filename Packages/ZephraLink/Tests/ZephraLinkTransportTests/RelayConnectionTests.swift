@@ -156,6 +156,29 @@ struct RelayConnectionTests {
         #expect(try await frames.next() == payload, "the road still carries")
     }
 
+    @Test("the gateway's own answer is carried up as a road error and leaves the road open")
+    func aForeignMessageIsNotFatal() async throws {
+        let relay = try FakeRelay()
+        defer { relay.stop() }
+        let identity = DeviceIdentity()
+        let road = RelayConnection(
+            url: try await relay.start(), identity: identity, room: identity.roomID, role: .guest)
+        defer { Task { await road.close() } }
+        try await road.start()
+        var refusals = road.relayErrors().makeAsyncIterator()
+        let frames = FrameReader(road.frames())
+
+        relay.push(.foreign(message: "Internal server error"))
+        #expect(await refusals.next() == "Internal server error", "the gateway's own words")
+
+        // The frame that drew it is gone — a gap for the far end to step over — but the road is
+        // not: failing to decode this used to end the session over one gateway hiccup.
+        let payload = Data([0x01, 0x02, 0x03])
+        try await road.send(payload)
+        #expect(try await frames.next() == payload, "the road still carries")
+        #expect(!road.isClosed)
+    }
+
     @Test("a write into a dead socket fails loudly rather than being swallowed")
     func aFailedWriteEndsTheRoad() async throws {
         let relay = try FakeRelay()

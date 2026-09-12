@@ -56,6 +56,11 @@ public struct RelayHandshake: Sendable {
             throw RelayError.refused(reason)
         case .pong, .ping:
             return .ignore
+        case .foreign:
+            // API Gateway answering for itself rather than the relay answering at all. It says
+            // nothing about this join either way, so the join goes on waiting and `joinDeadline`
+            // is what ends it; `RelayConnection` logs the gateway's words.
+            return .ignore
         case .hello, .join, .allow, .allowed, .send, .peer:
             throw RelayError.unexpected(message.action)
         }
