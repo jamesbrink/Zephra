@@ -1406,18 +1406,34 @@ updater reads what a ship leaves behind.
 - **Verify before copy, on the mounted image.** `hdiutil attach -nobrowse
   -readonly -noautoopen` on a mount point of ours, then `codesign --verify
   --deep --strict`, `spctl --assess --type execute` (Gatekeeper's own verdict,
-  which honours the stapled ticket with no network), the team identifier
-  through `SecCodeCopySelf` / `SecStaticCodeCreateWithPath` — skipped when our
-  own copy is ad-hoc, which `UpdateEligibility` has already refused anyway —
-  and the `Info.plist`'s identifier and `CFBundleVersion` against the manifest
+  which honours the stapled ticket with no network), the team identifier, and
+  the `Info.plist`'s identifier and `CFBundleVersion` against the manifest
   (`UpdateInstaller.acceptance`, pure and tested). `stapler` is Xcode's, not
-  macOS's, so it is never run in the app.
+  macOS's, so it is never run in the app. A `Zephra.app` on the image that is a
+  symbolic link is refused before any of them, since every one of those tools
+  would follow it.
+- **The team is `AppFacts.teamIdentifier`, a constant, and the check fails
+  closed.** `spctl` passes any notarized Developer ID app, so an app from
+  another team carrying Zephra's identifier and build would clear it; the team
+  identifier is what closes that, and it is compared against a written-down
+  literal rather than against whatever `SecCodeCopySelf` says this process is.
+  Every way that call can answer nothing looks like "ad-hoc", and a check that
+  stands itself down when it cannot run is not a check. A candidate with no
+  readable team is refused; only a Debug launch driving its own feed
+  (`UpdateEnvironment.isOverridden`) may take an unsigned one, and Release
+  never can, since the hooks are `#if DEBUG`.
 - **Rename aside, then `ditto`.** The running bundle becomes
   `Zephra.previous.app` — a running bundle may be renamed, since its executable
   is mapped by inode — and `ditto` copies the new one into its place, because
   it carries extended attributes, resource forks and symbolic links that a
   plain copy drops. The copy is `codesign --verify`ed, and any failure removes
-  it and moves the original back. A parent folder that cannot be written to is
+  it and moves the original back — and *checks that the move landed*, since a
+  partial copy that will not delete leaves a Mac with no `Zephra.app` at all;
+  that one case names the aside path so the person can rename it themselves.
+  **Quit waits for that window.** `AppLifecycle` consults an injected
+  `isInstalling` closure through `QuitReply`, so a Command Q between the rename
+  and the end of `ditto` is deferred rather than leaving only
+  `Zephra.previous.app`. A parent folder that cannot be written to is
   refused before anything moves, with the drag-it-yourself sentence and Show in
   Finder on the verified image. No quarantine handling:
   `LSFileQuarantineEnabled` is unset, a mounted image's files carry no such
@@ -1435,12 +1451,18 @@ updater reads what a ship leaves behind.
   hours, and `start()` returns at once for a frozen `ZEPHRA_PREVIEW_STATE`
   build, for a copy `UpdateEligibility` refuses, and while Settings > General's
   "Check for new versions of Zephra automatically" is off — **a preview build
-  reaches no network at all**, the rule `startCompanion` follows.
+  reaches no network at all**, the rule `startCompanion` follows, and
+  `checkNow` refuses there too, so the menu item cannot go round it. The
+  preference is re-read at every tick, so switching it off stops the checking
+  rather than only the next launch's.
 - The banner is `RootView`'s `.safeAreaInset(edge: .top)`, a `ZephraChrome.barHeight`
   strip with a determinate `ProgressView` and no repeating animation; Update Now
   is greyed by `UpdateDecision.installBlockedReason` (downloading, building,
   generating, upscaling, cancelling, or a transfer in flight) with the reason as
-  its tooltip. Later snoozes the build **for the session only**: with no version
+  its tooltip. Cancel stands beside the bar while the bytes come down, and only
+  there: the download session does not wait for connectivity, so a Mac off the
+  network fails with a sentence rather than sitting on a bar at zero, and once
+  the swap has started there is nothing safe to stop. Later snoozes the build **for the session only**: with no version
   bumps, a persisted skip is a skip of every later ship.
 - Zephra > Check for Updates… reports through `ModalHost.report`, except a
   release found, which brings the app forward to the banner already saying so.

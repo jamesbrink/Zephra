@@ -319,6 +319,22 @@ it, and neither says the signer is us, which is why the team identifier is read
 through the Security framework as well. A Developer ID certificate is something
 anyone can buy.
 
+That last check is written to fail closed, and the first draft of it was not.
+It asked `SecCodeCopySelf` who signed *this* process and skipped the comparison
+when the answer was nil, reasoning that nil meant an ad-hoc `make build`. But
+nil is also what every failure of that call and of
+`SecCodeCopySigningInformation` answers, and none of them is distinguishable
+from ad-hoc — so on a Mac where the Security framework declined to answer, a
+notarized app from another team carrying Zephra's bundle identifier and the
+published build number would have passed `spctl`, passed the acceptance, and
+been copied over `/Applications/Zephra.app`. It needed a compromised bucket as
+well, which is why it was a should-fix rather than an emergency, but a check
+that stands itself down when it cannot run is not a check. The team is now
+`AppFacts.teamIdentifier`, a literal, and a candidate with no readable team is
+refused. The Debug feed override may take an unsigned candidate — that is what
+the hand run installs — and Release cannot reach that path at all, since
+`UpdateEnvironment.current` reads the hooks only under `#if DEBUG`.
+
 **Why no quarantine flag is set or cleared.** The usual reason an updater
 touches `com.apple.quarantine` is that it downloaded a file through an API that
 sets one. `LSFileQuarantineEnabled` is not set in `Info.plist`, so nothing
@@ -340,7 +356,20 @@ The rename is what makes it reversible. A running bundle may be renamed on APFS
 because the executable is mapped by inode, not by path, so `Zephra.previous.app`
 is the running app, still running, under another name; if the copy or its
 signature check fails, the half-copy goes and the original comes back under its
-own name with nothing lost. `ditto` rather than `FileManager.copyItem` because
+own name with nothing lost — and the rollback is *checked*, because the one way
+it can fail is the one that matters: a partial copy that will not delete makes
+the move back fail too, and the person is then told the update "could not be put
+in place" while their Applications folder holds no Zephra at all. There is
+nothing to do for them automatically at that point, so the sentence names the
+aside path and what to rename it to.
+
+The same window is why Quit is deferred. Between the rename and the end of
+`ditto` there is no `Zephra.app` where there was one, and Command Q lands
+wherever it lands; `AppLifecycle` already knew how to hold a quit open for the
+store and the index, so it holds one open for this too, through an injected
+`isInstalling` closure and the pure `QuitReply`. The wait is seconds and it is
+not cancellable, which is the right trade: stopping half way is the outcome the
+deferral exists to prevent. `ditto` rather than `FileManager.copyItem` because
 an app bundle is not only its files: extended attributes, resource forks and
 symbolic links all matter, `create-dmg.sh` already learned that lesson on the
 volume icon, and a copy that quietly drops one of them is an app that will not
