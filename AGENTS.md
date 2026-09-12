@@ -747,12 +747,10 @@ US-spelling check.
   write, and the library's "Use as Reference" is one of them.
 - `LinkClient` is the one type a view may read the Mac through, taken from
   `@Environment(LinkClient.self)`: `pairedHost` is the whole pairing decision,
-  and `snapshot`, `library`, `preview` and `connection` are the rest. A Mac that
-  withdraws the pairing is let go by the client itself — a `revoked` frame on a
-  live session, or `notPaired` from a Mac this phone was paired with on a
-  reconnect, over the local network or the relay alike — and `farewell` keeps
-  the reason for the pairing screen, since the Mac's own refusal is one plain
-  sentence on purpose and only this phone knows it was once let in. A view that
+  and `snapshot`, `library`, `preview` and `connection` are the rest. A
+  `revoked` frame, or `notPaired` from the Mac this phone is paired with, makes
+  the client forget the Mac and set `farewell`, which the pairing screen shows;
+  the Mac's refusal itself stays one plain sentence. A view that
   holds a fact of its own that came over the link is a view that can disagree
   with the Mac.
 - `ZephraMobileApp` is the only file that knows how a Mac is reached: it builds
@@ -761,12 +759,10 @@ US-spelling check.
   `NetworkLinkRoads`, and `LinkReconnect` (`Support/`) drives it — `begin()` on
   `scenePhase == .active`, `end()` on `.background`, and `LinkBackoff`
   between a failure or a dropped session and the next attempt, while active.
-  One attempt is the local network then the relay: `LocalRoadRace` dials every
-  stored address and every Bonjour match in the room at once inside
-  `LinkClient.lanWindow` (3 s) and takes the first to open, so a phone away
-  from home reaches the relay in under a second rather than after five
-  ten-second dials. `pair(with:)` is the same race with the code's secret, and
-  `PairingProgress` says which road the screen is on the whole time.
+  One attempt is `LocalRoadRace` — every stored address and Bonjour match in
+  the room dialled at once inside `LinkClient.lanWindow` (3 s), first to open
+  taken — then the relay; `pair(with:)` is the same with the code's secret, and
+  `PairingProgress` shows the road in progress.
 - `PromptDraft` (`Support/`) is the phone's capsule: the settings, the model, the
   picture in the well and the seeds one press is worth, injected beside the
   client and the one object here holding something the Mac did not say. It seeds
@@ -814,9 +810,8 @@ US-spelling check.
   there), a `zephra://pair` link. Everything it throws is a `LinkError` with a
   sentence, and an expired code is refused here rather than at the far end. The
   screen sends people to **Settings > Companion** on the Mac, which is where the
-  code is. The camera reads each code **once** (`ScanGate`) and is paused while
-  `client.connection.isBusy`: a scanner restarted by a SwiftUI update reports
-  the code in frame again, and a second `pair(with:)` closes the first.
+  code is. The camera hands each code on **once** (`ScanGate`) and is paused
+  while `client.connection.isBusy`; a second `pair(with:)` closes the first.
 - The Library tab is the Mac's library, cached. `Support/Cache/` is three stores
   — `EntryStore` (a JSON file per picture under Application Support, the wire's
   own entry written back byte for byte), `ThumbnailStore` (the JPEG as it
@@ -1209,12 +1204,11 @@ Makefile targets:
 - `website-build` — static export of `product-mockups/`. `deploy-production`
   — that, then `scripts/deploy-website.sh` to `zephra-site-urandom-io` with a
   CloudFront invalidation; `deploy-website.yml` runs it on every push to `main`
-  that touches `product-mockups/`, and by hand from the Actions tab.
+  touching `product-mockups/`.
 - `release-upload` — `scripts/publish-download.sh`: upload the DMG, copy the
   alias, verify the public download, write `product-mockups/app/release.json`.
-  The website's Download button links the `Zephra-latest.dmg` alias
-  (`product-mockups/app/download.ts`), not the pinned name, so it serves the
-  newest build without a site deploy; the manifest gives the page its version.
+  The site's Download button links the `Zephra-latest.dmg` alias
+  (`product-mockups/app/download.ts`); the manifest only gives it the version.
 - `prefetch`, `prefetch-flux2`, `prefetch-qwen`, `prefetch-ltx2`,
   `prefetch-wan` — `hf download` a release to where the app would have written
   it (`MODELS_DIR`, `QWEN_MODELS`, `LTX2_MODELS`, `WAN_MODELS`); the Qwen, LTX
@@ -1259,11 +1253,9 @@ so one push is one build number everywhere. Two tiers of gate: every push runs
 `full_gates: true` — locally before every merge as always. A push touching only
 `docs/**`, any `.md`, or `product-mockups/**` ships nothing, and
 `release-commit`'s message carries `[skip ci]`, so a release cannot start
-another. The website is deployed by `deploy-website.yml` instead, on every push
-to `main` that touches `product-mockups/`, with the same OIDC role and a
-CloudFront invalidation; a release needs no site deploy, since the Download
-button links the `Zephra-latest.dmg` alias. `make ship` remains the by-hand
-path and is unchanged.
+another. The website is `deploy-website.yml`'s, on every push touching
+`product-mockups/`, and a release needs no site deploy. `make ship` remains the
+by-hand path and is unchanged.
 
 `ZephraQuantize` safety: `--family` is required with no default; `BITS` other
 than 4 is refused unless `--out` is explicit, since every default name says
@@ -1740,8 +1732,7 @@ Full detail: `docs/debugging.md`.
 ## Website deployment destinations
 
 Website iterations and modifications go to ChatGPT Sites first. Production is
-`deploy-website.yml`: every push to `main` touching `product-mockups/` uploads the
-static export to `zephra-site-urandom-io` and invalidates CloudFront (since
-2026-09-12; `make deploy-production` is the same by hand). Notarized app releases
-belong in `zephra-assets-urandom-io/releases/`. Keep both deployments on the same
-page source.
+`zephra-site-urandom-io`, deployed by `deploy-website.yml` on every push to `main`
+touching `product-mockups/` (`make deploy-production` by hand). Notarized app
+releases belong in `zephra-assets-urandom-io/releases/`. Keep both deployments on
+the same page source.
