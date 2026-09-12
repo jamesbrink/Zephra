@@ -36,8 +36,14 @@ public enum Command: Hashable, Sendable {
     case animate(name: String)
     /// Send back a thumbnail of this picture, `pixels` on its long edge.
     case fetchThumbnail(name: String, pixels: Int)
-    /// Send back this picture's file, or a clip's MP4.
-    case fetchFile(name: String)
+    /// Send back this picture's file, or a clip's MP4, from `fromChunk` onwards.
+    ///
+    /// A whole file is hundreds of chunks over the relay and thousands for a clip, so a transfer
+    /// a hole stopped at chunk 630 used to cost all 630 again. `fromChunk` is what the asker
+    /// already holds, and it is still safe to repeat: the Mac reads the same file and sends the
+    /// same tail, and a Mac too old to know the key sends the whole thing from zero, which the
+    /// asker's reassembly starts fresh on.
+    case fetchFile(name: String, fromChunk: UInt32 = 0)
     /// Send back a window onto the library.
     case libraryPage(offset: Int, limit: Int)
 }

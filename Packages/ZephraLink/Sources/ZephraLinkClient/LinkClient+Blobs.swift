@@ -4,31 +4,6 @@ import ZephraLinkProtocol
 /// The bytes that do not fit in JSON: thumbnails and files coming in, a reference picture
 /// going out.
 extension LinkClient {
-    /// A command whose answer is bytes: the reply announces the blob and the chunks follow.
-    ///
-    /// A transfer a hole in the stream swallowed is asked for again, once. The announcement is
-    /// answered before its chunks, so `request`'s own retry cannot cover this half: the reply
-    /// arrived and it is the bytes behind it that went missing.
-    public func fetchBlob(_ command: Command) async throws -> Data {
-        guard !isFrozen else { throw LinkClientError.notConnected }
-        do {
-            return try await announced(command)
-        } catch let error as LinkClientError where error.isWorthRepeating {
-            logger.notice(
-                "A \(command.kind.rawValue, privacy: .public) lost its bytes; asking once more.")
-            return try await announced(command)
-        }
-    }
-
-    /// One attempt at one transfer: the reply that announces it, then the bytes it named.
-    private func announced(_ command: Command) async throws -> Data {
-        switch try await request(command) {
-        case .blob(let start): return try await blob(start.blobID)
-        case .error(let error): throw error
-        case .ok, .queued, .entries: throw LinkClientError.unexpectedReply
-        }
-    }
-
     /// A blob the Mac has said is coming, which is the only kind whose chunks are kept.
     ///
     /// Opened here, where the announcement is read, rather than where the request that asked for
@@ -39,8 +14,18 @@ extension LinkClient {
     /// `wanted` is the answer to a request this phone made, and is **not** in `blobLimit`'s count:
     /// the limit bounds what a Mac can make this phone hold unasked, and a grid announcing five
     /// thumbnails used to evict the forty-megabyte clip somebody was waiting on.
-    func announce(_ start: BlobStart, wanted: Bool = false) {
-        blobs[start.blobID] = BlobReassembly(blobID: start.blobID, byteCount: start.byteCount)
+    ///
+    /// `resuming` is what an earlier attempt at the same file got to, where this announcement is
+    /// the answer to a request that asked to carry on. The file is the same file and its
+    /// `byteCount` is the whole of it either way; only the chunks are a tail.
+    func announce(_ start: BlobStart, wanted: Bool = false, resuming: BlobResumption? = nil) {
+        if let resuming, resuming.byteCount == start.byteCount {
+            blobs[start.blobID] = BlobReassembly(
+                blobID: start.blobID, byteCount: start.byteCount, resuming: resuming.bytes,
+                from: resuming.nextIndex)
+        } else {
+            blobs[start.blobID] = BlobReassembly(blobID: start.blobID, byteCount: start.byteCount)
+        }
         timers[start.blobID] = expire(start.blobID, after: LinkClient.blobIdleTimeout)
         guard !wanted else { return }
         blobOrder.removeAll { $0 == start.blobID }
@@ -65,7 +50,13 @@ extension LinkClient {
         guard var assembly = blobs[chunk.blobID] else {
             return logger.notice("A chunk arrived for a transfer the Mac never announced.")
         }
-        guard chunk.index == assembly.nextIndex, assembly.chunkCount ?? chunk.count == chunk.count
+        // An index of 0 is not out of turn however far in the transfer is: it is a sender that
+        // was asked for a tail and is sending the whole file, or a duplicate first chunk, and
+        // `accept` is the one place that tells those two apart.
+        guard
+            chunk.index == 0
+                || (chunk.index == assembly.nextIndex
+                    && assembly.chunkCount ?? chunk.count == chunk.count)
         else {
             logger.notice("A hole in the stream cost a transfer its bytes; the caller asks again.")
             return fail(chunk.blobID, with: LinkClientError.lost)

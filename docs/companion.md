@@ -154,6 +154,23 @@ the byte count and the mime; the bytes follow as chunk frames.
   chunk out of its turn is what a hole in the stream leaves behind, and the phone
   tells that apart from a sender that is misbehaving — the first fails the
   transfer as `lost` and is asked again, the second keeps its refusal.
+- **A file is asked for from where the last attempt got to.**
+  `Command.fetchFile(name:fromChunk:)` names the first chunk the phone still
+  needs; `LinkClient.fetchBlob` loops at most `blobAttempts` (4) times with
+  `LinkBackoff` between, and `BlobReassembly(blobID:byteCount:resuming:from:)`
+  opens the next attempt's transfer over the bytes the last one got. Over the
+  relay a 6 MB picture is ninety-odd chunks and a 40 MB clip two and a half
+  thousand, and one lost frame costs the transfer it was in: asking for the whole
+  file again on every hole meant a large clip finished only by luck, since each
+  attempt got as far as the next lost frame and started over. The whole file is
+  still announced whole — that is what the phone completes against — and the Mac
+  reads the same file and sends the same bytes, so the command stays safe to
+  repeat. Compatibility is in the encoding: `fromChunk` is written only when it is
+  past zero and read as zero when absent, so a Mac built before this reads the
+  command it always read and sends the whole file, and a chunk arriving at index 0
+  makes the phone's reassembly start fresh. Only `fetchFile` resumes — a thumbnail
+  is a chunk or two, and asking for the rest of one would be a round trip to save
+  a round trip.
 - **A transfer's clock is idle time.** `LinkClient.blobIdleTimeout` is fifteen
   seconds, re-armed by every chunk that lands and expiring as `timedOut`. It was
   two minutes from the announcement, which a 40 MB clip over a paced relay road

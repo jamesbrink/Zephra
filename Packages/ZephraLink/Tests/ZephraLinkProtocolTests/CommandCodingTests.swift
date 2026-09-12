@@ -47,6 +47,26 @@ struct CommandCodingTests {
                 as: UTF8.self) == #"{"kind":"libraryPage","limit":20,"offset":40}"#)
     }
 
+    @Test("A file asked for from the top says nothing about where, and a tail says exactly where")
+    func fetchFileSpellsOnlyATail() throws {
+        // The key is omitted at zero and read as zero when absent, so a Mac built before tails
+        // existed reads the command it always read and sends the whole file.
+        #expect(
+            String(decoding: try LinkJSON.encode(Command.fetchFile(name: "a.png")), as: UTF8.self)
+                == #"{"kind":"fetchFile","name":"a.png"}"#)
+        #expect(
+            String(
+                decoding: try LinkJSON.encode(Command.fetchFile(name: "a.mp4", fromChunk: 630)),
+                as: UTF8.self) == #"{"fromChunk":630,"kind":"fetchFile","name":"a.mp4"}"#)
+        #expect(
+            try LinkJSON.decode(
+                Command.self, from: Data(#"{"kind":"fetchFile","name":"a.png"}"#.utf8))
+                == .fetchFile(name: "a.png", fromChunk: 0))
+        #expect(
+            try LinkFixtures.roundTrip(Command.fetchFile(name: "a.mp4", fromChunk: 630))
+                == .fetchFile(name: "a.mp4", fromChunk: 630))
+    }
+
     @Test("Every reply survives being written and read back")
     func repliesRoundTrip() throws {
         let replies: [Reply] = [

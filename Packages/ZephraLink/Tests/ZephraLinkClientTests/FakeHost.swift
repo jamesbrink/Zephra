@@ -28,6 +28,11 @@ final class FakeHost {
     /// The state a `resync` is answered with, behind its `.ok`. Nil for a Mac that answers the
     /// command and sends nothing after it.
     var world: StateSnapshot?
+    /// A Mac too old to know `fromChunk`, which sends the whole file however far in it was asked
+    /// to start.
+    var ignoresFromChunk = false
+    /// The chunk each `fetchFile` asked to start at, in the order they were asked.
+    private(set) var sentFromChunk: [UInt32] = []
 
     private var secret: Data?
     private var known: Set<Data>
@@ -130,10 +135,21 @@ final class FakeHost {
             try await send(.envelope(Envelope.encoding(world, kind: .snapshot)))
         }
         if case .blob(let start) = answer, let payload {
-            for piece in BlobChunker.chunks(of: payload, blobID: start.blobID) {
+            // The whole file, minus what the phone said it already holds. The announcement still
+            // names the whole of it, which is what the phone completes against.
+            let pieces = BlobChunker.chunks(of: payload, blobID: start.blobID)
+            let from = ignoresFromChunk ? 0 : Int(Self.fromChunk(of: command))
+            sentFromChunk.append(Self.fromChunk(of: command))
+            for piece in pieces.dropFirst(from < pieces.count ? from : 0) {
                 try await send(.chunk(piece))
             }
         }
+    }
+
+    /// Where a command asked the file to start, which is zero for anything but a `fetchFile`.
+    private static func fromChunk(of command: Command) -> UInt32 {
+        guard case .fetchFile(_, let from) = command else { return 0 }
+        return from
     }
 
     /// What this Mac answers a command with when the test has not said.

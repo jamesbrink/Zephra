@@ -25,6 +25,10 @@ final class ShufflingConnection: LinkConnection, @unchecked Sendable {
     /// is that, made deterministic.
     private var dropCountdown: Int?
     private var dropped = 0
+    /// One frame in this many is lost, for a road that keeps losing them rather than one that
+    /// lost one. Nil for a road that drops nothing.
+    private var everyNth: Int?
+    private var seen = 0
 
     /// How many frames were let past the one before them, so a test can say it really happened.
     var swapCount: Int { lock.withLock { swaps } }
@@ -34,6 +38,11 @@ final class ShufflingConnection: LinkConnection, @unchecked Sendable {
 
     /// Loses one frame: the next to arrive, or the one after `skipping` of them.
     func dropFrame(after skipping: Int = 0) { lock.withLock { dropCountdown = skipping } }
+
+    /// Loses one frame in every `n`, for as long as the road carries anything — which is a road
+    /// under load rather than a road with one bad moment, and the shape a whole file has to
+    /// cross.
+    func dropEvery(_ n: Int) { lock.withLock { everyNth = n } }
 
     /// Wraps one end of a road.
     init(_ inner: any LinkConnection) {
@@ -63,6 +72,11 @@ final class ShufflingConnection: LinkConnection, @unchecked Sendable {
     /// Whether this frame is the one to lose, counting down to it as frames go past.
     private func swallows() -> Bool {
         lock.withLock {
+            seen += 1
+            if let everyNth, everyNth > 0, seen % everyNth == 0 {
+                dropped += 1
+                return true
+            }
             guard let countdown = dropCountdown else { return false }
             guard countdown == 0 else {
                 dropCountdown = countdown - 1

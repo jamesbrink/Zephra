@@ -38,10 +38,19 @@ extension CompanionSession {
     ///
     /// The announcement is the reply, so a phone holding the request open sees it close; the
     /// chunks follow under the id it names. Empty data is one empty chunk, never none.
-    func sendBlob(_ data: Data, mime: String, to request: UUID) throws {
+    ///
+    /// `from` is the first chunk to send, for a phone asking to carry on rather than to start
+    /// again: over the relay a whole file is hundreds of chunks and a clip thousands, so a
+    /// transfer a hole stopped at 630 used to cost all 630 again. The announcement still names
+    /// the **whole** file's `byteCount`, which is what the phone completes against, and the
+    /// bytes are read from the same file either way, so the command stays safe to repeat. A
+    /// `from` past the end is a file that has changed underneath the asker, and sends the whole
+    /// thing.
+    func sendBlob(_ data: Data, mime: String, to request: UUID, from: UInt32 = 0) throws {
         let start = BlobStart(byteCount: data.count, mime: mime)
+        let chunks = BlobChunker.chunks(of: data, blobID: start.blobID)
         try reply(.blob(start), to: request)
-        for chunk in BlobChunker.chunks(of: data, blobID: start.blobID) {
+        for chunk in chunks.dropFirst(Int(from) < chunks.count ? Int(from) : 0) {
             try send(.chunk(chunk))
         }
     }

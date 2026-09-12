@@ -28,9 +28,15 @@ extension LinkClient {
     }
 
     /// One attempt at one command, under an envelope id of its own.
-    private func ask(_ command: Command) async throws -> Reply {
+    ///
+    /// `beforeSending` is handed that id before anything can answer it, which is how a transfer
+    /// that is carrying on from where it got to says so: the reply's announcement is opened on
+    /// this same actor and needs to find what it is resuming already filed under the id it is a
+    /// reply to.
+    func ask(_ command: Command, beforeSending: (UUID) -> Void = { _ in }) async throws -> Reply {
         guard session?.channel != nil else { throw LinkClientError.notConnected }
         let envelope = try Envelope.encoding(command, kind: .request)
+        beforeSending(envelope.id)
         return try await withCheckedThrowingContinuation { continuation in
             pending[envelope.id] = continuation
             timers[envelope.id] = expire(envelope.id, after: requestTimeout)
@@ -57,8 +63,14 @@ extension LinkClient {
     func fail(_ id: UUID, with error: any Error) {
         timers.removeValue(forKey: id)?.cancel()
         pending.removeValue(forKey: id)?.resume(throwing: error)
+        resumptions.removeValue(forKey: id)
+        // What the transfer got to is kept for whoever asks again, so the next attempt asks for
+        // the tail rather than the whole file. Nothing is kept for a transfer that ended well or
+        // never started.
+        if let assembly = blobs.removeValue(forKey: id), let resumption = BlobResumption(assembly) {
+            salvaged[id] = resumption
+        }
         blobWaiters.removeValue(forKey: id)?.resume(throwing: error)
-        blobs.removeValue(forKey: id)
         blobOrder.removeAll { $0 == id }
         arrivedBlobs.removeValue(forKey: id)
     }
@@ -78,6 +90,8 @@ extension LinkClient {
         blobs.removeAll()
         blobOrder.removeAll()
         arrivedBlobs.removeAll()
+        salvaged.removeAll()
+        resumptions.removeAll()
         for continuation in waiting { continuation.resume(throwing: error) }
         for continuation in blobbed { continuation.resume(throwing: error) }
     }

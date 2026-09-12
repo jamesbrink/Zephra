@@ -35,7 +35,9 @@ extension LinkClient {
             // The announcement is opened before the request that asked for it is resumed: the
             // chunks behind it are the next frames on this same stream. It is `wanted`, so the
             // limit on unsolicited transfers cannot evict it.
-            if case .blob(let start) = reply { announce(start, wanted: true) }
+            if case .blob(let start) = reply {
+                announce(start, wanted: true, resuming: resumptions.removeValue(forKey: id))
+            }
             answer(id, with: reply)
         case .blobStart:
             guard let start = decode(BlobStart.self, from: envelope) else { return }

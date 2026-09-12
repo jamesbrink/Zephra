@@ -70,11 +70,11 @@ struct RelayConnectionTests {
         let relay = try FakeRelay()
         defer { relay.stop() }
         let identity = DeviceIdentity()
-        // Two hundred a second with two in hand, so six slices are four waits and the arithmetic
-        // is in tens of milliseconds rather than the seconds a real road's rate would cost.
+        // A hundred a second with two in hand, so six slices are four waits of ten milliseconds
+        // each rather than the seconds a real road's rate would cost.
         let road = RelayConnection(
             url: try await relay.start(), identity: identity, room: identity.roomID, role: .guest,
-            cadence: RelayCadence(messagesPerSecond: 200, burst: 2))
+            cadence: RelayCadence(messagesPerSecond: 100, burst: 2))
         defer { Task { await road.close() } }
         try await road.start()
         let frames = FrameReader(road.frames())
@@ -86,8 +86,8 @@ struct RelayConnectionTests {
         let arrivals = relay.sendArrivals
         #expect(arrivals.count == 6, "six slices")
         guard let first = arrivals.first, let last = arrivals.last else { return }
-        // Four of the six had to wait for a token; at two hundred a second that is 20 ms.
-        #expect(last - first >= .milliseconds(18), "the tail of a transfer waited its turn")
+        // Four of the six had to wait for a token; at a hundred a second that is 40 ms.
+        #expect(last - first >= .milliseconds(25), "the tail of a transfer waited its turn")
     }
 
     @Test("a lossy, reordering relay costs the frames it swallowed and nothing else")

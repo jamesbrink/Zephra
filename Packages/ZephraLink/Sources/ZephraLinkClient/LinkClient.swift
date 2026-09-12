@@ -28,6 +28,10 @@ public final class LinkClient {
     /// Mac can make this phone hold, and the grid announcing five thumbnails used to evict the
     /// 40 MB clip somebody was waiting on.
     public static let blobLimit = 4
+    /// How many times one `fetchBlob` asks before it gives up. Each attempt after the first
+    /// carries on from the chunk the one before it reached, so four attempts is four holes
+    /// survived rather than four whole files.
+    public static let blobAttempts = 4
     /// How long the local network gets before the relay is tried: every stored address and every
     /// Mac Bonjour turns up in the room are dialled at once inside it (`LocalRoadRace`), and a
     /// Mac on the same network answers in a fraction of it.
@@ -72,6 +76,14 @@ public final class LinkClient {
     @ObservationIgnored var blobOrder: [UUID] = []
     @ObservationIgnored var blobWaiters: [UUID: CheckedContinuation<Data, any Error>] = [:]
     @ObservationIgnored var arrivedBlobs: [UUID: Data] = [:]
+    /// What survived of a transfer that stopped, by the blob it was, until the attempt that was
+    /// waiting on it picks it up. `arrivedBlobs`' shape and for its reason: the failure and the
+    /// `await` for it are two turns of the main actor either way round.
+    @ObservationIgnored var salvaged: [UUID: BlobResumption] = [:]
+    /// What a request in flight is asking to carry on from, by the envelope that asked. Read
+    /// where the reply's announcement opens the transfer, which is the only place that knows the
+    /// new blob's id and the old blob's bytes at the same moment.
+    @ObservationIgnored var resumptions: [UUID: BlobResumption] = [:]
     @ObservationIgnored var timers: [UUID: Task<Void, Never>] = [:]
     /// The pull reading the library across, one per session.
     @ObservationIgnored var libraryPull: Task<Void, Never>?

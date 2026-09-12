@@ -91,6 +91,46 @@ struct BlobTransferTests {
         #expect(throws: LinkError.self) { try reassembly.accept(chunks[0]) }
     }
 
+    @Test("A transfer resumed part way through takes only the chunks it has not got")
+    func aResumedTransferTakesTheTail() throws {
+        let blob = Data((0..<200_000).map { UInt8($0 % 251) })
+        let chunks = BlobChunker.chunks(of: blob)
+        let half = Data(chunks[0].bytes + chunks[1].bytes)
+        var reassembly = BlobReassembly(
+            blobID: chunks[0].blobID, byteCount: blob.count, resuming: half, from: 2)
+        #expect(reassembly.nextIndex == 2)
+
+        var finished: Data?
+        for chunk in chunks.dropFirst(2) { finished = try reassembly.accept(chunk) }
+        #expect(finished == blob, "the tail and what it was resumed onto are the whole file")
+    }
+
+    @Test("A sender that starts at the beginning anyway is followed rather than refused")
+    func anIndexZeroChunkStartsFresh() throws {
+        // A Mac too old to know `fromChunk` sends the whole file however far in it was asked to
+        // start, and refusing every chunk of it would be worse than the round trip it saved.
+        let blob = Data((0..<200_000).map { UInt8($0 % 251) })
+        let chunks = BlobChunker.chunks(of: blob)
+        var reassembly = BlobReassembly(
+            blobID: chunks[0].blobID, byteCount: blob.count,
+            resuming: Data(chunks[0].bytes + chunks[1].bytes), from: 2)
+
+        var finished: Data?
+        for chunk in chunks { finished = try reassembly.accept(chunk) }
+        #expect(finished == blob)
+    }
+
+    @Test("A resumption onto a file that has changed length is dropped, not spliced")
+    func aResumptionOntoAnotherFileIsDropped() throws {
+        // The chunk count follows the byte count, so a file whose length moved is a file whose
+        // count moved: one rule covers both.
+        let chunks = BlobChunker.chunks(of: Data(count: 200_000))
+        let reassembly = BlobReassembly(
+            blobID: chunks[0].blobID, byteCount: 100_000, resuming: Data(count: 200_000), from: 2)
+        #expect(reassembly.nextIndex == 0, "it starts again from the beginning")
+        #expect(reassembly.partial.isEmpty)
+    }
+
     @Test("A claim past the cap is trimmed to it, not taken at its word")
     func aClaimPastTheCapIsTrimmed() {
         #expect(

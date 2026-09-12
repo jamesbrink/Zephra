@@ -4,6 +4,7 @@ import Foundation
 extension Command: Codable {
     private enum CodingKeys: String, CodingKey {
         case kind, request, id, modelID, names, on, tags, name, factor, pixels, offset, limit
+        case fromChunk
     }
 
     /// The tag, which is also the case name.
@@ -54,7 +55,11 @@ extension Command: Codable {
         case .fetchThumbnail(let name, let pixels):
             try container.encode(name, forKey: .name)
             try container.encode(pixels, forKey: .pixels)
-        case .fetchFile(let name): try container.encode(name, forKey: .name)
+        case .fetchFile(let name, let fromChunk):
+            try container.encode(name, forKey: .name)
+            // Written only when it is asking for a tail, so the golden string every build has
+            // ever sent for a whole file is unchanged.
+            if fromChunk > 0 { try container.encode(fromChunk, forKey: .fromChunk) }
         case .libraryPage(let offset, let limit):
             try container.encode(offset, forKey: .offset)
             try container.encode(limit, forKey: .limit)
@@ -86,7 +91,10 @@ extension Command: Codable {
         case .fetchThumbnail:
             self = .fetchThumbnail(
                 name: try value(String.self, .name), pixels: try value(Int.self, .pixels))
-        case .fetchFile: self = .fetchFile(name: try value(String.self, .name))
+        case .fetchFile:
+            self = .fetchFile(
+                name: try value(String.self, .name),
+                fromChunk: try container.decodeIfPresent(UInt32.self, forKey: .fromChunk) ?? 0)
         case .libraryPage:
             self = .libraryPage(
                 offset: try value(Int.self, .offset), limit: try value(Int.self, .limit))

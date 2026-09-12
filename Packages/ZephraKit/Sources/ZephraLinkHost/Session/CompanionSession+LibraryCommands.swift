@@ -29,8 +29,8 @@ extension CompanionSession {
         case .fetchThumbnail(let name, let pixels):
             try await sendThumbnail(name, pixels: pixels, from: host, to: id)
             return nil
-        case .fetchFile(let name):
-            try await sendFile(name, to: id)
+        case .fetchFile(let name, let fromChunk):
+            try await sendFile(name, to: id, from: fromChunk)
             return nil
         case .libraryPage(let offset, let limit):
             let items = LibraryEntryProjection.listing(host.index.items)
@@ -55,7 +55,11 @@ extension CompanionSession {
 
     /// The file itself: a clip's MP4 where there is one, the PNG otherwise, read off the main
     /// actor because it may be tens of megabytes.
-    private func sendFile(_ name: String, to request: UUID) async throws {
+    ///
+    /// `from` is where the phone got to on an earlier attempt. The whole file is still read and
+    /// still announced whole; only the chunks before that are left out, so asking again for the
+    /// same file answers with the same bytes however far in it starts.
+    private func sendFile(_ name: String, to request: UUID, from: UInt32 = 0) async throws {
         let item = try item(named: name)
         let url = item.videoURL.flatMap {
             FileManager.default.fileExists(atPath: $0.path(percentEncoded: false)) ? $0 : nil
@@ -65,7 +69,9 @@ extension CompanionSession {
         }).value else {
             throw LinkError(code: .notFound, reason: "That file could not be read.")
         }
-        try sendBlob(data, mime: VideoSidecar.isSidecar(url) ? "video/mp4" : "image/png", to: request)
+        try sendBlob(
+            data, mime: VideoSidecar.isSidecar(url) ? "video/mp4" : "image/png", to: request,
+            from: from)
     }
 
     /// The picture one file name means, or a refusal naming it.

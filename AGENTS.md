@@ -294,9 +294,14 @@ thing it swallowed**, not every transfer and request in flight: the transfer
 whose next chunk is then out of turn fails as `lost` in `LinkClient.receive`, and
 a reply that never comes is closed by `requestTimeout`, which is this end's own
 promise. Every `Command` is safe
-to repeat, so `LinkClient.request` and `fetchBlob` ask once more under a fresh
+to repeat, so `LinkClient.request` asks once more under a fresh
 id, and the one that adds work — `enqueue` — is answered from the run that
-session already queued for that `GenerationRequest.requestID`.
+session already queued for that `GenerationRequest.requestID`. `fetchBlob` asks
+up to `blobAttempts` (4) times with `LinkBackoff` between and **from where the
+last attempt got to**: `Command.fetchFile(name:fromChunk:)` names the first chunk
+still wanted, written only when past zero and read as zero when absent, so a Mac
+that has never heard of it sends the whole file and the phone's reassembly starts
+fresh on a chunk that arrives at index 0.
 
 `ZephraLinkTransport` is the roads under that wire. A TCP frame rides behind a
 four-byte big-endian length and is capped at 1 MiB, a length past which closes
