@@ -25,10 +25,19 @@ extension RelayRoad {
     ///
     /// The allow-list and the open flag go in before `start()`, so both ride in the join itself
     /// rather than as a second message the relay could admit or refuse a guest ahead of.
+    ///
+    /// Which is why the first thing this does is read them. `watchAllowList()` publishes the same
+    /// two values, but it is a task of its own on the main actor while this one runs on the global
+    /// executor: whichever reached the state first decided what the first join carried, and when
+    /// it was this one the room went up admitting **nobody** until the `allow` message landed
+    /// behind it. A phone that dialled in that window was answered `not allowed` — which the phone
+    /// used to read as a revocation and forget the Mac over.
     func rejoin() async {
+        let known = await MainActor.run { (allow: allowed(), isOpen: opened()) }
+        await publish(known.allow, open: known.isOpen)
         var attempt = 0
         while !Task.isCancelled {
-            let listener = RelayListener(url: url, identity: identity)
+            let listener = join()
             let room = lock.withLock { () -> (allow: [Data], isOpen: Bool) in
                 state.listener = listener
                 return (state.allow, state.isOpen)
@@ -81,7 +90,7 @@ extension RelayRoad {
 
     /// Remembers what the next join should carry, and tells the join that is already up.
     func publish(_ keys: [Data], open: Bool) async {
-        let listener = lock.withLock { () -> RelayListener? in
+        let listener = lock.withLock { () -> (any RelayJoining)? in
             state.allow = keys
             state.isOpen = open
             return state.listener

@@ -24,7 +24,7 @@ final class RelayRoad: LinkListener, @unchecked Sendable {
     struct State {
         var isStopped = false
         var rejoining: Task<Void, Never>?
-        var listener: RelayListener?
+        var listener: (any RelayJoining)?
         /// The guests of the join that is up right now, so they can be ended with it.
         var guests: [any LinkConnection] = []
         var allow: [Data] = []
@@ -39,6 +39,8 @@ final class RelayRoad: LinkListener, @unchecked Sendable {
     let allowed: @MainActor () -> [Data]
     /// Whether the room admits a guest on no list, which is true while a code is on screen.
     let opened: @MainActor () -> Bool
+    /// How one join is made. Injected, so a test drives the join order without a socket.
+    let join: @Sendable () -> any RelayJoining
     let logger = Logger(subsystem: "io.zephra", category: "companion")
     private let stream: AsyncStream<any LinkConnection>
     let continuation: AsyncStream<any LinkConnection>.Continuation
@@ -51,16 +53,21 @@ final class RelayRoad: LinkListener, @unchecked Sendable {
     /// anybody at all while `opened` says a pairing code is up.
     init(
         url: URL, identity: DeviceIdentity, allowed: @escaping @MainActor () -> [Data],
-        opened: @escaping @MainActor () -> Bool
+        opened: @escaping @MainActor () -> Bool,
+        join: (@Sendable () -> any RelayJoining)? = nil
     ) {
         self.url = url
         self.identity = identity
         self.allowed = allowed
         self.opened = opened
+        self.join = join ?? { RelayListener(url: url, identity: identity) }
         (stream, continuation) = AsyncStream.makeStream()
     }
 
     /// Joins the room, and keeps rejoining it for as long as the road is open.
+    ///
+    /// The watch and the rejoining are two tasks on two executors, so the first join reads the
+    /// allow-list for itself rather than waiting for the watch to publish one: see `rejoin()`.
     func start() {
         Task { @MainActor [weak self] in self?.watchAllowList() }
         let task = Task { [weak self] in

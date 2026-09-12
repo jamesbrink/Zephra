@@ -308,7 +308,11 @@ message replaces it whenever a pairing completes or is revoked. Both messages al
 carry `open`, written only when true, which `CompanionHost.relayOpen` raises while
 a pairing code is on screen and drops the moment it goes: a phone pairing for the
 first time is on no list, and an open room buys it a handshake the Mac still
-refuses unless it can answer the code. A `peer joined`
+refuses unless it can answer the code. `RelayRoad.rejoin()` reads both off the
+main actor **itself**, before its first join, rather than waiting for
+`watchAllowList()` to publish them: those are two tasks on two executors, and the
+join that went out first carried `allow: []` — a room admitting nobody until the
+`allow` message landed behind it. A `peer joined`
 over a live session is that guest's own announcement arriving late and never ends
 it; only a `peer left` or the road going does. A send that fails or a socket that
 closes marks the road closed and finishes `frames()`, so no session is left over a

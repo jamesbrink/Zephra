@@ -804,7 +804,15 @@ carrying what the relay admits on: it reads `CompanionHost.relayAllowList` **and
 `CompanionHost.relayOpen` inside one `withObservationTracking` loop, hands both to
 each listener before that listener joins, and sends an `allow` to the join already
 up whenever either moves — a pairing completing, a device revoked, a code going up
-or coming down. `ZephraApp+Companion` is where the two closures are tied to the
+or coming down. `rejoin()` reads both off the main actor **itself** before its
+first join rather than trusting that loop to have run: `start()` puts the watch on
+the main actor and the rejoining on the global executor, and whichever reached the
+road's state first decided what the first join carried — which, when it was the
+join, was `allow: []`, a room that admits nobody until the `allow` message lands
+behind it. A phone dialling in that window is answered `not allowed`, which is the
+refusal the phone must not read as a revocation (above). `RelayJoining` is the seam
+the join is made through, so `RelayRoadTests` pins the order without a socket.
+`ZephraApp+Companion` is where the two closures are tied to the
 host, weakly, since the host holds every listener it is served.
 
 **Three wrong answers burn the code.** A `confirm` whose tag does not prove the
