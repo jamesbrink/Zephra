@@ -1,13 +1,14 @@
 import Foundation
 import ZephraCore
 import ZephraEngine
+import ZephraSnapshot
 
 /// Launches the app frozen in one engine state, with no model and no network, so the
 /// interface can be screenshotted and inspected on its own.
 ///
 /// Set `ZEPHRA_PREVIEW_STATE` to `ready`, `image`, `editing`, `tucked`, `clip`, `generating`,
 /// `starting`, `queued`, `watching`, `finishing`, `batch`, `library`, `viewer`, `picker`, `welcome`,
-/// `downloading`, `building`, or `failed` before launching. `settings` uses the configured library on disk with a frozen engine for
+/// `downloading`, `building`, `update`, or `failed` before launching. `settings` uses the configured library on disk with a frozen engine for
 /// folder-change UAT; point `imagesDirectory` at a temporary fixture first. Debug builds only; in Release this is inert.
 ///
 /// This half is what the composition root calls. `InterfacePreview+Frozen.swift` is how each
@@ -44,6 +45,16 @@ enum InterfacePreview {
             }
             return store
         }
+    }
+
+    /// The update banner frozen with a release on it, or nil for every other launch. A frozen
+    /// checker has no timer and no feed under it, so a screenshot build reaches no network at
+    /// all — the same rule `startCompanion` follows.
+    static func updates() -> UpdateChecker? {
+        guard requestedState != nil, name == "update" else { return nil }
+        return UpdateChecker.frozen(.available(ReleaseManifest(
+            url: URL(string: "https://zephra-assets.urandom.io/releases/Zephra-0.1.0-202609120231.dmg")!,
+            version: "0.1.0", build: "202609120231", sha256: String(repeating: "a", count: 64))))
     }
 
     /// Whether this build wants a reference-capable model standing up: `editing`, to

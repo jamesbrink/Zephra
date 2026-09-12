@@ -58,17 +58,21 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     /// opens on this tab.
     ///
     /// Measured from the tabs as built: General is the appearance picker, the images folder
-    /// row, and the seed toggle, the seed spelling picker with its caption and the
-    /// notification toggle, with a heading each; Performance is the warm-up toggle, the
+    /// row, the seed toggle, the seed spelling picker with its caption and the two-line
+    /// notification toggle, and the update toggle, with a heading each; Performance is the warm-up toggle, the
     /// four-row GPU memory group, the tiling picker and the live readout, all of which must
     /// be on screen at once, since a page that scrolls hides the very reading it is there to
     /// show; Models scrolls, so its height is what the longest Settings pane on the Mac
     /// usually takes, which is what the window was before; Companion is the two toggles, the
     /// code and the list of paired devices, with room for the code at the size a phone's camera
     /// reads across a desk.
+    ///
+    /// General's figure was re-measured with `make screenshot WINDOW=General` when the update
+    /// section arrived: 420 and 480 both left the Updates toggle below the sill, and 560 is
+    /// where the tab shows its last row with a margin under it.
     var openingHeight: CGFloat {
         switch self {
-        case .general: 420
+        case .general: 560
         case .performance: 820
         case .models: 620
         case .companion: 600

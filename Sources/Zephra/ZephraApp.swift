@@ -33,6 +33,10 @@ struct ZephraApp: App {
     /// and a `@State` initializer cannot read another. Nil until then, and on a preview build;
     /// `ZephraApp+Companion.swift` is the whole of it.
     @State var companion: CompanionHost?
+    /// Whether a newer Zephra has been published, and how far along installing it is. Built
+    /// here with everything else the window observes, and never a singleton; a frozen
+    /// `ZEPHRA_PREVIEW_STATE=update` build gets one standing still, with no timer under it.
+    @State var updates = InterfacePreview.updates() ?? UpdateChecker()
     /// The roads that link listens on, and the port the local one actually took. Built here
     /// with nothing in it, since which roads it opens is the preference's answer rather than
     /// this launch's.
@@ -112,6 +116,7 @@ struct ZephraApp: App {
                 .environment(index)
                 .environment(thumbnails)
                 .environment(welcome)
+                .environment(updates)
                 .environment(\.memoryBudget, Self.budget)
                 // The appearance preference is applied to the application from the main
                 // window, so it lands before the first frame and follows the picker in
@@ -154,6 +159,7 @@ struct ZephraApp: App {
                         await Task.detached { runtime.synchronize() }.value
                     }
                     openLibrary()
+                    startUpdates()
                     // After the library, so the saved and deleted closures it sets are wrapped
                     // rather than replaced.
                     await startCompanion()
@@ -171,6 +177,7 @@ struct ZephraApp: App {
             LibraryCommands(workspace: workspace)
             ThumbnailSizeCommands()
             AboutCommands()
+            UpdateCommands(updates: updates)
             HelpCommands()
         }
 
@@ -183,6 +190,7 @@ struct ZephraApp: App {
                 // Optional on purpose: Settings can be opened on a preview build, which has no
                 // link, and the Companion tab draws the "not available" case from the absence.
                 .environment(companion)
+                .environment(updates)
                 .environment(\.inferenceRuntime, runtime)
                 .environment(\.memoryBudget, Self.budget)
                 .environment(\.weightResidencyOverride, Self.environment.weightResidency)

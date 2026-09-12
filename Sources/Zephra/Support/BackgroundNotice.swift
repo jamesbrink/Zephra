@@ -15,6 +15,9 @@ enum BackgroundNotice: Equatable {
     case imageSaved(prompt: String, isClip: Bool)
     case downloadFinished(model: String)
     case downloadFailed(model: String, reason: String)
+    /// A newer Zephra has been published. Nothing has been fetched; the banner in the window
+    /// is where it is installed from, and this is only what says the banner is there.
+    case updateAvailable(version: String, build: String)
 
     /// The notice a change from `old` to `new` is worth, or nil when it is worth none.
     static func transition(from old: EngineState, to new: EngineState, model: String) -> BackgroundNotice? {
@@ -34,6 +37,7 @@ enum BackgroundNotice: Equatable {
         case .imageSaved(_, let isClip): isClip ? "Clip Saved" : "Image Saved"
         case .downloadFinished: "Download Finished"
         case .downloadFailed: "Download Failed"
+        case .updateAvailable: "Update Available"
         }
     }
 
@@ -42,6 +46,8 @@ enum BackgroundNotice: Equatable {
         case .imageSaved(let prompt, _): Self.summary(of: prompt)
         case .downloadFinished(let model): "\(model) is ready to load."
         case .downloadFailed(let model, let reason): "\(model): \(reason)"
+        case .updateAvailable(let version, let build):
+            "Zephra \(version) (build \(build)) is ready to install."
         }
     }
 

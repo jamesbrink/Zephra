@@ -40,6 +40,9 @@ extension InterfacePreview {
     static func frozenImage(for state: EngineState) -> GeneratedImage? {
         switch state {
         case .ready where name == "image": PreviewImages.sample()
+        // Over a picture, like `downloading` and `failed`: the banner has to be photographed
+        // across the top of a window with something in it.
+        case .ready where name == "update": PreviewImages.sample()
         case .ready where name == "tucked": PreviewImages.sample()
         case .ready where isEditingBuild:
             PreviewImages.sample(reference: PreviewImages.referencePNG())
@@ -70,7 +73,8 @@ extension InterfacePreview {
     static var requestedState: EngineState? {
         #if DEBUG
         switch name {
-        case "settings", "ready", "image", "editing", "tucked", "batch", "library", "viewer", "picker", "clip":
+        case "settings", "ready", "image", "editing", "tucked", "batch", "library", "viewer", "picker", "clip",
+             "update":
             return .ready
         case "welcome":
             // The first-launch chooser stands in front of the workspace with nothing loaded,

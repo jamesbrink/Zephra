@@ -32,6 +32,10 @@ struct RootView: View {
 
     var body: some View {
         WorkspaceSplitView()
+        // Above the panes rather than over them: the sidebar, the pane and the inspector all
+        // lay out under the top inset, the same way they do under the toolbar strip. The
+        // banner draws nothing at all when there is no update, so the inset is zero high.
+        .safeAreaInset(edge: .top, spacing: 0) { UpdateBanner() }
         .disabled(store.isChangingImageDirectory)
         .navigationTitle("Zephra")
         .navigationSubtitle(store.windowSubtitle)

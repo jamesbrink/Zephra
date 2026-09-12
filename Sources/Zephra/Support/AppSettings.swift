@@ -27,9 +27,12 @@ enum AppSettings {
     static let randomizeSeedEachRun = "randomizeSeedEachRun"
     /// Whether the model runs a throwaway generation after loading.
     static let warmUpOnLaunch = "warmUpOnLaunch"
-    /// Whether a saved image or a finished download is announced while the app is in the
-    /// background.
+    /// Whether a saved image, a finished download or a published update is announced while the
+    /// app is in the background.
     static let backgroundNotifications = "backgroundNotifications"
+    /// Whether Zephra looks for a newer published build on its own. The look is one small
+    /// request; nothing is fetched, and nothing is installed, without a press.
+    static let checksForUpdates = "checksForUpdates"
     /// The `ModelDescriptor.id` chosen in the model menu, restored on the next launch.
     static let selectedModelID = "selectedModelID"
     /// Whether the first-launch chooser has been answered, either by picking a model or by
@@ -93,6 +96,9 @@ enum AppSettings {
     static let initialWarmUpOnLaunch = true
     /// A run and a download are both things a person walks away from.
     static let initialBackgroundNotifications = true
+    /// On, because a Mac quietly running an old build is the failure mode worth avoiding; the
+    /// check itself is a hundred bytes every six hours and fetches nothing.
+    static let initialChecksForUpdates = true
     /// Exactness wherever the Mac has the memory for it, tiling only where it does not.
     static let initialVAETiling = VAETilingMode.automatic
     /// Resident wherever the Mac can hold the model, streamed only where it cannot.
@@ -195,6 +201,7 @@ enum AppSettings {
         case randomizeSeedEachRun: initialRandomizeSeedEachRun
         case warmUpOnLaunch: initialWarmUpOnLaunch
         case backgroundNotifications: initialBackgroundNotifications
+        case checksForUpdates: initialChecksForUpdates
         case inspectorVisible: initialInspectorVisible
         case companionEnabled: initialCompanionEnabled
         case companionRelayEnabled: initialCompanionRelayEnabled

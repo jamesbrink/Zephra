@@ -44,6 +44,13 @@ struct BackgroundNoticeTests {
         #expect(clip.title == "Clip Saved")
     }
 
+    @Test("a published update names the build, since every version is 0.1.0")
+    func updateAvailable() {
+        let notice = BackgroundNotice.updateAvailable(version: "0.1.0", build: "202609120231")
+        #expect(notice.title == "Update Available")
+        #expect(notice.body == "Zephra 0.1.0 (build 202609120231) is ready to install.")
+    }
+
     @Test("the banner's prompt is one line, cut at a word, and never empty")
     func promptSummary() {
         #expect(BackgroundNotice.summary(of: "  a cat\n\non   a wall ") == "a cat on a wall")
