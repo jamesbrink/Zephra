@@ -163,8 +163,11 @@ Makefile targets:
 - `make website-build` — static export of the site in `product-mockups/`
   (`npm ci` on first run, then `ZEPHRA_STATIC_EXPORT=1 npm run build`).
 - `make deploy-production` — `website-build`, then `scripts/deploy-website.sh`
-  to the `zephra-site-urandom-io` bucket under `WEBSITE_PROFILE`. Iterations go
-  to ChatGPT Sites first; this runs when James says "deploy to production".
+  to the `zephra-site-urandom-io` bucket under `WEBSITE_PROFILE`, with a
+  CloudFront invalidation waited on and the public pages checked. Iterations go
+  to ChatGPT Sites first; `deploy-website.yml` runs this on every push to `main`
+  that touches `product-mockups/` (the release workflow ignores that path, so a
+  site-only push ships no app), and it can be run by hand from the Actions tab.
 - `make release-upload` — `scripts/publish-download.sh`: check the notarization
   of the packages already built, upload the DMG to the releases prefix, copy it
   to the `Zephra-latest.dmg` alias, verify the public download and write

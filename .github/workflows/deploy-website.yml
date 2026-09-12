@@ -1,5 +1,20 @@
+# The site goes out on every push to main that touches it, and by hand from the Actions
+# tab. `deploy-website.sh` uploads the static export, invalidates the CloudFront
+# distribution and waits for the invalidation, then checks the public pages against the
+# export. The OIDC role is the one the release workflow uses; the zephra module in the
+# urandom.io Terraform grants it the site bucket and the site distribution's invalidations.
+# A push that changes only `release.json` carries `[skip ci]` from `release-commit`, and
+# the Download button links the `Zephra-latest.dmg` alias anyway, so a release needs no
+# site deploy.
 name: Deploy production website
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'product-mockups/**'
+      - 'scripts/deploy-website.sh'
+      - 'scripts/verify-website.py'
+      - '.github/workflows/deploy-website.yml'
   workflow_dispatch:
 permissions:
   contents: read

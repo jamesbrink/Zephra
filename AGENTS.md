@@ -747,7 +747,12 @@ US-spelling check.
   write, and the library's "Use as Reference" is one of them.
 - `LinkClient` is the one type a view may read the Mac through, taken from
   `@Environment(LinkClient.self)`: `pairedHost` is the whole pairing decision,
-  and `snapshot`, `library`, `preview` and `connection` are the rest. A view that
+  and `snapshot`, `library`, `preview` and `connection` are the rest. A Mac that
+  withdraws the pairing is let go by the client itself — a `revoked` frame on a
+  live session, or `notPaired` from a Mac this phone was paired with on a
+  reconnect, over the local network or the relay alike — and `farewell` keeps
+  the reason for the pairing screen, since the Mac's own refusal is one plain
+  sentence on purpose and only this phone knows it was once let in. A view that
   holds a fact of its own that came over the link is a view that can disagree
   with the Mac.
 - `ZephraMobileApp` is the only file that knows how a Mac is reached: it builds
@@ -1202,8 +1207,9 @@ Makefile targets:
 - `ship` — `publish-release` (`notarized-release` then `release-upload`), then
   `deploy-production`, then `release-commit`.
 - `website-build` — static export of `product-mockups/`. `deploy-production`
-  — that, then `scripts/deploy-website.sh` to `zephra-site-urandom-io`; only
-  when James says "deploy to production".
+  — that, then `scripts/deploy-website.sh` to `zephra-site-urandom-io` with a
+  CloudFront invalidation; `deploy-website.yml` runs it on every push to `main`
+  that touches `product-mockups/`, and by hand from the Actions tab.
 - `release-upload` — `scripts/publish-download.sh`: upload the DMG, copy the
   alias, verify the public download, write `product-mockups/app/release.json`.
   The website's Download button links the `Zephra-latest.dmg` alias
@@ -1251,11 +1257,13 @@ so one push is one build number everywhere. Two tiers of gate: every push runs
 `doctor`, `lint-layers`, `test`, `relay-test` and `test-ios`; `test-app` and
 `test-mlx` are an hour of Metal and run only under `workflow_dispatch` with
 `full_gates: true` — locally before every merge as always. A push touching only
-`docs/**`, any `.md`, or `product-mockups/app/release.json` ships nothing, and
+`docs/**`, any `.md`, or `product-mockups/**` ships nothing, and
 `release-commit`'s message carries `[skip ci]`, so a release cannot start
-another. The website is **not** deployed by it: `deploy-website.yml` stays
-manual, because production goes out when James says so. `make ship` remains the
-by-hand path and is unchanged.
+another. The website is deployed by `deploy-website.yml` instead, on every push
+to `main` that touches `product-mockups/`, with the same OIDC role and a
+CloudFront invalidation; a release needs no site deploy, since the Download
+button links the `Zephra-latest.dmg` alias. `make ship` remains the by-hand
+path and is unchanged.
 
 `ZephraQuantize` safety: `--family` is required with no default; `BITS` other
 than 4 is refused unless `--out` is explicit, since every default name says
@@ -1731,7 +1739,9 @@ Full detail: `docs/debugging.md`.
 
 ## Website deployment destinations
 
-Website iterations and modifications go to ChatGPT Sites first. When James says
-"deploy to production", deploy the website to AWS with `make deploy-production`.
-The website bucket is `zephra-site-urandom-io`; notarized app releases belong in
-`zephra-assets-urandom-io/releases/`. Keep both deployments on the same page source.
+Website iterations and modifications go to ChatGPT Sites first. Production is
+`deploy-website.yml`: every push to `main` touching `product-mockups/` uploads the
+static export to `zephra-site-urandom-io` and invalidates CloudFront (since
+2026-09-12; `make deploy-production` is the same by hand). Notarized app releases
+belong in `zephra-assets-urandom-io/releases/`. Keep both deployments on the same
+page source.

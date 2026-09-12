@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import ZephraLinkClient
+@testable import ZephraLinkClient
 import ZephraLinkProtocol
 
 /// Pairing, reconnecting, and the refusal in between.
@@ -25,12 +25,50 @@ struct LinkClientTests {
         #expect(bed.client.connection == .live(.lan))
     }
 
-    @Test("a Mac that has never met this device refuses it in words")
-    func unknownDeviceIsRefused() async throws {
+    @Test("a Mac that no longer knows this phone is let go on reconnect, with the reason kept")
+    func revokedMacIsForgottenOnReconnect() async throws {
         let bed = LinkClientUnderTest(remembering: DeviceIdentity(), knownToHost: false)
         defer { Task { await bed.host.stop() } }
         await bed.client.connect()
-        #expect(bed.client.connection == .failed(LinkError.notPaired.reason))
+        #expect(bed.client.pairedHost == nil)
+        #expect(try bed.store.loadPairedHost() == nil)
+        #expect(bed.client.farewell == "A Mac no longer shares with this phone. Pair again with a new code.")
+        #expect(!bed.client.connection.isLive)
+    }
+
+    @Test("a revocation on a live session ends it, forgets the Mac and keeps the Mac's words")
+    func revokedOnLiveSession() async throws {
+        let bed = LinkClientUnderTest(remembering: DeviceIdentity())
+        defer { Task { await bed.host.stop() } }
+        await bed.client.connect()
+        #expect(bed.client.connection == .live(.lan))
+        // The Mac's channel opens on the confirm, a frame behind the phone going live.
+        for attempt in 0..<50 {
+            do {
+                try await bed.host.announce(
+                    LinkError(code: .revoked, reason: "This Mac has stopped sharing with this device."),
+                    kind: .error)
+                break
+            } catch {
+                try #require(attempt < 49, "the Mac never opened its channel")
+                try await Task.sleep(for: .milliseconds(20))
+            }
+        }
+        for _ in 0..<50 where bed.client.pairedHost != nil {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(bed.client.pairedHost == nil)
+        #expect(bed.client.farewell == "This Mac has stopped sharing with this device.")
+        #expect(!bed.client.connection.isLive)
+    }
+
+    @Test("pairing again clears the words of the last revocation")
+    func pairingClearsFarewell() async throws {
+        let bed = LinkClientUnderTest()
+        defer { Task { await bed.host.stop() } }
+        await bed.client.unpair(saying: "gone")
+        try await bed.client.pair(with: bed.pairingCode())
+        #expect(bed.client.farewell == nil)
     }
 
     @Test("a Mac with no code up says only that it has not paired this phone, plus what to check")

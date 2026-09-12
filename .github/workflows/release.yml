@@ -18,16 +18,17 @@ name: Release
 # `full_gates: true` -- run them that way before a change that touches MLX, and locally
 # before every merge, which is the standing rule they have always been under.
 #
-# Docs-only pushes ship nothing: `paths-ignore` covers `docs/**` and every `.md`, and
-# also `product-mockups/app/release.json`, which is the one file a release writes back
-# into the repository. That file and the `[skip ci]` in `release-commit`'s message are
-# two independent reasons a ship cannot start another ship.
+# Docs-only and site-only pushes ship nothing: `paths-ignore` covers `docs/**`, every
+# `.md` and `product-mockups/**` (the website, which `deploy-website.yml` deploys on its
+# own), and so `product-mockups/app/release.json`, the one file a release writes back into
+# the repository. That file and the `[skip ci]` in `release-commit`'s message are two
+# independent reasons a ship cannot start another ship.
 
 on:
   push:
     branches: [main]
     paths-ignore:
-      - 'product-mockups/app/release.json'
+      - 'product-mockups/**'
       - 'docs/**'
       - '**.md'
   workflow_dispatch:

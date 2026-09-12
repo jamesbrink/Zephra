@@ -29,6 +29,13 @@ public final class LinkClient {
 
     /// Where the connection has got to.
     public internal(set) var connection: LinkConnectionState = .offline
+    /// Why the last pairing ended at the Mac's end, in words for the pairing screen, or nil.
+    ///
+    /// Set when a Mac this phone was paired with withdraws it — an error frame on a live
+    /// session, or a refusal on a reconnect — and cleared when the person pairs again or
+    /// forgets the Mac themselves. The pairing screen shows it, so a phone that was revoked
+    /// says so rather than "offline".
+    public internal(set) var farewell: String?
     /// The Mac's whole state, as of the last snapshot and every delta since.
     public internal(set) var snapshot: StateSnapshot?
     /// The newest frame of the run in flight, cleared whenever a run ends or the link does.

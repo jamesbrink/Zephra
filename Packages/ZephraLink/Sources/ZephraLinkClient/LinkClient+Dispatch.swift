@@ -94,7 +94,7 @@ extension LinkClient {
         if let id { answer(id, with: .error(error)) }
         guard error.code == .revoked else { return }
         logger.notice("The Mac withdrew this pairing.")
-        Task { await self.forgetHost() }
+        Task { await self.unpair(saying: error.reason) }
     }
 
     /// A body read back, or nil with a line in the log.

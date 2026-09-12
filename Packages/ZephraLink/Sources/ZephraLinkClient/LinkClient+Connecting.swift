@@ -24,7 +24,7 @@ extension LinkClient {
         if let local {
             switch await attempt(.lan, peer: host.keys, secret: nil, open: { local }) {
             case .connected: return
-            case .refused(let refusal): return connection = .failed(refusal.reason)
+            case .refused(let refusal): return await refused(refusal, by: host)
             case .unreachable(let error): failure = error
             }
         }
@@ -33,11 +33,26 @@ extension LinkClient {
             try await self.roads.connectRelay(room: host.roomID)
         }) {
         case .connected: return
-        case .refused(let refusal): connection = .failed(refusal.reason)
+        case .refused(let refusal): await refused(refusal, by: host)
         case .unreachable(let error):
             failure = error
             connection = .failed(Self.words(for: failure, host: host.name))
         }
+    }
+
+    /// A Mac this phone was paired with turning it away on a reconnect.
+    ///
+    /// The Mac's answer to a key it does not hold is one deliberately plain sentence, the same
+    /// over the local network and through the relay, so an unauthenticated caller learns
+    /// nothing from it. This phone knows more than that caller: it was paired with this very
+    /// Mac, so "not paired" from it now means the pairing was withdrawn, and the phone says so
+    /// itself and lets the Mac go — keeping the keys would only make every later attempt fail
+    /// the same way, and reading as "offline".
+    private func refused(_ refusal: LinkError, by host: PairedHost) async {
+        guard refusal.code == .notPaired || refusal.code == .revoked else {
+            return connection = .failed(refusal.reason)
+        }
+        await unpair(saying: "\(host.name) no longer shares with this phone. Pair again with a new code.")
     }
 
     /// Closes the session and everything waiting on it.
@@ -51,6 +66,13 @@ extension LinkClient {
         await disconnect()
         try? store.save(nil)
         pairedHost = nil
+        farewell = nil
+    }
+
+    /// The Mac withdrew the pairing: forget it, and keep the reason for the pairing screen.
+    func unpair(saying words: String) async {
+        await forgetHost()
+        farewell = words
     }
 
     /// Opens one road and runs the handshake over it.

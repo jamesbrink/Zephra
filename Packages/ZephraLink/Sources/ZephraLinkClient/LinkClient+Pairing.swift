@@ -14,6 +14,7 @@ extension LinkClient {
     /// frame that will not decrypt.
     public func pair(with payload: PairingPayload) async throws {
         guard !isFrozen else { return }
+        farewell = nil
         await disconnect()
         guard !payload.isExpired() else {
             throw LinkError(

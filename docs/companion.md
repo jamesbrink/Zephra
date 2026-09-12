@@ -812,6 +812,16 @@ with a fake Mac on the other, so pairing, the handshake, the dispatch, a request
 and a blob are all exercised with nothing between the two ends but an
 `AsyncStream` and no permission dialog for the local network.
 
+A pairing the Mac withdraws ends at the phone's end too. On a live session the
+Mac's `revoke` sends a `revoked` error frame before it closes, and the phone
+forgets the Mac and keeps the Mac's sentence as `LinkClient.farewell`. A phone
+that was away learns on its next `connect()`: the Mac answers `notPaired`, the
+relay answers `not allowed` (read as the same `LinkError`), and since the phone
+was paired with that very Mac it treats either as revoked — it forgets the Mac
+and sets a farewell of its own naming it, which the pairing screen shows in
+place of "offline". The Mac's refusal stays one plain sentence for everyone,
+so an unauthenticated caller cannot learn from it whether a key was once known.
+
 `connect()` is idempotent, so the interface calls it on every foreground without
 a flag of its own: the local network first, then the relay. The local network is
 one race (`LocalRoadRace`): every stored address and every Mac a Bonjour browse

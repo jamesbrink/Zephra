@@ -26,7 +26,9 @@ struct PairingView: View {
             }
             PairingPasteField(code: $code) { submit(code) }
             PairingProgress()
-            if let failure {
+            // A phone the Mac let go arrives here with the reason still to be said; the client
+            // keeps it (`farewell`) so this screen can, until a new code is read.
+            if let failure = failure ?? client.farewell {
                 Text(failure)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
