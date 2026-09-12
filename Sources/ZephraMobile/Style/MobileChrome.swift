@@ -26,4 +26,8 @@ enum MobileChrome {
     /// How far down a picture is pulled before letting go closes the viewer. Short of it the
     /// picture springs back; the pull's dimming and shrinking are measured against it too.
     static let viewerDismissDistance: CGFloat = 160
+    /// The side of the viewer's close button, a fingertip rather than the glyph's own size: a
+    /// near miss there toggled the chrome instead, which took the button away underneath the
+    /// finger that just missed it.
+    static let viewerCloseTarget: CGFloat = 44
 }

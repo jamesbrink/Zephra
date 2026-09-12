@@ -866,7 +866,8 @@ US-spelling check.
   a `ZoomingScrollView` — a nested `UIScrollView` for pinch and double-tap
   zoom, so paging and panning never fight: at fit UIKit hands the pan to the
   pager, zoomed in it scrolls the picture, and a page that stops being current
-  goes back to fit. A single tap hides the chrome. Swipe down dismisses through
+  goes back to fit. A single tap hides the chrome; the close button is a 44-pt
+  target. Swipe down dismisses through
   `ViewerPullRecognizer`, one pan recognizer read in UIKit beside the pager's
   (a SwiftUI drag over the pager never sees a touch), attached to a picture's
   scroll view and to a clip's player view alike, so a clip drops and closes

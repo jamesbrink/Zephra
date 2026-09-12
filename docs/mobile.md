@@ -584,6 +584,19 @@ way Photos is, because Photos is what every thumb on a phone already knows.
   faded over 0.2 s or at once under Reduce Motion; hidden chrome takes no hits.
   A clip's page is `ClipPlayerView` with its controls, whose taps are AVKit's,
   and its pull is the same recognizer a picture's page has.
+- **The close button is a fingertip, not the glyph.** `LibraryViewerTitle` drew
+  `xmark.circle.fill` at `.title2` with no frame around it, so a thumb landing a
+  few points off the small glyph missed the button and hit the tap-to-toggle
+  area behind it instead — which hid the chrome and took the button away from
+  under the same finger that just missed it. `MobileChrome.viewerCloseTarget`
+  (44 pt, Apple's own minimum) is the button's `frame`, with
+  `.contentShape(Rectangle())` so the whole frame is tappable rather than just
+  the glyph inside it; the glyph itself grows to `.title` since the frame gives
+  it room. It stays leading, Photos' own place for it, and answers
+  `.accessibilityAction(.escape)` for VoiceOver's escape gesture.
+  `LibraryViewerTitle.closeTarget` re-exports the number so
+  `ViewerChromeTests` can pin it without reaching into `MobileChrome` from a
+  test about one view.
 
 ## Today
 

@@ -11,15 +11,22 @@ struct LibraryViewerTitle: View {
 
     @Environment(\.dismiss) private var dismiss
 
+    /// The close button's side: a fingertip, not the glyph's own size. Held here, not just in
+    /// `MobileChrome`, so `ViewerChromeTests` can measure the button by the type that draws it.
+    static let closeTarget = MobileChrome.viewerCloseTarget
+
     var body: some View {
         HStack {
             Button { dismiss() } label: {
                 Image(systemName: "xmark.circle.fill")
-                    .font(.title2)
+                    .font(.title)
                     .symbolRenderingMode(.palette)
                     .foregroundStyle(.white, .black.opacity(MobileChrome.viewerChromeOpacity))
+                    .frame(width: Self.closeTarget, height: Self.closeTarget)
+                    .contentShape(Rectangle())
             }
             .accessibilityLabel("Close")
+            .accessibilityAction(.escape) { dismiss() }
             Spacer(minLength: 0)
             if let entry {
                 Text(entry.label)
