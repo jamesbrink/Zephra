@@ -41,7 +41,12 @@ extension CompanionSession {
             host.store.clearQueue()
             return .ok
         case .switchModel(let modelID):
-            host.store.switchModel(to: try Self.model(modelID))
+            let model = try Self.model(modelID)
+            // `switchModel` is a no-op for a model this Mac cannot hold, and an `.ok` over a
+            // no-op is a phone drawing a model the Mac never took. The phone is told, in the
+            // words its own greyed row carries.
+            if let refusal = Self.unholdable(model, on: host) { throw refusal }
+            host.store.switchModel(to: model)
             return .ok
         case .upscale(let name, let factor): return try upscale(name, factor: factor, on: host)
         case .animate(let name): return try animate(name, on: host)
@@ -132,27 +137,5 @@ extension CompanionSession {
         let url = item.url
         host.store.animate(origin: item.fileName) { try? Data(contentsOf: url) }
         return .ok
-    }
-
-    /// The catalog entry a command names, or a refusal the phone can show.
-    static func model(_ id: String) throws -> ModelDescriptor {
-        guard let model = ModelCatalog.descriptor(id: id) else {
-            throw LinkError(
-                code: .notFound, reason: "This Mac's Zephra does not know a model called \(id).")
-        }
-        return model
-    }
-
-    /// One admission answer as the refusal it is, or nil when the request was admitted.
-    ///
-    /// The three ways a request can fail are three different words on a phone, and the
-    /// distinction is also what says whether asking again in a moment is worth anything.
-    static func refusal(_ admission: RemoteAdmission) -> LinkError? {
-        switch admission {
-        case .admitted: nil
-        case .busy(let reason): LinkError(code: .busy, reason: reason)
-        case .refused(let reason): LinkError(code: .refused, reason: reason)
-        case .badRequest(let reason): LinkError(code: .badRequest, reason: reason)
-        }
     }
 }

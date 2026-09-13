@@ -6,9 +6,12 @@ import ZephraStyle
 /// Picks which model the Mac runs next, and says what choosing one would cost.
 ///
 /// The Mac's `ModelMenu`, over the models the snapshot lists rather than over the catalog: the
-/// phone has no catalog, and a model the Mac cannot run is a model it did not send. The
-/// availability line under a name is the Mac's own sentence, written once there and shown here
-/// unchanged.
+/// phone has no catalog. Every note under a name is the Mac's own sentence, written once there
+/// and shown here unchanged — what it would cost to obtain, and what it would cost to hold.
+///
+/// Two ways a row greys, and both are the Mac's answer rather than this view's: a model that
+/// cannot be obtained at all, and one this Mac has not the memory to hold, which is never
+/// loaded and never downloaded and so is not something to offer a press of.
 ///
 /// Choosing is two things at once and deliberately so: the Mac is told, so its own canvas
 /// follows, and the draft takes the new model's schedule, so the controls under the prompt are
@@ -21,12 +24,13 @@ struct ModelMenu: View {
         if let snapshot = client.snapshot {
             Menu {
                 ForEach(snapshot.models) { model in
+                    let availability = snapshot.availability[model.id]
                     Button {
                         choose(model)
                     } label: {
-                        row(model, note: snapshot.availability[model.id]?.label)
+                        row(model, note: model.note(availability: availability))
                     }
-                    .disabled(snapshot.availability[model.id]?.isObtainable == false)
+                    .disabled(!model.isChoosable(availability: availability))
                 }
             } label: {
                 HStack(spacing: 6) {

@@ -273,7 +273,14 @@ which `remoteAdmission` gates on, so the button and the refusal are one answer.
 projection sites go through it. A field added to the DTO after a Mac has
 shipped is read with `decodeIfPresent` and a default that is what the field's
 absence used to mean (`canQueue` falls back to `acceptsGeneration`);
-`EngineStateDTO+Codable` and `QueuedEntry` are the two hand-written readers.
+`EngineStateDTO+Codable`, `ModelSummary+Codable` and `QueuedEntry` are the
+hand-written readers. `ModelSummary.isSelectable` and `memoryNote` are the same
+rule for a model: `StateSnapshotProjection` stamps both from
+`ModelCatalog.fit(_:budget:)` against the Mac's own budget, the phone greys that
+row and shows the note rather than judging memory itself, a `.switchModel`
+naming such a model is refused `badRequest` with `MemoryFit.reason` as
+`remoteAdmission` refuses a generation on it, and an older Mac's summary reads
+as selectable with no note.
 
 The channel's counter is **sent**, between the kind byte and the ciphertext —
 `kind || counter || ciphertext || tag` — because the relay is one Lambda
