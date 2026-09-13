@@ -55,6 +55,23 @@ the same override the store runs under without a second read of the process envi
   preferences go to a suite of their own, its models folder is `<directory>/Models` and its
   library `<directory>/Images`, and the single-instance guard lets it run beside a real
   Zephra. `make run-fresh` is the way in; `FreshStart` in `Support/` is the whole of it.
+
+  The suite is **one per directory**, `io.zephra.Zephra.fresh.<fingerprint of the path>`
+  (FNV-1a over the standardized path, written out because Swift's own hashing is seeded per
+  process and a domain named from it would be a new domain at every launch). It was one name
+  for every fresh start until two of them ran at once — a screenshot build beside a UAT one,
+  two agents, a second directory launched by hand — and the second launch opened on the
+  first's answers: chooser already answered, model already chosen, and on the day it happened
+  that "new Mac" began downloading a model nobody had picked. Which directory a launch uses is
+  what a fresh start is, so the directory names the preferences.
+
+  The reset stays the shell's `rm -rf` of the directory, and the domain follows it through a
+  stamp: `.zephra-fresh-preferences` inside the directory, written the first time that
+  directory's preferences are opened. No stamp means nobody has launched here since the folder
+  was made, so `FreshStart.preferences()` empties the domain before a single preference is
+  read; a stamp means `FRESH_RESET=0`, the session resumed without fetching gigabytes again.
+  Launching by hand therefore needs no `defaults delete` at all — a new directory is a new Mac
+  on its own.
 - `ZEPHRA_UPDATE_FEED=<url>` and `ZEPHRA_UPDATE_BUILD=<stamp>` are the updater's two hooks,
   read once at the composition root into `UpdateEnvironment` and handed down as a value, the
   way `InferenceEnvironment` is. The first points the check at another manifest; the second

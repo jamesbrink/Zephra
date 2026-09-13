@@ -693,8 +693,9 @@ It is one process: `Support/SingleInstance` brings a running copy forward and
 exits before a window is up, because two Zephras over one library write over
 each other. Exempt are launches that own neither folder — `ZEPHRA_PREVIEW_STATE`
 builds, the app-hosted tests, and `ZEPHRA_FRESH_START` (`FreshStart` in
-`Support/`, which gives `AppSettings.store` a throwaway suite and its own
-`Models` and `Images` folders; the hub cache is deliberately not redirected).
+`Support/`, which gives `AppSettings.store` a throwaway suite of that
+directory's own and its own `Models` and `Images` folders; the hub cache is
+deliberately not redirected).
 
 Six directories, by what a file is rather than what screen it is on:
 
@@ -2005,6 +2006,11 @@ environment value.
 - `ZEPHRA_FRESH_START=<directory>` launches as a Mac that has never run Zephra:
   its own preferences suite, `<directory>/Models` and `<directory>/Images`, and
   the single-instance guard lets it run beside a real Zephra. `make run-fresh`.
+  **One suite per directory**, named from the path
+  (`FreshStart.defaultsSuite`), so two fresh starts are two Macs rather than
+  one; a directory with no `.zephra-fresh-preferences` stamp in it has its suite
+  emptied before a preference is read, which is what makes `FRESH_RESET=1`'s
+  `rm -rf` a reset and `FRESH_RESET=0` a resumed session.
 - `ZEPHRA_FORCE_RELAY=1` (the phone, Debug only) shuts every road but the relay:
   `RelayOnlyRoads` (`Support/`) finishes the browse empty and fails every LAN
   endpoint, so a simulator on the Mac's own Wi-Fi pairs and connects the way a

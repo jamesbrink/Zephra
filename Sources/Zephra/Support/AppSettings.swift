@@ -15,9 +15,7 @@ enum AppSettings {
     /// `.defaultAppStorage`, and the code that reads a preference outside a view reads it
     /// here.
     static let store: UserDefaults = {
-        guard FreshStart.current != nil,
-              let suite = UserDefaults(suiteName: FreshStart.defaultsSuite)
-        else { return .standard }
+        guard let suite = FreshStart.current?.preferences() else { return .standard }
         return suite
     }()
 

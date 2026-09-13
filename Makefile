@@ -181,13 +181,18 @@ run: build
 # The directory is emptied first, since that is what "fresh" means; FRESH_RESET=0 keeps what
 # is there, which is how a session is resumed without fetching gigabytes again. FRESH_DIR
 # points it somewhere with room. It lives under build/, so `make clean` takes it too.
+#
+# Removing the directory is the whole of the reset now: each directory has a preferences
+# domain of its own (`FreshStart.defaultsSuite`), and the app empties it at launch when the
+# directory carries no stamp, which is exactly what an `rm -rf` leaves behind. FRESH_SUITE is
+# the domain builds before that shared, deleted here so an old one cannot be inherited.
 FRESH_DIR   ?= $(BUILD)/fresh
 FRESH_SUITE := io.zephra.Zephra.fresh
 FRESH_RESET ?= 1
 run-fresh: build
 	@if [ "$(FRESH_RESET)" = "1" ]; then \
 	  rm -rf "$(FRESH_DIR)"; defaults delete $(FRESH_SUITE) >/dev/null 2>&1 || true; \
-	  echo "fresh start: emptied $(FRESH_DIR) and the $(FRESH_SUITE) preferences"; \
+	  echo "fresh start: emptied $(FRESH_DIR) and its preferences"; \
 	else echo "fresh start: keeping $(FRESH_DIR)"; fi
 	@mkdir -p "$(FRESH_DIR)/Models" "$(FRESH_DIR)/Images"
 	open -n --env ZEPHRA_FRESH_START="$(FRESH_DIR)" "$(APP)" --args -ApplePersistenceIgnoreState YES
