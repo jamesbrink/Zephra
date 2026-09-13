@@ -15,15 +15,21 @@ struct WaitingRunCard: View {
     let run: RunSummary
 
     @Environment(LinkClient.self) private var client
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    private var layout: AnyLayout {
+        typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
+    }
 
     var body: some View {
-        HStack(spacing: 8) {
+        layout {
             ModelDot(run.modelID)
             Text(run.prompt)
                 .font(.callout)
-                .lineLimit(1)
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
                 .truncationMode(.tail)
-            Spacer(minLength: 8)
+            if !typeSize.isAccessibilitySize { Spacer(minLength: 8) }
             Text(detail)
                 .font(.caption)
                 .monospacedDigit()

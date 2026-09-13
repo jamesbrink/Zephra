@@ -18,15 +18,21 @@ struct RunningRunCard: View {
     let run: RunSummary
 
     @Environment(LinkClient.self) private var client
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    private var layout: AnyLayout {
+        typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+            layout {
                 ModelDot(run.modelID)
                 Text(run.prompt)
                     .font(.callout)
-                    .lineLimit(2)
-                Spacer(minLength: 8)
+                    .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
+                if !typeSize.isAccessibilitySize { Spacer(minLength: 8) }
                 StopRunButton()
             }
             ProgressView(value: engine?.fraction ?? 0)
