@@ -144,17 +144,13 @@ so. See "Build & run" in AGENTS.md and the CI section of
    picks because it is listed first, and **LTX's two-stage path** (`LTX2StagePlan`: the
    eight-step ladder at half the size, the pack's spatial upsampler doubling the latent,
    three steps at the full size) for every frame of 512 or more on the short edge that
-   halves onto the grid. The mirror carries the Wan variant since 2026-09-10; its
-   LTX-2.5 entry is still the shipped build's (packed before the upsampler joined the
-   release's patterns), so the next ship runs `make mirror-ltx2 FORCE=1` and syncs, at
-   which point the shipped build falls back to the pack for LTX until updated. The
-   entry with sound (`ltx-2.5-distilled-audio-4bit`, 2026-09-10) is not on the mirror
-   at all yet: `make mirror-ltx2-audio` goes with that same ship, and until then every
-   Mac choosing it downloads the 71 GB pack and packs 25.8 GB itself. Upgrading a
-   Mac that holds the earlier LTX variant rebuilds it whole (20.8 GB written, with the old
-   variant still on the volume for the free-space check), or re-downloads the 70 GB pack if
-   the pack was deleted; an upsampler-only top-up was not written. Left out, in order of
-   value:
+   halves onto the grid. The mirror carries the Wan variant since 2026-09-10 and, since
+   2026-09-13, the LTX-2.5 variant with the upsampler and the entry with sound
+   (`ltx-2.5-distilled-audio-4bit`), both matching build 202609120813's descriptors word
+   for word. A Mac that holds the earlier LTX variant rebuilds it whole (20.8 GB written,
+   with the old variant still on the volume for the free-space check), or re-downloads
+   the 70 GB pack if the pack was deleted; an upsampler-only top-up was not written. Left
+   out, in order of value:
    - **Fewer steps on a fixed ladder**: LTX's stage two runs a subset of the distilled
      sigmas, which says the checkpoint tolerates one; a Draft choice walking five of the
      nine from noise might be worth its speed. Unknown until someone looks at the clips,
