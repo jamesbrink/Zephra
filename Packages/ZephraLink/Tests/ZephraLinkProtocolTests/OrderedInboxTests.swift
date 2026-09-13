@@ -22,6 +22,20 @@ struct OrderedInboxTests {
         return String(decoding: envelope.body, as: UTF8.self)
     }
 
+    /// Waits until the inbox has said `count` skips, or gives up at a deadline no scheduler
+    /// reaches.
+    ///
+    /// The hold is milliseconds, but the clock behind it is a `Task` on the cooperative pool, and
+    /// a machine running this package's forty-odd suites at once — CI's is three cores — can leave
+    /// that task waiting far longer than the hold it was armed for. A fixed sleep makes the
+    /// scheduler's mood into a failure about ordering; waiting for the skip itself cannot.
+    static func waitForSkips(_ told: ToldTheGap, reaching count: Int) async throws {
+        let deadline = ContinuousClock.now + .seconds(10)
+        while told.count < count, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+    }
+
     @Test("Frames handed over as 1, 3, 2, 4 are released as 1, 2, 3, 4")
     func reorderedFramesAreReleasedInOrder() throws {
         let (sender, inbox) = Self.pair()
@@ -79,7 +93,7 @@ struct OrderedInboxTests {
         _ = try sender.seal(Self.frame("the one that never comes"))
         let rest = try (3...5).map { try sender.seal(Self.frame("\($0)")) }
         for bytes in rest { #expect(try inbox.accept(bytes).isEmpty) }
-        try await Task.sleep(for: .milliseconds(200))
+        try await Self.waitForSkips(told, reaching: 1)
 
         #expect(!receiver.isClosed, "one hole is a message lost, not a session")
         #expect(
@@ -99,7 +113,7 @@ struct OrderedInboxTests {
         inbox.onGap { told.say($0, $1) }
         let missing = try sender.seal(Self.frame("the one that never comes"))
         #expect(try inbox.accept(try sender.seal(Self.frame("2"))).isEmpty)
-        try await Task.sleep(for: .milliseconds(200))
+        try await Self.waitForSkips(told, reaching: 1)
 
         #expect(try inbox.accept(try sender.seal(Self.frame("3"))).count == 1, "the next lands")
         #expect(
@@ -116,7 +130,11 @@ struct OrderedInboxTests {
         // reach the end of its half-second with a gap that was milliseconds old open, and step
         // over a frame that was on its way.
         let (sender, receiver) = SecureChannelTests.channels()
-        let inbox = OrderedInbox(channel: receiver, hold: .milliseconds(100))
+        // The hold is six hundred milliseconds rather than a hundred so the margin at the end is
+        // hundreds of milliseconds wide: this is the one question here a wait cannot be made
+        // deterministic for — it is about a clock *not* running out — and a loaded machine can
+        // leave this task off a core for longer than a tight margin allows.
+        let inbox = OrderedInbox(channel: receiver, hold: .milliseconds(600))
         let told = ToldTheGap()
         inbox.onGap { told.say($0, $1) }
         let sealed = try (0...4).map { try sender.seal(Self.frame("\($0)")) }
@@ -124,13 +142,13 @@ struct OrderedInboxTests {
         var released: [String] = []
         released += try inbox.accept(sealed[2]).compactMap(Self.name)
         released += try inbox.accept(sealed[4]).compactMap(Self.name)
-        try await Task.sleep(for: .milliseconds(50))
+        try await Task.sleep(for: .milliseconds(300))
         released += try inbox.accept(sealed[0]).compactMap(Self.name)
-        try await Task.sleep(for: .milliseconds(20))
+        try await Task.sleep(for: .milliseconds(120))
         released += try inbox.accept(sealed[1]).compactMap(Self.name)
         // Past where a clock armed at the first gap would have run out, and not past where one
         // armed at the gap that is actually open will.
-        try await Task.sleep(for: .milliseconds(40))
+        try await Task.sleep(for: .milliseconds(240))
 
         #expect(told.count == 0, "no gap here was ever older than the hold")
         released += try inbox.accept(sealed[3]).compactMap(Self.name)
