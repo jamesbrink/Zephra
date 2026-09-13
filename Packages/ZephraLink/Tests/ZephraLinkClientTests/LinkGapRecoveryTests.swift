@@ -35,19 +35,26 @@ struct LinkGapRecoveryTests {
         let bed = try await Self.connected()
         defer { Task { await bed.host.stop() } }
         var world = ClientFixtures.snapshot
-        world.libraryCount = 7
+        // The fresh snapshot says who answered rather than moving the count: a count that moved
+        // starts the folder again, which is `LinkLibraryPullTests`' concern, and here the restart
+        // would step on the very frame the hole held back. The Mac's folder holds that picture
+        // too, so a pull that runs anyway hands back what the phone released rather than nothing.
+        world.hostName = Self.answeredTheResync
         bed.host.world = world
+        bed.host.library = [ClientFixtures.entry("behind-the-hole.png")]
 
         bed.road.dropFrame()
         try await bed.host.announce(LinkReorderingTests.progress(step: 1), kind: .delta)
         try await bed.host.announce(
             StateDelta.library(.upserted([ClientFixtures.entry("behind-the-hole.png")])),
             kind: .delta)
-        try await Self.settle { bed.client.snapshot?.libraryCount == 7 }
+        try await Self.settle { bed.client.snapshot?.hostName == Self.answeredTheResync }
 
         #expect(bed.road.dropCount == 1, "the road has to have actually lost one")
         #expect(bed.host.commands.contains(.resync), "the phone asks for the world again")
-        #expect(bed.client.snapshot?.libraryCount == 7, "and the fresh snapshot is what it holds")
+        #expect(
+            bed.client.snapshot?.hostName == Self.answeredTheResync,
+            "and the fresh snapshot is what it holds")
         #expect(bed.client.connection == .live(.lan), "a hole is not a reason to drop the link")
         #expect(
             bed.client.library.map(\.fileName) == ["behind-the-hole.png"],
@@ -123,6 +130,10 @@ struct LinkGapRecoveryTests {
     }
 
     /// Waits for the phone to have caught up, or gives up after a couple of seconds.
+    /// What the Mac calls itself in the snapshot it answers a resync with, so the suite can see
+    /// that snapshot land without moving anything the library reads.
+    static let answeredTheResync = "A Mac that answered the resync"
+
     static func settle(_ until: @MainActor () -> Bool) async throws {
         for _ in 0..<200 {
             if until() { return }
