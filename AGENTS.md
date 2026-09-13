@@ -2013,7 +2013,9 @@ environment value.
   downloader and UI against disposable HTTP fixtures with an unloaded exercise
   backend; use a separate preferences domain and models folder. No such hook
   exists in Release.
-- `make logs` streams `os.Logger` output for subsystem `io.zephra`.
+- `make logs` streams `os.Logger` output for subsystem `io.zephra` at info and
+  above, which is where the memory guard's admitted and refused lines sit; `log
+  stream` without `--level info` shows none of them.
 - A locally built Zephra (every `make run`, `make build`, any ad-hoc signature)
   keeps its companion identity and pairings in
   `~/Library/Application Support/Zephra/Companion/` (`identity`, `devices.json`),
