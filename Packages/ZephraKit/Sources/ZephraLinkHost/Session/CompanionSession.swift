@@ -73,6 +73,11 @@ public final class CompanionSession: Identifiable {
     /// memory and not a window anybody counts on.
     static let runMemory = 32
 
+    /// How long `close` gives the writer to send what is queued before the road is closed under
+    /// it: long enough for a revocation to leave, short enough that a phone that vanished does
+    /// not hold its session for the minutes TCP takes to notice.
+    public static let drainDeadline: Duration = .seconds(2)
+
     /// Prepares a session. Nothing is read until `start()`.
     init(connection: any LinkConnection, host: CompanionHost) {
         self.connection = connection
@@ -120,9 +125,19 @@ public final class CompanionSession: Identifiable {
         inbox?.stop()
         handshakeSettled()
         sink.finish()
+        // The drain is bounded and the road is closed before the writer is waited on. A writer
+        // in the middle of a send to a phone that has gone never returns on its own: the socket
+        // buffers fill and the completion waits on acknowledgements that are not coming, so a
+        // close that waited for it kept the session, its road and its slot for as long as TCP
+        // took to give up. What the drain is for is the error above, which is owed a moment to
+        // leave; anything still queued after that is not.
+        let deadline = ContinuousClock.now + Self.drainDeadline
+        while writer != nil, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        await connection.close()
         await writer?.value
         writer = nil
-        await connection.close()
         channel?.close()
         reader?.cancel()
         roadErrors?.cancel()

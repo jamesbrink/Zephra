@@ -20,6 +20,10 @@ public final class TCPConnection: LinkConnection, @unchecked Sendable {
         var isStarted = false
         var isClosed = false
         var readyWaiters: [CheckedContinuation<Void, Error>] = []
+        /// Every send whose completion has not fired, so `close` can fail them itself rather
+        /// than trust Network to: a send over a path that has gone is never completed.
+        var sendWaiters: [UInt64: CheckedContinuation<Void, Error>] = [:]
+        var nextSend: UInt64 = 0
     }
 
     let connection: NWConnection
@@ -95,20 +99,36 @@ public final class TCPConnection: LinkConnection, @unchecked Sendable {
         withUnsafeBytes(of: UInt32(frame.count).bigEndian) { bytes.append(contentsOf: $0) }
         bytes.append(frame)
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            let ticket: UInt64? = lock.withLock {
+                guard !state.isClosed else { return nil }
+                defer { state.nextSend += 1 }
+                state.sendWaiters[state.nextSend] = continuation
+                return state.nextSend
+            }
+            guard let ticket else { return continuation.resume(throwing: TCPConnectionError.closed) }
             connection.send(
                 content: bytes,
-                completion: .contentProcessed { error in
-                    if let error { continuation.resume(throwing: error) } else { continuation.resume() }
+                completion: .contentProcessed { [weak self] error in
+                    guard let waiter = self?.claimSend(ticket) else { return }
+                    if let error { waiter.resume(throwing: error) } else { waiter.resume() }
                 })
         }
+    }
+
+    /// The continuation for one send, if `close` has not already answered it.
+    private func claimSend(_ ticket: UInt64) -> CheckedContinuation<Void, Error>? {
+        lock.withLock { state.sendWaiters.removeValue(forKey: ticket) }
     }
 
     public func close() async {
         let waiters: [CheckedContinuation<Void, Error>] = lock.withLock {
             guard !state.isClosed else { return [] }
             state.isClosed = true
-            defer { state.readyWaiters = [] }
-            return state.readyWaiters
+            defer {
+                state.readyWaiters = []
+                state.sendWaiters = [:]
+            }
+            return state.readyWaiters + state.sendWaiters.values
         }
         for waiter in waiters { waiter.resume(throwing: TCPConnectionError.closed) }
         connection.cancel()

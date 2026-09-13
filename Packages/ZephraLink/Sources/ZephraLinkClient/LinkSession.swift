@@ -86,15 +86,21 @@ final class LinkSession {
         roadErrors?.cancel()
         roadErrors = nil
         sink.finish()
-        await writer?.value
-        writer = nil
         inbox?.stop()
         channel?.close()
         if let waiter = handshakeWaiter {
             handshakeWaiter = nil
             waiter.resume(throwing: error)
         }
+        // The road is closed **before** the writer is waited on. A writer in the middle of a send
+        // over a road whose interface has gone never returns on its own: Network hands the bytes
+        // to nothing and the completion never fires, so a session ended the other way round sat
+        // on that await for good — the phone never dialled again and read as reconnecting for
+        // as long as the app was open. Closing the road is what fails that send, and nothing
+        // still queued at the end of a session is owed delivery.
         await road.close()
+        await writer?.value
+        writer = nil
     }
 
     /// The writer: one task per session, draining the stream in the order it was sealed in.

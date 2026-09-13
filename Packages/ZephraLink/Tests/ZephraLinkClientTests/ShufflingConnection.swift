@@ -20,6 +20,10 @@ final class ShufflingConnection: LinkConnection, @unchecked Sendable {
     private var shuffles = false
     private var swaps = 0
     private var refusesSends = false
+    /// Whether a send sits until the road is closed, which is what a socket whose interface has
+    /// gone does: Network hands the bytes to nothing and the completion never fires.
+    private var stallsSends = false
+    private var stalled: [CheckedContinuation<Void, any Error>] = []
     /// How many frames to let past before one is dropped, or nil for a road that drops nothing.
     /// A live run had the relay swallow one small frame with nothing logged at either end; this
     /// is that, made deterministic.
@@ -58,6 +62,10 @@ final class ShufflingConnection: LinkConnection, @unchecked Sendable {
 
     /// Makes every later `send` fail, which is what a socket the far end has dropped does.
     func refuseSends() { lock.withLock { refusesSends = true } }
+
+    /// Makes every later `send` hang until `close()`, which is what a socket whose interface
+    /// has gone does.
+    func stallSends() { lock.withLock { stallsSends = true } }
 
     /// Starts letting frames overtake each other.
     func startShuffling() { lock.withLock { shuffles = true } }
@@ -120,8 +128,20 @@ final class ShufflingConnection: LinkConnection, @unchecked Sendable {
 
     func send(_ frame: Data) async throws {
         guard !lock.withLock({ refusesSends }) else { throw MemoryLinkConnectionError.closed }
+        if lock.withLock({ stallsSends }) {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+                lock.withLock { stalled.append(continuation) }
+            }
+        }
         try await inner.send(frame)
     }
 
-    func close() async { await inner.close() }
+    func close() async {
+        let waiting = lock.withLock { () -> [CheckedContinuation<Void, any Error>] in
+            defer { stalled = [] }
+            return stalled
+        }
+        for waiter in waiting { waiter.resume(throwing: MemoryLinkConnectionError.closed) }
+        await inner.close()
+    }
 }

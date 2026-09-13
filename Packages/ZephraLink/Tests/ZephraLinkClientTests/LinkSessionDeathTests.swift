@@ -61,6 +61,24 @@ struct LinkSessionDeathTests {
         #expect(await waiting.value != nil)
     }
 
+    @Test("a send stuck on a dead road does not keep the session from ending")
+    func aStuckSendDoesNotHoldTheEnding() async throws {
+        let bed = try await live()
+        defer { Task { await bed.host.stop() } }
+        // The road is the one a phone that walked out of Wi-Fi holds: the interface is gone, a
+        // send sits forever, and nothing completes it but closing the road. The probe's ping is
+        // that send, and the probe's timeout is what ends the session behind it.
+        bed.road.stallSends()
+        let probing = Task { await bed.client.probe(timeout: .milliseconds(50)) }
+        // Polled rather than raced: a structured race over a wait that cannot be cancelled would
+        // itself wait forever, which is the failure this pins.
+        for _ in 0..<40 where bed.client.connection.isLive {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        #expect(!bed.client.connection.isLive, "the session ended within two seconds")
+        probing.cancel()
+    }
+
     /// Lets the frames in flight land: everything here is one process and one actor, so a
     /// couple of turns of the loop is the whole of the wait.
     private func settle() async throws {

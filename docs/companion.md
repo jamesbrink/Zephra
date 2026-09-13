@@ -893,6 +893,16 @@ channel's nonce is a frame's position in the stream, so the order frames are
 sealed in must be the order they leave in, and a phone on a slow link never holds
 the main actor. A blob leaves as a `blobStart` reply and the chunks behind it.
 
+Closing a session is the one place that writer is waited on, and the order
+matters. A phone that walked out of Wi-Fi leaves a socket whose buffers fill and
+whose sends then wait on acknowledgements that are not coming, for as long as TCP
+takes to give up; a `close` that waited for the writer before it closed the road
+kept the session, its road and its guest slot for that long, and a revoke or a
+quit sat behind them. So `close` gives the writer `drainDeadline` (two seconds,
+enough for the revocation `close(telling:)` queued to leave), closes the road,
+and only then waits for the writer, which the closed road fails at once.
+`CompanionDeadRoadTests` pins it over a road whose sends stall until closed.
+
 **The app's side** is `Sources/Zephra/Companion/`. `LinkKeychain` is the facade
 over this Mac's identity and its pairings, and `LinkKeychainKind` decides where
 those two secrets are kept — **three** answers, one question, asked once a launch
@@ -1070,6 +1080,17 @@ requests, or a request and the pong an incoming ping asks for, free to take two
 counters and reach the socket the other way round, which the far end cannot open
 and never recovers from. `LinkSession.send(_:)` is synchronous for exactly that:
 no await between taking the counter and queueing the bytes.
+
+`LinkSession.end` closes the road **before** it waits for the writer. The first
+shipped build waited the other way round, and a phone that left Wi-Fi with a
+session up never came back: the path watch probed, the probe's ping was the send
+the writer was stuck in, the probe timed out and ended the session, and `end` sat
+on the writer for good, since Network never completes a send over an interface
+that has gone. The state stayed `live`, the reconnection loop sat on a live
+session, and the relay never saw a single join from the phone. Nothing queued at
+the end of a session is owed delivery, so the road goes first, and
+`TCPConnection.close` fails every send still waiting itself rather than trusting
+Network to. `LinkSessionDeathTests` pins it over a road whose sends stall.
 
 The session loop reads `frames()`, opens each through the `SecureChannel` and
 dispatches by kind. The reader starts **before** the first plaintext message goes

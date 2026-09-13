@@ -365,7 +365,9 @@ counted. One
 change and coalesced by 50 ms, is what publishes the `StateDelta`s; preview
 frames go out as JPEG at most ten a second, encoded off the main actor.
 `CompanionSession` is one phone, with a writer task of its own so a slow link
-never holds the main actor. The plaintext stage is bounded twice, in
+never holds the main actor; `close` gives that writer `drainDeadline` (2 s) to
+send what is queued, then closes the road and only then waits for it, because a
+send to a phone that has gone never completes on its own. The plaintext stage is bounded twice, in
 `CompanionHost` rather than in a listener that knows nothing of handshakes: at
 most `unauthenticatedLimit` (8) connections may sit in it, and each is closed
 after `handshakeDeadline` (10 s) without a channel. It **writes nothing to the Mac's own interface**:
@@ -417,6 +419,11 @@ leaves the process; the phone reconnects on foreground and after a close on
 sealed leaves through one `AsyncStream<Data>` on `LinkSession`, drained by a
 writer task, and `send` is synchronous: a frame's nonce is its position in the
 stream, so no await may sit between taking the counter and queueing the bytes.
+Ending a session closes the road **before** it waits for that writer, and
+`TCPConnection.close` fails every send still waiting itself: a send over a road
+whose interface has gone is never completed by Network, and a phone that waited
+for it never dialled again. `LinkSessionDeathTests` and `CompanionDeadRoadTests`
+pin both ends.
 
 Full detail: `docs/companion.md`.
 
