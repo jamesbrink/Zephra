@@ -584,6 +584,18 @@ and it goes the same two places a relay refusal does: the log at error, and
 still bounds the wait. Anything that is neither the relay's shape nor the
 gateway's is still refused.
 
+`joinDeadline` (15 s) is a clock that **closes the socket**, not a sleeper racing
+the join in a task group. The first shape was the group: a child that threw
+`timedOut` beside the child running the join. But a pending `receive()` on a
+`URLSessionWebSocketTask` is not stopped by task cancellation, and a group waits
+for every child before it returns, so the deadline threw into a group that then
+sat on the join for as long as the socket's own timeout took — sixty seconds
+against an address that answers nothing, measured. A phone on a network that
+cannot reach the relay showed "Connecting" for a minute per attempt over it.
+Closing the task is what fails the receive; a flag turns the cancellation it
+then fails with back into `timedOut`. `RelayJoinDeadlineTests` dials an
+unrouted address with a one-second deadline and expects the failure inside four.
+
 ### What a missing frame writes in the log
 
 Every place a frame can vanish says so at error, under `io.zephra`

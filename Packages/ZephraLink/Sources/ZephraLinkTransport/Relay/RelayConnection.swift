@@ -26,6 +26,9 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
     struct State {
         var isClosed = false
         var isJoined = false
+        /// Whether the join clock closed the socket, which is what `start()` reports as the
+        /// deadline rather than as the cancellation the receive then fails with.
+        var joinTimedOut = false
         /// The guests this host will admit, as raw signing keys. Empty for a guest, which sends
         /// no list at all.
         var allow: [Data] = []
@@ -41,6 +44,8 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
     /// What paces the slices this road writes. Injected, so a suite can ask the question in
     /// milliseconds rather than at the rate a relay is worth pacing to.
     let cadence: RelayCadence
+    /// How long this road gives the join, `Self.joinDeadline` unless a suite says otherwise.
+    let joinDeadline: Duration
     /// Which end of the room this is, which is what decides whether it carries an allow-list.
     public let role: RelayRole
     let logger = Logger(subsystem: "io.zephra", category: "link.relay")
@@ -70,10 +75,12 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
         url: URL, identity: DeviceIdentity, room: RoomID, role: RelayRole,
         session: URLSession = .shared,
         cadence: RelayCadence = RelayCadence(
-            messagesPerSecond: RelayConnection.messagesPerSecond, burst: RelayConnection.burst)
+            messagesPerSecond: RelayConnection.messagesPerSecond, burst: RelayConnection.burst),
+        joinDeadline: Duration = RelayConnection.joinDeadline
     ) {
         task = session.webSocketTask(with: url)
         self.cadence = cadence
+        self.joinDeadline = joinDeadline
         self.role = role
         handshake = RelayHandshake(identity: identity, room: room, role: role)
         (frameStream, frameContinuation) = AsyncThrowingStream.makeStream()
@@ -89,19 +96,26 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
     /// is sent until the relay says `joined`: its connection index is eventually consistent.
     public func start() async throws {
         task.resume()
+        // The clock closes the socket rather than racing the join in a task group. A pending
+        // `receive()` on a `URLSessionWebSocketTask` is not cancelled by task cancellation, and
+        // a group waits for every child before it returns, so the first shape of this — a
+        // sleeper that threw beside the join — threw into a group that then sat on the join for
+        // as long as the socket's own timeout took, sixty seconds against an address that
+        // answers nothing. Closing the task is what fails the receive, and the flag is what
+        // turns the cancellation it fails with back into the deadline's own error.
+        let deadline = joinDeadline
+        let clock = Task { [weak self] in
+            try? await Task.sleep(for: deadline)
+            guard !Task.isCancelled, let self else { return }
+            lock.withLock { state.joinTimedOut = true }
+            await close()
+        }
+        defer { clock.cancel() }
         do {
-            try await withThrowingTaskGroup(of: Void.self) { group in
-                group.addTask { try await self.join() }
-                group.addTask {
-                    try await Task.sleep(for: Self.joinDeadline)
-                    throw RelayError.timedOut
-                }
-                try await group.next()
-                group.cancelAll()
-            }
+            try await join()
         } catch {
             await close()
-            throw error
+            throw lock.withLock { state.joinTimedOut } ? RelayError.timedOut : error
         }
     }
 
