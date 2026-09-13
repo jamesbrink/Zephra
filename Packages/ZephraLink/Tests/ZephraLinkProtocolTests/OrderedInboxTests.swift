@@ -79,7 +79,8 @@ struct OrderedInboxTests {
         _ = try sender.seal(Self.frame("the one that never comes"))
         let rest = try (3...5).map { try sender.seal(Self.frame("\($0)")) }
         for bytes in rest { #expect(try inbox.accept(bytes).isEmpty) }
-        try await Task.sleep(for: .milliseconds(200))
+        let deadline = ContinuousClock.now + .seconds(2)
+        while told.gap == nil && ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(5)) }
 
         #expect(!receiver.isClosed, "one hole is a message lost, not a session")
         #expect(
@@ -99,7 +100,8 @@ struct OrderedInboxTests {
         inbox.onGap { told.say($0, $1) }
         let missing = try sender.seal(Self.frame("the one that never comes"))
         #expect(try inbox.accept(try sender.seal(Self.frame("2"))).isEmpty)
-        try await Task.sleep(for: .milliseconds(200))
+        let deadline = ContinuousClock.now + .seconds(2)
+        while told.gap == nil && ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(5)) }
 
         #expect(try inbox.accept(try sender.seal(Self.frame("3"))).count == 1, "the next lands")
         #expect(
