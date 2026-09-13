@@ -34,9 +34,14 @@ func digest(of url: URL) throws -> String {
     let handle = try FileHandle(forReadingFrom: url)
     defer { try? handle.close() }
     var hasher = SHA256()
-    while let chunk = try handle.read(upToCount: 8 << 20), !chunk.isEmpty {
+    // Each chunk is released inside its own pool: at the top level of an interpreted script
+    // nothing drains the autorelease pool until the script ends, so without this every chunk
+    // of every file stays resident and a 90 GB mirror is killed at about 45 GB read.
+    while try autoreleasepool(invoking: {
+        guard let chunk = try handle.read(upToCount: 8 << 20), !chunk.isEmpty else { return false }
         hasher.update(data: chunk)
-    }
+        return true
+    }) {}
     return hasher.finalize().map { String(format: "%02x", $0) }.joined()
 }
 
