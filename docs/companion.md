@@ -398,7 +398,12 @@ repositories drifting apart; nothing links it, and nothing in Swift may. `make
 relay-deploy` zips the one file, replaces the function's code, waits for it to
 settle and then opens a real socket to `wss://zephra-link.urandom.io` to check
 that `hello` comes back a `challenge`; CI runs that on every push to `main`
-(`docs/build-and-release.md`). Terraform in the urandom.io repository still owns
+(`docs/build-and-release.md`). The API and its domain answer over IPv6 as well as
+IPv4 since 2026-09-13 (`IpAddressType=dualstack` on both, and a `link_aaaa`
+Route53 alias beside `link_a`): most US 5G networks are IPv6-only, and a relay
+with an A record alone is one such a phone cannot reach. The address type was set
+with the AWS CLI because the provider pinned there predates the attribute; the note
+in `link.tf` says so. Terraform in the urandom.io repository still owns
 the function, its role, the DynamoDB table, the API, the stage and the domain,
 and deliberately not the code: its `aws_lambda_function.link` ignores `filename`
 and `source_code_hash`, so an apply there cannot roll a deployed relay back to

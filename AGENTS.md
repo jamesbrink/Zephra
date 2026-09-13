@@ -411,7 +411,9 @@ as a one-element set until the next join moves it in. `make relay-test` covers
 it against fakes in seconds and `make relay-deploy` puts it up, which CI does on
 every push to `main`. Terraform in the
 urandom.io repository still owns the function, the table, the API and the domain,
-and deliberately not the code.
+and deliberately not the code. The API and the domain are **dual-stack** and the
+domain has an AAAA alias beside its A (2026-09-13): a phone on an IPv6-only
+carrier has no way to a relay with no AAAA record.
 
 `ZephraLinkClient` is the phone's `LinkClient`: `@MainActor @Observable`, split
 by concern like `GenerationStore`, holding the snapshot the deltas edit, the
