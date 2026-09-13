@@ -8,7 +8,12 @@ struct MemoryFitTests {
     static func gigabytes(_ count: UInt64) -> UInt64 { count * 1024 * 1024 * 1024 }
     static func megabytes(_ count: UInt64) -> UInt64 { count * 1024 * 1024 }
 
-    /// A 16 GB Mac as macOS sets it up: Metal reports 12124 MB, measured on an M4 mini.
+    /// A 16 GB Mac as macOS sets it up: bender's M4 mini, whose kernel refused to wire past
+    /// 12,713,115,648 bytes on 2026-09-13. That is 12124.17 **mebibytes**, which is the unit
+    /// `recommendedMaxWorkingSetSize` is reported in and what BENCHMARKS.md's machine table
+    /// spells "12124 MB"; the bench's own MB are decimal, and comparing the two straight is
+    /// what once read a 12143 MB tiled peak as over this budget rather than 570 MB under it.
+    /// Floored to whole mebibytes here, so the fixture is if anything the stricter Mac.
     static let sixteenDefault = MemoryBudget(
         physicalMemory: gigabytes(16), gpuWorkingSet: megabytes(12124))
     /// The same Mac after `sudo sysctl -w iogpu.wired_limit_mb=16384`.
@@ -46,11 +51,14 @@ struct MemoryFitTests {
         let klein = ModelCatalog.flux2Klein8bit
         #expect(MemoryFit(descriptor: klein, budget: Self.sixteenDefault) == .fitsTiled)
         #expect(MemoryFit(descriptor: klein, budget: Self.sixteenRaised) == .fits)
-        // Z-Image 4-bit: 17.8 GB untiled, 12.0 GB tiled. The raised budget does not reach the
-        // untiled peak, so it stays tiled.
+        // Z-Image 4-bit: 17.8 GB untiled, 12.15 GB tiled as halcyon measured it on
+        // 2026-09-13. The raised budget does not reach the untiled peak, so it stays tiled.
         let turbo = ModelCatalog.zImageTurbo4bit
         #expect(MemoryFit(descriptor: turbo, budget: Self.sixteenDefault) == .fitsTiled)
         #expect(MemoryFit(descriptor: turbo, budget: Self.sixteenRaised) == .fitsTiled)
+        // And with room to spare: the measured tiled peak clears this Mac's working set by
+        // more than half a gigabyte, which is the margin the catalog's comment quotes.
+        #expect(Self.sixteenDefault.bytes - Double(turbo.tiledPeakBytes) > 500_000_000)
     }
 
     @Test("a tight verdict names the working set that would clear it")

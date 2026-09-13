@@ -1096,7 +1096,7 @@ size: `residentBytes` (the run's "live memory"), `peakBytes`, `tiledPeakBytes`
 one `--stream --stream-depth 2` run. **The last two go together.**
 `MemoryGuard` subtracts a held figure from a peak to get what a run still has to
 find, and `residentBytes` is not what a streamed load holds: it is larger than
-the streamed peak itself for every family measured (Z-Image 8-bit, 12.2 GB
+the streamed peak itself for every family measured (Z-Image 8-bit, 12.4 GB
 resident against a 6.4 GB streamed peak), so reading it there floors the
 transient at zero and admits a streamed run on a Mac with nothing free. A
 streaming entry that leaves `streamedResidentBytes` at 0 is charged its whole

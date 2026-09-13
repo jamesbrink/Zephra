@@ -48,7 +48,7 @@ struct ModelCatalogTests {
         #expect(fitting.contains(ModelCatalog.zImageTurbo4bit))
         #expect(fitting.contains(ModelCatalog.flux2Klein4bit))
         #expect(ModelCatalog.fit(ModelCatalog.flux2Klein4bit, physicalMemory: memory) == .fits)
-        // 12.0 GB tiled against a 13.7 GB budget; 17.8 GB untiled is well over it.
+        // 12.15 GB tiled against a 13.7 GB budget; 17.8 GB untiled is well over it.
         #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo4bit, physicalMemory: memory) == .fitsTiled)
         #expect(!ModelCatalog.fitsComfortably(ModelCatalog.zImageTurbo4bit, physicalMemory: memory))
         // The 8-bit variant is offered too now, streamed: 17.7 GB tiled is over the budget and

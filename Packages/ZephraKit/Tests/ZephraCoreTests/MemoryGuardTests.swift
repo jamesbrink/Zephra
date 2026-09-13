@@ -21,7 +21,7 @@ struct MemoryGuardTests {
 
     @Test("with no reading to be had the budget alone decides, and it refuses what cannot fit")
     func theBudgetAloneDecidesWithoutAReading() {
-        // Z-Image 8-bit tiled is 17.7 GB against a 12.1 GB working set: the load that aborted
+        // Z-Image 8-bit tiled is 17.9 GB against a 12.7 GB working set: the load that aborted
         // a 16 GB mini on 2026-09-13, refused here before Metal is asked for a byte.
         let refused = Self.guardian.loadShortfall(
             for: ModelCatalog.zImageTurbo8bit, residency: .resident, tile: 64, machine: nil,

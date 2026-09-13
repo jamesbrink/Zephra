@@ -32,6 +32,15 @@ Machines:
 | halcyon | M4 Max | 48 GB | 38338 MB |
 | bender | M4 mini | 16 GB | 12124 MB |
 
+That last column is **mebibytes**, as macOS reports
+`recommendedMaxWorkingSetSize`, and floored: bender's 12124 MB is the
+12,713,115,648 bytes its kernel refused to wire past on 2026-09-13 (12124.17
+MiB), and halcyon's 38338 MB is about 40.2 GB. Every other figure here is
+decimal MB, so a number from a table below and a number from this column are
+never comparable until one of them is converted. Reading them straight against
+each other is what once made Z-Image 4-bit's 12143 MB tiled peak look 19 MB
+*over* a budget it in fact clears by 570 MB.
+
 ## Z-Image-Turbo
 
 `z-image-turbo-8bit` (`mzbac/Z-Image-Turbo-8bit`, loaded as downloaded) and
@@ -39,11 +48,16 @@ Machines:
 
 | Variant | Download | Built | Resident | Peak 512 | Peak 768 | Peak 1024 | Tiled 1024 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 8-bit | 13.3 GB | — | 12236 MB | | | 23501 MB | 17.7 GB |
-| 4-bit | 32.9 GB | 7.1 GB | 6575 MB | 10693 MB | 14599 MB | 17839 MB | 12010 MB |
+| 8-bit | 13.3 GB | — | 12431 MB | | | 23501 MB | 17867 MB |
+| 4-bit | 32.9 GB | 7.1 GB | 6707 MB | 10693 MB | 14599 MB | 17839 MB | 12143 MB |
 
-- Downloads exclude `assets/`. The 4-bit tiled peak at 1024 is under bender's
-  12124 MB working set, which is why a 16 GB Mac is offered that variant.
+- Resident and Tiled 1024 are the 2026-09-13 halcyon threes in the next table,
+  and are what the catalog carries. The untiled peaks by size are the earlier M4
+  Max run, which also read 12236 MB resident and 17673 MB tiled, 1.1% under.
+- Downloads exclude `assets/`. The 4-bit tiled peak at 1024, 12143 MB decimal
+  (12,143,000,000 bytes), is under bender's 12,713,115,648-byte working set by
+  570 MB, which is why a 16 GB Mac is offered that variant tiled rather than
+  streamed.
 - Four bits is not faster than eight: MLX's quantized matmul costs the same at
   these shapes whichever width it packs (`make bench ARGS=--micro`), and the
   end-to-end step times agree.
@@ -86,15 +100,17 @@ go higher, so these are a working Mac's figures rather than a ceiling.
   without, which the entry carries rounded **up** to 6.42 GB.
 - On bender (16 GB M4 mini) the 4-bit variant measured 5196 MB peak streamed at
   1024, 22.6 s/step; its resident control was not completed and the 8-bit variant
-  was not run there, at James's request. **Owed** on an idle bender.
-- **The resident peaks above are 1.1% over what the catalog carries** (12143
-  against 12010, 17867 against 17680) and the catalog has not been moved: 12143 MB
-  is 19 MB *over* bender's 12124 MB working set, so raising `tiledPeakBytes` would
-  flip a 16 GB Mac from tiling the 4-bit variant to streaming it on a 0.15%
-  margin, measured on the wrong machine. The resident *live* readings are out by
-  the same hand — 6707 MB against the entry's 6580 and 12431 against 12240 — and
-  are left alone for the same reason. **Owed**: the same pair on bender, which
-  is the Mac the verdict is about.
+  was not run there, at James's request. Those are single runs on a working Mac
+  rather than idle threes, and they stand as recorded.
+- **The catalog carries these resident figures**, which are 1.1% over the M4 Max
+  readings it carried before (12143 against 12010 tiled at four bits, 17867
+  against 17680 at eight; 6707 against 6580 live and 12431 against 12240). They
+  were left alone once on the reading that 12143 MB was 19 MB *over* bender's
+  working set, which compared these decimal MB against the mebibytes macOS
+  reports the working set in: bender's is 12,713,115,648 bytes, so the measured
+  tiled peak clears it by 570 MB and a 16 GB Mac still tiles the 4-bit variant
+  rather than streaming it. Peaks go in rounded up and held figures rounded down,
+  so `tiledPeakBytes` is 12_150_000_000 and `residentBytes` 6_700_000_000.
 - The run: `ZEPHRA_VAE_TILE=64 make bench ARGS="--model z-image-turbo-8bit --size 1024 --steps 9 --runs 3 --stream --stream-depth 2"`.
 
 ## Qwen-Image-2512 4-bit
@@ -185,8 +201,8 @@ run for the reason given under Z-Image:
 - On bender both variants measured 3584 MB peak streamed, 11.57 s/step at four
   bits against 11.51 resident, and 12.13 against 12.31 at eight — the same
   "streaming is free" result on a 16 GB Mac, where the resident 8-bit build wants
-  10392 MB against a 12124 MB working set. Those are single runs; **owed** in
-  threes on an idle bender.
+  10392 MB against a 12124 MiB working set. Those are single runs on a working
+  Mac rather than idle threes, and they stand as recorded.
 - The run: `ZEPHRA_VAE_TILE=64 make bench ARGS="--model flux2-klein-4b-4bit --size 1024 --steps 4 --runs 3 --stream --stream-depth 2"`.
 
 ## LTX-2.5 4-bit, video only
@@ -339,13 +355,6 @@ The last two were taken on a busy machine and are ceilings.
 - klein's edit peak and time with the reference tokens cast.
 - LTX-2.5 streamed on bender with an idle disk.
 - Preview frame cost for Qwen-Image and Z-Image on an idle Mac.
-- Z-Image's two resident peaks at 1024 on **bender**: halcyon now measures them
-  1.1% over what the catalog carries, and the 4-bit figure straddles bender's own
-  working set, so the catalog is not moved until the Mac the verdict is about has
-  been asked. See the Z-Image "Streamed against resident" table.
-- Z-Image and klein streamed against resident on bender, in threes on an idle
-  machine: what is on record there is single runs, and Z-Image 8-bit was never
-  run on it at all.
 
 Benchmark on an idle machine, Release only; a figure from a busy one is a
 ceiling and should say so here.

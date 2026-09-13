@@ -22,14 +22,19 @@ public enum ModelCatalog {
         ),
         quantization: .int8,
         downloadBytes: 13_280_000_000,
-        // Measured on an M4 Max, deterministic across repetitions: 12236 MB live after a
-        // 1024-pixel generation and 23501 MB peak during one. The peak is the VAE decode, not
-        // weight loading, which is lazy and never exceeds 7.2 GB; see VENDORED.md.
-        residentBytes: 12_240_000_000,
+        // Measured on halcyon (M4 Max) on 2026-09-13, tile 64, 1024 pixels, nine steps, three
+        // runs, the machine 83-90% idle — the same session as the streamed figures below:
+        // 12431 MB live between runs, carried rounded **down** as a held figure is. The
+        // untiled peak is the earlier M4 Max reading, deterministic across repetitions:
+        // 23501 MB during a 1024-pixel generation, which is the VAE decode and not weight
+        // loading, which is lazy and never exceeds 7.2 GB; see VENDORED.md.
+        residentBytes: 12_430_000_000,
         peakBytes: 23_500_000_000,
-        // Measured, same machine and seed, with the tiled decode at a 64-cell latent tile:
-        // 17673 MB, so the decode transient falls from 11265 MB to 5437 MB.
-        tiledPeakBytes: 17_680_000_000,
+        // Measured in that same halcyon session at a 64-cell latent tile: 17867 MB, carried
+        // rounded **up** as a peak is, so the decode's transient is 5436 MB on top of the
+        // weights rather than the untiled 11070 MB. The entry said 17680 MB before, from the
+        // first M4 Max run, 1.1% under this one.
+        tiledPeakBytes: 17_870_000_000,
         // Measured on halcyon (M4 Max, 38338 MB working set) on 2026-09-13, tile 64, read-ahead
         // depth 2, 1024 pixels, nine steps, three runs, halcyon at 87% idle (a working
         // desktop; see BENCHMARKS.md): 6410 MB peak, carried rounded up, and
@@ -48,7 +53,7 @@ public enum ModelCatalog {
         // 8-bit build was not run there.
         streamedPeakBytes: 6_420_000_000,
         // The live figure of that same run: 974 MB between runs, carried rounded **down** to 970 MB,
-        // against the 12236 MB this model holds resident. Shared with the 4-bit entry,
+        // against the 12431 MB this model holds resident. Shared with the 4-bit entry,
         // measured, as the peak is.
         streamedResidentBytes: 970_000_000,
         maxPromptTokens: 512,
@@ -83,16 +88,25 @@ public enum ModelCatalog {
         // text encoder 8,044,982,000, autoencoder 167,666,902, tokenizer 15,881,072, and the
         // configs — 32,848,305,533 in all.
         downloadBytes: 32_850_000_000,
-        // Measured on an M4 Max, deterministic across repetitions: 6575 MB live after a
-        // generation, and a peak that follows the image size — 10693 MB at 512 pixels,
-        // 14599 MB at 768, 17839 MB at 1024. Peak is resident plus the VAE decode's scratch,
-        // which is unquantized and so costs the same here as it does at eight bits.
-        residentBytes: 6_580_000_000,
+        // Measured on halcyon (M4 Max) on 2026-09-13, tile 64, 1024 pixels, nine steps, three
+        // runs, 83-90% idle — the same session as the 8-bit entry's and as the streamed
+        // figures below: 6707 MB live between runs, carried rounded **down**. The peak that
+        // follows the image size is the earlier M4 Max reading, deterministic across
+        // repetitions: 10693 MB at 512 pixels, 14599 MB at 768, 17839 MB at 1024 — resident
+        // plus the VAE decode's scratch, which is unquantized and so costs the same here as
+        // it does at eight bits.
+        residentBytes: 6_700_000_000,
         peakBytes: 17_840_000_000,
-        // Derived, not measured: 6575 MB resident plus the 5437 MB tiled decode transient
-        // measured on the 8-bit variant, which decodes the same unquantized VAE at the same
-        // tile and so costs the same here.
-        tiledPeakBytes: 12_010_000_000,
+        // Measured in that same halcyon session, where this figure used to be derived:
+        // 12143 MB at a 64-cell latent tile, carried rounded **up**. The derivation it
+        // replaces said 12010 MB — 6575 MB resident plus the 8-bit variant's tile transient.
+        //
+        // This is the number a 16 GB Mac's verdict turns on, and it clears it: bender's M4
+        // mini reports a 12,713,115,648-byte working set, which is the 12124 MiB the machine
+        // table spells "12124 MB", so 12.15 GB leaves about 560 MB and the variant is still
+        // tiled there rather than streamed. The reading that called 12143 MB "19 MB over"
+        // compared the bench's decimal MB against mebibytes.
+        tiledPeakBytes: 12_150_000_000,
         // Measured on halcyon the same way as the 8-bit entry's, 2026-09-13, tile 64, depth 2,
         // 1024, nine steps, three runs: 6410 MB peak and 974 MB live, the same figures to the
         // byte, for the reason written out there — the stream leaves the same resident tensors
@@ -103,7 +117,7 @@ public enum ModelCatalog {
         // 5196 MB peak streamed, 22.6 s a step.
         streamedPeakBytes: 6_420_000_000,
         // The live figure of that same run: 974 MB, rounded **down** to 970 MB, the same to the byte
-        // as the 8-bit build's and for the same reason, against the 6575 MB resident.
+        // as the 8-bit build's and for the same reason, against the 6707 MB resident.
         streamedResidentBytes: 970_000_000,
         maxPromptTokens: 512,
         capabilities: zImageTurboCapabilities,

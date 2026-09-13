@@ -29,7 +29,7 @@ entry's own default size:
 The last pair go together and the last one is easy to leave out, so: do not let
 `MemoryGuard` fall back to `residentBytes` for a streamed load. That is what the
 weights weigh *held*, and for every family measured so far it is larger than the
-streamed peak — Z-Image 8-bit holds 12.2 GB resident and 974 MB streamed against
+streamed peak — Z-Image 8-bit holds 12.4 GB resident and 974 MB streamed against
 a 6.4 GB streamed peak — so subtracting it floors the run's transient at zero and
 admits a streamed run on a Mac with nothing free. An entry that streams and
 leaves `streamedResidentBytes` at 0 is charged its whole streamed peak instead,

@@ -39,7 +39,7 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
     ///
     /// `residentBytes` cannot stand in for it. That is what the weights weigh *held*, and for
     /// every streaming family it is larger than the streamed peak itself — Z-Image 8-bit holds
-    /// 12.2 GB resident and 974 MB streamed, against a 6.4 GB streamed peak. `MemoryGuard`
+    /// 12.4 GB resident and 974 MB streamed, against a 6.4 GB streamed peak. `MemoryGuard`
     /// subtracts the held figure from the peak to get what one run still has to find, so
     /// reading `residentBytes` there would floor that at zero and charge a streamed run
     /// nothing at all, which is the refusal the guard exists to make.

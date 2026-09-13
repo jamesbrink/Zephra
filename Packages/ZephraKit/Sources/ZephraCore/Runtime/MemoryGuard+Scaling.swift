@@ -23,7 +23,7 @@ extension MemoryGuard {
     ///
     /// A streamed load is held to its own measured figure, `streamedResidentBytes`, and never
     /// to `residentBytes`. That is what the weights weigh *held*, and for every streaming
-    /// family it is larger than the streamed peak itself — Z-Image 8-bit holds 12.2 GB
+    /// family it is larger than the streamed peak itself — Z-Image 8-bit holds 12.4 GB
     /// resident and 974 MB streamed, against a 6.4 GB streamed peak — so subtracting it would
     /// floor the transient at zero and charge a streamed run nothing at all, which is the
     /// refusal this guard exists to make. A streaming family with no held figure measured yet

@@ -87,8 +87,8 @@ or guarantees for every Mac. Reference-image editing can use more memory.
 | --- | ---: | ---: | ---: | ---: |
 | FLUX.2 klein 4B, 4-bit | 16 GB | 5.4 GB | 4.9 GB | 12.1 / 7.7 GB |
 | FLUX.2 klein 4B, 8-bit | Same source | 8.6 GB | 8.1 GB | 15.3 / 10.9 GB |
-| Z-Image-Turbo, 8-bit | 13.3 GB | — | 12.2 GB | 23.5 / 17.7 GB |
-| Z-Image-Turbo, 4-bit | 32.9 GB | 7.1 GB | 6.6 GB | 17.8 / 12.0 GB |
+| Z-Image-Turbo, 8-bit | 13.3 GB | — | 12.4 GB | 23.5 / 17.9 GB |
+| Z-Image-Turbo, 4-bit | 32.9 GB | 7.1 GB | 6.7 GB | 17.8 / 12.2 GB |
 | Qwen-Image-2512, 4-bit | 59.4 GB | 21.6 GB | 21.5 GB | 30.4 / 26.1 GB |
 | Wan 2.2 TI2V-5B, 4-bit | 24.2 GB | 10.1 GB | 8.0 GB | 15.1 / 12.4 GB at 832×480, 49 frames |
 | LTX-2.5, 4-bit, video only | 70.6 GB | 20.8 GB | 19.2 GB | 23.4 GB at 768×512, 49 frames |
