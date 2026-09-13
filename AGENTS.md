@@ -458,6 +458,10 @@ A Mac that has never run Zephra opens on a model chooser, not on a download.
   **Nothing is fetched while the chooser is up.**
 - The recommendation is `ModelCatalog.default(fitting:)`; where nothing fits, the
   entry with the smallest `ModelDescriptor.leanestPeakBytes`.
+  `ZephraApp.savedModel(fitting:)` steps a persisted choice this Mac cannot hold
+  onto that same answer, before the store is built, and logs the step;
+  `HostMachineMemory` (`Support/`, beside `GPUMemoryBudget`) is what the guard
+  reads the machine through.
 - Cards are `ModelChoice.all(for:)`, every catalog entry judged once against one
   budget. Nothing is hidden by memory; a model this Mac cannot hold is disabled
   with its reason. A card's size is

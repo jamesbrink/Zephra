@@ -70,8 +70,10 @@ struct GPUMemoryRow: View {
     }
 
     private var caption: String {
-        "Models are measured against this figure. Raising \(GPUMemoryBudget.wiredLimitKey) with "
-            + "sysctl changes it; Zephra reads it at launch."
+        "Zephra limits its GPU allocator to this figure and measures every model against it; "
+            + "before each load and run it also checks what the Mac has free and refuses rather "
+            + "than pages. Raising \(GPUMemoryBudget.wiredLimitKey) with sysctl changes the "
+            + "figure; Zephra reads it at launch."
     }
 
     private func bytes(_ count: UInt64) -> String {
