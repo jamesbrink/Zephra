@@ -14,7 +14,11 @@ extension GenerationStore {
     public func switchModel(to descriptor: ModelDescriptor) {
         // Picking the model the menu already shows is a choice too when that model was a
         // picture's and is waiting to be loaded: it is the one way to say "load it now".
-        guard acceptsWork, descriptor.id != self.descriptor.id || modelAwaitsGenerate else { return }
+        // A model this Mac cannot hold is greyed in the menu; a pick of one that reached here
+        // anyway is a no-op rather than a download and a load that would abort the app.
+        guard acceptsWork, canSelect(descriptor),
+            descriptor.id != self.descriptor.id || modelAwaitsGenerate
+        else { return }
         logger.info("model chosen: \(descriptor.id, privacy: .public)")
         if descriptor.id != self.descriptor.id { adopt(descriptor) }
         // A pick in the menu is the explicit choice a picture's adoption was waiting for, and

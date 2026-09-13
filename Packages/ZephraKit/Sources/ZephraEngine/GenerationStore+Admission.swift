@@ -13,6 +13,17 @@ extension GenerationStore {
             && !deletionInProgress
     }
 
+    /// Whether this Mac may choose `model` at all: whether it can hold it some way, held
+    /// whole, with the decode tiled, or read from disk every step.
+    ///
+    /// The gate behind every door a model is chosen through — the menu, a picture's own model,
+    /// the fallback at launch and a paired device's request. A model that cannot be held is
+    /// never loaded and never downloaded: a 16 GB mini asked for one on 2026-09-13 and the app
+    /// was aborted by Metal rather than failing in a way anything could catch.
+    public func canSelect(_ model: ModelDescriptor) -> Bool {
+        ModelCatalog.fit(model, budget: memoryBudget).isSelectable
+    }
+
     /// Whether a variation of `item` can be queued: the store takes work, the engine is ready
     /// or already working down the queue, and the record it would run has a prompt.
     ///

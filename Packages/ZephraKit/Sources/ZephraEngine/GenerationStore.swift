@@ -122,6 +122,10 @@ public final class GenerationStore {
     var locations: ModelLocations
     /// The GPU runtime the actor sets the tile on before each run; nil in tests and tools.
     let runtime: (any InferenceRuntime)?
+    /// How the Mac's own free memory is read, for the check before every load and every run;
+    /// nil for a build with nothing to ask, which then judges by the budget alone. Injected
+    /// like `runtime` so a refusal never depends on what else is running while a suite runs.
+    let machineMemory: (any MachineMemoryReader)?
 
     @ObservationIgnored var inference: InferenceActor?
     @ObservationIgnored var bootstrapTask: Task<Void, Never>?
@@ -147,8 +151,9 @@ public final class GenerationStore {
         descriptor: ModelDescriptor, registry: BackendRegistry?, output: URL?,
         locations: ModelLocations = .default, upscaler: UpscalerFactory? = nil,
         downloads: ModelDownloads = ModelDownloads(), runtime: (any InferenceRuntime)? = nil,
-        clips: (any ClipEditing)? = nil
+        clips: (any ClipEditing)? = nil, machineMemory: (any MachineMemoryReader)? = nil
     ) {
+        self.machineMemory = machineMemory
         self.downloads = downloads
         self.clips = clips
         self.descriptor = descriptor

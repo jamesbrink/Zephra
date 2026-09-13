@@ -7,6 +7,10 @@ public enum EngineError: Error, Hashable, Sendable {
     /// No backend is registered for the model's backend identifier: a catalog entry names an
     /// engine the composition root never registered.
     case noBackend(BackendID)
+    /// The Mac has not the memory this load or this run would take. Refused before Metal is
+    /// asked for a byte, since a failure there arrives from a completion queue no `catch`
+    /// reaches and takes the app with it.
+    case insufficientMemory(MemoryShortfall)
 
     /// What went wrong and, where possible, what to do about it.
     public var message: String {
@@ -15,6 +19,8 @@ public enum EngineError: Error, Hashable, Sendable {
             return error.errorDescription ?? "Something went wrong in the image engine."
         case .noBackend(let id):
             return "No engine is available for \(id.rawValue). Choose a different model."
+        case .insufficientMemory(let shortfall):
+            return shortfall.sentence
         }
     }
 }

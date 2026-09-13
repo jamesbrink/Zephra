@@ -36,7 +36,10 @@ extension GenerationStore {
         // library read still on its way was for the settings being replaced.
         _ = claimReference()
         current = image
-        if let known = ModelCatalog.descriptor(id: image.modelID) {
+        // A picture made on another Mac may name a model this one cannot hold. It is still a
+        // picture worth looking at, so its settings are taken on the current model's schedule,
+        // exactly as a picture from a model this build has dropped is.
+        if let known = ModelCatalog.descriptor(id: image.modelID), canSelect(known) {
             adoptForGenerate(known)
             settings = image.settings
         } else {

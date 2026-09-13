@@ -40,6 +40,27 @@ struct InferenceActorTests {
         #expect(control.settings.loads == 1)
     }
 
+    @Test("unloading releases the allocator's cache once, and only after the backend")
+    func unloadReleasesTheCache() async throws {
+        let control = MockBackendControl()
+        let registry = BackendRegistry().registering(.zImage) { _ in MockBackend(control: control) }
+        let inference = InferenceActor(
+            registry: registry, runtime: MockInferenceRuntime(control: control))
+        let (stream, continuation) = AsyncStream.makeStream(of: EngineEvent.self)
+        try await inference.prepare(ModelCatalog.default, events: EngineEventSink(continuation))
+        continuation.finish()
+        for await _ in stream {}
+
+        let before = control.settings.cacheReleases
+        await inference.unload()
+
+        // Once per unload, and after the weights went: called first it would hand back
+        // nothing, and the gigabytes the released model leaves in the cache would still be
+        // there when the next load measured the machine.
+        #expect(control.settings.unloads == 1)
+        #expect(control.settings.cacheReleases == before + 1)
+    }
+
     @Test("with no upscaler in the build, asking for one fails as weights missing")
     func upscaleWithoutAFactory() async throws {
         let inference = InferenceActor(registry: BackendRegistry())

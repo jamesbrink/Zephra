@@ -1085,8 +1085,9 @@ import patterns in `make lint-layers`, which lint nothing they do not name.
 
 **Choosing and loading.**
 
-- `bootstrap` reads availability first; `fallBackIfUnobtainable()` steps a
-  saved choice no longer on disk onto the first model this Mac can run and has.
+- `bootstrap` reads availability first; `fallBackIfUnrunnable()` steps a
+  saved choice this Mac cannot run — gone from the disk, or more than it has the
+  memory to hold — onto the first model it can run and has.
   A model that merely needs a download is kept. The chosen model is persisted
   from the composition root's `onChange` of `rememberedModel`, never by the menu.
 - Selecting a picture chooses its model without loading it: `select(_ image:)`

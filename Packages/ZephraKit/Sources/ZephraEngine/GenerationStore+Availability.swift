@@ -9,7 +9,7 @@ extension GenerationStore {
     /// chosen, so a first launch can say what each model costs without fetching one.
     public func surveyAvailability() async {
         await refreshAvailability()
-        fallBackIfUnobtainable()
+        fallBackIfUnrunnable()
     }
 
     /// Re-reads what is on disk for every model in the catalog, without downloading anything.
@@ -25,22 +25,29 @@ extension GenerationStore {
         availability = found
     }
 
-    /// Steps off a chosen model that cannot be had at all — a local build that was deleted or
-    /// never made — onto the first model this Mac can run and does have, so a launch lands on
-    /// something that loads rather than on a failure naming a folder. A model that is merely
-    /// not downloaded yet is kept: choosing it was the decision to download it.
+    /// Steps off a chosen model this Mac cannot run — one that cannot be had, a local build
+    /// that was deleted or never made, or one this Mac has not the memory to hold — onto the
+    /// first model it can run and does have, so a launch lands on something that loads rather
+    /// than on a failure naming a folder or a figure. A model that is merely not downloaded
+    /// yet is kept: choosing it was the decision to download it.
+    ///
+    /// The candidates are what this Mac may choose from, and nothing else: a Mac that can hold
+    /// none of them keeps what it had and is told why by the guard, since stepping it onto
+    /// another model it also cannot hold helps nobody.
     ///
     /// Returns whether the model changed. Read `availability` first; an unknown model is
     /// given the benefit of the doubt.
     @discardableResult
-    public func fallBackIfUnobtainable(budget: MemoryBudget? = nil) -> Bool {
-        guard availability[descriptor.id]?.isObtainable == false else { return false }
+    public func fallBackIfUnrunnable(budget: MemoryBudget? = nil) -> Bool {
         let budget = budget ?? memoryBudget
-        let candidates = ModelCatalog.fitting(budget: budget) + ModelCatalog.all
+        let unobtainable = availability[descriptor.id]?.isObtainable == false
+        let unholdable = !ModelCatalog.fit(descriptor, budget: budget).isSelectable
+        guard unobtainable || unholdable else { return false }
+        let candidates = ModelCatalog.fitting(budget: budget)
         guard let fallback = candidates.first(where: { availability[$0.id]?.isObtainable != false })
         else { return false }
         logger.notice(
-            "\(self.descriptor.id, privacy: .public) is not on this Mac; using \(fallback.id, privacy: .public)"
+            "\(self.descriptor.id, privacy: .public) cannot be run on this Mac; using \(fallback.id, privacy: .public)"
         )
         adopt(fallback)
         return true

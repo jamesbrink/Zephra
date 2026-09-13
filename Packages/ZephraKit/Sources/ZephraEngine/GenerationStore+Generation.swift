@@ -25,6 +25,12 @@ extension GenerationStore {
     /// Drives one generation from start to finish. The activity assertion keeps the Mac awake:
     /// a generation is a long stretch of silent Metal work with no user input behind it.
     func run(_ job: QueuedGeneration, on inference: InferenceActor) async {
+        // The weights are in; what this run wants on top of them may still be more than the
+        // Mac has left. Refused here rather than inside Metal, where it is an abort.
+        if let shortfall = runShortfall(for: job) {
+            fail(with: .insufficientMemory(shortfall))
+            return
+        }
         let activity = ProcessInfo.processInfo.beginActivity(
             options: [.userInitiated, .idleSystemSleepDisabled],
             reason: "Generating image"

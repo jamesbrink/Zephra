@@ -90,7 +90,7 @@ struct MissingSavedModelTests {
         }
         let store = bed.store(descriptor: ModelCatalog.zImageTurbo8bit)
         await store.refreshAvailability()
-        #expect(!store.fallBackIfUnobtainable())
+        #expect(!store.fallBackIfUnrunnable())
         #expect(store.descriptor.id == ModelCatalog.zImageTurbo8bit.id)
     }
 
@@ -102,6 +102,6 @@ struct MissingSavedModelTests {
         }
         let store = bed.store(descriptor: ModelCatalog.zImageTurbo4bit)
         await store.refreshAvailability()
-        #expect(!store.fallBackIfUnobtainable())
+        #expect(!store.fallBackIfUnrunnable())
     }
 }
