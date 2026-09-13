@@ -459,12 +459,16 @@ A Mac that has never run Zephra opens on a model chooser, not on a download.
   chooser up, `bootstrapFromInterface` runs only `surveyAvailability()`.
   **Nothing is fetched while the chooser is up.**
 - The recommendation is `ModelCatalog.default(fitting:)`: the first entry this
-  Mac holds **resident**, then the first it holds streamed, then — where nothing
+  Mac holds **resident**, then the *leanest* it holds streamed, then — where nothing
   fits — the entry with the smallest `ModelDescriptor.leanestPeakBytes`.
   Streaming is what a Mac does to run a model it cannot hold, not what it should
   be started on, and every entry carries a measured `streamedPeakBytes` now, so
   without that order a 16 GB Mac would open on a 13 GB download that reads
-  itself off the disk every step instead of on klein 4-bit. A card is marked
+  itself off the disk every step instead of on klein 4-bit. The streamed pass
+  takes the leanest rather than the first listed for the same reason: catalog
+  order says what a Mac that holds things should see first, which is the wrong
+  order once nothing is held, and on an 8 GB Mac it would lead with that same
+  13 GB download over klein 4-bit's 5.4 GB build. A card is marked
   recommended only when it is also selectable, so a Mac too small for everything
   in the catalog is recommended nothing and the chooser opens on no selection.
   `ZephraApp.savedModel(fitting:)` steps a persisted choice this Mac cannot hold
@@ -1752,6 +1756,13 @@ after the backend is dropped, because MLX keeps a released buffer for reuse and
 those gigabytes are charged to this process while the next model is measured.
 `InferenceActor` pins the residency
 beside `loadedPath`, so asking for the same model the other way is a reload.
+A family's two variants share one streamed peak, measured: the stream leaves the
+same resident tensors behind whichever width the blocks pack at, and the peak is
+those plus the tiled decode and the depth-2 window. The width is paid in bytes
+read per step, which is time. `MemoryGuard.transientBytes` charges a streamed
+load with no allocator reading its **whole** peak rather than subtracting
+`residentBytes`, which is the held figure and is larger than the streamed peak
+for every family.
 `MemoryBudget` (`ZephraCore`) is Metal's `recommendedMaxWorkingSetSize`, read
 once at launch (`GPUMemoryBudget`) and handed down; MLX's memory and wired
 limits are set from it. Settings > Performance shows the

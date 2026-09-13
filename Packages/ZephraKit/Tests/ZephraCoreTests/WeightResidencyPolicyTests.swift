@@ -24,12 +24,17 @@ struct WeightResidencyPolicyTests {
 
     @Test("a model with no streamed figure is resident under every mode")
     func unstreamableIsAlwaysResident() {
+        // Over a fixture rather than over the catalog: every shipped family streams since the
+        // 2026-09-13 Z-Image and klein measurements, so a loop over `all` would assert nothing
+        // and pass. The rule still has to hold, because it is what a family added later
+        // without a streamed path — or one measured and found not to help — relies on.
+        let unstreamable = MemoryFitTests.model(peak: 30_360_000_000, tiled: 26_070_000_000)
+        #expect(unstreamable.streamedPeakBytes == 0)
         for mode in WeightResidencyMode.allCases {
             let policy = WeightResidencyPolicy(mode: mode, budget: MemoryFitTests.sixteenDefault)
-            for model in ModelCatalog.all where model.streamedPeakBytes == 0 {
-                #expect(policy.residency(for: model) == .resident, Comment(rawValue: model.id))
-            }
+            #expect(policy.residency(for: unstreamable) == .resident, "\(mode.rawValue)")
         }
+        #expect(ModelCatalog.all.allSatisfy { $0.streamedPeakBytes > 0 })
     }
 
     @Test("always and never ignore the machine for a model that can stream")

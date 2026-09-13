@@ -30,6 +30,23 @@ public enum ModelCatalog {
         // Measured, same machine and seed, with the tiled decode at a 64-cell latent tile:
         // 17673 MB, so the decode transient falls from 11265 MB to 5437 MB.
         tiledPeakBytes: 17_680_000_000,
+        // Measured on halcyon (M4 Max, 38338 MB working set) on 2026-09-13, tile 64, read-ahead
+        // depth 2, 1024 pixels, nine steps, three runs, halcyon at 87% idle (a working
+        // desktop; see BENCHMARKS.md): 6410 MB peak, carried rounded up, and
+        // 974 MB live between runs, and the image byte for byte the resident run's. The peak
+        // was the same to the byte with previews on.
+        //
+        // The 4-bit entry shares this figure because the two builds measured the same peak to
+        // the byte: what the stream leaves resident is the same tensors in either build — the
+        // float32 autoencoder, the embeddings and the norms — and the peak is that plus the
+        // decode's tile and the depth-2 window of streamed blocks, none of which depends on
+        // the width the blocks pack at. The width is paid in time instead: the last stream's
+        // pass (the 30-block `layers` stack) reads 6.79 GB a step here against 3.40 GB at four
+        // bits. Streaming is not slower here: 7.51 s a step streamed against 8.03 resident, the
+        // M4 Max's SSD keeping up while the resident run holds 12.4 GB live. On the 16 GB M4
+        // mini (12124 MB working set) the 4-bit build measured 5196 MB peak streamed; the
+        // 8-bit build was not run there.
+        streamedPeakBytes: 6_420_000_000,
         maxPromptTokens: 512,
         capabilities: zImageTurboCapabilities
     )
@@ -72,6 +89,15 @@ public enum ModelCatalog {
         // measured on the 8-bit variant, which decodes the same unquantized VAE at the same
         // tile and so costs the same here.
         tiledPeakBytes: 12_010_000_000,
+        // Measured on halcyon the same way as the 8-bit entry's, 2026-09-13, tile 64, depth 2,
+        // 1024, nine steps, three runs: 6410 MB peak and 974 MB live, the same figures to the
+        // byte, for the reason written out there — the stream leaves the same resident tensors
+        // behind whichever width the blocks pack at, and the peak is those plus the decode's
+        // tile and the depth-2 window. The width shows in the reading instead: 3.40 GB a step
+        // off the last stream's pass, against 6.79 at eight bits, at 7.15 s a step against
+        // 7.51 resident. On the 16 GB M4 mini (12124 MB working set) this build measured
+        // 5196 MB peak streamed, 22.6 s a step.
+        streamedPeakBytes: 6_420_000_000,
         maxPromptTokens: 512,
         capabilities: zImageTurboCapabilities,
         // Measured: 7,123,354,222 bytes written by `make mirror` on 2026-09-06 at four bits,
@@ -86,9 +112,17 @@ public enum ModelCatalog {
     /// Every known model, in the order a picker should list them.
     ///
     /// klein's 4-bit variant sits before its 8-bit one on purpose: `default(fitting:)` takes the
-    /// first entry that runs, and the 8-bit variant's peak lands within a gigabyte of a 16 GB
-    /// Mac's budget, so which variant such a Mac opened on would otherwise be decided by a
-    /// measurement error rather than by a decision.
+    /// first entry that runs resident, and the 8-bit variant's peak lands within a gigabyte of
+    /// a 16 GB Mac's budget, so which variant such a Mac opened on would otherwise be decided
+    /// by a measurement error rather than by a decision.
+    ///
+    /// The order is no longer "smallest machine first" on its own terms, because every family
+    /// streams: Z-Image 8-bit leads the list and is selectable on a 16 GB Mac, streamed. What
+    /// keeps that from becoming such a Mac's recommendation is `default(fitting:)`, not this
+    /// order — its resident pass on a Mac that holds something, and its *leanest* streamed pass
+    /// on one that holds nothing, since order is an editorial judgement about what to show
+    /// first and says nothing about which model is cheapest to read off a disk. So a later
+    /// entry may be added here on its merits as a listing.
     public static let all: [ModelDescriptor] = [
         zImageTurbo8bit, flux2Klein4bit, flux2Klein8bit, zImageTurbo4bit, qwenImage2512_4bit,
         wan22TI2V5B4bit, ltx2Distilled4bit, ltx2DistilledAudio4bit,

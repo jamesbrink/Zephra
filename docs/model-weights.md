@@ -238,7 +238,10 @@ load — under Automatic, streamed whenever the model does not fit resident,
 `.tight` included, since loading a model resident *to page* is what aborted a
 16 GB mini. `ModelCatalog.default(fitting:)` reads the same verdicts the other
 way round and prefers a resident fit to a streamed one, because streaming is how
-a Mac runs a model it cannot hold and not what a first launch should open on.
+a Mac runs a model it cannot hold and not what a first launch should open on;
+among the streamed candidates it then takes the **leanest** rather than the first
+listed, since catalog order is about what a Mac holding things should see first
+and decides nothing about which model is cheapest to read off a disk.
 The residency rides on
 `ImageGenerationBackend.load(_:at:residency:onProgress:)`; `InferenceActor` pins
 it beside `loadedPath`, so asking for a model already up the other way is a

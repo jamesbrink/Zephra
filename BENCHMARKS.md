@@ -9,8 +9,12 @@ carry the same figures with a comment saying where each came from. A figure
 that changes here changes there in the same commit.
 
 All figures are from `make bench` on a Release build (`ZephraBench`), seed 42
-unless stated. MB are mebibytes (`MemoryUnits.mebibyte`, 2^20); GB on disk are
-decimal. "Resident" is what the loaded weights hold; "peak" is the run's high
+unless stated. **MB here are decimal**: `BenchRunner` divides the allocator's
+bytes by 1e6 and `BenchReport` prints that, so 23501 MB is 23.501 GB and lands
+in a catalog entry as `23_500_000_000`. GB on disk are decimal too. Mebibytes
+appear only in the `ZEPHRA_*_MB` launch variables, which are
+`MemoryUnits.mebibyte`, and in a Mac's `recommendedMaxWorkingSetSize` below, as
+macOS reports it. "Resident" is what the loaded weights hold; "peak" is the run's high
 water mark, which the autoencoder's decode sets for a picture model; "tiled" is
 the same run decoded in 64-cell latent tiles (`ZEPHRA_VAE_TILE=64`, 512-pixel
 tiles), which moves a mean absolute pixel difference of 1 in 255.
@@ -39,11 +43,53 @@ Machines:
   end-to-end step times agree.
 - Group size 32 against 64: 825 MB more resident and 1.1 GB more on disk for no
   visible quality gain.
-- Step times on record were taken on a busy machine and are not listed; a rerun
-  on an idle halcyon is owed.
 - Packing: about a minute once the source is local, at about 8 GB resident for
   the 24 GB float32 transformer (tensors stream out of the shard and spill at
   4 GB).
+
+Streamed against resident, halcyon, 2026-09-13, 1024, nine steps, `--runs 3`,
+`ZEPHRA_VAE_TILE=64 --stream --stream-depth 2`. The idle reading before each run
+is given because halcyon was a working desktop, not a quiet lab machine: macOS's
+own compositor and the apps in front of it hold it at 85-90% idle and it does not
+go higher, so these are a working Mac's figures rather than a ceiling.
+
+| Variant | Weights | Peak | Live | Load | s/step | Read per step | Disk rate | Idle |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 4-bit | streamed | 6410 MB | 974 MB | 1.92 s | 7.15 | 3.40 GB | 0.43 GB/s | 87.2% |
+| 4-bit | resident | 12143 MB | 6707 MB | 1.23 s | 7.51 | | | 87.9% |
+| 8-bit | streamed | 6410 MB | 974 MB | 1.91 s | 7.51 | 6.79 GB | 0.94 GB/s | 87.6% |
+| 8-bit | resident | 17867 MB | 12431 MB | 2.01 s | 8.03 | | | 87.6% |
+
+- **"Read per step" is the last stream's pass only**, which is what the meter
+  records: Z-Image's 30-block `layers` stack and klein's 20 single blocks, not
+  the whole model. Qwen-Image's 16.15 GB row further up is the whole model,
+  measured before the meter was per-stream, so the column is not comparable
+  between families.
+- **The two variants stream at the same peak and hold the same live figure, to
+  the byte.** What the stream leaves resident is the same tensors either way —
+  the float32 autoencoder, the embeddings, the norms — and the peak is those plus
+  the decode's tile and the depth-2 window, none of which depends on the width
+  the blocks pack at. The width is paid in reading: 6.79 GB a step at eight bits
+  against 3.40 at four.
+- **Streaming costs nothing here, and the 8-bit variant is faster streamed**
+  (7.51 against 8.03). The M4 Max's SSD keeps up at these rates, as it does for
+  LTX-2.5, and the resident 8-bit run holds 12.4 GB live where the streamed one
+  holds 974 MB. Both streamed images are byte for byte their resident run's
+  (`cmp` on the PNGs).
+- Previews did not move the streamed peak: 6410.029146 MB with `--preview` and
+  without, which the entry carries rounded **up** to 6.42 GB.
+- On bender (16 GB M4 mini) the 4-bit variant measured 5196 MB peak streamed at
+  1024, 22.6 s/step; its resident control was not completed and the 8-bit variant
+  was not run there, at James's request. **Owed** on an idle bender.
+- **The resident peaks above are 1.1% over what the catalog carries** (12143
+  against 12010, 17867 against 17680) and the catalog has not been moved: 12143 MB
+  is 19 MB *over* bender's 12124 MB working set, so raising `tiledPeakBytes` would
+  flip a 16 GB Mac from tiling the 4-bit variant to streaming it on a 0.15%
+  margin, measured on the wrong machine. The resident *live* readings are out by
+  the same hand — 6707 MB against the entry's 6580 and 12431 against 12240 — and
+  are left alone for the same reason. **Owed**: the same pair on bender, which
+  is the Mac the verdict is about.
+- The run: `ZEPHRA_VAE_TILE=64 make bench ARGS="--model z-image-turbo-8bit --size 1024 --steps 9 --runs 3 --stream --stream-depth 2"`.
 
 ## Qwen-Image-2512 4-bit
 
@@ -107,6 +153,35 @@ bf16 release (without the root single-file checkpoint). halcyon, four steps:
   `AGENTS.md`) at about three times the step time. Unverified: no project Mac
   is an M5.
 - Packing takes about a minute.
+
+Streamed against resident, halcyon, 2026-09-13, 1024, four steps, `--runs 3`,
+`ZEPHRA_VAE_TILE=64 --stream --stream-depth 2`, with the idle reading before each
+run for the reason given under Z-Image:
+
+| Variant | Weights | Peak | Live | Load | s/step | Read per step | Disk rate | Idle |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 4-bit | streamed | 4056 MB | 1336 MB | 2.24 s | 3.22 | 1.53 GB | 0.54 GB/s | 83.1% |
+| 4-bit | resident | 7660 MB | 4941 MB | 0.99 s | 3.20 | | | 87.6% |
+| 8-bit | streamed | 4056 MB | 1336 MB | 2.24 s | 3.43 | 2.76 GB | 0.96 GB/s | 87.8% |
+| 8-bit | resident | 10863 MB | 8144 MB | 1.26 s | 3.44 | | | 85.8% |
+
+- The two variants share a streamed peak and a live figure to the byte, as
+  Z-Image's do and for the same reason: what stays resident under the stream —
+  the float32 autoencoder, the embeddings, the norms and the three shared
+  modulation linears — is the same in both builds, and the peak is those plus the
+  decode's tile and the depth-2 window. The width shows in the reading: 2.76 GB a
+  step at eight bits against 1.53 at four.
+- Streaming and holding are the same pace here, within 1% either way, and the
+  streamed images are byte for byte their resident runs'. A streamed load takes a
+  second longer than a resident one (2.24 against 0.99) because it opens the lazy
+  nodes for every tensor before the first step.
+- Previews did not move the streamed peak: 4055.5967 MB either way.
+- On bender both variants measured 3584 MB peak streamed, 11.57 s/step at four
+  bits against 11.51 resident, and 12.13 against 12.31 at eight — the same
+  "streaming is free" result on a 16 GB Mac, where the resident 8-bit build wants
+  10392 MB against a 12124 MB working set. Those are single runs; **owed** in
+  threes on an idle bender.
+- The run: `ZEPHRA_VAE_TILE=64 make bench ARGS="--model flux2-klein-4b-4bit --size 1024 --steps 4 --runs 3 --stream --stream-depth 2"`.
 
 ## LTX-2.5 4-bit, video only
 
@@ -257,8 +332,14 @@ The last two were taken on a busy machine and are ceilings.
 - Qwen-Image streamed step time on an idle halcyon.
 - klein's edit peak and time with the reference tokens cast.
 - LTX-2.5 streamed on bender with an idle disk.
-- Z-Image step times on an idle Mac.
 - Preview frame cost for Qwen-Image and Z-Image on an idle Mac.
+- Z-Image's two resident peaks at 1024 on **bender**: halcyon now measures them
+  1.1% over what the catalog carries, and the 4-bit figure straddles bender's own
+  working set, so the catalog is not moved until the Mac the verdict is about has
+  been asked. See the Z-Image "Streamed against resident" table.
+- Z-Image and klein streamed against resident on bender, in threes on an idle
+  machine: what is on record there is single runs, and Z-Image 8-bit was never
+  run on it at all.
 
 Benchmark on an idle machine, Release only; a figure from a busy one is a
 ceiling and should say so here.
