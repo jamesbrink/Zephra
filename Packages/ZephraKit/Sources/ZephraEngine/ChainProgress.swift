@@ -14,6 +14,10 @@ struct ChainProgress: Sendable {
     var parts: [ClipPart] = []
     /// The first segment's poster, which is the whole clip's.
     var poster: Data?
+    /// Time spent generating and joining earlier passes, excluding time waiting in the queue.
+    var elapsed: Duration = .zero
+    var executionElapsed: Duration = .zero
+    var timingKey: WorkloadTimingKey?
 
     init(segments: [Int], source: ClipContinuation?) {
         self.segments = segments

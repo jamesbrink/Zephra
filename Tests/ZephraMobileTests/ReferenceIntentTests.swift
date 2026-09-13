@@ -110,16 +110,18 @@ struct ReferenceIntentTests {
         /// What the canvas does when the intent changes: `ReferenceIntentReader` is three lines
         /// of SwiftUI over exactly this.
         func take() async {
-            await ReferenceAdoption.take(intent, from: catalog) { data, origin in
-                await ReferenceAdoption.adopt(
-                    data, origin: origin, into: draft, fitting: capabilities)
+            await ReferenceAdoption.take(intent, from: catalog) { picture, origin in
+                draft.adopt(picture, origin: origin, fitting: capabilities.capabilities)
+                return true
             }
         }
 
         /// A picture of a given shape, drawn rather than read, so the suite carries no fixture.
         static func picture(width: Int, height: Int) -> Data {
             let size = CGSize(width: width, height: height)
-            return UIGraphicsImageRenderer(size: size).image { context in
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            return UIGraphicsImageRenderer(size: size, format: format).image { context in
                 UIColor.systemTeal.setFill()
                 context.fill(CGRect(origin: .zero, size: size))
             }.pngData() ?? Data()

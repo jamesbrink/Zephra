@@ -18,7 +18,7 @@ struct PairingView: View {
         VStack(spacing: MobileChrome.blockSpacing) {
             Spacer(minLength: 0)
             PairingInstructions()
-            if !hosts.hosts.isEmpty { Button("Cancel") { hosts.isAdding = false }.disabled(hosts.isPairing) }
+            if !hosts.hosts.isEmpty || hosts.isPairing { Button("Cancel") { hosts.cancelPairing() } }
             if PairingScanner.isAvailable {
                 PairingScanner(onScan: submit, isPaused: hosts.isPairing)
                     .frame(height: 260)
@@ -55,7 +55,9 @@ struct PairingView: View {
             let payload = try PairingEntry.parse(text)
             failure = nil
             Task {
-                do { try await hosts.pair(payload) } catch {
+                do { try await hosts.pair(payload) } catch is CancellationError {
+                    // Cancel returns to the existing library without showing a failure.
+                } catch {
                     failure = PairingEntry.message(for: error, connection: hosts.pairing.connection)
                 }
             }

@@ -8,8 +8,19 @@ import ZephraStyle
 /// there are three of them — see `CachedScope`.
 struct ScopeChips: View {
     @Environment(LibraryCatalog.self) private var catalog
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
+        if typeSize.isAccessibilitySize {
+            @Bindable var catalog = catalog
+            Picker("Library collection", selection: $catalog.query.scope) {
+                ForEach(CachedScope.allCases) { scope in Text(scope.title).tag(scope) }
+            }
+            .pickerStyle(.menu)
+            .padding(.horizontal, MobileChrome.sideMargin)
+        } else { chips }
+    }
+    private var chips: some View {
         HStack(spacing: 6) {
             ForEach(CachedScope.allCases) { scope in
                 Button { catalog.query.scope = scope } label: {

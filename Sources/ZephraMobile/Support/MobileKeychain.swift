@@ -25,6 +25,7 @@ nonisolated struct MobileKeychain: HostPersistence {
         case identity = "device-identity"
         case host = "paired-host"
         case hosts = "paired-hosts-v2"
+        case migration = "paired-hosts-v2-migration"
     }
 
     /// What the keychain said when it would not do as it was asked.
@@ -54,6 +55,14 @@ nonisolated struct MobileKeychain: HostPersistence {
     func save(_ host: PairedHost?) throws {
         guard let host else { return try delete(.host) }
         try write(try LinkJSON.encode(host), to: .host)
+    }
+
+    func migrationPending() throws -> Bool {
+        guard let bytes = try read(.migration) else { return false }
+        return try LinkJSON.decode(Bool.self, from: bytes)
+    }
+    func setMigrationPending(_ pending: Bool) throws {
+        try write(try LinkJSON.encode(pending), to: .migration)
     }
 
     func readHosts() throws -> [HostPreference]? {

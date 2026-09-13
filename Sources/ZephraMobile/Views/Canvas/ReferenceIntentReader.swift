@@ -1,4 +1,5 @@
 import SwiftUI
+import ZephraCore
 
 /// The canvas's half of `ReferenceIntent`: the name the library asked to start from, turned
 /// into the picture in the well.
@@ -14,7 +15,7 @@ import SwiftUI
 struct ReferenceIntentReader: ViewModifier {
     /// What the bytes become: the well filled, at the model's own size rule, naming the file
     /// they came from.
-    let fill: (Data, String) async -> Void
+    let fill: (ReferencePicture, String) -> Bool
 
     @Environment(ReferenceIntent.self) private var intent
     @Environment(LibraryCatalog.self) private var catalog

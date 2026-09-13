@@ -105,7 +105,7 @@ public final class LinkClient {
     @ObservationIgnored var isFrozen = false
     /// How long a session's `OrderedInbox` holds a gap open before it calls it loss. A property
     /// rather than the constant so a suite can ask the question in milliseconds.
-    @ObservationIgnored var frameHold: Duration = OrderedInbox.hold
+    @ObservationIgnored var frameHold: Duration?
     /// How long a command may go unanswered before this end gives up on it. A property rather
     /// than the constant for the reason `frameHold` is one, and it carries more weight now: a
     /// reply a hole swallowed is closed by this clock rather than by the gap, so a suite that

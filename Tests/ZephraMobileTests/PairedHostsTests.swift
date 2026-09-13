@@ -50,6 +50,30 @@ struct PairedHostsTests {
         #expect(store.all().map(\.host) == [b])
         #expect(throws: (any Error).self) { try right.save(a) }
     }
+    @Test("Migration verifies the complete record and survives a lost readback")
+    func migrationReadback() throws {
+        let disk = MemoryHostPersistence()
+        let prior = host("Mac")
+        disk.legacy = prior
+        let keys = try #require(disk.identity).publicKeys
+        disk.corruptWrittenName = true
+        #expect(throws: (any Error).self) { try PairedHosts(keychain: disk) }
+        #expect(disk.legacy == prior)
+        #expect(disk.identity?.publicKeys == keys)
+        #expect(disk.pendingMigration)
+        disk.corruptWrittenName = false
+        let repaired = try PairedHosts(keychain: disk)
+        #expect(repaired.all() == [HostPreference(host: prior)])
+        #expect(!disk.pendingMigration)
+        disk.hosts = nil
+        disk.failReadAfterWrite = true
+        #expect(throws: (any Error).self) { try PairedHosts(keychain: disk) }
+        disk.failReads = false
+        disk.failReadAfterWrite = false
+        let reopened = try PairedHosts(keychain: disk)
+        #expect(reopened.all() == [HostPreference(host: prior)])
+        #expect(reopened.identity.publicKeys == keys)
+    }
     @Test("A failed collection write does not publish an in-memory pairing")
     func writeFailure() throws {
         let disk = MemoryHostPersistence()
@@ -64,12 +88,20 @@ nonisolated final class MemoryHostPersistence: HostPersistence, @unchecked Senda
     var identity: DeviceIdentity? = DeviceIdentity()
     var legacy: PairedHost?
     var hosts: [HostPreference]?
+    var pendingMigration = false
+    func migrationPending() throws -> Bool { if failReads { throw CocoaError(.fileReadNoPermission) }; return pendingMigration }
+    func setMigrationPending(_ pending: Bool) throws { if failWrites { throw CocoaError(.fileWriteNoPermission) }; pendingMigration = pending }
     var failReads = false
     var failWrites = false
+    var corruptWrittenName = false
+    var failReadAfterWrite = false
     func loadIdentity() throws -> DeviceIdentity? { if failReads { throw CocoaError(.fileReadNoPermission) }; return identity }
     func save(_ value: DeviceIdentity) throws { identity = value }
     func loadPairedHost() throws -> PairedHost? { legacy }
     func save(_ value: PairedHost?) throws { legacy = value }
     func readHosts() throws -> [HostPreference]? { if failReads { throw CocoaError(.fileReadNoPermission) }; return hosts }
-    func writeHosts(_ values: [HostPreference]) throws { if failWrites { throw CocoaError(.fileWriteNoPermission) }; hosts = values }
+    func writeHosts(_ values: [HostPreference]) throws { if failWrites { throw CocoaError(.fileWriteNoPermission) }; hosts = values
+        if corruptWrittenName, hosts?.isEmpty == false { hosts?[0].alias = "Incorrect alias" }
+        if failReadAfterWrite { failReads = true }
+    }
 }

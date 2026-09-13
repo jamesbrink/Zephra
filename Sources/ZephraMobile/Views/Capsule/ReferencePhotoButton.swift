@@ -9,29 +9,23 @@ import ZephraLinkClient
 /// crosses. Everything after that is `ReferenceAdoption`'s, so this door and the Mac's library
 /// door apply the same rules.
 struct ReferencePhotoButton: View {
-    @Environment(LinkClient.self) private var client
+    @Environment(GenerationDispatch.self) private var dispatch
     @Environment(PromptDraft.self) private var draft
-    /// What was picked, or nil.
-    @State private var item: PhotosPickerItem?
+    @Environment(ReferenceIntent.self) private var intent
 
-    var body: some View {
-        PhotosPicker(selection: $item, matching: .images, photoLibrary: .shared()) {
-            Image(systemName: "photo.on.rectangle")
-        }
-        .buttonStyle(.bordered)
-        .accessibilityLabel("Choose a photo")
-        .onChange(of: item) { _, picked in
-            guard let picked else { return }
-            Task { await adopt(picked) }
-        }
-    }
+    var body: some View { ReferencePhotoPicker(choose: adopt) }
 
-    private func adopt(_ picked: PhotosPickerItem) async {
-        guard let snapshot = client.snapshot,
-            let data = try? await picked.loadTransferable(type: Data.self)
-        else { return }
-        let capabilities = snapshot.model(named: draft.modelID).capabilities
-        await ReferenceAdoption.adopt(data, origin: nil, into: draft, fitting: capabilities)
-        item = nil
+    private func adopt(_ picked: PhotosPickerItem) {
+        // The revision belongs to the user's tap, before asynchronous work can be scheduled.
+        intent.beginSelection()
+        let revision = intent.revision
+        Task {
+            await ReferenceAdoption.resolve(intent, revision: revision,
+                load: { try? await picked.loadTransferable(type: Data.self) }) { picture in
+                guard let model = dispatch.models.first(where: { $0.id == draft.modelID }) else { return false }
+                draft.adopt(picture, origin: nil, fitting: model.capabilities.capabilities)
+                return true
+            }
+        }
     }
 }

@@ -1,0 +1,209 @@
+[
+  {
+    "hosts": 1,
+    "capture": {
+      "type": "runtime-snapshot",
+      "rs": "1",
+      "screenHash": "1fcozy6",
+      "seq": 64,
+      "count": 84,
+      "targets": [
+        "e22|tap|button|Library Source, All Macs||",
+        "e32|tap|button|a red bicycle against a limestone wall, from halcyon||",
+        "e35|tap|button|a red bicycle against a limestone wall, from halcyon||",
+        "e37|tap|button|rain moving across a harbour at dusk, from halcyon||",
+        "e16|typeText|text-field||Search prompts and tags|",
+        "e23|tap|button|||",
+        "e26|tap|button|All||",
+        "e27|tap|button|Favorites||",
+        "e28|tap|button|Clips||",
+        "e60|tap|tab|Canvas|0|",
+        "e62|tap|tab|Today|0|",
+        "e64|tap|tab|Library|1|",
+        "e66|tap|tab|Settings|0|"
+      ],
+      "scroll": [
+        "e29|swipe|scroll-view|||"
+      ],
+      "text": [
+        "e25|text|text|All Macs||",
+        "e43|text|text|September 9||",
+        "e44|text|text|3 pictures||",
+        "e36|text|text|Source: halcyon||",
+        "e41|text|text|2.0 s||",
+        "e33|text|text|Source: halcyon||",
+        "e38|text|text|Source: halcyon||"
+      ],
+      "udid": "89848BF1-F258-4AD0-AD24-9A9F02151419"
+    },
+    "image": "library-1-hosts.jpg"
+  },
+  {
+    "hosts": 2,
+    "capture": {
+      "type": "runtime-snapshot",
+      "rs": "1",
+      "screenHash": "0l4iq0p",
+      "seq": 65,
+      "count": 94,
+      "targets": [
+        "e22|tap|button|Library Source, All Macs||",
+        "e32|tap|button|a red bicycle against a limestone wall, from Studio Mac, offline||",
+        "e35|tap|button|a red bicycle against a limestone wall, from halcyon||",
+        "e38|tap|button|a red bicycle against a limestone wall, from Studio Mac, offline||",
+        "e40|tap|button|a red bicycle against a limestone wall, from halcyon||",
+        "e42|tap|button|rain moving across a harbour at dusk, from Studio Mac, offline||",
+        "e47|tap|button|rain moving across a harbour at dusk, from halcyon||",
+        "e16|typeText|text-field||Search prompts and tags|",
+        "e23|tap|button|||",
+        "e26|tap|button|All||",
+        "e27|tap|button|Favorites||",
+        "e28|tap|button|Clips||",
+        "e70|tap|tab|Canvas|0|",
+        "e72|tap|tab|Today|0|",
+        "e74|tap|tab|Library|1|",
+        "e76|tap|tab|Settings|0|"
+      ],
+      "scroll": [
+        "e29|swipe|scroll-view|||"
+      ],
+      "text": [
+        "e25|text|text|All Macs||",
+        "e53|text|text|September 9||",
+        "e54|text|text|6 pictures||",
+        "e39|text|text|Source: Studio Mac, offline||",
+        "e33|text|text|Source: Studio Mac, offline||",
+        "e36|text|text|Source: halcyon||",
+        "e41|text|text|Source: halcyon||",
+        "e46|text|text|2.0 s||",
+        "e51|text|text|2.0 s||",
+        "e43|text|text|Source: Studio Mac, offline||",
+        "e48|text|text|Source: halcyon||"
+      ],
+      "udid": "89848BF1-F258-4AD0-AD24-9A9F02151419"
+    },
+    "image": "library-2-hosts.jpg"
+  },
+  {
+    "hosts": 4,
+    "capture": {
+      "type": "runtime-snapshot",
+      "rs": "1",
+      "screenHash": "1t5sl96",
+      "seq": 66,
+      "count": 121,
+      "targets": [
+        "e22|tap|button|Library Source, All Macs||",
+        "e32|tap|button|a red bicycle against a limestone wall, from Render Mac 4, offline||",
+        "e35|tap|button|a red bicycle against a limestone wall, from Render Mac 3||",
+        "e38|tap|button|a red bicycle against a limestone wall, from halcyon||",
+        "e41|tap|button|a red bicycle against a limestone wall, from Studio Mac||",
+        "e44|tap|button|a red bicycle against a limestone wall, from Render Mac 4, offline||",
+        "e46|tap|button|a red bicycle against a limestone wall, from Render Mac 3||",
+        "e48|tap|button|a red bicycle against a limestone wall, from halcyon||",
+        "e50|tap|button|a red bicycle against a limestone wall, from Studio Mac||",
+        "e52|tap|button|rain moving across a harbour at dusk, from Render Mac 4, offline||",
+        "e57|tap|button|rain moving across a harbour at dusk, from Render Mac 3||",
+        "e62|tap|button|rain moving across a harbour at dusk, from halcyon||",
+        "e67|tap|button|rain moving across a harbour at dusk, from Studio Mac||",
+        "e16|typeText|text-field||Search prompts and tags|",
+        "e23|tap|button|||",
+        "e26|tap|button|All||",
+        "e27|tap|button|Favorites||",
+        "e28|tap|button|Clips||",
+        "e97|tap|tab|Canvas|0|",
+        "e99|tap|tab|Today|0|",
+        "e101|tap|tab|Library|1|",
+        "e103|tap|tab|Settings|0|"
+      ],
+      "scroll": [
+        "e29|swipe|scroll-view|||"
+      ],
+      "text": [
+        "e25|text|text|All Macs||",
+        "e73|text|text|September 9||",
+        "e74|text|text|12 pictures||",
+        "e33|text|text|Source: Render Mac 4, offline||",
+        "e36|text|text|Source: Render Mac 3||",
+        "e39|text|text|Source: halcyon||",
+        "e45|text|text|Source: Render Mac 4, offline||",
+        "e47|text|text|Source: Render Mac 3||",
+        "e42|text|text|Source: Studio Mac||",
+        "e49|text|text|Source: halcyon||",
+        "e51|text|text|Source: Studio Mac||",
+        "e56|text|text|2.0 s||",
+        "e53|text|text|Source: Render Mac 4, offline||",
+        "e61|text|text|2.0 s||",
+        "e66|text|text|2.0 s||",
+        "e71|text|text|2.0 s||",
+        "e58|text|text|Source: Render Mac 3||",
+        "e63|text|text|Source: halcyon||",
+        "e68|text|text|Source: Studio Mac||"
+      ],
+      "udid": "89848BF1-F258-4AD0-AD24-9A9F02151419"
+    },
+    "image": "library-4-hosts.jpg"
+  },
+  {
+    "hosts": 8,
+    "capture": {
+      "type": "runtime-snapshot",
+      "rs": "1",
+      "screenHash": "06m2kna",
+      "seq": 67,
+      "count": 161,
+      "targets": [
+        "e22|tap|button|Library Source, All Macs||",
+        "e42|tap|button|a red bicycle against a limestone wall, from Render Mac 8, offline||",
+        "e45|tap|button|a red bicycle against a limestone wall, from Render Mac 4||",
+        "e48|tap|button|a red bicycle against a limestone wall, from Render Mac 3||",
+        "e51|tap|button|a red bicycle against a limestone wall, from halcyon||",
+        "e54|tap|button|a red bicycle against a limestone wall, from Render Mac 7||",
+        "e57|tap|button|a red bicycle against a limestone wall, from Render Mac 5||",
+        "e60|tap|button|a red bicycle against a limestone wall, from Studio Mac||",
+        "e63|tap|button|a red bicycle against a limestone wall, from Render Mac 6||",
+        "e66|tap|button|a red bicycle against a limestone wall, from Render Mac 8, offline||",
+        "e68|tap|button|a red bicycle against a limestone wall, from Render Mac 4||",
+        "e70|tap|button|a red bicycle against a limestone wall, from Render Mac 3||",
+        "e72|tap|button|a red bicycle against a limestone wall, from halcyon||",
+        "e74|tap|button|a red bicycle against a limestone wall, from Render Mac 7||",
+        "e76|tap|button|a red bicycle against a limestone wall, from Render Mac 5||",
+        "e78|tap|button|a red bicycle against a limestone wall, from Studio Mac||",
+        "e16|typeText|text-field||Search prompts and tags|",
+        "e23|tap|button|||",
+        "e26|tap|button|All||",
+        "e27|tap|button|Favorites||",
+        "e28|tap|button|Clips||",
+        "e137|tap|tab|Canvas|0|",
+        "e139|tap|tab|Today|0|",
+        "e141|tap|tab|Library|1|",
+        "e143|tap|tab|Settings|0|"
+      ],
+      "scroll": [
+        "e29|swipe|scroll-view|||"
+      ],
+      "text": [
+        "e25|text|text|All Macs||",
+        "e123|text|text|September 9||",
+        "e124|text|text|24 pictures||",
+        "e43|text|text|Source: Render Mac 8, offline||",
+        "e46|text|text|Source: Render Mac 4||",
+        "e49|text|text|Source: Render Mac 3||",
+        "e52|text|text|Source: halcyon||",
+        "e55|text|text|Source: Render Mac 7||",
+        "e58|text|text|Source: Render Mac 5||",
+        "e67|text|text|Source: Render Mac 8, offline||",
+        "e61|text|text|Source: Studio Mac||",
+        "e64|text|text|Source: Render Mac 6||",
+        "e69|text|text|Source: Render Mac 4||",
+        "e71|text|text|Source: Render Mac 3||",
+        "e73|text|text|Source: halcyon||",
+        "e75|text|text|Source: Render Mac 7||",
+        "e77|text|text|Source: Render Mac 5||",
+        "e79|text|text|Source: Studio Mac||"
+      ],
+      "udid": "89848BF1-F258-4AD0-AD24-9A9F02151419"
+    },
+    "image": "library-8-hosts.jpg"
+  }
+]

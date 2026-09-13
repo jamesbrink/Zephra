@@ -32,9 +32,14 @@ struct ReferencePickerSheet: View {
                                     RoundedRectangle(
                                         cornerRadius: ZephraChrome.thumbnailRadius,
                                         style: .continuous))
+                                .overlay(alignment: .bottomLeading) {
+                                    LibraryHostLabel(entry: entry).padding(4).allowsHitTesting(false)
+                                }
+                                .accessibilityElement(children: .ignore)
+                                .modifier(LibraryOwnershipAccessibility(entry: entry))
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel(entry.label)
+
                     }
                 }
                 .padding(MobileChrome.sideMargin)

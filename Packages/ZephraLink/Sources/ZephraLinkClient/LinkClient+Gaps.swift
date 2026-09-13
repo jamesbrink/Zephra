@@ -10,7 +10,7 @@ import ZephraLinkProtocol
 extension LinkClient {
     /// The inbox this session reads through, with the answer to a gap it could not fill.
     func inbox(over channel: SecureChannel, for session: LinkSession) -> OrderedInbox {
-        let inbox = OrderedInbox(channel: channel, hold: frameHold)
+        let inbox = OrderedInbox(channel: channel, hold: frameHold ?? session.road.frameReorderingHold)
         inbox.onGap { [weak self, weak session] gap, frames in
             Task { @MainActor in
                 guard let self, let session else { return }

@@ -1,0 +1,7 @@
+2026-09-13T18:02:52.718Z	7a7c30b6-ee78-4242-920b-429de28877ce	INFO	{"at":"$connect","from":"gaV3X-6E2eO4KEiItA==","result":"open"}
+2026-09-13T18:02:52.819Z	0d85ed14-1bd1-4116-940a-4401a56e7bdb	INFO	{"at":"hello","from":"gaV3X-6E2eO4KEiItA==","result":"challenged"}
+2026-09-13T18:02:53.001Z	7de4690f-2bf7-4157-8c8d-be9756855e03	INFO	{"at":"joined","from":"gaV3X-6E2eO4KEiItA==","role":"guest","room":"0ff90fac944b8bab852809bd266bf5d7","result":"joined"}
+2026-09-13T18:02:53.021Z	7de4690f-2bf7-4157-8c8d-be9756855e03	INFO	{"at":"peer","event":"joined","from":"gaV3X-6E2eO4KEiItA==","role":"guest","room":"0ff90fac944b8bab852809bd266bf5d7","to":["gaV3RG-O8eO4KEjcVA=="],"result":"forwarded"}
+2026-09-13T18:02:54.532Z	4caf3231-0f3d-4a77-b84b-04009a8e3689	INFO	{"at":"send","from":"gaV3RG-O8eO4KEjcVA==","role":"host","room":"0ff90fac944b8bab852809bd266bf5d7","bytes":15448,"m":"a420706bb6a241a6","i":3,"n":4,"to":["gaV3X-6E2eO4KEiItA=="],"result":"gone"}
+2026-09-13T18:03:10.774Z	4c29b353-ad62-4ecf-b836-9c044a2f90ca	INFO	{"at":"send","from":"gaV3X-6E2eO4KEiItA==","result":"index-lag","error":"not joined"}
+2026-09-13T18:03:10.854Z	e1ac90f4-5742-48ea-bd76-a26ec619806c	INFO	{"at":"$disconnect","from":"gaV3X-6E2eO4KEiItA==","code":1000,"reason":"Connection Closed Normally","to":[],"result":"unknown"}

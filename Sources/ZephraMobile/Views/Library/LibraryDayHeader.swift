@@ -12,18 +12,24 @@ import ZephraStyle
 struct LibraryDayHeader: View {
     /// The day this header stands over.
     let section: CachedSection
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     @Environment(LibraryCatalog.self) private var catalog
 
+    private var layout: AnyLayout {
+        typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
+    }
+
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        layout {
             Text(section.title)
                 .font(.headline)
             Text(detail)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
-            Spacer(minLength: 0)
+            if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
         }
         .padding(.horizontal, MobileChrome.sideMargin - 3)
         .padding(.vertical, 6)

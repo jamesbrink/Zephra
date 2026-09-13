@@ -8,14 +8,17 @@ import ZephraLinkProtocol
 private final class ScriptedRoads: LinkRoads, @unchecked Sendable {
     enum Answer: Sendable {
         case opens(after: Duration)
+        case held(DelayedRoad)
         case refuses
     }
 
     private let lock = NSLock()
     private var script: [String: Answer]
     private let found: [LinkCandidate]
-    private(set) var opened: [MemoryLinkConnection] = []
+    private var opened: [MemoryLinkConnection] = []
     private var byAddress: [String: MemoryLinkConnection] = [:]
+    func road(at address: String) -> MemoryLinkConnection? { lock.withLock { byAddress[address] } }
+    var openedCount: Int { lock.withLock { opened.count } }
 
     init(script: [String: Answer], found: [LinkCandidate] = []) {
         self.script = script
@@ -24,19 +27,6 @@ private final class ScriptedRoads: LinkRoads, @unchecked Sendable {
 
     /// The roads this handed out that are still open.
     var stillOpen: Int { lock.withLock { opened.filter(\.isOpen).count } }
-
-    /// The road this handed out for one address, so a test can say which one won the race
-    /// rather than how quickly it did.
-    func road(at address: String) -> MemoryLinkConnection? { lock.withLock { byAddress[address] } }
-
-    /// Waits for what the race does after it answers — the losing address answering late and
-    /// being closed — rather than sleeping for as long as that ought to take.
-    static func waitUntil(_ condition: @Sendable () -> Bool) async throws {
-        let deadline = ContinuousClock.now + .seconds(5)
-        while !condition(), ContinuousClock.now < deadline {
-            try await Task.sleep(for: .milliseconds(5))
-        }
-    }
 
     func browse() -> AsyncStream<[LinkCandidate]> {
         let list = found
@@ -59,15 +49,13 @@ private final class ScriptedRoads: LinkRoads, @unchecked Sendable {
     }
 
     private func answer(_ key: String) async throws -> any LinkConnection {
-        guard case .opens(let delay) = lock.withLock({ script[key] }) ?? .refuses else {
-            throw LinkClientError.unreachable
+        switch lock.withLock({ script[key] }) ?? .refuses {
+        case .opens(let delay): try await Task.sleep(for: delay)
+        case .held(let gate): await gate.wait()
+        case .refuses: throw LinkClientError.unreachable
         }
-        try await Task.sleep(for: delay)
         let (road, _) = MemoryLinkConnection.pair()
-        lock.withLock {
-            opened.append(road)
-            byAddress[key] = road
-        }
+        lock.withLock { opened.append(road); byAddress[key] = road }
         return road
     }
 }
@@ -78,22 +66,42 @@ struct LocalRoadRaceTests {
 
     @Test("the first address to answer is the road, and the one that answers later is closed")
     func firstToAnswerWins() async throws {
+        let gate = DelayedRoad()
         let roads = ScriptedRoads(script: [
-            "slow": .opens(after: .milliseconds(200)),
+            "slow": .held(gate),
             "quick": .opens(after: .milliseconds(10)),
         ])
         let road = await LocalRoadRace(roads: roads).open(
             endpoints: [Endpoint(host: "slow", port: 1), Endpoint(host: "quick", port: 1)],
             room: nil, window: .seconds(3))
-        // Which address won, not how long the race took. A machine running this package's
-        // suites at once can leave the quick answer waiting longer than the slow one is
-        // scripted for, and a wall clock then says nothing about the question asked.
-        let winner = road as? MemoryLinkConnection
-        #expect(winner != nil)
-        #expect(winner === roads.road(at: "quick"), "the address that answered first is the road")
-        try await ScriptedRoads.waitUntil { roads.opened.count == 2 && roads.stillOpen == 1 }
-        #expect(roads.opened.count == 2, "the slow address answers in its own time")
-        #expect(roads.stillOpen == 1, "and the road it hands back is closed, not kept")
+        #expect(road as? MemoryLinkConnection === roads.road(at: "quick"))
+        #expect(roads.openedCount == 1, "the winner returns before the blocked address is released")
+        await gate.open()
+        let deadline = ContinuousClock.now + .seconds(2)
+        while (roads.openedCount < 2 || roads.stillOpen != 1) && ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(roads.openedCount == 2)
+        #expect(roads.stillOpen == 1)
+    }
+
+    @Test("Cancellation and timeout close a road that opens after the race ended", arguments: [false, true])
+    func abandonedRoad(_ cancel: Bool) async throws {
+        let gate = DelayedRoad()
+        let roads = ScriptedRoads(script: ["held": .held(gate)])
+        let attempt = Task {
+            await LocalRoadRace(roads: roads).open(endpoints: [Endpoint(host: "held", port: 1)],
+                room: nil, window: cancel ? .seconds(30) : .milliseconds(20))
+        }
+        if cancel { attempt.cancel() }
+        #expect(await attempt.value == nil)
+        await gate.open()
+        let deadline = ContinuousClock.now + .seconds(3)
+        while (roads.openedCount != 1 || roads.stillOpen != 0) && ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(roads.openedCount == 1)
+        #expect(roads.stillOpen == 0)
     }
 
     @Test("every address refusing is answered at once, not after the window")
@@ -129,7 +137,7 @@ struct LocalRoadRaceTests {
             ])
         let road = await LocalRoadRace(roads: roads).open(endpoints: [], room: room, window: .seconds(3))
         #expect(road != nil)
-        #expect(roads.opened.count == 1)
+        #expect(roads.openedCount == 1)
     }
 
     @Test("nothing to dial is nil at once")
@@ -137,5 +145,20 @@ struct LocalRoadRaceTests {
         let road = await LocalRoadRace(roads: ScriptedRoads(script: [:])).open(
             endpoints: [], room: nil, window: .seconds(3))
         #expect(road == nil)
+    }
+}
+
+/// A provider that returns even after cancellation, so the losing road must be closed.
+private actor DelayedRoad {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var isOpen = false
+    func wait() async {
+        guard !isOpen else { return }
+        await withCheckedContinuation { continuation = $0 }
+    }
+    func open() {
+        isOpen = true
+        continuation?.resume()
+        continuation = nil
     }
 }

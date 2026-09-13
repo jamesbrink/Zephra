@@ -50,4 +50,17 @@ struct HostSelectionTests {
         #expect(HostSelection.best([candidate("old", execution: 100, age: 6), candidate("new")],
             previous: old.id)?.id == candidate("new").id)
     }
+    @Test func explanationMatchesRanking() {
+        let known = candidate("known", execution: 100, margin: 4)
+        let unknown = candidate("unknown", execution: nil, margin: 2)
+        #expect(HostSelection.best([known, unknown])?.id == known.id)
+        #expect(HostSelection.reason(known.offer, selected: known.id, candidates: [known, unknown])
+            == "Model loaded · ready now")
+        let faster = candidate("faster", execution: 90)
+        #expect(HostSelection.reason(known.offer, selected: known.id, candidates: [known, faster])
+            == "Keeping this Mac · estimated finish times are close")
+        #expect(HostSelection.reason(faster.offer, selected: faster.id, candidates: [known, faster])
+            == "Shortest estimated wait and generation time")
+    }
+
 }

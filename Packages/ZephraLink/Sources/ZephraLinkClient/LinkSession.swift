@@ -17,11 +17,15 @@ import os
 @MainActor
 final class LinkSession {
     /// The road underneath.
+    let id = UUID()
     let road: any LinkConnection
     /// Which road it is, for the state the interface shows.
     let kind: LinkRoad
     /// The sealed channel, once the handshake has made one.
     var channel: SecureChannel?
+    /// Cached state cannot negotiate features on a new authenticated session.
+    var hasSnapshot = false
+    var uploadTimings = InputTransferTimings()
     /// Everything the Mac says, released in the order it was sealed in. The relay is several
     /// concurrent invocations, so the road is not ordered and this is what makes it so again.
     var inbox: OrderedInbox?

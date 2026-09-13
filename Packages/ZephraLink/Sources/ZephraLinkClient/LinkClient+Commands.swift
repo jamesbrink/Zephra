@@ -26,15 +26,15 @@ extension LinkClient {
     }
 
     /// One picture's thumbnail, `pixels` on its long edge.
-    public func thumbnail(name: String, pixels: Int) async throws -> Data {
-        try await transferAdmission.enter(transferOwner)
+    public func thumbnail(name: String, pixels: Int, priority: TransferPriority = .visibleThumbnail) async throws -> Data {
+        try await transferAdmission.enter(transferOwner, priority: priority)
         defer { transferAdmission.leave(transferOwner) }
         return try await fetchBlob(.fetchThumbnail(name: name, pixels: pixels))
     }
 
     /// One picture's file, or a clip's MP4.
-    public func file(name: String) async throws -> Data {
-        try await transferAdmission.enter(transferOwner)
+    public func file(name: String, priority: TransferPriority = .openedMedia) async throws -> Data {
+        try await transferAdmission.enter(transferOwner, priority: priority)
         defer { transferAdmission.leave(transferOwner) }
         return try await fetchBlob(.fetchFile(name: name))
     }

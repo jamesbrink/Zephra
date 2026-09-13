@@ -42,7 +42,7 @@ final class GenerationDispatch {
         guard let target else { return "No eligible Mac. Check connections and model readiness." }
         if !target.preference.enabled { return "This Mac is disabled. Enable it in Settings." }
         if !target.client.connection.isLive { return "Reconnect \(target.name) to send this job." }
-        if let offer = offers[target.id] { return offer.refusal ?? HostSelection.reason(offer) }
+        if let offer = offers[target.id] { return offer.refusal ?? HostSelection.reason(offer, selected: destination == nil ? target.id : nil, candidates: candidates()) }
         return target.client.supportsMultiHost ? "Checking this Mac…" : "Manual destination · update this Mac to use Auto"
     }
 }

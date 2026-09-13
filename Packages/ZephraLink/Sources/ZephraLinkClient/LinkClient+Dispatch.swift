@@ -19,7 +19,10 @@ extension LinkClient {
     private func dispatch(_ envelope: Envelope) {
         switch envelope.kind {
         case .snapshot:
-            snapshot = decode(StateSnapshot.self, from: envelope)
+            let incoming = decode(StateSnapshot.self, from: envelope)
+            if snapshot?.running?.id != incoming?.running?.id { preview = nil }
+            snapshot = incoming
+            session?.hasSnapshot = snapshot != nil
             // A frame kept through a drop belongs to a run; the first thing the Mac says on the
             // way back is whether there is still one. This and the delta below are the only two
             // ways a preview is ever cleared.
@@ -29,6 +32,7 @@ extension LinkClient {
             startLibraryPull()
         case .delta:
             guard let delta = decode(StateDelta.self, from: envelope) else { return }
+            if case .running(let run) = delta, snapshot?.running?.id != run?.id { preview = nil }
             snapshot = snapshot?.applying(delta)
             apply(delta)
         case .preview:

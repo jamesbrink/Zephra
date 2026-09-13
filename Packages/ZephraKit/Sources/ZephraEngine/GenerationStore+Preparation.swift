@@ -40,6 +40,7 @@ extension GenerationStore {
             }
             try await downloads.transfers.reserveBuild(acquired.id,
                 bytes: builtExists || installedOnly ? 0 : model.builtBytes, at: acquired.locations.root)
+            let timingStarted = ContinuousClock.now
             let directory = try await pump.run { sink in
                 try await inference.prepare(acquired, residency: residency, events: sink)
             }
@@ -55,6 +56,11 @@ extension GenerationStore {
             loadedDirectory = directory
             loadedResidency = residency
             loadedDescriptor = model
+            let revision = timingRevision(at: directory) ?? identity.uuidString
+            timingRevisions[model.id] = revision
+            timingDirectories[model.id] = directory
+            timings.recordPreparation(model: model.id, revision: revision, residency: residency.rawValue,
+                seconds: (ContinuousClock.now - timingStarted).seconds)
             // A load that lands on the chosen model is what a picture's choice was waiting for.
             if model.id == descriptor.id { modelAwaitsGenerate = false }
             transition(to: .ready)
@@ -89,6 +95,8 @@ extension GenerationStore {
     }
 
     func unloadModel() async {
+        let started = ContinuousClock.now
+        let model = loadedDescriptor?.id
         await inference?.unload()
         if let acquiredModel {
             await downloads.release(acquiredModel)
@@ -97,6 +105,7 @@ extension GenerationStore {
             assert(!downloads.isRetained(acquiredModel.id),
                    "a resident model's lease was borrowed more than once")
         }
+        if let model { timings.recordUnload(model: model, seconds: (ContinuousClock.now - started).seconds) }
         acquiredModel = nil
         loadedDescriptor = nil
         loadedDirectory = nil

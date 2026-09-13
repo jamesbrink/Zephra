@@ -7,8 +7,12 @@ public final class GenerationReceipts {
     var records: [String: GenerationReceipt] = [:]
     let root: URL?
     private var failure: (any Error)?
-    public init(root: URL? = nil) {
+    let persist: @MainActor (Data, URL) throws -> Void
+    public init(root: URL? = nil, persist: @escaping @MainActor (Data, URL) throws -> Void = {
+        try $0.write(to: $1, options: .atomic)
+    }) {
         self.root = root
+        self.persist = persist
         guard let root else { return }
         do {
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -29,7 +33,7 @@ public final class GenerationReceipts {
         if let failure { throw failure }
         let key = key(peer, receipt.requestID)
         if let root {
-            try LinkJSON.encode(receipt).write(to: root.appendingPathComponent(key + ".json"), options: .atomic)
+            try persist(LinkJSON.encode(receipt), root.appendingPathComponent(key + ".json"))
         }
         records[key] = receipt
     }

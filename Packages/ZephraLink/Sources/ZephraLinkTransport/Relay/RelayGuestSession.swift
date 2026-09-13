@@ -12,6 +12,8 @@ import ZephraLinkProtocol
 /// A nil `guest` is a relay that names nobody, which is the build before the room held several:
 /// its frames go out as they always did, and the room's one phone receives them.
 final class RelayGuestSession: LinkConnection, @unchecked Sendable {
+    // Lambda invocations can overtake one another by more than the LAN window.
+    public var frameReorderingHold: Duration { .seconds(2) }
     private let host: RelayConnection
     /// Which phone this is, as the relay's connection id.
     let guest: String?

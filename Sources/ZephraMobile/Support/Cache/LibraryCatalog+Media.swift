@@ -1,5 +1,6 @@
 import Foundation
 import ZephraLinkProtocol
+import ZephraLinkClient
 
 /// The bytes behind a picture: its thumbnail, and the whole file.
 ///
@@ -81,8 +82,8 @@ extension LibraryCatalog {
     /// the canvas, which decodes one, and the reference well, which sends one back. Nil rather
     /// than a throw, because both draw the same rectangle either way and neither has anywhere
     /// to put a sentence.
-    func picture(named name: String) async -> Data? {
-        if let entry = entry(named: name), let child = owner(of: entry) { return await child.picture(named: entry.id) }
+    func picture(named name: String, priority: TransferPriority = .openedMedia) async -> Data? {
+        if let entry = entry(named: name), let child = owner(of: entry) { return await child.picture(named: entry.id, priority: priority) }
         let entry = entry(named: name)
         let remote = entry?.fileName ?? name
         let key = mediaKey(entry, fallback: name)
@@ -91,7 +92,7 @@ extension LibraryCatalog {
         let generation = epoch
         if let held = await fileStore.data(for: key) { return held }
         guard let client, client.connection.isLive else { return nil }
-        guard let data = try? await client.file(name: remote) else {
+        guard let data = try? await client.file(name: remote, priority: priority) else {
             logger.notice("A picture could not be fetched from the Mac")
             return nil
         }

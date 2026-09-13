@@ -63,6 +63,8 @@ let package = Package(
             dependencies: [
                 "ZephraEngine", "ZephraCore", "ZephraSnapshot", "ZephraTestSupport",
                 "ZephraLinkHost", .product(name: "ZephraLinkProtocol", package: "ZephraLink"),
+                .product(name: "ZephraLinkClient", package: "ZephraLink"),
+                .product(name: "ZephraLinkTransport", package: "ZephraLink"),
             ]
         ),
     ]

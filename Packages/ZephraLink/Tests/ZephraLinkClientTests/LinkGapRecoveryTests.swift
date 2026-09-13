@@ -134,8 +134,9 @@ struct LinkGapRecoveryTests {
     /// that snapshot land without moving anything the library reads.
     static let answeredTheResync = "A Mac that answered the resync"
 
-    static func settle(_ until: @MainActor () -> Bool) async throws {
-        for _ in 0..<200 {
+    static func settle(within duration: Duration = .seconds(2), _ until: @MainActor () -> Bool) async throws {
+        let deadline = ContinuousClock.now + duration
+        while ContinuousClock.now < deadline {
             if until() { return }
             try await Task.sleep(for: .milliseconds(10))
         }

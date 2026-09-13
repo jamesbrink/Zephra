@@ -1,0 +1,150 @@
+MULTI_HOST_UAT 2026-09-13T18:07:51Z starting host 0
+MULTI_HOST_UAT 2026-09-13T18:07:52Z pairing host 0 phone 0
+MULTI_HOST_UAT 2026-09-13T18:07:53Z pairing host 0 phone 1
+MULTI_HOST_UAT 2026-09-13T18:07:54Z exercising host 0
+MULTI_HOST_UAT 2026-09-13T18:07:54Z submitting on host 0
+MULTI_HOST_UAT 2026-09-13T18:07:55Z reconnecting host 0
+MULTI_HOST_UAT 2026-09-13T18:07:55Z checking other phone receipt on host 0
+MULTI_HOST_UAT 2026-09-13T18:07:55Z connecting first phone on host 0
+MULTI_HOST_UAT 2026-09-13T18:07:56Z retrying first receipt on host 0
+MULTI_HOST_UAT 2026-09-13T18:07:56Z downloading host 0
+MULTI_HOST_UAT 2026-09-13T18:07:57Z starting host 0
+MULTI_HOST_UAT 2026-09-13T18:07:57Z pairing host 0 phone 0
+MULTI_HOST_UAT 2026-09-13T18:07:59Z pairing host 0 phone 1
+MULTI_HOST_UAT 2026-09-13T18:08:00Z starting host 1
+MULTI_HOST_UAT 2026-09-13T18:08:00Z pairing host 1 phone 0
+MULTI_HOST_UAT 2026-09-13T18:08:01Z pairing host 1 phone 1
+MULTI_HOST_UAT 2026-09-13T18:08:02Z exercising host 0
+MULTI_HOST_UAT 2026-09-13T18:08:03Z submitting on host 0
+MULTI_HOST_UAT 2026-09-13T18:08:03Z reconnecting host 0
+MULTI_HOST_UAT 2026-09-13T18:08:03Z checking other phone receipt on host 0
+MULTI_HOST_UAT 2026-09-13T18:08:03Z connecting first phone on host 0
+MULTI_HOST_UAT 2026-09-13T18:08:04Z retrying first receipt on host 0
+MULTI_HOST_UAT 2026-09-13T18:08:04Z downloading host 0
+MULTI_HOST_UAT 2026-09-13T18:08:05Z exercising host 1
+MULTI_HOST_UAT 2026-09-13T18:08:05Z submitting on host 1
+MULTI_HOST_UAT 2026-09-13T18:08:06Z reconnecting host 1
+MULTI_HOST_UAT 2026-09-13T18:08:06Z checking other phone receipt on host 1
+MULTI_HOST_UAT 2026-09-13T18:08:06Z connecting first phone on host 1
+MULTI_HOST_UAT 2026-09-13T18:08:07Z retrying first receipt on host 1
+MULTI_HOST_UAT 2026-09-13T18:08:07Z downloading host 1
+MULTI_HOST_UAT 2026-09-13T18:08:09Z starting host 0
+MULTI_HOST_UAT 2026-09-13T18:08:09Z pairing host 0 phone 0
+MULTI_HOST_UAT 2026-09-13T18:08:10Z pairing host 0 phone 1
+MULTI_HOST_UAT 2026-09-13T18:08:11Z starting host 1
+MULTI_HOST_UAT 2026-09-13T18:08:12Z pairing host 1 phone 0
+MULTI_HOST_UAT 2026-09-13T18:08:13Z pairing host 1 phone 1
+MULTI_HOST_UAT 2026-09-13T18:08:14Z starting host 2
+MULTI_HOST_UAT 2026-09-13T18:08:14Z pairing host 2 phone 0
+MULTI_HOST_UAT 2026-09-13T18:08:16Z pairing host 2 phone 1
+MULTI_HOST_UAT 2026-09-13T18:08:17Z starting host 3
+MULTI_HOST_UAT 2026-09-13T18:08:17Z pairing host 3 phone 0
+MULTI_HOST_UAT 2026-09-13T18:08:18Z pairing host 3 phone 1
+MULTI_HOST_UAT 2026-09-13T18:08:19Z exercising host 0
+MULTI_HOST_UAT 2026-09-13T18:08:20Z submitting on host 0
+MULTI_HOST_UAT 2026-09-13T18:08:20Z reconnecting host 0
+MULTI_HOST_UAT 2026-09-13T18:08:20Z checking other phone receipt on host 0
+MULTI_HOST_UAT 2026-09-13T18:08:20Z connecting first phone on host 0
+MULTI_HOST_UAT 2026-09-13T18:08:21Z retrying first receipt on host 0
+MULTI_HOST_UAT 2026-09-13T18:08:21Z downloading host 0
+MULTI_HOST_UAT 2026-09-13T18:08:22Z exercising host 1
+MULTI_HOST_UAT 2026-09-13T18:08:22Z submitting on host 1
+MULTI_HOST_UAT 2026-09-13T18:08:23Z reconnecting host 1
+MULTI_HOST_UAT 2026-09-13T18:08:23Z checking other phone receipt on host 1
+MULTI_HOST_UAT 2026-09-13T18:08:23Z connecting first phone on host 1
+MULTI_HOST_UAT 2026-09-13T18:08:24Z retrying first receipt on host 1
+MULTI_HOST_UAT 2026-09-13T18:08:24Z downloading host 1
+MULTI_HOST_UAT 2026-09-13T18:08:25Z exercising host 2
+MULTI_HOST_UAT 2026-09-13T18:08:25Z submitting on host 2
+MULTI_HOST_UAT 2026-09-13T18:08:25Z reconnecting host 2
+MULTI_HOST_UAT 2026-09-13T18:08:25Z checking other phone receipt on host 2
+MULTI_HOST_UAT 2026-09-13T18:08:25Z connecting first phone on host 2
+MULTI_HOST_UAT 2026-09-13T18:08:26Z retrying first receipt on host 2
+MULTI_HOST_UAT 2026-09-13T18:08:27Z downloading host 2
+MULTI_HOST_UAT 2026-09-13T18:08:27Z exercising host 3
+MULTI_HOST_UAT 2026-09-13T18:08:28Z submitting on host 3
+MULTI_HOST_UAT 2026-09-13T18:08:28Z reconnecting host 3
+MULTI_HOST_UAT 2026-09-13T18:08:28Z checking other phone receipt on host 3
+MULTI_HOST_UAT 2026-09-13T18:08:28Z connecting first phone on host 3
+MULTI_HOST_UAT 2026-09-13T18:08:29Z retrying first receipt on host 3
+MULTI_HOST_UAT 2026-09-13T18:08:29Z downloading host 3
+MULTI_HOST_UAT 2026-09-13T18:08:31Z starting host 0
+MULTI_HOST_UAT 2026-09-13T18:08:31Z pairing host 0 phone 0
+MULTI_HOST_UAT 2026-09-13T18:08:32Z pairing host 0 phone 1
+MULTI_HOST_UAT 2026-09-13T18:08:34Z starting host 1
+MULTI_HOST_UAT 2026-09-13T18:08:34Z pairing host 1 phone 0
+MULTI_HOST_UAT 2026-09-13T18:08:35Z pairing host 1 phone 1
+MULTI_HOST_UAT 2026-09-13T18:08:36Z starting host 2
+MULTI_HOST_UAT 2026-09-13T18:08:37Z pairing host 2 phone 0
+MULTI_HOST_UAT 2026-09-13T18:08:38Z pairing host 2 phone 1
+MULTI_HOST_UAT 2026-09-13T18:08:39Z starting host 3
+MULTI_HOST_UAT 2026-09-13T18:08:39Z pairing host 3 phone 0
+MULTI_HOST_UAT 2026-09-13T18:08:40Z pairing host 3 phone 1
+MULTI_HOST_UAT 2026-09-13T18:08:41Z starting host 4
+MULTI_HOST_UAT 2026-09-13T18:08:42Z pairing host 4 phone 0
+MULTI_HOST_UAT 2026-09-13T18:08:43Z pairing host 4 phone 1
+MULTI_HOST_UAT 2026-09-13T18:08:44Z starting host 5
+MULTI_HOST_UAT 2026-09-13T18:08:45Z pairing host 5 phone 0
+MULTI_HOST_UAT 2026-09-13T18:08:46Z pairing host 5 phone 1
+MULTI_HOST_UAT 2026-09-13T18:08:47Z starting host 6
+MULTI_HOST_UAT 2026-09-13T18:08:47Z pairing host 6 phone 0
+MULTI_HOST_UAT 2026-09-13T18:08:48Z pairing host 6 phone 1
+MULTI_HOST_UAT 2026-09-13T18:08:49Z starting host 7
+MULTI_HOST_UAT 2026-09-13T18:08:50Z pairing host 7 phone 0
+MULTI_HOST_UAT 2026-09-13T18:08:51Z pairing host 7 phone 1
+MULTI_HOST_UAT 2026-09-13T18:08:52Z exercising host 0
+MULTI_HOST_UAT 2026-09-13T18:08:52Z submitting on host 0
+MULTI_HOST_UAT 2026-09-13T18:08:52Z reconnecting host 0
+MULTI_HOST_UAT 2026-09-13T18:08:52Z checking other phone receipt on host 0
+MULTI_HOST_UAT 2026-09-13T18:08:52Z connecting first phone on host 0
+MULTI_HOST_UAT 2026-09-13T18:08:53Z retrying first receipt on host 0
+MULTI_HOST_UAT 2026-09-13T18:08:54Z downloading host 0
+MULTI_HOST_UAT 2026-09-13T18:08:54Z exercising host 1
+MULTI_HOST_UAT 2026-09-13T18:08:55Z submitting on host 1
+MULTI_HOST_UAT 2026-09-13T18:08:55Z reconnecting host 1
+MULTI_HOST_UAT 2026-09-13T18:08:55Z checking other phone receipt on host 1
+MULTI_HOST_UAT 2026-09-13T18:08:55Z connecting first phone on host 1
+MULTI_HOST_UAT 2026-09-13T18:08:56Z retrying first receipt on host 1
+MULTI_HOST_UAT 2026-09-13T18:08:56Z downloading host 1
+MULTI_HOST_UAT 2026-09-13T18:08:57Z exercising host 2
+MULTI_HOST_UAT 2026-09-13T18:08:57Z submitting on host 2
+MULTI_HOST_UAT 2026-09-13T18:08:58Z reconnecting host 2
+MULTI_HOST_UAT 2026-09-13T18:08:58Z checking other phone receipt on host 2
+MULTI_HOST_UAT 2026-09-13T18:08:58Z connecting first phone on host 2
+MULTI_HOST_UAT 2026-09-13T18:08:59Z retrying first receipt on host 2
+MULTI_HOST_UAT 2026-09-13T18:08:59Z downloading host 2
+MULTI_HOST_UAT 2026-09-13T18:09:00Z exercising host 3
+MULTI_HOST_UAT 2026-09-13T18:09:00Z submitting on host 3
+MULTI_HOST_UAT 2026-09-13T18:09:00Z reconnecting host 3
+MULTI_HOST_UAT 2026-09-13T18:09:00Z checking other phone receipt on host 3
+MULTI_HOST_UAT 2026-09-13T18:09:01Z connecting first phone on host 3
+MULTI_HOST_UAT 2026-09-13T18:09:01Z retrying first receipt on host 3
+MULTI_HOST_UAT 2026-09-13T18:09:02Z downloading host 3
+MULTI_HOST_UAT 2026-09-13T18:09:03Z exercising host 4
+MULTI_HOST_UAT 2026-09-13T18:09:03Z submitting on host 4
+MULTI_HOST_UAT 2026-09-13T18:09:03Z reconnecting host 4
+MULTI_HOST_UAT 2026-09-13T18:09:03Z checking other phone receipt on host 4
+MULTI_HOST_UAT 2026-09-13T18:09:03Z connecting first phone on host 4
+MULTI_HOST_UAT 2026-09-13T18:09:04Z retrying first receipt on host 4
+MULTI_HOST_UAT 2026-09-13T18:09:04Z downloading host 4
+MULTI_HOST_UAT 2026-09-13T18:09:06Z exercising host 5
+MULTI_HOST_UAT 2026-09-13T18:09:06Z submitting on host 5
+MULTI_HOST_UAT 2026-09-13T18:09:06Z reconnecting host 5
+MULTI_HOST_UAT 2026-09-13T18:09:06Z checking other phone receipt on host 5
+MULTI_HOST_UAT 2026-09-13T18:09:06Z connecting first phone on host 5
+MULTI_HOST_UAT 2026-09-13T18:09:07Z retrying first receipt on host 5
+MULTI_HOST_UAT 2026-09-13T18:09:07Z downloading host 5
+MULTI_HOST_UAT 2026-09-13T18:09:08Z exercising host 6
+MULTI_HOST_UAT 2026-09-13T18:09:08Z submitting on host 6
+MULTI_HOST_UAT 2026-09-13T18:09:09Z reconnecting host 6
+MULTI_HOST_UAT 2026-09-13T18:09:09Z checking other phone receipt on host 6
+MULTI_HOST_UAT 2026-09-13T18:09:09Z connecting first phone on host 6
+MULTI_HOST_UAT 2026-09-13T18:09:10Z retrying first receipt on host 6
+MULTI_HOST_UAT 2026-09-13T18:09:10Z downloading host 6
+MULTI_HOST_UAT 2026-09-13T18:09:11Z exercising host 7
+MULTI_HOST_UAT 2026-09-13T18:09:11Z submitting on host 7
+MULTI_HOST_UAT 2026-09-13T18:09:11Z reconnecting host 7
+MULTI_HOST_UAT 2026-09-13T18:09:11Z checking other phone receipt on host 7
+MULTI_HOST_UAT 2026-09-13T18:09:11Z connecting first phone on host 7
+MULTI_HOST_UAT 2026-09-13T18:09:12Z retrying first receipt on host 7
+MULTI_HOST_UAT 2026-09-13T18:09:13Z downloading host 7

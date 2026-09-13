@@ -289,7 +289,8 @@ counter is the nonce, so it is authenticated for free, and a counter at or below
 the release point (`replayed`) or a whole 1024-frame window beyond it
 (`outOfWindow`) is dropped rather than fatal. Only a frame that does not
 authenticate closes the channel. `OrderedInbox` releases opened frames in counter
-order, holding an overtaken one for at most 256 frames or 500 ms — one clock per
+order, holding an overtaken one for at most 256 frames, with a 500 ms LAN or
+two-second relay window from `LinkConnection.frameReorderingHold` — one clock per
 gap, re-armed whenever the release point moves, since a clock left running across
 a chain of gaps that each filled in milliseconds manufactured holes out of
 ordinary reordering; a gap that does

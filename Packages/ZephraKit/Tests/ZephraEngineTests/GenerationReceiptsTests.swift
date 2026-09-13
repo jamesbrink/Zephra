@@ -52,4 +52,24 @@ struct GenerationReceiptsTests {
             try receipts.write(GenerationReceipt(requestID: UUID(), digest: "job", status: .prepared), peer: peer)
         }
     }
+    @Test func terminalWriteFailureCanReconcile() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        var failing = false
+        let receipts = GenerationReceipts(root: root) { data, url in
+            if failing { throw CocoaError(.fileWriteOutOfSpace) }
+            try data.write(to: url, options: .atomic)
+        }
+        let peer = DeviceIdentity().publicKeys, batch = UUID(), id = UUID()
+        try receipts.write(GenerationReceipt(requestID: id, digest: "job", batchID: batch, status: .accepted), peer: peer)
+        failing = true
+        #expect(throws: (any Error).self) { try receipts.reconcile(active: [], completed: [batch: 1]) }
+        #expect(try receipts.read(peer: peer, request: id)?.status == .accepted)
+        failing = false
+        try receipts.reconcile(active: [], completed: [batch: 1])
+        let reopened = GenerationReceipts(root: root)
+        #expect(try reopened.read(peer: peer, request: id)?.status == .completed)
+        #expect(try reopened.read(peer: peer, request: id)?.batchID == batch)
+    }
+
 }

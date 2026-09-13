@@ -15,7 +15,7 @@ extension GenerationReceipts {
                     status: .unknown, recordedAt: receipt.recordedAt)
             }
             if records[key] != receipt {
-                if let root { try LinkJSON.encode(receipt).write(to: root.appendingPathComponent(key + ".json"), options: .atomic) }
+                if let root { try persist(LinkJSON.encode(receipt), root.appendingPathComponent(key + ".json")) }
                 records[key] = receipt
             }
         }

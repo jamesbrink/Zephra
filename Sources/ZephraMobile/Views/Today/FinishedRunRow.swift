@@ -10,18 +10,25 @@ import ZephraStyle
 struct FinishedRunRow: View {
     /// The run.
     let run: RunSummary
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    private var layout: AnyLayout {
+        typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+            layout {
                 ModelDot(run.modelID)
                 Text(run.prompt)
                     .font(.callout)
-                    .lineLimit(2)
-                Spacer(minLength: 8)
+                    .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
+                if !typeSize.isAccessibilitySize { Spacer(minLength: 8) }
                 Text(time)
                     .font(.caption)
                     .monospacedDigit()
+                    .fixedSize()
                     .foregroundStyle(.secondary)
             }
             if !run.fileNames.isEmpty {

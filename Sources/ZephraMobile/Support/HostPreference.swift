@@ -2,7 +2,7 @@ import Foundation
 import ZephraLinkClient
 import ZephraLinkProtocol
 
-nonisolated struct HostPreference: Codable, Identifiable, Sendable {
+nonisolated struct HostPreference: Codable, Identifiable, Sendable, Equatable {
     var host: PairedHost
     var alias: String?
     var enabled = true

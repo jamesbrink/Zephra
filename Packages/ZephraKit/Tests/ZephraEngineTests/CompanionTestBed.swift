@@ -20,13 +20,13 @@ final class CompanionTestBed {
     let index: LibraryIndex
     let host: CompanionHost
 
-    init(hostName: String = "A Test Mac") {
+    init(hostName: String = "A Test Mac", receipts: GenerationReceipts? = nil) {
         store = engine.store()
         index = engine.index()
         host = CompanionHost(
             store: store, index: index, thumbnails: thumbnails, identity: identity,
             pairings: pairings, hostName: hostName,
-            endpoints: { [Endpoint(host: "192.168.1.2", port: 7890)] })
+            receipts: receipts, endpoints: { [Endpoint(host: "192.168.1.2", port: 7890)] })
         host.serve(listener)
     }
 

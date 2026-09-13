@@ -1,0 +1,92 @@
+Trace: /tmp/zephra-performance/final-scroll/output_259.json
+Total duration:     9.604074
+Idle self total:    8.962812
+Unattributed total: 0.000000
+Active total:       0.641261
+
+Threads
+  9.604074  100.00%total output_259
+
+Top active self frames
+  0.022743    3.55%active AG::Subgraph::update(unsigned int)
+  0.022655    3.53%active AG::Graph::UpdateStack::update()
+  0.021520    3.36%active objc_msgSend
+  0.017000    2.65%active DYLD-STUB$$pthread_getspecific
+  0.011338    1.77%active AG::Graph::propagate_dirty(AG::AttributeID)
+  0.011334    1.77%active task_info
+  0.011311    1.76%active objc_release_x8
+  0.011299    1.76%active __mac_syscall
+  0.011192    1.75%active <deduplicated_symbol>
+  0.010773    1.68%active weak_entry_for_referent
+  0.010315    1.61%active objc_retain_x28
+  0.010267    1.60%active objc_retain
+  0.005689    0.89%active getMethodNoSuper_nolock(objc_class*, objc_selector*)
+  0.005685    0.89%active __CFTSDGetTable
+  0.005678    0.89%active objc_msgSendSuper2
+  0.005678    0.89%active -[UINavigationController isNavigationBarHidden]
+  0.005675    0.89%active CFNumberCreate
+  0.005675    0.88%active -[UIViewController _contentOrObservableScrollViewForEdge:]
+  0.005675    0.88%active _xzm_free
+  0.005675    0.88%active CGPathGetBoundingBox
+  0.005672    0.88%active dispatch_after.cold.2
+  0.005671    0.88%active -[NSBlock copyWithZone:]
+  0.005671    0.88%active -[FBSSettings otherSettings]
+  0.005670    0.88%active swift::ABI::trailing_objects_internal::TrailingObjectsImpl<4, swift::TargetOpaqueTypeDescriptor<swift::InProcess>, swift::ABI::TrailingObjects<swift::TargetOpaqueTypeDescriptor<swift::InProcess>, swift::TargetGenericContextDescriptorHeader<swift::InProcess>, swift::GenericParamDescriptor, swift::TargetGenericRequirementDescriptor<swift::InProcess>, swift::GenericPackShapeHeader, swift::GenericPackShapeDescriptor, swift::ConditionalInvertibleProtocolSet, swift::ConditionalInvertibleProtocolsRequirementCount, swift::TargetConditionalInvertibleProtocolRequirement<swift::InProcess>, swift::GenericValueHeader, swift::GenericValueDescriptor, swift::RelativeDirectPointer<char const, true, int, void>, swift::InvertibleProtocolSet>, swift::GenericValueDescriptor, swift::RelativeDirectPointer<char const, true, int, void>, swift::InvertibleProtocolSet>::getTrailingObjectsImpl(swift::TargetOpaqueTypeDescriptor<swift::InProcess> const*, swift::ABI::trailing_objects_internal::TrailingObjectsBase::OverloadToken<swift::RelativeDirectPointer<char const, true, int, void>>)
+  0.005670    0.88%active GraphHost.flushTransactions()
+  0.005669    0.88%active -[UINavigationBar setTintColor:]
+  0.005669    0.88%active uhash_hashChars
+  0.005669    0.88%active _CFStringGetCStringPtrInternal
+  0.005669    0.88%active -[NSPlaceholderNumber initWithBool:]
+  0.005668    0.88%active CA::AttrList::get(unsigned int, _CAValueType, void*) const
+  0.005668    0.88%active AccessibilityNode.resolvedToggleValue.getter
+  0.005668    0.88%active swift_release
+  0.005668    0.88%active type metadata accessor for _DictionaryStorage<ViewIdentity, ConfirmationDialog>
+  0.005667    0.88%active DisplayList.ViewUpdater.ViewCache.update(item:platform:state:tag:in:)
+  0.005667    0.88%active _pthread_mutex_firstfit_unlock_slow
+  0.005667    0.88%active specialized InterpolatedDisplayList.updateValue()
+  0.005666    0.88%active startReadPointerAt
+  0.005666    0.88%active objc_retainAutoreleasedReturnValue
+  0.005665    0.88%active CUIDesignLibraryCacheKey.fetch()
+  0.005665    0.88%active -[__NSCFString isEqual:]
+
+Top inclusive frames
+  1.008170  157.22%active UIKitCore
+  0.641261  100.00%active closure #1 in KitRendererCommon(_:)
+  0.641261  100.00%active __debug_main_executable_dylib_entry_point
+  0.641261  100.00%active ETTrace
+  0.288892   45.05%active mshMIGPerform
+  0.269738   42.06%active UC::DriverCore::continueProcessing()
+  0.264075   41.18%active schedulerStepScheduledMainSectionContinue
+  0.264075   41.18%active _UIUpdateSequenceRunNext
+  0.249378   38.89%active _handleNonMainThreadCallback
+  0.249282   38.87%active _XCopyAttributeValue
+  0.249282   38.87%active _AXXMIGCopyAttributeValue
+  0.215432   33.60%active _copyAttributeValueCallback
+  0.209781   32.71%active ___AXXMIGCopyAttributeValue_block_invoke
+  0.206270   32.17%active -[UIResponder undoManager]
+  0.184964   28.84%active <deduplicated_symbol>
+  0.156492   24.40%active CA::Transaction::commit()
+  0.153754   23.98%active DisplayList.ViewUpdater.updateInheritedView(container:from:parentState:)
+  0.151844   23.68%active __setupUpdateSequence_block_invoke_2
+  0.151844   23.68%active _UIApplicationFlushCATransaction
+  0.151844   23.68%active CA::Transaction::flush_as_runloop_observer(bool)
+  0.145160   22.64%active CA::Context::commit_transaction(CA::Transaction*, double, double*)
+  0.133840   20.87%active CA::Layer::update_if_needed_(CA::Transaction*, CA::LayerUpdateReason)
+  0.133840   20.87%active CA::Layer::perform_update_(CA::Layer*, CALayer*, unsigned int, CA::LayerUpdateReason, CA::Transaction*)
+  0.133840   20.87%active CA::Layer::layout_and_display_if_needed(CA::Transaction*)
+  0.133840   20.87%active -[UIView(CALayerDelegate) layoutSublayersOfLayer:]
+  0.125826   19.62%active -[NSObject(AXPrivCategory) _iosAccessibilityAttributeValue:]
+  0.106480   16.60%active __CFRunLoopDoSources0
+  0.100928   15.74%active AG::Graph::UpdateStack::update()
+  0.099062   15.45%active DisplayList.ViewUpdater.update(container:from:parentState:)
+  0.090704   14.14%active AG::Subgraph::update(unsigned int)
+  0.084207   13.13%active static Update.ensure<A>(_:)
+  0.078544   12.25%active closure #1 in static Update.ensure<A>(_:)
+  0.078155   12.19%active closure #1 in ViewGraphRootValueUpdater.render(interval:updateDisplayList:targetTimestamp:)
+  0.078155   12.19%active _UIHostingView.layoutSubviews()
+  0.078155   12.19%active ViewGraphRootValueUpdater.render(interval:updateDisplayList:targetTimestamp:)
+  0.078155   12.19%active @objc _UIHostingView.layoutSubviews()
+  0.073633   11.48%active specialized GraphHost.runTransaction(_:do:id:)
+  0.073605   11.48%active static ViewGraphHostUpdate.dispatchImmediately<A>(_:)
+  0.073605   11.48%active static Update.dispatchImmediately<A>(reason:_:)
+  0.073605   11.48%active partial apply for closure #1 in closure #1 in closure #1 in _UIHostingView.beginTransaction()

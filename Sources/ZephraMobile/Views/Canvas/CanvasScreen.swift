@@ -1,6 +1,7 @@
 import SwiftUI
 import ZephraLinkClient
 import ZephraStyle
+import ZephraCore
 
 /// What the Mac is making, and the capsule that asks it for more.
 ///
@@ -15,17 +16,11 @@ struct CanvasScreen: View {
 
     var body: some View {
         NavigationStack {
-            CanvasPicture()
-                .environment(dispatch.hosts.visible?.catalog ?? dispatch.hosts.catalog)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(.horizontal, MobileChrome.sideMargin)
+            CanvasLayout()
                 .background(Color.canvasBackground)
                 .navigationTitle(client.snapshot?.hostName ?? "Zephra")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .topBarTrailing) { ModelMenu() } }
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    PromptCapsule()
-                }
                 // The first snapshot seeds the capsule, and a run the Mac starts fills it in
                 // the way the Mac's own capsule follows the run; never over a prompt somebody
                 // is in the middle of typing.
@@ -36,10 +31,9 @@ struct CanvasScreen: View {
     }
 
     /// Puts one picture in the well, fitted to whatever model the next press names.
-    private func fill(_ data: Data, origin: String) async {
-        guard let model = dispatch.models.first(where: { $0.id == draft.modelID }) else { return }
-        await ReferenceAdoption.adopt(
-            data, origin: origin, into: draft,
-            fitting: model.capabilities)
+    private func fill(_ picture: ReferencePicture, origin: String) -> Bool {
+        guard let model = dispatch.models.first(where: { $0.id == draft.modelID }) else { return false }
+        draft.adopt(picture, origin: origin, fitting: model.capabilities.capabilities)
+        return true
     }
 }

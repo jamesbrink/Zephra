@@ -19,6 +19,7 @@ final class FakeHost {
     /// What the phone's next command is answered with, where `.ok` will not do.
     var reply: Reply?
     var silentOffers = false
+    var silentPreviews = false
     /// The pictures this Mac's folder holds, newest first, which `libraryPage` windows onto.
     var library: [LibraryEntry] = []
     /// How many of the next page requests are refused, for the retry a dropped page takes.
@@ -26,9 +27,12 @@ final class FakeHost {
     /// Called as each command arrives, before it is answered, so a test can ask what the phone
     /// was holding at the moment it asked for the next page.
     var onCommand: (@MainActor (Command) -> Void)?
+    var beforeReply: (@MainActor (Command) async throws -> Void)?
+    var afterReply: (@MainActor (Command) async throws -> Void)?
     /// The state a `resync` is answered with, behind its `.ok`. Nil for a Mac that answers the
     /// command and sends nothing after it.
     var world: StateSnapshot?
+    var publishesSnapshotOnConnect = false
     /// A Mac too old to know `fromChunk`, which sends the whole file however far in it was asked
     /// to start.
     var ignoresFromChunk = false
@@ -42,6 +46,7 @@ final class FakeHost {
     private var known: Set<Data>
     private var road: (any LinkConnection)?
     private var responder: HandshakeResponder?
+    var isAuthenticated: Bool { channel != nil }
     private var channel: SecureChannel?
     private var assembling: [UUID: BlobReassembly] = [:]
     private var task: Task<Void, Never>?
@@ -63,6 +68,8 @@ final class FakeHost {
 
     /// Starts serving one road.
     func serve(_ road: any LinkConnection) {
+        task?.cancel()
+        channel = nil
         self.road = road
         responder = HandshakeResponder(
             identity: identity, isKnown: { [known] keys in known.contains(keys.keyAgreement) },
@@ -71,7 +78,10 @@ final class FakeHost {
         task = Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                for try await bytes in frames { await self.receive(bytes) }
+                for try await bytes in frames {
+                    guard !Task.isCancelled else { return }
+                    await self.receive(bytes)
+                }
             } catch {
                 // The phone went; there is nothing left to answer.
             }
@@ -97,7 +107,10 @@ final class FakeHost {
             case .envelope(let envelope): try await answer(envelope)
             case .chunk(let piece): chunk(piece)
             }
+        } catch is CancellationError {
+            return
         } catch {
+            guard !Task.isCancelled else { return }
             try? await plaintext(Envelope.encoding(asLinkError(error), kind: .error))
         }
     }
@@ -115,6 +128,7 @@ final class FakeHost {
             let (channel, peer, paired) = try responder.receive(try envelope.decode(Confirm.self))
             if paired { known.insert(peer.keyAgreement) }
             self.channel = channel
+            if publishesSnapshotOnConnect, let world { try await announce(world, kind: .snapshot) }
         default:
             break
         }
@@ -138,8 +152,12 @@ final class FakeHost {
         commands.append(command)
         onCommand?(command)
         if silentOffers, case .multiHost(.offer) = command { return }
+        if silentPreviews, case .multiHost(.previews) = command { return }
+        try await beforeReply?(command)
+        try Task.checkCancellation()
         let answer = reply ?? standing(for: command)
         try await send(.envelope(Envelope.encoding(answer, kind: .reply, inReplyTo: envelope.id)))
+        try await afterReply?(command)
         // The `.ok` first and the snapshot behind it, which is the order the Mac answers in.
         if command == .resync, let world {
             try await send(.envelope(Envelope.encoding(world, kind: .snapshot)))
@@ -172,6 +190,12 @@ final class FakeHost {
             return .blob(BlobStart(byteCount: payload.count, mime: "image/png"))
         case .enqueue:
             return .queued(batchID: UUID())
+        case .multiHost(.listing(let offset, let limit, let expected)):
+            let revision = GenerationInput.digest((try? LinkJSON.encode(library)) ?? Data())
+            if let expected, expected != revision {
+                return .error(LinkError(code: .busy, reason: "The library changed."))
+            }
+            return .multiHost(.listing(LibraryListing(revision: revision, page: page(offset: offset, limit: limit))))
         case .libraryPage(let offset, let limit):
             guard refusesPages == 0 else {
                 refusesPages -= 1

@@ -16,6 +16,7 @@ final class HostConnections {
     let catalog: LibraryCatalog
     @ObservationIgnored let storage: PairedHosts?
     @ObservationIgnored let makeClient: (PairedHost?) -> LinkClient
+    @ObservationIgnored var pairingTask: Task<Void, Error>?
     @ObservationIgnored let pathWatch = HostsPathWatch()
     var visible: HostConnection? { hosts.first { $0.id == watched } ?? hosts.first }
     var client: LinkClient { visible?.client ?? pairing }
@@ -36,33 +37,18 @@ final class HostConnections {
     func pair(_ payload: PairingPayload) async throws {
         guard !isPairing else { return }
         isPairing = true
-        defer { isPairing = false }
-        let id = HostID(keys: payload.keys)
-        let existing = hosts.first { $0.id == id }
-        guard existing != nil || hosts.filter({ $0.preference.enabled }).count < 8 else {
-            throw LinkError(code: .refused, reason: "Disable a Mac before adding another. Up to eight can connect at once.")
-        }
-        let client = existing?.client ?? makeClient(nil)
-        pairing = client
-        await existing?.reconnect?.stopAndDrain()
-        do { try await client.pair(with: payload) }
-        catch {
-            await client.disconnect()
-            if isActive && existing?.preference.enabled == true { existing?.reconnect?.begin() }
-            throw error
-        }
-        guard let host = client.pairedHost else { return }
-        if let existing {
-            var preference = existing.preference
-            preference.host = host
-            update(preference)
-        } else { add(HostPreference(host: host), client: client) }
-        watched = id
-        pairing = makeClient(nil)
+        let task = Task { try await performPair(payload) }
+        pairingTask = task
+        defer { pairingTask = nil; isPairing = false }
+        try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() }
+    }
+    func cancelPairing() {
+        pairingTask?.cancel()
         isAdding = false
     }
     func setActive(_ active: Bool) {
         isActive = active
+        if !active { cancelPairing() }
         if active { pathWatch.start(self) } else { pathWatch.stop() }
         for host in hosts {
             if active && host.preference.enabled { host.reconnect?.begin() }

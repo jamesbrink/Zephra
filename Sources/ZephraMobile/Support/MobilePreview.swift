@@ -36,7 +36,8 @@ enum MobilePreview {
     /// the Mac rather than doing nothing at all.
     static func client() -> LinkClient? {
         guard let state else { return nil }
-        guard let snapshot = snapshot(), state != .pairing else { return unpairedClient() }
+        guard var snapshot = snapshot(), state != .pairing else { return unpairedClient() }
+        if hostCount > 1 { snapshot.multiHost = true }
         return LinkClient.frozen(
             snapshot: shaped(snapshot, for: state),
             library: library(),

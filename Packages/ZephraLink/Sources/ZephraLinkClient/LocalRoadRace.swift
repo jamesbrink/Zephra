@@ -21,6 +21,7 @@ final class LocalRoadRace: @unchecked Sendable {
     private let roads: any LinkRoads
     private let lock = NSLock()
     private var taken = false
+    private var offered: (any LinkConnection)?
     private var ringing = 0
     private var browsing = false
     private var dialled: Set<String> = []
@@ -51,9 +52,19 @@ final class LocalRoadRace: @unchecked Sendable {
         defer {
             deadline.cancel()
             browser?.cancel()
+            let abandoned = lock.withLock { () -> (any LinkConnection)? in
+                taken = true
+                defer { offered = nil }
+                return offered
+            }
+            continuation.finish()
+            if let abandoned { Task { await abandoned.close() } }
         }
         for await outcome in stream {
-            if case .opened(let road) = outcome { return road }
+            if case .opened(let road) = outcome {
+                lock.withLock { offered = nil }
+                return road
+            }
             return nil
         }
         return nil
@@ -70,6 +81,7 @@ final class LocalRoadRace: @unchecked Sendable {
                 ringing -= 1
                 if road != nil, !taken {
                     taken = true
+                    offered = road
                     return (true, false)
                 }
                 return (false, ringing == 0 && !browsing && !taken)
