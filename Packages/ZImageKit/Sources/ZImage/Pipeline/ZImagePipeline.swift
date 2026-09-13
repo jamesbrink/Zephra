@@ -100,6 +100,9 @@ public final class ZImagePipeline {
   private var currentLoRAConfig: LoRAConfiguration?
   private var modelSnapshot: URL?
   private var useDynamicLoRA: Bool = false
+  // ZEPHRA-PATCH: what `loadModel` was last asked for, so the reload inside `generateCore`
+  // streams the same way the first load did rather than quietly reading the whole model in.
+  private var streaming: ZImageStreaming?
 
   // ZEPHRA-PATCH: returning MLX's scratch to the system after every generation trades the next
   // generation's warm buffers for a smaller footprint. It is worth it here because the VAE
@@ -129,6 +132,7 @@ public final class ZImagePipeline {
     currentLoRAConfig = nil
     modelSnapshot = nil
     useDynamicLoRA = false
+    streaming = nil  // ZEPHRA-PATCH: the next load says for itself whether it streams
     GPU.clearCache()
     logger.info("Model unloaded from memory")
   }
@@ -257,7 +261,19 @@ public final class ZImagePipeline {
   public typealias PreviewHandler = (
     _ step: Int, _ totalSteps: Int, _ frame: () -> ZImageLatentPreview
   ) -> Void
-  public func loadModel(modelSpec: String? = nil, progressHandler: ProgressHandler? = nil) async throws {
+  // ZEPHRA-PATCH: `streaming` added, defaulted to nil so every existing caller is unchanged.
+  /// Reads a snapshot into memory, replacing whatever was there.
+  ///
+  /// With `streaming` the text encoder's layers and the transformer's three block stacks are
+  /// not read here at all: each is handed to a `LayerWeightStream` that reads it from the
+  /// shards on every pass, and only what is left — the embedders, the timestep MLP, the final
+  /// layer, the norms and the whole autoencoder — is evaluated now. Without it every weight is
+  /// read here and stays, which is what this method has always done.
+  public func loadModel(
+    modelSpec: String? = nil,
+    streaming: ZImageStreaming? = nil,
+    progressHandler: ProgressHandler? = nil
+  ) async throws {
     let modelId = modelSpec ?? ZImageRepository.id
     if isModelLoaded && loadedModelId == modelId {
       logger.info("Model already loaded, skipping load")
@@ -282,6 +298,7 @@ public final class ZImagePipeline {
       }
     }
 
+    self.streaming = streaming  // ZEPHRA-PATCH: remembered for the reload inside generateCore
     logger.info("Loading model: \(modelId)")
     progressHandler?(GenerationProgress(stage: .loadingModel, stepIndex: 0, totalSteps: 1))
 
@@ -307,6 +324,13 @@ public final class ZImagePipeline {
     let te = try loadTextEncoder(snapshot: snapshot, config: configs.textEncoder)
     let textEncoderWeights = try weightsMapper.loadTextEncoder()
     try ZImageWeightsMapping.applyTextEncoder(weights: textEncoderWeights, to: te, manifest: manifest, logger: logger)  // ZEPHRA-PATCH: a failed apply throws
+    // ZEPHRA-PATCH: streaming. Attached over the arrays the apply just put in, while they are
+    // still lazy; the encoder is not cast, so what a streamed pass hands back is what a
+    // resident load would have read.
+    if let streaming {
+      try te.attachStream(
+        index: try weightsMapper.shardIndex(for: "text_encoder"), depth: streaming.depth)
+    }
     textEncoder = te
     progressHandler?(GenerationProgress(stage: .loadingTransformer, stepIndex: 0, totalSteps: 1))
     ZImageStepProfile.noteMemory("mem: before dit")
@@ -321,6 +345,13 @@ public final class ZImagePipeline {
     // precision once, at load, rather than casting on every step.
     ZImageStepProfile.noteMemory("mem: dit applied")
     trans.castFloatParameters(to: ZImageTransformerPrecision.activation)
+    // ZEPHRA-PATCH: streaming. After the cast and before anything evaluates the tree, so the
+    // stream captures the cast nodes and hands them back in that dtype on every later pass; a
+    // raw float32 scale read on the second pass would widen the whole stream.
+    if let streaming {
+      try trans.attachStreams(
+        index: try weightsMapper.shardIndex(for: "transformer"), depth: streaming.depth)
+    }
     transformer = trans
     if vae == nil {
       progressHandler?(GenerationProgress(stage: .loadingVAE, stepIndex: 0, totalSteps: 1))
@@ -333,6 +364,17 @@ public final class ZImagePipeline {
       logger.info("Reusing cached VAE")
     }
 
+    // ZEPHRA-PATCH: streaming. The one place a load is read in, last of all and after the
+    // streams are attached: a stack evaluated before its stream would read the whole model
+    // into memory, which is the one thing streaming must not do. Resident, this reads what
+    // `castFloatParameters` used to evaluate, and the text encoder and the autoencoder with
+    // it, so the figure `mem: load done` reports is the load's and not the first step's.
+    // A load with no autoencoder is not a load, and the guard says so rather than skipping
+    // the evaluation: behind an `if`, a streamed load would attach its streams, evaluate
+    // nothing and report success, and the first generation would read the whole model in.
+    guard let vae else { throw PipelineError.vaeNotLoaded }  // ZEPHRA-PATCH: streaming
+    ZImageResidentParameters.eval(
+      transformer: trans, textEncoder: te, vae: vae, streamed: streaming != nil)
     ZImageStepProfile.noteMemory("mem: load done")
     modelConfigs = configs
     quantManifest = manifest
@@ -416,7 +458,9 @@ public final class ZImagePipeline {
     }
     let requestedModelId = request.model ?? ZImageRepository.id
     if !isModelLoaded || loadedModelId != requestedModelId {
-      try await loadModel(modelSpec: request.model, progressHandler: progressHandler)
+      // ZEPHRA-PATCH: the reload streams the way the first load was asked to.
+      try await loadModel(
+        modelSpec: request.model, streaming: streaming, progressHandler: progressHandler)
     }
 
     guard let tokenizer = tokenizer,
@@ -562,8 +606,8 @@ public final class ZImagePipeline {
 
       // ZEPHRA-PATCH: split the step into graph construction and kernel execution when
       // ZEPHRA_PROFILE_STEP=1; `measure` calls straight through otherwise.
-      let noisePred = ZImageStepProfile.measure("step build") {
-        transformer.forward(latents: modelLatents, timestep: timestepArray, promptEmbeds: embeds)
+      let noisePred = try ZImageStepProfile.measure("step build") {  // ZEPHRA-PATCH: forward throws while streaming
+        try transformer.forward(latents: modelLatents, timestep: timestepArray, promptEmbeds: embeds)
       }
       var guidedNoise: MLXArray
       if doCFG, negativeEmbeds != nil {

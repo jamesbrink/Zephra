@@ -2,6 +2,8 @@ import Foundation
 import MLX
 import MLXNN
 import MLXFast
+// ZEPHRA-PATCH: streaming the decoder layers from disk; see VENDORED.md.
+import ZephraMLX
 
 enum QwenTextEncoderError: Error {
   case visionTowerUnavailable
@@ -63,19 +65,30 @@ public final class QwenTextEncoder: Module {
     self.visionTower = tower
   }
 
+  // ZEPHRA-PATCH: streaming. Every door into the encoder's layer stack is throwing now,
+  // because a streamed pass can fail on a shard that changed under the model and can be
+  // stopped between layers. Nothing throws when no stream is attached.
+  /// Prepares the decoder layers to read their weights from `index`'s shards on every pass.
+  ///
+  /// The checkpoint calls this stack `model.layers` where the module tree calls it
+  /// `encoder.layers`, so the stream is keyed on the checkpoint's name.
+  public func attachStream(index: ShardIndex, depth: Int) throws {
+    try encoder.attachStream(index: index, depth: depth)
+  }
+
   public func callAsFunction(
     inputIds: MLXArray,
     attentionMask: MLXArray? = nil
-  ) -> (MLXArray, MLXArray) {
-    encode(inputIds: inputIds, attentionMask: attentionMask)
+  ) throws -> (MLXArray, MLXArray) {  // ZEPHRA-PATCH: throws while streaming
+    try encode(inputIds: inputIds, attentionMask: attentionMask)
   }
 
   public func encode(
     inputIds: MLXArray,
     attentionMask: MLXArray?,
     keepFullSequence: Bool = false
-  ) -> (MLXArray, MLXArray) {
-    let result = encoder.forward(
+  ) throws -> (MLXArray, MLXArray) {  // ZEPHRA-PATCH: throws while streaming
+    let result = try encoder.forward(
       inputIds: inputIds,
       attentionMask: attentionMask,
       outputHiddenStates: false
@@ -96,8 +109,8 @@ public final class QwenTextEncoder: Module {
   public func forwardWithHiddenStates(
     inputIds: MLXArray,
     attentionMask: MLXArray?
-  ) -> (lastHiddenState: MLXArray, hiddenStates: [MLXArray]?) {
-    return encoder.forward(
+  ) throws -> (lastHiddenState: MLXArray, hiddenStates: [MLXArray]?) {  // ZEPHRA-PATCH: throws while streaming
+    return try encoder.forward(
       inputIds: inputIds,
       attentionMask: attentionMask,
       outputHiddenStates: true
@@ -107,8 +120,8 @@ public final class QwenTextEncoder: Module {
   public func encodeForZImage(
     inputIds: MLXArray,
     attentionMask: MLXArray?
-  ) -> [MLXArray] {
-    let result = encoder.forward(
+  ) throws -> [MLXArray] {  // ZEPHRA-PATCH: throws while streaming
+    let result = try encoder.forward(
       inputIds: inputIds,
       attentionMask: attentionMask,
       outputHiddenStates: true
@@ -377,18 +390,38 @@ public final class QwenEncoder: Module {
       dimensions: configuration.hiddenSize, eps: configuration.rmsNormEps)
   }
 
+  // ZEPHRA-PATCH: streaming. Set when the layers' weights are read from the shards on every
+  // pass rather than held; `forward` then hands each layer to the stream. Nil is upstream's
+  // behaviour and the loop below is upstream's, unchanged.
+  /// The layer stack's stream, or nil when its weights are resident.
+  public private(set) var stream: LayerWeightStream<QwenEncoderLayer>?
+
+  /// Prepares the layers to read their weights from `index`'s shards on every pass.
+  ///
+  /// Call it after the weights are applied and before anything evaluates the tree. The stack is
+  /// `model.layers` in the checkpoint and `layers` here, and a stream reads by the checkpoint's
+  /// names, so that is what it is keyed on.
+  public func attachStream(index: ShardIndex, depth: Int) throws {
+    stream = try LayerWeightStream(
+      layers: layers,
+      keyPrefix: ZImageResidentParameters.textEncoderCheckpointLayers,
+      index: index,
+      depth: depth
+    )
+  }
+
   public func callAsFunction(
     inputIds: MLXArray,
     attentionMask: MLXArray?
-  ) -> MLXArray {
-    forward(inputIds: inputIds, attentionMask: attentionMask).lastHiddenState
+  ) throws -> MLXArray {  // ZEPHRA-PATCH: throws while streaming
+    try forward(inputIds: inputIds, attentionMask: attentionMask).lastHiddenState
   }
 
   public func forward(
     inputIds: MLXArray,
     attentionMask: MLXArray?,
     outputHiddenStates: Bool = false
-  ) -> (lastHiddenState: MLXArray, hiddenStates: [MLXArray]?) {
+  ) throws -> (lastHiddenState: MLXArray, hiddenStates: [MLXArray]?) {  // ZEPHRA-PATCH: throws while streaming
     var tokenIds = inputIds
     if tokenIds.dtype != .int32 {
       tokenIds = tokenIds.asType(.int32)
@@ -400,11 +433,24 @@ public final class QwenEncoder: Module {
 
     var allHiddenStates: [MLXArray]? = outputHiddenStates ? [h] : nil
 
-    for layer in layers {
+    // ZEPHRA-PATCH: the stack either runs upstream's loop, unchanged, or is handed layer by
+    // layer to the stream. The hidden-state append stays inside the step either way, so what
+    // `encodeForZImage` reads is the same list in the same order. A streamed pass is one read
+    // of the encoder, so a stop is answered between layers.
+    let step = { (layer: QwenEncoderLayer) in
       h = layer(h, mask: mask)
       if outputHiddenStates {
         allHiddenStates?.append(h)
       }
+    }
+    if let stream {
+      try stream.run { layer in
+        try Task.checkCancellation()
+        step(layer)
+        return [h]
+      }
+    } else {
+      for layer in layers { step(layer) }
     }
 
     h = norm(h)
@@ -457,6 +503,9 @@ extension QwenEncoder {
     return embedTokens(tokenIds)
   }
 
+  // ZEPHRA-PATCH: deliberately not streamed and deliberately still non-throwing. This is the
+  // prompt enhancer's token-at-a-time path, which Zephra never enables, and it runs the stack
+  // once per generated token with a KV cache the stream knows nothing about.
   public func forwardCausal(inputIds: MLXArray, cache: [KVCache]?) -> MLXArray {
     var tokenIds = inputIds
     if tokenIds.dtype != .int32 {
@@ -496,7 +545,7 @@ extension QwenTextEncoder {
     spatialMergeSize: Int,
     replacements: [MLXArray],
     dropIndex dropIndexOverride: Int? = nil
-  ) -> (MLXArray, MLXArray) {
+  ) throws -> (MLXArray, MLXArray) {  // ZEPHRA-PATCH: throws while streaming
     var tokenIds = inputIds
     if tokenIds.dtype != .int32 {
       tokenIds = tokenIds.asType(.int32)
@@ -521,7 +570,7 @@ extension QwenTextEncoder {
     }
 
     // For joint encoding, use the standard forward path
-    let result = encoder.forward(
+    let result = try encoder.forward(  // ZEPHRA-PATCH: throws while streaming
       inputIds: inputIds,
       attentionMask: attentionMaskUpdated,
       outputHiddenStates: false

@@ -19,7 +19,7 @@ public enum PipelineUtilities {
         maxLength: Int
     ) throws -> (embeddings: MLXArray, mask: MLXArray) {
         let encoded = try tokenizer.encodeChat(prompts: [prompt], maxLength: maxLength)
-        let embeddingsList = textEncoder.encodeForZImage(
+        let embeddingsList = try textEncoder.encodeForZImage(  // ZEPHRA-PATCH: throws while streaming
             inputIds: encoded.inputIds,
             attentionMask: encoded.attentionMask
         )

@@ -1,6 +1,8 @@
 import Foundation
 import MLX
 import MLXNN
+// ZEPHRA-PATCH: streaming the block stacks from disk; see VENDORED.md.
+import ZephraMLX
 
 public final class ZImageTransformer2DModel: Module {
   public let configuration: ZImageTransformerConfig
@@ -19,6 +21,39 @@ public final class ZImageTransformer2DModel: Module {
 
   private var cache: TransformerCache?
   private var cacheKey: TransformerCacheKey?
+
+  // ZEPHRA-PATCH: streaming. Set when the stacks' weights are read from the shards on every
+  // step rather than held; `forward` then hands each block to its stream, which has that
+  // block's weights in memory for exactly as long as the block runs. Nil is the unpatched
+  // behaviour: the loops below are upstream's, unchanged.
+  /// The main stack's stream, or nil when its weights are resident.
+  public private(set) var layersStream: LayerWeightStream<ZImageTransformerBlock>?
+  /// The noise refiner's stream, or nil when its weights are resident.
+  public private(set) var noiseRefinerStream: LayerWeightStream<ZImageTransformerBlock>?
+  /// The context refiner's stream, or nil when its weights are resident.
+  public private(set) var contextRefinerStream: LayerWeightStream<ZImageTransformerBlock>?
+
+  /// Prepares the three block stacks to read their weights from `index`'s shards on every pass
+  /// instead of holding them.
+  ///
+  /// Call it after the weights are applied and `castFloatParameters` has run, and before
+  /// anything evaluates the tree: the arrays captured here are the ones the loader put in,
+  /// still lazy, and the cast they carry is what every later pass hands back. The checkpoint's
+  /// name for a tensor in these stacks is the module's own — `layers.0.attention.to_q.weight`
+  /// in both — so no name mapping is needed.
+  ///
+  /// - Throws: `LayerWeightStreamError.missingTensor` when a block wants a tensor the shards do
+  ///   not carry, so a variant that does not match the tree fails here and not mid-step.
+  public func attachStreams(index: ShardIndex, depth: Int) throws {
+    layersStream = try LayerWeightStream(
+      layers: layers, keyPrefix: ZImageResidentParameters.mainLayers, index: index, depth: depth)
+    noiseRefinerStream = try LayerWeightStream(
+      layers: noiseRefiner, keyPrefix: ZImageResidentParameters.noiseRefiner, index: index,
+      depth: depth)
+    contextRefinerStream = try LayerWeightStream(
+      layers: contextRefiner, keyPrefix: ZImageResidentParameters.contextRefiner, index: index,
+      depth: depth)
+  }
 
   public init(configuration: ZImageTransformerConfig) {
     self.configuration = configuration
@@ -194,11 +229,13 @@ public final class ZImageTransformer2DModel: Module {
     return newCache
   }
 
+  // ZEPHRA-PATCH: `throws` only when streaming — a shard that changed under the model, or a
+  // stop between blocks. With no stream attached there is nothing here to throw.
   public func forward(
     latents: MLXArray,
     timestep: MLXArray,
     promptEmbeds: MLXArray
-  ) -> MLXArray {
+  ) throws -> MLXArray {
     // ZEPHRA-PATCH: enter the DiT in its own precision. The scheduler keeps the latents in
     // float32 and the text encoder emits float32, and MLX promotes a mixed multiply to the
     // wider type, so without these casts every layer would run in float32 no matter what
@@ -273,8 +310,11 @@ public final class ZImageTransformer2DModel: Module {
       image = MLX.where(MLX.expandedDimensions(imgPadMask, axis: 2), pad, image)
     }
 
+    // ZEPHRA-PATCH: each of the three stacks either runs its upstream loop, unchanged, or is
+    // handed block by block to its stream. A streamed step is tens of seconds on the Mac that
+    // needs one, so a stop is answered between blocks rather than at the step's end.
     var noiseStream = image
-    for block in noiseRefiner {
+    let refineNoise = { (block: ZImageTransformerBlock) in
       noiseStream = block(
         noiseStream,
         attnMask: nil,
@@ -282,9 +322,19 @@ public final class ZImageTransformer2DModel: Module {
         adalnInput: tEmb
       )
     }
+    // ZEPHRA-PATCH: streamed, or upstream's own loop below.
+    if let noiseRefinerStream {
+      try noiseRefinerStream.run { block in
+        try Task.checkCancellation()
+        refineNoise(block)
+        return [noiseStream]
+      }
+    } else {
+      for block in noiseRefiner { refineNoise(block) }
+    }
 
     var capStream = capFeat
-    for block in contextRefiner {
+    let refineContext = { (block: ZImageTransformerBlock) in
       capStream = block(
         capStream,
         attnMask: nil,
@@ -292,11 +342,31 @@ public final class ZImageTransformer2DModel: Module {
         adalnInput: nil
       )
     }
+    // ZEPHRA-PATCH: streamed, or upstream's own loop below.
+    if let contextRefinerStream {
+      try contextRefinerStream.run { block in
+        try Task.checkCancellation()
+        refineContext(block)
+        return [capStream]
+      }
+    } else {
+      for block in contextRefiner { refineContext(block) }
+    }
 
     var unified = MLX.concatenated([noiseStream, capStream], axis: 1)
 
-    for block in layers {
+    let step = { (block: ZImageTransformerBlock) in
       unified = block(unified, attnMask: nil, freqsCis: cached.unifiedFreqsCis, adalnInput: tEmb)
+    }
+    // ZEPHRA-PATCH: streamed, or upstream's own loop below.
+    if let layersStream {
+      try layersStream.run { block in
+        try Task.checkCancellation()
+        step(block)
+        return [unified]
+      }
+    } else {
+      for block in layers { step(block) }
     }
 
     let imageOut = unified[0..., 0..<cached.imageTokens, 0...]
