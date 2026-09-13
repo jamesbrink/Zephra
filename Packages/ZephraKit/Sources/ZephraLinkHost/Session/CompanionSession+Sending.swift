@@ -46,13 +46,22 @@ extension CompanionSession {
     /// One change to the state the phone is holding. Silent on a closed channel: a session on
     /// its way down is not a failure the observation loop should have to know about.
     func send(_ delta: StateDelta) {
+        if case .engine(let engine) = delta, !engine.isBusy { pendingPreview = nil }
+        if case .running = delta { pendingPreview = nil }
         guard isReady else { return }
         try? send(delta, kind: .delta)
     }
 
     /// One frame of the run in flight, for the same reason and with the same silence.
     func send(_ frame: PreviewFrameDTO) {
-        guard queuedBytes < 262_144, isReady else { return }
+        guard isReady, wantsPreviews, !isClosed else { return }
+        pendingPreview = frame
+        flushPreview()
+    }
+    func flushPreview() {
+        guard wantsPreviews, isReady, !isClosed else { pendingPreview = nil; return }
+        guard queuedBytes < 262_144, let frame = pendingPreview else { return }
+        pendingPreview = nil
         try? send(frame, kind: .preview)
     }
 }

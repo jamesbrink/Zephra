@@ -9,6 +9,7 @@ extension CompanionSession {
         switch command {
         case .previews(let enabled):
             wantsPreviews = enabled
+            if !enabled { pendingPreview = nil }
             return .ok
         case .cancelRun(let id):
             host.store.cancelRun(id)

@@ -14,7 +14,7 @@ import SwiftUI
 struct LibraryGrid: View {
     @Environment(LibraryCatalog.self) private var catalog
     /// What a tap on a picture means, which is the surface's business and not a cell's.
-    @Environment(\.openLibraryItem) private var open
+    @Environment(\.dynamicTypeSize) private var typeSize
     /// Which picture the viewer over this grid is showing, if one is up.
     @Environment(\.viewerOpening) private var opening
 
@@ -42,15 +42,14 @@ struct LibraryGrid: View {
     private var grid: some View {
         LazyVGrid(
             columns: Array(
-                repeating: GridItem(.flexible(), spacing: Self.cellSpacing), count: 3),
+                repeating: GridItem(.flexible(), spacing: Self.cellSpacing), count: typeSize.isAccessibilitySize ? 1 : 3),
             spacing: Self.cellSpacing,
             pinnedViews: [.sectionHeaders]
         ) {
             ForEach(catalog.sections) { section in
                 Section {
                     ForEach(section.entries) { entry in
-                        LibraryCell(entry: entry)
-                            .onTapGesture { open(entry) }
+                        LibraryOpeningCell(entry: entry)
                     }
                 } header: {
                     LibraryDayHeader(section: section)

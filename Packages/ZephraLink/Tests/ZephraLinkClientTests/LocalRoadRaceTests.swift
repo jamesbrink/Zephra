@@ -83,6 +83,25 @@ struct LocalRoadRaceTests {
         #expect(roads.stillOpen == 1)
     }
 
+    @Test("Cancellation and timeout close a road that opens after the race ended", arguments: [false, true])
+    func abandonedRoad(_ cancel: Bool) async throws {
+        let gate = DelayedRoad()
+        let roads = ScriptedRoads(script: ["held": .held(gate)])
+        let attempt = Task {
+            await LocalRoadRace(roads: roads).open(endpoints: [Endpoint(host: "held", port: 1)],
+                room: nil, window: cancel ? .seconds(30) : .milliseconds(20))
+        }
+        if cancel { attempt.cancel() }
+        #expect(await attempt.value == nil)
+        await gate.open()
+        let deadline = ContinuousClock.now + .seconds(3)
+        while (roads.openedCount != 1 || roads.stillOpen != 0) && ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(roads.openedCount == 1)
+        #expect(roads.stillOpen == 0)
+    }
+
     @Test("every address refusing is answered at once, not after the window")
     func allRefuse() async {
         let roads = ScriptedRoads(script: [:])

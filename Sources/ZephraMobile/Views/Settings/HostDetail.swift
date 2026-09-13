@@ -10,6 +10,7 @@ struct HostDetail: View {
                 TextField("Name", text: Binding(get: { host.name }, set: { value in
                     var preference = host.preference; preference.alias = value; hosts.update(preference)
                 }))
+                .accessibilityLabel("Mac name")
                 Toggle("Enabled", isOn: Binding(get: { host.preference.enabled }, set: { value in
                     var preference = host.preference; preference.enabled = value; hosts.update(preference)
                 }))

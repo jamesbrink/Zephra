@@ -105,7 +105,11 @@ extension LinkClient {
         connection = .connecting(kind)
         do {
             let road = try await open()
-            try await openSession(over: road, kind: kind, peer: peer, secret: secret)
+            if Task.isCancelled { await road.close(); throw CancellationError() }
+            try await withTaskCancellationHandler {
+                try await openSession(over: road, kind: kind, peer: peer, secret: secret)
+            } onCancel: { Task { await road.close() } }
+            try Task.checkCancellation()
             return .connected
         } catch {
             logger.notice("A road did not open: \(String(describing: error), privacy: .public)")

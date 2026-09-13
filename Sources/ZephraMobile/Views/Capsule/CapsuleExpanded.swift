@@ -10,13 +10,19 @@ import ZephraLinkProtocol
 struct CapsuleExpanded: View {
     /// What the model in force will accept, which decides every control that is drawn.
     let capabilities: CapabilitiesSummary
+    @Environment(\.dynamicTypeSize) private var typeSize
     /// Where the phone is looking, which owns whether the settings are showing; the chevron
     /// puts them away, and the keyboard with them.
     @Environment(MobileSelection.self) private var selection
 
+    private var layout: AnyLayout {
+        typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
+            layout {
                 PromptEditor()
                 if capabilities.supportsReferenceImage {
                     ReferenceWell(capabilities: capabilities)
@@ -27,9 +33,9 @@ struct CapsuleExpanded: View {
             }
             Divider()
             ControlsGrid(capabilities: capabilities)
-            HStack(alignment: .center, spacing: 12) {
+            layout {
                 CountControl()
-                Spacer(minLength: 8)
+                if !typeSize.isAccessibilitySize { Spacer(minLength: 8) }
                 Button {
                     selection.collapseCapsule()
                 } label: {

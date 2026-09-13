@@ -17,7 +17,19 @@ extension MobilePreview {
 
     /// The page of library the fixture holds, or an empty page if the file cannot be read.
     static func library() -> [LibraryEntry] {
-        fixture([LibraryEntry].self, named: "preview-library") ?? []
+        let entries = fixture([LibraryEntry].self, named: "preview-library") ?? []
+        #if DEBUG
+        if state != nil, let text = ProcessInfo.processInfo.environment["ZEPHRA_PREVIEW_ITEMS"],
+           let count = Int(text), (1...2000).contains(count), !entries.isEmpty {
+            return (0..<count).map { index in
+                var entry = entries[index % entries.count]
+                entry.fileName = "preview-\(index).png"
+                entry.createdAt = Date(timeIntervalSince1970: 1_789_000_000 - Double(index))
+                return entry
+            }
+        }
+        #endif
+        return entries
     }
 
     /// One fixture file, decoded.

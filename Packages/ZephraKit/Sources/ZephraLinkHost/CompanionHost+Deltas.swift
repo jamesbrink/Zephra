@@ -134,11 +134,13 @@ extension CompanionHost {
         published.previewSentAt = now
         guard !isSeeding else { return }
         let engine = published.engine ?? EngineStateDTO(store.state)
+        let runID = store.running?.id
         Task { @MainActor [weak self] in
             let frame = await Task.detached(priority: .utility) {
                 PreviewEncoder.frame(preview, step: engine.step ?? 0, steps: engine.steps ?? 0)
             }.value
-            guard let self, let frame else { return }
+            guard let self, let frame, store.running?.id == runID,
+                  published.previewFingerprint == fingerprint else { return }
             for session in sessions where session.wantsPreviews { session.send(frame) }
         }
     }

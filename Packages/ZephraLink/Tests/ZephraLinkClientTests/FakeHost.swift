@@ -78,7 +78,10 @@ final class FakeHost {
         task = Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                for try await bytes in frames { await self.receive(bytes) }
+                for try await bytes in frames {
+                    guard !Task.isCancelled else { return }
+                    await self.receive(bytes)
+                }
             } catch {
                 // The phone went; there is nothing left to answer.
             }
@@ -104,7 +107,10 @@ final class FakeHost {
             case .envelope(let envelope): try await answer(envelope)
             case .chunk(let piece): chunk(piece)
             }
+        } catch is CancellationError {
+            return
         } catch {
+            guard !Task.isCancelled else { return }
             try? await plaintext(Envelope.encoding(asLinkError(error), kind: .error))
         }
     }
@@ -148,6 +154,7 @@ final class FakeHost {
         if silentOffers, case .multiHost(.offer) = command { return }
         if silentPreviews, case .multiHost(.previews) = command { return }
         try await beforeReply?(command)
+        try Task.checkCancellation()
         let answer = reply ?? standing(for: command)
         try await send(.envelope(Envelope.encoding(answer, kind: .reply, inReplyTo: envelope.id)))
         try await afterReply?(command)

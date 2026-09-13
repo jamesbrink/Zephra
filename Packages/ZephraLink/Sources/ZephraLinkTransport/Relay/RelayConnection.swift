@@ -114,7 +114,11 @@ public final class RelayConnection: LinkConnection, @unchecked Sendable {
         }
         defer { clock.cancel() }
         do {
-            try await join()
+            try await withTaskCancellationHandler {
+                try Task.checkCancellation()
+                try await join()
+                try Task.checkCancellation()
+            } onCancel: { Task { await self.close() } }
         } catch {
             await close()
             throw lock.withLock { state.joinTimedOut } ? RelayError.timedOut : error

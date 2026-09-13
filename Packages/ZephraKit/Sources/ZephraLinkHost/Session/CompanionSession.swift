@@ -39,6 +39,7 @@ public final class CompanionSession: Identifiable {
     /// concurrent invocations, so the road is not ordered and this is what makes it so again.
     var inbox: OrderedInbox?
     var wantsPreviews = true
+    var pendingPreview: PreviewFrameDTO?
     var isClosed = false
     var queuedBytes = 0
     var bulk: Task<Void, Never>?
@@ -124,6 +125,7 @@ public final class CompanionSession: Identifiable {
         // phone never receives is a phone left guessing why the connection went.
         if let error { try? sendError(error) }
         isClosed = true
+        pendingPreview = nil
         bulk?.cancel()
         let transfer = bulk
         bulk = nil
@@ -185,7 +187,10 @@ public final class CompanionSession: Identifiable {
         }
     }
 
-    private func sent(_ count: Int) { queuedBytes -= count }
+    private func sent(_ count: Int) {
+        queuedBytes -= count
+        flushPreview()
+    }
 
     func capacity() async throws {
         while queuedBytes >= 262_144 && !isClosed { try await Task.sleep(for: .milliseconds(5)) }

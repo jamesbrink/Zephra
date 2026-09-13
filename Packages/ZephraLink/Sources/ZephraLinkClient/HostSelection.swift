@@ -12,8 +12,12 @@ public enum HostSelection {
            (old + previous.pendingSeconds) - (new + best.pendingSeconds) < max(5, (old + previous.pendingSeconds) * 0.15) { return previous }
         return best
     }
-    public static func reason(_ offer: HostOffer) -> String {
-        if offer.totalSeconds != nil { return "Shortest estimated wait and generation time" }
+    public static func reason(_ offer: HostOffer, selected: HostID? = nil, candidates: [HostCandidate] = []) -> String {
+        let eligible = candidates.filter(\.eligible)
+        if !eligible.isEmpty, eligible.allSatisfy({ $0.offer.totalSeconds != nil }), let selected {
+            return best(eligible)?.id == selected ? "Shortest estimated wait and generation time"
+                : "Keeping this Mac · estimated finish times are close"
+        }
         if offer.queueCount == 0 { return offer.modelLoaded ? "Model loaded · ready now" : "Model installed · ready to load" }
         return "Best available · work will be queued"
     }

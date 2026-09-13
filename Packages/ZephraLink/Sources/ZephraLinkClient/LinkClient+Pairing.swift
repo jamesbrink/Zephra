@@ -16,6 +16,7 @@ extension LinkClient {
         guard !isFrozen else { return }
         farewell = nil
         await disconnect()
+        try Task.checkCancellation()
         guard !payload.isExpired() else {
             throw LinkError(
                 code: .refused, reason: "That pairing code has expired. Show a new one on the Mac.")
@@ -31,6 +32,7 @@ extension LinkClient {
             case .unreachable(let error): failure = error
             }
         }
+        try Task.checkCancellation()
         switch await attempt(.relay, peer: payload.keys, secret: payload.secret, open: {
             try await self.roads.connectRelay(room: payload.roomID, pairing: true)
         }) {
@@ -44,6 +46,7 @@ extension LinkClient {
 
     /// Keeps the Mac a successful pairing named.
     private func remember(_ payload: PairingPayload) throws {
+        try Task.checkCancellation()
         let host = PairedHost(payload)
         try store.save(host)
         pairedHost = host
