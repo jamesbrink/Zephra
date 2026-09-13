@@ -1,0 +1,128 @@
+[
+  {
+    "log": "zephra-kit-integrated-final.log",
+    "sha256": "533de3d5a9140d38e5851e1ff0ef251970499550357e9b78f23899a3be5bbe89",
+    "summary": [
+      "\u2714 Test run with 785 tests in 147 suites passed after 2.803 seconds."
+    ]
+  },
+  {
+    "log": "zephra-link-integrated-final2.log",
+    "sha256": "54e9f7c656d3ec7f09e165c365131394d084b5b9e11a1f324639cefeee3291d0",
+    "summary": [
+      "\u2714 Test run with 274 tests in 50 suites passed after 1.741 seconds."
+    ]
+  },
+  {
+    "log": "zephra-app-integrated-final.log",
+    "sha256": "56da67eec2258206c556a725611459a95dd0fba3e6e8a869724a9e010a4786d5",
+    "summary": [
+      "\u2714 Test run with 234 tests in 49 suites passed after 1.538 seconds.",
+      "** TEST SUCCEEDED **"
+    ]
+  },
+  {
+    "log": "zephra-mlx-integrated-final.log",
+    "sha256": "6854098280b5291493f299662ab79dd90d67e366f4887a4bd1bd6302293e7ac3",
+    "summary": [
+      "\u2714 Test run with 38 tests in 10 suites passed after 0.879 seconds.",
+      "\u2714 Test run with 34 tests in 8 suites passed after 0.080 seconds.",
+      "** TEST SUCCEEDED **",
+      "\u2714 Test run with 60 tests in 14 suites passed after 0.409 seconds.",
+      "** TEST SUCCEEDED **",
+      "\u2714 Test run with 22 tests in 6 suites passed after 0.489 seconds.",
+      "** TEST SUCCEEDED **",
+      "\u2714 Test run with 59 tests in 15 suites passed after 0.655 seconds.",
+      "** TEST SUCCEEDED **",
+      "\u2714 Test run with 53 tests in 11 suites passed after 0.334 seconds.",
+      "** TEST SUCCEEDED **",
+      "\u2714 Test run with 21 tests in 4 suites passed after 0.023 seconds.",
+      "** TEST SUCCEEDED **",
+      "\u2714 Test run with 15 tests in 5 suites passed after 0.011 seconds.",
+      "** TEST SUCCEEDED **",
+      "\u2714 Test run with 105 tests in 26 suites passed after 1.310 seconds.",
+      "** TEST SUCCEEDED **",
+      "\u2714 Test run with 27 tests in 7 suites passed after 0.021 seconds.",
+      "** TEST SUCCEEDED **",
+      "\u2714 Test run with 66 tests in 17 suites passed after 4.299 seconds.",
+      "** TEST SUCCEEDED **",
+      "\u2714 Test run with 11 tests in 4 suites passed after 0.024 seconds.",
+      "** TEST SUCCEEDED **"
+    ]
+  },
+  {
+    "log": "zephra-relay-contract-final.log",
+    "sha256": "58fcb0b604808b6830c1d8ba645a67e43fb2acad61625e53213ce4143b05a954",
+    "summary": [
+      "\u2139 tests 121",
+      "\u2139 pass 121",
+      "\u2139 fail 0"
+    ]
+  },
+  {
+    "log": "zephra-tcp-integrated.log",
+    "sha256": "c0605a476bce04e72e6d9d2652c1918fa7d09840afc3024d87f19bed36b94037",
+    "summary": [
+      "MULTI_HOST_UAT transport=tcp hosts=1 phones=2 seconds=0.425252708 seconds phase=finished",
+      "MULTI_HOST_UAT transport=tcp hosts=2 phones=2 seconds=0.879675583 seconds phase=finished",
+      "MULTI_HOST_UAT transport=tcp hosts=4 phones=2 seconds=1.570224709 seconds phase=finished",
+      "MULTI_HOST_UAT transport=tcp hosts=8 phones=2 seconds=2.932407917 seconds phase=finished",
+      "\u2714 Test run with 1 test in 1 suite passed after 5.820 seconds."
+    ]
+  },
+  {
+    "log": "zephra-relay-integrated.log",
+    "sha256": "deb965281416d3ccb12f9c832590cb0042dcd2bcf00eaf11f07718238d7acbe1",
+    "summary": [
+      "MULTI_HOST_UAT transport=relay hosts=1 phones=2 seconds=6.375959959 seconds phase=finished",
+      "MULTI_HOST_UAT transport=relay hosts=2 phones=2 seconds=12.200489708 seconds phase=finished",
+      "MULTI_HOST_UAT transport=relay hosts=4 phones=2 seconds=22.688383292 seconds phase=finished",
+      "\u2718 Test liveTopology(_:) recorded an issue with 1 argument count \u2192 8 at LiveMultiHostTests.swift:11:6: Caught error: Error Domain=NSPOSIXErrorDomain Code=57 \"Socket is not connected\" UserInfo={NSErrorFailingURLStringKey=https://zephra-link.urandom.io/, NSErrorFailingURLKey=https://zephra-link.urandom.io/}",
+      "\u2718 Test run with 1 test in 1 suite failed after 87.242 seconds with 1 issue."
+    ]
+  },
+  {
+    "log": "zephra-relay-diagnostic.log",
+    "sha256": "bd1ca6974e678a3fdef9705212d4e2217c9bbb97dbef979e8aa2f0b8a1a33bee",
+    "summary": [
+      "MULTI_HOST_UAT transport=relay hosts=8 phones=2 seconds=45.610648874999995 seconds phase=finished",
+      "\u2714 Test run with 1 test in 1 suite passed after 45.614 seconds."
+    ]
+  },
+  {
+    "log": "zephra-relay-final-matrix.log",
+    "sha256": "855769d35d19d25bd1fb7c229b2f81fbce13379e6325360bda08dd0b82e03e4d",
+    "summary": [
+      "MULTI_HOST_UAT transport=relay hosts=1 phones=2 seconds=5.442341042 seconds phase=finished",
+      "MULTI_HOST_UAT transport=relay hosts=2 phones=2 seconds=11.698387291000001 seconds phase=finished",
+      "MULTI_HOST_UAT transport=relay hosts=4 phones=2 seconds=22.43854725 seconds phase=finished",
+      "MULTI_HOST_UAT transport=relay hosts=8 phones=2 seconds=43.947338832999996 seconds phase=finished",
+      "\u2714 Test run with 1 test in 1 suite passed after 83.538 seconds."
+    ]
+  },
+  {
+    "log": "zephra-performance-relay5.log",
+    "sha256": "362ac026fb95943d8741a81391172fe249a94d371c5aef84ee232b99162499d9",
+    "summary": [
+      "MULTI_HOST_UAT 2026-09-13T17:53:00Z PERFORMANCE hosts=8 clients=16 downloadedBytes=16777216 bulk=3.7656405 seconds preview=0.499068 seconds peakAnnouncedBytes=4194304 reconnect=1.152167458 seconds baselineProcessFootprint=25035544 peakProcessFootprint=83559264",
+      "\u2714 Test run with 1 test in 1 suite passed after 27.749 seconds."
+    ]
+  },
+  {
+    "log": "zephra-performance-integrated-relay.log",
+    "sha256": "574c4226b82fdff6a694e43c0a43d4f806dafa8b0057bad7ca097475cf3e52fc",
+    "summary": [
+      "MULTI_HOST_UAT 2026-09-13T18:10:24Z PERFORMANCE hosts=8 clients=16 downloadedBytes=16777216 bulk=4.93564075 seconds preview=1.424502833 seconds peakAnnouncedBytes=4194304 reconnect=1.137405833 seconds baselineProcessFootprint=26460976 peakProcessFootprint=77415264",
+      "\u2714 Test run with 1 test in 1 suite passed after 29.953 seconds."
+    ]
+  },
+  {
+    "log": "zephra-ios-accessibility-final.log",
+    "sha256": "76cf77860babc7cfee1a24fe7496a775662c1fe9962872fc3ef0f84cd113b005",
+    "summary": [
+      "LIBRARY_PERFORMANCE hosts=8 entries=8000 coldMetadataReady=0.407171958 seconds firstGrouping=0.028653875 seconds",
+      "\u2714 Test run with 192 tests in 38 suites passed after 6.563 seconds.",
+      "** TEST SUCCEEDED **"
+    ]
+  }
+]

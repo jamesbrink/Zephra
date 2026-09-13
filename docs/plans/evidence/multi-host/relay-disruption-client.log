@@ -1,0 +1,13 @@
+Timestamp               Ty Process[PID:TID]
+2026-09-13 11:03:09.533 Df swiftpm-testing-helper[9972:11c4d5] [io.zephra:link.client] A fetchFile stopped at chunk 13; asking for the rest.
+2026-09-13 11:03:10.785 E  swiftpm-testing-helper[9972:11c4df] [io.zephra:link.relay] The relay refused a frame: not joined
+2026-09-13 11:03:10.785 E  swiftpm-testing-helper[9972:11c4d5] [io.zephra:link.client] The relay refused a frame on its way to the Mac: not joined
+2026-09-13 11:03:10.805 E  swiftpm-testing-helper[9972:11c4e2] [io.zephra:link.relay] The relay socket closed (code 1000): Error Domain=NSPOSIXErrorDomain Code=57 "Socket is not connected" UserInfo={NSErrorFailingURLStringKey=https://zephra-link.urandom.io/, NSErrorFailingURLKey=https://zephra-link.urandom.io/}
+2026-09-13 11:03:10.809 Df swiftpm-testing-helper[9972:11c4da] [io.zephra:link.relay] The relay road ended cleanly, with 0 guest sessions on it.
+2026-09-13 11:03:10.863 Df swiftpm-testing-helper[9972:11c4e2] [io.zephra:link.relay] The relay road ended cleanly, with 0 guest sessions on it.
+2026-09-13 11:03:10.919 Df swiftpm-testing-helper[9972:11c4df] [io.zephra:link.relay] The relay road ended cleanly, with 0 guest sessions on it.
+2026-09-13 11:03:10.972 Df swiftpm-testing-helper[9972:11c4e0] [io.zephra:link.relay] The relay road ended cleanly, with 0 guest sessions on it.
+2026-09-13 11:03:10.972 Df swiftpm-testing-helper[9972:11da03] [io.zephra:link.relay] The relay road ended cleanly, with 0 guest sessions on it.
+2026-09-13 11:03:11.024 Df swiftpm-testing-helper[9972:11da03] [io.zephra:link.relay] The relay road ended cleanly, with 0 guest sessions on it.
+2026-09-13 11:03:11.024 Df swiftpm-testing-helper[9972:11c4e0] [io.zephra:link.relay] The relay road ended cleanly, with 0 guest sessions on it.
+2026-09-13 11:03:11.027 Df swiftpm-testing-helper[9972:11c4e2] [io.zephra:link.relay] The relay road ended cleanly, with 0 guest sessions on it.

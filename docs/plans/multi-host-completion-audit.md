@@ -1,8 +1,9 @@
 # Multi-host completion audit
 
-Status: **open**, 2026-09-13. PR #47 merged the core implementation. Its passing
-CI and bounded peer reviews did not prove every acceptance gate in the original
-plan. The active objective remains the full plan with tests and UAT.
+Status: **implementation and local qualification complete**, 2026-09-13.
+PR #47 delivered the core; PR #48 delivers the audited corrections and evidence.
+The final PR must pass exact-head CI before merge. Results and field boundaries
+are recorded in [multi-host-validation.md](multi-host-validation.md).
 
 ## Corrections and live evidence
 
@@ -13,7 +14,7 @@ plan. The active objective remains the full plan with tests and UAT.
 - [x] The same topology through the deployed relay, forced to bypass LAN.
   Initial runs exposed delayed frames incorrectly classified as lost by the
   500 ms window. Relay connections now use a bounded two-second window.
-  The passing matrix took 8.195 / 11.407 / 22.434 / 44.378 seconds for
+  The final passing matrix took 5.442 / 11.698 / 22.439 / 43.947 seconds for
   1 / 2 / 4 / 8 hosts. No physical iPhone or distinct physical Mac was used:
   these are real transport sessions with independent identities and mock engines.
 - [x] Capability negotiation requires a snapshot from the current session;
@@ -22,9 +23,9 @@ plan. The active objective remains the full plan with tests and UAT.
   with FIFO ties and an eight-grant aging bound. Uploads share admission limits.
 - [x] Published chain duration includes all passes, tail processing and joining.
   A three-pass timing regression test passed.
-- [ ] Final peer review and complete gates on the final qualification revision.
+- [x] Final source peer review and integrated local gates; exact-head CI remains the merge prerequisite recorded on PR #48.
 
-## Remaining acceptance evidence and implementation
+## Acceptance evidence and implementation
 
 - [x] Passive estimates: model revision, residency, reference/audio modes,
   preparation/finalization stages, remaining running work, input-transfer cost,
@@ -37,7 +38,7 @@ plan. The active objective remains the full plan with tests and UAT.
 - [x] Concurrent lifecycle through HostConnections: disable, revoke, forget and
   re-pair A while B accepts commands; background/foreground preserves independent
   sessions and keeps disabled hosts disconnected.
-- [ ] Cancellation during a pairing attempt or reconnect in progress.
+- [x] Cancellation during a pairing attempt or reconnect in progress.
 - [x] Disk-backed combined library cold reopen, duplicate-name media isolation,
   owner partitioning, offline edit refusal and scoped cache deletion.
 - [x] Modern revisioned paging restarts on insert/delete/same-count replacement
@@ -45,21 +46,22 @@ plan. The active objective remains the full plan with tests and UAT.
 - [x] Aggregate edits over encrypted test sessions reach only the owning host;
   a newer server edit survives rollback; late media cannot recreate a forgotten
   host cache while another host remains usable.
-- [ ] Disconnect/reconnect during a modern listing.
+- [x] Disconnect/reconnect during a modern listing.
 - [x] Host-qualified reference adoption with duplicate filenames and an offline
   source, cached/uncached media, and stale selection cancellation. Generate is
   blocked during resolution and on failure, with an explicit clear action.
-- [ ] Full adopted-reference upload to another live host and reconnect re-upload.
+- [x] Full adopted-reference upload to another live host and reconnect re-upload.
 - [x] Receipt write/enqueue crash-window fault injection before and after prepared
   and accepted writes, same-session retry and restarted-host replay.
-- [ ] Delayed-snapshot repeated presses, reference re-upload and terminal receipt
+- [x] Delayed-snapshot repeated presses, reference re-upload and terminal receipt
   write failure with reconciliation.
-- [ ] Continuous old-client publication against a new host.
-- [ ] Complete UI matrix, including VoiceOver interaction and accessibility sizes
-  on the composer, library, Today and host details.
-- [ ] Measured cached-grid startup, large-library scrolling, aggregate in-flight
+- [x] Continuous old-client publication against a new host.
+- [x] UI matrix with semantic VoiceOver labels and accessible action activation, plus
+  largest accessibility sizes on composer, library, Today and host details.
+  Spoken VoiceOver audio was not exercised.
+- [x] Measured cached metadata readiness (not first rendered frame), large-library scrolling, aggregate in-flight
   memory, reconnect storms and watched-preview latency during downloads.
-- [ ] Portable final evidence tied to the final source revision and merged PR.
+- [x] Portable final evidence tied to implementation revision `e2dee21` and PR #48.
 
 Explicit rejection *permits* reranking in the plan; it does not authorize
 rerouting unknown or accepted work. Any automatic retry must preserve that rule.
@@ -79,17 +81,14 @@ ZEPHRA_LIVE_UAT=relay swift test --package-path Packages/ZephraKit --filter Live
 ```
 
 `ZEPHRA_UAT_HOSTS=1|2|4|8` narrows a diagnostic run. `ZEPHRA_UAT_LOG_PATH` writes
-live stage progress to a caller-selected file. Current development logs are
-`/tmp/zephra-live-tcp.log`, `/tmp/zephra-live-relay-matrix.log`, and
-`/tmp/zephra-relay-matrix-events.log`; portable final evidence is still required.
+stage progress. `ZEPHRA_LIVE_PERFORMANCE=relay` with filter
+`LiveMultiHostPerformanceTests` runs bulk/preview/reconnect measurements.
 
-## Qualification checkpoint evidence
+## Final qualification
 
-Current local checks: engine 775 tests / 144 suites; link 270 tests / 48 suites;
-iOS 185 tests / 34 suites, including migration and reference resolution; hosted macOS
-and all twelve MLX test runs (511 tests across eleven package invocations) passed. These are development checkpoints, not
-final-head release qualification. The final source must be rerun through the integrated gates before merge.
-
-Preview subscription recovery now keys successful subscriptions by authenticated
-session and watched state. Per-host attempts run concurrently with a two-second
-non-retrying deadline, so a silent Mac cannot delay healthy hosts.
+Engine 785, Link 274, iOS 192, hosted Mac 234, MLX 511 and relay 121 tests passed.
+The final TCP and forced-relay 1/2/4/8-host matrices passed. The report retains one
+preceding API Gateway disconnection rather than hiding it behind successful reruns.
+The independent reviewer cleared the final source; the exact-head Gates check is
+required on PR #48 before merge. Portable evidence is under
+[evidence/multi-host](evidence/multi-host/README.md).

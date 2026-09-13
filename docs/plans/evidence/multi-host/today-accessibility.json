@@ -1,0 +1,32 @@
+{
+  "type": "runtime-snapshot",
+  "rs": "1",
+  "screenHash": "1yel8w5",
+  "seq": 61,
+  "count": 96,
+  "targets": [
+    "e38|tap|button|Generating: a red bicycle against a limestone wall|44%|",
+    "e39|tap|text|a red bicycle against a limestone wall||",
+    "e45|tap|text|Step 4 of 9 · 0.7 s a step · 2 seeds||",
+    "e34|tap|button|halcyon||",
+    "e40|tap|button|Stop Run on halcyon||",
+    "e41|tap|image|stop.circle.fill||stop.circle.fill",
+    "e42|tap|text|Stop Run||",
+    "e43|tap|other||44%|",
+    "e49|tap|button|Watch on halcyon||",
+    "e72|tap|tab|Canvas|0|",
+    "e74|tap|tab|Today|1|",
+    "e76|tap|tab|Library|0|",
+    "e78|tap|tab|Settings|0|"
+  ],
+  "scroll": [
+    "e1|swipe|application|Zephra||"
+  ],
+  "text": [
+    "e39|text|text|a red bicycle against a limestone wall||",
+    "e42|text|text|Stop Run||",
+    "e45|text|text|Step 4 of 9 · 0.7 s a step · 2 seeds||",
+    "e51|text|text|Watch on halcyon||"
+  ],
+  "udid": "89848BF1-F258-4AD0-AD24-9A9F02151419"
+}
