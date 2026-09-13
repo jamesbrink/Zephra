@@ -15,6 +15,7 @@ private final class ScriptedRoads: LinkRoads, @unchecked Sendable {
     private var script: [String: Answer]
     private let found: [LinkCandidate]
     private(set) var opened: [MemoryLinkConnection] = []
+    private var byAddress: [String: MemoryLinkConnection] = [:]
 
     init(script: [String: Answer], found: [LinkCandidate] = []) {
         self.script = script
@@ -23,6 +24,19 @@ private final class ScriptedRoads: LinkRoads, @unchecked Sendable {
 
     /// The roads this handed out that are still open.
     var stillOpen: Int { lock.withLock { opened.filter(\.isOpen).count } }
+
+    /// The road this handed out for one address, so a test can say which one won the race
+    /// rather than how quickly it did.
+    func road(at address: String) -> MemoryLinkConnection? { lock.withLock { byAddress[address] } }
+
+    /// Waits for what the race does after it answers — the losing address answering late and
+    /// being closed — rather than sleeping for as long as that ought to take.
+    static func waitUntil(_ condition: @Sendable () -> Bool) async throws {
+        let deadline = ContinuousClock.now + .seconds(5)
+        while !condition(), ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+    }
 
     func browse() -> AsyncStream<[LinkCandidate]> {
         let list = found
@@ -50,7 +64,10 @@ private final class ScriptedRoads: LinkRoads, @unchecked Sendable {
         }
         try await Task.sleep(for: delay)
         let (road, _) = MemoryLinkConnection.pair()
-        lock.withLock { opened.append(road) }
+        lock.withLock {
+            opened.append(road)
+            byAddress[key] = road
+        }
         return road
     }
 }
@@ -65,14 +82,18 @@ struct LocalRoadRaceTests {
             "slow": .opens(after: .milliseconds(200)),
             "quick": .opens(after: .milliseconds(10)),
         ])
-        let started = ContinuousClock.now
         let road = await LocalRoadRace(roads: roads).open(
             endpoints: [Endpoint(host: "slow", port: 1), Endpoint(host: "quick", port: 1)],
             room: nil, window: .seconds(3))
-        #expect(road != nil)
-        #expect(ContinuousClock.now - started < .milliseconds(150))
-        try await Task.sleep(for: .milliseconds(300))
-        #expect(roads.stillOpen == 1)
+        // Which address won, not how long the race took. A machine running this package's
+        // suites at once can leave the quick answer waiting longer than the slow one is
+        // scripted for, and a wall clock then says nothing about the question asked.
+        let winner = road as? MemoryLinkConnection
+        #expect(winner != nil)
+        #expect(winner === roads.road(at: "quick"), "the address that answered first is the road")
+        try await ScriptedRoads.waitUntil { roads.opened.count == 2 && roads.stillOpen == 1 }
+        #expect(roads.opened.count == 2, "the slow address answers in its own time")
+        #expect(roads.stillOpen == 1, "and the road it hands back is closed, not kept")
     }
 
     @Test("every address refusing is answered at once, not after the window")
