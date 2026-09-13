@@ -47,6 +47,10 @@ public enum ModelCatalog {
         // mini (12124 MB working set) the 4-bit build measured 5196 MB peak streamed; the
         // 8-bit build was not run there.
         streamedPeakBytes: 6_420_000_000,
+        // The live figure of that same run: 974 MB between runs, carried rounded **down** to 970 MB,
+        // against the 12236 MB this model holds resident. Shared with the 4-bit entry,
+        // measured, as the peak is.
+        streamedResidentBytes: 970_000_000,
         maxPromptTokens: 512,
         capabilities: zImageTurboCapabilities
     )
@@ -98,6 +102,9 @@ public enum ModelCatalog {
         // 7.51 resident. On the 16 GB M4 mini (12124 MB working set) this build measured
         // 5196 MB peak streamed, 22.6 s a step.
         streamedPeakBytes: 6_420_000_000,
+        // The live figure of that same run: 974 MB, rounded **down** to 970 MB, the same to the byte
+        // as the 8-bit build's and for the same reason, against the 6575 MB resident.
+        streamedResidentBytes: 970_000_000,
         maxPromptTokens: 512,
         capabilities: zImageTurboCapabilities,
         // Measured: 7,123,354,222 bytes written by `make mirror` on 2026-09-06 at four bits,

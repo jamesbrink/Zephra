@@ -181,9 +181,8 @@ struct MemoryGuardStoreTests {
         // in force here is streamed — since 2026-09-13 Z-Image 8-bit fits this budget that way,
         // so `bootstrap` keeps it rather than stepping onto klein — and a streamed load is
         // charged its whole peak where MLX has allocated nothing yet, since the descriptor's
-        // resident figure is not what such a load holds — it is larger than the streamed peak
-        // itself. Subtracting it would floor the transient at zero and admit this run on a Mac
-        // with 400 MB free.
+        // resident figure is not what such a load holds. Subtracting it would floor the
+        // transient at zero and admit this run on a Mac with 400 MB free.
         bed.machineMemory = Self.starved()
         let busy = store.remoteAdmission(for: store.descriptor, settings: settings)
         guard case .refused(let reason) = busy else {

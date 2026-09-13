@@ -1078,7 +1078,7 @@ model's name.
 **A model an existing backend can already run** — one entry in that family's
 `Packages/ZephraKit/Sources/ZephraCore/Model/ModelCatalog+<Family>.swift`
 (Z-Image's two are in `ModelCatalog.swift`), listed in `all`. `ModelDescriptor`
-carries the `ModelSource`, the download and resident sizes, and a
+carries the `ModelSource`, the download size, **five memory figures** and a
 `ModelCapabilities` the interface draws itself from — size presets and bounds,
 step and guidance bounds, negative prompt and seed, and for a clip model
 `frameBounds`, `defaultFrames`, `frameAlignment` and `frameRate` (a range in
@@ -1086,6 +1086,20 @@ step and guidance bounds, negative prompt and seed, and for a clip model
 `GeneratedMedia.video`), and `continuationFrames` with
 `defaultContinuationFrames` when the family can carry a clip on. Every number in an entry is measured; leave a comment
 saying where it came from.
+
+The five memory figures are all read off `make bench` at the entry's own default
+size: `residentBytes` (the run's "live memory"), `peakBytes`, `tiledPeakBytes`
+(under `ZEPHRA_VAE_TILE=64`), and — for a family that streams —
+`streamedPeakBytes` and `streamedResidentBytes`, the peak and the live figure of
+one `--stream --stream-depth 2` run. **The last two go together.**
+`MemoryGuard` subtracts a held figure from a peak to get what a run still has to
+find, and `residentBytes` is not what a streamed load holds: it is larger than
+the streamed peak itself for every family measured (Z-Image 8-bit, 12.2 GB
+resident against a 6.4 GB streamed peak), so reading it there floors the
+transient at zero and admits a streamed run on a Mac with nothing free. A
+streaming entry that leaves `streamedResidentBytes` at 0 is charged its whole
+streamed peak, which refuses too much rather than too little;
+`ModelCatalogTests` fails a shipped entry that does it.
 
 **A new backend family** — four things in the app, then the tooling:
 
@@ -1759,10 +1773,11 @@ beside `loadedPath`, so asking for the same model the other way is a reload.
 A family's two variants share one streamed peak, measured: the stream leaves the
 same resident tensors behind whichever width the blocks pack at, and the peak is
 those plus the tiled decode and the depth-2 window. The width is paid in bytes
-read per step, which is time. `MemoryGuard.transientBytes` charges a streamed
-load with no allocator reading its **whole** peak rather than subtracting
-`residentBytes`, which is the held figure and is larger than the streamed peak
-for every family.
+read per step, which is time. What a streamed load *holds* is
+`ModelDescriptor.streamedResidentBytes`, measured beside the peak, and it is the
+held figure `MemoryGuard.transientBytes` subtracts under `.streamed` — never
+`residentBytes`, which is larger than the streamed peak for every family and
+would charge a streamed run nothing at all.
 `MemoryBudget` (`ZephraCore`) is Metal's `recommendedMaxWorkingSetSize`, read
 once at launch (`GPUMemoryBudget`) and handed down; MLX's memory and wired
 limits are set from it. Settings > Performance shows the

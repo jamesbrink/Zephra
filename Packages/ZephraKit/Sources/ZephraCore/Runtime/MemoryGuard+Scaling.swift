@@ -21,13 +21,13 @@ extension MemoryGuard {
     /// about this load — streamed, tiled, whatever the person chose — and the descriptor's
     /// resident figure only where nothing has been allocated yet.
     ///
-    /// A streamed load holds nothing the descriptor names. `residentBytes` is what the weights
-    /// weigh *held*, and for every streaming family that is larger than the streamed peak
-    /// itself — Z-Image 8-bit holds 12.2 GB resident and peaks at 6.4 GB streamed — so
-    /// subtracting it would floor the transient at zero and charge a streamed run nothing at
-    /// all, which is the refusal this guard exists to make. A streamed load with no allocator
-    /// reading is therefore charged its whole peak; once the weights are in there is a
-    /// reading, and that is the truth about this load.
+    /// A streamed load is held to its own measured figure, `streamedResidentBytes`, and never
+    /// to `residentBytes`. That is what the weights weigh *held*, and for every streaming
+    /// family it is larger than the streamed peak itself — Z-Image 8-bit holds 12.2 GB
+    /// resident and 974 MB streamed, against a 6.4 GB streamed peak — so subtracting it would
+    /// floor the transient at zero and charge a streamed run nothing at all, which is the
+    /// refusal this guard exists to make. A streaming family with no held figure measured yet
+    /// is charged its whole peak rather than a number that does not apply to it.
     ///
     /// The scaling is linear, which is honest at the default size and optimistic a long way
     /// from it; `ROADMAP.md` carries that until a second size is measured per family.
@@ -43,7 +43,7 @@ extension MemoryGuard {
             if runtime.activeBytes > 0 {
                 Int64(runtime.activeBytes)
             } else if residency == .streamed, descriptor.streamedPeakBytes > 0 {
-                0
+                descriptor.streamedResidentBytes
             } else {
                 descriptor.residentBytes
             }

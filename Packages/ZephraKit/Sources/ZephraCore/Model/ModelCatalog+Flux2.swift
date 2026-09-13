@@ -66,6 +66,11 @@ extension ModelCatalog {
         // step against 3.20 resident. On the 16 GB M4 mini (12124 MB working set) both builds
         // measured 3584 MB peak streamed, 11.57 s a step against 11.51 resident.
         streamedPeakBytes: 4_060_000_000,
+        // The live figure of that same run: 1336 MB between runs, carried rounded **down** to
+        // 1330 MB — the float32 autoencoder,
+        // the embeddings, the norms and the shared modulation linears — against the 4941 MB
+        // this variant holds resident.
+        streamedResidentBytes: 1_330_000_000,
         // The pipeline pads every prompt to 512 tokens and conditions on all of them.
         maxPromptTokens: 512,
         capabilities: flux2KleinCapabilities,
@@ -102,6 +107,9 @@ extension ModelCatalog {
         // 3.43 s a step against 3.44 resident. The 16 GB M4 mini measured 3584 MB peak here
         // too, 12.13 s a step against 12.31 resident.
         streamedPeakBytes: 4_060_000_000,
+        // The live figure of that same run: 1336 MB, rounded **down** to 1330 MB, the same to
+        // the byte as the 4-bit build's, against the 8144 MB this variant holds resident.
+        streamedResidentBytes: 1_330_000_000,
         maxPromptTokens: 512,
         capabilities: flux2KleinCapabilities,
         // Measured: 8,572,731,392 bytes written by the build.

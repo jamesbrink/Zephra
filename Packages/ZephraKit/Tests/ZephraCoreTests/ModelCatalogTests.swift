@@ -417,6 +417,23 @@ struct ModelCatalogTests {
         for model in ModelCatalog.all {
             #expect(model.streamedPeakBytes < model.tiledPeakBytes, "\(model.id)")
         }
+        #expect(ModelCatalog.zImageTurbo8bit.streamedResidentBytes
+            == ModelCatalog.zImageTurbo4bit.streamedResidentBytes)
+        #expect(ModelCatalog.flux2Klein8bit.streamedResidentBytes
+            == ModelCatalog.flux2Klein4bit.streamedResidentBytes)
+    }
+
+    @Test("every family that streams says what a streamed load holds, and it is under its peak")
+    func everyStreamingFamilyNamesItsStreamedHeldFigure() {
+        // `MemoryGuard` subtracts this from the streamed peak to get what one run still has to
+        // find, so a figure at or above the peak would charge a streamed run nothing. It is
+        // also well under `residentBytes` for every family, which is the whole reason the
+        // field exists rather than the guard reading the resident one.
+        for model in ModelCatalog.all where model.streamedPeakBytes > 0 {
+            #expect(model.streamedResidentBytes > 0, "\(model.id)")
+            #expect(model.streamedResidentBytes < model.streamedPeakBytes, "\(model.id)")
+            #expect(model.streamedResidentBytes < model.residentBytes, "\(model.id)")
+        }
     }
 
     @Test("every preset is aligned and inside the size bounds")

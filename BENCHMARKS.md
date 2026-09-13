@@ -11,7 +11,13 @@ that changes here changes there in the same commit.
 All figures are from `make bench` on a Release build (`ZephraBench`), seed 42
 unless stated. **MB here are decimal**: `BenchRunner` divides the allocator's
 bytes by 1e6 and `BenchReport` prints that, so 23501 MB is 23.501 GB and lands
-in a catalog entry as `23_500_000_000`. GB on disk are decimal too. Mebibytes
+in a catalog entry as `23_500_000_000`. **Which way a figure rounds follows what
+it is charged for**: a *peak* rounds up, since it is a floor on what the run
+needs and a figure rounded down names a budget that does not in fact run
+(6410.03 MB streamed goes in as `6_420_000_000`); a *held* figure rounds down,
+since `MemoryGuard` charges a run `peak - held` and rounding the held figure up
+would undercharge the transient (1336.08 MB goes in as `1_330_000_000`). GB on
+disk are decimal too. Mebibytes
 appear only in the `ZEPHRA_*_MB` launch variables, which are
 `MemoryUnits.mebibyte`, and in a Mac's `recommendedMaxWorkingSetSize` below, as
 macOS reports it. "Resident" is what the loaded weights hold; "peak" is the run's high
