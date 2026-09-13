@@ -1970,7 +1970,12 @@ environment value.
   activating the app or moving the mouse, or, for a Form `Toggle` with
   neither, by the label linked through `AXTitleUIElement` or
   `AXServesAsTitleForUIElements`; `--dump [depth]` prints the tree, that
-  linked label included, and `ZEPHRA_PID` picks the copy to drive. `swift scripts/ax-type.swift "<label>"
+  linked label included, and `ZEPHRA_PID` picks the copy to drive. The same script sizes and
+  places the window for a screenshot without activating it: `--resize W H` (an AX size counts
+  the title bar, so the 880 x 560 floor reads back 880 x 592, and a tiled or zoomed window
+  keeps its own frame, which it says), `--move X Y`, and `--reveal "<title>"`, which scrolls a
+  control into view — the chooser's greyed cards sort last and are otherwise below the fold.
+  `swift scripts/ax-type.swift "<label>"
   "<text>"` sets a labelled text field's value and confirms it, which is how
   the Size menu's custom size is typed hands-off. With `open -g --env
   ZEPHRA_PREVIEW_STATE=settings build/Debug/Zephra.app` and the titled

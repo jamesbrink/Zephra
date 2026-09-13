@@ -9,6 +9,14 @@
 //                                                  or AXServesAsTitleForUIElements; role
 //                                                  ("AXButton", "AXRadioButton", ...) narrows it
 //        swift ax-press.swift --dump [depth]       print the tree, for finding those titles
+//        swift ax-press.swift --resize W H         set the main window's size, in points
+//        swift ax-press.swift --move X Y           set its top-left corner, in screen points
+//        swift ax-press.swift --reveal "<title>"   scroll the named control into view
+//
+// The three window commands exist for `make screenshot`, which photographs the window by its
+// id: a window has to be at the size a screenshot is meant to show, and a card below the fold
+// has to be scrolled to, and neither may cost the person at the keyboard their focus. AX sets
+// size and position on a background app's window with no activation and no mouse.
 //
 // The terminal running this needs Accessibility in System Settings > Privacy & Security.
 // With two Zephras up — a person's, and a `ZEPHRA_PREVIEW_STATE` launch beside it — set
@@ -104,6 +112,99 @@ func walk(_ element: AXUIElement, depth: Int = 0, maxDepth: Int, visit: (AXUIEle
         return true
     }
     return false
+}
+
+/// The app's main window, which is the one a screenshot takes.
+func mainWindow() -> AXUIElement? {
+    if let main = elementAttribute(application, kAXMainWindowAttribute as String) { return main }
+    return (attribute(application, kAXWindowsAttribute as String) as? [AXUIElement])?.first
+}
+
+/// Writes one geometry attribute on `window` and says whether the window actually took it: a
+/// tiled or full-screen window is resized by the window manager rather than by its own frame,
+/// so a write that returns success can still leave the window where it was.
+func setGeometry(
+    _ window: AXUIElement, _ name: String, _ value: CGPoint, size: CGSize?, label: String
+) -> Bool {
+    var written = size.map { AXValueCreate(.cgSize, withUnsafePointer(to: $0) { $0 }) }
+        ?? AXValueCreate(.cgPoint, withUnsafePointer(to: value) { $0 })
+    guard let axValue = written else { return false }
+    written = axValue
+    let result = AXUIElementSetAttributeValue(window, name as CFString, axValue)
+    guard result == .success else {
+        print("ax-press: \(label) refused (error \(result.rawValue))")
+        return false
+    }
+    return true
+}
+
+/// What the window reports now, for saying whether a write landed.
+func windowFrame(_ window: AXUIElement) -> (origin: CGPoint, size: CGSize) {
+    var origin = CGPoint.zero
+    var size = CGSize.zero
+    if let value = attribute(window, kAXPositionAttribute as String),
+        CFGetTypeID(value as CFTypeRef) == AXValueGetTypeID()
+    {
+        AXValueGetValue((value as! AXValue), .cgPoint, &origin)
+    }
+    if let value = attribute(window, kAXSizeAttribute as String),
+        CFGetTypeID(value as CFTypeRef) == AXValueGetTypeID()
+    {
+        AXValueGetValue((value as! AXValue), .cgSize, &size)
+    }
+    return (origin, size)
+}
+
+if command == "--resize" || command == "--move" {
+    guard arguments.count > 2, let first = Double(arguments[1]), let second = Double(arguments[2])
+    else {
+        print("usage: ax-press.swift \(command) <x|width> <y|height>")
+        exit(2)
+    }
+    guard let window = mainWindow() else {
+        print("ax-press: Zephra has no window")
+        exit(1)
+    }
+    let isResize = command == "--resize"
+    let ok = setGeometry(
+        window,
+        isResize ? kAXSizeAttribute as String : kAXPositionAttribute as String,
+        CGPoint(x: first, y: second),
+        size: isResize ? CGSize(width: first, height: second) : nil,
+        label: isResize ? "resize" : "move")
+    let frame = windowFrame(window)
+    print(
+        "ax-press: window is \(Int(frame.size.width))x\(Int(frame.size.height)) "
+            + "at \(Int(frame.origin.x)),\(Int(frame.origin.y))")
+    // A window manager that tiles or zooms the window keeps its own frame, and the write is
+    // then accepted and ignored; saying so is the difference between "resized" and "asked".
+    // A window smaller than its own floor is clamped too, and an AX size counts the title bar
+    // — a content floor of 880x560 reads back as 880x592 — so a difference is reported rather
+    // than treated as a failure, and only a window that did not move at all is one.
+    if isResize, Int(frame.size.width) != Int(first) || Int(frame.size.height) != Int(second) {
+        print(
+            "ax-press: the window settled at its own size — tiled or zoomed, at its minimum, "
+                + "or an AX height that counts the title bar")
+    }
+    exit(ok ? 0 : 1)
+}
+
+if command == "--reveal" {
+    guard arguments.count > 1 else {
+        print("usage: ax-press.swift --reveal \"<title>\"")
+        exit(2)
+    }
+    let wanted = arguments[1]
+    let revealed = walk(application, maxDepth: 25) { element, _ in
+        let title = text(element, kAXTitleAttribute as String)
+        let description = text(element, kAXDescriptionAttribute as String)
+        guard title == wanted || description == wanted || description.hasPrefix(wanted)
+        else { return false }
+        let result = AXUIElementPerformAction(element, "AXScrollToVisible" as CFString)
+        print("ax-press: revealed \"\(wanted)\" (\(result == .success ? "ok" : "error \(result.rawValue)"))")
+        return result == .success
+    }
+    exit(revealed ? 0 : 1)
 }
 
 if command == "--dump" {
