@@ -68,6 +68,7 @@ struct OfferDeadlineTests {
         try await LinkGapRecoveryTests.settle { bed.host.commands.contains(.resync) }
         #expect(bed.client.connection.isLive)
         #expect(try await bed.client.offer(job) == offer)
+        try await LinkGapRecoveryTests.settle { bed.client.pending.isEmpty }
         #expect(bed.client.pending.isEmpty)
     }
 
