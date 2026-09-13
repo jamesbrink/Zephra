@@ -2,6 +2,7 @@ import Foundation
 import MLX
 import MLXNN
 import Testing
+import ZephraMLX
 
 @testable import Flux2
 
@@ -37,7 +38,7 @@ struct TextEncoderParityTests {
     /// Where the fixture taps. The published configuration says `[9, 18, 27]`, which this small
     /// a stack cannot reach, so the encoder takes the taps as a parameter and the default stays
     /// the pipeline's.
-    private static let taps = [2, 4, 6]
+    static let taps = [2, 4, 6]
 
     @Test("the taps arrive concatenated the way the pipeline stacks and permutes them")
     func matchesTheReferenceConcatenation() throws {
@@ -46,7 +47,7 @@ struct TextEncoderParityTests {
         let tokens = try #require(fixture["input_ids"])
         let reference = try #require(fixture["taps_concat"])
 
-        let conditioning = encoder(tokens, validCount: 7)
+        let conditioning = try encoder(tokens, validCount: 7)
 
         #expect(conditioning.shape == [1, 12, 192])
         #expect(reference.shape == [1, 12, 192])
@@ -64,7 +65,7 @@ struct TextEncoderParityTests {
         // is the embedding output and not the first layer's, which is the off-by-one that would
         // shift every tap by a layer and still produce a plausible image.
         let wanted = [0] + Self.taps
-        let states = encoder.model.hiddenStates(tokens, validCount: 7, taps: wanted)
+        let states = try encoder.model.hiddenStates(tokens, validCount: 7, taps: wanted)
 
         for (tap, state) in zip(wanted, states) {
             let reference = try #require(fixture["hidden_states.\(tap)"])
@@ -98,8 +99,8 @@ struct TextEncoderParityTests {
         let encoder = try Self.loaded(fixture)
         let tokens = try #require(fixture["input_ids"])
 
-        let masked = encoder(tokens, validCount: 7)
-        let unmasked = encoder(tokens, validCount: 12)
+        let masked = try encoder(tokens, validCount: 7)
+        let unmasked = try encoder(tokens, validCount: 12)
 
         // The real prefix cannot tell the difference: causality already hides everything after
         // it. Only the padded positions, which klein still feeds to the transformer, move.
@@ -114,13 +115,25 @@ struct TextEncoderParityTests {
             Flux2TextEncoderConfiguration.self, from: Data(configurationJSON.utf8))
     }
 
-    /// An encoder with the fixture's weights in it.
-    private static func loaded(_ fixture: [String: MLXArray]) throws -> Qwen3TextEncoder {
+    /// An encoder with the fixture's weights in it, evaluated.
+    static func loaded(_ fixture: [String: MLXArray]) throws -> Qwen3TextEncoder {
+        try encoder(fixture, casting: nil, evaluating: true)
+    }
+
+    /// An encoder with the fixture's weights in it, optionally cast and optionally evaluated.
+    ///
+    /// A model about to be streamed takes neither default: the cast is what its stream's slots
+    /// capture, and evaluating it before the stream is attached would make its first pass a
+    /// read of resident memory rather than of the shards.
+    static func encoder(
+        _ fixture: [String: MLXArray], casting: DType?, evaluating: Bool
+    ) throws -> Qwen3TextEncoder {
         let encoder = Qwen3TextEncoder(try configuration(), taps: taps)
         try encoder.update(
             parameters: ModuleParameters.unflattened(encoderWeights(fixture, layers: 6)),
             verify: .all)
-        MLX.eval(encoder.parameters())
+        if let casting { PackedWeightLoading.castFloatParameters(of: encoder, to: casting) }
+        if evaluating { MLX.eval(encoder.parameters()) }
         return encoder
     }
 

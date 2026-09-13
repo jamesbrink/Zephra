@@ -61,7 +61,7 @@ extension Flux2Pipeline {
             onProgress(Flux2GenerationProgress(stage: .denoising(step: index, of: request.steps)))
             let (input, _) = Flux2ReferenceConditioning.concatenated(
                 target: latents, targetIDs: targetIDs, references: references)
-            let velocity = model.transformer(
+            let velocity = try model.transformer(
                 latents: input, text: text,
                 timestep: MLXArray([Float(sigma)]),
                 frequencies: frequencies, textLength: textLength

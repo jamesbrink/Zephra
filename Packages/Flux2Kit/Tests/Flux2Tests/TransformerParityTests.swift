@@ -106,7 +106,7 @@ struct TransformerParityTests {
             manifest: nil)
 
         let text = try #require(fixture["model.in.text"])
-        let prediction = model(
+        let prediction = try model(
             latents: try #require(fixture["model.in.latents"]),
             text: text,
             timestep: try #require(fixture["model.in.timestep"]),

@@ -39,8 +39,10 @@ public final class Qwen3TextEncoder: Module {
     ///     512, padding included.
     ///   - validCount: Real tokens at the front. The padded positions attend to the prefix and
     ///     to nothing else, which is what makes their states reproducible.
-    public func callAsFunction(_ tokens: MLXArray, validCount: Int) -> MLXArray {
+    ///
+    /// Throws only when the stack is streamed; see `Qwen3Model.stream`.
+    public func callAsFunction(_ tokens: MLXArray, validCount: Int) throws -> MLXArray {
         MLX.concatenated(
-            model.hiddenStates(tokens, validCount: validCount, taps: taps), axis: -1)
+            try model.hiddenStates(tokens, validCount: validCount, taps: taps), axis: -1)
     }
 }
