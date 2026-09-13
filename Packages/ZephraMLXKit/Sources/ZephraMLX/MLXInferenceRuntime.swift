@@ -48,6 +48,10 @@ public struct MLXInferenceRuntime: InferenceRuntime {
         tile.value
     }
 
+    public func releaseCache() {
+        MLXRuntime.releaseCache()
+    }
+
     public func memorySnapshot() -> MemorySnapshot {
         MLXRuntime.memorySnapshot()
     }
