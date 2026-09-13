@@ -59,7 +59,11 @@ migration.
 
 The 8-bit entry is `mzbac/Z-Image-Turbo-8bit`, 13.3 GB excluding `assets/`,
 and the one model in the catalog loaded exactly as downloaded; its 1024-pixel
-decode peaks near 23.5 GB, so 32 GB of RAM is its practical floor. Always pass
+decode peaks near 23.5 GB, so 32 GB of RAM is where it runs with its weights
+held. A 16 GB Mac may choose it since 2026-09-13, streamed and tiled, and the
+picker says "Streams from disk"; it is not what such a Mac is started on, since
+`default(fitting:)` prefers a model that fits resident and a streamed 1024
+picture there is minutes rather than seconds. Always pass
 the model explicitly when calling into the vendored pipeline — its own default
 is the 32.9 GB bf16 repo, which Zephra reads only as a build source and never
 loads.
@@ -88,7 +92,12 @@ Three things about the Z-Image plan are load-bearing and easy to break:
   work.
 - Scales and biases are written float32, as the reference does, because the
   source is cast to float32 before packing. The transformer's
-  `castFloatParameters` patch turns them into bfloat16 at load.
+  `castFloatParameters` patch turns them into bfloat16 at load. It evaluates
+  nothing: the cast has to stay lazy for a stream to capture it and hand it back
+  in that dtype on every later pass, and evaluating the tree there would read
+  every streamed block off the disk and hold it. `ZImageResidentParameters.eval`
+  is where a load is read in now — last of all, after the streams are attached,
+  and told what is streamed.
 
 ### Qwen-Image-2512: `qwen-image-2512-4bit`
 
@@ -148,8 +157,11 @@ life to have anything to fill itself from.
 
 ### Streaming the weights
 
-A Mac whose GPU cannot hold Qwen-Image or LTX-2.5 still runs it, by reading the
-model from the disk on every step instead of holding it. The mechanism is
+A Mac whose GPU cannot hold a model still runs it, by reading the model from the
+disk on every step instead of holding it. Every family in the catalog does this
+now — Qwen-Image and LTX-2.5 first, then Wan, and Z-Image and klein as of
+2026-09-13 — so every entry carries a measured `streamedPeakBytes` and no model
+is ever loaded resident and left to page. The mechanism is
 `LayerWeightStream` in `ZephraMLX`, and its shape is set by how MLX loads:
 `MLX.loadArrays` parses a shard's header and hands back arrays that are read
 with `pread` into an MLX-owned buffer only when evaluated, and there is no mmap
@@ -185,6 +197,22 @@ Three of the loop's choices are load-bearing and easy to undo:
   before MLX's own task limit stopped it. Waiting on the layer before rather
   than the one just committed leaves the GPU a layer of work in hand.
 
+The five families differ only in which stacks are handed to a stream. Qwen-Image
+is described below. LTX-2.5 and Wan stream both of their stacks. Z-Image streams
+the transformer's three (`layers`, `noise_refiner`, `context_refiner`) and the
+text encoder's 36 layers; klein streams its five dual-stream blocks, its twenty
+single-stream ones and the encoder's 27 layers. Two things are worth knowing
+about the two newest. `Packages/ZImageKit` is vendored and now takes
+`ZephraMLX` in its own manifest, logged under "Manifest changes" in its
+`VENDORED.md`: a copied stream would not report into the one
+`WeightStreamMeter` that `make bench --stream` and the Performance tab read, and
+`LayerWeightStream` needs `ZephraCore` besides. And klein's encoder is tapped at
+layers 9, 18 and 27, which the streamed pass counts inside the stream's closure
+rather than trusting the order `run` hands layers back in, since `run` yields
+the layer and not its index and a tap read off the wrong layer is the one thing
+about this stack that a plausible picture of the wrong prompt would not give
+away.
+
 In Qwen-Image the transformer's sixty blocks and the text encoder's
 twenty-eight layers stream; the embeddings, the input and output projections,
 the norms and the whole autoencoder stay resident, which is what
@@ -198,15 +226,20 @@ block i's freed buffers to block i+2's reads; the bench reports `cacheMemoryMB`
 so a run where that stopped happening shows up rather than being guessed at. A
 streamed image is byte for byte the resident one.
 
-What decides it: `ModelDescriptor.streamedPeakBytes`, zero for a family that
-cannot stream, is the measured peak with the weights streamed and the decode
-tiled; `MemoryFit` tries it after `fitsTiled` and before giving up, and answers
-`fitsStreamed`, which the picker words "Streams from disk".
+What decides it: `ModelDescriptor.streamedPeakBytes` is the measured peak with the
+weights streamed and the decode tiled; `MemoryFit` tries it after `fitsTiled` and
+before giving up, and answers `fitsStreamed`, which the picker words "Streams
+from disk". Zero there means a family that has not learned to stream, which is
+resident under every mode — nothing in the catalog is that any more, so the zero
+path is the rule waiting for the next family rather than a description of one.
 `WeightResidencyPolicy` turns the Performance tab's three-way preference
 (`AppSettings.weightResidency`) and the budget into a `WeightResidency` for a
 load — under Automatic, streamed whenever the model does not fit resident,
-`.tight` included, and never for a model with no streamed figure, which is how klein and Z-Image are
-never asked to. The residency rides on
+`.tight` included, since loading a model resident *to page* is what aborted a
+16 GB mini. `ModelCatalog.default(fitting:)` reads the same verdicts the other
+way round and prefers a resident fit to a streamed one, because streaming is how
+a Mac runs a model it cannot hold and not what a first launch should open on.
+The residency rides on
 `ImageGenerationBackend.load(_:at:residency:onProgress:)`; `InferenceActor` pins
 it beside `loadedPath`, so asking for a model already up the other way is a
 reload, and `GenerationStore.setWeightResidencyPolicy` reloads through the swap
@@ -231,6 +264,28 @@ raised and does not run now, the exact command with a Copy button: the app never
 runs `sudo`, and a change to the sysctl is seen at the next launch. A budget
 built from RAM alone, which the tests and a GPU-less build use, assumes four
 fifths of it.
+
+**What the budget does not answer** is whether the memory is free *right now*, and
+that is `MemoryGuard`'s (`ZephraCore/Runtime/`), asked twice per generation from
+`GenerationStore+MemoryGuard`: before the weights are read in, and before a run is
+started over them. It is a value type over the budget, so a refusal is a pure
+function of four readings and is tested without a GPU. The machine's half comes
+from an injected `MachineMemoryReader` — `HostMachineMemory` (`Sources/Zephra/Support/`)
+in the app, `host_statistics64` under `HOST_VM_INFO64` with `host_page_size` for
+the unit, read fresh on every call rather than once at launch, since what is going
+spare between one load and the next is the whole reason the guard exists — and a
+reading that cannot be had is "do not know", which leaves the budget half of the
+question alone rather than guessing. Zephra's own allocator is counted back in as
+free at load, because the old model is released first, and
+`InferenceActor.unload()` now calls `InferenceRuntime.releaseCache()` last, after
+the backend is dropped: MLX keeps a released buffer for reuse rather than handing
+it back, and on halcyon those gigabytes were still charged to the process while
+the next model was being measured, with a kernel panic behind it. The run check
+charges only the transient — the peak less what is held — scaled linearly by
+pixels times frames from the model's own default size, which is honest at that
+size and optimistic a long way from it; `ROADMAP.md` carries that until a second
+size is measured per family, along with the budget reserve that was considered and
+left out.
 
 ### FLUX.2 klein 4B: `flux2-klein-4b-4bit`, `flux2-klein-4b-8bit`
 

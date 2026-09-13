@@ -49,7 +49,8 @@ engine be tested in seconds without Metal.
   the reference picture, the library, following the run, upscaling and filing
   the upscaled result, the interface's own questions (`+Interaction`), the
   download requests it keeps alive (`+Downloads`), the two folder changes
-  (`+ImageDirectory`, `+ModelDirectory`), weight residency (`+Residency`), and
+  (`+ImageDirectory`, `+ModelDirectory`), weight residency (`+Residency`), the
+  live memory check (`+MemoryGuard`), and
   the seam a paired device submits through (`+Remote`).
   Add a new concern as another extension file, not as more lines in
   `GenerationStore.swift`.
@@ -100,6 +101,58 @@ engine be tested in seconds without Metal.
   `AsyncStream` buffers the newest four events and drops the rest — progress is
   a snapshot, not a log — and `run` drains before returning, so the state a
   caller sets after an operation is never clobbered by an event still in flight.
+
+### Memory, checked twice
+
+`MemoryFit` answers a catalog question — could this Mac ever hold that model — and
+the pickers grey what it says no to. It is answered against a budget that does not
+move, and that is the half it can answer. The other half is whether the memory is
+there *this minute*, with a browser, a compiler and the model loaded five minutes
+ago holding it, and until 2026-09-13 nothing asked. Two incidents in three days
+said what that costs: halcyon (48 GB) kernel-panicked under a model switch with
+Zephra at 37.5 GB resident, and bender (16 GB) aborted from Metal's completion
+queue — where no Swift `catch` reaches — when Z-Image 8-bit was picked from the
+menu. There is no failing gracefully after the fact; the only place to stop is
+before the allocation.
+
+So `GenerationStore+MemoryGuard` asks `MemoryGuard` (`ZephraCore/Runtime/`) twice.
+`loadShortfall(for:residency:)` runs in `+Preparation.load` **after** the files are
+acquired and the cancellation check, and before `reserveBuild` — after the download
+rather than before, because a download is worth keeping whatever the machine is
+doing and a load is not. It charges the peak for the way this load will actually
+run (the streamed figure when streamed, the tiled one when tiled) against the
+smaller of the budget and what the machine says it has, with Zephra's own active
+and cached bytes counted back in, since the old model goes before the new one
+arrives. `runShortfall(for:)` is the first line of `+Generation.run`, before
+`beginActivity`, and charges only the transient — the peak less what is held —
+scaled by pixels times frames against the size the peak was measured at. The job's
+own model and settings are what it reads, not the capsule's, so a run queued behind
+a switch is judged by what it will ask for.
+
+Either answer is a `MemoryShortfall`: two figures and one of two remedies —
+"Quit other apps and retry.", or "Set Stream weights from disk to Automatic in
+Settings > Performance." for the one case where the memory exists and a `Never`
+preference is what is holding the model whole. It reaches the canvas as
+`EngineError.insufficientMemory`, whose message is that sentence. The load check is
+*thrown*, so the `catch` that already unloads the actor and gives the disk lease
+back runs on the way out; the run check calls `fail(with:)`, which empties the
+queue. Retry goes back through `startLoading`, which asks again rather than
+replaying a verdict, so a Mac where something else has quit in the meantime loads.
+Both sites log the reading and the decision — admitted as well as refused, since
+the admitted line is what makes the next refusal legible in `make logs`.
+
+`canSelect(_:)` (`+Admission`) is the budget-only half, and it is a gate rather
+than a note: `switchModel` drops a pick of a model this Mac cannot hold,
+`startLoading` refuses one with `staticShortfall` before a byte is fetched,
+`select(_ item:)` keeps the current model and clamps the settings for a picture
+made by one, and `fallBackIfUnrunnable()` — the old `fallBackIfUnobtainable`,
+widened from "cannot be had" to "cannot be had or cannot be held" — steps off one
+at launch onto a candidate from `ModelCatalog.fitting(budget:)`. A Mac that can
+hold none of them keeps what it had and hears the guard's sentence, since stepping
+it onto a second model it also cannot hold helps nobody. A paired phone hears
+exactly these words: `remoteAdmission` answers `.badRequest` with the static
+shortfall (the machine, not the moment, so asking again is worth nothing) and
+`.refused` with a live one when settings were handed in.
 
 ### Work that did not come from the keyboard
 

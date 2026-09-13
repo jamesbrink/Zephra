@@ -25,6 +25,22 @@ answers `GeneratedMedia.video`. Every number in an entry is hand-written because
 measured; leave a comment saying where a figure came from. `ModelMenu` lists
 `ModelCatalog.all` and `GenerationStore.switchModel(to:)` does the rest.
 
+Four of those numbers are the memory figures, and since 2026-09-13 all four are
+measured for every entry: `residentBytes`, `peakBytes`, `tiledPeakBytes` and
+`streamedPeakBytes`. The last was zero for any family that had not learned to
+stream, which meant "never stream this"; every family streams now, so a zero
+there is a new family's placeholder rather than a description of anything
+shipped, and an entry left with one is offered on fewer Macs than it could run
+on. They matter more than they used to, because memory is a **gate** now and not
+a note: `MemoryFit.isSelectable` is false when a model does not fit on any lever
+this Mac has, and a model it is false for is greyed in the model menu, greyed on
+the first-launch card, greyed on a paired phone, refused by
+`GenerationStore.canSelect` before a byte is downloaded, and stepped off at
+launch by `fallBackIfUnrunnable()` (which was `fallBackIfUnobtainable` until it
+learned to ask about memory as well as about the disk). A figure measured too
+low therefore does not merely mis-word a caption; it offers a model that aborts
+the app when Metal refuses to wire it.
+
 **A new backend family** — four things in the app, then the tooling:
 
 1. A `static let` on `BackendID` in `.../ZephraCore/Model/BackendID.swift`

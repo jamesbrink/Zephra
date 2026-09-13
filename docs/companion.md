@@ -110,6 +110,27 @@ what this Mac sends is everything it has. That is the rule for every field added
 to a DTO after a release — default it to what its absence meant — and
 `QueuedEntry` is the other hand-written reader, for its own reason.
 
+`ModelSummary.isSelectable` and `memoryNote` are the same rule applied to a model.
+A model this Mac has not the memory to hold is never loaded and never downloaded,
+so the phone's menu offering it meant a tap that moved the phone's own capsule
+while the Mac did nothing — the phone then drew a model that Mac had never taken.
+The phone cannot work the verdict out: it has no catalog, no measured peak and no
+idea what that Mac's GPU may keep. So the Mac stamps it.
+`StateSnapshotProjection` fills both from `ModelCatalog.fit(_:budget:)` against
+the store's own budget, the phone greys the row it is told to and shows the note
+it is given ("Needs 23 GB", "Streams from disk"), and `ModelSummary+Codable`
+reads the pair with `decodeIfPresent`, defaulting to selectable with no note,
+which is what the fields' absence used to mean — without that a phone would grey
+every model on a Mac from before this shipped. The model in force and the
+`.model` delta keep the plain initialiser, since a Mac does not run a model it
+cannot hold. `Command.switchModel` naming such a model is refused
+(`CompanionSession+Refusals.unholdable`) rather than answered `.ok` over a press
+the store drops, and the code is `badRequest` — the same code `remoteAdmission`
+gives a generation on that model, because this is the machine rather than the
+moment and asking again in a while is worth nothing. The reason is
+`MemoryFit.reason`, the sentence the greyed row already carries, so the refusal
+and the row are one answer.
+
 `GenerationRequest` carries `ZephraCore`'s own `GenerationSettings`, so the Mac
 clamps what arrives through the same `clamp` a local press of Generate goes
 through. The one thing stripped is the pixels, on the way in and on the way out
