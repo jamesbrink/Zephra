@@ -16,6 +16,7 @@ extension MobilePreview {
         hosts.add(HostPreference(host: firstHost), client: first, frozen: true)
         for index in 1..<hostCount {
             guard var snapshot = first.snapshot else { continue }
+            if index == 1 { snapshot.multiHost = false } // A mixed-version host remains manual.
             snapshot.hostName = index == 1 ? "Studio Mac" : "Render Mac \(index + 1)"
             let client = LinkClient.frozen(snapshot: snapshot, library: first.library,
                 connection: index == hostCount - 1 ? .offline : .live(.relay))
