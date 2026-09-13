@@ -64,7 +64,10 @@ struct ZephraApp: App {
     /// What this Mac's GPU may keep resident, read once here from the runtime and the
     /// `iogpu.wired_limit_mb` sysctl, then handed to every view and to the store: the model
     /// picker's wording, the tiled decode, and the fallback model all follow it.
-    private static let budget = GPUMemoryBudget.forThisMachine(runtime: runtime)
+    // A frozen screenshot build may state the Mac it is pretending to be, so the chooser can be
+    // photographed as a 16 GB Mac sees it; every other launch asks this Mac's own GPU.
+    private static let budget = InterfacePreview.budget()
+        ?? GPUMemoryBudget.forThisMachine(runtime: runtime)
 
     var body: some Scene {
         // One window, not a group: everything a window would own is app-wide state built

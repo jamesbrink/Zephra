@@ -449,15 +449,19 @@ A Mac that has never run Zephra opens on a model chooser, not on a download.
   the presence of `selectedModelID`, which the root writes on every launch, so
   its absence is what a genuinely first launch looks like; the root writes `selectedModelID` only when
   the chooser goes down, never while it is up. `settle(availability:budget:current:)`
-  dismisses the chooser when the survey finds a model already here and answers
-  which model to continue on; nil for a chooser already down. `dismiss()` records
+  dismisses the chooser when the survey finds a model already here that this Mac
+  can hold and answers which model to continue on; a finished download this Mac
+  cannot hold settles nothing, since continuing on it would open on a model
+  nothing will load. Nil for a chooser already down. `dismiss()` records
   the answer (a skip is an answer); `reopen()` is the way back from
   `CanvasStateView`'s idle state.
 - `WelcomeHost` (`Views/Welcome/`) shows the chooser or `RootView`. With the
   chooser up, `bootstrapFromInterface` runs only `surveyAvailability()`.
   **Nothing is fetched while the chooser is up.**
 - The recommendation is `ModelCatalog.default(fitting:)`; where nothing fits, the
-  entry with the smallest `ModelDescriptor.leanestPeakBytes`.
+  entry with the smallest `ModelDescriptor.leanestPeakBytes`. A card is marked
+  recommended only when it is also selectable, so a Mac too small for everything
+  in the catalog is recommended nothing and the chooser opens on no selection.
   `ZephraApp.savedModel(fitting:)` steps a persisted choice this Mac cannot hold
   onto that same answer, before the store is built, and logs the step;
   `HostMachineMemory` (`Support/`, beside `GPUMemoryBudget`) is what the guard

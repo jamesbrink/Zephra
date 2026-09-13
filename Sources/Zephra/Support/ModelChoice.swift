@@ -10,7 +10,10 @@ struct ModelChoice: Identifiable, Hashable {
     let model: ModelDescriptor
     /// Where it lands against this Mac's GPU working set.
     let fit: MemoryFit
-    /// Whether this is the model `ModelCatalog.default(fitting:)` picks for this Mac.
+    /// Whether this Mac would be started on this model: `ModelCatalog.default(fitting:)`'s
+    /// answer, and only when that model is one this Mac can actually hold. A Mac too small for
+    /// anything in the catalog is recommended nothing rather than pointed at the entry that
+    /// comes nearest, which is a card the chooser is about to refuse.
     let isRecommended: Bool
     /// The sentence describing how this model would run here, resolved against the same
     /// budget as `fit`. Held rather than computed at the call site so a view that shows it
@@ -18,6 +21,10 @@ struct ModelChoice: Identifiable, Hashable {
     let reason: String
 
     var id: ModelDescriptor.ID { model.id }
+
+    /// Whether the card may be pressed. A model this Mac cannot hold is listed, greyed and
+    /// captioned with what it would take; it is never chosen and never downloaded.
+    var isSelectable: Bool { fit.isSelectable }
 
     /// What the app has written about this model, when it has anything.
     var portrait: ModelPortrait? { ModelPortrait.of(model) }
@@ -30,7 +37,7 @@ struct ModelChoice: Identifiable, Hashable {
             return ModelChoice(
                 model: model,
                 fit: fit,
-                isRecommended: model.id == recommended,
+                isRecommended: model.id == recommended && fit.isSelectable,
                 reason: fit.reason(for: model, budget: budget)
             )
         }

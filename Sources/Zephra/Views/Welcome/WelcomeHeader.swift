@@ -15,8 +15,11 @@ struct WelcomeHeader: View {
                 .accessibilityHidden(true)
             Text("Choose your first model")
                 .font(.title)
+            // Not "every model runs on this Mac": a model this Mac has not the memory for is
+            // listed greyed right below, and a headline promising it runs is the first thing
+            // that sentence contradicts. What is true of every one of them is where it runs.
             Text(
-                "Every model runs on this Mac, and nothing you make leaves it. "
+                "Models run on this Mac, and nothing you make leaves it. "
                     + "You can add the others later."
             )
             .font(.callout)

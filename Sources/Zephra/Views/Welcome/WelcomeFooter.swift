@@ -29,8 +29,13 @@ struct WelcomeFooter: View {
             Button(action: choose) { Text(title) }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
-                .disabled(!isObtainable)
-                .help(store.availability[choice.model.id]?.reason ?? choice.reason)
+                .disabled(!isObtainable || !choice.isSelectable)
+                // Memory first for a model that is out on memory: a tight model already on the
+                // disk would otherwise explain a disabled button with "already on this Mac".
+                .help(
+                    choice.isSelectable
+                        ? (store.availability[choice.model.id]?.reason ?? choice.reason)
+                        : choice.reason)
         }
         .padding(.horizontal, 32)
         .padding(.vertical, 16)
@@ -44,8 +49,15 @@ struct WelcomeFooter: View {
     }
 
     /// What pressing it does, in its own words. Title Case, as a push button is.
+    ///
+    /// A model this Mac cannot hold says what it would take instead of what it would do: the
+    /// button is out, and "Download X · 13 GB" over a disabled button offers a transfer that is
+    /// never going to start.
     private var title: String {
         let name = choice.model.fullName
+        guard choice.isSelectable else {
+            return "\(name) \(choice.fit.label ?? "Needs More Memory")"
+        }
         switch store.availability[choice.model.id] {
         case .available: return "Continue with \(name)"
         case .needsBuild: return "Build \(name)"
@@ -59,8 +71,9 @@ struct WelcomeFooter: View {
     }
 
     /// A model that cannot be had at all — a local build that was never made — is not offered
-    /// as something to press. Nothing in the shipped catalog answers this way; it is here
-    /// because a button that starts nothing is worse than one that is plainly out.
+    /// as something to press, and neither is one this Mac cannot hold. Nothing in the shipped
+    /// catalog answers the first way; it is here because a button that starts nothing is worse
+    /// than one that is plainly out.
     private var isObtainable: Bool {
         store.availability[choice.model.id]?.isObtainable != false
     }
