@@ -9,10 +9,7 @@ struct SettingsScreen: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Your Mac") {
-                    PairedMacRow()
-                    ConnectionRow()
-                }
+                HostsSection()
                 Section("Appearance") { AppearanceRow() }
                 Section("Generation") {
                     RandomizeSeedRow()

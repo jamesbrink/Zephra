@@ -33,17 +33,22 @@ extension LinkClient {
     /// that is carrying on from where it got to says so: the reply's announcement is opened on
     /// this same actor and needs to find what it is resuming already filed under the id it is a
     /// reply to.
-    func ask(_ command: Command, beforeSending: (UUID) -> Void = { _ in }) async throws -> Reply {
+    func ask(_ command: Command, timeout: Duration? = nil, beforeSending: (UUID) -> Void = { _ in }) async throws -> Reply {
         guard session?.channel != nil else { throw LinkClientError.notConnected }
         let envelope = try Envelope.encoding(command, kind: .request)
         beforeSending(envelope.id)
-        return try await withCheckedThrowingContinuation { continuation in
+        return try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            return try await withCheckedThrowingContinuation { continuation in
             pending[envelope.id] = continuation
-            timers[envelope.id] = expire(envelope.id, after: requestTimeout)
+            timers[envelope.id] = expire(envelope.id, after: timeout ?? requestTimeout)
             // Sealed and queued here rather than on a task of its own: the counter a frame is
             // sealed under is its position in the stream, and a task per request is two requests
             // taking two counters and reaching the socket in whichever order they are scheduled.
             do { try send(.envelope(envelope)) } catch { fail(envelope.id, with: error) }
+            }
+        } onCancel: {
+            Task { @MainActor in self.fail(envelope.id, with: CancellationError()) }
         }
     }
 
@@ -70,9 +75,10 @@ extension LinkClient {
         // unsolicited blobs and sending a chunk of each would otherwise park a partial apiece
         // until the session ended.
         let assembly = blobs.removeValue(forKey: id)
-        if wantedBlobs.remove(id) != nil, let assembly, let resumption = BlobResumption(assembly) {
+        if wantedBlobs.remove(id) != nil, let assembly, var resumption = BlobResumption(assembly) {
+            resumption.budgetID = id
             salvaged[id] = resumption
-        }
+        } else { blobBudget.release(owner: transferOwner, blob: id) }
         blobWaiters.removeValue(forKey: id)?.resume(throwing: error)
         blobOrder.removeAll { $0 == id }
         arrivedBlobs.removeValue(forKey: id)
@@ -84,6 +90,9 @@ extension LinkClient {
     /// and not for a gap: a hole in the stream swallows one message, and the transfer or the
     /// request it swallowed is the one that pays for it.
     func settleEverything(with error: any Error) {
+        for id in Set(blobs.keys).union(arrivedBlobs.keys).union(salvaged.keys) {
+            blobBudget.release(owner: transferOwner, blob: id)
+        }
         for timer in timers.values { timer.cancel() }
         timers.removeAll()
         let waiting = pending.values

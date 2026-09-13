@@ -8,7 +8,7 @@ import ZephraStyle
 /// link opened from anywhere else; each hands its text to `PairingEntry.parse`, so what counts
 /// as a code — and what an expired one says — is decided in one place.
 struct PairingView: View {
-    @Environment(LinkClient.self) private var client
+    @Environment(HostConnections.self) private var hosts
     /// The last thing that went wrong, in the words to show, or nil while nothing has.
     @State private var failure: String?
     /// What is in the paste field.
@@ -18,17 +18,18 @@ struct PairingView: View {
         VStack(spacing: MobileChrome.blockSpacing) {
             Spacer(minLength: 0)
             PairingInstructions()
+            if !hosts.hosts.isEmpty { Button("Cancel") { hosts.isAdding = false }.disabled(hosts.isPairing) }
             if PairingScanner.isAvailable {
-                PairingScanner(onScan: submit, isPaused: client.connection.isBusy)
+                PairingScanner(onScan: submit, isPaused: hosts.isPairing)
                     .frame(height: 260)
                     .clipShape(RoundedRectangle(cornerRadius: ZephraChrome.cardRadius))
                     .padding(.horizontal, MobileChrome.sideMargin)
             }
             PairingPasteField(code: $code) { submit(code) }
-            PairingProgress()
+            PairingProgress().environment(hosts.pairing)
             // A phone the Mac let go arrives here with the reason still to be said; the client
             // keeps it (`farewell`) so this screen can, until a new code is read.
-            if let failure = failure ?? client.farewell {
+            if let failure = failure ?? hosts.pairing.farewell {
                 Text(failure)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -54,8 +55,8 @@ struct PairingView: View {
             let payload = try PairingEntry.parse(text)
             failure = nil
             Task {
-                do { try await client.pair(with: payload) } catch {
-                    failure = PairingEntry.message(for: error, connection: client.connection)
+                do { try await hosts.pair(payload) } catch {
+                    failure = PairingEntry.message(for: error, connection: hosts.pairing.connection)
                 }
             }
         } catch {

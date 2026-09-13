@@ -9,6 +9,9 @@ upscale with **Real-ESRGAN**.
   accounts, or telemetry. Model downloads require an internet connection.
 - **Native:** SwiftUI interface with a canvas, live previews, a generation queue,
   and a searchable image library.
+- **iPhone companion:** pair several Macs for one combined library. Send to a
+  named Mac or let Auto choose by installed model, workload and capacity.
+  See [multi-host iOS](docs/multi-host.md).
 - **Portable images:** prompts, seeds, favorites, tags, and album membership
   travel with the PNG; a clip's travel with its poster PNG, beside its MP4.
 

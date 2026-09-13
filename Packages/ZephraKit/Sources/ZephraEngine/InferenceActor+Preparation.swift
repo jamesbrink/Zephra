@@ -42,8 +42,12 @@ extension InferenceActor {
             if live.loadedModelID == acquired.model.id, loadedResidency == residency, let loadedPath {
                 return loadedPath
             }
-            let localPath = try await live.build(acquired.model, at: acquired.directory,
-                locations: acquired.locations) { events.send(.build($0)) }
+            let localPath: URL
+            if acquired.installedOnly { localPath = acquired.directory }
+            else {
+                localPath = try await live.build(acquired.model, at: acquired.directory,
+                    locations: acquired.locations) { events.send(.build($0)) }
+            }
             try Task.checkCancellation()
             try await live.load(acquired.model, at: localPath, residency: residency) {
                 events.send(.progress($0))

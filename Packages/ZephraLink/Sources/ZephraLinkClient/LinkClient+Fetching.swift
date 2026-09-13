@@ -17,6 +17,8 @@ extension LinkClient {
     /// a road worth giving a moment.
     public func fetchBlob(_ command: Command) async throws -> Data {
         guard !isFrozen else { throw LinkClientError.notConnected }
+        var reservations: Set<UUID> = []
+        defer { for id in reservations { blobBudget.release(owner: transferOwner, blob: id) } }
         var resumption: BlobResumption?
         var last: any Error = LinkClientError.lost
         for attempt in 1...LinkClient.blobAttempts {
@@ -29,6 +31,7 @@ extension LinkClient {
             } catch let stopped as BlobInterrupted {
                 last = stopped.reason
                 resumption = stopped.resumption
+                if let id = resumption?.budgetID { reservations.insert(id) }
                 logger.notice(
                     """
                     A \(command.kind.rawValue, privacy: .public) stopped at chunk \
@@ -69,7 +72,7 @@ extension LinkClient {
                 throw BlobInterrupted(reason: again, resumption: kept)
             }
         case .error(let error): throw error
-        case .ok, .queued, .entries: throw LinkClientError.unexpectedReply
+        case .multiHost, .ok, .queued, .entries: throw LinkClientError.unexpectedReply
         }
     }
 

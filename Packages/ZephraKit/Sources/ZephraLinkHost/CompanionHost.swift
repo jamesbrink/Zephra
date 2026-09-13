@@ -67,6 +67,7 @@ public final class CompanionHost {
     @ObservationIgnored var pairingFailures = 0
     /// The clock that shuts the room when the code runs out, since nothing else would ask.
     @ObservationIgnored var openRoomClock: Task<Void, Never>?
+    @ObservationIgnored let receipts: GenerationReceipts
     @ObservationIgnored var listeners: [any LinkListener] = []
     @ObservationIgnored var serving: [Task<Void, Never>] = []
     /// The observation loop, running only while at least one session is listening.
@@ -91,8 +92,10 @@ public final class CompanionHost {
         pairings: any PairingStore,
         hostName: String,
         devices: [PairedDevice]? = nil,
+        receipts: GenerationReceipts? = nil,
         endpoints: @escaping @MainActor () -> [Endpoint] = { [] }
     ) {
+        self.receipts = receipts ?? GenerationReceipts()
         self.store = store
         self.index = index
         self.thumbnails = thumbnails

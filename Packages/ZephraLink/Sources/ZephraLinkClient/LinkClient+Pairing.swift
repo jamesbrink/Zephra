@@ -26,7 +26,7 @@ extension LinkClient {
             endpoints: payload.endpoints, room: payload.roomID, window: Self.lanWindow)
         if let local {
             switch await attempt(.lan, peer: payload.keys, secret: payload.secret, open: { local }) {
-            case .connected: return remember(payload)
+            case .connected: return try remember(payload)
             case .refused(let refusal): throw refused(refusal)
             case .unreachable(let error): failure = error
             }
@@ -34,7 +34,7 @@ extension LinkClient {
         switch await attempt(.relay, peer: payload.keys, secret: payload.secret, open: {
             try await self.roads.connectRelay(room: payload.roomID, pairing: true)
         }) {
-        case .connected: return remember(payload)
+        case .connected: return try remember(payload)
         case .refused(let refusal): throw refused(refusal)
         case .unreachable(let error): failure = error
         }
@@ -43,9 +43,9 @@ extension LinkClient {
     }
 
     /// Keeps the Mac a successful pairing named.
-    private func remember(_ payload: PairingPayload) {
+    private func remember(_ payload: PairingPayload) throws {
         let host = PairedHost(payload)
-        try? store.save(host)
+        try store.save(host)
         pairedHost = host
     }
 

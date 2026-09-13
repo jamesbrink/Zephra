@@ -73,8 +73,7 @@ the US-spelling check cover it the same way they cover the Mac, and
 
 Four directories, by what a file is, the way the Mac's target is laid out.
 
-- `App/` — `ZephraMobileApp` is the composition root: it builds the one object
-  every view observes and injects it, and it is the only file that knows how a
+- `App/` — `ZephraMobileApp` is the composition root: it builds `MobileWorkspace` and injects the host collection, dispatch state and draft, and it is the only file that knows how a
   Mac is actually reached. `RootView` is the four surfaces behind a `TabView`
   bound to `MobileSelection.tab`, with `PairingView` over them as a
   `.fullScreenCover` until a Mac is paired. A cover rather than a branch, so the
@@ -87,8 +86,8 @@ Four directories, by what a file is, the way the Mac's target is laid out.
   a radius, a hairline or a wash could be belongs in `Packages/ZephraStyle`.
 - `Views/` — one subfolder per surface, and every surface is real:
   `Canvas/` and `Capsule/` are the two halves of the first, what the Mac is
-  making and what asks it for more; `LibraryScreen` and `TodayScreen` are the
-  Mac's library and its canvas sidebar; `SettingsScreen` is `PairedMacRow`,
+  making and what asks it for more; `LibraryScreen` and `CombinedToday` are the
+  Mac's library and its canvas sidebar; `SettingsScreen` is `HostsSection`,
   `ConnectionRow`, `AppearanceRow`, `RandomizeSeedRow`, `SeedFormatRow`,
   `CacheRow` and `AboutRow`, a row to a file, so a later change replaces one of
   them rather than editing a screen around it. `Shared/` is the one exception
@@ -143,23 +142,18 @@ package is for.
 
 ### `LinkClient`, and how it stays connected
 
-`LinkClient` (`ZephraLinkClient`, see `docs/companion.md`) is the one type a view
-reads the Mac through: `pairedHost`, `snapshot`, `preview`, `library` and
-`connection`, with `pair(with:)`, `connect()`, `disconnect()`, `forgetHost()` and
-the commands. Every view takes it from `@Environment(LinkClient.self)`. **Keep it
-that way**: a second object holding a fact that came over the link is a fact that
-can disagree with the Mac.
+`LinkClient` remains the one source of authenticated state for one Mac. The
+composition root creates one per enabled pairing through `MobileWorkspace` and
+`HostConnections`. Host-specific views receive that client's environment;
+combined-library actions resolve the item's host, and generation uses the
+independent `GenerationDispatch` destination. See [Multi-host companion](multi-host.md)
+for ownership, routing, migration and receipt rules.
 
-The composition root builds exactly one, and it is the only file that knows:
-
-- **Where the secrets are.** `MobileKeychain` (`Support/`) is a `LinkKeyStore`
-  over two generic-password items under the service `io.zephra.link`, the
-  identity's sixty-four raw bytes and the `PairedHost` as `LinkJSON`, both
-  `AfterFirstUnlockThisDeviceOnly` — the phone reconnects while it is locked in a
-  pocket, and a backup restored onto another phone must not arrive already paired
-  with somebody's Mac. The identity is resolved by the root rather than left to
-  `LinkClient`, because `NetworkLinkRoads` needs the same one to sign a relay
-  join with.
+- **Where the secrets are.** `PairedHosts` resolves one phone identity and
+  serializes the `paired-hosts-v2` collection in `MobileKeychain`. `HostKeyStore`
+  limits a client to its own pairing. Existing single-host data migrates with
+  readback verification; unreadable data fails closed. Keychain accessibility
+  remains `AfterFirstUnlockThisDeviceOnly`.
 - **Which roads.** `NetworkLinkRoads(relayURL:identity:)` over
   `wss://zephra-link.urandom.io`, with `UIDevice.current.name` as the name the
   Mac is shown while somebody decides whether to let this phone in.
@@ -196,7 +190,7 @@ The composition root builds exactly one, and it is the only file that knows:
   `begin()` again when `client.pairedHost` becomes something, which is how a phone
   that pairs in the foreground it launched in gets a reconnection at all.
 
-- **Which network.** `LinkPathWatch` (`Support/`) is an `NWPathMonitor` started with the
+- **Which network.** `HostsPathWatch` owns one `NWPathMonitor` for all enabled hosts, applying `LinkPathWatch.reaction` independently. It is started with the
   reconnection and stopped with it. Every report becomes a `LinkPathMark` — satisfied,
   expensive, constrained, and the interface names **in the system's own order of
   preference** — and `reaction(from:to:isLive:)` is the whole decision: the first report and

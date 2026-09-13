@@ -2,16 +2,17 @@ import Foundation
 
 /// The JSON one reply is: a tagged object, for the reason `Command`'s is.
 extension Reply: Codable {
-    private enum CodingKeys: String, CodingKey { case kind, batchID, blob, page, error }
+    private enum CodingKeys: String, CodingKey { case multiHost, kind, batchID, blob, page, error }
 
     /// The tag, which is also the case name.
     public enum Kind: String, Codable, Hashable, Sendable, CaseIterable {
-        case ok, queued, blob, entries, error
+        case multiHost, ok, queued, blob, entries, error
     }
 
     /// Which reply this is, without decoding its payload.
     public var kind: Kind {
         switch self {
+        case .multiHost: .multiHost
         case .ok: .ok
         case .queued: .queued
         case .blob: .blob
@@ -24,6 +25,7 @@ extension Reply: Codable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(kind, forKey: .kind)
         switch self {
+        case .multiHost(let reply): try container.encode(reply, forKey: .multiHost)
         case .ok: break
         case .queued(let batchID): try container.encode(batchID, forKey: .batchID)
         case .blob(let start): try container.encode(start, forKey: .blob)
@@ -35,6 +37,7 @@ extension Reply: Codable {
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         switch try container.decode(Kind.self, forKey: .kind) {
+        case .multiHost: self = .multiHost(try container.decode(MultiHostReply.self, forKey: .multiHost))
         case .ok: self = .ok
         case .queued: self = .queued(batchID: try container.decode(UUID.self, forKey: .batchID))
         case .blob: self = .blob(try container.decode(BlobStart.self, forKey: .blob))

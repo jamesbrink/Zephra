@@ -10,12 +10,15 @@ import ZephraLinkTransport
 public final class NetworkLinkRoads: LinkRoads, @unchecked Sendable {
     private let relayURL: URL
     private let identity: DeviceIdentity
-    private let browser = BonjourBrowser()
+    private let cadence: RelayCadence
+    private let browser: BonjourBrowser
     private let lock = NSLock()
     private var seen: [String: DiscoveredHost] = [:]
 
     /// The roads out of one device, with one relay behind them.
-    public init(relayURL: URL, identity: DeviceIdentity) {
+    public init(relayURL: URL, identity: DeviceIdentity, cadence: RelayCadence? = nil, browser: BonjourBrowser? = nil) {
+        self.browser = browser ?? BonjourBrowser()
+        self.cadence = cadence ?? RelayCadence(messagesPerSecond: 120, burst: 40)
         self.relayURL = relayURL
         self.identity = identity
     }
@@ -66,7 +69,7 @@ public final class NetworkLinkRoads: LinkRoads, @unchecked Sendable {
     /// a moment behind it — so a refusal here is a list a beat out of date and not a pairing
     /// withdrawn. Only the Mac's own handshake may say that.
     public func connectRelay(room: RoomID, pairing: Bool) async throws -> any LinkConnection {
-        let road = RelayConnection(url: relayURL, identity: identity, room: room, role: .guest)
+        let road = RelayConnection(url: relayURL, identity: identity, room: room, role: .guest, cadence: cadence)
         do {
             try await road.start()
         } catch {

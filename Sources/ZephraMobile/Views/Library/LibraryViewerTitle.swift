@@ -29,11 +29,14 @@ struct LibraryViewerTitle: View {
             .accessibilityAction(.escape) { dismiss() }
             Spacer(minLength: 0)
             if let entry {
+                VStack(alignment: .trailing) {
+                LibraryHostLabel(entry: entry)
                 Text(entry.label)
                     .font(.footnote)
                     .lineLimit(1)
                     .foregroundStyle(.white.opacity(0.85))
                     .shadow(color: .black.opacity(ZephraChrome.shadowOpacity), radius: 4)
+                }
             }
         }
         .padding(.horizontal, MobileChrome.sideMargin)

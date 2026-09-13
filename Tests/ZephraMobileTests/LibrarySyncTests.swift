@@ -19,7 +19,7 @@ struct LibrarySyncTests {
     @Test("A cache that already agrees is left alone")
     func nothingToDo() {
         let remote = [LibraryFixtures.entry("a.png")]
-        let local = remote.map(CachedEntry.init)
+        let local = remote.map { CachedEntry($0) }
 
         #expect(LibrarySync.plan(remote: remote, local: local).isEmpty)
     }

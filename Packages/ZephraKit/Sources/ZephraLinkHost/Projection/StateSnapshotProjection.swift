@@ -15,7 +15,7 @@ public enum StateSnapshotProjection {
     public static func snapshot(
         store: GenerationStore, index: LibraryIndex, hostName: String
     ) -> StateSnapshot {
-        StateSnapshot(
+        var snapshot = StateSnapshot(
             hostName: hostName,
             model: ModelSummary(store.descriptor),
             models: ModelCatalog.all.map(ModelSummary.init),
@@ -30,5 +30,7 @@ public enum StateSnapshotProjection {
                 running: store.running),
             libraryCount: LibraryEntryProjection.listing(index.items).count,
             acceptsWork: store.acceptsWork)
+        snapshot.multiHost = true
+        return snapshot
     }
 }

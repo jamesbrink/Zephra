@@ -62,8 +62,10 @@ extension GenerationStore {
     /// `generate(count:)` plans it, so no backend is asked for more frames than it runs.
     @discardableResult
     public func enqueue(
-        _ settings: GenerationSettings, on model: ModelDescriptor, count: Int = 1
+        _ settings: GenerationSettings, on model: ModelDescriptor, count: Int = 1,
+        batchID: UUID = UUID(), requiresInstalledModel: Bool = false
     ) -> UUID? {
+        if requiresInstalledModel, strictRefusal(for: model, settings: settings, count: count) != nil { return nil }
         let admission = remoteAdmission(for: model, settings: settings, count: count)
         guard case .admitted = admission else {
             // A submit that did nothing says so in `make logs`, the way a refused press of
@@ -75,7 +77,7 @@ extension GenerationStore {
         var first = settings
         first.frames = segments[0]
         let request = model.capabilities.clamp(first)
-        let batch = UUID()
+        let batch = batchID
         let expanded = BatchExpansion.expand(request, count: count) { .random(in: .min ... .max) }
         for (index, settings) in expanded.enumerated() {
             queue.append(
@@ -84,7 +86,8 @@ extension GenerationStore {
                     settings: settings,
                     batchID: batch,
                     batchIndex: index,
-                    chain: startChain(segments: segments, continuation: request.continuation)
+                    chain: startChain(segments: segments, continuation: request.continuation),
+                    requiresInstalledModel: requiresInstalledModel
                 )
             )
         }

@@ -17,7 +17,7 @@ struct DeleteButton: View {
 
     var body: some View {
         Button(title, systemImage: "trash", role: .destructive) { confirm(entry) }
-            .disabled(!catalog.isLive)
+            .disabled(!catalog.isLive(for: entry))
     }
 
     private var title: String { entry.isVideo ? "Delete Clip" : "Delete Picture" }

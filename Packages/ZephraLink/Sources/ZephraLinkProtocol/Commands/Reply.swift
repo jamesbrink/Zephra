@@ -6,6 +6,7 @@ import Foundation
 /// open and know it will close. A blob reply is the announcement only: the bytes follow as
 /// chunk frames under the id it names.
 public enum Reply: Hashable, Sendable {
+    case multiHost(MultiHostReply)
     /// It was done, and there is nothing to say about it.
     case ok
     /// The press of Generate was queued, under this run id.

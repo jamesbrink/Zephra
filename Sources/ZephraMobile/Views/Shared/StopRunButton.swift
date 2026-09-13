@@ -12,14 +12,18 @@ struct StopRunButton: View {
 
     var body: some View {
         Button {
-            Task { try? await client.cancel() }
+            let run = client.snapshot?.running?.id
+            Task {
+                if client.supportsMultiHost, let run { try? await client.cancelRun(run) }
+                else { try? await client.cancel() }
+            }
         } label: {
-            Image(systemName: "stop.circle.fill")
-                .font(.title3)
+            Label(client.supportsMultiHost ? "Stop Run" : "Stop All on Mac", systemImage: "stop.circle.fill")
+                .font(.callout)
         }
         .buttonStyle(.plain)
         .foregroundStyle(.secondary)
         .disabled(!client.connection.isLive)
-        .accessibilityLabel("Stop Generating")
+        .accessibilityLabel(client.supportsMultiHost ? "Stop Run on \(client.snapshot?.hostName ?? "Mac")" : "Stop All Work on \(client.snapshot?.hostName ?? "Mac")")
     }
 }

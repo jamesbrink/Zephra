@@ -25,6 +25,8 @@ name: Release
 # independent reasons a ship cannot start another ship.
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
     paths-ignore:
@@ -44,7 +46,7 @@ permissions:
 # One release at a time, and never cancelled: a run that is half-way through notarization
 # or has already uploaded a DMG must be allowed to finish writing what it started.
 concurrency:
-  group: release-main
+  group: release-${{ github.event.pull_request.number || 'main' }}
   cancel-in-progress: false
 
 env:
@@ -101,6 +103,9 @@ jobs:
       - name: Test ZephraKit
         run: make test
 
+      - name: Test the link protocol and client
+        run: swift test --package-path Packages/ZephraLink
+
       - name: Test the link relay
         run: make relay-test
 
@@ -118,6 +123,7 @@ jobs:
         run: make test-mlx
 
   mac-release:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     name: Notarize and publish the Mac app
     needs: gate
     runs-on: macos-26
@@ -223,6 +229,7 @@ jobs:
         run: security delete-keychain "$RUNNER_TEMP/zephra-signing.keychain-db" || true
 
   ios-testflight:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     name: Upload the companion to TestFlight
     needs: gate
     runs-on: macos-26
@@ -312,6 +319,7 @@ jobs:
         run: security delete-keychain "$RUNNER_TEMP/zephra-ios.keychain-db" || true
 
   relay-deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     name: Deploy the link relay
     needs: gate
     runs-on: ubuntu-latest
@@ -341,6 +349,7 @@ jobs:
         run: make relay-deploy RELAY_PROFILE=
 
   release-commit:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     name: Commit the release manifest
     needs: mac-release
     runs-on: ubuntu-latest

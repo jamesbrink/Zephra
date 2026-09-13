@@ -43,13 +43,15 @@ final class LinkSession {
     private let outbound: AsyncStream<Data>
     private let sink: AsyncStream<Data>.Continuation
     private var writer: Task<Void, Never>?
+    var queuedBytes = 0
+    var ended = false
 
     /// Opens a session over one road, with its writer already draining.
     init(road: any LinkConnection, kind: LinkRoad) {
         self.road = road
         self.kind = kind
         (outbound, sink) = AsyncStream.makeStream(bufferingPolicy: .unbounded)
-        writer = Self.writerTask(road: road, outbound: outbound)
+        writer = Self.writerTask(road: road, outbound: outbound, session: self)
     }
 
     /// Seals one frame and hands it to the writer, in one step.
@@ -58,7 +60,10 @@ final class LinkSession {
     /// exactly where a second caller could take the next counter and reach the socket first.
     func send(_ frame: Frame) throws {
         guard let channel else { throw LinkClientError.notConnected }
-        sink.yield(try channel.seal(frame))
+        guard !ended, queuedBytes < 8_388_608 else { throw LinkClientError.notConnected }
+        let bytes = try channel.seal(frame)
+        queuedBytes += bytes.count
+        sink.yield(bytes)
     }
 
     /// Hands one plaintext frame to whoever is waiting, or keeps it until someone is.
@@ -79,6 +84,7 @@ final class LinkSession {
 
     /// Stops everything this session holds.
     func end(_ error: any Error) async {
+        ended = true
         reader?.cancel()
         reader = nil
         peers?.cancel()
@@ -110,12 +116,13 @@ final class LinkSession {
     /// with what was in flight and what went wrong — a frame that left this phone and reached
     /// nobody is otherwise the quietest failure in the link.
     private static func writerTask(
-        road: any LinkConnection, outbound: AsyncStream<Data>
+        road: any LinkConnection, outbound: AsyncStream<Data>, session: LinkSession
     ) -> Task<Void, Never> {
         Task.detached(priority: .utility) {
             for await bytes in outbound {
                 do {
                     try await road.send(bytes)
+                    await session.sent(bytes.count)
                 } catch {
                     Self.logger.error(
                         """
@@ -125,6 +132,14 @@ final class LinkSession {
                 }
             }
         }
+    }
+
+    private func sent(_ count: Int) { queuedBytes -= count }
+
+    func capacity() async throws {
+        while queuedBytes >= 262_144 && !ended { try await Task.sleep(for: .milliseconds(5)) }
+        guard !ended else { throw LinkClientError.notConnected }
+        try Task.checkCancellation()
     }
 
     /// The log this session's writer uses, which runs off the main actor.

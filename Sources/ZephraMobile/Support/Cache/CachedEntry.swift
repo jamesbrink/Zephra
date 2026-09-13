@@ -13,6 +13,7 @@ import ZephraLinkProtocol
 /// The facts the surfaces need are lifted out as scalars, which is all a view ever reads.
 nonisolated struct CachedEntry: Codable, Hashable, Identifiable, Sendable {
     /// The entry exactly as the Mac published it.
+    let hostID: HostID?
     let entry: LibraryEntry
     /// Everything the search box matches against, folded once when the entry is taken in: the
     /// prompt, the tags, the seed and the model. Folding on every keystroke instead would be a
@@ -20,10 +21,11 @@ nonisolated struct CachedEntry: Codable, Hashable, Identifiable, Sendable {
     let searchKey: String
 
     /// The file's name is its identity, here as on the Mac and on the wire.
-    var id: String { entry.fileName }
+    var id: String { hostID.map { $0.rawValue + ":" + entry.fileName } ?? entry.fileName }
 
     /// Takes one entry into the cache.
-    init(_ entry: LibraryEntry) {
+    init(_ entry: LibraryEntry, hostID: HostID? = nil) {
+        self.hostID = hostID
         self.entry = entry
         searchKey = Self.key(for: entry)
     }
@@ -89,17 +91,26 @@ nonisolated struct CachedEntry: Codable, Hashable, Identifiable, Sendable {
         var changed = entry
         if let favourite { changed.annotation.isFavourite = favourite }
         if let tags { changed.annotation.tags = tags }
-        return CachedEntry(changed)
+        return CachedEntry(changed, hostID: hostID)
     }
 
     /// The cached file is the wire's JSON and nothing around it.
     init(from decoder: any Decoder) throws {
-        self.init(try LibraryEntry(from: decoder))
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if container.contains(.entry) {
+            self.init(try container.decode(LibraryEntry.self, forKey: .entry),
+                hostID: try container.decodeIfPresent(HostID.self, forKey: .hostID))
+        } else { self.init(try LibraryEntry(from: decoder)) }
     }
 
     func encode(to encoder: any Encoder) throws {
-        try entry.encode(to: encoder)
+        guard let hostID else { return try entry.encode(to: encoder) }
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(hostID, forKey: .hostID)
+        try container.encode(entry, forKey: .entry)
     }
+
+    private enum CodingKeys: String, CodingKey { case entry, hostID }
 
     /// Everything one entry is searched by, folded the way the Mac folds it: case and
     /// diacritics dropped, so "cafe" finds "Café" and "qwen" finds the model.

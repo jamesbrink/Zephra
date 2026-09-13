@@ -22,6 +22,10 @@ public final class GenerationStore {
     public internal(set) var descriptor: ModelDescriptor
     /// What is on disk for each known model, by descriptor id. Filled in at bootstrap and after
     /// every load; a model missing from the map has not been looked at yet.
+    public internal(set) var pendingOutputBatches: [UUID: UUID] = [:]
+    public internal(set) var savedBatchCounts: [UUID: Int] = [:]
+    var savedBatchOrder: [UUID] = []
+
     public internal(set) var availability: [ModelDescriptor.ID: ModelAvailability] = [:]
     /// Wall-clock time of the last completed generation.
     public internal(set) var lastDuration: Duration?

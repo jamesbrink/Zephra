@@ -55,8 +55,8 @@ Shared, by what a file actually touches:
                                                   relay's RelayConnection and RelayListener,
                                                   which serves one guest at a time
   ZephraLink/ZephraLinkClient      Foundation, Observation, ZephraLinkProtocol,
-                                                  ZephraLinkTransport — LinkClient, the one
-                                                  object the phone's views observe, over an
+                                                  ZephraLinkTransport — LinkClient, one
+                                                  host session the phone observes, over an
                                                   injected LinkRoads and LinkKeyStore;
                                                   Sources/ZephraMobile is what links it
   ZephraStyle                  SwiftUI, ZephraCore — the chrome both apps draw with:
@@ -290,3 +290,12 @@ rule is deliberately not linted at all — telling a stored property from a comp
 one or from a local inside a function needs the parser, and every regex tried for
 it flagged properties that were neither. A rule that cries wolf is worse than one
 a reviewer applies by eye.
+
+## Multi-host composition
+
+The iOS root owns `MobileWorkspace`, `HostConnections` and `GenerationDispatch`.
+Each `LinkClient` and child `LibraryCatalog` still has exactly one Mac owner.
+The root catalog aggregates host-qualified entries; destination selection never
+changes item ownership or the watched host. `HostSelection` is a pure policy in
+LinkClient; strict workload admission and durable receipts live on the Mac.
+See [Multi-host companion](multi-host.md) for the implemented contracts.

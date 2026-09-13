@@ -14,24 +14,24 @@ import ZephraStyle
 /// follows, and the draft takes the new model's schedule, so the controls under the prompt are
 /// the ones that model actually has.
 struct ModelMenu: View {
-    @Environment(LinkClient.self) private var client
+    @Environment(GenerationDispatch.self) private var dispatch
     @Environment(PromptDraft.self) private var draft
 
     var body: some View {
-        if let snapshot = client.snapshot {
+        if !dispatch.models.isEmpty {
             Menu {
-                ForEach(snapshot.models) { model in
+                AdoptHostSettings()
+                ForEach(dispatch.models) { model in
                     Button {
                         choose(model)
                     } label: {
-                        row(model, note: snapshot.availability[model.id]?.label)
+                        row(model, note: readiness(model.id))
                     }
-                    .disabled(snapshot.availability[model.id]?.isObtainable == false)
                 }
             } label: {
                 HStack(spacing: 6) {
                     ModelDot(draft.modelID)
-                    Text(current(in: snapshot)).font(.callout)
+                    Text(dispatch.models.first { $0.id == draft.modelID }?.label ?? "Choose Model").font(.callout)
                 }
             }
             .accessibilityLabel("Model")
@@ -47,14 +47,9 @@ struct ModelMenu: View {
         }
     }
 
-    /// What the button says: the model the draft names, as the Mac spells it.
-    private func current(in snapshot: StateSnapshot) -> String {
-        snapshot.models.first { $0.id == draft.modelID }?.label ?? snapshot.model.label
+    private func readiness(_ id: String) -> String {
+        let count = dispatch.hosts.hosts.filter { $0.preference.enabled && $0.client.connection.isLive && $0.client.snapshot?.availability[id]?.kind == .available }.count
+        return "Ready on \(count) Macs"
     }
-
-    private func choose(_ model: ModelSummary) {
-        guard model.id != draft.modelID else { return }
-        draft.choose(model)
-        Task { try? await client.switchModel(model.id) }
-    }
+    private func choose(_ model: ModelSummary) { draft.choose(model) }
 }

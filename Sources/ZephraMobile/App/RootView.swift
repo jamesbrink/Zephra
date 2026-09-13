@@ -6,7 +6,7 @@ import ZephraLinkClient
 /// A cover rather than a branch, so the tabs are built once and keep their state: pairing is
 /// something that happens in front of the app, not a different app.
 struct RootView: View {
-    @Environment(LinkClient.self) private var client
+    @Environment(HostConnections.self) private var hosts
     /// Which surface is up. It lives beside the client rather than in a `@State` here, because
     /// the library's "Use as Reference" moves it and cannot reach a state of this view's.
     @Environment(MobileSelection.self) private var selection
@@ -31,7 +31,7 @@ struct RootView: View {
         // Only once a Mac is paired: while the pairing screen is up it owns the link, so a
         // code that arrives as one is read and reported where the person is looking.
         .onOpenURL { url in
-            guard client.pairedHost != nil else { return }
+            guard !hosts.hosts.isEmpty else { return }
             repair(with: url.absoluteString)
         }
         .alert("That code could not be used", isPresented: alertIsUp) {
@@ -45,7 +45,7 @@ struct RootView: View {
     @ViewBuilder private func screen(_ surface: MobileTab) -> some View {
         switch surface {
         case .canvas: CanvasScreen()
-        case .today: TodayScreen()
+        case .today: CombinedToday()
         case .library: LibraryScreen()
         case .settings: SettingsScreen()
         }
@@ -54,7 +54,7 @@ struct RootView: View {
     /// Whether the pairing screen is up. Nothing but pairing takes it down, so the setter is
     /// deliberately empty: a swipe cannot dismiss a `fullScreenCover`, and no button here does.
     private var coverIsUp: Binding<Bool> {
-        Binding(get: { client.pairedHost == nil }, set: { _ in })
+        Binding(get: { hosts.hosts.isEmpty || hosts.isAdding }, set: { _ in })
     }
 
     /// Whether the failure alert is up, which is exactly whether there is a failure.
@@ -67,8 +67,8 @@ struct RootView: View {
         do {
             let payload = try PairingEntry.parse(text)
             Task {
-                do { try await client.pair(with: payload) } catch {
-                    failure = PairingEntry.message(for: error, connection: client.connection)
+                do { try await hosts.pair(payload) } catch {
+                    failure = PairingEntry.message(for: error, connection: hosts.pairing.connection)
                 }
             }
         } catch {

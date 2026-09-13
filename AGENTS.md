@@ -114,8 +114,8 @@ Shared, by what a file actually touches:
                                                   which routes the room's phones by the
                                                   guest id on every frame
   ZephraLink/ZephraLinkClient      Foundation, Observation, ZephraLinkProtocol,
-                                                  ZephraLinkTransport — LinkClient, the one
-                                                  object the phone's views observe, over an
+                                                  ZephraLinkTransport — LinkClient, one
+                                                  host session the phone observes, over an
                                                   injected LinkRoads and LinkKeyStore;
                                                   Sources/ZephraMobile is what links it
   ZephraMLXKit/ZephraMLX           MLX, MLXNN, ZephraCore — the packed loader, the manifest
@@ -850,60 +850,39 @@ US-spelling check.
   where the Mac's `AppearanceApplier` has to reach for `NSApplication.appearance`
   instead. `AppearanceMode` itself lives in `ZephraStyle`, since both apps read
   one preference and draw it their own way.
-- `LinkClient` is the one type a view may read the Mac through, taken from
-  `@Environment(LinkClient.self)`: `pairedHost` is the whole pairing decision,
-  and `snapshot`, `library`, `preview` and `connection` are the rest. A
-  `revoked` frame, or `notPaired` from the Mac this phone is paired with, makes
-  the client forget the Mac and set `farewell`, which the pairing screen shows;
-  the Mac's refusal itself stays one plain sentence. **Only the Mac's own
-  handshake unpairs.** The relay's `not allowed` on a reconnect is
-  `LinkClientError.notAdmitted`, which reads as unreachable and is retried: that
-  list is one the Mac wrote and a Mac that has just restarted is a beat behind
-  it, so a phone that forgot its Mac over it would need a new code for a pairing
-  nobody withdrew. `connectRelay(room:pairing:)` is where the two part;
-  `pair(with:)` keeps the refusal a person reading a code is owed. A view that
-  holds a fact of its own that came over the link is a view that can disagree
-  with the Mac.
-- `ZephraMobileApp` is the only file that knows how a Mac is reached: it builds
-  the one client over `MobileKeychain` (`LinkKeyStore` on two generic passwords
-  under `io.zephra.link`, after first unlock and this device only) and
-  `NetworkLinkRoads`, and `LinkReconnect` (`Support/`, `@Observable` and injected
-  beside the client, nil under a frozen state) drives it — `begin()` on
-  `scenePhase == .active`, `end()` on `.background`, and `LinkBackoff`
-  between a failure or a dropped session and the next attempt, while active.
-  One attempt is `LocalRoadRace` — every stored address and Bonjour match in
-  the room dialled at once inside `LinkClient.lanWindow` (3 s), first to open
-  taken — then the relay; `pair(with:)` is the same with the code's secret, and
-  `PairingProgress` shows the road in progress. The wait is said out loud:
-  `markWaiting(until:)` puts the client in
-  `LinkConnectionState.waiting(reason:until:)`, which keeps the failure's
-  sentence and carries the moment `nextAttemptAt` counts down to, Settings draws
-  with `Text(timerInterval:)` (never a repeating animation) beside Retry Now, and
-  `retryNow()` skips. `end()` and `retryNow()` leave what they cancelled on
-  `settling`, which `begin()` reads once and hands to the loop it makes — read
-  inside the loop instead, it would wait on the task that is waiting for it:
-  two loops are two roads to one Mac. A loop that stops itself — no
-  Mac paired — clears `task`, and the root's `onChange` of `pairedHost` starts
-  one when a phone pairs in the foreground it launched in.
-  `LinkPathWatch` (`Support/`) is the `NWPathMonitor` beside it, started and
-  stopped with the loop: `reaction(from:to:isLive:)` is pure and answers
-  `retryNow()` for a new path with nothing connected and `LinkClient.probe()`
-  for one under a live session, which pings and ends the session after
-  `probeTimeout` (5 s) unanswered; reports are drained in order by one task and
-  anything inside `coalesce` (1 s) of the last action is ignored, since a
-  handover is several reports and one change — a phone that left Wi-Fi keeps a socket that
-  delivers nothing and tells neither end.
+- `LinkClient` remains one authenticated Mac session. `MobileWorkspace` builds
+  `HostConnections`, with one host-scoped `HostKeyStore`, client, reconnect loop
+  and `LibraryCatalog` child per Mac. The root catalog combines their entries.
+  Every item identity is host fingerprint plus filename; mutations and media
+  fetches resolve its owner, never the watched client. Up to eight enabled Macs
+  connect while active. `PairedHosts` serializes Keychain collection writes and
+  fails closed on unreadable identity/pairing data. Legacy cache rows stay
+  quarantined until verified against a complete host listing.
+- `GenerationDispatch` owns Auto/manual destination and durable submissions;
+  `HostConnections.watched` is independent presentation state. Auto uses fresh
+  host offers for the exact model/settings, installed-only execution, and a
+  durable host receipt before any work can be queued. Unknown outcomes stay
+  assigned to their original host and are reconciled, never rerouted. New Macs
+  advertise optional `multiHost`; new commands are sent only after that flag.
+  Existing phones keep their legacy commands and publications.
+- Shared resources are one `BonjourBrowser` with independent multicast streams,
+  one `HostsPathWatch`, one outbound relay cadence, two incoming bulk transfers
+  globally and one per client, and one 256 MiB aggregate blob budget. Each host
+  retains independent channel counters and reconnect state. Backoff adds up to
+  350 ms jitter. Only the watched modern host sends previews; the Mac's bounded
+  bulk producer leaves incoming controls responsive. Background closes sessions,
+  while accepted jobs keep running on the Mac.
+- `cancelRun` is host/run-specific and preserves unrelated queued work. Legacy
+  Stop is labeled host-wide. Explicit model loading in a host's settings may
+  download/build; Auto cannot. Receipts account for pending output writes before
+  declaring interruption. Details and validation: `docs/multi-host.md`.
 - `PromptDraft` (`Support/`) is the phone's capsule: the settings, the model, the
   picture in the well and the seeds one press is worth, injected beside the
   client and the one object here holding something the Mac did not say. It seeds
-  itself from the **first** snapshot only, and then follows a run the Mac starts
-  (`follow`, `PromptDraft+FollowingRun`) the way the Mac's own capsule follows
-  the run: the running row's `settings` and `modelID` land in the capsule, the
-  well emptied, **only while the draft is untouched** — its prompt empty or the
-  last one it followed or sent (`followedPrompt`, set by `follow` and by
-  `noteSubmitted` once the Mac answers `queued`). A prompt somebody typed on the
-  phone is never written over; `DraftFollowsMac` is the one modifier that calls
-  both. A press is `submission(clampedBy:randomizingSeed:)`
+  itself from the **first** snapshot only. Later host runs never replace the
+  phone's draft automatically. `AdoptHostSettings` explicitly copies the watched
+  run when requested; `DraftFollowsMac` only seeds the initial defaults.
+  A press is `submission(clampedBy:randomizingSeed:)`
   (`PromptDraft+Submission`), which picks a fresh seed **before** the clamp and
   writes it back into the draft, so the capsule shows the seed that went; the
   flag is `MobileSettings.randomizeSeedEachRun`, read in `GenerateButton`'s
@@ -1403,6 +1382,9 @@ ship and not before, because the shipped app matches the mirror index's
 manifest path and nothing else, commits it naming the build, and pushes the
 current branch; a re-run with nothing changed stops rather than committing.
 
+Pull requests run the fast Gates job, including ZephraLink tests, without any
+publication jobs. Every publication job requires a non-PR event on main.
+
 **CI ships main.** `.github/workflows/release.yml` runs on every push to `main`
 and does the whole of a ship with no manual step: `gate`, then `mac-release`
 (`make publish-release`), `ios-testflight` (`make testflight`, the watch and the
@@ -1411,7 +1393,7 @@ attach) and `relay-deploy` (`make relay-deploy`) in parallel, then
 path are one path. The version is still `0.1.0` and the build number is still the
 UTC minute — computed once in `gate` and handed to the Mac and the phone alike,
 so one push is one build number everywhere. Two tiers of gate: every push runs
-`doctor`, `lint-layers`, `test`, `relay-test` and `test-ios`; `test-app` and
+`doctor`, `lint-layers`, `test`, the ZephraLink package tests, `relay-test` and `test-ios`; `test-app` and
 `test-mlx` are an hour of Metal and run only under `workflow_dispatch` with
 `full_gates: true` — locally before every merge as always. A push touching only
 `docs/**`, any `.md`, or `product-mockups/**` ships nothing, and

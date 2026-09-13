@@ -19,6 +19,11 @@ extension LinkClient {
     /// the answer to a request that asked to carry on. The file is the same file and its
     /// `byteCount` is the whole of it either way; only the chunks are a tail.
     func announce(_ start: BlobStart, wanted: Bool = false, resuming: BlobResumption? = nil) {
+        guard let byteCount = Int(exactly: start.byteCount),
+              blobBudget.reserve(owner: transferOwner, blob: start.blobID, bytes: byteCount) else {
+            fail(start.blobID, with: LinkClientError.tooManyTransfers)
+            return
+        }
         if let resuming, resuming.byteCount == start.byteCount {
             blobs[start.blobID] = BlobReassembly(
                 blobID: start.blobID, byteCount: start.byteCount, resuming: resuming.bytes,
@@ -88,7 +93,12 @@ extension LinkClient {
     /// throws away everything in flight, and a caller that reached its `await` a moment later
     /// would otherwise sit on a continuation nobody can resume until the blob timeout.
     func blob(_ id: UUID) async throws -> Data {
-        if let whole = arrivedBlobs.removeValue(forKey: id) { return whole }
+        if let whole = arrivedBlobs.removeValue(forKey: id) {
+            blobBudget.release(owner: transferOwner, blob: id)
+            timers.removeValue(forKey: id)?.cancel()
+            blobOrder.removeAll { $0 == id }
+            return whole
+        }
         guard blobs[id] != nil else { throw LinkClientError.lost }
         return try await withCheckedThrowingContinuation { continuation in
             blobWaiters[id] = continuation
@@ -102,10 +112,13 @@ extension LinkClient {
     ///
     /// The announcement first for the reason the Mac sends one: the far end can refuse a blob
     /// it does not want before any of it is read.
-    func sendBlob(_ bytes: Data, mime: String) throws -> UUID {
+    func sendBlob(_ bytes: Data, mime: String) async throws -> UUID {
+        guard bytes.count <= 16_777_216, let owner = session else { throw LinkClientError.tooManyTransfers }
         let start = BlobStart(byteCount: bytes.count, mime: mime)
         try send(.envelope(try Envelope.encoding(start, kind: .blobStart)))
         for chunk in BlobChunker.chunks(of: bytes, blobID: start.blobID) {
+            try await owner.capacity()
+            guard session === owner else { throw LinkClientError.notConnected }
             try send(.chunk(chunk))
         }
         return start.blobID
@@ -118,9 +131,15 @@ extension LinkClient {
         wantedBlobs.remove(id)
         timers.removeValue(forKey: id)?.cancel()
         if let waiter = blobWaiters.removeValue(forKey: id) {
+            blobBudget.release(owner: transferOwner, blob: id)
             waiter.resume(returning: whole)
         } else {
             arrivedBlobs[id] = whole
+            blobOrder.append(id)
+            timers[id] = expire(id, after: LinkClient.blobIdleTimeout)
+            while blobOrder.count > LinkClient.blobLimit {
+                fail(blobOrder.removeFirst(), with: LinkClientError.tooManyTransfers)
+            }
         }
     }
 }

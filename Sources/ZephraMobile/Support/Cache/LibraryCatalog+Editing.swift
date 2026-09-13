@@ -16,7 +16,13 @@ extension LibraryCatalog {
     /// Marks pictures as favorites, or unmarks them.
     @discardableResult
     func setFavourite(_ names: [String], on: Bool) async -> Bool {
-        await edit(names, changing: { $0.annotated(favourite: on) }) { client in
+        if !children.isEmpty {
+            var success = true
+            for (child, names) in partition(names) { if !(await child.setFavourite(names, on: on)) { success = false } }
+            return success
+        }
+        let names = names.compactMap { entry(named: $0)?.fileName }
+        return await edit(names, changing: { $0.annotated(favourite: on) }) { client in
             try await client.setFavourite(names: names, on: on)
         }
     }
@@ -24,7 +30,13 @@ extension LibraryCatalog {
     /// Replaces the tags on pictures.
     @discardableResult
     func setTags(_ names: [String], tags: [String]) async -> Bool {
-        await edit(names, changing: { $0.annotated(tags: tags) }) { client in
+        if !children.isEmpty {
+            var success = true
+            for (child, names) in partition(names) { if !(await child.setTags(names, tags: tags)) { success = false } }
+            return success
+        }
+        let names = names.compactMap { entry(named: $0)?.fileName }
+        return await edit(names, changing: { $0.annotated(tags: tags) }) { client in
             try await client.setTags(names: names, tags: tags)
         }
     }
@@ -37,19 +49,35 @@ extension LibraryCatalog {
     /// budget sweeps them up in its own time rather than this having to find them.
     @discardableResult
     func delete(_ names: [String]) async -> Bool {
+        if !children.isEmpty {
+            var success = true
+            for (child, names) in partition(names) { if !(await child.delete(names)) { success = false } }
+            return success
+        }
         guard let client, isLive else { return false }
+        let names = names.compactMap { entry(named: $0)?.fileName }
+        operations += 1
+        defer { operations -= 1 }
+        let generation = epoch
+        let remoteBefore = client.library
         let gone = Set(names)
         let removed = entries.filter { gone.contains($0.fileName) }
         guard !removed.isEmpty else { return false }
         publish(entries.filter { !gone.contains($0.fileName) })
         do {
             try await client.delete(names)
+            guard generation == epoch else { return false }
             await entryStore.remove(names)
             await measureCache()
             return true
         } catch {
             logger.notice("The Mac would not delete: \(error.localizedDescription)")
-            publish(entries + removed)
+            guard generation == epoch else { return false }
+            let existing = Set(entries.map(\.fileName))
+            publish(entries + removed.filter { entry in
+                !existing.contains(entry.fileName) && client.library.first { $0.fileName == entry.fileName }
+                    == remoteBefore.first { $0.fileName == entry.fileName }
+            })
             return false
         }
     }
@@ -61,16 +89,25 @@ extension LibraryCatalog {
         sending: (LinkClient) async throws -> Void
     ) async -> Bool {
         guard let client, isLive else { return false }
+        operations += 1
+        defer { operations -= 1 }
+        let generation = epoch
         let touched = Set(names)
-        let before = entries
+        let before = entries.filter { touched.contains($0.fileName) }
         publish(entries.map { touched.contains($0.fileName) ? changing($0) : $0 })
         do {
             try await sending(client)
+            guard generation == epoch else { return false }
             await entryStore.save(entries.filter { touched.contains($0.fileName) })
             return true
         } catch {
             logger.notice("The Mac would not take an edit: \(error.localizedDescription)")
-            publish(before)
+            guard generation == epoch else { return false }
+            let prior = Dictionary(before.map { ($0.fileName, $0) }, uniquingKeysWith: { first, _ in first })
+            publish(entries.map { entry in
+                guard let original = prior[entry.fileName], entry == changing(original) else { return entry }
+                return original
+            })
             return false
         }
     }

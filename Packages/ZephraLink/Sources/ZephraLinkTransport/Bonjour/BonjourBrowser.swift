@@ -8,35 +8,54 @@ import ZephraLinkProtocol
 /// set is small, a phone draws the list it is given, and a diff the caller has to fold back
 /// into a list is work with nothing to show for it.
 public final class BonjourBrowser: @unchecked Sendable {
-    private let browser: NWBrowser
+    private var browser: NWBrowser?
     private let queue = DispatchQueue(label: "io.zephra.link.browser")
-    private let stream: AsyncStream<[DiscoveredHost]>
-    private let continuation: AsyncStream<[DiscoveredHost]>.Continuation
+    private let lock = NSLock()
+    private var subscribers: [UUID: AsyncStream<[DiscoveredHost]>.Continuation] = [:]
+    private var latest: [DiscoveredHost] = []
 
-    /// A browser for `_zephra._tcp`, which starts on the first call to `results()`.
-    public init() {
-        browser = NWBrowser(
-            for: .bonjourWithTXTRecord(type: BonjourRecord.type, domain: nil),
-            using: .tcp)
-        (stream, continuation) = AsyncStream.makeStream()
-        browser.browseResultsChangedHandler = { [weak self] results, _ in
-            self?.continuation.yield(results.compactMap(Self.host))
-        }
-        browser.stateUpdateHandler = { [weak self] state in
-            if case .failed = state { self?.continuation.finish() }
-        }
-    }
+    public init() {}
 
-    /// The Macs on the network, as the list changes.
+    /// Each subscriber gets its own stream. One phone shares one discovery session.
     public func results() -> AsyncStream<[DiscoveredHost]> {
-        browser.start(queue: queue)
-        return stream
+        let id = UUID()
+        return AsyncStream(bufferingPolicy: .bufferingNewest(1)) { sink in
+            lock.withLock {
+                subscribers[id] = sink
+                sink.yield(latest)
+                if browser == nil {
+                    let browser = NWBrowser(for: .bonjourWithTXTRecord(type: BonjourRecord.type, domain: nil), using: .tcp)
+                    browser.browseResultsChangedHandler = { [weak self] results, _ in
+                        self?.publish(results.compactMap(Self.host))
+                    }
+                    self.browser = browser
+                    browser.start(queue: queue)
+                }
+            }
+            sink.onTermination = { [weak self] _ in self?.remove(id) }
+        }
     }
 
-    /// Stops looking.
+    private func publish(_ hosts: [DiscoveredHost]) {
+        lock.withLock {
+            latest = hosts
+            for sink in subscribers.values { sink.yield(hosts) }
+        }
+    }
+    private func remove(_ id: UUID) {
+        lock.withLock {
+            subscribers[id] = nil
+            if subscribers.isEmpty { browser?.cancel(); browser = nil; latest = [] }
+        }
+    }
     public func stop() {
-        browser.cancel()
-        continuation.finish()
+        let sinks = lock.withLock {
+            browser?.cancel(); browser = nil; latest = []
+            let sinks = Array(subscribers.values)
+            subscribers = [:]
+            return sinks
+        }
+        for sink in sinks { sink.finish() }
     }
 
     /// A road to one of them, connected and ready.

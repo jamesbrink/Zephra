@@ -34,8 +34,8 @@ struct LibraryViewer: View {
                 ForEach(entries) { entry in
                     ViewerPicture(entry: entry)
                         .containerRelativeFrame(.horizontal)
-                        .environment(\.viewerPageIsCurrent, entry.fileName == pose.current)
-                        .id(entry.fileName)
+                        .environment(\.viewerPageIsCurrent, entry.id == pose.current)
+                        .id(entry.id)
                 }
             }
             .scrollTargetLayout()
@@ -62,7 +62,7 @@ struct LibraryViewer: View {
 
     /// The picture on screen, or nil once the last one has been deleted.
     private var shown: CachedEntry? {
-        entries.first { $0.fileName == pose.current } ?? entries.first
+        entries.first { $0.id == pose.current } ?? entries.first
     }
 
     /// A strip of controls that a tap on the picture puts away and another brings back.
@@ -87,7 +87,7 @@ struct LibraryViewer: View {
 
 #Preview("Viewer") {
     LibraryViewer(
-        entries: MobilePreview.library().map(CachedEntry.init),
+        entries: MobilePreview.library().map { CachedEntry($0) },
         opening: MobilePreview.library()[0].fileName
     )
     .environment(LibraryCatalog(libraryRoot: nil, filesRoot: nil))

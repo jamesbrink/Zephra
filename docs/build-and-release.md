@@ -776,3 +776,10 @@ close over — it fails a load, delays one so cancellation lands mid-flight,
 pretends to build, tallies loads, unloads and builds, and records the last
 settings a generation was asked for — while `EngineTestBed` gives each test a
 throwaway output folder. `ZephraCoreTests` uses the smaller `StubBackend`.
+
+### Pull request gates
+
+`release.yml` also runs its fast Gates job on pull requests to main, including
+ZephraLink protocol/client tests. Every publication job requires a non-PR event
+and `refs/heads/main`. PR validation cannot upload a Mac app, TestFlight build
+or relay artifact. Full local app/MLX gates remain required before merge.

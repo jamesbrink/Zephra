@@ -23,7 +23,7 @@ struct ReferencePickerSheet: View {
                 LazyVGrid(columns: Self.columns, spacing: 8) {
                     ForEach(catalog.entries) { entry in
                         Button {
-                            reference.use(entry.fileName)
+                            reference.use(entry.id)
                             dismiss()
                         } label: {
                             EntryThumbnail(entry: entry)

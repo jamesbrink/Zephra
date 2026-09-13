@@ -10,7 +10,7 @@ extension CompanionSession {
     /// A blob the phone is about to send. Replaces whatever was arriving: a phone that abandons
     /// a transfer half way and starts another is a phone whose first picture nobody wants.
     func begin(_ start: BlobStart) throws {
-        guard start.byteCount <= BlobReassembly.byteCap else {
+        guard start.byteCount <= 16_777_216 else {
             throw LinkError(code: .badRequest, reason: "That picture is larger than this link allows.")
         }
         incomingID = start.blobID
@@ -46,11 +46,12 @@ extension CompanionSession {
     /// bytes are read from the same file either way, so the command stays safe to repeat. A
     /// `from` past the end is a file that has changed underneath the asker, and sends the whole
     /// thing.
-    func sendBlob(_ data: Data, mime: String, to request: UUID, from: UInt32 = 0) throws {
+    func sendBlob(_ data: Data, mime: String, to request: UUID, from: UInt32 = 0) async throws {
         let start = BlobStart(byteCount: data.count, mime: mime)
         let chunks = BlobChunker.chunks(of: data, blobID: start.blobID)
         try reply(.blob(start), to: request)
         for chunk in chunks.dropFirst(Int(from) < chunks.count ? Int(from) : 0) {
+            try await capacity()
             try send(.chunk(chunk))
         }
     }

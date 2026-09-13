@@ -16,7 +16,7 @@ extension CompanionHostTests {
     @Test("a phone that connects mid-run is told it may still queue one")
     func theSnapshotSaysAnotherMayBeQueued() async throws {
         let bed = CompanionTestBed()
-        bed.engine.control.update { $0.stepDelay = .milliseconds(20) }
+        bed.engine.control.update { $0.stepDelay = .milliseconds(100) }
         await bed.bootstrap()
         bed.store.settings.prompt = "a lighthouse"
         bed.store.settings.steps = 8
@@ -38,7 +38,7 @@ extension CompanionHostTests {
     @Test("a run starting is published as a state another may be queued behind")
     func theDeltaSaysAnotherMayBeQueued() async throws {
         let bed = CompanionTestBed()
-        bed.engine.control.update { $0.stepDelay = .milliseconds(20) }
+        bed.engine.control.update { $0.stepDelay = .milliseconds(100) }
         await bed.bootstrap()
         let phone = try await bed.pairedPhone()
         var state = try await phone.snapshot()

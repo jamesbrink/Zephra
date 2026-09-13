@@ -48,7 +48,7 @@ struct TagSheet: View {
     /// Sends the list. The catalog puts the tags on screen at once and takes them off again if
     /// the Mac refuses, so nothing here waits for an answer.
     private func save() {
-        Task { await catalog.setTags([entry.fileName], tags: tags) }
+        Task { await catalog.setTags([entry.id], tags: tags) }
     }
 }
 
