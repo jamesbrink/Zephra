@@ -449,6 +449,13 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
 - **Streaming klein and Z-Image.** Both 4-bit variants fit a 16 GB Mac, so their
   `streamedPeakBytes` stays zero and the policy never asks. The transformer loops
   are the same shape as Qwen-Image's; an 8 GB Mac would be the argument.
+- **A run estimate measured at more than one size.** `MemoryGuard.runShortfall`
+  scales the measured transient — the peak less the weights — linearly with pixels
+  times frames from each model's own default size, which is honest at that size and
+  optimistic a long way from it. A second measured size per family is what would
+  replace the arithmetic with a reading. The guard also does not cover upscales:
+  `GenerationStore+Upscale` runs a tiled network whose peak is set by the tile, and
+  nothing about it is charged against the machine.
 - **Prefetching block 0 of the next step during the decode**, a small win that needs
   a "last step" flag through the transformer; **per-block cancellation** is in, but
   the text encoder's pass still stops only at its end; a **custom `mlx_io_reader`**
