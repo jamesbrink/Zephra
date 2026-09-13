@@ -8,8 +8,15 @@ public protocol InferenceRuntime: Sendable {
     /// Caps the memory the allocator keeps for reuse between allocations. Takes effect at once.
     func setCacheLimit(bytes: Int)
 
-    /// Caps what the allocator may hold in total, so a run that would page fails instead.
+    /// Caps what the allocator may hold in total. MLX trims its cache past this rather than
+    /// refusing an allocation, so a run over it pages, which is what `MemoryGuard` exists to
+    /// stop: the limit is a hint about reuse, never a refusal.
     func setMemoryLimit(bytes: Int)
+
+    /// Hands the allocator's cache back to the system now, rather than when it next needs the
+    /// room. Called as a model is unloaded: the bytes a released model left in the cache are
+    /// bytes the next load's own reading would otherwise see as taken.
+    func releaseCache()
 
     /// Caps what the allocator keeps wired — resident and neither compressed nor swapped —
     /// which is how a model that fits the GPU's working set stays in it. Never above what
@@ -48,6 +55,10 @@ public protocol InferenceRuntime: Sendable {
 extension InferenceRuntime {
     /// A runtime with nothing to wire ignores the limit.
     public func setWiredLimit(bytes: Int) {}
+
+    /// A runtime that keeps no cache of its own has nothing to hand back. Every runtime over a
+    /// real allocator overrides this; the default is for the stubs and the bench's no-op.
+    public func releaseCache() {}
 
     /// A runtime without a GPU has no working set to report.
     public func gpuWorkingSetBytes() -> UInt64? { nil }

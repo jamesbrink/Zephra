@@ -52,11 +52,11 @@ in `Sources/ZephraBench` so `--model` can name it, and the family lists in
 `make lint-layers`, which name every family by hand and lint nothing they do
 not name.
 
-A saved choice that is no longer on the disk — a local build deleted from
-Settings > Models, or a preference carried to a Mac that never made it — is not
-loaded into a failure: `bootstrap` reads availability first and
-`GenerationStore.fallBackIfUnobtainable()` steps onto the first model this Mac
-can run and does have. A model that merely needs a download is kept, since
+A saved choice this Mac cannot run — a local build deleted from
+Settings > Models, a preference carried to a Mac that never made it, or a model
+this Mac has not the memory to hold — is not loaded into a failure: `bootstrap`
+reads availability first and `GenerationStore.fallBackIfUnrunnable()` steps onto
+the first model this Mac can run and does have. A model that merely needs a download is kept, since
 choosing it chose the download. The chosen model is persisted from the
 composition root's `onChange` of `store.rememberedModel`, not by the menu, so
 the model the engine stepped onto is the one the next launch opens on — and a

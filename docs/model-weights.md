@@ -204,8 +204,8 @@ tiled; `MemoryFit` tries it after `fitsTiled` and before giving up, and answers
 `fitsStreamed`, which the picker words "Streams from disk".
 `WeightResidencyPolicy` turns the Performance tab's three-way preference
 (`AppSettings.weightResidency`) and the budget into a `WeightResidency` for a
-load — under Automatic, streamed exactly when the verdict is `fitsStreamed`, and
-never for a model with no streamed figure, which is how klein and Z-Image are
+load — under Automatic, streamed whenever the model does not fit resident,
+`.tight` included, and never for a model with no streamed figure, which is how klein and Z-Image are
 never asked to. The residency rides on
 `ImageGenerationBackend.load(_:at:residency:onProgress:)`; `InferenceActor` pins
 it beside `loadedPath`, so asking for a model already up the other way is a

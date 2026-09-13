@@ -46,6 +46,12 @@ extension GenerationStore {
         if let request = badRequest(model, settings, count) { return .badRequest(request) }
         if let busy = busyReason { return .busy(busy) }
         guard acceptsQueuedGeneration else { return .refused(state.remoteRefusal) }
+        // What the Mac has free this minute is worth asking again in a moment, so a run this
+        // machine has not the memory for right now is `refused` rather than a bad request.
+        // Only with settings in hand: without them there is no size and no length to charge.
+        if let settings, let shortfall = runShortfall(for: model, settings: settings) {
+            return .refused(shortfall.sentence)
+        }
         return .admitted
     }
 
@@ -110,6 +116,10 @@ extension GenerationStore {
             return "Ask for between 1 and \(Self.batchLimit) images at a time."
         }
         if let settings, !settings.isReadyToGenerate { return "Write a prompt first." }
+        // A model this Mac cannot hold is greyed on the phone too, and asking for one is a
+        // request no wait will make runnable: it is the request that is wrong, not the moment.
+        // After the prompt, so a phone with nothing typed hears about the prompt.
+        if let shortfall = staticShortfall(for: model) { return shortfall.sentence }
         return nil
     }
 

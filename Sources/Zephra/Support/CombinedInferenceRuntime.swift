@@ -60,6 +60,10 @@ struct CombinedInferenceRuntime: InferenceRuntime {
         runtimes.first?.isM5ClassGPU() ?? false
     }
 
+    func releaseCache() {
+        runtimes.first?.releaseCache()
+    }
+
     func memorySnapshot() -> MemorySnapshot {
         runtimes.first?.memorySnapshot() ?? MemorySnapshot(
             activeBytes: 0, cacheBytes: 0, peakBytes: 0)

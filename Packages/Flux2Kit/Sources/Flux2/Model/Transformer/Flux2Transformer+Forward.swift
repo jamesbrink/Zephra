@@ -6,6 +6,9 @@ import ZephraMLX
 extension Flux2Transformer {
     /// Predicts the flow for one step.
     ///
+    /// Throws only when streaming: a shard that changed under the model, or a cancellation
+    /// answered between blocks.
+    ///
     /// - Parameters:
     ///   - latents: Packed patch tokens, `[batch, imageTokens, inChannels]`. When editing, this
     ///     is the target's tokens followed by each reference image's.
@@ -22,7 +25,7 @@ extension Flux2Transformer {
         timestep: MLXArray,
         frequencies: RotaryFrequencies,
         textLength: Int
-    ) -> MLXArray {
+    ) throws -> MLXArray {
         // The timestep is rounded to the stream's dtype before anything reads it, and the
         // float32 sinusoid is cast back to that dtype before the MLP — the two casts the
         // reference makes, in its order, so under bfloat16 the sinusoid sees 768 for 0.77 the
@@ -42,7 +45,7 @@ extension Flux2Transformer {
         var image = imageInput(latents)
         var textStream = textInput(text)
 
-        for block in doubleBlocks {
+        let double = { (block: Flux2DoubleBlock) in
             (image, textStream) = block(
                 image: image,
                 text: textStream,
@@ -50,11 +53,31 @@ extension Flux2Transformer {
                 textModulation: textParameters,
                 frequencies: frequencies)
         }
+        if let doubleStream {
+            // A streamed step is tens of seconds on the Mac that needs it, so a stop is
+            // answered between blocks rather than at the step's end.
+            try doubleStream.run { block in
+                try Task.checkCancellation()
+                double(block)
+                return [image, textStream]
+            }
+        } else {
+            for block in doubleBlocks { double(block) }
+        }
 
         // Text first, matching the order the rotary table was built in.
         var hidden = MLX.concatenated([textStream, image], axis: 1)
-        for block in singleBlocks {
+        let single = { (block: Flux2SingleBlock) in
             hidden = block(hidden, modulation: singleParameters, frequencies: frequencies)
+        }
+        if let singleStream {
+            try singleStream.run { block in
+                try Task.checkCancellation()
+                single(block)
+                return [hidden]
+            }
+        } else {
+            for block in singleBlocks { single(block) }
         }
 
         return output(outputNorm(hidden[0..., textLength...], conditioning: conditioning))

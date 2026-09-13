@@ -47,7 +47,19 @@ struct WeightResidencyControl: View {
                 + "holding all of it. Slower on a Mac that could hold the model; the only way to "
                 + "run it on one that cannot. Automatic streams only when this Mac would "
                 + "otherwise page.",
-            model.fullName, held, streamed)
+            model.fullName, held, streamed) + neverNote
+    }
+
+    /// What Never means for a model this Mac can only hold streamed: not a slower load but no
+    /// load at all. The guard refuses it before the weights are read rather than letting Metal
+    /// find out, and the sentence it refuses with sends the person back to this picker, so the
+    /// picker says so first.
+    private var neverNote: String {
+        guard mode == .never,
+            !ModelCatalog.fit(store.descriptor, budget: store.memoryBudget).fitsResident
+        else { return "" }
+        return " Never holds \(store.descriptor.fullName) in memory whatever this Mac has, "
+            + "which it cannot do here: the load is refused rather than left to page."
     }
 
     private func apply() {

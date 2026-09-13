@@ -1,6 +1,7 @@
 import Foundation
 import MLX
 import MLXNN
+import ZephraMLX
 
 /// The Qwen3 decoder stack: embeddings and layers, and deliberately nothing after them.
 ///
@@ -11,6 +12,9 @@ import MLXNN
 final class Qwen3Model: Module {
     @ModuleInfo(key: "embed_tokens") var embedTokens: Embedding
     @ModuleInfo(key: "layers") var layers: [Qwen3DecoderLayer]
+
+    /// Set when the layers' weights are read from disk on each pass rather than held.
+    var stream: LayerWeightStream<Qwen3DecoderLayer>?
 
     /// Builds the stack `configuration.layersNeeded` layers deep -- 27, not the 36 the config's
     /// `num_hidden_layers` reports.
@@ -49,16 +53,32 @@ final class Qwen3Model: Module {
     ///   - validCount: Real tokens at the front of each row. The rest are padding, hidden from
     ///     every query by the mask but still carried forward as conditioning.
     ///   - taps: Which states to keep.
-    func hiddenStates(_ tokens: MLXArray, validCount: Int, taps: [Int]) -> [MLXArray] {
+    ///
+    /// Throws only when streaming: a shard that changed under the model.
+    func hiddenStates(_ tokens: MLXArray, validCount: Int, taps: [Int]) throws -> [MLXArray] {
         var x = embedTokens(tokens)
         let mask = Qwen3AttentionMask.causalAndPadding(
             length: tokens.dim(1), validCount: validCount, dtype: x.dtype)
 
         let wanted = Set(taps)
         var captured: [Int: MLXArray] = wanted.contains(0) ? [0: x] : [:]
-        for (index, layer) in layers.enumerated() {
-            x = layer(x, mask: mask)
-            if wanted.contains(index + 1) { captured[index + 1] = x }
+        if let stream {
+            // A stream hands back the layer, not its position, so the count is kept here. Which
+            // layer a tap names is the one thing about this stack that a plausible-looking
+            // picture of the wrong prompt would not give away, so the streamed pass counts the
+            // layers it has run rather than trusting the order it is handed them in.
+            var depth = 0
+            try stream.run { layer in
+                x = layer(x, mask: mask)
+                depth += 1
+                if wanted.contains(depth) { captured[depth] = x }
+                return [x]
+            }
+        } else {
+            for (index, layer) in layers.enumerated() {
+                x = layer(x, mask: mask)
+                if wanted.contains(index + 1) { captured[index + 1] = x }
+            }
         }
 
         return taps.map { tap in

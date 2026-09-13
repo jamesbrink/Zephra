@@ -1,6 +1,10 @@
+import OSLog
 import SwiftUI
 import ZephraCore
 import ZephraEngine
+
+/// What the composition root decides before the window is up, for `make logs`.
+private nonisolated let launchLogger = Logger(subsystem: "io.zephra", category: "launch")
 
 /// What the composition root does that names no backend: wiring the library to the store, and
 /// reading which model the last launch was on.
@@ -39,15 +43,33 @@ extension ZephraApp {
         }
     }
 
-    /// The model chosen last time, or the largest one this Mac can actually run when nothing
-    /// was chosen or the saved identifier belongs to a build that no longer ships that model.
+    /// The model chosen last time, or the one this Mac would be started on when nothing was
+    /// chosen, when the saved identifier belongs to a build that no longer ships that model,
+    /// or when this Mac cannot hold what was saved.
     ///
-    /// A saved choice is honoured whatever its size: a model that pages at its default size
-    /// still runs at a smaller one, and that is the user's call to make. Whether it is still
-    /// on the disk is the store's to find out, at bootstrap, from the backend.
-    static func savedModel(fitting budget: MemoryBudget) -> ModelDescriptor {
-        let saved = AppSettings.store.string(forKey: AppSettings.selectedModelID)
-        return saved.flatMap(ModelCatalog.descriptor(id:))
-            ?? ModelCatalog.default(fitting: budget)
+    /// That last case is what a Mac that has lost memory looks like — a wired limit turned
+    /// back down, a saved choice carried to a smaller machine over the same preferences, a
+    /// measured figure revised upwards by a later build. The saved model is greyed everywhere
+    /// it is listed now, so opening on it would leave the window pointing at a model no door
+    /// in the app will load; the step is made here, once, before the store is built, rather
+    /// than by the engine's own fallback after a survey. Whether the model is still on the
+    /// disk is a separate question and stays the store's, at bootstrap, from the backend.
+    static func savedModel(
+        fitting budget: MemoryBudget, defaults: UserDefaults = AppSettings.store
+    ) -> ModelDescriptor {
+        let saved = defaults.string(forKey: AppSettings.selectedModelID)
+        guard let model = saved.flatMap(ModelCatalog.descriptor(id:)) else {
+            return ModelCatalog.default(fitting: budget)
+        }
+        let fit = ModelCatalog.fit(model, budget: budget)
+        guard !fit.isSelectable else { return model }
+        let stepped = ModelCatalog.default(fitting: budget)
+        launchLogger.info(
+            """
+            saved model \(model.id, privacy: .public) needs \
+            \(fit.label ?? "more than this Mac has", privacy: .public) and cannot be chosen \
+            here; opening on \(stepped.id, privacy: .public)
+            """)
+        return stepped
     }
 }

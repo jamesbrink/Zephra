@@ -28,56 +28,6 @@ public final class Flux2Pipeline {
     /// Whether `loadModel` has succeeded and `unloadModel` has not been called since.
     public var isLoaded: Bool { loaded != nil }
 
-    /// Reads the configuration, the tokenizer, and every component's weights under `snapshot`,
-    /// and holds the stream in `activation` from then on.
-    public func loadModel(
-        at snapshot: URL,
-        activation: DType = Flux2TransformerPrecision.defaultActivation,
-        onProgress: (Flux2GenerationProgress) -> Void = { _ in }
-    ) throws {
-        onProgress(Flux2GenerationProgress(stage: .loading))
-        let configuration = try Flux2Configuration(readingFrom: snapshot)
-        let manifest = try PackedSnapshotManifest.read(from: snapshot)
-        let tokenizer = try Flux2Tokenizer(snapshot: snapshot)
-
-        let textEncoder = Qwen3TextEncoder(configuration.textEncoder)
-        try PackedWeightLoading.load(
-            into: textEncoder,
-            weights: try SafetensorsShards.weights(
-                in: snapshot.appending(path: Flux2Configuration.Component.textEncoder.directoryName)),
-            manifest: manifest)
-
-        let transformer = Flux2Transformer(configuration.transformer)
-        try PackedWeightLoading.load(
-            into: transformer,
-            weights: Flux2TransformerWeights.sanitized(
-                try SafetensorsShards.weights(
-                    in: snapshot.appending(path: Flux2Configuration.Component.transformer.directoryName))),
-            manifest: manifest,
-            checkpointName: Flux2TransformerWeights.checkpointName(of:))
-
-        let autoencoder = Flux2Autoencoder(configuration.vae)
-        try autoencoder.load(
-            weights: try SafetensorsShards.weights(
-                in: snapshot.appending(path: Flux2Configuration.Component.vae.directoryName)))
-
-        // The stream's dtype is applied here, once: a float32 scale anywhere would widen it.
-        PackedWeightLoading.castFloatParameters(of: textEncoder, to: activation)
-        PackedWeightLoading.castFloatParameters(of: transformer, to: activation)
-
-        loaded = Loaded(
-            snapshot: snapshot, configuration: configuration, tokenizer: tokenizer,
-            textEncoder: textEncoder, transformer: transformer, autoencoder: autoencoder,
-            activation: activation)
-        MLX.eval(textEncoder.parameters(), transformer.parameters(), autoencoder.parameters())
-    }
-
-    /// Releases the weights and the scratch memory MLX was holding for them.
-    public func unloadModel() {
-        loaded = nil
-        Memory.clearCache()
-    }
-
     /// Makes one image and returns it as PNG bytes.
     /// Called after a denoising step has been evaluated, with the step it just finished
     /// (counting from zero), how many there are, and a way to decode the latent as it stands.
@@ -105,7 +55,7 @@ public final class Flux2Pipeline {
         let length = min(request.maxPromptTokens, Flux2PromptTemplate.sequenceLength)
         let (ids, validCount) = model.tokenizer.padded(prompt: request.prompt, to: length)
         let tokens = MLXArray(ids.map(Int32.init)).reshaped([1, -1])
-        let text = model.textEncoder(tokens, validCount: validCount)
+        let text = try model.textEncoder(tokens, validCount: validCount)
         MLX.eval(text)
 
         let references = try encodeReferences(request, with: model, onProgress: onProgress)

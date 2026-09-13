@@ -30,6 +30,11 @@ extension GenerationStore {
             }
             try Task.checkCancellation()
             guard let acquired else { throw CancellationError() }
+            // The last gate before the weights are read: the files are here, and the question
+            // is whether this Mac has the memory for them this minute. Asked after the
+            // download rather than before it because a download is worth keeping whatever the
+            // machine is doing, and a load is not.
+            if let shortfall = loadShortfall(for: model, residency: residency) { throw shortfall }
             let builtExists = locations.builtCandidates(for: model).contains {
                 $0.standardizedFileURL == acquired.directory.standardizedFileURL
             }
@@ -68,6 +73,8 @@ extension GenerationStore {
                 loadedResidency = nil
                 switch error {
                 case is CancellationError: transition(to: .idle)
+                case let shortfall as MemoryShortfall:
+                    transition(to: .failed(.insufficientMemory(shortfall)))
                 case BackendRegistryError.noBackend(let id): transition(to: .failed(.noBackend(id)))
                 case let error as BackendError: transition(to: .failed(.backend(error)))
                 default: transition(to: .failed(.backend(.loadFailed(error.localizedDescription))))

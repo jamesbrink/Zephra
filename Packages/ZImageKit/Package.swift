@@ -12,6 +12,10 @@ let package = Package(
     .package(url: "https://github.com/ml-explore/mlx-swift", exact: "0.31.3"),
     .package(url: "https://github.com/huggingface/swift-transformers", exact: "0.1.24"),
     .package(url: "https://github.com/apple/swift-log.git", from: "1.6.4"),
+    // The shared layer stream, so this family reads its blocks from disk the way every other
+    // family does. A copy would not do: `LayerWeightStream` reports into `WeightStreamMeter`,
+    // which the bench and `MLXRuntime.weightStreamReading()` read. See VENDORED.md.
+    .package(path: "../ZephraMLXKit"),
   ],
   targets: [
     .target(
@@ -24,6 +28,7 @@ let package = Package(
         .product(name: "MLXRandom", package: "mlx-swift"),
         .product(name: "Transformers", package: "swift-transformers"),
         .product(name: "Logging", package: "swift-log"),
+        .product(name: "ZephraMLX", package: "ZephraMLXKit"),
       ],
       path: "Sources/ZImage",
       // Upstream is written for Swift 5; keep it compiling untouched.

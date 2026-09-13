@@ -9,11 +9,13 @@ import ZephraEngine
 /// model does not change what the library is listing, so a chip naming it there would be
 /// something to look at rather than something to act on.
 ///
-/// Memory is a note, not a gate. A model whose peak is over this Mac's budget still runs at a
-/// smaller size than its default, so the row says what it would take and lets it be chosen.
-/// Only a model that cannot be had at all — never built, no backend for it — is disabled.
-/// Choosing while an image is running is fine too: the running image finishes on its model, and
-/// the new one takes over for whatever is queued next.
+/// Memory is a gate. A model this Mac cannot hold at its default size, with the decode tiled
+/// and the weights streamed, is greyed with the figure it wants: it aborted the app rather than
+/// drawing something smaller, so it is never chosen, never loaded and never downloaded from
+/// here. A model that cannot be had at all — never built, no backend for it — is disabled for
+/// its own reason. Nothing is hidden either way. Choosing while an image is running is fine
+/// too: the running image finishes on its model, and the new one takes over for whatever is
+/// queued next.
 struct ModelMenu: View {
     @Environment(GenerationStore.self) private var store
     @Environment(WorkspaceSelection.self) private var workspace
@@ -54,17 +56,20 @@ struct ModelMenu: View {
     }
 
     /// The secondary half of a row: what it would take to run this model, or nil when there is
-    /// nothing worth saying. A model that cannot be had at all says so before anything about
-    /// memory: "Tiles the decode" beside a greyed-out row explains nothing, and a disabled menu
-    /// item shows no tooltip to explain it either. A download comes before memory too — its
-    /// size has to be on screen before choosing the row starts it — and the memory note then
-    /// lives in the tooltip.
+    /// nothing worth saying. A model that cannot be had at all says so first: "Tiles the decode"
+    /// beside a greyed-out row explains nothing, and a disabled menu item shows no tooltip to
+    /// explain it either. What this Mac cannot hold comes next, ahead of the download size, for
+    /// exactly that reason — the row is greyed by memory, so "Needs 18 GB" is what the greying
+    /// means, and quoting a download that is never going to start would be the worse label. For
+    /// every row that can be chosen a download still comes before the memory note.
     private func note(for model: ModelDescriptor) -> String? {
         if let status = store.downloads.status(for: model.id) { return status }
         let availability = store.availability[model.id]
         if availability?.isObtainable == false { return availability?.label }
+        let fit = fit(model)
+        if !fit.isSelectable { return fit.label }
         if availability?.needsNetwork == true { return availability?.label }
-        if let memory = memoryNote(model) { return memory }
+        if let memory = fit.label { return memory }
         return availability?.label
     }
 
@@ -76,18 +81,12 @@ struct ModelMenu: View {
         return fit.reason(for: model, budget: budget)
     }
 
-    /// Memory never disables a row: a model that pages at its default size still runs at a
-    /// smaller one. Only a model that cannot be obtained at all is out of reach.
+    /// Two ways to be out of reach: the model cannot be obtained, or this Mac cannot hold it.
+    /// `store.canSelect` is the same answer every other door reads — `switchModel` would make
+    /// the pick a no-op and `startLoading` would refuse it before a byte was fetched — so the
+    /// row is greyed rather than offering a press that goes nowhere.
     private func canChoose(_ model: ModelDescriptor) -> Bool {
-        store.availability[model.id]?.isObtainable != false
-    }
-
-    /// How this model lands on this Mac's memory, in a few words, or nil when it just fits.
-    ///
-    /// A tiled row is labelled even when the Automatic policy is what turns tiling on, because
-    /// a menu that quietly changed how the image is decoded would be the worse of the two.
-    private func memoryNote(_ model: ModelDescriptor) -> String? {
-        fit(model).label
+        store.availability[model.id]?.isObtainable != false && store.canSelect(model)
     }
 
     /// How this model lands on this Mac. The budget is read once at launch and does not

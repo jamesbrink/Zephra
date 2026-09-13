@@ -57,6 +57,16 @@ public nonisolated enum MLXRuntime {
         GPU.deviceInfo().maxRecommendedWorkingSetSize
     }
 
+    /// Hands every cached buffer back to the system now.
+    ///
+    /// MLX keeps a released buffer for reuse rather than freeing it, which is what makes a
+    /// second run cheap and what makes a model switch expensive: the gigabytes the old weights
+    /// left behind are still charged to this process while the next model is measured and
+    /// read. The actor calls this as it unloads, after the backend has dropped its arrays.
+    public static func releaseCache() {
+        Memory.clearCache()
+    }
+
     /// Current GPU memory use: what is live, what is cached for reuse, and the high-water mark
     /// since the process started.
     public static func memorySnapshot() -> MemorySnapshot {

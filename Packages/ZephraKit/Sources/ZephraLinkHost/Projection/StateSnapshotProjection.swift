@@ -18,7 +18,12 @@ public enum StateSnapshotProjection {
         var snapshot = StateSnapshot(
             hostName: hostName,
             model: ModelSummary(store.descriptor),
-            models: ModelCatalog.all.map(ModelSummary.init),
+            models: ModelCatalog.all.map { model in
+                // Whether this Mac can hold a model is the Mac's own reading of its own GPU
+                // budget, so it is stamped here beside `acceptsWork` rather than worked out
+                // again on a phone that has neither the budget nor the measured peaks.
+                ModelSummary(model, fit: ModelCatalog.fit(model, budget: store.memoryBudget))
+            },
             engine: EngineStateProjection.engine(store),
             queue: QueuedEntryProjection.entries(store.queue),
             running: QueuedEntryProjection.running(store.running),

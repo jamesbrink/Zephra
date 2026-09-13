@@ -101,12 +101,18 @@ actor InferenceActor {
     /// Releases the weights. The next `prepare` will load them again. The first half of
     /// switching models: the store calls this before it bootstraps the next one. The upscaler
     /// is left alone: it is not the model, and it is not what the memory was needed for.
+    ///
+    /// The allocator's cache goes back last, after the backend has dropped its arrays: called
+    /// first it would hand back what the model is still holding, which is nothing, and the
+    /// gigabytes the released weights leave behind would sit in the cache while the next
+    /// model's load measured the machine and found them taken.
     func unload() {
         backend?.unload()
         backend = nil
         backendID = nil
         loadedPath = nil
         loadedResidency = nil
+        runtime?.releaseCache()
     }
 
     /// The one upscaler, built on first use, or nil in a build that was given no factory.

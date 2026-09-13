@@ -273,7 +273,14 @@ which `remoteAdmission` gates on, so the button and the refusal are one answer.
 projection sites go through it. A field added to the DTO after a Mac has
 shipped is read with `decodeIfPresent` and a default that is what the field's
 absence used to mean (`canQueue` falls back to `acceptsGeneration`);
-`EngineStateDTO+Codable` and `QueuedEntry` are the two hand-written readers.
+`EngineStateDTO+Codable`, `ModelSummary+Codable` and `QueuedEntry` are the
+hand-written readers. `ModelSummary.isSelectable` and `memoryNote` are the same
+rule for a model: `StateSnapshotProjection` stamps both from
+`ModelCatalog.fit(_:budget:)` against the Mac's own budget, the phone greys that
+row and shows the note rather than judging memory itself, a `.switchModel`
+naming such a model is refused `badRequest` with `MemoryFit.reason` as
+`remoteAdmission` refuses a generation on it, and an older Mac's summary reads
+as selectable with no note.
 
 The channel's counter is **sent**, between the kind byte and the ciphertext —
 `kind || counter || ciphertext || tag` — because the relay is one Lambda
@@ -442,17 +449,26 @@ A Mac that has never run Zephra opens on a model chooser, not on a download.
   the presence of `selectedModelID`, which the root writes on every launch, so
   its absence is what a genuinely first launch looks like; the root writes `selectedModelID` only when
   the chooser goes down, never while it is up. `settle(availability:budget:current:)`
-  dismisses the chooser when the survey finds a model already here and answers
-  which model to continue on; nil for a chooser already down. `dismiss()` records
+  dismisses the chooser when the survey finds a model already here that this Mac
+  can hold and answers which model to continue on; a finished download this Mac
+  cannot hold settles nothing, since continuing on it would open on a model
+  nothing will load. Nil for a chooser already down. `dismiss()` records
   the answer (a skip is an answer); `reopen()` is the way back from
   `CanvasStateView`'s idle state.
 - `WelcomeHost` (`Views/Welcome/`) shows the chooser or `RootView`. With the
   chooser up, `bootstrapFromInterface` runs only `surveyAvailability()`.
   **Nothing is fetched while the chooser is up.**
 - The recommendation is `ModelCatalog.default(fitting:)`; where nothing fits, the
-  entry with the smallest `ModelDescriptor.leanestPeakBytes`.
+  entry with the smallest `ModelDescriptor.leanestPeakBytes`. A card is marked
+  recommended only when it is also selectable, so a Mac too small for everything
+  in the catalog is recommended nothing and the chooser opens on no selection.
+  `ZephraApp.savedModel(fitting:)` steps a persisted choice this Mac cannot hold
+  onto that same answer, before the store is built, and logs the step;
+  `HostMachineMemory` (`Support/`, beside `GPUMemoryBudget`) is what the guard
+  reads the machine through.
 - Cards are `ModelChoice.all(for:)`, every catalog entry judged once against one
-  budget. Nothing is hidden or disabled by memory. A card's size is
+  budget. Nothing is hidden by memory; a model this Mac cannot hold is disabled
+  with its reason. A card's size is
   `store.availability[id]?.label`, never `transferBytes` (before the survey,
   `builtBytes` when `isPublishedPrebuilt`). Fit strings live in
   `MemoryFit+Label`; `Needs N GB` rounds up.
@@ -1063,8 +1079,9 @@ import patterns in `make lint-layers`, which lint nothing they do not name.
 
 **Choosing and loading.**
 
-- `bootstrap` reads availability first; `fallBackIfUnobtainable()` steps a
-  saved choice no longer on disk onto the first model this Mac can run and has.
+- `bootstrap` reads availability first; `fallBackIfUnrunnable()` steps a
+  saved choice this Mac cannot run — gone from the disk, or more than it has the
+  memory to hold — onto the first model it can run and has.
   A model that merely needs a download is kept. The chosen model is persisted
   from the composition root's `onChange` of `rememberedModel`, never by the menu.
 - Selecting a picture chooses its model without loading it: `select(_ image:)`
@@ -1676,7 +1693,7 @@ What decides it: `ModelDescriptor.streamedPeakBytes` (zero for a family that
 cannot stream); `MemoryFit` tries it after `fitsTiled` and answers
 `fitsStreamed`; `WeightResidencyPolicy` turns the Performance preference and
 the budget into a `WeightResidency` for the load, streamed under Automatic
-exactly when the verdict is `fitsStreamed`. `InferenceActor` pins the residency
+whenever the model does not fit resident, `.tight` included. `InferenceActor` pins the residency
 beside `loadedPath`, so asking for the same model the other way is a reload.
 `MemoryBudget` (`ZephraCore`) is Metal's `recommendedMaxWorkingSetSize`, read
 once at launch (`GPUMemoryBudget`) and handed down; MLX's memory and wired
@@ -1935,7 +1952,12 @@ environment value.
   activating the app or moving the mouse, or, for a Form `Toggle` with
   neither, by the label linked through `AXTitleUIElement` or
   `AXServesAsTitleForUIElements`; `--dump [depth]` prints the tree, that
-  linked label included, and `ZEPHRA_PID` picks the copy to drive. `swift scripts/ax-type.swift "<label>"
+  linked label included, and `ZEPHRA_PID` picks the copy to drive. The same script sizes and
+  places the window for a screenshot without activating it: `--resize W H` (an AX size counts
+  the title bar, so the 880 x 560 floor reads back 880 x 592, and a tiled or zoomed window
+  keeps its own frame, which it says), `--move X Y`, and `--reveal "<title>"`, which scrolls a
+  control into view — the chooser's greyed cards sort last and are otherwise below the fold.
+  `swift scripts/ax-type.swift "<label>"
   "<text>"` sets a labelled text field's value and confirms it, which is how
   the Size menu's custom size is typed hands-off. With `open -g --env
   ZEPHRA_PREVIEW_STATE=settings build/Debug/Zephra.app` and the titled

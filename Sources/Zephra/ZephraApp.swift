@@ -64,7 +64,10 @@ struct ZephraApp: App {
     /// What this Mac's GPU may keep resident, read once here from the runtime and the
     /// `iogpu.wired_limit_mb` sysctl, then handed to every view and to the store: the model
     /// picker's wording, the tiled decode, and the fallback model all follow it.
-    private static let budget = GPUMemoryBudget.forThisMachine(runtime: runtime)
+    // A frozen screenshot build may state the Mac it is pretending to be, so the chooser can be
+    // photographed as a 16 GB Mac sees it; every other launch asks this Mac's own GPU.
+    private static let budget = InterfacePreview.budget()
+        ?? GPUMemoryBudget.forThisMachine(runtime: runtime)
 
     var body: some Scene {
         // One window, not a group: everything a window would own is app-wide state built
@@ -213,7 +216,12 @@ struct ZephraApp: App {
     /// `ZEPHRA_PREVIEW_STATE` short-circuits to a frozen store so the interface can be run and
     /// screenshotted without a model. See `InterfacePreview`.
     private static func makeStore() -> GenerationStore {
-        if let frozen = InterfacePreview.store() { return frozen }
+        if let frozen = InterfacePreview.store() {
+            // The same figure the views are handed, or a frozen build would grey its cards
+            // against one Mac and answer `canSelect` about another.
+            frozen.memoryBudget = budget
+            return frozen
+        }
         #if DEBUG
         if let exercise = DownloadExercise.makeStore() { return exercise }
         #endif
@@ -242,7 +250,11 @@ struct ZephraApp: App {
             runtime: runtime,
             // Reads a clip's tail and joins clips, for Extend Clip; injected here for the
             // reason the upscaler is, so the engine names no media code.
-            clips: MP4Stitcher()
+            clips: MP4Stitcher(),
+            // What the Mac has free, asked of the kernel before every load and run. Injected
+            // for the reason the runtime is: the engine must answer the same way under test
+            // as it does here, and only this layer may make a host call.
+            machineMemory: HostMachineMemory()
         )
         store.memoryBudget = budget
         store.weightResidencyPolicy = AppSettings.residencyPolicy(

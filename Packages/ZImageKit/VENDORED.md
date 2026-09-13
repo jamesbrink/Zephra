@@ -22,6 +22,15 @@
   on the `ZImage` target. The upcoming feature makes the pipeline's async methods run on the
   caller's executor, so Zephra's inference actor keeps MLX work on its own serial queue.
 - Dropped CLI and test targets (Zephra has its own `ZephraBench` tool).
+- Added `.package(path: "../ZephraMLXKit")` and the `ZephraMLX` product on the `ZImage` target,
+  for `LayerWeightStream` and `ShardIndex` (see "stream the block stacks and the text encoder"
+  in the patch log). A copy of the stream inside this package would not do: it reports every
+  pass into `ZephraMLX.WeightStreamMeter`, which `ZephraBench --stream` and
+  `MLXRuntime.weightStreamReading()` read, and a second meter would report nothing to either.
+  `ZephraMLX` depends only on MLX, MLXNN and `ZephraCore`, all of which this package's graph
+  already resolves, so it adds no new package and no new version to pin. It is the one Zephra
+  dependency here; `VAETiledDecode` and `ZImageLatentPreview` stay copies on purpose, as their
+  entries below say, because those are whole algorithms and this is one type with a contract.
 
 ## Re-sync procedure
 
@@ -191,6 +200,58 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
   `ZephraMLX.LatentPreview` in `Packages/ZephraMLXKit` holds the same pooling and byte packing
   for the other two families. This copy is kept on purpose, for the same reason `VAETiledDecode`
   is a copy: a Zephra dependency in this package's manifest would complicate every re-sync.
+
+- `Pipeline/ZImageStreaming.swift` (new), `Weights/ZImageResidentParameters.swift` (new),
+  `Model/Transformer/ZImageTransformer2D.swift`, `Model/Transformer/ZImageTransformerPrecision.swift`,
+  `Model/TextEncoder/TextEncoder.swift`, `Weights/ZImageWeightsMapper.swift`,
+  `Pipeline/PipelineUtilities.swift`, `Pipeline/ZImagePipeline.swift`: stream the three
+  transformer block stacks and the text encoder's layers from disk, so a Mac that cannot hold
+  this model still runs it.
+
+  `loadModel` gains a defaulted `streaming: ZImageStreaming?`; nil is the unpatched path
+  exactly. With it, each stack is handed to a `ZephraMLX.LayerWeightStream` over the shards
+  `ZImageWeightsMapper.shardIndex(for:)` indexes, and `forward` runs the stack through the
+  stream instead of its own `for` loop. The loops themselves are untouched and still there,
+  under the `else`. What the streamed path costs is one read of the model per step; what it
+  buys is a peak set by a window of three layers rather than by the whole stack.
+
+  The order in `loadModel` is load-bearing and is the order `LayerWeightStream`'s own doc
+  demands: apply the component's weights, cast its float32 parameters, attach its stream, and
+  only then evaluate what is left. So `castFloatParameters` no longer calls `MLX.eval`: the
+  cast has to stay lazy for the stream to capture it, and evaluating the whole tree there
+  would read every streamed block off the disk and hold it, which is the one thing streaming
+  must not do. `ZImageResidentParameters.eval` is where a load is read in now, last of all and
+  told what is streamed. Resident that evaluates everything `castFloatParameters` used to and
+  the text encoder and the autoencoder besides, which were lazy until first use before: the
+  same bytes, read at load rather than at the first step, so `mem: load done` reports the
+  load's figure and not a fraction of it. No output changes.
+
+  The stacks are keyed on bare names (`layers.0.attention.to_q.weight`) because that is what
+  both Z-Image layouts write and what `WeightsMapping.applyToModule` already matches against;
+  the text encoder's stack is the one place the checkpoint and the module tree differ
+  (`model.layers` against `encoder.layers`), and `ZImageResidentParameters` holds both spellings
+  so the loader and the stream cannot drift. The encoder is not cast at load, so a streamed
+  encode is bit-for-bit a resident one.
+
+  Every door into either stack became throwing, since a streamed pass can fail on a shard that
+  changed under the model and is stopped between layers with `Task.checkCancellation`:
+  `ZImageTransformer2DModel.forward`, `QwenEncoder.forward` and `callAsFunction`,
+  `QwenTextEncoder.encode`, `callAsFunction`, `forwardWithHiddenStates`, `encodeForZImage` and
+  `encodeJoint`, and the `try` those forced on `PipelineUtilities.encodePrompt` and on the
+  denoise loop's `step build`. With no stream attached none of them can throw.
+  `QwenEncoder.forwardCausal` is deliberately left alone: it is the prompt enhancer's
+  token-at-a-time path, which Zephra never enables, and it runs the stack once per token with
+  a KV cache the stream knows nothing about. `ZImageControlPipeline` needed no change — its
+  transformer is `ZImageControlTransformer2DModel`, which does not stream — and is
+  compile-verified only, as the rest of that path is.
+
+  `loadQuantizedComponent` now sorts the component's shards by name and lets the first of a
+  duplicated key win. It used to iterate `contentsOfDirectory`, which has no defined order, and
+  let the last win, so which shard a duplicated key resolved to was the file system's choice.
+  `ShardIndex` and `SafetensorsShards.weights` both take the first of a sorted list, and a
+  stream that disagreed with the loader about which shard a tensor came from would hand the
+  forward pass a different tensor on the second pass than on the first. No snapshot the catalog
+  names carries a key in two shards, so nothing that loads today changes.
 
 - Marker discipline, retrofitted after the audit of 2026-09-05: about twenty changed lines
   carried no marker — every `try` the throwing weight apply forced on its call sites in

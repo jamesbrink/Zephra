@@ -6,17 +6,20 @@ extension GenerationStore {
     /// `outputDirectory` nil means ~/Pictures/Zephra. `runtime` is the GPU runtime the decode's
     /// tile is set on before each run; nil for a test or a tool, which then sets none. `clips`
     /// reads a clip's tail and joins clips, for Extend Clip; nil leaves it greyed.
+    /// `machineMemory` reads what the Mac has free, for the check before a load and a run; nil
+    /// leaves that check to the budget alone.
     public convenience init(
         descriptor: ModelDescriptor = ModelCatalog.default,
         registry: BackendRegistry,
         outputDirectory: URL? = nil,
         locations: ModelLocations = .default,
         upscaler: UpscalerFactory? = nil, downloads: ModelDownloads = ModelDownloads(),
-        runtime: (any InferenceRuntime)? = nil, clips: (any ClipEditing)? = nil
+        runtime: (any InferenceRuntime)? = nil, clips: (any ClipEditing)? = nil,
+        machineMemory: (any MachineMemoryReader)? = nil
     ) {
         self.init(
             descriptor: descriptor, registry: registry, output: outputDirectory,
             locations: locations, upscaler: upscaler, downloads: downloads, runtime: runtime,
-            clips: clips)
+            clips: clips, machineMemory: machineMemory)
     }
 }

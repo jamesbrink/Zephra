@@ -12,8 +12,9 @@ public enum MemoryFit: Hashable, Sendable {
     /// Runs at its default size only with the weights streamed from disk every step, and the
     /// decode tiled; held resident it would page.
     case fitsStreamed
-    /// Pages at its default size even tiled. `neededBytes` is the GPU working set that would
-    /// clear the budget, so it can be shown as "Needs N GB".
+    /// Pages at its default size on every lever this family has. `neededBytes` is the GPU
+    /// working set that would clear the budget — the leanest figure the model can be run at,
+    /// streamed where the family streams — so it can be shown as "Needs N GB".
     case tight(neededBytes: Int64)
 
     /// Where `descriptor` lands against `budget`.
@@ -26,7 +27,7 @@ public enum MemoryFit: Hashable, Sendable {
         } else if descriptor.streamedPeakBytes > 0, Double(descriptor.streamedPeakBytes) <= bytes {
             self = .fitsStreamed
         } else {
-            self = .tight(neededBytes: descriptor.tiledPeakBytes)
+            self = .tight(neededBytes: descriptor.leanestPeakBytes)
         }
     }
 
@@ -36,13 +37,21 @@ public enum MemoryFit: Hashable, Sendable {
         self.init(descriptor: descriptor, budget: MemoryBudget(physicalMemory: physicalMemory))
     }
 
-    /// Whether the model runs at its default size at all, tiling and streaming allowed.
-    public var runsAtDefaultSize: Bool {
+    /// Whether this Mac may choose the model at all, tiling and streaming allowed.
+    ///
+    /// The gate, not a note: a model this Mac cannot hold is greyed wherever it is listed and
+    /// is never loaded, never downloaded, and never queued for from a phone.
+    public var isSelectable: Bool {
         switch self {
         case .fits, .fitsTiled, .fitsStreamed: true
         case .tight: false
         }
     }
+
+    /// Whether the model runs with its weights held in memory, tiled or not. The opposite of
+    /// this is what `Automatic` streams: a model that does not fit resident is streamed rather
+    /// than loaded resident and left to page.
+    public var fitsResident: Bool { self == .fits || self == .fitsTiled }
 
     /// Whether reaching the default size depends on the tiled decode.
     public var requiresTiling: Bool { self == .fitsTiled || self == .fitsStreamed }
@@ -56,6 +65,6 @@ public enum MemoryFit: Hashable, Sendable {
     public static func wouldFitWithWiredLimitRaised(
         _ descriptor: ModelDescriptor, budget: MemoryBudget
     ) -> Bool {
-        Double(descriptor.tiledPeakBytes) <= Double(budget.physicalMemory)
+        Double(descriptor.leanestPeakBytes) <= Double(budget.physicalMemory)
     }
 }

@@ -307,6 +307,8 @@
       "displayName" : "Wan 2.2",
       "familyID" : "wan",
       "id" : "wan-2.2-ti2v-5b-4bit",
+      "isSelectable" : false,
+      "memoryNote" : "Needs 23 GB",
       "variantName" : "5B, 4-bit"
     }
   ],

@@ -11,13 +11,36 @@ import ZephraCore
 final class EngineTestBed {
     /// The backend's behaviour, shared with every mock the factory produces.
     let control = MockBackendControl()
+    /// A reading that follows the bed's dial rather than being fixed when a store is made, so
+    /// a test can starve the Mac, watch the load refused, and hand the memory back for a retry.
+    struct DialMachineMemory: MachineMemoryReader {
+        let control: MockBackendControl
+        func read() -> MachineMemory? { control.settings.machine }
+    }
     /// The upscaler's behaviour, shared the same way.
     let upscalerControl = MockUpscalerControl()
     /// The clip reader and joiner every store this bed makes is given.
     let clips = MockClipEditing()
+    /// What the Mac is said to have free, which every store this bed makes reads live through
+    /// `DialMachineMemory`. Roomy by default and settable at any point, so a suite about the
+    /// memory guard can starve the machine, watch a load refused and hand the memory back for
+    /// the retry, and no other suite's result depends on what the Mac running it is doing.
+    var machineMemory: MachineMemory? {
+        get { control.settings.machine }
+        set { control.update { $0.machine = newValue } }
+    }
+    /// What the GPU is said to be allowed to keep. Roomy for the same reason: every catalog
+    /// model fits, so a load in a suite about something else is never refused by the guard.
+    var memoryBudget = MemoryBudget(
+        physicalMemory: 128_000_000_000, gpuWorkingSet: 100_000_000_000)
     /// Where generated images are written.
     let directory = URL(filePath: NSTemporaryDirectory())
         .appending(path: "ZephraEngineTests-\(UUID().uuidString)", directoryHint: .isDirectory)
+
+    init() {
+        machineMemory = MachineMemory(
+            physicalBytes: 128_000_000_000, availableBytes: 120_000_000_000)
+    }
 
     deinit {
         try? FileManager.default.removeItem(at: directory)
@@ -71,15 +94,22 @@ final class EngineTestBed {
         locations: ModelLocations? = nil,
         upscaler: UpscalerFactory?
     ) -> GenerationStore {
-        GenerationStore(
+        let store = GenerationStore(
             descriptor: descriptor,
             registry: registry(),
             outputDirectory: directory,
             locations: locations ?? ModelLocations(root: directory.appending(path: "models")),
             upscaler: upscaler,
             runtime: MockInferenceRuntime(control: control),
-            clips: clips
+            clips: clips,
+            machineMemory: DialMachineMemory(control: control)
         )
+        store.memoryBudget = memoryBudget
+        // The two policies follow the same roomy budget, so what a suite about queueing or
+        // history gets is the same on every Mac rather than whatever the one running it has.
+        store.weightResidencyPolicy = WeightResidencyPolicy(mode: .automatic, budget: memoryBudget)
+        store.vaeTilingPolicy = VAETilingPolicy(mode: .automatic, budget: memoryBudget)
+        return store
     }
 
     /// A factory making mock upscalers that all read this bed's one dial.

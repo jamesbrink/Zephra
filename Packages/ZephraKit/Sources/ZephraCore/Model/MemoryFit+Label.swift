@@ -21,7 +21,7 @@ extension MemoryFit {
     }
 
     /// A sentence naming the model, long enough for a tooltip or a footer: how it would run
-    /// here, and for a model that does not fit, what it would take.
+    /// here, and for a model that does not fit, what it would take and that it is not on offer.
     ///
     /// `budget` is only read for the `tight` case, which is the one that quotes this Mac's own
     /// figure and the one that can suggest raising the wired limit.
@@ -39,13 +39,15 @@ extension MemoryFit {
                 + "from the disk again on every step. It runs at \(size), slower than it "
                 + "would if it were resident."
         case .tight(let needed):
+            let streamed = descriptor.streamedPeakBytes > 0
+                ? " and the weights streamed from disk" : ""
             let hint = MemoryFit.wouldFitWithWiredLimitRaised(descriptor, budget: budget)
                 ? " Raising the GPU memory limit in Settings > Performance would let it run."
                 : ""
             return "\(name) needs a GPU working set of about \(Self.wholeGigabytes(needed)) GB "
-                + "at \(size), even with the decode tiled, and this Mac's is "
-                + "\(ByteCount.gigabytes(Int64(budget.gpuWorkingSet))). A smaller size "
-                + "runs.\(hint)"
+                + "at \(size), even with the decode tiled\(streamed), and this Mac's is "
+                + "\(ByteCount.gigabytes(Int64(budget.gpuWorkingSet))), so it cannot be "
+                + "chosen here.\(hint)"
         }
     }
 

@@ -83,6 +83,18 @@ enum InterfacePreview {
         #endif
     }
 
+    /// The budget a frozen build measures models against, or nil for a normal launch, which
+    /// asks this Mac's own GPU.
+    ///
+    /// The chooser is drawn entirely out of this figure — which cards are greyed, what each one
+    /// says it needs, which is recommended — so photographing it on a 48 GB workstation shows a
+    /// screen nobody with a 16 GB Mac ever sees. A screenshot build states the Mac it is
+    /// pretending to be, the way it states which pane is up and what the library holds.
+    static func budget() -> MemoryBudget? {
+        guard requestedState != nil, name == "welcome" else { return nil }
+        return MemoryBudget(physicalMemory: 16 << 30)
+    }
+
     /// Where the frozen window is looking. Stated rather than restored, so a screenshot build
     /// shows the same thing on every machine.
     static func workspace() -> WorkspaceSelection? {

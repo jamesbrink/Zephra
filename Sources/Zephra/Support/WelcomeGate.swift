@@ -76,13 +76,23 @@ final class WelcomeGate {
 
     /// The model to continue on when the disk already holds one: the store's own choice when
     /// that is what is here, and otherwise the first model this Mac would be offered that is.
+    ///
+    /// Downloaded is not enough — it has to be a model this Mac can hold. A Mac whose models
+    /// folder was carried over from a bigger one, or whose wired limit was turned back down,
+    /// has a finished download of something that is greyed in every picker now, and continuing
+    /// on it would put the chooser away and open on a model no door in the app will load.
+    /// `fitting(budget:)` is the same list the cards are judged by.
     static func readyModel(
         availability: [ModelDescriptor.ID: ModelAvailability],
         budget: MemoryBudget,
         current: ModelDescriptor
     ) -> ModelDescriptor? {
-        if availability[current.id] == .available { return current }
-        return ModelCatalog.ordered(for: budget).first { availability[$0.id] == .available }
+        if availability[current.id] == .available,
+            ModelCatalog.fit(current, budget: budget).isSelectable
+        {
+            return current
+        }
+        return ModelCatalog.fitting(budget: budget).first { availability[$0.id] == .available }
     }
 
     /// Records that the question has been answered and shows the workspace. Both picking a

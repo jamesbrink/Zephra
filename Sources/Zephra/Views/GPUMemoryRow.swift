@@ -52,7 +52,7 @@ struct GPUMemoryRow: View {
     /// Whether raising the limit would let the chosen model run at its default size.
     private var wouldHelp: Bool {
         let fit = ModelCatalog.fit(store.descriptor, budget: budget)
-        return !fit.runsAtDefaultSize
+        return !fit.isSelectable
             && MemoryFit.wouldFitWithWiredLimitRaised(store.descriptor, budget: budget)
     }
 
@@ -70,8 +70,10 @@ struct GPUMemoryRow: View {
     }
 
     private var caption: String {
-        "Models are measured against this figure. Raising \(GPUMemoryBudget.wiredLimitKey) with "
-            + "sysctl changes it; Zephra reads it at launch."
+        "Zephra limits its GPU allocator to this figure and measures every model against it; "
+            + "before each load and run it also checks what the Mac has free and refuses rather "
+            + "than pages. Raising \(GPUMemoryBudget.wiredLimitKey) with sysctl changes the "
+            + "figure; Zephra reads it at launch."
     }
 
     private func bytes(_ count: UInt64) -> String {

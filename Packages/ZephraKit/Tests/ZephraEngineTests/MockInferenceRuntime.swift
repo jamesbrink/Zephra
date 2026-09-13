@@ -9,13 +9,15 @@ struct MockInferenceRuntime: InferenceRuntime {
     func setCacheLimit(bytes: Int) {}
     func setMemoryLimit(bytes: Int) {}
     func deviceSummary() -> String { "mock" }
-    func memorySnapshot() -> MemorySnapshot {
-        MemorySnapshot(activeBytes: 0, cacheBytes: 0, peakBytes: 0)
-    }
+    func memorySnapshot() -> MemorySnapshot { control.settings.memory }
 
     func setVAETileSize(_ tile: Int?) {
         control.update { $0.vaeTile = tile }
     }
 
     func vaeTileSize() -> Int? { control.settings.vaeTile }
+
+    func releaseCache() {
+        control.update { $0.cacheReleases += 1 }
+    }
 }

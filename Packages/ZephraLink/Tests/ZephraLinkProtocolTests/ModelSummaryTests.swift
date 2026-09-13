@@ -37,6 +37,49 @@ struct ModelSummaryTests {
         }
     }
 
+    @Test("A model written by a Mac from before the memory gate reads as one that can be chosen")
+    func olderMacsAreReadAsSelectable() throws {
+        let capabilities = String(
+            decoding: try LinkJSON.encode(CapabilitiesSummary(LinkFixtures.capabilities)),
+            as: UTF8.self)
+        let json = #"""
+            {"capabilities":\#(capabilities),"displayName":"Z-Image Turbo",\#
+            "familyID":"z-image","id":"z-image-turbo-4bit","variantName":"4-bit"}
+            """#
+
+        let summary = try LinkJSON.decode(ModelSummary.self, from: Data(json.utf8))
+
+        #expect(summary.isSelectable, "absence was never a refusal")
+        #expect(summary.memoryNote == nil)
+        #expect(summary == LinkFixtures.model, "and the rest reads as it always did")
+    }
+
+    @Test("A model this Mac cannot hold crosses greyed, with the words that say why")
+    func theMemoryVerdictCrosses() throws {
+        let budget = MemoryBudget(physicalMemory: 16 << 30, gpuWorkingSet: 11_000_000_000)
+        let tight = ModelCatalog.ltx2DistilledAudio4bit
+        let fit = ModelCatalog.fit(tight, budget: budget)
+        #expect(!fit.isSelectable, "the fixture budget must be one this model is over")
+
+        let summary = ModelSummary(tight, fit: fit)
+        let read = try LinkFixtures.roundTrip(summary)
+
+        #expect(read == summary)
+        #expect(!read.isSelectable)
+        #expect(read.memoryNote == fit.label)
+    }
+
+    @Test("A model the Mac runs crosses as one that can be chosen")
+    func aFittingModelCrossesSelectable() throws {
+        let budget = MemoryBudget(physicalMemory: 128_000_000_000, gpuWorkingSet: 100_000_000_000)
+        let model = ModelCatalog.default
+        let read = try LinkFixtures.roundTrip(
+            ModelSummary(model, fit: ModelCatalog.fit(model, budget: budget)))
+
+        #expect(read.isSelectable)
+        #expect(read.memoryNote == nil, "nothing worth saying about a model that just fits")
+    }
+
     @Test("The label puts the variant beside the name")
     func labelReadsAsOneLine() {
         #expect(LinkFixtures.model.label == "Z-Image Turbo (4-bit)")

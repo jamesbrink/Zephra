@@ -51,6 +51,13 @@ extension GenerationStore {
         case .idle, .failed: break
         default: return nil
         }
+        // A model this Mac cannot hold any way at all is refused here, before a byte of it is
+        // fetched: greying it in the picker is the first answer, and this is the one that
+        // holds when a saved choice, a picture or a phone names it anyway.
+        if let shortfall = staticShortfall(for: model) {
+            transition(to: .failed(.insufficientMemory(shortfall)))
+            return nil
+        }
         // A swap passes through .idle while the old weights go back; only the swap may load.
         if isSwappingModel, !asSwap { return nil }
         // Another model's weights are up — a generation on it failed, and a picture's model

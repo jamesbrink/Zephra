@@ -22,9 +22,14 @@ extension ZImageTransformer2DModel {
   /// would destroy them. Their `scales` and `biases` are ordinary floats and do get cast,
   /// which is where most of the saving is: at group size 32 they are a sixteenth of the
   /// parameter count and were costing four bytes each.
+  /// Evaluates nothing: the cast is left lazy so a stream can be attached over it, and
+  /// `ZImageResidentParameters.eval` is the one place a load is read in. Evaluating the whole
+  /// tree here would read every streamed block off the disk and hold it, which is the one
+  /// thing streaming must not do. See VENDORED.md.
   public func castFloatParameters(to dtype: DType) {
     guard dtype != .float32 else { return }
     update(parameters: parameters().mapValues { $0.dtype == .float32 ? $0.asType(dtype) : $0 })
-    MLX.eval(parameters())
+    // ZEPHRA-PATCH: the `MLX.eval(parameters())` that stood here moved to
+    // `ZImageResidentParameters.eval`, which knows what is streamed and what is not.
   }
 }

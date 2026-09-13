@@ -54,14 +54,24 @@ struct WelcomeView: View {
             WelcomeFooter(choice: selection(among: choices))
         }
         .background(Color.canvasBackground)
-        .onAppear { if chosen == nil { chosen = choices.first(where: \.isRecommended)?.id } }
+        .onAppear { if chosen == nil { chosen = Self.opening(among: choices)?.id } }
     }
 
-    /// The selected model, falling back to this Mac's recommendation so the footer always has
-    /// something to describe and something to download.
+    /// Which card the screen opens on: this Mac's recommendation, else the first model it can
+    /// actually hold, else nothing — a Mac too small for the whole catalog opens on no
+    /// selection rather than on a card whose button is out for a reason nobody chose.
+    private static func opening(among choices: [ModelChoice]) -> ModelChoice? {
+        // `isRecommended` already implies selectable (`ModelChoice.all`); the second line is
+        // for the Mac that has no recommendation at all.
+        choices.first(where: \.isRecommended) ?? choices.first(where: \.isSelectable)
+    }
+
+    /// The selected model, falling back to what the screen would have opened on so the footer
+    /// always has something to describe — and, on a Mac that can hold none of them, to the
+    /// first card, whose footer then says what it would take and offers no press.
     private func selection(among choices: [ModelChoice]) -> ModelChoice {
         choices.first { $0.id == chosen }
-            ?? choices.first { $0.isRecommended }
+            ?? Self.opening(among: choices)
             ?? choices[0]
     }
 }

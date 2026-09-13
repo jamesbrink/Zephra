@@ -65,3 +65,14 @@ No physical multi-Mac LAN/forced-relay session, two-physical-phone contention,
 IPv6-only carrier path or real generation was exercised in this run. In-memory
 roads, relay fakes and simulator fixtures establish correctness scenarios, not
 WAN throughput, real-device energy use or end-to-end carrier measurements.
+
+## Integration with concurrent main changes
+
+GitHub reported a model-picker conflict with main at `6ae435a`. The resolution
+retains per-host memory eligibility and memory notes while choosing only the
+phone draft. A regression test covers an insufficient-memory Mac beside a
+capable Mac, manual pinning and disabling the capable host. The independent
+reviewer cleared the integrated source. Integrated Kit (769), Link (259) and
+iOS (176) tests passed after a fresh build; the reconnect timing assertion now
+includes the documented 350 ms jitter. Full integrated Mac/MLX gates are also
+required before merge, in addition to the passing pre-integration gates above.

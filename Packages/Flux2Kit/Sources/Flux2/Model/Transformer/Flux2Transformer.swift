@@ -31,6 +31,15 @@ public final class Flux2Transformer: Module {
     @ModuleInfo(key: "norm_out") var outputNorm: Flux2AdaLayerNormContinuous
     @ModuleInfo(key: "proj_out") var output: Linear
 
+    /// Set when the dual-stream blocks' weights are read from disk on each pass rather than held.
+    var doubleStream: LayerWeightStream<Flux2DoubleBlock>?
+    /// Set when the single-stream blocks' weights are read from disk on each pass rather than
+    /// held. Two streams and not one because the stacks are different types with different
+    /// checkpoint names, and because the twenty single blocks are where the parameters are: a
+    /// window over each stack is what keeps the shared modulation's five blocks from being read
+    /// at the wrong end of the pass.
+    var singleStream: LayerWeightStream<Flux2SingleBlock>?
+
     /// Builds the model described by `configuration`. Weights arrive separately, through
     /// `PackedWeightLoading.load(into:weights:manifest:checkpointName:)`.
     public init(_ configuration: Flux2TransformerConfiguration) {

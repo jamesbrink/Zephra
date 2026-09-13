@@ -10,8 +10,10 @@ import ZephraStyle
 /// unlike the library grid, where a ring around a whole pane says nothing, here it says which
 /// card the keyboard is on.
 ///
-/// A model that would page on this Mac is not dimmed and not disabled. Memory is a note, not a
-/// gate — the same rule `ModelMenu` follows — and `ModelChoiceFacts` is where the note goes.
+/// A model this Mac cannot hold is listed, dimmed and disabled, with the sentence saying what
+/// it would take as its tooltip — the same rule `ModelMenu` follows, since a model that cannot
+/// be held aborted the app rather than drawing something smaller. Nothing is hidden, and
+/// `ModelChoiceFacts` carries the short note.
 struct ModelChoiceCard: View {
     /// The model, its fit, and whether it is this Mac's recommendation.
     let choice: ModelChoice
@@ -34,6 +36,9 @@ struct ModelChoiceCard: View {
             }
         }
         .buttonStyle(.plain)
+        .disabled(!choice.isSelectable)
+        .opacity(choice.isSelectable ? 1 : 0.55)
+        .help(choice.reason)
         // No label of its own: a button's label replaces its children rather than adding to
         // them, and what is worth hearing is the whole card — the badge, the name, the line
         // about the model, what it downloads and how it runs here.

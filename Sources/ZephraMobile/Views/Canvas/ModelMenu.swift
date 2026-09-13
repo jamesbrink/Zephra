@@ -3,16 +3,9 @@ import ZephraLinkClient
 import ZephraLinkProtocol
 import ZephraStyle
 
-/// Picks which model the Mac runs next, and says what choosing one would cost.
-///
-/// The Mac's `ModelMenu`, over the models the snapshot lists rather than over the catalog: the
-/// phone has no catalog, and a model the Mac cannot run is a model it did not send. The
-/// availability line under a name is the Mac's own sentence, written once there and shown here
-/// unchanged.
-///
-/// Choosing is two things at once and deliberately so: the Mac is told, so its own canvas
-/// follows, and the draft takes the new model's schedule, so the controls under the prompt are
-/// the ones that model actually has.
+/// Chooses the phone's draft model without changing any Mac's canvas.
+/// Memory and acquisition verdicts remain each host's own; Auto can choose a model
+/// when at least one enabled host can hold it.
 struct ModelMenu: View {
     @Environment(GenerationDispatch.self) private var dispatch
     @Environment(PromptDraft.self) private var draft
@@ -22,11 +15,10 @@ struct ModelMenu: View {
             Menu {
                 AdoptHostSettings()
                 ForEach(dispatch.models) { model in
-                    Button {
-                        choose(model)
-                    } label: {
-                        row(model, note: readiness(model.id))
+                    Button { choose(model) } label: {
+                        row(model, note: dispatch.modelReadiness(model.id))
                     }
+                    .disabled(!dispatch.canChooseModel(model.id))
                 }
             } label: {
                 HStack(spacing: 6) {
@@ -47,9 +39,5 @@ struct ModelMenu: View {
         }
     }
 
-    private func readiness(_ id: String) -> String {
-        let count = dispatch.hosts.hosts.filter { $0.preference.enabled && $0.client.connection.isLive && $0.client.snapshot?.availability[id]?.kind == .available }.count
-        return "Ready on \(count) Macs"
-    }
     private func choose(_ model: ModelSummary) { draft.choose(model) }
 }

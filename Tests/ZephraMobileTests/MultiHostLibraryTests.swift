@@ -34,6 +34,30 @@ struct MultiHostLibraryTests {
         #expect(!root.isLive(for: forgotten))
     }
 
+    @Test("Model choice uses each host's memory verdict, and pinning narrows it")
+    func modelCapacity() throws {
+        let hosts = HostConnections(storage: nil, catalog: LibraryCatalog(libraryRoot: nil, filesRoot: nil),
+            makeClient: { _ in MobilePreview.unpairedClient() })
+        for selectable in [false, true] {
+            var snapshot = try #require(MobilePreview.snapshot())
+            snapshot.models = [ModelChoosingTests.model(isSelectable: selectable, note: selectable ? nil : "Needs 23 GB")]
+            snapshot.availability = ["a-model": .init(.available)]
+            let client = LinkClient.frozen(snapshot: snapshot, library: [])
+            hosts.add(HostPreference(host: try #require(client.pairedHost)), client: client, frozen: true)
+        }
+        let dispatch = GenerationDispatch(hosts: hosts, root: nil)
+        #expect(dispatch.canChooseModel("a-model"))
+        #expect(dispatch.modelReadiness("a-model") == "Ready on 1 Macs")
+        dispatch.destination = hosts.hosts[0].id
+        #expect(!dispatch.canChooseModel("a-model"))
+        #expect(dispatch.modelReadiness("a-model") == "Needs 23 GB")
+        dispatch.destination = hosts.hosts[1].id
+        #expect(dispatch.canChooseModel("a-model"))
+        dispatch.destination = nil
+        hosts.hosts[1].preference.enabled = false
+        #expect(!dispatch.canChooseModel("a-model"))
+    }
+
     @Test("An unreadable submission file disables sending instead of replacing unresolved assignments")
     func ledgerFailsClosed() throws {
         let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)

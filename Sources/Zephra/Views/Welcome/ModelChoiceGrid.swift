@@ -5,9 +5,9 @@ import ZephraStyle
 
 /// Every model the catalog knows, the ones this Mac runs at their default size first.
 ///
-/// Nothing is hidden: a model that would page here is still listed and still choosable, with
-/// its own note saying what it would take — the rule `ModelMenu` already follows, since a
-/// model that pages at its default size still runs at a smaller one.
+/// Nothing is hidden: a model this Mac cannot hold is still listed, with its own note saying
+/// what it would take — greyed rather than absent, which is the rule `ModelMenu` follows, so
+/// the catalog reads the same on every Mac and the reason is on the card that is out.
 ///
 /// The columns are adaptive because the window's floor is 880 by 560: the grid reflows to two
 /// columns there, and `WelcomeView`'s scroll view carries it. That view also caps the width

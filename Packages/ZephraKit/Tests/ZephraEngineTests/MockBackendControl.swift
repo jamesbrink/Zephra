@@ -73,6 +73,14 @@ final class MockBackendControl: Sendable {
         /// The tile in force when the last `generate` began, warm-up included: what a real
         /// backend's decode would have read.
         var tileAtGenerate: Int?
+        /// How many times the runtime was asked to hand its cache back, which the actor does
+        /// once per unload and only after the backend has dropped its arrays.
+        var cacheReleases = 0
+        /// What the Mac is said to have free, which `DialMachineMemory` answers with, so a
+        /// test can starve the machine between one attempt and the next.
+        var machine: MachineMemory?
+        /// What the allocator says it is holding, for the memory guard to read.
+        var memory: MemorySnapshot = .zero
     }
 
     private let storage = Mutex(Settings())
