@@ -65,9 +65,13 @@ struct ZephraApp: App {
     /// `iogpu.wired_limit_mb` sysctl, then handed to every view and to the store: the model
     /// picker's wording, the tiled decode, and the fallback model all follow it.
     // A frozen screenshot build may state the Mac it is pretending to be, so the chooser can be
-    // photographed as a 16 GB Mac sees it; every other launch asks this Mac's own GPU.
-    private static let budget = InterfacePreview.budget()
-        ?? GPUMemoryBudget.forThisMachine(runtime: runtime)
+    // photographed as a 16 GB Mac sees it; every other launch asks this Mac's own GPU. A Debug
+    // launch may then replace that working set with another Mac's
+    // (`ZEPHRA_GPU_WORKING_SET_MB`), so a hand check meant for a 16 GB Mac can be run on the
+    // Mac at hand; this is the one place that variable is read.
+    private static let budget = GPUWorkingSetOverride.replacing(
+        InterfacePreview.budget() ?? GPUMemoryBudget.forThisMachine(runtime: runtime),
+        environment: ProcessInfo.processInfo.environment)
 
     var body: some Scene {
         // One window, not a group: everything a window would own is app-wide state built

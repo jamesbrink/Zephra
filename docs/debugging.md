@@ -245,6 +245,28 @@ the same override the store runs under without a second read of the process envi
   `ZEPHRA_MEMORY_LIMIT_MB=N`, so a run in the app can be replayed headlessly under its limits.
   Every `_MB` here is `MemoryUnits.mebibyte`, the same 2^20 the Performance tab's preference
   is stored in.
+- `ZEPHRA_GPU_WORKING_SET_MB=N` replays another Mac's GPU budget on this one, Debug builds
+  only. Everything the app says about what a model costs comes out of a single number —
+  Metal's recommended working set, which `MemoryBudget.gpuWorkingSet` carries — so a 16 GB
+  Mac and a 48 GB one are two different apps: which chooser cards are disabled and what they
+  say they need, whether the model menu offers Z-Image 8-bit and calls it "Streams from
+  disk", what `WeightResidencyPolicy` loads it as, whether `VAETilingPolicy` tiles the
+  decode, what a paired phone is told in `ModelSummary`, and the static half of
+  `MemoryGuard`'s answer. The hand checks that matter are the small Mac's, and the small Mac
+  is not always one that can be sat in front of, so this states the working set the way
+  `ZEPHRA_PREVIEW_STATE` states which pane is up. `GPUWorkingSetOverride` (`Support/`) is the
+  whole of it: `read(_:)` is pure and takes N mebibytes, and `replacing(_:environment:)`
+  hands back the budget with **only** the working set moved — `physicalMemory` and
+  `wiredLimitMB` stay this Mac's own, so the Performance tab's sysctl command still describes
+  the machine, and `MemoryGuard`'s live half, which asks the kernel what is free right now,
+  reads the real one. `ZephraApp` reads it once at launch over whatever
+  `InterfacePreview.budget()` or `GPUMemoryBudget.forThisMachine` answered, and nothing below
+  the root reads it. Anything that is not a positive whole number is nothing at all rather
+  than a guess, since a zero budget fits no model and would look like a broken Mac.
+  bender's figure is 12124: `ZEPHRA_GPU_WORKING_SET_MB=12124 ZEPHRA_FRESH_START=<dir>
+  ./build/Debug/Zephra.app/Contents/MacOS/Zephra` is that Mac's first launch, on this one.
+  What it cannot replay is a run: the weights, the peak and the time are this Mac's GPU
+  still, so it answers questions about what the app *decides*, never about what it survives.
   Launch the app from a shell (`./build/Release/Zephra.app/Contents/MacOS/Zephra`) rather
   than with `open` when the point is the error text: MLX prints the Metal error it dies of
   to stderr, and the crash report carries only `abort() called`. The kernel's side of a GPU

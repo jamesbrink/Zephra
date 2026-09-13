@@ -2091,6 +2091,16 @@ environment value.
   first through `adoptReference`, and Generate waits for it. `ZEPHRA_WIRED_LIMIT_MB=N`
   (0 off) and `ZEPHRA_MEMORY_LIMIT_MB=N` replay the app's limits in the bench;
   every `_MB` is `MemoryUnits.mebibyte`.
+- `ZEPHRA_GPU_WORKING_SET_MB=N` (Debug only, `GPUWorkingSetOverride`, read once
+  in `ZephraApp` beside `GPUMemoryBudget` and `InterfacePreview.budget()`)
+  replaces `MemoryBudget.gpuWorkingSet` with N mebibytes, so this Mac judges
+  models as a smaller one would: the chooser, the model menu's notes,
+  `MemoryFit`, `WeightResidencyPolicy`, `VAETilingPolicy`, the phone's
+  `ModelSummary` and the static half of the memory guard all read that one
+  number. `physicalMemory` and `wiredLimitMB` stay this Mac's own, and
+  `MemoryGuard`'s live reading still asks the real machine, so a hand check
+  meant for a 16 GB Mac (12124 is bender's working set) can be run on a Mac
+  that is free. Absent or malformed it changes nothing.
 - Launch from a shell (`./build/Release/Zephra.app/Contents/MacOS/Zephra`)
   rather than `open` when the point is the error text: MLX prints the Metal
   error to stderr and the crash report carries only `abort() called`. A GPU
