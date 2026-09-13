@@ -39,14 +39,15 @@ extension ModelCatalog {
         return runs + all.filter { !ids.contains($0.id) }
     }
 
-    /// The models that run at their default size within `budget` without paging, counting
-    /// the tiled VAE decode and streamed weights as available — they are what the app turns
-    /// on when it matters.
+    /// The set a Mac may choose from: the models that run at their default size within
+    /// `budget` without paging, counting the tiled VAE decode and streamed weights as
+    /// available — they are what the app turns on when it matters.
     ///
-    /// This is the filter behind the model picker's wording, not a gate on what can be chosen:
-    /// a model left out of this list is still runnable at a smaller size.
+    /// A model left out of this list is not offered at a smaller size either. A Mac that
+    /// cannot hold a model aborted the app rather than drawing something small, so the
+    /// picker greys what is missing here and never loads it.
     public static func fitting(budget: MemoryBudget) -> [ModelDescriptor] {
-        all.filter { fit($0, budget: budget).runsAtDefaultSize }
+        all.filter { fit($0, budget: budget).isSelectable }
     }
 
     /// `fitting(budget:)` for a Mac whose GPU has not been asked what it may keep.

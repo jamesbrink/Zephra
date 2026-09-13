@@ -40,10 +40,13 @@ struct WeightResidencyPolicyTests {
         }
     }
 
-    @Test("a model too large even streamed is loaded resident rather than streamed for nothing")
-    func tooLargeEvenStreamedStaysResident() {
+    @Test("a model too large even streamed is streamed rather than loaded resident to page")
+    func tooLargeEvenStreamedIsStreamed() {
+        // Loading a model that does not fit resident and letting the Mac page is how a 16 GB
+        // mini aborted; streaming is the cheapest thing that can be tried, and the live guard
+        // is what refuses the load when even that will not do.
         let huge = MemoryFitTests.model(peak: 60_000_000_000, tiled: 50_000_000_000, streamed: 20_000_000_000)
-        #expect(WeightResidencyPolicy(mode: .automatic, budget: MemoryFitTests.sixteenDefault).residency(for: huge) == .resident)
+        #expect(WeightResidencyPolicy(mode: .automatic, budget: MemoryFitTests.sixteenDefault).residency(for: huge) == .streamed)
     }
 
     @Test("the mode survives a round trip through its stored raw value")

@@ -452,7 +452,8 @@ A Mac that has never run Zephra opens on a model chooser, not on a download.
 - The recommendation is `ModelCatalog.default(fitting:)`; where nothing fits, the
   entry with the smallest `ModelDescriptor.leanestPeakBytes`.
 - Cards are `ModelChoice.all(for:)`, every catalog entry judged once against one
-  budget. Nothing is hidden or disabled by memory. A card's size is
+  budget. Nothing is hidden by memory; a model this Mac cannot hold is disabled
+  with its reason. A card's size is
   `store.availability[id]?.label`, never `transferBytes` (before the survey,
   `builtBytes` when `isPublishedPrebuilt`). Fit strings live in
   `MemoryFit+Label`; `Needs N GB` rounds up.
@@ -1694,7 +1695,7 @@ What decides it: `ModelDescriptor.streamedPeakBytes` (zero for a family that
 cannot stream); `MemoryFit` tries it after `fitsTiled` and answers
 `fitsStreamed`; `WeightResidencyPolicy` turns the Performance preference and
 the budget into a `WeightResidency` for the load, streamed under Automatic
-exactly when the verdict is `fitsStreamed`. `InferenceActor` pins the residency
+whenever the model does not fit resident, `.tight` included. `InferenceActor` pins the residency
 beside `loadedPath`, so asking for the same model the other way is a reload.
 `MemoryBudget` (`ZephraCore`) is Metal's `recommendedMaxWorkingSetSize`, read
 once at launch (`GPUMemoryBudget`) and handed down; MLX's memory and wired

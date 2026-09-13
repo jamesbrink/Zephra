@@ -52,7 +52,7 @@ struct GPUMemoryRow: View {
     /// Whether raising the limit would let the chosen model run at its default size.
     private var wouldHelp: Bool {
         let fit = ModelCatalog.fit(store.descriptor, budget: budget)
-        return !fit.runsAtDefaultSize
+        return !fit.isSelectable
             && MemoryFit.wouldFitWithWiredLimitRaised(store.descriptor, budget: budget)
     }
 

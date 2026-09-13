@@ -69,13 +69,15 @@ struct MemoryFitTests {
         #expect(MemoryFit(descriptor: unstreamable, budget: enough) == .fitsTiled)
     }
 
-    @Test("the raise-the-limit hint appears only when RAM would actually hold the tiled peak")
+    @Test("the raise-the-limit hint appears only when RAM would actually hold the leanest peak")
     func hintOnlyWhenRaisingHelps() {
-        // klein 8-bit's tiled peak is under 16 GB of RAM; Qwen-Image's is not.
+        // klein 8-bit's tiled peak is under 16 GB of RAM; a 26 GB tiled peak from a family
+        // that cannot stream is not, and there is no leaner figure to fall back on.
         #expect(
             MemoryFit.wouldFitWithWiredLimitRaised(ModelCatalog.flux2Klein8bit, budget: Self.sixteenDefault))
         #expect(
-            !MemoryFit.wouldFitWithWiredLimitRaised(ModelCatalog.qwenImage2512_4bit, budget: Self.sixteenDefault))
+            !MemoryFit.wouldFitWithWiredLimitRaised(
+                Self.model(peak: 30_360_000_000, tiled: 26_070_000_000), budget: Self.sixteenDefault))
         // A 32 GB Mac's default working set (about 22.9 GB) is under a 26.1 GB tiled peak,
         // and the RAM is over it: this is the Mac the hint is for, when the model cannot
         // stream instead.
@@ -90,12 +92,30 @@ struct MemoryFitTests {
         #expect(MemoryFit(descriptor: ModelCatalog.qwenImage2512_4bit, budget: thirtyTwo) == .fitsStreamed)
     }
 
+    @Test("tight quotes the leanest figure, which is the streamed one where the family streams")
+    func tightQuotesTheLeanestFigure() {
+        // A family that streams is asked for its streamed peak, not its tiled one: the tiled
+        // figure would tell a person to find 26 GB for a model Zephra would never load that way.
+        let streams = Self.model(
+            peak: 30_000_000_000, tiled: 26_000_000_000, streamed: 20_000_000_000)
+        guard case .tight(let needed) = MemoryFit(descriptor: streams, budget: Self.sixteenDefault)
+        else {
+            Issue.record("a 20 GB streamed peak does not fit a 16 GB Mac's default working set")
+            return
+        }
+        #expect(needed == streams.streamedPeakBytes)
+        // And a Mac with 32 GB of RAM could reach that streamed peak by raising the limit,
+        // where the tiled figure would have said no.
+        let thirtyTwo = MemoryBudget(physicalMemory: Self.gigabytes(32), gpuWorkingSet: Self.megabytes(22_900))
+        #expect(MemoryFit.wouldFitWithWiredLimitRaised(streams, budget: thirtyTwo))
+    }
+
     @Test("a streamed figure is offered after tiling and before giving up, and never when zero")
     func streamedComesAfterTiling() {
         let model = Self.model(peak: 30_000_000_000, tiled: 26_000_000_000, streamed: 9_000_000_000)
         let fit = MemoryFit(descriptor: model, budget: Self.sixteenDefault)
         #expect(fit == .fitsStreamed)
-        #expect(fit.runsAtDefaultSize && fit.requiresStreaming && fit.requiresTiling)
+        #expect(fit.isSelectable && fit.requiresStreaming && fit.requiresTiling)
         let roomy = MemoryBudget(physicalMemory: Self.gigabytes(48), gpuWorkingSet: Self.gigabytes(36))
         #expect(MemoryFit(descriptor: model, budget: roomy) == .fits)
         let unstreamable = Self.model(peak: 30_000_000_000, tiled: 26_000_000_000)
@@ -105,6 +125,6 @@ struct MemoryFitTests {
         }
         // A streamed peak over the budget is still tight, not streamed.
         let tooBig = Self.model(peak: 30_000_000_000, tiled: 26_000_000_000, streamed: 14_000_000_000)
-        #expect(!MemoryFit(descriptor: tooBig, budget: Self.sixteenDefault).runsAtDefaultSize)
+        #expect(!MemoryFit(descriptor: tooBig, budget: Self.sixteenDefault).isSelectable)
     }
 }

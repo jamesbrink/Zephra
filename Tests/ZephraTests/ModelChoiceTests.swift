@@ -22,9 +22,9 @@ struct ModelChoiceTests {
     func fittingModelsLead() {
         let budget = Self.budget(gigabytes: 16)
         let choices = ModelChoice.all(for: budget)
-        let fitting = choices.prefix { $0.fit.runsAtDefaultSize }
+        let fitting = choices.prefix { $0.fit.isSelectable }
         #expect(fitting.count == ModelCatalog.fitting(budget: budget).count)
-        #expect(choices.dropFirst(fitting.count).allSatisfy { !$0.fit.runsAtDefaultSize })
+        #expect(choices.dropFirst(fitting.count).allSatisfy { !$0.fit.isSelectable })
     }
 
     @Test("exactly one model is the recommendation, and it is this Mac's own")

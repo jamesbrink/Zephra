@@ -38,6 +38,35 @@ struct MemoryFitLabelTests {
         }
     }
 
+    @Test("a model this Mac cannot hold is told so, and told which levers were counted")
+    func tightSaysItCannotBeChosen() {
+        // An 8 GB Mac holds nothing in the catalog, and every one of those sentences has to
+        // say that the model is not on offer rather than leave a person looking for the row.
+        let budget = Self.budget(gigabytes: 8)
+        for model in ModelCatalog.all {
+            let fit = ModelCatalog.fit(model, budget: budget)
+            guard case .tight = fit else {
+                Issue.record(Comment(rawValue: "\(model.id) fits an 8 GB Mac"))
+                continue
+            }
+            let reason = fit.reason(for: model, budget: budget)
+            #expect(reason.contains("so it cannot be chosen here"))
+            #expect(!reason.contains("A smaller size runs"))
+            #expect(
+                reason.contains("even with the decode tiled and the weights streamed from disk")
+                    == (model.streamedPeakBytes > 0))
+        }
+        // The whole sentence, in order: the levers qualify what the model needs, not what
+        // this Mac has, and the figure quoted is the leanest way the family runs.
+        let model = ModelCatalog.qwenImage2512_4bit
+        #expect(
+            ModelCatalog.fit(model, budget: budget).reason(for: model, budget: budget)
+                == "\(model.fullName) needs a GPU working set of about 11 GB at "
+                    + "\(model.capabilities.defaultSize.width) pixels, even with the decode "
+                    + "tiled and the weights streamed from disk, and this Mac's is 6.9 GB, so "
+                    + "it cannot be chosen here.")
+    }
+
     @Test("a model that would fit with the wired limit raised is told so, and one that would not is not")
     func theWiredLimitHintIsOnlyOfferedWhenItHelps() {
         let hint = "Raising the GPU memory limit"
@@ -72,7 +101,7 @@ struct ModelCatalogOrderTests {
         let fitting = ModelCatalog.fitting(budget: budget)
         #expect(Array(ordered.prefix(fitting.count)) == fitting)
         #expect(ordered.dropFirst(fitting.count).allSatisfy {
-            !ModelCatalog.fit($0, budget: budget).runsAtDefaultSize
+            !ModelCatalog.fit($0, budget: budget).isSelectable
         })
     }
 

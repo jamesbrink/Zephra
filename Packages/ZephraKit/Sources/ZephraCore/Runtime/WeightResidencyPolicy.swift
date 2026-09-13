@@ -18,10 +18,10 @@ public struct WeightResidencyPolicy: Hashable, Sendable {
 
     /// Where `descriptor`'s weights should live on this Mac.
     ///
-    /// Under `automatic` the answer is streamed exactly when the catalog's verdict is
-    /// `fitsStreamed`: a model that fits resident, tiled or not, stays resident, and one that
-    /// does not fit even streamed is loaded resident and left to page, since streaming would
-    /// not save it and the person chose it knowing the picker's figure.
+    /// Under `automatic` the answer is streamed whenever the model does not fit resident: one
+    /// that fits with its weights held, tiled or not, stays resident, and everything else
+    /// streams. A model too large even streamed streams too — loading it resident to page was
+    /// how a 16 GB Mac aborted, and the live `MemoryGuard` is what refuses it, not this.
     public func residency(for descriptor: ModelDescriptor) -> WeightResidency {
         guard descriptor.streamedPeakBytes > 0 else { return .resident }
         switch mode {
@@ -30,8 +30,8 @@ public struct WeightResidencyPolicy: Hashable, Sendable {
         case .always:
             return .streamed
         case .automatic:
-            return MemoryFit(descriptor: descriptor, budget: budget).requiresStreaming
-                ? .streamed : .resident
+            return MemoryFit(descriptor: descriptor, budget: budget).fitsResident
+                ? .resident : .streamed
         }
     }
 }

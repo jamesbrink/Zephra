@@ -13,7 +13,7 @@ struct ModelCatalogTests {
         let memory = Self.gigabytes(8)
         #expect(ModelCatalog.fitting(physicalMemory: memory).isEmpty)
         for model in ModelCatalog.all {
-            #expect(!ModelCatalog.fit(model, physicalMemory: memory).runsAtDefaultSize)
+            #expect(!ModelCatalog.fit(model, physicalMemory: memory).isSelectable)
         }
     }
 
@@ -64,9 +64,11 @@ struct ModelCatalogTests {
             Issue.record("expected Qwen-Image not to fit on an 8 GB Mac even streamed")
             return
         }
-        // The tiled peak itself: the GPU working set that would clear the budget.
-        #expect(needed == ModelCatalog.qwenImage2512_4bit.tiledPeakBytes)
-        #expect(needed == 26_070_000_000)
+        // The streamed peak, which is the leanest way this family runs: naming the 26.1 GB
+        // tiled figure would tell an 8 GB Mac to find memory for a load Zephra would never ask
+        // of it, since Automatic streams anything that does not fit resident.
+        #expect(needed == ModelCatalog.qwenImage2512_4bit.streamedPeakBytes)
+        #expect(needed == 10_250_000_000)
     }
 
     @Test("a 24 GB Mac runs the 4-bit model exactly and the 8-bit one only tiled")
