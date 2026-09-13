@@ -20,8 +20,8 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
     /// The descriptor identifier currently in memory, or nil when nothing is loaded.
     public private(set) var loadedModelID: String?
 
-    /// This family cannot stream, so whatever is loaded is resident.
-    public var loadedResidency: WeightResidency? { loadedModelID == nil ? nil : .resident }
+    /// How the loaded weights are held: what `load` was given, since this family honours it.
+    public private(set) var loadedResidency: WeightResidency?
 
     private var pipeline: ZImagePipeline?
     private var loadedDescriptor: ModelDescriptor?
@@ -43,11 +43,18 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
         self.init(environment: InferenceEnvironment(), tile: VAETileSetting())
     }
 
-    /// Reads the weights at `localPath` into memory.
+    /// Reads the weights at `localPath` into memory, the way `residency` asks for.
     ///
     /// Whatever was loaded before is released first. Two Z-Image models are 13 GB each, so
     /// holding the old one while the new one arrives would put the machine into swap; the same
     /// backend serves every variant, and it serves one at a time.
+    ///
+    /// Streamed, the transformer's three block stacks and the text encoder's layers are read
+    /// from the shards on every pass instead of held, which is what lets a Mac that cannot hold
+    /// this model run it. It says nothing about the decode: the autoencoder is resident either
+    /// way and its transient is the peak, so the engine still tiles the decode when its verdict
+    /// says to (`MemoryFit.requiresTiling` is true for `fitsStreamed`), through the `tile` this
+    /// backend reads at the top of every run.
     nonisolated(nonsending) public func load(
         _ descriptor: ModelDescriptor,
         at localPath: URL,
@@ -57,8 +64,13 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
         if loadedModelID != nil { unload() }
         let pipeline = pipeline ?? ZImagePipeline()
         self.pipeline = pipeline
+        // How far the stream reads ahead is the composition root's switch, read once at launch;
+        // the kit reads no environment variable of its own.
+        let streaming = residency == .streamed
+            ? ZImageStreaming(depth: environment.streamDepth) : nil
         do {
-            try await pipeline.loadModel(modelSpec: localPath.path) { progress in
+            try await pipeline.loadModel(modelSpec: localPath.path, streaming: streaming) {
+                progress in
                 onProgress(ZImageProgressMapper.event(from: progress))
             }
         } catch let error as CancellationError {
@@ -69,6 +81,7 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
         loadedModelID = descriptor.id
         loadedDescriptor = descriptor
         loadedSnapshot = localPath
+        loadedResidency = residency
     }
 
     /// Runs one generation and returns the encoded PNG bytes.
@@ -125,5 +138,6 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
         loadedModelID = nil
         loadedDescriptor = nil
         loadedSnapshot = nil
+        loadedResidency = nil
     }
 }
