@@ -14,12 +14,19 @@ extension ModelSummary {
     }
 
     /// The line beside the name, or nil when there is nothing worth saying, in the Mac's own
-    /// order (`Views/ModelMenu.swift`): a model that cannot be had at all says so before
-    /// anything about memory, and a download's size has to be on screen before the row is
-    /// pressed, so both come first; then how it would run here — "Tiles the decode", "Streams
-    /// from disk", "Needs 23 GB" — and only then the plain availability label.
+    /// order (`Views/ModelMenu.swift`): a model that cannot be had at all says so first, then
+    /// what a Mac too small for it would need, then a download's size, then how it would run
+    /// here — "Tiles the decode", "Streams from disk" — and only then the plain availability
+    /// label.
+    ///
+    /// The memory note comes **before** the download size for a row that cannot be pressed,
+    /// which is the one place the two orders differ and is why the Mac's is the one to copy:
+    /// the row is greyed by memory, so "Needs 23 GB" is what the greying means, and quoting a
+    /// download that pressing the row would never start is the worse label. For a row that can
+    /// be pressed the download still comes first, since the press is what starts it.
     func note(availability: AvailabilityDTO?) -> String? {
         if availability?.isObtainable == false { return availability?.label }
+        if !isSelectable, let memoryNote { return memoryNote }
         if availability?.needsNetwork == true { return availability?.label }
         if let memoryNote { return memoryNote }
         return availability?.label

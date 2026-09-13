@@ -34,6 +34,29 @@ struct ModelChoosingTests {
         #expect(model.note(availability: missing) == missing.label)
     }
 
+    @Test("a model too big and not downloaded says what it needs")
+    func aModelTooBigAndNotDownloadedSaysWhatItNeeds() {
+        // Both things are true of the same row, and the Mac answers with the memory: the row is
+        // greyed, so the download it quotes is one no press will ever start. The phone said the
+        // size here until this was fixed, which is the Mac and the phone disagreeing about why
+        // a row cannot be chosen.
+        let model = Self.model(isSelectable: false, note: "Needs 23 GB")
+        let download = AvailabilityDTO(.needsDownload(bytes: 24_000_000_000))
+
+        #expect(!model.isChoosable(availability: download))
+        #expect(model.note(availability: download) == "Needs 23 GB")
+    }
+
+    @Test("a row an older Mac greyed with no note of its own still quotes the download")
+    func anOlderMacsGreyedRowKeepsItsDownload() {
+        // `memoryNote` arrived after the first Macs shipped, so a row can be unselectable with
+        // nothing to say about memory; the size is then better than nothing at all.
+        let model = Self.model(isSelectable: false)
+        let download = AvailabilityDTO(.needsDownload(bytes: 24_000_000_000))
+
+        #expect(model.note(availability: download) == download.label)
+    }
+
     @Test("a download says its size first, since the press is what starts it")
     func aDownloadSaysItsSizeFirst() {
         let model = Self.model(note: "Streams from disk")
