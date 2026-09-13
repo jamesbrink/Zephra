@@ -4,6 +4,7 @@ import ZephraCore
 /// Mutable request bookkeeping confined to ModelDownloads' main actor.
 @MainActor
 final class DownloadRequest {
+    var installedOnly = false
     let id = UUID()
     let model: ModelDescriptor
     let locations: ModelLocations

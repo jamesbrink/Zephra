@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import ZephraLinkHost
+@testable import ZephraLinkHost
 import ZephraLinkProtocol
 
 @testable import ZephraEngine
@@ -14,6 +14,38 @@ import ZephraLinkProtocol
 @MainActor
 @Suite("A session whose phone vanished mid-send still closes")
 struct CompanionDeadRoadTests {
+    @Test("A blocked bulk download leaves incoming targeted Stop responsive")
+    func bulkDoesNotBlockControl() async throws {
+        let (bed, url) = try await CompanionLibraryTests.bedWithOnePicture()
+        let handle = try FileHandle(forWritingTo: url)
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data(repeating: 0, count: 2_000_000))
+        try handle.close()
+        await bed.index.rescanNow()
+        bed.engine.control.update { $0.stepDelay = .milliseconds(200) }
+        await bed.bootstrap()
+        bed.store.settings.prompt = "stop me"
+        bed.store.generate()
+        try await bed.engine.waitForStep()
+        let run = try #require(bed.store.running?.id)
+        let (macSide, phoneSide) = MemoryLinkConnection.pair()
+        let road = StallingConnection(macSide)
+        let phone = FakePhone(connection: phoneSide)
+        let payload = bed.host.beginPairing()
+        bed.listener.offer(road)
+        try await phone.connect(to: bed.keys, pairingSecret: payload.secret)
+        _ = try await phone.snapshot()
+        road.stallSends()
+        let fetch = Task { try? await phone.request(.fetchFile(name: url.lastPathComponent)) }
+        try await bed.waitUntil { bed.host.sessions.first?.queuedBytes ?? 0 >= 262_144 }
+        try await phone.send(envelope: Envelope.encoding(Command.multiHost(.cancelRun(run)), kind: .request))
+        try await bed.waitUntil { bed.store.running == nil }
+        #expect(bed.host.sessions.first?.bulk != nil, "Stop was handled while the transfer still waited")
+        await bed.shutdown()
+        fetch.cancel()
+        await phone.disconnect()
+    }
+
     @Test("closing a session does not wait on a send that will never complete")
     func closingDoesNotWaitOnAStuckSend() async throws {
         let bed = CompanionTestBed()

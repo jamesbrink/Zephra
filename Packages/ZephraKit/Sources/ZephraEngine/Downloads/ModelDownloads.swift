@@ -15,11 +15,12 @@ public final class ModelDownloads {
 
     public init(transfers: ModelTransfers = ModelTransfers()) { self.transfers = transfers }
 
-    func start(_ model: ModelDescriptor, registry: BackendRegistry, locations: ModelLocations) -> DownloadRequest? {
+    func start(_ model: ModelDescriptor, registry: BackendRegistry, locations: ModelLocations, installedOnly: Bool = false) -> DownloadRequest? {
         guard !admissionClosed else { return nil }
         if let request = requests[model.id], request.model == model, request.locations == locations,
-           !request.released, request.stopped == nil { return request }
+           !request.released, request.stopped == nil, request.installedOnly == installedOnly { return request }
         let request = DownloadRequest(model, locations)
+        request.installedOnly = installedOnly
         requests[model.id] = request
         retained[request.id] = request
         publish(request, .queued)
@@ -28,7 +29,7 @@ public final class ModelDownloads {
                 try await transfers.reserve(request.id, model: model, locations: locations)
                 try Task.checkCancellation()
                 let path = try await ModelResolution().resolve(model, registry: registry, locations: locations,
-                    acquisition: TransferAcquisition(id: request.id, pool: transfers)) { event in
+                    acquisition: installedOnly ? InstalledAcquisition() : TransferAcquisition(id: request.id, pool: transfers)) { event in
                     Task { @MainActor in self.progress(request.id, event) }
                 }
                 try Task.checkCancellation()
@@ -46,9 +47,9 @@ public final class ModelDownloads {
         return request
     }
 
-    func acquire(_ model: ModelDescriptor, registry: BackendRegistry, locations: ModelLocations,
+    func acquire(_ model: ModelDescriptor, registry: BackendRegistry, locations: ModelLocations, installedOnly: Bool = false,
                  progress: @escaping @MainActor (DownloadProgressEvent) -> Void) async throws -> AcquiredModel {
-        guard let request = start(model, registry: registry, locations: locations), let task = request.task else {
+        guard let request = start(model, registry: registry, locations: locations, installedOnly: installedOnly), let task = request.task else {
             throw CancellationError()
         }
         request.borrowers += 1
@@ -58,7 +59,7 @@ public final class ModelDownloads {
         do {
             let path = try await TaskReceipt().value(of: task)
             try Task.checkCancellation()
-            return AcquiredModel(id: request.id, model: model, locations: locations, directory: path)
+            return AcquiredModel(installedOnly: installedOnly, id: request.id, model: model, locations: locations, directory: path)
         } catch {
             request.progress = nil
             request.borrowers -= 1

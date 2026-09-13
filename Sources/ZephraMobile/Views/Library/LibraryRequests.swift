@@ -35,7 +35,7 @@ struct LibraryRequests: ViewModifier {
     @ViewBuilder private func sheet(for request: LibraryRequest) -> some View {
         switch request {
         case .tagging(let entry): TagSheet(entry: entry)
-        case .sharing(let url): ShareSheet(url: url)
+        case .sharing(let url, _): ShareSheet(url: url)
         case .deleting: EmptyView()
         }
     }
@@ -45,8 +45,9 @@ struct LibraryRequests: ViewModifier {
     /// while the Mac is out of reach, so this is a link that dropped mid-fetch.
     private func share(_ entry: CachedEntry) {
         Task {
+            let lease = await catalog.lease(entry)
             guard let url = try? await catalog.file(for: entry) else { return }
-            request = .sharing(url)
+            request = .sharing(url, lease)
         }
     }
 
@@ -54,7 +55,7 @@ struct LibraryRequests: ViewModifier {
     private func delete() {
         guard case .deleting(let entry) = request else { return }
         request = nil
-        Task { await catalog.delete([entry.fileName]) }
+        Task { await catalog.delete([entry.id]) }
     }
 
     /// "Delete Clip" or "Delete Picture", so the question names what is about to go.
@@ -78,13 +79,13 @@ enum LibraryRequest: Identifiable {
     /// Ask whether to delete this one.
     case deleting(CachedEntry)
     /// Offer this file to the rest of the phone.
-    case sharing(URL)
+    case sharing(URL, FileLease)
 
     var id: String {
         switch self {
-        case .tagging(let entry): "tag:\(entry.fileName)"
-        case .deleting(let entry): "delete:\(entry.fileName)"
-        case .sharing(let url): "share:\(url.path())"
+        case .tagging(let entry): "tag:\(entry.id)"
+        case .deleting(let entry): "delete:\(entry.id)"
+        case .sharing(let url, _): "share:\(url.path())"
         }
     }
 }

@@ -17,11 +17,13 @@ struct SaveToPhotosButton: View {
     var body: some View {
         Button("Save to Photos", systemImage: "square.and.arrow.down") {
             Task {
+                let lease = await catalog.lease(entry)
+                defer { withExtendedLifetime(lease) {} }
                 guard let url = try? await catalog.file(for: entry) else { return }
                 try? await PhotosSaver.save(url, isVideo: entry.isVideo)
             }
         }
-        .disabled(!catalog.isLive && !isHeld)
+        .disabled(!catalog.isLive(for: entry) && !isHeld)
         .task { isHeld = await catalog.hasFile(for: entry) }
     }
 }

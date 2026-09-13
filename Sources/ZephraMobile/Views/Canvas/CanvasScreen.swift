@@ -10,11 +10,13 @@ import ZephraStyle
 /// apart while a prompt is being typed.
 struct CanvasScreen: View {
     @Environment(LinkClient.self) private var client
+    @Environment(GenerationDispatch.self) private var dispatch
     @Environment(PromptDraft.self) private var draft
 
     var body: some View {
         NavigationStack {
             CanvasPicture()
+                .environment(dispatch.hosts.visible?.catalog ?? dispatch.hosts.catalog)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.horizontal, MobileChrome.sideMargin)
                 .background(Color.canvasBackground)
@@ -35,9 +37,9 @@ struct CanvasScreen: View {
 
     /// Puts one picture in the well, fitted to whatever model the next press names.
     private func fill(_ data: Data, origin: String) async {
-        guard let snapshot = client.snapshot else { return }
+        guard let model = dispatch.models.first(where: { $0.id == draft.modelID }) else { return }
         await ReferenceAdoption.adopt(
             data, origin: origin, into: draft,
-            fitting: snapshot.model(named: draft.modelID).capabilities)
+            fitting: model.capabilities)
     }
 }

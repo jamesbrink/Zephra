@@ -28,9 +28,9 @@ struct ViewerCover: ViewModifier {
             .environment(\.viewerOpening, opening)
             .environment(\.viewerNamespace, zoom)
             .fullScreenCover(item: $opening) { open in
-                LibraryViewer(entries: entries(open), opening: open.opened.fileName)
+                LibraryViewer(entries: entries(open), opening: open.opened.id)
                     .environment(\.viewerPaged) { opening?.shown = $0 }
-                    .navigationTransition(.zoom(sourceID: open.opened.fileName, in: zoom))
+                    .navigationTransition(.zoom(sourceID: open.opened.id, in: zoom))
             }
     }
 }

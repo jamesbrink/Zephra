@@ -53,17 +53,20 @@ struct LinkSessionTests {
         defer { Task { await bed.host.stop() } }
         let first = ClientFixtures.entry("one.png")
         let second = ClientFixtures.entry("two.png")
+        bed.host.library = [first, second]
         try await bed.host.announce(
             StateDelta.library(.reset([first, second], total: 2)), kind: .delta)
-        try await settle()
+        try await settle { bed.client.libraryIsComplete }
         #expect(bed.client.library.map(\.fileName) == ["one.png", "two.png"])
+        bed.host.library = [ClientFixtures.entry("three.png"), first, second]
         try await bed.host.announce(
             StateDelta.library(.upserted([ClientFixtures.entry("three.png")])), kind: .delta)
-        try await settle()
-        #expect(bed.client.library.first?.fileName == "three.png")
+        try await settle { bed.client.library.contains { $0.fileName == "three.png" } }
+        #expect(bed.client.library.contains { $0.fileName == "three.png" })
+        bed.host.library = [ClientFixtures.entry("three.png"), second]
         try await bed.host.announce(StateDelta.library(.removed(["one.png"])), kind: .delta)
-        try await settle()
-        #expect(bed.client.library.map(\.fileName) == ["three.png", "two.png"])
+        try await settle { bed.client.library.count == 2 && !bed.client.library.contains { $0.fileName == "one.png" } }
+        #expect(Set(bed.client.library.map(\.fileName)) == ["three.png", "two.png"])
     }
 
     @Test("a command crosses and its reply closes it")
@@ -116,14 +119,17 @@ struct LinkSessionTests {
         try await bed.host.announce(
             LinkError(code: .revoked, reason: "This Mac no longer knows this device."),
             kind: .error)
-        try await settle()
+        try await settle { bed.client.pairedHost == nil }
         #expect(bed.client.pairedHost == nil)
         #expect(try bed.store.loadPairedHost() == nil)
     }
 
     /// Lets the frames in flight land: everything here is one process and one actor, so a
     /// couple of turns of the loop is the whole of the wait.
-    private func settle() async throws {
+    private func settle(_ until: @MainActor () -> Bool = { true }) async throws {
         for _ in 0..<8 { await Task.yield() }
+        let deadline = ContinuousClock.now + .seconds(2)
+        while !until(), ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(5)) }
+        #expect(until())
     }
 }

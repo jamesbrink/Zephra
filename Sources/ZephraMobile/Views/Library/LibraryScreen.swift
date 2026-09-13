@@ -20,6 +20,7 @@ struct LibraryScreen: View {
         @Bindable var catalog = catalog
         NavigationStack {
             VStack(spacing: 0) {
+                LibrarySourcePicker()
                 ScopeChips()
                 LibraryGrid()
             }

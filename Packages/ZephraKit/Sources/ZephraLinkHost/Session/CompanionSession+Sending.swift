@@ -52,7 +52,7 @@ extension CompanionSession {
 
     /// One frame of the run in flight, for the same reason and with the same silence.
     func send(_ frame: PreviewFrameDTO) {
-        guard isReady else { return }
+        guard queuedBytes < 262_144, isReady else { return }
         try? send(frame, kind: .preview)
     }
 }

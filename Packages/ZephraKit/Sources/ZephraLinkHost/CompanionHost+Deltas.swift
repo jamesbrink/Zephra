@@ -139,7 +139,7 @@ extension CompanionHost {
                 PreviewEncoder.frame(preview, step: engine.step ?? 0, steps: engine.steps ?? 0)
             }.value
             guard let self, let frame else { return }
-            for session in sessions { session.send(frame) }
+            for session in sessions where session.wantsPreviews { session.send(frame) }
         }
     }
 

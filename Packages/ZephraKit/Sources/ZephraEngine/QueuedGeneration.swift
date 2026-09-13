@@ -3,6 +3,8 @@ import ZephraCore
 
 /// One generation waiting its turn behind the running one.
 public struct QueuedGeneration: Identifiable, Hashable, Sendable {
+    public let requiresInstalledModel: Bool
+
     /// Stable identity, so a row in a list can be removed while the queue shifts.
     public let id: UUID
     /// The model it will run on. Queue entries can name different models; the engine swaps
@@ -26,8 +28,10 @@ public struct QueuedGeneration: Identifiable, Hashable, Sendable {
         settings: GenerationSettings,
         batchID: UUID = UUID(),
         batchIndex: Int = 0,
-        chain: ChainSegment? = nil
+        chain: ChainSegment? = nil,
+        requiresInstalledModel: Bool = false
     ) {
+        self.requiresInstalledModel = requiresInstalledModel
         self.id = UUID()
         self.model = model
         self.settings = settings

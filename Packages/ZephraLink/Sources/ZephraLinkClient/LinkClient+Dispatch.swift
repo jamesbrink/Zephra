@@ -79,9 +79,12 @@ extension LinkClient {
 
     /// One change to the library the phone is holding.
     private func apply(_ change: LibraryChange) {
+        libraryMutation &+= 1
         switch change {
         case .reset(let entries, _):
+            libraryIsComplete = false
             library = entries
+            startLibraryPull()
         case .upserted(let entries):
             for entry in entries {
                 if let index = library.firstIndex(where: { $0.fileName == entry.fileName }) {

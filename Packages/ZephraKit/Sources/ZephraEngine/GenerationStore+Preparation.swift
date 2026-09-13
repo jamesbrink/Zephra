@@ -13,15 +13,17 @@ extension GenerationStore {
             self.applyLoadEvent(event)
         }
         var acquired: AcquiredModel?
+        let installedOnly = isSwitchingForQueue && queue.first?.requiresInstalledModel == true
         let residency = weightResidencyPolicy.residency(for: model)
         // A lease already held for this model is reused rather than borrowed again: one
         // request is borrowed once, whatever path reaches here.
         let held = acquiredModel.flatMap { $0.model.id == model.id && $0.locations == locations ? $0 : nil }
         do {
-            if let held {
+            if var held {
+                held.installedOnly = installedOnly
                 acquired = held
             } else {
-                acquired = try await downloads.acquire(model, registry: registry, locations: locations) { [weak self] event in
+                acquired = try await downloads.acquire(model, registry: registry, locations: locations, installedOnly: installedOnly) { [weak self] event in
                     guard let self, self.loadIdentity == identity else { return }
                     self.applyLoadEvent(.download(event))
                 }
@@ -37,7 +39,7 @@ extension GenerationStore {
                 $0.standardizedFileURL == acquired.directory.standardizedFileURL
             }
             try await downloads.transfers.reserveBuild(acquired.id,
-                bytes: builtExists ? 0 : model.builtBytes, at: acquired.locations.root)
+                bytes: builtExists || installedOnly ? 0 : model.builtBytes, at: acquired.locations.root)
             let directory = try await pump.run { sink in
                 try await inference.prepare(acquired, residency: residency, events: sink)
             }

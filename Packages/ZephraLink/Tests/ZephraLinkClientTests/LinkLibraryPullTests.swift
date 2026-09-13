@@ -27,10 +27,10 @@ struct LinkLibraryPullTests {
         try await bed.host.announce(ClientFixtures.snapshot, kind: .snapshot)
         try await settle { bed.client.libraryIsComplete }
 
-        #expect(witness.asked.map(\.offset) == [0, 100, 200, 300])
+        #expect(witness.asked.map(\.offset) == [0, 100, 200, 300, 0, 100, 200, 300])
         #expect(witness.asked.allSatisfy { $0.limit == LinkClient.libraryPageSize })
         #expect(
-            witness.asked.map(\.held) == [0, 100, 200, 300],
+            witness.asked.map(\.held) == [0, 100, 200, 300, 350, 350, 350, 350],
             "each page is applied before the next is asked for, so the grid fills as they land")
         #expect(bed.client.library.count == 350)
         #expect(bed.client.library.first?.fileName == "picture-0.png")
@@ -51,7 +51,7 @@ struct LinkLibraryPullTests {
         try await settle(within: .seconds(5)) { bed.client.libraryIsComplete }
 
         #expect(bed.client.library.count == 40)
-        #expect(bed.host.commands.filter(Self.isPage).count == 2, "the refusal, then the page")
+        #expect(bed.host.commands.filter(Self.isPage).count == 3, "the refusal, then two matching legacy passes")
     }
 
     @Test("the library is empty and complete when the Mac's folder is")
@@ -65,7 +65,7 @@ struct LinkLibraryPullTests {
         try await settle { bed.client.libraryIsComplete }
 
         #expect(bed.client.library.isEmpty)
-        #expect(bed.host.commands.filter(Self.isPage).count == 1)
+        #expect(bed.host.commands.filter(Self.isPage).count == 2)
     }
 
     @Test("a second snapshot pulls the folder again")
@@ -80,7 +80,7 @@ struct LinkLibraryPullTests {
 
         bed.host.library = [ClientFixtures.entry("two.png"), ClientFixtures.entry("one.png")]
         try await bed.host.announce(ClientFixtures.snapshot, kind: .snapshot)
-        try await settle { bed.client.library.count == 2 }
+        try await settle { bed.client.library.count == 2 && bed.client.libraryIsComplete }
 
         #expect(bed.client.library.map(\.fileName).sorted() == ["one.png", "two.png"])
         #expect(bed.client.libraryIsComplete)
@@ -107,7 +107,7 @@ struct LinkLibraryPullTests {
         try await settle { bed.client.libraryIsComplete }
 
         #expect(
-            witness.asked.map(\.offset) == [0, 100, 200, 300],
+            witness.asked.map(\.offset) == [0, 100, 200, 300, 0, 100, 200, 300],
             "the second snapshot left the pull where it was rather than sending it back to 0")
         #expect(bed.client.library.count == 350)
     }
@@ -134,9 +134,29 @@ struct LinkLibraryPullTests {
         try await settle { bed.client.libraryIsComplete }
 
         #expect(
-            witness.asked.map(\.offset).filter { $0 == 0 }.count == 2,
+            witness.asked.map(\.offset).filter { $0 == 0 }.count == 3,
             "a count that moved is a folder to read again from the top")
         #expect(bed.client.library.count == 350)
+    }
+
+    @Test("A same-count replacement during legacy paging requires a new stable pass")
+    func sameCountReplacement() async throws {
+        let bed = LinkClientUnderTest(remembering: DeviceIdentity())
+        defer { Task { await bed.host.stop() } }
+        bed.host.library = (0..<150).map { ClientFixtures.entry("picture-\($0).png") }
+        await bed.client.connect()
+        for _ in 0..<8 { await Task.yield() }
+        var replaced = false
+        bed.host.onCommand = { command in
+            guard case .libraryPage(let offset, _) = command, offset == 100, !replaced else { return }
+            replaced = true
+            bed.host.library[0] = ClientFixtures.entry("replacement.png")
+        }
+        try await bed.host.announce(Self.snapshot(counting: 150), kind: .snapshot)
+        try await settle { bed.client.libraryIsComplete }
+        #expect(replaced)
+        #expect(bed.client.library == bed.host.library)
+        #expect(!bed.client.library.contains { $0.fileName == "picture-0.png" })
     }
 
     @Test("a frozen client is complete the moment it is made")

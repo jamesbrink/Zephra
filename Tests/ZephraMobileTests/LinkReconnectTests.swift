@@ -110,8 +110,8 @@ struct LinkReconnectTests {
         #expect(client.connection.reason == "Zephra could not reach halcyon.")
         let due = try #require(reconnect.nextAttemptAt)
         #expect(due == client.connection.nextAttempt)
-        // `LinkBackoff.first`, and never further off than that.
-        #expect(due.timeIntervalSinceNow <= 1.01)
+        // The first backoff includes bounded jitter to spread concurrent host reconnects.
+        #expect(due.timeIntervalSinceNow <= 1.36) // One-second backoff plus up to 350 ms per-host jitter.
         reconnect.end()
     }
 

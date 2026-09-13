@@ -794,3 +794,25 @@ const lineFor = (lines, at, result) =>
   await msg("H", { a: "send", d: "eW8=", to: "A" });
   check("the phone the legacy slot named still receives", last("A").d === "eW8=", last("A"));
 }
+
+// A single phone identity uses independent guest sockets in different Mac rooms.
+{
+  fresh();
+  const a = key(), b = key(), phone = key();
+  await joinAs("HA", a, a.room, "host", { allow: [phone.pub] });
+  await joinAs("HB", b, b.room, "host", { allow: [phone.pub] });
+  const pa = await joinAs("PA", phone, a.room, "guest");
+  const pb = await joinAs("PB", phone, b.room, "guest");
+  check("one phone identity joins two independent host rooms", pa.a === "joined" && pb.a === "joined");
+  await Promise.all([msg("PA", { a: "send", d: "YQ==" }), msg("PB", { a: "send", d: "Yg==" })]);
+  check("room A receives only its own guest payload", last("HA").d === "YQ==" && last("HA").from === "PA", last("HA"));
+  check("room B receives only its own guest payload", last("HB").d === "Yg==" && last("HB").from === "PB", last("HB"));
+  await msg("HA", { a: "allow", pubs: [] });
+  check("revocation in A leaves B's socket and slot intact", !gw.closed.has("PB") && db.store.get(`${b.room} HB`).guests.SS.includes("PB"));
+  await joinAs("HA2", a, a.room, "host", { allow: [phone.pub] });
+  await msg("HB", { a: "send", d: "c3RpbGw=", to: "PB" });
+  check("host supersession in A does not interrupt B", last("PB").d === "c3RpbGw=", last("PB"));
+  await bye("HA2");
+  await msg("PB", { a: "send", d: "bGl2ZQ==" });
+  check("disconnect cleanup stays within its room", last("HB").d === "bGl2ZQ==", last("HB"));
+}

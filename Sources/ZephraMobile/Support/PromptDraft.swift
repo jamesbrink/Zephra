@@ -59,7 +59,7 @@ final class PromptDraft {
         modelID = snapshot.model.id
         settings = Self.defaults(
             for: snapshot.model.capabilities, prompt: settings.prompt, seed: settings.seed)
-        follow(snapshot.running)
+        // Only initial defaults are adopted; external runs never replace a multi-host draft.
     }
 
     /// Names another model, putting the schedule settings on its own ladder the way

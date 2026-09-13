@@ -1,123 +1,20 @@
 import SwiftUI
-import UIKit
-import ZephraLinkClient
-import ZephraLinkProtocol
-import ZephraLinkTransport
 
-/// The composition root of the phone app: the one place that builds what the whole app
-/// observes, the one place that knows how a Mac is actually reached, and the one place that
-/// says when to reach for it.
-///
-/// One `WindowGroup` with one scene, because a phone has one. Everything a screen needs is the
-/// client below, injected once; nothing under here reads the environment or opens a socket of
-/// its own, exactly as `ZephraApp` is the only file on the Mac that names a backend.
 @main
 struct ZephraMobileApp: App {
-    /// The one object every view observes. Frozen from the fixture under
-    /// `ZEPHRA_PREVIEW_STATE`, and otherwise a real client over the real roads.
-    @State private var client: LinkClient
-    /// What keeps that client connected while the app is in front of somebody, and what
-    /// notices that this phone is on a different network — or nil for a frozen one: a client
-    /// with no road under it has nothing to reconnect and nothing to watch a path for.
-    @State private var reconnect: LinkReconnect?
-    @State private var path: LinkPathWatch?
-    /// The capsule's own state: what the next press of Generate would ask for.
-    @State private var draft = PromptDraft()
-    /// The Mac's library as this phone holds it, and "use that one as the reference" on its way
-    /// from the library to the capsule. Both are facts about this phone rather than facts that
-    /// came over the link, which is why they are objects of their own beside the client.
-    @State private var catalog = LibraryCatalog()
-    @State private var reference = ReferenceIntent()
-    /// Where the phone is looking, which the library writes when it sends somebody to the
-    /// canvas with a picture.
-    @State private var selection = MobileSelection()
+    @State private var workspace = MobileWorkspace()
     @Environment(\.scenePhase) private var scenePhase
-
-    init() {
-        if let frozen = MobilePreview.client() {
-            _client = State(initialValue: frozen)
-            _reconnect = State(initialValue: nil)
-            _path = State(initialValue: nil)
-            return
-        }
-        let live = Self.makeClient()
-        let reconnect = LinkReconnect(client: live)
-        _client = State(initialValue: live)
-        _reconnect = State(initialValue: reconnect)
-        _path = State(initialValue: LinkPathWatch(client: live, reconnect: reconnect))
-    }
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            MobileRoot(workspace: workspace)
                 .modifier(AppearancePreference())
                 .modifier(SeedFormatPreference())
                 .defaultAppStorage(MobileSettings.store)
-                .environment(client)
-                // The reconnection policy, for the one row that draws its wait and skips it.
-                // Nil under a frozen state, where there is nothing to reconnect.
-                .environment(reconnect)
-                // What the next press of Generate will ask for. Built once and injected, so a
-                // prompt survives a walk to the library and back; it holds no fact that came
-                // over the link, which is the client's alone.
-                .environment(draft)
-                .environment(catalog)
-                .environment(reference)
-                .environment(selection)
-                // The catalog reads what is on disk and then follows the client for the life
-                // of the app. Idempotent, so a scene rebuilt behind it starts nothing twice.
-                .task { catalog.start(client: client) }
-                // Connect while the app is in front and let the session go when it is not:
-                // a phone in a pocket has no reason to hold a socket open, and the Mac has no
-                // reason to hold a session for it. `initial` covers the launch itself, which
-                // is an arrival at `.active` that no change of phase reports.
                 .onChange(of: scenePhase, initial: true) { _, phase in
-                    switch phase {
-                    case .active:
-                        reconnect?.begin()
-                        path?.start()
-                    case .background:
-                        reconnect?.end()
-                        path?.stop()
-                    default: break
-                    }
-                }
-                // A phone that launches with no Mac has no loop running — there was nothing to
-                // dial — so pairing is the moment to start one. Here rather than at the pairing
-                // screen, because when to reach for a Mac is this file's business and no view's.
-                .onChange(of: client.pairedHost) { _, host in
-                    guard host != nil, scenePhase == .active else { return }
-                    reconnect?.begin()
+                    if phase == .active { workspace.hosts.setActive(true) }
+                    if phase == .background { workspace.hosts.setActive(false) }
                 }
         }
     }
-
-    /// The client an ordinary launch gets: this phone's identity and its pairing in the
-    /// keychain, Bonjour and TCP on the local network with the relay behind them, and the name
-    /// of the phone, which is what the Mac shows while somebody decides whether to let it in.
-    private static func makeClient() -> LinkClient {
-        let store = MobileKeychain()
-        let identity = deviceIdentity(in: store)
-        let roads = NetworkLinkRoads(relayURL: relayURL, identity: identity)
-        return LinkClient(
-            store: store,
-            roads: RelayOnlyRoads.isRequested ? RelayOnlyRoads(roads: roads) : roads,
-            deviceName: UIDevice.current.name)
-    }
-
-    /// Who this phone is, made the first time it is asked for and kept for good.
-    ///
-    /// Resolved here rather than left to `LinkClient`, which would do the same thing, because
-    /// the roads need it too: the relay is joined with a signature over its challenge, and a
-    /// second identity would be a second device as far as every paired Mac is concerned.
-    private static func deviceIdentity(in store: MobileKeychain) -> DeviceIdentity {
-        if let existing = try? store.loadIdentity() { return existing }
-        let fresh = DeviceIdentity()
-        try? store.save(fresh)
-        return fresh
-    }
-
-    /// The relay, for a phone that is not on the Mac's network. A hop through somebody else's
-    /// machine and the last road tried, never the first.
-    private static let relayURL = URL(string: "wss://zephra-link.urandom.io")!
 }

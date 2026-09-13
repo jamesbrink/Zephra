@@ -35,6 +35,13 @@ extension GenerationStore {
             }
             return
         }
+        if next.requiresInstalledModel,
+           let reason = strictRefusal(for: next.model, settings: next.settings, count: 1, admitting: false) {
+            queue.removeAll { $0.batchID == next.batchID }
+            transition(to: .failed(.backend(.generationFailed(reason))))
+            if !queue.isEmpty { drain() }
+            return
+        }
         if next.model.id == loadedDescriptor?.id {
             isSwitchingForQueue = false
             queue.removeFirst()

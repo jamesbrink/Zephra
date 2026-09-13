@@ -16,6 +16,7 @@ actor FileStore {
     /// What the folder may hold. A parameter only so a test can fill it without half a
     /// gigabyte of fixtures.
     private let limit: Int64
+    private var leases: [String: Int] = [:]
 
     /// A store under one caches root.
     init(root: URL?, limit: Int64 = CacheBudget.bytes) {
@@ -47,10 +48,17 @@ actor FileStore {
     @discardableResult
     func store(_ data: Data, as fileName: String) -> URL? {
         guard let url = path(for: fileName) else { return nil }
-        try? data.write(to: url, options: .atomic)
+        do { try data.write(to: url, options: .atomic) } catch { return nil }
         touch(url)
         trim()
         return url
+    }
+
+    func remove(prefix: String) {
+        guard let directory else { return }
+        for file in Self.contents(of: directory) where file.url.lastPathComponent.hasPrefix(prefix) {
+            try? FileManager.default.removeItem(at: file.url)
+        }
     }
 
     /// Empties the folder.
@@ -67,9 +75,19 @@ actor FileStore {
     /// Drops least recently read files until the folder fits.
     func trim() {
         guard let directory else { return }
-        for file in CacheBudget.excess(of: Self.contents(of: directory), limit: limit) {
+        for file in CacheBudget.excess(of: Self.contents(of: directory).filter { leases[$0.url.lastPathComponent, default: 0] == 0 },
+            limit: max(0, limit - Self.contents(of: directory).filter { leases[$0.url.lastPathComponent, default: 0] > 0 }.reduce(0) { $0 + $1.size })) {
             try? FileManager.default.removeItem(at: file.url)
         }
+    }
+
+    func lease(_ key: String) -> FileLease {
+        leases[key, default: 0] += 1
+        return FileLease(key: key, store: self)
+    }
+    func release(_ key: String) {
+        leases[key] = max(0, leases[key, default: 0] - 1)
+        trim()
     }
 
     /// Where one name would live, whether or not anything is there.

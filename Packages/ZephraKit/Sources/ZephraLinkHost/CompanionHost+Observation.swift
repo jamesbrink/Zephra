@@ -66,6 +66,8 @@ extension CompanionHost {
         _ = store.state
         _ = store.current?.id
         _ = store.history.map(\.id)
+        _ = store.pendingOutputBatches
+        _ = store.savedBatchCounts
         _ = store.queue
         _ = store.running
         _ = store.descriptor.id
@@ -84,6 +86,7 @@ extension CompanionHost {
 
     /// Publishes what has moved since the last pass, and the newest preview frame if one is due.
     private func publish() {
+        reconcileReceipts()
         guard !sessions.isEmpty else { return }
         publishEngine()
         publishQueue()

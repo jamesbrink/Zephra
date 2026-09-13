@@ -6,6 +6,9 @@ import Foundation
 /// snapshot is what makes the first frame correct, and every `StateDelta` after it is an edit
 /// to this. A phone that misses a delta asks for a snapshot again rather than reconciling.
 public struct StateSnapshot: Codable, Hashable, Sendable {
+    /// Optional capability advertisement; absent on legacy hosts.
+    public var multiHost: Bool?
+
     /// Which protocol this Mac speaks, repeated here so a snapshot read from a log says.
     public var protocolVersion: Int
     /// What the Mac is called, as it appears on the phone's list of Macs.

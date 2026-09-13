@@ -11,6 +11,7 @@ import Foundation
 /// what it is asked: the two that would — `enqueue` and `upscale` — are answered from what the
 /// session already did, keyed by the request's own `GenerationRequest.requestID`.
 public enum Command: Hashable, Sendable {
+    case multiHost(MultiHostCommand)
     /// Send the whole state again: the phone stepped over a hole in the stream and no longer
     /// trusts what it is holding. Answered `.ok`, then a fresh `snapshot`.
     case resync

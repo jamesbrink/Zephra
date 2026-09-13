@@ -14,8 +14,8 @@ extension LinkReconnect {
     /// running. A cancellation is the answer to `end()` and to `retryNow()` alike: the loop
     /// stops, and whichever of the two cancelled it decides what happens next.
     func waitBeforeTheNextAttempt() async -> Bool {
-        let delay = LinkBackoff.delay(after: attempt)
-        let due = Date().addingTimeInterval(Double(delay.components.seconds))
+        let delay = LinkBackoff.delay(after: attempt) + .milliseconds(Int.random(in: 0...350))
+        let due = Date().addingTimeInterval(Double(delay.components.seconds) + Double(delay.components.attoseconds) / 1e18)
         nextAttemptAt = due
         client.markWaiting(until: due)
         do { try await Task.sleep(for: delay) } catch { return false }

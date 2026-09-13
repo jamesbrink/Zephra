@@ -8,7 +8,7 @@ import Testing
 /// answers to that id is one rule, and this is it.
 @Suite("Which cell the viewer zooms back into")
 struct ViewerOpeningTests {
-    private let entries = MobilePreview.library().map(CachedEntry.init)
+    private let entries = MobilePreview.library().map { CachedEntry($0) }
 
     @Test("An opening is identified by the picture it opened on, and paging keeps that id")
     func identityIsTheOpenedPicture() {

@@ -106,13 +106,13 @@ struct PromptDraftFollowingTests {
         #expect(draft.settings.prompt == "a red bicycle, at night")
     }
 
-    @Test("The first snapshot with a run in flight seeds the capsule from the run")
-    func firstSnapshotSeedsFromTheRun() {
+    @Test("The first snapshot seeds defaults without adopting another host’s run")
+    func firstSnapshotKeepsTheDraftIndependent() {
         let draft = PromptDraft()
         draft.adopt(snapshot(running: run("a red bicycle")))
-        #expect(draft.settings.prompt == "a red bicycle")
-        #expect(draft.settings.steps == 12)
-        #expect(draft.settings.size == ImageSize(width: 768, height: 1024))
+        #expect(draft.settings.prompt.isEmpty)
+        #expect(draft.settings.steps == 9)
+        #expect(draft.settings.size == ImageSize(width: 1024, height: 1024))
     }
 
     @Test("The first snapshot never lands a run on a prompt typed before the link came up")

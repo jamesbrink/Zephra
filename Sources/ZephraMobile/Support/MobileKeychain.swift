@@ -16,7 +16,7 @@ import ZephraLinkProtocol
 /// as it comes to the foreground and while it is locked in a pocket, which rules out the
 /// `WhenUnlocked` classes; and a backup restored onto another phone must not arrive already
 /// paired with somebody's Mac, which is what `ThisDeviceOnly` says.
-nonisolated struct MobileKeychain: LinkKeyStore {
+nonisolated struct MobileKeychain: HostPersistence {
     /// The service every item of ours is filed under.
     static let service = "io.zephra.link"
 
@@ -24,6 +24,7 @@ nonisolated struct MobileKeychain: LinkKeyStore {
     private enum Item: String {
         case identity = "device-identity"
         case host = "paired-host"
+        case hosts = "paired-hosts-v2"
     }
 
     /// What the keychain said when it would not do as it was asked.
@@ -53,6 +54,15 @@ nonisolated struct MobileKeychain: LinkKeyStore {
     func save(_ host: PairedHost?) throws {
         guard let host else { return try delete(.host) }
         try write(try LinkJSON.encode(host), to: .host)
+    }
+
+    func readHosts() throws -> [HostPreference]? {
+        guard let bytes = try read(.hosts) else { return nil }
+        return try LinkJSON.decode([HostPreference].self, from: bytes)
+    }
+
+    func writeHosts(_ hosts: [HostPreference]) throws {
+        try write(try LinkJSON.encode(hosts), to: .hosts)
     }
 
     /// One item's bytes, or nil where there is no such item.

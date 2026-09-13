@@ -18,6 +18,7 @@ final class FakeHost {
     var payload: Data?
     /// What the phone's next command is answered with, where `.ok` will not do.
     var reply: Reply?
+    var silentOffers = false
     /// The pictures this Mac's folder holds, newest first, which `libraryPage` windows onto.
     var library: [LibraryEntry] = []
     /// How many of the next page requests are refused, for the retry a dropped page takes.
@@ -136,6 +137,7 @@ final class FakeHost {
         let command = try envelope.decode(Command.self)
         commands.append(command)
         onCommand?(command)
+        if silentOffers, case .multiHost(.offer) = command { return }
         let answer = reply ?? standing(for: command)
         try await send(.envelope(Envelope.encoding(answer, kind: .reply, inReplyTo: envelope.id)))
         // The `.ok` first and the snapshot behind it, which is the order the Mac answers in.

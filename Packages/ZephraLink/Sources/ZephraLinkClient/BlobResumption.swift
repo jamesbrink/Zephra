@@ -13,6 +13,7 @@ import ZephraLinkProtocol
 /// and a new blob id; what carries over is the file's bytes, never the transfer's identity.
 struct BlobResumption: Sendable {
     /// The bytes that did arrive, in order and with no gaps in them.
+    var budgetID: UUID?
     let bytes: Data
     /// The chunk index the next one has to carry.
     let nextIndex: UInt32

@@ -59,7 +59,7 @@ actor ThumbnailStore {
     private func url(for entry: CachedEntry, pixels: Int) -> URL? {
         guard let directory else { return nil }
         let digest = Self.digest(
-            fileName: entry.fileName, contentModifiedAt: entry.contentModifiedAt, pixels: pixels)
+            fileName: entry.hostID == nil ? entry.fileName : entry.fileName + ":" + entry.version, contentModifiedAt: entry.contentModifiedAt, pixels: pixels)
         return directory
             .appending(path: String(digest.prefix(2)), directoryHint: .isDirectory)
             .appending(path: "\(digest).jpg")

@@ -36,7 +36,12 @@ struct ViewerPicture: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .task(id: entry.fileName) { await load() }
+        .task(id: entry.id + entry.version) {
+            let lease = await catalog.lease(entry)
+            await load()
+            while !Task.isCancelled { try? await Task.sleep(for: .seconds(30)) }
+            withExtendedLifetime(lease) {}
+        }
     }
 
     /// The thumbnail first, then the larger one, then the file — each shown as it lands.

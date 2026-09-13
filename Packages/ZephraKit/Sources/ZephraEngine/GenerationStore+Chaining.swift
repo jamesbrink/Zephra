@@ -58,7 +58,8 @@ extension GenerationStore {
                 QueuedGeneration(
                     model: job.model, settings: job.model.capabilities.clamp(next),
                     batchID: job.batchID, batchIndex: job.batchIndex,
-                    chain: ChainSegment(chainID: segment.chainID, index: segment.index + 1, count: segment.count)),
+                    chain: ChainSegment(chainID: segment.chainID, index: segment.index + 1, count: segment.count),
+                    requiresInstalledModel: job.requiresInstalledModel),
                 at: 0)
             return nil
         }

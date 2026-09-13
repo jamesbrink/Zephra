@@ -11,6 +11,7 @@ struct CommandCodingTests {
     func commandsRoundTrip() throws {
         let commands: [Command] = [
             .resync,
+            .multiHost(.receipt(Self.id)),
             .enqueue(GenerationRequest(
                 modelID: "z-image-turbo-4bit", count: 4, settings: LinkFixtures.settings)),
             .cancel,
@@ -71,6 +72,7 @@ struct CommandCodingTests {
     func repliesRoundTrip() throws {
         let replies: [Reply] = [
             .ok,
+            .multiHost(.receipt(GenerationReceipt(requestID: Self.id, digest: "test", status: .unknown, recordedAt: Date(timeIntervalSince1970: 0)))),
             .queued(batchID: Self.id),
             .blob(BlobStart(blobID: Self.id, byteCount: 2048, mime: "image/png")),
             .entries(LibraryPage(entries: [LinkFixtures.entry], offset: 0, total: 1)),

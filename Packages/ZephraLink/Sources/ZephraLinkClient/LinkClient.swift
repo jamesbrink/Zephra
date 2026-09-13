@@ -65,6 +65,9 @@ public final class LinkClient {
     /// The Mac this phone knows, or nil before it has paired with one.
     public internal(set) var pairedHost: PairedHost?
 
+    @ObservationIgnored let transferOwner = UUID()
+    @ObservationIgnored let transferAdmission: TransferAdmission
+    @ObservationIgnored let blobBudget: BlobBudget
     @ObservationIgnored let store: any LinkKeyStore
     @ObservationIgnored let roads: any LinkRoads
     @ObservationIgnored let deviceName: String
@@ -94,6 +97,7 @@ public final class LinkClient {
     @ObservationIgnored var resumptions: [UUID: BlobResumption] = [:]
     @ObservationIgnored var timers: [UUID: Task<Void, Never>] = [:]
     /// The pull reading the library across, one per session.
+    @ObservationIgnored var libraryMutation = 0
     @ObservationIgnored var libraryPull: Task<Void, Never>?
     /// How far that pull has got, or nil when none is running. What a fresh snapshot on the
     /// same session is measured against, so a resync does not start the library again.
@@ -116,7 +120,10 @@ public final class LinkClient {
     /// Takes the device's identity and its pairing out of the store, making an identity the
     /// first time there is none: a new identity every launch would look like a new device and
     /// every pairing would be gone.
-    public init(store: any LinkKeyStore, roads: any LinkRoads, deviceName: String) {
+    public init(store: any LinkKeyStore, roads: any LinkRoads, deviceName: String,
+                transferAdmission: TransferAdmission? = nil, blobBudget: BlobBudget? = nil) {
+        self.transferAdmission = transferAdmission ?? TransferAdmission()
+        self.blobBudget = blobBudget ?? BlobBudget()
         (endings, endingSink) = AsyncStream.makeStream(bufferingPolicy: .bufferingNewest(1))
         self.store = store
         self.roads = roads

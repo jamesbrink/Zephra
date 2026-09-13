@@ -22,7 +22,7 @@ struct UseAsReferenceButton: View {
 
     var body: some View {
         Button("Use as Reference", systemImage: "photo.badge.plus") {
-            reference.use(entry.fileName)
+            reference.use(entry.id)
             selection.tab = .canvas
         }
     }

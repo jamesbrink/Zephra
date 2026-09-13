@@ -21,11 +21,11 @@ struct LibraryViewerBar: View {
     var body: some View {
         HStack(spacing: 26) {
             Button {
-                Task { await catalog.setFavourite([entry.fileName], on: !entry.isFavourite) }
+                Task { await catalog.setFavourite([entry.id], on: !entry.isFavourite) }
             } label: {
                 Image(systemName: entry.isFavourite ? "star.fill" : "star")
             }
-            .disabled(!catalog.isLive)
+            .disabled(!catalog.isLive(for: entry))
             .accessibilityLabel(entry.isFavourite ? "Remove from Favorites" : "Add to Favorites")
 
             if let file {
@@ -51,7 +51,12 @@ struct LibraryViewerBar: View {
         .padding(.vertical, 12)
         .background(.black.opacity(MobileChrome.viewerChromeOpacity), in: Capsule())
         .padding(.bottom, 28)
-        .task(id: entry.fileName) { file = try? await catalog.file(for: entry) }
+        .task(id: entry.id + entry.version) {
+            let lease = await catalog.lease(entry)
+            file = try? await catalog.file(for: entry)
+            while !Task.isCancelled { try? await Task.sleep(for: .seconds(30)) }
+            withExtendedLifetime(lease) {}
+        }
     }
 }
 

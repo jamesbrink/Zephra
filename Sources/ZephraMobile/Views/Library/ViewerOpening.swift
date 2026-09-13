@@ -17,12 +17,12 @@ struct ViewerOpening: Identifiable, Equatable {
 
     /// The opened picture's name: what the cover is presented under, so paging changes the
     /// content and never the presentation.
-    var id: String { opened.fileName }
+    var id: String { opened.id }
 
     /// Opens on one picture.
     init(opened: CachedEntry) {
         self.opened = opened
-        shown = opened.fileName
+        shown = opened.id
     }
 
     /// The transition source id a cell declares while the viewer is up, so the zoom back
@@ -34,7 +34,7 @@ struct ViewerOpening: Identifiable, Equatable {
     /// names swapped between the shown cell and the opened one, the zoom back went to the
     /// cell it opened from whatever the pager had done.
     func sourceID(forCell fileName: String) -> String? {
-        fileName == shown ? opened.fileName : nil
+        fileName == shown ? opened.id : nil
     }
 }
 

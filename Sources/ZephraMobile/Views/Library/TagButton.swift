@@ -14,6 +14,6 @@ struct TagButton: View {
 
     var body: some View {
         Button("Tag…", systemImage: "tag") { tag(entry) }
-            .disabled(!catalog.isLive)
+            .disabled(!catalog.isLive(for: entry))
     }
 }

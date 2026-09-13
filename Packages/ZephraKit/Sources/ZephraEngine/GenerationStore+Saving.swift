@@ -5,6 +5,7 @@ import ZephraCore
 /// the write lands or fails.
 extension GenerationStore {
     func save(_ image: GeneratedImage) {
+        if let batch = image.batchID { pendingOutputBatches[image.id] = batch }
         let library = library
         let previous = saveTask
         saveTask = Task.detached(priority: .utility) { [image] in
@@ -23,6 +24,11 @@ extension GenerationStore {
     /// on to Recently Deleted instead, and never reaches `onImageSaved`: the index learns of
     /// it as a delete, and a picture the user removed does not reappear in the library.
     func attach(_ url: URL, to id: GeneratedImage.ID) {
+        if let batch = pendingOutputBatches.removeValue(forKey: id) {
+            if savedBatchCounts[batch] == nil { savedBatchOrder.append(batch) }
+            savedBatchCounts[batch, default: 0] += 1
+            while savedBatchOrder.count > 1024 { savedBatchCounts[savedBatchOrder.removeFirst()] = nil }
+        }
         lastSaveFailure = nil
         if deletedBeforeSave.remove(id) != nil {
             moveToRecentlyDeleted(url)
@@ -46,6 +52,7 @@ extension GenerationStore {
     /// remedy at all. The interface shows this as a notice until an image saves cleanly.
     func saveFailed(_ failure: SaveFailure) {
         // Nothing landed, so there is nothing to move on.
+        pendingOutputBatches[failure.imageID] = nil
         deletedBeforeSave.remove(failure.imageID)
         logger.error("save failed: \(failure.reason, privacy: .public)")
         lastSaveFailure = failure

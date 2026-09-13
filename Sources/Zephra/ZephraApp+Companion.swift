@@ -59,6 +59,7 @@ extension ZephraApp {
             pairings: keychain,
             hostName: AppSettings.companionName(),
             devices: devices,
+            receipts: GenerationReceipts(root: (FreshStart.current?.root ?? URL.applicationSupportDirectory.appending(path: "Zephra")).appending(path: "Companion/Receipts")),
             endpoints: { CompanionEndpoints.current(port: roads.port) })
         companion = host
         // The library's own wiring ran first (`openLibrary`), so these are wrapped rather than

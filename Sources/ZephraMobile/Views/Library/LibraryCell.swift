@@ -31,12 +31,13 @@ struct LibraryCell: View {
         EntryThumbnail(entry: entry)
             .aspectRatio(1, contentMode: .fit)
             .clipShape(tile)
+            .overlay(alignment: .bottomLeading) { LibraryHostLabel(entry: entry).padding(4).padding(.trailing, 18) }
             .overlay(alignment: .bottomTrailing) { favourite }
             .overlay(alignment: .topLeading) { badge }
             .contentShape(Rectangle())
             .contextMenu { LibraryItemMenu(entry: entry) }
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(entry.label)
+            .modifier(LibraryOwnershipAccessibility(entry: entry))
             .accessibilityAddTraits(.isButton)
     }
 
@@ -44,8 +45,8 @@ struct LibraryCell: View {
     /// a tap zooms out of here; while one is, `ViewerOpening`'s answer, which is a name for
     /// the cell of the picture on screen and nothing for every other.
     private var sourceID: String? {
-        guard let opening else { return entry.fileName }
-        return opening.sourceID(forCell: entry.fileName)
+        guard let opening else { return entry.id }
+        return opening.sourceID(forCell: entry.id)
     }
 
     private var tile: RoundedRectangle {

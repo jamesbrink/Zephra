@@ -84,6 +84,11 @@ final class LinkReconnect {
         }
     }
 
+    func stopAndDrain() async {
+        end()
+        await settling?.value
+    }
+
     /// Dial now rather than at the end of the wait.
     ///
     /// What the Settings row's Retry Now does, and what a change of network path does: the wait

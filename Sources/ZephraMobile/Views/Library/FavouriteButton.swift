@@ -14,9 +14,9 @@ struct FavouriteButton: View {
 
     var body: some View {
         Button(title, systemImage: entry.isFavourite ? "star.slash" : "star") {
-            Task { await catalog.setFavourite([entry.fileName], on: !entry.isFavourite) }
+            Task { await catalog.setFavourite([entry.id], on: !entry.isFavourite) }
         }
-        .disabled(!catalog.isLive)
+        .disabled(!catalog.isLive(for: entry))
     }
 
     private var title: String {

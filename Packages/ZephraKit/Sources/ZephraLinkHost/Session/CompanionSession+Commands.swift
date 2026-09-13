@@ -29,6 +29,7 @@ extension CompanionSession {
     private func perform(_ command: Command, id: UUID) async throws -> Reply? {
         guard let host else { throw LinkError.refused }
         switch command {
+        case .multiHost(let command): return try performMultiHost(command, on: host)
         case .resync: return try resend(to: host, inReplyTo: id)
         case .enqueue(let request): return try submit(request, to: host)
         case .cancel:

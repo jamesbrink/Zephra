@@ -27,10 +27,10 @@ extension CompanionSession {
             host.index.moveToRecentlyDeleted(try identifiers(for: names))
             return .ok
         case .fetchThumbnail(let name, let pixels):
-            try await sendThumbnail(name, pixels: pixels, from: host, to: id)
+            try startBulk(id: id) { try await self.sendThumbnail(name, pixels: pixels, from: host, to: id) }
             return nil
         case .fetchFile(let name, let fromChunk):
-            try await sendFile(name, to: id, from: fromChunk)
+            try startBulk(id: id) { try await self.sendFile(name, to: id, from: fromChunk) }
             return nil
         case .libraryPage(let offset, let limit):
             let items = LibraryEntryProjection.listing(host.index.items)
@@ -38,6 +38,18 @@ extension CompanionSession {
                 LibraryEntryProjection.page(items, offset: offset, limit: min(max(limit, 0), 200)))
         default:
             throw LinkError(code: .unsupported, reason: "This Mac does not do that yet.")
+        }
+    }
+
+    /// One bounded producer leaves the command reader free to process Stop and receipts.
+    private func startBulk(id: UUID, operation: @escaping @MainActor () async throws -> Void) throws {
+        guard bulk == nil else { throw LinkError(code: .busy, reason: "A file is already crossing this link.") }
+        bulk = Task { [weak self] in
+            guard let self else { return }
+            defer { self.bulk = nil }
+            do { try await operation() }
+            catch let error as LinkError { try? self.reply(.error(error), to: id) }
+            catch { try? self.reply(.error(LinkError(code: .refused, reason: "The file transfer stopped.")), to: id) }
         }
     }
 
@@ -50,7 +62,7 @@ extension CompanionSession {
         else {
             throw LinkError(code: .notFound, reason: "That picture could not be read.")
         }
-        try sendBlob(data, mime: "image/jpeg", to: request)
+        try await sendBlob(data, mime: "image/jpeg", to: request)
     }
 
     /// The file itself: a clip's MP4 where there is one, the PNG otherwise, read off the main
@@ -65,11 +77,12 @@ extension CompanionSession {
             FileManager.default.fileExists(atPath: $0.path(percentEncoded: false)) ? $0 : nil
         } ?? item.url
         guard let data = await Task.detached(priority: .utility, operation: {
-            try? Data(contentsOf: url)
+            guard let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize, size <= 134_217_728 else { return nil as Data? }
+            return try? Data(contentsOf: url)
         }).value else {
             throw LinkError(code: .notFound, reason: "That file could not be read.")
         }
-        try sendBlob(
+        try await sendBlob(
             data, mime: VideoSidecar.isSidecar(url) ? "video/mp4" : "image/png", to: request,
             from: from)
     }

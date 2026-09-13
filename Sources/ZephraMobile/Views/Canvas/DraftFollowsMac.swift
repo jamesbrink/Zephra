@@ -18,8 +18,5 @@ struct DraftFollowsMac: ViewModifier {
             .onChange(of: client.snapshot?.model.id, initial: true) { _, _ in
                 draft.adopt(client.snapshot)
             }
-            .onChange(of: client.snapshot?.running?.id, initial: true) { _, _ in
-                draft.follow(client.snapshot?.running)
-            }
     }
 }

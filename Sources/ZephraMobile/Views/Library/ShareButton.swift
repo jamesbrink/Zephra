@@ -18,7 +18,7 @@ struct ShareButton: View {
 
     var body: some View {
         ShareRequestButton(entry: entry)
-            .disabled(!catalog.isLive && !isHeld)
+            .disabled(!catalog.isLive(for: entry) && !isHeld)
             .task { isHeld = await catalog.hasFile(for: entry) }
     }
 }

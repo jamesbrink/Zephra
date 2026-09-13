@@ -1183,3 +1183,13 @@ pages arrive newest first, so the front is where the page before it already is.
 live over the LAN as far as the interface can tell, requests answering `.ok` and
 blobs failing, and no road under it at all. A preview that could make a request
 would be a preview that could queue a generation on somebody's Mac.
+
+## Multiple Mac destinations
+
+An optional `StateSnapshot.multiHost` flag enables solicited `MultiHostCommand`
+offers, strict submissions, receipt lookup, revisioned listings, preview
+subscriptions and targeted Stop. There are no new unsolicited message kinds;
+old phones continue to receive the existing snapshot/delta shapes. Each Mac
+keeps its own relay room and secure channel. `GenerationReceipts` persists a
+prepared record before enqueue, and uncertain outcomes never authorize replay.
+See [Multi-host companion](multi-host.md) for limits, storage and failure semantics.

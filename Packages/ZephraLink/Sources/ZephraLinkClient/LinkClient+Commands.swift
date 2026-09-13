@@ -11,7 +11,7 @@ extension LinkClient {
     public func enqueue(_ request: GenerationRequest, reference: Data? = nil) async throws -> UUID {
         var outgoing = request
         if let reference {
-            let blobID = try sendBlob(reference, mime: "image/png")
+            let blobID = try await sendBlob(reference, mime: "image/png")
             // The request keeps its own id: a retry has to look like the same press of Generate
             // to the Mac, whatever the envelope around it is called.
             outgoing = GenerationRequest(
@@ -21,18 +21,22 @@ extension LinkClient {
         switch try await self.request(.enqueue(outgoing)) {
         case .queued(let batchID): return batchID
         case .error(let error): throw error
-        case .ok, .blob, .entries: throw LinkClientError.unexpectedReply
+        case .multiHost, .ok, .blob, .entries: throw LinkClientError.unexpectedReply
         }
     }
 
     /// One picture's thumbnail, `pixels` on its long edge.
     public func thumbnail(name: String, pixels: Int) async throws -> Data {
-        try await fetchBlob(.fetchThumbnail(name: name, pixels: pixels))
+        try await transferAdmission.enter(transferOwner)
+        defer { transferAdmission.leave(transferOwner) }
+        return try await fetchBlob(.fetchThumbnail(name: name, pixels: pixels))
     }
 
     /// One picture's file, or a clip's MP4.
     public func file(name: String) async throws -> Data {
-        try await fetchBlob(.fetchFile(name: name))
+        try await transferAdmission.enter(transferOwner)
+        defer { transferAdmission.leave(transferOwner) }
+        return try await fetchBlob(.fetchFile(name: name))
     }
 
     /// One window onto the library.
@@ -40,7 +44,7 @@ extension LinkClient {
         switch try await request(.libraryPage(offset: offset, limit: limit)) {
         case .entries(let page): return page
         case .error(let error): throw error
-        case .ok, .queued, .blob: throw LinkClientError.unexpectedReply
+        case .multiHost, .ok, .queued, .blob: throw LinkClientError.unexpectedReply
         }
     }
 
@@ -72,7 +76,7 @@ extension LinkClient {
     /// A command whose only good answer is that it was done.
     private func perform(_ command: Command) async throws {
         switch try await request(command) {
-        case .ok, .queued, .blob, .entries: return
+        case .multiHost, .ok, .queued, .blob, .entries: return
         case .error(let error): throw error
         }
     }

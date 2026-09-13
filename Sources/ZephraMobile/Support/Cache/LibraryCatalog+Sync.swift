@@ -15,16 +15,21 @@ extension LibraryCatalog {
     /// from here, and the client's own list arrives later or not at all. Under a frozen preview
     /// state the stores keep nothing, so the fixture's entries are seeded straight in instead.
     func loadFromDisk(seeding client: LinkClient) async {
+        let generation = epoch
         let stored = await entryStore.load()
-        publish(stored.isEmpty ? client.library.map(CachedEntry.init) : stored)
+        guard generation == epoch, !Task.isCancelled else { return }
+        publish(stored.isEmpty ? client.library.map { CachedEntry($0) } : stored)
         await measureCache()
     }
 
     /// Watches the client for as long as the task lives.
     func follow(_ client: LinkClient) async {
         while !Task.isCancelled {
+            let changes = changes(in: client)
             await sync(with: client)
-            await awaitChange(in: client)
+            var iterator = changes.makeAsyncIterator()
+            _ = await iterator.next()
+            await Task.yield()
         }
     }
 
@@ -38,23 +43,28 @@ extension LibraryCatalog {
     /// rescanned a folder — and would lose the library offline, which is the one thing the cache
     /// is for.
     func sync(with client: LinkClient) async {
+        let generation = epoch
         isLive = client.connection.isLive
+        changed?()
         let remote = client.library
         let whole = client.libraryIsComplete
         guard !remote.isEmpty || whole else { return }
 
+        if whole { await adoptLegacy(remote) }
+        guard generation == epoch, !Task.isCancelled else { return }
         let plan = LibrarySync.plan(remote: remote, local: entries)
         let removals = whole ? plan.remove : []
         guard !plan.upsert.isEmpty || !removals.isEmpty else { return }
 
         isSyncing = true
-        defer { isSyncing = false }
-        let taken = plan.upsert.map(CachedEntry.init)
+        defer { isSyncing = false; changed?() }
+        let taken = plan.upsert.map { CachedEntry($0, hostID: hostID) }
         var held = Dictionary(entries.map { ($0.fileName, $0) }, uniquingKeysWith: { _, last in last })
         for entry in taken { held[entry.fileName] = entry }
         for name in removals { held[name] = nil }
         publish(Array(held.values))
 
+        guard generation == epoch else { return }
         await entryStore.save(taken)
         await entryStore.remove(removals)
         await measureCache()
@@ -65,18 +75,16 @@ extension LibraryCatalog {
     /// All three in one arming, because all three decide what a library surface draws: the
     /// entries are the pictures, the connection is whether favoriting one is offered or greyed,
     /// and completeness is whether a picture the Mac no longer lists may be forgotten.
-    private func awaitChange(in client: LinkClient) async {
-        await withCheckedContinuation { continuation in
+    private func changes(in client: LinkClient) -> AsyncStream<Void> {
+        AsyncStream<Void> { sink in
             withObservationTracking {
                 _ = client.library
                 _ = client.connection
                 _ = client.libraryIsComplete
             } onChange: {
-                continuation.resume()
+                sink.yield(())
+                sink.finish()
             }
         }
-        // The callback fires before the write lands, so the loop gives the setter its turn and
-        // then reads what is there rather than what was.
-        await Task.yield()
     }
 }

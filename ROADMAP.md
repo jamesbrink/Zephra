@@ -7,8 +7,7 @@ reference-picture editing landed; the survey behind it lives in the session note
 Standing decisions: **a push to `main` ships.**
 `.github/workflows/release.yml` gates, notarizes and publishes the Mac app,
 uploads the companion to TestFlight and deploys the link relay, every step a
-Makefile target, with no manual step and no version to type. Pull requests are
-still ungated: the gate is local, before every merge. The push gate is the
+Makefile target, with no manual step and no version to type. Pull requests run the fast gates before merge; only main can publish. The push gate is the
 minutes' worth — `doctor`, `lint-layers`, `test`, `relay-test`, `test-ios`;
 `test-app` and `test-mlx` are the hour and run under `workflow_dispatch` with
 `full_gates: true`, and locally before a merge as they always have.
@@ -705,3 +704,18 @@ The updater is in AGENTS.md under "Updates"; the reasoning is in
   then the team identifier, then the `Info.plist`'s own build. A forged manifest
   can at most point at a Zephra Apple notarized and we signed. Signing it would
   add a key to keep, and would defend the step that is already the most checked.
+
+## Multi-host iOS companion
+
+Implemented architecture and validation are in
+[Multi-host companion](docs/multi-host.md), with design history in
+[the multi-host plan](docs/plans/multi-host-ios.md). The companion combines
+host-owned libraries and supports explicit destinations plus Auto selection
+using model readiness, workload and host capability.
+
+Deferred beyond that release: automatic model downloads/builds for Auto, batch
+splitting, moving accepted jobs between hosts, library replication/content
+deduplication, cross-host versions of source-local edit operations, and
+unattended dispatch while the phone is in the background. These require their
+own ownership, resource and recovery policies; pairing multiple Macs does not
+imply them.

@@ -15,10 +15,15 @@ extension LibraryCatalog {
     /// One picture's thumbnail at one size, from the cache if it is there and from the Mac if
     /// it is not.
     func thumbnail(for entry: CachedEntry, pixels: Int = ThumbnailStore.cellPixels) async -> Data? {
+        if let child = owner(of: entry) { return await child.thumbnail(for: entry, pixels: pixels) }
+        operations += 1
+        defer { operations -= 1 }
+        let generation = epoch
         if let held = await thumbnailStore.data(for: entry, pixels: pixels) { return held }
         guard let client, client.connection.isLive else { return nil }
         do {
             let data = try await client.thumbnail(name: entry.fileName, pixels: pixels)
+            guard generation == epoch else { return nil }
             await thumbnailStore.store(data, for: entry, pixels: pixels)
             await measureCache()
             return data
@@ -35,7 +40,8 @@ extension LibraryCatalog {
     /// megabytes of clip in memory to hand it to a player that would rather read it is a way
     /// to be killed by the watchdog.
     func file(for entry: CachedEntry) async throws -> URL {
-        try await url(named: entry.fileName, isVideo: entry.isVideo)
+        if let child = owner(of: entry) { return try await child.file(for: entry) }
+        return try await url(named: entry.id, isVideo: entry.isVideo)
     }
 
     /// One file, asked for by the name the Mac knows it by and kept under the name this phone
@@ -48,10 +54,20 @@ extension LibraryCatalog {
     /// what lands beside the poster under the same stem, which is `VideoSidecar`'s rule and the
     /// rule `hasFile(for:)` reads back.
     func url(named name: String, isVideo: Bool) async throws -> URL {
-        let local = isVideo ? Self.clipName(of: name) : name
+        if let entry = entry(named: name), let child = owner(of: entry) {
+            return try await child.url(named: entry.id, isVideo: isVideo)
+        }
+        let entry = entry(named: name)
+        let remote = entry?.fileName ?? name
+        let key = mediaKey(entry, fallback: name)
+        let local = isVideo ? Self.clipName(of: key) : key
+        operations += 1
+        defer { operations -= 1 }
+        let generation = epoch
         if let held = await fileStore.url(for: local) { return held }
         guard let client, client.connection.isLive else { throw LibraryCacheError.offline }
-        let data = try await client.file(name: name)
+        let data = try await client.file(name: remote)
+        guard generation == epoch else { throw CancellationError() }
         guard let url = await fileStore.store(data, as: local) else {
             throw LibraryCacheError.cannotWrite
         }
@@ -66,13 +82,21 @@ extension LibraryCatalog {
     /// than a throw, because both draw the same rectangle either way and neither has anywhere
     /// to put a sentence.
     func picture(named name: String) async -> Data? {
-        if let held = await fileStore.data(for: name) { return held }
+        if let entry = entry(named: name), let child = owner(of: entry) { return await child.picture(named: entry.id) }
+        let entry = entry(named: name)
+        let remote = entry?.fileName ?? name
+        let key = mediaKey(entry, fallback: name)
+        operations += 1
+        defer { operations -= 1 }
+        let generation = epoch
+        if let held = await fileStore.data(for: key) { return held }
         guard let client, client.connection.isLive else { return nil }
-        guard let data = try? await client.file(name: name) else {
+        guard let data = try? await client.file(name: remote) else {
             logger.notice("A picture could not be fetched from the Mac")
             return nil
         }
-        await fileStore.store(data, as: name)
+        guard generation == epoch else { return nil }
+        await fileStore.store(data, as: key)
         await measureCache()
         return data
     }
@@ -83,7 +107,9 @@ extension LibraryCatalog {
     /// offline for a file already fetched — you save the one you have been looking at — and
     /// neither can do anything for one that was never fetched.
     func hasFile(for entry: CachedEntry) async -> Bool {
-        let name = entry.isVideo ? Self.clipName(of: entry.fileName) : entry.fileName
+        if let child = owner(of: entry) { return await child.hasFile(for: entry) }
+        let key = mediaKey(entry, fallback: entry.fileName)
+        let name = entry.isVideo ? Self.clipName(of: key) : key
         return await fileStore.url(for: name) != nil
     }
 

@@ -38,7 +38,10 @@ public final class CompanionSession: Identifiable {
     /// Everything the phone says, released in the order it was sealed in. The relay is several
     /// concurrent invocations, so the road is not ordered and this is what makes it so again.
     var inbox: OrderedInbox?
+    var wantsPreviews = true
     var isClosed = false
+    var queuedBytes = 0
+    var bulk: Task<Void, Never>?
     /// The blob arriving from the phone right now — a reference picture — and the ones that have
     /// landed, kept until an `enqueue` names one.
     var incoming: BlobReassembly?
@@ -121,6 +124,9 @@ public final class CompanionSession: Identifiable {
         // phone never receives is a phone left guessing why the connection went.
         if let error { try? sendError(error) }
         isClosed = true
+        bulk?.cancel()
+        let transfer = bulk
+        bulk = nil
         isReady = false
         inbox?.stop()
         handshakeSettled()
@@ -136,6 +142,7 @@ public final class CompanionSession: Identifiable {
             try? await Task.sleep(for: .milliseconds(50))
         }
         await connection.close()
+        await transfer?.value
         await writer?.value
         writer = nil
         channel?.close()
@@ -148,6 +155,8 @@ public final class CompanionSession: Identifiable {
     /// Hands one already-framed message to the writer.
     func enqueue(_ bytes: Data) {
         guard !isClosed else { return }
+        guard queuedBytes < 8_388_608 else { Task { await close() }; return }
+        queuedBytes += bytes.count
         sink.yield(bytes)
     }
 
@@ -163,6 +172,7 @@ public final class CompanionSession: Identifiable {
             for await bytes in outbound {
                 do {
                     try await connection.send(bytes)
+                    await session.sent(bytes.count)
                 } catch {
                     session.logger.error(
                         """
@@ -173,6 +183,14 @@ public final class CompanionSession: Identifiable {
             }
             await session.writerStopped()
         }
+    }
+
+    private func sent(_ count: Int) { queuedBytes -= count }
+
+    func capacity() async throws {
+        while queuedBytes >= 262_144 && !isClosed { try await Task.sleep(for: .milliseconds(5)) }
+        guard !isClosed else { throw CancellationError() }
+        try Task.checkCancellation()
     }
 
     /// The writer has finished, either because the session is closing or because the road broke.

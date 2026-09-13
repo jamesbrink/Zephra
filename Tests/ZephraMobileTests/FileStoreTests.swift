@@ -7,6 +7,18 @@ import ZephraTestSupport
 /// Whole pictures and clips on the phone, and the budget that decides which of them stay.
 @Suite("The phone's file cache")
 struct FileStoreTests {
+    @Test("A leased viewer file survives another host filling the cache")
+    func visibleFileIsPinned() async throws {
+        let scratch = Scratch("PinnedFileStore")
+        let store = FileStore(root: scratch.root, limit: 1000)
+        let lease = await store.lease("host-a.png")
+        await store.store(Data(count: 800), as: "host-a.png")
+        await store.store(Data(count: 800), as: "host-b.png")
+        #expect(await store.url(for: "host-a.png") != nil)
+        #expect(await store.url(for: "host-b.png") == nil)
+        withExtendedLifetime(lease) {}
+    }
+
     @Test("A file kept is a file found again")
     func roundTrip() async throws {
         let scratch = Scratch("FileStore")

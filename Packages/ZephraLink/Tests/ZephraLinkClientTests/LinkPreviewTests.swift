@@ -28,7 +28,8 @@ struct LinkPreviewTests {
         let bed = try await showingAFrame()
         defer { Task { await bed.host.stop() } }
         bed.road.announce(.left)
-        try await settle()
+        let deadline = ContinuousClock.now + .seconds(2)
+        while bed.client.connection.isLive, ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(5)) }
         #expect(!bed.client.connection.isLive)
         #expect(bed.client.preview != nil)
     }

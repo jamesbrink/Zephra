@@ -1,5 +1,6 @@
 import Foundation
 import ZephraLinkClient
+import ZephraLinkProtocol
 import os
 
 /// The Mac's library as the phone holds it: what it has been told, kept on disk, and browsable
@@ -18,6 +19,13 @@ import os
 @Observable
 final class LibraryCatalog {
     /// Everything the phone is holding, newest first.
+    var hostID: HostID?
+    var sourceFilters: Set<HostID> = []
+    var children: [HostID: LibraryCatalog] = [:]
+    @ObservationIgnored var changed: (() -> Void)?
+    @ObservationIgnored var epoch = UUID()
+    @ObservationIgnored var operations = 0
+    @ObservationIgnored var libraryRoot: URL?
     private(set) var entries: [CachedEntry] = []
     /// What narrows what is on screen. The one thing a view writes.
     var query = CachedLibraryQuery()
@@ -32,23 +40,24 @@ final class LibraryCatalog {
 
     /// The pictures on screen, grouped into days. Recomputed from the query, so no view ever
     /// filters — the Mac's rule, for the Mac's reason.
-    var sections: [CachedSection] { query.sections(of: entries) }
+    var sections: [CachedSection] { query.sections(of: entries.filter { sourceFilters.isEmpty || $0.hostID.map(sourceFilters.contains) == true }) }
 
     @ObservationIgnored let entryStore: EntryStore
     @ObservationIgnored let thumbnailStore: ThumbnailStore
     @ObservationIgnored let fileStore: FileStore
     @ObservationIgnored private(set) var client: LinkClient?
-    @ObservationIgnored private var observation: Task<Void, Never>?
+    @ObservationIgnored var observation: Task<Void, Never>?
     @ObservationIgnored let logger = Logger(subsystem: "io.zephra", category: "mobile.library")
 
     /// A catalog over three stores.
     ///
     /// The roots ride in so a test can point the whole thing at a scratch directory, and so a
     /// frozen preview state can pass nil and write nothing at all.
-    init(libraryRoot: URL?, filesRoot: URL?) {
+    init(libraryRoot: URL?, filesRoot: URL?, sharedFiles: FileStore? = nil) {
+        self.libraryRoot = libraryRoot
         entryStore = EntryStore(root: libraryRoot)
         thumbnailStore = ThumbnailStore(root: libraryRoot)
-        fileStore = FileStore(root: filesRoot)
+        fileStore = sharedFiles ?? FileStore(root: filesRoot)
     }
 
     /// The catalog this launch gets: the real folders, or nothing under a frozen preview
@@ -87,13 +96,14 @@ final class LibraryCatalog {
     /// Stops following. Nothing calls it in the app — the catalog lives as long as the process
     /// — but a test that has finished with one should not leave a loop running behind it.
     func stop() {
+        epoch = UUID()
         observation?.cancel()
         observation = nil
     }
 
     /// One picture by name, which is how a menu, the viewer and a run's strip find one.
     func entry(named fileName: String) -> CachedEntry? {
-        entries.first { $0.fileName == fileName }
+        entries.first { $0.id == fileName || (children.isEmpty && $0.fileName == fileName) }
     }
 
     /// Every tag anything in the cache carries, in alphabetical order, which is what the tag
@@ -104,7 +114,10 @@ final class LibraryCatalog {
 
     /// Puts the entries in the order the grid wants them and publishes them.
     func publish(_ entries: [CachedEntry]) {
-        self.entries = entries.sorted { $0.createdAt > $1.createdAt }
+        self.entries = entries.map { CachedEntry($0.entry, hostID: $0.hostID ?? hostID) }.sorted {
+            $0.createdAt == $1.createdAt ? $0.id < $1.id : $0.createdAt > $1.createdAt
+        }
+        changed?()
     }
 
     /// Counts what the three stores hold. Off the main actor, since it walks three folders.
@@ -112,7 +125,9 @@ final class LibraryCatalog {
         async let entries = entryStore.size()
         async let thumbnails = thumbnailStore.size()
         async let files = fileStore.size()
-        cacheBytes = await entries + thumbnails + files
+        var metadata = await entries + thumbnails
+        for child in children.values { metadata += await child.entryStore.size() + child.thumbnailStore.size() }
+        cacheBytes = await metadata + files
     }
 
     /// Forgets everything: the entries, the thumbnails and the files.
@@ -120,6 +135,11 @@ final class LibraryCatalog {
     /// The library comes back on the next sync, since the Mac is the truth and the phone only
     /// ever held a copy — which is what makes this safe to offer as a button in Settings.
     func clearCache() async {
+        if !children.isEmpty {
+            for child in children.values { await child.clearCache() }
+            await fileStore.clear()
+            return
+        }
         await entryStore.clear()
         await thumbnailStore.clear()
         await fileStore.clear()
