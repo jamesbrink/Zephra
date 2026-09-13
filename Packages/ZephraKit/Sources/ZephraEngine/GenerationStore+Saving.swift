@@ -4,7 +4,8 @@ import ZephraCore
 /// Getting a finished image onto disk, on one serial chain, and what the store learns when
 /// the write lands or fails.
 extension GenerationStore {
-    func save(_ image: GeneratedImage) {
+    func save(_ image: GeneratedImage, timing: WorkloadTimings.Sample? = nil) {
+        let queuedAt = ContinuousClock.now
         if let batch = image.batchID { pendingOutputBatches[image.id] = batch }
         let library = library
         let previous = saveTask
@@ -12,7 +13,14 @@ extension GenerationStore {
             await previous?.value
             do {
                 let url = try library.write(image)
-                await MainActor.run { self.attach(url, to: image.id) }
+                let finalization = (ContinuousClock.now - queuedAt).seconds
+                await MainActor.run {
+                    if let timing {
+                        self.timings.record(timing.key, execution: timing.execution,
+                            finalization: timing.finalization + finalization)
+                    }
+                    self.attach(url, to: image.id)
+                }
             } catch {
                 let failure = SaveFailure(imageID: image.id, reason: error.localizedDescription)
                 await MainActor.run { self.saveFailed(failure) }

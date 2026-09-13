@@ -29,6 +29,10 @@ public final class GenerationStore {
     public internal(set) var availability: [ModelDescriptor.ID: ModelAvailability] = [:]
     /// Wall-clock time of the last completed generation.
     public internal(set) var lastDuration: Duration?
+    public let timings = WorkloadTimings()
+    var timingRevisions: [String: String] = [:]
+    var timingDirectories: [String: URL] = [:]
+    var timingRunStarted: ContinuousClock.Instant?
     /// The most recent image that could not be written, or nil when the last one saved. Shown
     /// as a notice; it never stops the engine or the queue.
     public internal(set) var lastSaveFailure: SaveFailure?

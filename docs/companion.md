@@ -297,7 +297,10 @@ counter order**, so everything above it still sees one ordered stream:
 they were sent.
 
 - A frame that overtook its neighbours waits, at most `frameLimit` (256) frames
-  and no longer than `hold` (500 ms). Releasing moves the channel's release point
+  and no longer than the road's `frameReorderingHold` (500 ms for LAN, two seconds
+  for relay connections). Live two-phone relay qualification found valid frames
+  overtaking by more than 500 ms; the bounded relay window preserves those frames.
+  Releasing moves the channel's release point
   on with `released(through:)`, which is what the replay check is measured from.
 - **The hold is one clock per gap, re-armed whenever the release point moves.**
   It was armed when `held` first became non-empty and cancelled only when `held`

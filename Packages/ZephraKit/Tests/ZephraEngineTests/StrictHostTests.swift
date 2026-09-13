@@ -68,7 +68,9 @@ struct StrictHostTests {
     func savingIsNotInterruption() async throws {
         let bed = CompanionTestBed()
         await bed.bootstrap()
-        bed.store.saveTask = Task { try? await Task.sleep(for: .milliseconds(500)) }
+        let (blocked, release) = AsyncStream<Void>.makeStream()
+        defer { release.finish() }
+        bed.store.saveTask = Task { for await _ in blocked {} }
         let phone = try await bed.pairedPhone()
         _ = try await phone.snapshot()
         let model = bed.store.descriptor
@@ -82,6 +84,7 @@ struct StrictHostTests {
         bed.host.reconcileReceipts()
         let pending = try bed.host.receipts.read(peer: phone.identity.publicKeys, request: job.request.requestID)
         #expect(pending?.status == .accepted)
+        release.finish()
         try await bed.waitUntil { bed.store.pendingOutputBatches.isEmpty }
         bed.host.reconcileReceipts()
         #expect(try bed.host.receipts.read(peer: phone.identity.publicKeys, request: job.request.requestID)?.status == .completed)

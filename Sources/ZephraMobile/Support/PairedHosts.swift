@@ -11,7 +11,8 @@ nonisolated final class PairedHosts: @unchecked Sendable {
 
     init(keychain: any HostPersistence = MobileKeychain()) throws {
         self.keychain = keychain
-        let saved = try keychain.readHosts()
+        let pending = try keychain.migrationPending()
+        let saved = pending ? nil : try keychain.readHosts()
         let legacy = saved == nil ? try keychain.loadPairedHost() : nil
         if let identity = try keychain.loadIdentity() { self.identity = identity }
         else {
@@ -24,10 +25,12 @@ nonisolated final class PairedHosts: @unchecked Sendable {
             records = saved
         } else {
             records = legacy.map { [HostPreference(host: $0)] } ?? []
+            try keychain.setMigrationPending(true)
             try keychain.writeHosts(records)
-            guard try keychain.readHosts()?.map(\.id) == records.map(\.id) else {
+            guard try keychain.readHosts() == records else {
                 throw CocoaError(.fileWriteUnknown)
             }
+            try keychain.setMigrationPending(false)
         }
     }
     func all() -> [HostPreference] { lock.withLock { records } }

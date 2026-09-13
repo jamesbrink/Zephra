@@ -40,4 +40,35 @@ struct OfferDeadlineTests {
         #expect(stalled.client.pending.isEmpty)
         #expect(HostSelection.best([HostCandidate(id: try #require(healthy.client.hostID), offer: try #require(good))]) != nil)
     }
+    @Test("A relay gap may expire one offer without preventing the next refresh")
+    func gapOutlastsOffer() async throws {
+        let bed = LinkClientUnderTest(remembering: DeviceIdentity())
+        defer { Task { await bed.client.disconnect(); await bed.host.stop() } }
+        bed.client.frameHold = .milliseconds(150)
+        await bed.client.connect()
+        try await LinkGapRecoveryTests.settle { bed.host.isAuthenticated }
+        var snapshot = ClientFixtures.snapshot
+        snapshot.multiHost = true
+        bed.host.world = snapshot
+        try await bed.host.announce(snapshot, kind: .snapshot)
+        try await LinkGapRecoveryTests.settle { bed.client.libraryIsComplete }
+        let offer = HostOffer(refusal: nil, queueSeconds: 0, preparationSeconds: 0,
+            executionSeconds: 10, memoryMargin: 1, modelLoaded: true, queueCount: 0,
+            queueRevision: "ready", physicalMemory: 32_000_000_000)
+        bed.host.onCommand = { command in
+            if case .multiHost(.offer) = command { bed.host.reply = .multiHost(.offer(offer)) }
+            else { bed.host.reply = nil }
+        }
+        let job = StrictGeneration(request: GenerationRequest(modelID: ClientFixtures.model.id,
+            count: 1, settings: ClientFixtures.settings))
+        bed.road.dropFrame()
+        try await bed.host.announce(LinkReorderingTests.progress(step: 1), kind: .delta)
+        let expired = try? await bed.client.offer(job, timeout: .milliseconds(30))
+        #expect(expired == nil)
+        try await LinkGapRecoveryTests.settle { bed.host.commands.contains(.resync) }
+        #expect(bed.client.connection.isLive)
+        #expect(try await bed.client.offer(job) == offer)
+        #expect(bed.client.pending.isEmpty)
+    }
+
 }

@@ -35,7 +35,8 @@ struct LinkGapRecoveryTests {
         let bed = try await Self.connected()
         defer { Task { await bed.host.stop() } }
         var world = ClientFixtures.snapshot
-        world.libraryCount = 7
+        world.libraryCount = 1
+        bed.host.library = [ClientFixtures.entry("behind-the-hole.png")]
         bed.host.world = world
 
         bed.road.dropFrame()
@@ -43,11 +44,11 @@ struct LinkGapRecoveryTests {
         try await bed.host.announce(
             StateDelta.library(.upserted([ClientFixtures.entry("behind-the-hole.png")])),
             kind: .delta)
-        try await Self.settle { bed.client.snapshot?.libraryCount == 7 }
+        try await Self.settle { bed.client.snapshot?.libraryCount == 1 }
 
         #expect(bed.road.dropCount == 1, "the road has to have actually lost one")
         #expect(bed.host.commands.contains(.resync), "the phone asks for the world again")
-        #expect(bed.client.snapshot?.libraryCount == 7, "and the fresh snapshot is what it holds")
+        #expect(bed.client.snapshot?.libraryCount == 1, "and the fresh snapshot is what it holds")
         #expect(bed.client.connection == .live(.lan), "a hole is not a reason to drop the link")
         #expect(
             bed.client.library.map(\.fileName) == ["behind-the-hole.png"],
@@ -123,10 +124,12 @@ struct LinkGapRecoveryTests {
     }
 
     /// Waits for the phone to have caught up, or gives up after a couple of seconds.
-    static func settle(_ until: @MainActor () -> Bool) async throws {
-        for _ in 0..<200 {
+    static func settle(within duration: Duration = .seconds(2), _ until: @MainActor () -> Bool) async throws {
+        let deadline = ContinuousClock.now + duration
+        while ContinuousClock.now < deadline {
             if until() { return }
             try await Task.sleep(for: .milliseconds(10))
         }
+        throw LinkClientError.timedOut
     }
 }

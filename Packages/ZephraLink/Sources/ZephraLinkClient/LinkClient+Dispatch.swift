@@ -20,6 +20,7 @@ extension LinkClient {
         switch envelope.kind {
         case .snapshot:
             snapshot = decode(StateSnapshot.self, from: envelope)
+            session?.hasSnapshot = snapshot != nil
             // A frame kept through a drop belongs to a run; the first thing the Mac says on the
             // way back is whether there is still one. This and the delta below are the only two
             // ways a preview is ever cleared.

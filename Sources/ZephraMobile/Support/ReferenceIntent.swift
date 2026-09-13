@@ -22,13 +22,25 @@ import Observation
 final class ReferenceIntent {
     /// The picture the library asked to start from, or nil once the capsule has taken it.
     private(set) var fileName: String?
+    private(set) var revision = UUID()
+    private(set) var isResolving = false
+    private(set) var note: String?
+    var canGenerate: Bool { fileName == nil && !isResolving && note == nil }
 
     /// An intent with nothing in it.
     init() {}
 
     /// Asks for the next generation to start from this picture.
     func use(_ fileName: String) {
+        beginSelection()
         self.fileName = fileName
+    }
+
+    func beginSelection() {
+        revision = UUID()
+        fileName = nil
+        isResolving = true
+        note = "Loading reference…"
     }
 
     /// Takes the request, leaving nothing behind. The capsule's call, and the reason this is
@@ -40,6 +52,15 @@ final class ReferenceIntent {
 
     /// Drops the request without acting on it.
     func clear() {
+        revision = UUID()
+        isResolving = false
+        note = nil
         fileName = nil
     }
+    func resolved(_ revision: UUID, success: Bool) {
+        guard self.revision == revision else { return }
+        isResolving = false
+        note = success ? nil : "The reference could not be loaded. Reconnect its Mac or choose another picture."
+    }
+
 }

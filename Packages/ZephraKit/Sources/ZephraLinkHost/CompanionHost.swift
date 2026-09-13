@@ -50,7 +50,7 @@ public final class CompanionHost {
 
     /// How long a session's `OrderedInbox` holds a gap open before it calls it loss, handed to
     /// each session as its channel is made. An instance property for the same reason.
-    @ObservationIgnored var frameHold: Duration = OrderedInbox.hold
+    @ObservationIgnored var frameHold: Duration?
 
     @ObservationIgnored let store: GenerationStore
     @ObservationIgnored let index: LibraryIndex

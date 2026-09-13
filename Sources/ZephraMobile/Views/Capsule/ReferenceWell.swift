@@ -14,6 +14,7 @@ struct ReferenceWell: View {
     /// What the model in force will accept, which is what decides the caption.
     let capabilities: CapabilitiesSummary
     @Environment(PromptDraft.self) private var draft
+    @Environment(ReferenceIntent.self) private var intent
 
     var body: some View {
         VStack(spacing: 6) {
@@ -27,6 +28,7 @@ struct ReferenceWell: View {
                 ReferenceLibraryButton()
                 if draft.reference != nil {
                     Button {
+                        intent.clear()
                         draft.clearReference()
                     } label: {
                         Image(systemName: "xmark")

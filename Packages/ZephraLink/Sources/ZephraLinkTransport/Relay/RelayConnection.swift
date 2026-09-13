@@ -13,6 +13,8 @@ import os
 /// a fresh handshake, because a reconnection is a new session and pretending otherwise would
 /// hand the channel above a stream with a hole in it.
 public final class RelayConnection: LinkConnection, @unchecked Sendable {
+    // Lambda invocations can overtake one another by more than the LAN window.
+    public var frameReorderingHold: Duration { .seconds(2) }
     /// How long the relay has to answer a join before the road gives up on it.
     ///
     /// A join that hangs is worse than one that fails: the backoff loop that retries the road

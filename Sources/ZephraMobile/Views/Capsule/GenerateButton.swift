@@ -4,6 +4,7 @@ import ZephraLinkProtocol
 struct GenerateButton: View {
     @Environment(GenerationDispatch.self) private var dispatch
     @Environment(PromptDraft.self) private var draft
+    @Environment(ReferenceIntent.self) private var referenceIntent
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 4) {
@@ -11,14 +12,18 @@ struct GenerateButton: View {
                 if dispatch.hosts.client.snapshot?.running != nil { StopRunButton() }
                 Button("Generate") { generate() }
                     .buttonStyle(.borderedProminent)
-                    .disabled(dispatch.isSending || !draft.settings.isReadyToGenerate || dispatch.target == nil)
+                    .disabled(!referenceIntent.canGenerate || dispatch.isSending || !draft.settings.isReadyToGenerate || dispatch.target == nil)
             }
-            if let note = dispatch.note {
+            if let note = referenceIntent.note ?? dispatch.note {
                 Text(note).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.trailing)
+            }
+            if referenceIntent.note != nil && !referenceIntent.isResolving {
+                Button("Clear reference request") { referenceIntent.clear(); draft.clearReference() }.font(.caption)
             }
         }
     }
     private func generate() {
+        guard referenceIntent.canGenerate else { return }
         if MobileSettings.flag(MobileSettings.randomizeSeedEachRun) { draft.randomizeSeed() }
         let request = GenerationRequest(modelID: draft.modelID, count: draft.count, settings: draft.settings)
         let reference = draft.reference

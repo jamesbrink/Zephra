@@ -17,7 +17,7 @@ extension CompanionSession {
     /// over one dropped frame meant a phone reconnecting every few seconds for the length of a
     /// run, which is worse than the hole.
     func makeInbox(over channel: SecureChannel) -> OrderedInbox {
-        let inbox = OrderedInbox(channel: channel, hold: host?.frameHold ?? OrderedInbox.hold)
+        let inbox = OrderedInbox(channel: channel, hold: host?.frameHold ?? connection.frameReorderingHold)
         inbox.onGap { [weak self] gap, frames in
             Task { @MainActor in
                 guard let session = self, !session.isClosed else { return }

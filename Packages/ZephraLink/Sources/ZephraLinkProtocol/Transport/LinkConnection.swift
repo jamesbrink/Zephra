@@ -8,6 +8,8 @@ import Foundation
 /// (TCP) prefixes each frame with its length itself, and a road that is message-based (a
 /// WebSocket) hands one message through as one frame.
 public protocol LinkConnection: Sendable {
+    /// How long authenticated frames may overtake one another on this transport.
+    var frameReorderingHold: Duration { get }
     /// Every frame the peer sends, until the road closes. Whole, but **not necessarily in
     /// order**: the relay is one Lambda invocation per frame and they post concurrently, so
     /// putting the stream back together is `OrderedInbox`'s job above this. Read once; a second
@@ -30,6 +32,8 @@ public protocol LinkConnection: Sendable {
 }
 
 extension LinkConnection {
+    public var frameReorderingHold: Duration { OrderedInbox.hold }
+
     /// Nothing, for a road that refuses nothing of its own.
     public func relayErrors() -> AsyncStream<String> {
         AsyncStream { $0.finish() }

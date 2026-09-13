@@ -17,30 +17,36 @@ extension CompanionSession {
         }
         let store = host.store
         let loaded = store.loadedDescriptor?.id == model.id
-        let records = host.index.items.compactMap(\.provenance.record).suffix(64)
-        func duration(_ modelID: String, _ settings: GenerationSettings) -> Double? {
-            let values = records.filter {
-                $0.modelID == modelID && $0.width == settings.size.width && $0.height == settings.size.height
-                    && $0.steps == settings.steps && ($0.frameCount ?? 1) == settings.frames
-                    && $0.durationSeconds.isFinite && $0.durationSeconds > 0
-            }.map(\.durationSeconds)
-            guard !values.isEmpty else { return nil }
-            return values.reduce(0, +) / Double(values.count) * 1.2
-        }
-        let execution = duration(model.id, settings).map { $0 * Double(request.count) }
+        let key = store.timingKey(model: model, settings: settings)
+        let estimate = key.flatMap { store.timings.estimate($0) }
+        let execution = estimate.map { $0.execution * Double(request.count) }
         var waiting: Double? = 0
-        let pending = store.queue + (store.running.map { [$0] } ?? [])
+        let pending = (store.running.map { [$0] } ?? []) + store.queue
+        var precedingModel = store.loadedDescriptor?.id
         for job in pending {
-            if let elapsed = duration(job.model.id, job.settings), let prior = waiting {
-                waiting = prior + elapsed
-            } else { waiting = nil }
+            var duration = store.remainingTiming(for: job)
+            if precedingModel != job.model.id {
+                let key = store.timingKey(model: job.model, settings: job.settings)
+                let load = key.flatMap { store.timings.preparation(model: $0.modelID,
+                    revision: $0.revision, residency: $0.residency) }
+                let unload = precedingModel.map { store.timings.unload(model: $0) } ?? 0
+                duration = duration.flatMap { run in load.flatMap { load in unload.map { run + load + $0 } } }
+            }
+            if let duration, let prior = waiting { waiting = prior + duration } else { waiting = nil }
+            precedingModel = job.model.id
         }
+        let unload = precedingModel.map { store.timings.unload(model: $0) } ?? 0
+        let preparation = precedingModel == model.id ? 0 : key.flatMap {
+            store.timings.preparation(model: $0.modelID, revision: $0.revision, residency: $0.residency)
+        }.flatMap { load in unload.map { load + $0 } }
         let revision = pending.map { $0.id.uuidString }.joined(separator: ":")
         return HostOffer(refusal: store.strictRefusal(for: model, settings: settings, count: request.count),
-            queueSeconds: waiting, preparationSeconds: loaded ? 0 : nil,
+            queueSeconds: waiting, preparationSeconds: preparation,
             executionSeconds: execution, memoryMargin: store.memoryBudget.bytes - store.strictMemory(for: model, settings: settings),
             modelLoaded: loaded, queueCount: pending.count, queueRevision: revision,
             physicalMemory: store.memoryBudget.physicalMemory,
-            thermalState: ProcessInfo.processInfo.thermalState.rawValue)
+            thermalState: ProcessInfo.processInfo.thermalState.rawValue,
+            finalizationSeconds: estimate.map { $0.finalization * Double(request.count) },
+            requiresInputTransfer: strict.input != nil, timingSampleCount: estimate?.samples)
     }
 }

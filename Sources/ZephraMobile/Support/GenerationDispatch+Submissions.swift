@@ -8,7 +8,7 @@ extension GenerationDispatch {
         isSending = true; note = nil
         defer { isSending = false }
         await refresh(generation, forSubmission: true)
-        guard let host = target, host.preference.enabled, host.client.connection.isLive else {
+        guard let host = target, host.preference.enabled, host.client.connection.isLive, host.client.hasFreshSnapshot else {
             note = "No connected Mac can take this job."; return
         }
         if destination == nil && offers[host.id]?.refusal != nil { note = reason; return }

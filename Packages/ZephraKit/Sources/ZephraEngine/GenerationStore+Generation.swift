@@ -38,11 +38,18 @@ extension GenerationStore {
         defer { ProcessInfo.processInfo.endActivity(activity) }
         let clock = ContinuousClock()
         let started = clock.now
+        timingRunStarted = started
+        defer { timingRunStarted = nil }
+        let profile = timingKey(for: job)
+        let earlierExecution = job.chain.flatMap { chains[$0.chainID]?.executionElapsed } ?? .zero
+        if let chain = job.chain { chains[chain.chainID]?.timingKey = profile }
+        let earlierPasses = job.chain.flatMap { chains[$0.chainID]?.elapsed } ?? .zero
         let pump = EngineEventPump { [weak self] event in self?.applyGenerationEvent(event) }
         do {
             let segment = try await pump.run { sink in
                 try await inference.generate(job.settings, tile: vaeTile(for: job.model), events: sink)
             }
+            let execution = clock.now - started
             // Stop pressed during the decode: the backend never looked, and the bytes are not
             // wanted. A stopped run keeps no image, whenever the stop landed.
             guard !Task.isCancelled else {
@@ -57,6 +64,10 @@ extension GenerationStore {
             let media: GeneratedMedia
             if let chain = job.chain {
                 guard let joined = try await advanceChain(segment, job: job, segment: chain) else {
+                    if chains[chain.chainID] != nil {
+                        chains[chain.chainID]?.elapsed += clock.now - started
+                        chains[chain.chainID]?.executionElapsed += execution
+                    }
                     finish()
                     return
                 }
@@ -71,7 +82,8 @@ extension GenerationStore {
                 finish()
                 return
             }
-            complete(media, job: job, settings: settings, duration: clock.now - started)
+            complete(media, job: job, settings: settings, duration: earlierPasses + (clock.now - started),
+                profile: profile, execution: (earlierExecution + execution).seconds)
         } catch is CancellationError {
             finish()
         } catch BackendError.cancelled {
@@ -107,7 +119,8 @@ extension GenerationStore {
     /// A clip arrives as its poster and its MP4; the poster is the picture everything below
     /// handles, and the MP4 rides along to be written beside it.
     private func complete(
-        _ media: GeneratedMedia, job: QueuedGeneration, settings: GenerationSettings, duration: Duration
+        _ media: GeneratedMedia, job: QueuedGeneration, settings: GenerationSettings, duration: Duration,
+        profile: WorkloadTimingKey?, execution: Double
     ) {
         var video: GeneratedVideo?
         if case .video(let clip) = media { video = clip }
@@ -125,7 +138,8 @@ extension GenerationStore {
             history.removeLast(history.count - Self.historyLimit)
         }
         lastDuration = duration
-        save(image)
+        save(image, timing: profile.map { WorkloadTimings.Sample(key: $0, execution: execution,
+            finalization: max(0, duration.seconds - execution)) })
         finish()
     }
 

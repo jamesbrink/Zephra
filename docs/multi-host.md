@@ -18,10 +18,20 @@ GPU memory budget and host admission. It never downloads, builds, substitutes a
 model or lowers settings. A host's Models section exposes explicit loading,
 which may download or prepare a model.
 
-`HostSelection` minimizes known queue + preparation + execution estimates, with
-an allowance for this phone's submissions not yet reflected in the host queue.
-Comparable completed-library timings supply a conservative mean with 20%
-allowance. Unknown preparation or execution times remain unknown: deterministic
+`HostSelection` minimizes known queue + model unload/load + execution +
+finalization + input-transfer estimates, with an allowance for this phone's
+submissions not yet reflected in the host queue. Passive engine samples retain
+64 successful workloads and 32 load/unload observations. Matching includes model
+revision, weight residency, dimensions, steps, frames, reference mode/strength,
+continuation and tiled decoding. Audio variants have distinct model identities.
+Chained clips include all passes, tail processing, joining and successful output
+writes. Running work subtracts elapsed time with an uncertainty floor.
+The slowest of eight recent comparable samples receives a 20% allowance.
+These profiles are process-local; unknown local model revisions use a fresh load
+identity and never lend timings to another unverified load. Upload observations
+are scoped to the current connection and include admission/acknowledgment latency;
+a smaller input retains that fixed-latency floor. Unknown preparation, execution
+or required transfer times remain unknown: deterministic
 fallback prefers idle loaded, idle needing load, then busy hosts with known
 backlog, memory margin and host fingerprint as tie-breakers. Recommendations
 change for a material gain (15% and at least five seconds) or lost eligibility.
@@ -99,7 +109,10 @@ Bonjour browser, one path monitor and a 120 messages/second outbound relay caden
 with burst 40. Reconnect adds 0–350 ms jitter to exponential backoff. Background
 closes phone sessions; it does not cancel Mac work.
 
-Incoming bulk transfers are capped at two per phone and one per client, with a
+Bulk transfers, including reference uploads, are capped at two per phone and one
+per client. Queued references, opened media and visible thumbnails have priority
+over background work; FIFO ties and eight-grant aging prevent starvation. Incoming
+transfers have a
 256 MiB aggregate announced-byte budget and a 128 MiB individual-file ceiling.
 Partial retry buffers and unclaimed completed blobs remain accounted for; idle
 unclaimed data expires. References are limited to 16 MiB. Bulk producers apply
@@ -119,8 +132,18 @@ and independent relay rooms with one phone identity. The simulator fixture knob
 network or generation requests. Full gate results and simulator evidence are
 recorded in `docs/plans/multi-host-validation.md`.
 
-Physical multi-Mac WAN/cellular throughput and IPv6-only carrier behavior require
+See `docs/plans/multi-host-completion-audit.md` for the remaining acceptance gates.
+Real TCP and forced-relay qualification now covers 1/2/4/8 mock-backed host identities
+with two phone identities each. Physical multi-Mac WAN/cellular throughput and IPv6-only carrier behavior require
 field qualification; simulator and in-memory roads do not establish those
 measurements. Routing tests use mock backends, never model downloads or real
 inference. Future scope remains automatic model acquisition, batch splitting,
 accepted-job migration, library replication and background dispatch.
+
+Reference selections block Generate while their bytes are loading and when the
+source cannot be read. A visible failure can be cleared explicitly. Each selection
+has a revision created at the user's action; asynchronous reads and decoding must
+still match it before adopting a picture, so clearing or choosing another source
+cannot resurrect an older reference. Preview subscriptions are reconciled per
+authenticated session, with independent short attempts and retries on later
+observation passes.
