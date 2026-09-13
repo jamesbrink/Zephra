@@ -89,15 +89,21 @@ final class EngineTestBed {
     }
 
     /// A store wired to whichever upscaler is asked for.
+    ///
+    /// `output` is the folder written to, which is this bed's own unless a test wants writes
+    /// that cannot land; every store comes through here, so no store reads the real Mac's
+    /// memory and a suite's result never depends on what the machine running it is doing.
     func store(
         descriptor: ModelDescriptor = ModelCatalog.default,
         locations: ModelLocations? = nil,
-        upscaler: UpscalerFactory?
+        upscaler: UpscalerFactory?,
+        output: URL? = nil,
+        families: [BackendID] = catalogFamilies
     ) -> GenerationStore {
         let store = GenerationStore(
             descriptor: descriptor,
-            registry: registry(),
-            outputDirectory: directory,
+            registry: registry(families),
+            outputDirectory: output ?? directory,
             locations: locations ?? ModelLocations(root: directory.appending(path: "models")),
             upscaler: upscaler,
             runtime: MockInferenceRuntime(control: control),
@@ -124,9 +130,9 @@ final class EngineTestBed {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let blocker = directory.appending(path: "not-a-folder")
         try Data().write(to: blocker)
-        return GenerationStore(
-            registry: registry(),
-            outputDirectory: blocker.appending(path: "images", directoryHint: .isDirectory)
+        return store(
+            upscaler: upscalerFactory(),
+            output: blocker.appending(path: "images", directoryHint: .isDirectory)
         )
     }
 

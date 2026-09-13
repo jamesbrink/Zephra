@@ -25,11 +25,7 @@ struct ModelAvailabilityTests {
     func aFamilyWithNoBackendIsMissing() async throws {
         let bed = EngineTestBed()
         // Only Z-Image is registered, so every other family in the catalog is unanswerable.
-        let store = GenerationStore(
-            descriptor: ModelCatalog.default,
-            registry: bed.registry([.zImage]),
-            outputDirectory: bed.directory
-        )
+        let store = bed.store(upscaler: bed.upscalerFactory(), families: [.zImage])
         store.warmsUpAfterLoad = false
         await store.bootstrap()
 
