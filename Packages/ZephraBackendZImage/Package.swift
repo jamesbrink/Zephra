@@ -14,6 +14,9 @@ let package = Package(
         // For the runtime's cache and memory limits, the quantizer, and the microbench.
         // ZImageKit pins the same exact version, so this adds no new package to the graph.
         .package(url: "https://github.com/ml-explore/mlx-swift", exact: "0.31.3"),
+        // The streaming suites build a tiny model and load it through the kit's own weight
+        // apply, which logs. ZImageKit pins the same package, so the graph is unchanged.
+        .package(url: "https://github.com/apple/swift-log.git", from: "1.6.4"),
     ],
     targets: [
         .target(
@@ -39,9 +42,13 @@ let package = Package(
                 .product(name: "ZephraSnapshot", package: "ZephraKit"),
                 .product(name: "ZephraTestSupport", package: "ZephraKit"),
                 .product(name: "ZephraQuantization", package: "ZephraMLXKit"),
+                // `ShardIndex` and `LayerWeightStreamError`, for the streaming suites.
+                // ZImageKit has no test target by policy, so they live here.
+                .product(name: "ZephraMLX", package: "ZephraMLXKit"),
                 .product(name: "ZImage", package: "ZImageKit"),
                 // Only to build the handful of small arrays the quantizer tests feed in.
                 .product(name: "MLX", package: "mlx-swift"),
+                .product(name: "Logging", package: "swift-log"),
             ]
         ),
     ]
