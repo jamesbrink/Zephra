@@ -14,9 +14,29 @@ reads the model's own peak.)
 `Packages/ZephraKit/Sources/ZephraCore/Model/ModelCatalog+<Family>.swift`
 (Z-Image's two are in `ModelCatalog.swift` itself), listed in `all` in
 `ModelCatalog.swift`. `ModelDescriptor` carries where the weights come from
-(`ModelSource`: a Hugging Face repo or a local directory), the download and
-resident sizes,
-and a `ModelCapabilities` the interface draws itself from — size presets and
+(`ModelSource`: a Hugging Face repo or a local directory), the download size and
+**five memory figures**, every one of them a reading off `make bench` at the
+entry's own default size:
+
+| Figure | What the bench calls it | What reads it |
+| --- | --- | --- |
+| `residentBytes` | "live memory", weights held | the guard's held figure when the load is resident |
+| `peakBytes` | "peak memory", untiled | `MemoryFit.fits` |
+| `tiledPeakBytes` | the same under `ZEPHRA_VAE_TILE=64` | `MemoryFit.fitsTiled` |
+| `streamedPeakBytes` | "peak memory" under `--stream --stream-depth 2` | `MemoryFit.fitsStreamed`, and `leanestPeakBytes` |
+| `streamedResidentBytes` | "live memory" of that same streamed run | the guard's held figure when the load is streamed |
+
+The last pair go together and the last one is easy to leave out, so: do not let
+`MemoryGuard` fall back to `residentBytes` for a streamed load. That is what the
+weights weigh *held*, and for every family measured so far it is larger than the
+streamed peak — Z-Image 8-bit holds 12.2 GB resident and 974 MB streamed against
+a 6.4 GB streamed peak — so subtracting it floors the run's transient at zero and
+admits a streamed run on a Mac with nothing free. An entry that streams and
+leaves `streamedResidentBytes` at 0 is charged its whole streamed peak instead,
+which refuses too much rather than too little; `ModelCatalogTests` fails a
+shipped entry that does it.
+
+Beside those is a `ModelCapabilities` the interface draws itself from — size presets and
 bounds, step and guidance bounds, whether a negative prompt or a seed does
 anything, and for a model that makes clips the frame bounds, default, ladder
 and rate (`frameBounds`, `defaultFrames`, `frameAlignment`, `frameRate`), a
@@ -24,6 +44,22 @@ range in the first being what draws the length control and says the backend
 answers `GeneratedMedia.video`. Every number in an entry is hand-written because every number is
 measured; leave a comment saying where a figure came from. `ModelMenu` lists
 `ModelCatalog.all` and `GenerationStore.switchModel(to:)` does the rest.
+
+Four of those numbers are the memory figures, and since 2026-09-13 all four are
+measured for every entry: `residentBytes`, `peakBytes`, `tiledPeakBytes` and
+`streamedPeakBytes`. The last was zero for any family that had not learned to
+stream, which meant "never stream this"; every family streams now, so a zero
+there is a new family's placeholder rather than a description of anything
+shipped, and an entry left with one is offered on fewer Macs than it could run
+on. They matter more than they used to, because memory is a **gate** now and not
+a note: `MemoryFit.isSelectable` is false when a model does not fit on any lever
+this Mac has, and a model it is false for is greyed in the model menu, greyed on
+the first-launch card, greyed on a paired phone, refused by
+`GenerationStore.canSelect` before a byte is downloaded, and stepped off at
+launch by `fallBackIfUnrunnable()` (which was `fallBackIfUnobtainable` until it
+learned to ask about memory as well as about the disk). A figure measured too
+low therefore does not merely mis-word a caption; it offers a model that aborts
+the app when Metal refuses to wire it.
 
 **A new backend family** — four things in the app, then the tooling:
 

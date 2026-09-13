@@ -75,6 +75,10 @@ extension ModelCatalog {
         // latter read-bound at 2.3 GB/s from its SSD; swap did not move. The larger figure
         // is kept, since the peak is what the budget is checked against.
         streamedPeakBytes: 10_250_000_000,
+        // The "live between runs" of that same halcyon run, the BENCHMARKS.md "Streamed" row
+        // for 1024: 1409 MB, carried rounded **down** to 1400 MB. What a streamed load holds is the resident ends of the model —
+        // embeddings, norms, the autoencoder — not the 21530 MB `residentBytes` says.
+        streamedResidentBytes: 1_400_000_000,
         // diffusers' QwenImagePipeline keeps the first 512 hidden states of the prompt
         // (`max_sequence_length`, its default); the tokenizer would allow 1024, but nothing
         // past 512 ever reaches the transformer there, so nothing past 512 does here.

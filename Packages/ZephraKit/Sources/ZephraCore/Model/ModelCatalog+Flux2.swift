@@ -51,6 +51,26 @@ extension ModelCatalog {
         peakBytes: 12_090_000_000,
         // Measured, same machine and seed, tiled at a 64-cell latent tile: 7660 MB at 1024.
         tiledPeakBytes: 7_660_000_000,
+        // Measured on halcyon (M4 Max, 38338 MB working set) on 2026-09-13, tile 64, read-ahead
+        // depth 2, 1024 pixels, four steps, three runs, halcyon at 83-88% idle (a working
+        // desktop; see BENCHMARKS.md): 4056 MB peak and
+        // 1336 MB live between runs, and the image byte for byte the resident run's. Previews
+        // did not move the peak.
+        //
+        // The 8-bit entry carries the same figure, measured: what stays resident under the
+        // stream is the same in both builds — the float32 autoencoder, the embeddings, the
+        // norms and the three shared modulation linears — and the peak is those plus the
+        // decode's tile and the depth-2 window, not the width of the blocks going past. The
+        // width is paid in reading: the last stream's pass (the 20 single blocks) reads
+        // 1.53 GB a step here and 2.76 at eight bits. Streaming costs nothing in time: 3.22 s a
+        // step against 3.20 resident. On the 16 GB M4 mini (12124 MB working set) both builds
+        // measured 3584 MB peak streamed, 11.57 s a step against 11.51 resident.
+        streamedPeakBytes: 4_060_000_000,
+        // The live figure of that same run: 1336 MB between runs, carried rounded **down** to
+        // 1330 MB — the float32 autoencoder,
+        // the embeddings, the norms and the shared modulation linears — against the 4941 MB
+        // this variant holds resident.
+        streamedResidentBytes: 1_330_000_000,
         // The pipeline pads every prompt to 512 tokens and conditions on all of them.
         maxPromptTokens: 512,
         capabilities: flux2KleinCapabilities,
@@ -80,6 +100,16 @@ extension ModelCatalog {
         residentBytes: 8_140_000_000,
         peakBytes: 15_290_000_000,
         tiledPeakBytes: 10_860_000_000,
+        // Measured on halcyon the same way as the 4-bit entry's, 2026-09-13, tile 64, depth 2,
+        // 1024, four steps, three runs: 4056 MB peak and 1336 MB live, the same figures to the
+        // byte, for the reason written out there. The reading is what differs: 2.76 GB a step
+        // off the last stream's pass against 1.53 at four bits. It costs nothing in time even so:
+        // 3.43 s a step against 3.44 resident. The 16 GB M4 mini measured 3584 MB peak here
+        // too, 12.13 s a step against 12.31 resident.
+        streamedPeakBytes: 4_060_000_000,
+        // The live figure of that same run: 1336 MB, rounded **down** to 1330 MB, the same to
+        // the byte as the 4-bit build's, against the 8144 MB this variant holds resident.
+        streamedResidentBytes: 1_330_000_000,
         maxPromptTokens: 512,
         capabilities: flux2KleinCapabilities,
         // Measured: 8,572,731,392 bytes written by the build.

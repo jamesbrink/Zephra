@@ -81,6 +81,11 @@ extension ModelCatalog {
         // a clip, read-bound at 0.32 GB/s straight after the variant landed from the mirror;
         // that read rate is the one figure here worth a rerun.
         streamedPeakBytes: 10_010_000_000,
+        // The live figure of that same run, the BENCHMARKS.md "LTX-2.5 4-bit, video only"
+        // bullet that pairs 10003 MB peak with 5737 MB live, carried rounded **down** to
+        // 5730 MB: the two autoencoders, the
+        // upsampler and the stacks' resident ends, not the 19160 MB held resident.
+        streamedResidentBytes: 5_730_000_000,
         // Gemma is padded to 1024 tokens and the connector reads every position.
         maxPromptTokens: 1024,
         capabilities: ltx2Capabilities,
@@ -127,6 +132,9 @@ extension ModelCatalog {
         // live, 11.7 GB read per step (the video entry's 8.1 plus the lane), the audio
         // connector and projection, the decoder and the vocoder resident beside the video's.
         streamedPeakBytes: 12_080_000_000,
+        // The live figure of that same run, the BENCHMARKS.md "LTX-2.5 4-bit with sound"
+        // streamed row: 7455 MB, rounded **down** to 7450 MB, against 24090 MB held resident.
+        streamedResidentBytes: 7_450_000_000,
         maxPromptTokens: 1024,
         capabilities: ltx2AudioCapabilities,
         // Measured by `make quantize-ltx2-audio` on 2026-09-10: 25,832,161,853 bytes, the

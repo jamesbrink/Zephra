@@ -10,9 +10,11 @@ struct MemoryGuardStoreTests {
     /// A 16 GB Mac's working set, which no catalog model is held whole in.
     static let small = MemoryBudget(physicalMemory: 16 << 30, gpuWorkingSet: 12_124 << 20)
 
-    /// A budget the catalog straddles: klein 4-bit runs tiled, Qwen-Image streams, and
-    /// LTX-2.5 with sound is over even its streamed figure, so it is a model this Mac cannot
-    /// hold and the one every "cannot hold" case below is about.
+    /// A budget the catalog straddles: klein 4-bit runs tiled, Z-Image 8-bit and Qwen-Image
+    /// stream, and LTX-2.5 with sound is over even its streamed figure, so it is a model this
+    /// Mac cannot hold and the one every "cannot hold" case below is about. Z-Image 8-bit is
+    /// what `bootstrap` therefore keeps here, streamed, since its 6.42 GB streamed peak was
+    /// measured on 2026-09-13; before that it was tight and the store stepped onto klein.
     static let straddling = MemoryBudget(physicalMemory: 16 << 30, gpuWorkingSet: 11_000_000_000)
 
     /// The catalog entry that budget cannot hold.
@@ -175,7 +177,12 @@ struct MemoryGuardStoreTests {
         }
         #expect(sentence.hasPrefix("\(Self.tooLarge.fullName) needs"))
 
-        // A machine that is simply full right now is worth asking again in a moment.
+        // A machine that is simply full right now is worth asking again in a moment. The model
+        // in force here is streamed — since 2026-09-13 Z-Image 8-bit fits this budget that way,
+        // so `bootstrap` keeps it rather than stepping onto klein — and a streamed load is
+        // charged its whole peak where MLX has allocated nothing yet, since the descriptor's
+        // resident figure is not what such a load holds. Subtracting it would floor the
+        // transient at zero and admit this run on a Mac with 400 MB free.
         bed.machineMemory = Self.starved()
         let busy = store.remoteAdmission(for: store.descriptor, settings: settings)
         guard case .refused(let reason) = busy else {

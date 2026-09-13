@@ -135,6 +135,18 @@ the same override the store runs under without a second read of the process envi
   carries neither of its own matches through the label linked by `AXTitleUIElement` or
   `AXServesAsTitleForUIElements` instead. `--dump [depth]` prints the tree for finding titles,
   with that linked label alongside where the control has one.
+  The same script also sizes and places the window for a screenshot without activating
+  it: `--resize W H`, `--move X Y`, and `--reveal "<title>"`, which performs
+  `AXScrollToVisible` on a control found the way `--press` finds one — the first-launch
+  chooser's greyed cards sort last and are otherwise below the fold at the sizes worth
+  photographing. `make screenshot` shoots the window by its CoreGraphics id, so the
+  window has to already be the size the picture is meant to show, and a drag or a
+  keyboard chord takes the focus off whoever is at the keyboard. Two things a window can
+  do to a resize are reported rather than hidden: a tiled or zoomed window keeps its own
+  frame whatever is written, and an AX size counts the title bar, so the app's 880 x 560
+  content floor reads back as 880 x 592. The command says what the window settled at
+  either way, since a screenshot of a window that quietly ignored the size is worse than
+  no screenshot.
   `swift scripts/ax-type.swift "<label>" "<text>"` is its sibling for a field: it sets the
   value of the text field with that accessibility label and performs `AXConfirm`, what Return
   does in it, which is how the Size menu's "Custom size" field is typed into hands-off.
@@ -212,8 +224,12 @@ the same override the store runs under without a second read of the process envi
   reads ahead (2 unless set; the backend hands it to `QwenImageStreaming(depth:)` or
   `LTX2Streaming(depth:)` at load).
   `make bench ARGS="--model qwen-image-2512-4bit --stream"` is the same with the report saying
-  what one step read and how fast; `--stream-depth N` sweeps the window. A model whose family
-  cannot stream loads resident whatever either says.
+  what one step read and how fast; `--stream-depth N` sweeps the window. Every family takes
+  it — `ZImageStreaming`, `Flux2Streaming` and `WanStreaming` beside those two — and a family
+  with no measured streamed figure would load resident whatever either says, which nothing in
+  the catalog is any more. The report is `WeightStreamMeter`'s last pass, so a family that
+  streams more than one stack reports the last one its forward ran: Z-Image's main stack, and
+  klein's single-stream blocks.
 - `ZEPHRA_GENERATE_ON_LAUNCH=<prompt>` (Debug builds only; in Release it is inert, the same
   rule `ZEPHRA_PREVIEW_STATE` follows and for the same reason — a shipped, signed Zephra has no
   business starting a generation unattended because a stray variable happened to be set)

@@ -51,6 +51,10 @@ extension ModelCatalog {
         // Measured the same way with both stacks streamed: 9708 MB peak, 2625 MB live, 36.0 s
         // a clip at 6.09 s a step on an M4 Max, whose SSD keeps up.
         streamedPeakBytes: 9_710_000_000,
+        // The live figure of that same halcyon run, the BENCHMARKS.md Wan streamed row:
+        // 2625 MB, carried rounded **down** to 2620 MB — the float32 autoencoder, UMT5's tables and the stacks' resident ends —
+        // against the 8000 MB held resident.
+        streamedResidentBytes: 2_620_000_000,
         // UMT5 is padded to 512 tokens and the transformer attends to every position.
         maxPromptTokens: 512,
         capabilities: wanCapabilities,

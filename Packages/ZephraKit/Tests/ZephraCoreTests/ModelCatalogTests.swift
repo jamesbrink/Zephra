@@ -8,26 +8,54 @@ struct ModelCatalogTests {
     /// `n` gibibytes, the unit `ProcessInfo.physicalMemory` reports a Mac's RAM in.
     static func gigabytes(_ count: UInt64) -> UInt64 { count * 1024 * 1024 * 1024 }
 
-    @Test("an 8 GB Mac is offered nothing: even the tiled 4-bit peak is over its budget")
-    func eightGigabytesFitsNothing() {
-        let memory = Self.gigabytes(8)
+    @Test("a 4 GB Mac is offered nothing: even the leanest streamed peak is over its budget")
+    func fourGigabytesFitsNothing() {
+        // 8 GB was this case until Z-Image and klein learned to stream. klein's 4.06 GB
+        // streamed peak is under an 8 GB Mac's 6.9 GB fallback working set, so that Mac now
+        // runs two families; 4 GB, with 3.4 GB of budget, is under every figure in the catalog.
+        let memory = Self.gigabytes(4)
         #expect(ModelCatalog.fitting(physicalMemory: memory).isEmpty)
         for model in ModelCatalog.all {
             #expect(!ModelCatalog.fit(model, physicalMemory: memory).isSelectable)
         }
     }
 
+    @Test("an 8 GB Mac runs the two families that stream leanest, and opens on the leanest of them")
+    func eightGigabytesRunsWhatStreamsLeanest() {
+        // 6.9 GB of fallback working set: klein streams in 4.06 GB and Z-Image in 6.42 GB, so
+        // both variants of both families are offered — the Mac reads the weights off the disk
+        // on every step. Every other family's streamed peak is over 9.7 GB.
+        let memory = Self.gigabytes(8)
+        let fitting = ModelCatalog.fitting(physicalMemory: memory)
+        #expect(
+            fitting == [
+                ModelCatalog.zImageTurbo8bit, ModelCatalog.flux2Klein4bit,
+                ModelCatalog.flux2Klein8bit, ModelCatalog.zImageTurbo4bit,
+            ])
+        for model in fitting {
+            #expect(ModelCatalog.fit(model, physicalMemory: memory) == .fitsStreamed, "\(model.id)")
+        }
+        // Nothing is held here, so catalog order is the wrong order to pick by: it leads with
+        // Z-Image 8-bit, a 13.3 GB download reading 6.8 GB a step, where klein 4-bit is a
+        // 5.4 GB build reading 1.5 GB. Among models all paying the tax, the leanest wins.
+        #expect(ModelCatalog.default(fitting: memory) == ModelCatalog.flux2Klein4bit)
+    }
+
     @Test("a 16 GB Mac is offered the small models: klein exactly, the 4-bit Turbo model tiled")
     func sixteenGigabytesIsOfferedTheSmallModels() {
         let memory = Self.gigabytes(16)
         let fitting = ModelCatalog.fitting(physicalMemory: memory)
-        #expect(!fitting.contains(ModelCatalog.zImageTurbo8bit))
         #expect(fitting.contains(ModelCatalog.zImageTurbo4bit))
         #expect(fitting.contains(ModelCatalog.flux2Klein4bit))
         #expect(ModelCatalog.fit(ModelCatalog.flux2Klein4bit, physicalMemory: memory) == .fits)
         // 12.0 GB tiled against a 13.7 GB budget; 17.8 GB untiled is well over it.
         #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo4bit, physicalMemory: memory) == .fitsTiled)
         #expect(!ModelCatalog.fitsComfortably(ModelCatalog.zImageTurbo4bit, physicalMemory: memory))
+        // The 8-bit variant is offered too now, streamed: 17.7 GB tiled is over the budget and
+        // 6.42 GB streamed is well under it. It is still not what such a Mac opens on — see
+        // `defaultPrefersAResidentFitOverAStreamedOne` — but it is no longer greyed out.
+        #expect(fitting.contains(ModelCatalog.zImageTurbo8bit))
+        #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo8bit, physicalMemory: memory) == .fitsStreamed)
     }
 
     @Test("a 32 GB Mac runs everything, but only Qwen-Image needs the tiled decode to do it")
@@ -88,15 +116,17 @@ struct ModelCatalogTests {
 
     @Test("a Mac too small for a model is told how much memory it would take")
     func tightReportsWhatItWouldNeed() {
-        let fit = ModelCatalog.fit(ModelCatalog.zImageTurbo8bit, physicalMemory: Self.gigabytes(8))
+        let fit = ModelCatalog.fit(ModelCatalog.zImageTurbo8bit, physicalMemory: Self.gigabytes(4))
         guard case .tight(let needed) = fit else {
-            Issue.record("expected the 8-bit model not to fit on an 8 GB Mac")
+            Issue.record("expected the 8-bit model not to fit on a 4 GB Mac")
             return
         }
-        // The tiled peak itself: the GPU working set the machine would need.
-        #expect(needed == ModelCatalog.zImageTurbo8bit.tiledPeakBytes)
+        // The streamed peak, not the 17.7 GB tiled one: since this family streams, that is the
+        // leanest way Zephra would ever load it, and quoting the tiled figure would send a
+        // person looking for memory Zephra never asks of them.
+        #expect(needed == ModelCatalog.zImageTurbo8bit.streamedPeakBytes)
         let enough = MemoryBudget(physicalMemory: Self.gigabytes(48), gpuWorkingSet: UInt64(needed))
-        #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo8bit, budget: enough) == .fitsTiled)
+        #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo8bit, budget: enough) == .fitsStreamed)
     }
 
     @Test("every peak is above its resident size, and tiling never costs more than not tiling")
@@ -108,7 +138,7 @@ struct ModelCatalogTests {
         }
     }
 
-    @Test("the 8-bit Turbo model stays the default, and the list runs smallest machine first")
+    @Test("the 8-bit Turbo model stays the default, and the list keeps its order")
     func catalogOrder() {
         #expect(ModelCatalog.default == ModelCatalog.zImageTurbo8bit)
         #expect(
@@ -122,7 +152,7 @@ struct ModelCatalogTests {
                 ModelCatalog.ltx2Distilled4bit,
                 ModelCatalog.ltx2DistilledAudio4bit,
             ],
-            "the order is what a picker shows and what default(fitting:) walks, so a model that needs a larger Mac than the ones before it goes last; klein 4-bit sits before 8-bit so a 16 GB Mac lands on it by construction rather than by a measurement within a gigabyte of the budget"
+            "the order is what a picker shows and what default(fitting:) walks; klein 4-bit sits before 8-bit so a 16 GB Mac lands on it by construction rather than by a measurement within a gigabyte of the budget. It is no longer 'smallest machine first' on its own: every family streams, so the head of this list is selectable almost everywhere and it is default(fitting:)'s resident pass, not this order, that keeps a 16 GB Mac off it"
         )
     }
 
@@ -306,22 +336,45 @@ struct ModelCatalogTests {
         #expect(ModelCatalog.all.contains(ModelCatalog.default))
     }
 
-    @Test("a first launch starts on the largest model the Mac can actually run")
+    @Test("a first launch starts on the largest model the Mac can actually hold")
     func defaultFollowsTheMachine() {
         #expect(ModelCatalog.default(fitting: Self.gigabytes(48)) == ModelCatalog.zImageTurbo8bit)
         #expect(ModelCatalog.default(fitting: Self.gigabytes(24)) == ModelCatalog.zImageTurbo8bit)
         #expect(ModelCatalog.default(fitting: Self.gigabytes(16)) == ModelCatalog.flux2Klein4bit)
-        // Nothing fits an 8 GB Mac — no Zephra has been measured on one — so it opens on the
-        // model that comes nearest to running rather than on the largest download of the six.
+        // Nothing is held resident on an 8 GB Mac, so the resident pass finds nothing and the
+        // streamed pass answers the *leanest* entry that streams inside 6.9 GB — klein 4-bit at
+        // 4.06 GB, not Z-Image 8-bit at the head of the list. A Mac this small is streaming
+        // whatever it opens on, so what it opens on should stream cheapest.
         #expect(ModelCatalog.default(fitting: Self.gigabytes(8)) == ModelCatalog.flux2Klein4bit)
-        for gigabytes in [UInt64(8), 16, 24, 32, 48] {
+        // 4 GB fits nothing at all, so it falls through to the leanest entry rather than to the
+        // largest download of the eight.
+        #expect(ModelCatalog.default(fitting: Self.gigabytes(4)) == ModelCatalog.flux2Klein4bit)
+        for gigabytes in [UInt64(4), 8, 16, 24, 32, 48] {
             #expect(ModelCatalog.all.contains(ModelCatalog.default(fitting: Self.gigabytes(gigabytes))))
+        }
+    }
+
+    @Test("a first launch prefers a model it can hold over a larger one it would stream")
+    func defaultPrefersAResidentFitOverAStreamedOne() {
+        // A 16 GB Mac can run Z-Image 8-bit since the family learned to stream: 6.42 GB
+        // streamed against 13.7 GB of budget, and it is the first entry of `all`. Taking the
+        // first entry that merely *runs* would open such a Mac on a 13.3 GB download reading
+        // 6.8 GB off the disk on each of nine steps, where klein 4-bit fits outright.
+        let memory = Self.gigabytes(16)
+        #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo8bit, physicalMemory: memory) == .fitsStreamed)
+        #expect(ModelCatalog.fitting(physicalMemory: memory).first == ModelCatalog.zImageTurbo8bit)
+        #expect(ModelCatalog.default(fitting: memory) == ModelCatalog.flux2Klein4bit)
+        #expect(ModelCatalog.fit(ModelCatalog.flux2Klein4bit, physicalMemory: memory).fitsResident)
+        // And wherever a Mac is recommended anything, it is something that Mac can choose.
+        for gigabytes in [UInt64(8), 16, 24, 32, 48] {
+            let budget = MemoryBudget(physicalMemory: Self.gigabytes(gigabytes))
+            #expect(ModelCatalog.fit(ModelCatalog.default(fitting: budget), budget: budget).isSelectable)
         }
     }
 
     @Test("a Mac nothing fits is offered the model needing the least, never the largest")
     func aMacNothingFitsIsOfferedTheLeanest() {
-        let budget = Self.gigabytes(8)
+        let budget = Self.gigabytes(4)
         #expect(ModelCatalog.fitting(budget: MemoryBudget(physicalMemory: budget)).isEmpty)
         let offered = ModelCatalog.default(fitting: budget)
         for model in ModelCatalog.all {
@@ -337,10 +390,50 @@ struct ModelCatalogTests {
             == ModelCatalog.qwenImage2512_4bit.streamedPeakBytes)
         #expect(ModelCatalog.ltx2Distilled4bit.leanestPeakBytes
             == ModelCatalog.ltx2Distilled4bit.streamedPeakBytes)
-        // klein cannot stream, so its tiled peak is the whole answer.
-        #expect(ModelCatalog.flux2Klein4bit.streamedPeakBytes == 0)
+        // klein streams too since 2026-09-13, so its 4.06 GB streamed figure is the answer
+        // rather than its 7.66 GB tiled one. Every family in the catalog streams now, which is
+        // what `unstreamableIsAlwaysResident` has to use a fixture to keep pinning.
+        #expect(ModelCatalog.flux2Klein4bit.streamedPeakBytes > 0)
         #expect(ModelCatalog.flux2Klein4bit.leanestPeakBytes
-            == ModelCatalog.flux2Klein4bit.tiledPeakBytes)
+            == ModelCatalog.flux2Klein4bit.streamedPeakBytes)
+        for model in ModelCatalog.all {
+            #expect(model.streamedPeakBytes > 0, "\(model.id)")
+            #expect(model.leanestPeakBytes == model.streamedPeakBytes, "\(model.id)")
+        }
+    }
+
+    @Test("the two variants of a streaming family share one streamed peak, and it is the lean one")
+    func variantsShareTheirStreamedPeak() {
+        // The stream leaves the same resident tensors behind whichever width the blocks pack
+        // at — the float32 autoencoder, the embeddings and the norms — and the peak is that
+        // plus the tiled decode and the depth-2 window, so the 4-bit and 8-bit builds of one
+        // family measured the same peak to the byte. What differs is the bytes read per step,
+        // which is time and not memory.
+        #expect(ModelCatalog.zImageTurbo8bit.streamedPeakBytes
+            == ModelCatalog.zImageTurbo4bit.streamedPeakBytes)
+        #expect(ModelCatalog.flux2Klein8bit.streamedPeakBytes
+            == ModelCatalog.flux2Klein4bit.streamedPeakBytes)
+        // And streaming is a lever, so it never costs more than holding the weights.
+        for model in ModelCatalog.all {
+            #expect(model.streamedPeakBytes < model.tiledPeakBytes, "\(model.id)")
+        }
+        #expect(ModelCatalog.zImageTurbo8bit.streamedResidentBytes
+            == ModelCatalog.zImageTurbo4bit.streamedResidentBytes)
+        #expect(ModelCatalog.flux2Klein8bit.streamedResidentBytes
+            == ModelCatalog.flux2Klein4bit.streamedResidentBytes)
+    }
+
+    @Test("every family that streams says what a streamed load holds, and it is under its peak")
+    func everyStreamingFamilyNamesItsStreamedHeldFigure() {
+        // `MemoryGuard` subtracts this from the streamed peak to get what one run still has to
+        // find, so a figure at or above the peak would charge a streamed run nothing. It is
+        // also well under `residentBytes` for every family, which is the whole reason the
+        // field exists rather than the guard reading the resident one.
+        for model in ModelCatalog.all where model.streamedPeakBytes > 0 {
+            #expect(model.streamedResidentBytes > 0, "\(model.id)")
+            #expect(model.streamedResidentBytes < model.streamedPeakBytes, "\(model.id)")
+            #expect(model.streamedResidentBytes < model.residentBytes, "\(model.id)")
+        }
     }
 
     @Test("every preset is aligned and inside the size bounds")

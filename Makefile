@@ -558,7 +558,7 @@ clean:
 	rm -rf "$(BUILD)" "$(DERIVED)" "$(PROJECT)"
 
 logs:
-	log stream --style compact --predicate 'subsystem == "io.zephra"'
+	log stream --style compact --level info --predicate 'subsystem == "io.zephra"'
 
 # WINDOW=<title> photographs the window with that title instead of the largest one, which is
 # how a Settings tab is captured: `make screenshot WINDOW=General`.

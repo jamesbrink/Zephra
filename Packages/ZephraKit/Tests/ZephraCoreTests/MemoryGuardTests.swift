@@ -108,6 +108,54 @@ struct MemoryGuardTests {
         #expect(refused?.neededBytes == long)
     }
 
+    @Test("a streamed run before MLX has allocated is charged its own held figure, not the resident one")
+    func aStreamedRunIsChargedAgainstItsStreamedHeldFigure() {
+        // No allocator reading yet, so the held figure comes off the descriptor. It has to be
+        // `streamedResidentBytes`: `residentBytes` is 19160 MB here against a 10010 MB streamed
+        // peak, so subtracting it would floor the transient at zero and admit every streamed
+        // run on any machine. The answer is the measured 10010 - 5730 MB at the default size.
+        let model = ModelCatalog.ltx2Distilled4bit
+        let size = model.capabilities.defaultSize
+        let atDefault = Self.settings(
+            width: size.width, height: size.height, frames: model.capabilities.defaultFrames)
+        let charged = Self.guardian.transientBytes(
+            of: model, residency: .streamed, tile: 64, settings: atDefault, runtime: .zero)
+        #expect(charged == model.streamedPeakBytes - model.streamedResidentBytes)
+        #expect(charged > 0)
+        // And that is what refuses a streamed run on a Mac with 400 MB free, which before the
+        // held figure was measured was admitted.
+        let starved = MachineMemory(
+            physicalBytes: Int64(MemoryFitTests.gigabytes(16)), availableBytes: 400_000_000)
+        let refused = Self.guardian.runShortfall(
+            for: model, residency: .streamed, tile: 64, settings: atDefault, machine: starved,
+            runtime: .zero)
+        #expect(refused?.phase == .run)
+        #expect(refused?.neededBytes == charged)
+        // A live allocator reading still wins: it is the truth about this load.
+        let held = MemorySnapshot(
+            activeBytes: 6_000_000_000, cacheBytes: 0, peakBytes: 6_000_000_000)
+        #expect(
+            Self.guardian.transientBytes(
+                of: model, residency: .streamed, tile: 64, settings: atDefault, runtime: held)
+                == model.streamedPeakBytes - 6_000_000_000)
+    }
+
+    @Test("a streaming family with no held figure measured is charged its whole streamed peak")
+    func anUnmeasuredHeldFigureChargesTheWholePeak() {
+        // The conservative fallback, which is what a family added later gets until its live
+        // figure is measured: better to refuse a run that would have fitted than to admit one
+        // that aborts the app.
+        let unmeasured = MemoryFitTests.model(
+            peak: 30_000_000_000, tiled: 26_000_000_000, streamed: 9_000_000_000)
+        #expect(unmeasured.streamedResidentBytes == 0)
+        let size = unmeasured.capabilities.defaultSize
+        #expect(
+            Self.guardian.transientBytes(
+                of: unmeasured, residency: .streamed, tile: 64,
+                settings: Self.settings(width: size.width, height: size.height, frames: 1),
+                runtime: .zero) == unmeasured.streamedPeakBytes)
+    }
+
     @Test("a run with no reading of the machine refuses nothing: the load already passed")
     func aRunWithoutAReadingRefusesNothing() {
         #expect(

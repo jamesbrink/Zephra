@@ -38,21 +38,39 @@ to say that was already computed and shown nowhere until a toolbar menu was foun
   `bootstrap()` that reads the disk — and stops. Nothing is fetched while the chooser
   is up. Loading is asked for here rather than on `RootView` because on a first
   launch `RootView` is not built at all and the cards still need `availability`.
-- The recommendation is `ModelCatalog.default(fitting:)`: the first catalog entry that
-  runs at its default size on this Mac, so catalog order is the editorial judgement and
+- The recommendation is `ModelCatalog.default(fitting:)`: the first catalog entry
+  this Mac runs at its default size **with the weights resident**, then the first it
+  runs streamed, then, where *nothing* fits, the entry with the smallest
+  `ModelDescriptor.leanestPeakBytes`. So catalog order is the editorial judgement and
   memory is the filter — a 16 GB Mac is offered klein 4-bit where a 32 GB one is offered
-  Z-Image 8-bit. Where *nothing* fits, which is an 8 GB Mac and a machine no Zephra has
-  been measured on, it offers the entry with the smallest
-  `ModelDescriptor.leanestPeakBytes` — the tiled peak, or the streamed one where the
-  family can stream — because the plain catalog default there named the largest download
-  of the six and the one wanting the most working set. The card still says what it needs,
-  so this is the nearest thing to a run rather than a promise that it runs.
+  Z-Image 8-bit. The resident-first half of that order is new, and it exists because
+  every entry carries a measured `streamedPeakBytes` now: Z-Image 8-bit is first in
+  `all` and fits a 16 GB Mac streamed, so the plain "first that fits" would have flipped
+  that Mac's first launch from a 5.4 GB download that runs exactly to a 13 GB one that
+  reads itself off the disk on every step and takes minutes a picture. Streaming is how
+  a Mac runs a model it cannot hold; it is not how a Mac should be started. The last
+  half is for an 8 GB Mac, a machine no Zephra has been measured on: the leanest peak is
+  the tiled one, or the streamed one where that is smaller, because the plain catalog
+  default there named the largest download of the six and the one wanting the most
+  working set. That card is greyed and says what it needs, so it is a statement of the
+  distance rather than a promise that it runs.
 - The cards are `ModelChoice.all(for:)` (`Support/`): every catalog entry, the ones
   that run at their default size here first (`ModelCatalog.ordered(for:)`), each
   carrying its `MemoryFit` and the sentence for it, judged once against one budget so
   a card holds three stored properties and never reads the budget itself. Nothing is
-  hidden and nothing is disabled by memory — `ModelMenu`'s rule, that a model which
-  pages at its default size still runs at a smaller one.
+  hidden by memory and a model this Mac cannot hold is **disabled** by it, with its
+  whole sentence as help. That reverses the first rule this screen shipped with —
+  `ModelMenu`'s, that a model which pages at its default size still runs at a smaller
+  one — because it does not: on 2026-09-13 a 16 GB mini asked for Z-Image 8-bit, whose
+  tiled peak is 17.7 GB against a 12.1 GB working set, the kernel refused to wire the
+  memory, and MLX threw from Metal's completion queue, where no Swift `catch` reaches.
+  Nothing was drawn at any size. So the note became a gate: `ModelChoice.isSelectable`
+  is `MemoryFit.isSelectable`, `isRecommended` requires it (an 8 GB Mac is recommended
+  nothing rather than pointed at the card the chooser is about to refuse), the footer
+  button goes out and is titled with the figure instead of with a transfer it cannot
+  begin, and `WelcomeGate.readyModel` settles only on a model that is downloaded *and*
+  holdable — a models folder carried over from a bigger Mac is otherwise a finished
+  download of something greyed in every picker here.
 - What a card states about size is `store.availability[id]?.label`, never
   `transferBytes`: every locally built variant is published ready-made on the mirror,
   so klein 4-bit transfers 5.4 GB against its release's 16 and Z-Image 4-bit

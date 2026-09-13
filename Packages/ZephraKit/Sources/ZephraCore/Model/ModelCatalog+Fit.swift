@@ -4,18 +4,41 @@
 /// GPU has not been asked what it may keep, which is the tests and a build with no runtime.
 extension ModelCatalog {
     /// The model to start a Mac with this budget on: the first listed variant that runs at
-    /// its default size there, and where none does, the one that comes nearest to running.
+    /// its default size there **with its weights held in memory**, then the *leanest* that runs
+    /// streamed, and where none does, the one that comes nearest to running.
     ///
     /// Without this a 16 GB Mac would open on a model its own menu marks "Needs 23 GB", load
     /// 12 GB of weights it cannot decode with, and only find the variant it can run by hand.
     ///
-    /// The second half is for a Mac smaller than any Zephra has been measured on — 8 GB, where
-    /// nothing in the catalog fits. Naming the plain default there recommended the *largest*
-    /// download of the six and the one wanting the most working set, which is the worst answer
-    /// available; the leanest is at least the nearest thing to a run, and the picker still says
-    /// what it needs rather than promising it works.
+    /// The resident pass is why this is not simply `fitting(budget:).first`. Every family
+    /// streams since the 2026-09-13 measurements, so a 16 GB Mac now *can* run Z-Image 8-bit —
+    /// the first entry of `all` — by reading 6.8 GB of weights off the disk on each of nine
+    /// steps. Recommending that as a first launch would hand such a Mac a 13.3 GB download and
+    /// a picture that takes minutes, when klein 4-bit is two entries down, fits outright, and
+    /// renders in seconds. Streaming is the lever that makes a model *possible*, not the one
+    /// that makes it a good first answer; a person who wants it picks it from the chooser,
+    /// where it is listed and captioned "Streams from disk".
+    ///
+    /// The streamed pass takes the **leanest** rather than the first in catalog order, for the
+    /// same reason. Catalog order is an editorial judgement about what a Mac that can hold
+    /// things should see first, and it is the wrong order once nothing is being held: on an
+    /// 8 GB Mac, where every candidate streams, first-in-order is Z-Image 8-bit — a 13.3 GB
+    /// download reading 6.8 GB a step — against klein 4-bit's 5.4 GB build reading 1.5 GB.
+    /// Among models that are all paying the streaming tax, the one that pays least is the
+    /// answer.
+    ///
+    /// The last fallback is for a Mac smaller than any Zephra has been measured on — 4 GB,
+    /// where nothing in the catalog fits even streamed. Naming the plain default there
+    /// recommended the *largest* download of the eight and the one wanting the most working
+    /// set, which is the worst answer available; the leanest is at least the nearest thing to a
+    /// run, and the picker still says what it needs rather than promising it works.
     public static func `default`(fitting budget: MemoryBudget) -> ModelDescriptor {
-        if let runs = fitting(budget: budget).first { return runs }
+        let judged = all.map { ($0, fit($0, budget: budget)) }
+        if let resident = judged.first(where: { $0.1.fitsResident })?.0 { return resident }
+        let streamed = judged.filter { $0.1 == .fitsStreamed }.map(\.0)
+        if let leanestStreamed = streamed.min(by: { $0.leanestPeakBytes < $1.leanestPeakBytes }) {
+            return leanestStreamed
+        }
         return leanest ?? zImageTurbo8bit
     }
 

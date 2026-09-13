@@ -459,8 +459,17 @@ A Mac that has never run Zephra opens on a model chooser, not on a download.
 - `WelcomeHost` (`Views/Welcome/`) shows the chooser or `RootView`. With the
   chooser up, `bootstrapFromInterface` runs only `surveyAvailability()`.
   **Nothing is fetched while the chooser is up.**
-- The recommendation is `ModelCatalog.default(fitting:)`; where nothing fits, the
-  entry with the smallest `ModelDescriptor.leanestPeakBytes`. A card is marked
+- The recommendation is `ModelCatalog.default(fitting:)`: the first entry this
+  Mac holds **resident**, then the *leanest* it holds streamed, then — where nothing
+  fits — the entry with the smallest `ModelDescriptor.leanestPeakBytes`.
+  Streaming is what a Mac does to run a model it cannot hold, not what it should
+  be started on, and every entry carries a measured `streamedPeakBytes` now, so
+  without that order a 16 GB Mac would open on a 13 GB download that reads
+  itself off the disk every step instead of on klein 4-bit. The streamed pass
+  takes the leanest rather than the first listed for the same reason: catalog
+  order says what a Mac that holds things should see first, which is the wrong
+  order once nothing is held, and on an 8 GB Mac it would lead with that same
+  13 GB download over klein 4-bit's 5.4 GB build. A card is marked
   recommended only when it is also selectable, so a Mac too small for everything
   in the catalog is recommended nothing and the chooser opens on no selection.
   `ZephraApp.savedModel(fitting:)` steps a persisted choice this Mac cannot hold
@@ -519,8 +528,9 @@ Metal:
   moves it straight to Recently Deleted and never announces it saved), queue,
   batches, switching, history,
   availability, preview, tiling, reference, library, following the run,
-  upscaling, interaction, downloads, the two folder changes, residency. **Add a
-  new concern as another extension file**, never as more lines in
+  upscaling, interaction, downloads, the two folder changes, residency, the
+  memory guard (`+MemoryGuard`).
+  **Add a new concern as another extension file**, never as more lines in
   `GenerationStore.swift`.
 - `InferenceActor` is the only place backend code runs. It overrides
   `unownedExecutor` with a serial `DispatchQueue`, because a generation is tens
@@ -533,6 +543,27 @@ Metal:
 - `EngineEventPump` carries progress back to the main actor: an `AsyncStream`
   buffering the newest four events and dropping the rest; `run` drains before
   returning so a later state set is never clobbered.
+
+**Memory is checked twice, and a refusal is a sentence rather than an abort.**
+`MemoryGuard` (`ZephraCore`) is asked in `GenerationStore+MemoryGuard`: once in
+`+Preparation.load`, after the files are acquired and before the weights are
+read, and once at the first line of `+Generation.run`, before the activity
+assertion, for what this request costs on top of the weights already in. Either
+answer is a `MemoryShortfall` and reaches the canvas as
+`EngineError.insufficientMemory`, whose message is the shortfall's own sentence
+— the two figures and one remedy. The load check is thrown, so the catch that
+already unloads and releases the lease runs; the run check fails the job and
+empties the queue. Retry goes back through `startLoading`, so it re-reads the
+machine rather than replaying the old verdict, and a Mac where something else
+quit in the meantime loads. Both sites log what they read and what they decided,
+admitted or refused, since the same refusal on two Macs is two different stories
+about what was holding the memory. `canSelect(_:)` (`+Admission`) is the other
+half and is the budget alone: `switchModel` drops a pick of a model this Mac
+cannot hold, `startLoading` refuses one before a byte is fetched,
+`select(_ item:)` keeps the current model for a picture made by one, and
+`fallBackIfUnrunnable()` steps off one at launch. A paired phone hears exactly
+these sentences — `staticShortfall` as `badRequest`, a live shortfall as
+`.refused` — because a second wording would be a second answer.
 
 `GenerationStore.enqueue(_:on:count:)` (`+Remote`) is the door a paired device
 submits through: it queues settings and a model handed in from outside and
@@ -1048,7 +1079,7 @@ model's name.
 **A model an existing backend can already run** — one entry in that family's
 `Packages/ZephraKit/Sources/ZephraCore/Model/ModelCatalog+<Family>.swift`
 (Z-Image's two are in `ModelCatalog.swift`), listed in `all`. `ModelDescriptor`
-carries the `ModelSource`, the download and resident sizes, and a
+carries the `ModelSource`, the download size, **five memory figures** and a
 `ModelCapabilities` the interface draws itself from — size presets and bounds,
 step and guidance bounds, negative prompt and seed, and for a clip model
 `frameBounds`, `defaultFrames`, `frameAlignment` and `frameRate` (a range in
@@ -1056,6 +1087,20 @@ step and guidance bounds, negative prompt and seed, and for a clip model
 `GeneratedMedia.video`), and `continuationFrames` with
 `defaultContinuationFrames` when the family can carry a clip on. Every number in an entry is measured; leave a comment
 saying where it came from.
+
+The five memory figures are all read off `make bench` at the entry's own default
+size: `residentBytes` (the run's "live memory"), `peakBytes`, `tiledPeakBytes`
+(under `ZEPHRA_VAE_TILE=64`), and — for a family that streams —
+`streamedPeakBytes` and `streamedResidentBytes`, the peak and the live figure of
+one `--stream --stream-depth 2` run. **The last two go together.**
+`MemoryGuard` subtracts a held figure from a peak to get what a run still has to
+find, and `residentBytes` is not what a streamed load holds: it is larger than
+the streamed peak itself for every family measured (Z-Image 8-bit, 12.2 GB
+resident against a 6.4 GB streamed peak), so reading it there floors the
+transient at zero and admits a streamed run on a Mac with nothing free. A
+streaming entry that leaves `streamedResidentBytes` at 0 is charged its whole
+streamed peak, which refuses too much rather than too little;
+`ModelCatalogTests` fails a shipped entry that does it.
 
 **A new backend family** — four things in the app, then the tooling:
 
@@ -1637,7 +1682,22 @@ each family.
   component-prefixed as the reference writes them; bare names are what make
   mixed precision work.
 - Scales and biases are written float32; the transformer's
-  `castFloatParameters` patch makes them bfloat16 at load.
+  `castFloatParameters` patch makes them bfloat16 at load. That patch
+  **evaluates nothing** now: the cast has to stay lazy for a stream to capture
+  it, and `ZImageResidentParameters.eval` is the one place a load is read in,
+  last of all and after the streams are attached.
+- Both entries stream: the transformer's three block stacks (`layers`,
+  `noise_refiner`, `context_refiner`) and the text encoder's 36 layers, through
+  `loadModel(modelSpec:streaming:)` and `ZImageStreaming(depth:)`. The
+  checkpoint keys are bare in both layouts; the encoder's stack is the one place
+  the module tree and the shards differ (`encoder.layers` against
+  `model.layers`), and `ZImageResidentParameters` holds both spellings. The
+  encoder is not cast at load, so a streamed encode is bit for bit a resident
+  one. `QwenEncoder.forwardCausal` — the prompt enhancer, which Zephra never
+  enables — keeps its plain loop.
+- A 16 GB Mac is offered the 8-bit entry now, "Streams from disk", and it is
+  **not** what that Mac is started on: `default(fitting:)` prefers klein 4-bit,
+  which fits resident. Streamed at 1024 it is minutes a picture there.
 
 ### Qwen-Image-2512: `qwen-image-2512-4bit`
 
@@ -1660,8 +1720,11 @@ each family.
 
 ### Streaming the weights
 
-`LayerWeightStream` (`ZephraMLX`) runs Qwen-Image and LTX-2.5 on a GPU that
-cannot hold them by reading the model from disk every step. MLX reads a shard's
+`LayerWeightStream` (`ZephraMLX`) runs a model on a GPU that cannot hold it by
+reading it from disk every step. Every family does it now — Qwen-Image, LTX-2.5,
+Wan, Z-Image and klein — so every catalog entry carries a measured
+`streamedPeakBytes` and no model is ever loaded resident and left to page.
+MLX reads a shard's
 arrays with `pread` only when evaluated and has no mmap path, so the stream
 keeps, per layer, the very `MLXArray` objects the forward pass reads. One pass:
 open fresh lazy nodes for every tensor; `asyncEval` the first `depth` layers;
@@ -1688,14 +1751,34 @@ Three choices are load-bearing:
 Block stacks stream; embeddings, projections, norms and autoencoders stay
 resident. A streamed step is one read of the transformer, so
 `Task.checkCancellation()` sits between blocks. A streamed image is byte for
-byte the resident one.
+byte the resident one. `Packages/ZImageKit` takes `ZephraMLX` in its manifest
+for this — the one Zephra dependency the vendored kit has, logged under
+"Manifest changes" in `VENDORED.md`, because a copy of the stream would not
+report into the one `WeightStreamMeter` the bench and the Performance tab read.
 
-What decides it: `ModelDescriptor.streamedPeakBytes` (zero for a family that
-cannot stream); `MemoryFit` tries it after `fitsTiled` and answers
-`fitsStreamed`; `WeightResidencyPolicy` turns the Performance preference and
+What decides it: `ModelDescriptor.streamedPeakBytes` (zero only for a family
+added later that has not learned to stream, which then loads resident under
+every mode); `MemoryFit` tries it after `fitsTiled` and answers `fitsStreamed`;
+`WeightResidencyPolicy` turns the Performance preference and
 the budget into a `WeightResidency` for the load, streamed under Automatic
-whenever the model does not fit resident, `.tight` included. `InferenceActor` pins the residency
+whenever the model does not fit resident, `.tight` included. `MemoryFit` is the
+catalog question — could this Mac ever hold it — and `ModelCatalog.default(fitting:)`
+prefers a **resident** fit over a streamed one, since streaming is the way to run
+a model this Mac cannot hold and not the way to start it. What the Mac has free
+*now* is `MemoryGuard`'s, over `HostMachineMemory`'s reading and the runtime's
+own `memorySnapshot()`; `InferenceActor.unload()` calls `releaseCache()` last,
+after the backend is dropped, because MLX keeps a released buffer for reuse and
+those gigabytes are charged to this process while the next model is measured.
+`InferenceActor` pins the residency
 beside `loadedPath`, so asking for the same model the other way is a reload.
+A family's two variants share one streamed peak, measured: the stream leaves the
+same resident tensors behind whichever width the blocks pack at, and the peak is
+those plus the tiled decode and the depth-2 window. The width is paid in bytes
+read per step, which is time. What a streamed load *holds* is
+`ModelDescriptor.streamedResidentBytes`, measured beside the peak, and it is the
+held figure `MemoryGuard.transientBytes` subtracts under `.streamed` — never
+`residentBytes`, which is larger than the streamed peak for every family and
+would charge a streamed run nothing at all.
 `MemoryBudget` (`ZephraCore`) is Metal's `recommendedMaxWorkingSetSize`, read
 once at launch (`GPUMemoryBudget`) and handed down; MLX's memory and wired
 limits are set from it. Settings > Performance shows the
@@ -1711,6 +1794,14 @@ budget (tests, GPU-less builds) assumes four fifths.
 - The text encoder is Qwen3-4B; only its first 27 layers are built, loaded or
   packed (`layersNeeded`), and the three shared modulation linears are held
   whole. `WeightKeyCoverageTests` pins the leftover set.
+- Three stacks stream under `WeightResidency.streamed`: the five dual-stream
+  blocks, the twenty single-stream ones and the encoder's 27 layers, attached
+  per component in `Flux2Pipeline+Loading` in the order `LayerWeightStream`
+  demands — load, cast, attach, evaluate what is left. The encoder's taps at
+  layers 9, 18 and 27 are counted **inside** the stream's closure, since `run`
+  hands back the layer and not its index, and a tap read off the wrong layer is
+  the one thing about this stack a plausible picture of the wrong prompt would
+  not give away.
 - The stream is bfloat16 except on an M5-class GPU, where
   `Flux2ActivationPrecision` (`ZephraBackendFlux2`) runs it float32 for the
   mlx-swift split-K bug; `ZEPHRA_DIT_DTYPE` overrides either way, the kit reads
@@ -1923,7 +2014,9 @@ environment value.
   downloader and UI against disposable HTTP fixtures with an unloaded exercise
   backend; use a separate preferences domain and models folder. No such hook
   exists in Release.
-- `make logs` streams `os.Logger` output for subsystem `io.zephra`.
+- `make logs` streams `os.Logger` output for subsystem `io.zephra` at info and
+  above, which is where the memory guard's admitted and refused lines sit; `log
+  stream` without `--level info` shows none of them.
 - A locally built Zephra (every `make run`, `make build`, any ad-hoc signature)
   keeps its companion identity and pairings in
   `~/Library/Application Support/Zephra/Companion/` (`identity`, `devices.json`),
@@ -1990,7 +2083,8 @@ environment value.
   `VAETileSetting`, one locked slot per backend package; no kit holds a static.
 - `ZEPHRA_WEIGHT_RESIDENCY=streamed|resident` overrides the streaming
   preference for one launch; `ZEPHRA_STREAM_DEPTH=N` sets the read-ahead
-  (2 unless set). A family that cannot stream loads resident regardless.
+  (2 unless set). Every family in the catalog streams; a family added later with no
+  measured streamed figure loads resident regardless.
 - `ZEPHRA_GENERATE_ON_LAUNCH=<prompt>` (Debug only; inert in Release, like
   `ZEPHRA_PREVIEW_STATE`) presses Generate once the model is ready, for a real
   in-app run from a shell. `ZEPHRA_REFERENCE_ON_LAUNCH=<path>` fills the well

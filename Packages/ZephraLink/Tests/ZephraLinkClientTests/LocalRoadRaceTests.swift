@@ -16,6 +16,8 @@ private final class ScriptedRoads: LinkRoads, @unchecked Sendable {
     private var script: [String: Answer]
     private let found: [LinkCandidate]
     private var opened: [MemoryLinkConnection] = []
+    private var byAddress: [String: MemoryLinkConnection] = [:]
+    func road(at address: String) -> MemoryLinkConnection? { lock.withLock { byAddress[address] } }
     var openedCount: Int { lock.withLock { opened.count } }
 
     init(script: [String: Answer], found: [LinkCandidate] = []) {
@@ -53,7 +55,7 @@ private final class ScriptedRoads: LinkRoads, @unchecked Sendable {
         case .refuses: throw LinkClientError.unreachable
         }
         let (road, _) = MemoryLinkConnection.pair()
-        lock.withLock { opened.append(road) }
+        lock.withLock { opened.append(road); byAddress[key] = road }
         return road
     }
 }
@@ -72,7 +74,7 @@ struct LocalRoadRaceTests {
         let road = await LocalRoadRace(roads: roads).open(
             endpoints: [Endpoint(host: "slow", port: 1), Endpoint(host: "quick", port: 1)],
             room: nil, window: .seconds(3))
-        #expect(road != nil)
+        #expect(road as? MemoryLinkConnection === roads.road(at: "quick"))
         #expect(roads.openedCount == 1, "the winner returns before the blocked address is released")
         await gate.open()
         let deadline = ContinuousClock.now + .seconds(2)

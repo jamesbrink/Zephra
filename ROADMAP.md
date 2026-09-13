@@ -201,7 +201,9 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   reads the model menu, which says it. A Settings > Models "Add a Model" gallery over
   the same cards is the obvious next home for it.
 - **The recommendation is memory alone.** `ModelCatalog.default(fitting:)` takes the
-  first catalog entry that runs at its default size, so the ordering in
+  first catalog entry that runs at its default size with its weights resident — then
+  the first that runs streamed, since a model read off the disk every step is how a
+  Mac runs what it cannot hold rather than what it should open on — so the ordering in
   `ModelCatalog.all` is the whole of the editorial judgement. Download size, step
   count and speed do not enter it; a 48 GB Mac is recommended the 13.3 GB Z-Image
   8-bit over the 5.4 GB klein because it is listed first and fits. Whether that is
@@ -212,9 +214,9 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   heaviest model of the six.
 - **No 8 GB Mac has been measured.** Every figure in the catalog was taken on a 16 GB
   M4 mini or a 48 GB M4 Max, and nothing in the catalog fits an 8 GB machine's ~6.4 GB
-  working set — klein 4-bit, the leanest, wants 7.7 GB with the decode tiled. So what
-  such a Mac is recommended is the nearest thing to a run and not a claim that it runs,
-  and its card says "Needs 8 GB" beside the offer. Whether Zephra is usable at all on
+  working set — klein 4-bit, the leanest, wants 7.7 GB with the decode tiled. Since
+  2026-09-13 such a Mac is recommended nothing and every card on it is greyed with what
+  it needs, rather than pointed at the nearest entry and refused on press. Whether Zephra is usable at all on
   8 GB, at a smaller size than the default with the decode tiled, is unanswered and
   wants one measured session on the hardware.
 - **The disk is not checked for room before the download starts.** `ModelTransfers`
@@ -445,9 +447,30 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   the command and copies it; running it wants an administrator's password and
   `SMAppService`, for a setting that hands macOS's share of RAM to the GPU. A
   person typing it at a prompt knows what they did.
-- **Streaming klein and Z-Image.** Both 4-bit variants fit a 16 GB Mac, so their
-  `streamedPeakBytes` stays zero and the policy never asks. The transformer loops
-  are the same shape as Qwen-Image's; an 8 GB Mac would be the argument.
+- **A budget reserve.** Issue #45 proposed holding back a slice of the working set
+  so the catalog's verdicts left room for the rest of the Mac. Measured against the
+  figures we have, an eighth of RAM and a sixteenth both flip 16 GB verdicts that
+  are correct — klein 4-bit and Z-Image 4-bit run on bender and would be greyed —
+  so the reserve would cost every 16 GB Mac the models it actually runs to protect
+  it from a case the live `MemoryGuard` now catches with a sentence. `MemoryBudget.bytes`
+  stays Metal's `recommendedMaxWorkingSetSize`. Worth revisiting at 32 GB and above,
+  and only if a panic recurs with the guard in place.
+- **`.never` residency is refused, not greyed.** A model that fits only streamed,
+  with Settings > Performance set to Never, is held whole by a choice rather than by
+  the machine, so the pickers still offer it and the live guard refuses the load with
+  the remedy that names the preference. Greying is a function of the machine alone,
+  which is what keeps one model's row from meaning two different things.
+- **`QwenEncoder.forwardCausal` is not streamed.** Z-Image's prompt enhancer runs the
+  encoder stack once per generated token with a KV cache the stream knows nothing
+  about. Zephra never enables it, so the path keeps its plain loop and stays
+  non-throwing; enabling the enhancer means teaching the stream about the cache
+  first, or accepting one read of the stack per token.
+- **`WeightStreamMeter` records the last stream's pass only.** It is a process-wide
+  slot, written at the end of every pass, so a family that streams more than one
+  stack reports whichever ran last: Z-Image's gigabytes a step are its main stack's
+  and not the two refiners' besides, and klein's are its single-stream blocks'. Good
+  enough to tell a read-bound step from a slow GPU, which is what it is for; a
+  per-stack reading would want a keyed meter and a report that names the stacks.
 - **A run estimate measured at more than one size.** `MemoryGuard.runShortfall`
   scales the measured transient — the peak less the weights — linearly with pixels
   times frames from each model's own default size, which is honest at that size and

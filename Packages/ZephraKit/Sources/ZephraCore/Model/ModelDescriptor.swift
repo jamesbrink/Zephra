@@ -34,6 +34,16 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
     /// is the activations, the decode's tile, and a window of weights rather than the model.
     /// Non-zero is also what lets the picker offer the model on a Mac that cannot hold it.
     public let streamedPeakBytes: Int64
+    /// What a streamed load actually holds between runs: the bench's "live" figure after a
+    /// streamed generation at the default size. 0 for a family with no streamed measurement.
+    ///
+    /// `residentBytes` cannot stand in for it. That is what the weights weigh *held*, and for
+    /// every streaming family it is larger than the streamed peak itself — Z-Image 8-bit holds
+    /// 12.2 GB resident and 974 MB streamed, against a 6.4 GB streamed peak. `MemoryGuard`
+    /// subtracts the held figure from the peak to get what one run still has to find, so
+    /// reading `residentBytes` there would floor that at zero and charge a streamed run
+    /// nothing at all, which is the refusal the guard exists to make.
+    public let streamedResidentBytes: Int64
     /// The longest prompt, in tokens, the text encoder is configured for.
     public let maxPromptTokens: Int
     /// The settings this model will accept.
@@ -74,6 +84,7 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
         peakBytes: Int64,
         tiledPeakBytes: Int64,
         streamedPeakBytes: Int64 = 0,
+        streamedResidentBytes: Int64 = 0,
         maxPromptTokens: Int,
         capabilities: ModelCapabilities,
         builtBytes: Int64 = 0,
@@ -91,6 +102,7 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
         self.peakBytes = peakBytes
         self.tiledPeakBytes = tiledPeakBytes
         self.streamedPeakBytes = streamedPeakBytes
+        self.streamedResidentBytes = streamedResidentBytes
         self.maxPromptTokens = maxPromptTokens
         self.capabilities = capabilities
         self.builtBytes = builtBytes
