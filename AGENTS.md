@@ -377,7 +377,10 @@ and an annotation edit is made with the index's `UndoManager` lifted off, since
 the Edit menu belongs to the person at the keyboard. The app's side is
 `Sources/Zephra/Companion/`: `LinkKeychain` (the identity and the pairings,
 through `LinkSecretCache`, which reads each once a launch and rate-limits a
-`lastSeen` write to once a minute, over the store `LinkKeychainKind` settles once
+`lastSeen` write to once a minute — `lastSeen` is stamped at the handshake and
+again when the session ends, and the Devices list says "Connected" while
+`CompanionHost.isConnected` holds and draws the rest as a relative `Text` that
+ticks, never a formatted string, which drew once and never again — over the store `LinkKeychainKind` settles once
 a launch from this build's team identifier and logs — the data-protection
 keychain for a signed build, the legacy one lazily if that is refused, and
 `LinkFileStore` under `<Application Support>/Zephra/Companion` for an ad-hoc

@@ -979,7 +979,14 @@ secret **once a launch** — `startCompanion` takes both in one detached pass an
 nothing reads again, a write included — writes a pairing or a revocation straight
 through, and rate-limits what is only cosmetic: a list that differs from the stored
 one by `lastSeen` alone is written at most once a minute, the deferred value landing
-on its timer or with the next real change. A `ZEPHRA_FRESH_START` launch keeps its
+on its timer or with the next real change. `lastSeen` itself moves twice a session:
+at the handshake, and again when the session ends (`CompanionHost.forget`), since
+stamped at the handshake alone a phone connected for an hour read as last seen an
+hour ago. The Devices list (`PairedDevicesList`) asks `isConnected` first and says
+"Connected" while a session is up; otherwise it draws `Text(date, style: .relative)`,
+which SwiftUI keeps ticking, where a formatted string was computed once when the row
+was drawn and read "8 minutes ago" for the rest of the launch. `DeviceStatus` is the
+pure decision and `DeviceStatusTests` pins it. A `ZEPHRA_FRESH_START` launch keeps its
 own secrets either way: accounts of its own in the keychain, a `Companion` folder
 under its throwaway root on disk. `CompanionThumbnails` is `ThumbnailSupply` over the app's own
 `ThumbnailFolder`, so a phone scrolling the library pays for each decode once and

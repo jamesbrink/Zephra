@@ -16,9 +16,12 @@ struct PairedDevicesList: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(device.name)
-                        Text(Self.seen(device.lastSeen))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        Self.caption(
+                            DeviceStatus.of(
+                                connected: host.isConnected(device), lastSeen: device.lastSeen)
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     }
                     Spacer()
                     Button("Revoke") { Task { await host.revoke(device) } }
@@ -30,10 +33,17 @@ struct PairedDevicesList: View {
         }
     }
 
-    /// When the phone was last here, in the words a list wants.
-    private static func seen(_ date: Date?) -> String {
-        guard let date else { return "Never connected" }
-        return "Last seen \(date.formatted(.relative(presentation: .named)))"
+    /// The line under the name. A relative `Text` rather than a formatted string, because the
+    /// string was computed once when the row was drawn and nothing ever drew it again: a phone
+    /// read "last seen 8 minutes ago" for the rest of the launch. SwiftUI keeps the relative
+    /// style ticking on its own, and `isConnected` is observed, so a session opening or closing
+    /// redraws the row.
+    private static func caption(_ status: DeviceStatus) -> Text {
+        switch status {
+        case .connected: Text("Connected")
+        case .seen(let date): Text("Last seen ") + Text(date, style: .relative) + Text(" ago")
+        case .never: Text("Never connected")
+        }
     }
 }
 

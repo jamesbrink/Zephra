@@ -146,6 +146,16 @@ public final class CompanionHost {
     /// Takes a session off the list once it has closed, and stops watching when it was the last.
     func forget(_ session: CompanionSession) {
         sessions.removeAll { $0 === session }
+        // The end of a session is the last this Mac saw of the phone, which is what "last seen"
+        // means once the phone is gone; stamped at the handshake alone, a phone connected for an
+        // hour read as last seen an hour ago.
+        if let peer = session.peer { markSeen(peer) }
         if sessions.isEmpty { stopObserving() }
+    }
+
+    /// Whether `device` has a session up right now, which the Settings list says instead of
+    /// when it was last seen.
+    public func isConnected(_ device: PairedDevice) -> Bool {
+        sessions.contains { $0.isReady && $0.peer == device.keys }
     }
 }
