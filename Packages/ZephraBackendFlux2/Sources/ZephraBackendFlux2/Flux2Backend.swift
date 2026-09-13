@@ -19,8 +19,8 @@ public nonisolated final class Flux2Backend: ImageGenerationBackend {
     /// The descriptor identifier currently in memory, or nil when nothing is loaded.
     public private(set) var loadedModelID: String?
 
-    /// This family cannot stream, so whatever is loaded is resident.
-    public var loadedResidency: WeightResidency? { loadedModelID == nil ? nil : .resident }
+    /// How the loaded weights are held: what the last load did.
+    public private(set) var loadedResidency: WeightResidency?
 
     let pipeline = Flux2Pipeline()
     private var loadedDescriptor: ModelDescriptor?
@@ -42,7 +42,12 @@ public nonisolated final class Flux2Backend: ImageGenerationBackend {
         self.init(environment: InferenceEnvironment(), tile: VAETileSetting())
     }
 
-    /// Reads the packed weights at `localPath` into memory.
+    /// Reads the packed weights at `localPath` into memory, held the way `residency` says:
+    /// streamed, the encoder's 27 layers and the transformer's 25 blocks are read from disk on
+    /// every pass rather than held.
+    ///
+    /// The decode is tiled or not by the engine either way — a streamed fit still has the
+    /// autoencoder's peak to pay, which is what `requiresTiling` covers.
     nonisolated(nonsending) public func load(
         _ descriptor: ModelDescriptor,
         at localPath: URL,
@@ -50,12 +55,14 @@ public nonisolated final class Flux2Backend: ImageGenerationBackend {
         onProgress: @escaping (GenerationProgressEvent) -> Void
     ) async throws {
         if loadedModelID != nil { unload() }
+        let streaming = residency == .streamed ? Flux2Streaming(depth: environment.streamDepth) : nil
         do {
             // The stream's dtype is this package's call, not the kit's: bfloat16, or float32 on
             // an M5-class GPU or under ZEPHRA_DIT_DTYPE. See `Flux2ActivationPrecision`.
             try pipeline.loadModel(
                 at: localPath,
-                activation: Flux2ActivationPrecision.resolve(environment: environment)
+                activation: Flux2ActivationPrecision.resolve(environment: environment),
+                streaming: streaming
             ) { progress in
                 onProgress(Flux2ProgressMapper.event(from: progress))
             }
@@ -66,6 +73,7 @@ public nonisolated final class Flux2Backend: ImageGenerationBackend {
         }
         loadedModelID = descriptor.id
         loadedDescriptor = descriptor
+        loadedResidency = residency
     }
 
     /// Produces PNG bytes for `settings`, checking for cancellation between denoising steps.
@@ -103,5 +111,6 @@ public nonisolated final class Flux2Backend: ImageGenerationBackend {
         pipeline.unloadModel()
         loadedModelID = nil
         loadedDescriptor = nil
+        loadedResidency = nil
     }
 }
