@@ -27,10 +27,12 @@ final class FakeHost {
     /// Called as each command arrives, before it is answered, so a test can ask what the phone
     /// was holding at the moment it asked for the next page.
     var onCommand: (@MainActor (Command) -> Void)?
+    var beforeReply: (@MainActor (Command) async throws -> Void)?
     var afterReply: (@MainActor (Command) async throws -> Void)?
     /// The state a `resync` is answered with, behind its `.ok`. Nil for a Mac that answers the
     /// command and sends nothing after it.
     var world: StateSnapshot?
+    var publishesSnapshotOnConnect = false
     /// A Mac too old to know `fromChunk`, which sends the whole file however far in it was asked
     /// to start.
     var ignoresFromChunk = false
@@ -66,6 +68,8 @@ final class FakeHost {
 
     /// Starts serving one road.
     func serve(_ road: any LinkConnection) {
+        task?.cancel()
+        channel = nil
         self.road = road
         responder = HandshakeResponder(
             identity: identity, isKnown: { [known] keys in known.contains(keys.keyAgreement) },
@@ -118,6 +122,7 @@ final class FakeHost {
             let (channel, peer, paired) = try responder.receive(try envelope.decode(Confirm.self))
             if paired { known.insert(peer.keyAgreement) }
             self.channel = channel
+            if publishesSnapshotOnConnect, let world { try await announce(world, kind: .snapshot) }
         default:
             break
         }
@@ -142,6 +147,7 @@ final class FakeHost {
         onCommand?(command)
         if silentOffers, case .multiHost(.offer) = command { return }
         if silentPreviews, case .multiHost(.previews) = command { return }
+        try await beforeReply?(command)
         let answer = reply ?? standing(for: command)
         try await send(.envelope(Envelope.encoding(answer, kind: .reply, inReplyTo: envelope.id)))
         try await afterReply?(command)

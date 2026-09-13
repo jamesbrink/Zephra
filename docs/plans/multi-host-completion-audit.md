@@ -34,14 +34,18 @@ plan. The active objective remains the full plan with tests and UAT.
 - [x] Identity/cache migration crash and readback-boundary fault tests. A durable
   pending marker now repairs interrupted or mismatched collection migration from
   the retained legacy record; cache quarantine resumes after a partial move.
-- [ ] Concurrent lifecycle: revoke/forget A while B is usable, background /
-  foreground and cancellation across clients.
+- [x] Concurrent lifecycle through HostConnections: disable, revoke, forget and
+  re-pair A while B accepts commands; background/foreground preserves independent
+  sessions and keeps disabled hosts disconnected.
+- [ ] Cancellation during a pairing attempt or reconnect in progress.
 - [x] Disk-backed combined library cold reopen, duplicate-name media isolation,
   owner partitioning, offline edit refusal and scoped cache deletion.
 - [x] Modern revisioned paging restarts on insert/delete/same-count replacement
   and retains a delta immediately after the final page.
-- [ ] Live aggregate owner-routed edits, rollback races, late writes after forget,
-  and disconnect/reconnect during a modern listing.
+- [x] Aggregate edits over encrypted test sessions reach only the owning host;
+  a newer server edit survives rollback; late media cannot recreate a forgotten
+  host cache while another host remains usable.
+- [ ] Disconnect/reconnect during a modern listing.
 - [x] Host-qualified reference adoption with duplicate filenames and an offline
   source, cached/uncached media, and stale selection cancellation. Generate is
   blocked during resolution and on failure, with an explicit clear action.
@@ -82,7 +86,7 @@ live stage progress to a caller-selected file. Current development logs are
 ## Qualification checkpoint evidence
 
 Current local checks: engine 775 tests / 144 suites; link 270 tests / 48 suites;
-iOS 182 tests / 32 suites, including migration and reference resolution; hosted macOS
+iOS 185 tests / 34 suites, including migration and reference resolution; hosted macOS
 and all twelve MLX test runs (511 tests across eleven package invocations) passed. These are development checkpoints, not
 final-head release qualification. The final source must be rerun through the integrated gates before merge.
 

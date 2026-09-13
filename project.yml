@@ -234,6 +234,8 @@ targets:
     platform: iOS
     sources:
       - path: Tests/ZephraMobileTests
+      # The same encrypted fake host exercises package and mobile orchestration tests.
+      - path: Packages/ZephraLink/Tests/ZephraLinkClientTests/FakeHost.swift
     dependencies:
       - target: ZephraMobile
       - package: ZephraKit
