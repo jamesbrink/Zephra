@@ -902,3 +902,7 @@ its strict check uses the same streamed, tiled, or resident peak as its load
 guard. The phone does not estimate workload memory, and Generate honors the
 desktop's current refusal. Offers remain advisory; the Mac checks again before
 acceptance and execution.
+
+Strict memory estimates use the matching loaded model’s actual residency. Before a
+load, they use the desktop’s live Automatic residency decision, including its
+streaming fallback when other processes have reduced free memory.
