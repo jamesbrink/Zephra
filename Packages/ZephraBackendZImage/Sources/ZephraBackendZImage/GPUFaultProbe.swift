@@ -1,5 +1,6 @@
 import MLX
 import MLXFast
+import os
 
 /// Provokes a real GPU fault on demand, so the completion-queue path
 /// (`InferenceRuntime.catchingDeviceErrors`, `DeviceFaultSink`, `MLXRuntime.installErrorLogging`)
@@ -15,15 +16,18 @@ import MLXFast
 /// site (`ZImageBackend+FaultProbe.swift`), and never wired to any UI.
 #if DEBUG
 enum GPUFaultProbe {
-    /// Commits a kernel that spins forever on a data-dependent condition over a zero input, then
-    /// evaluates its output so the command buffer is actually submitted rather than left as an
+    private static let log = Logger(subsystem: "io.zephra", category: "fault-probe")
+
+    /// Commits a kernel that runs 2^40 turns of a hash whose result is stored, then evaluates
+    /// its output so the command buffer is actually submitted rather than left as an
     /// unevaluated graph node.
     ///
-    /// Two things keep the loop alive under the Metal compiler. The condition is data-dependent,
-    /// read from an array holding 0 rather than a literal, so it cannot be proved false at
-    /// compile time. And the body stores to `out` every turn: a loop with no side effect is one
-    /// the compiler may delete outright, and on the first hand run it did — the read was
-    /// hoisted, the empty infinite loop went, and the kernel returned at once.
+    /// Not an infinite loop. The first two hand runs used one, and the Metal compiler removed
+    /// it both times: a loop with no exit and no side effect is undefined behaviour it may
+    /// delete, and hoisting the flag read out of the second version left exactly that. A
+    /// bounded loop of real work is something it has to run, and 2^40 dependent multiplies on
+    /// one thread is hours; the trip count is read from an array holding 0 so the count cannot
+    /// be folded, and the hash cannot be closed over. The watchdog ends it in seconds.
     static func fire() {
         let flag = MLXArray.zeros([1], dtype: .int32)
         let kernel = MLXFast.metalKernel(
@@ -32,17 +36,16 @@ enum GPUFaultProbe {
             outputNames: ["out"],
             source: """
                 uint elem = thread_position_in_grid.x;
-                int spins = 0;
-                while (flag[0] != 42) {
-                    // Spin forever: flag is always zero, so this can never resolve on its own,
-                    // and the store each turn is what stops the compiler deleting the loop.
-                    // The GPU watchdog is what ends it, by resetting the device.
-                    spins += 1;
-                    out[elem] = spins;
+                uint h = 2166136261u;
+                ulong turns = 1ul << (40 + flag[0]);
+                for (ulong i = 0; i < turns; i++) {
+                    h = (h ^ (uint)i) * 16777619u;
                 }
-                out[elem] = flag[elem];
+                out[elem] = (int)h;
                 """
         )
+        let started = ContinuousClock.now
+        log.error("GPU fault probe firing: a command buffer the watchdog has to end")
         let result = kernel(
             [flag],
             grid: (1, 1, 1),
@@ -51,6 +54,8 @@ enum GPUFaultProbe {
             outputDTypes: [.int32]
         )
         MLX.eval(result)
+        let elapsed = ContinuousClock.now - started
+        log.error("GPU fault probe returned after \(elapsed.components.seconds, privacy: .public) s")
     }
 }
 #endif
