@@ -350,6 +350,12 @@ The last two were taken on a busy machine and are ceilings.
 
 ## Owed reruns, in one place
 
+- **2026-09-14: every figure below predates the mlx-swift pin to main
+  revision `ea8a1796` (mlx v0.32.2), taken in `61ee218` for a GPU-fault fix
+  unrelated to step time. Nothing here is known to have moved, but nothing
+  has been re-measured under the new pin either; klein 4-bit and Z-Image
+  8-bit on halcyon are owed the first rerun, since they are the two entries
+  this file's own numbers lean on most.**
 - Qwen-Image resident timings and peaks in bfloat16, with the VAE encoder loaded.
 - Qwen-Image streamed step time on an idle halcyon.
 - klein's edit peak and time with the reference tokens cast.

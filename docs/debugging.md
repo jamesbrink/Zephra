@@ -120,7 +120,11 @@ the same override the store runs under without a second read of the process envi
   `SIMCTL_CHILD_ZEPHRA_FORCE_RELAY`. `RelayOnlyRoads` reads it once at launch, Debug only, and
   Settings says "Live through relay" when it worked. The Mac needs its relay switch on as well
   (Settings > Companion), or there is no host in the room to reach.
-- `make logs` streams `os.Logger` output for subsystem `io.zephra`.
+- `make logs` streams `os.Logger` output for subsystem `io.zephra`, which is where the
+  device-error boundary's "MLX device error: …" line lands (or "MLX error outside any run: …"
+  for a fault no boundary was open for) — the only trace of a GPU fault the boundary caught,
+  since it never reaches a crash report. Reach for `/usr/bin/log` by its full path in a shell
+  whose own `log` function shadows the binary.
 - A locally built Zephra — every `make run`, `make build` and any other ad-hoc
   signature — keeps its companion identity and pairings in
   `~/Library/Application Support/Zephra/Companion/` (`identity` and
@@ -247,6 +251,34 @@ the same override the store runs under without a second read of the process envi
   the catalog is any more. The report is `WeightStreamMeter`'s last pass, so a family that
   streams more than one stack reports the last one its forward ran: Z-Image's main stack, and
   klein's single-stream blocks.
+- `ZEPHRA_FAULT_GPU_AT_STEP=N` (Debug only) trips a real GPU watchdog restart
+  at step `N` of a Z-Image generation — the only family wired to it —
+  through `GPUFaultProbe`, an `MLXFast.metalKernel` that spins on a
+  data-dependent condition it never satisfies until
+  `kIOGPUCommandBufferCallbackErrorTimeout` fires, exactly the kind of reset
+  a fault in another app's frame leaves Zephra's own buffer discarded by, as
+  the innocent victim. Read once into `InferenceEnvironment.faultGPUAtStep`;
+  never reachable in Release, and wired to no UI, so the only way to reach it
+  is the shell.
+
+  **Diagnosing a GPU fault by hand.** Save any open work; a real GPU restart
+  can cost every app's unsaved state, not only Zephra's. On an idle Mac:
+
+  ```
+  ZEPHRA_FAULT_GPU_AT_STEP=4 ZEPHRA_GENERATE_ON_LAUNCH="a lighthouse" \
+    ./build/Debug/Zephra.app/Contents/MacOS/Zephra
+  ```
+
+  Expect, in order: the canvas showing "The GPU stopped responding and this
+  run was lost. Try again.", the app still running (no crash report), Try
+  Again producing a picture once the device has recovered, and a
+  `gpuEvent-*.ips` in `/Library/Logs/DiagnosticReports/` naming Zephra as one
+  of the processes the firmware blamed — the probe cost every app sharing the
+  GPU that moment, this process included, which is the scenario the fix is
+  for. `/usr/bin/log show --info` (spelled with the full path where a shell's
+  own `log` function shadows the binary) carries Zephra's own line, "MLX
+  device error: …", with the raw Metal text; that is the field crash's whole
+  story with none of it hidden in a completion-handler abort.
 - `ZEPHRA_GENERATE_ON_LAUNCH=<prompt>` (Debug builds only; in Release it is inert, the same
   rule `ZEPHRA_PREVIEW_STATE` follows and for the same reason — a shipped, signed Zephra has no
   business starting a generation unattended because a stray variable happened to be set)
@@ -285,7 +317,16 @@ the same override the store runs under without a second read of the process envi
   What it cannot replay is a run: the weights, the peak and the time are this Mac's GPU
   still, so it answers questions about what the app *decides*, never about what it survives.
   Launch the app from a shell (`./build/Release/Zephra.app/Contents/MacOS/Zephra`) rather
-  than with `open` when the point is the error text: MLX prints the Metal error it dies of
-  to stderr, and the crash report carries only `abort() called`. The kernel's side of a GPU
-  restart is in `log show` under `IOGPUFamily`, and the reports under
-  `/Library/Logs/DiagnosticReports/gpuEvent-*.ips` say which process the firmware blamed.
+  than with `open` when the point is the error text. That splits in two now. A C++ abort
+  with no `catchingDeviceErrors` boundary around it — any of the process-wide corners the
+  device-error handler only logs for, or a build that predates the fix — still prints the
+  Metal error it dies of to stderr, and the crash report still carries only `abort() called`.
+  A GPU fault *inside* a boundary — a build, a load, a warm-up, a generation, an upscale —
+  never crashes at all: `InferenceRuntime.catchingDeviceErrors` turns it into
+  `BackendError.deviceFailed`, the canvas says so, and the only place the raw Metal text
+  survives is the `make logs` line ("MLX device error: …", see `ZEPHRA_FAULT_GPU_AT_STEP`
+  above) — there is no crash report to read stderr from, because nothing crashed. Either way,
+  the kernel's side of a GPU restart is in `log show` under `IOGPUFamily`, and the reports
+  under `/Library/Logs/DiagnosticReports/gpuEvent-*.ips` say which process the firmware
+  blamed — the one place that still names the fault when it was a full-process abort and the
+  one place that names it when it was another app's frame Zephra was the innocent victim of.

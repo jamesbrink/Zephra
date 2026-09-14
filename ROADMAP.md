@@ -500,14 +500,27 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   restart every time (2026-09-04, three launches; the placeholder is still now and
   `make lint-layers` keeps it so). Zephra can only keep its own window quiet:
   another application animating at sixty frames a second on the same 16 GB Mac may
-  trip the same restart, and MLX makes a discarded command buffer an uncaught
-  exception, so the process aborts rather than failing the run. Not reproduced on
+  trip the same restart. The abort that used to follow is gone — 2026-09-14's
+  device-error boundary (`InferenceRuntime.catchingDeviceErrors`, `AGENTS.md`
+  under "How a generation runs") turns a discarded command buffer into
+  `BackendError.deviceFailed` and cancels the run's own task rather than letting
+  MLX end the process, and the boundary cancels whichever task was actually
+  running the faulted work — the run's, and only the run's, because Metal work in
+  this app is single-lane: `InferenceActor`'s serial queue, `DeviceFaultSink`'s
+  one slot. What is still open is *why* a streamed step plus compositing trips
+  the restart at all, which the boundary does not explain, only survives; a
+  restart still costs every app sharing the GPU that minute, this one included,
+  a lost run being the best case rather than a lost process. Not reproduced on
   the bench, which has no window, nor with the wired limit off, so it is the
-  compositing and not the residency set. What would narrow it: the same launch on a
-  48 GB Mac, resident against streamed with the same animation, and `F_NOCACHE` on
-  the shards to take sixteen gigabytes a step out of the page cache. Catching the
-  exception is MLX's to offer; a `std::set_terminate` here could only write a
-  better last line.
+  compositing and not the residency set. What would narrow it: the same launch on
+  a 48 GB Mac, resident against streamed with the same animation, and `F_NOCACHE`
+  on the shards to take sixteen gigabytes a step out of the page cache. Two
+  smaller follow-ups the boundary opens rather than closes: pin mlx-swift by
+  released version instead of by revision once a tagged release carries
+  mlx >= 0.32 (see "Dependencies: waiting on upstream" above), and consider
+  surfacing `BackendError.generationFailed`'s own reason to the log the way
+  `.deviceFailed` already logs its raw Metal text, so a non-device generation
+  failure is exactly as legible as a device one.
 
 ## Upscaler follow-ups
 

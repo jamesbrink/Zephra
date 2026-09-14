@@ -705,7 +705,19 @@ the snapshot, not whichever is listed first"); match that when adding one.
 
 - `make test` — `ZephraCoreTests`, `ZephraSnapshotTests`, `ZephraEngineTests` and
   `ZephraMediaTests` (which round-trips a clip through `AVAssetWriter`), seconds,
-  no Metal.
+  no Metal. `ZephraEngineTests/DeviceFaultTests` is here: it drives
+  `MockBackend`'s `deviceFaultAtStep`/`deviceFaultDuringLoad` dials through
+  `MockBackendControl` and a `MockInferenceRuntime` standing in for MLX's
+  boundary, and pins the three shapes a GPU fault takes — a fault mid-generate
+  fails the run, keeps no picture and empties the queue; the weights stay up,
+  so retry generates without reloading; a fault mid-load unloads and reports
+  the same sentence. `Tests/ZephraTests/CombinedRuntimeDeviceErrorTests`
+  (`make test-app`) pins that `CombinedInferenceRuntime` opens the boundary on
+  the first runtime only — MLX's handler stack is process-wide, so a family
+  that opened its own would nest the same handler five deep — since the
+  protocol's default answer is to run the body with no boundary at all, which
+  would fail no test and quietly disable the feature in the shipping app if a
+  combined runtime forgot to forward it.
 - `make test-app` — `ZephraTests` in `Tests/ZephraTests`, the app target's own
   suites, hosted in the app so they can `@testable import Zephra`; Debug only,
   since Release turns `ENABLE_TESTABILITY` off. Pure interface logic belongs
@@ -741,6 +753,11 @@ the snapshot, not whichever is listed first"); match that when adding one.
   -only-testing:ZephraQuantizationTests/QuantizableWeightTests`. A package's
   scheme is its own name, except `ZephraMLXKit`, which ships two library
   products and so is tested through `ZephraMLXKit-Package`.
+  `ZephraMLXTests/MLXDeviceErrorTests` is here, over real MLX: it pins
+  `DeviceFaultSink` and the installed process-wide handler directly, which is
+  the piece `ZephraEngineTests/DeviceFaultTests` (`make test`, over
+  `MockBackend` and a stand-in `MockInferenceRuntime`) cannot reach without
+  Metal.
 - `QwenImageKit`'s, `Flux2Kit`'s and `LTX2Kit`'s suites check the ports against
   tensors dumped from `diffusers` (and, for Gemma 4, `transformers`) by each
   kit's `Tools/dump_reference.py`, whose inline metadata pins the reference
