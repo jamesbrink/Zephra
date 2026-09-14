@@ -18,11 +18,11 @@ import os
 enum GPUFaultProbe {
     private static let log = Logger(subsystem: "io.zephra", category: "fault-probe")
 
-    /// Commits a kernel that reads 256 GB past a four-byte buffer and stores what it found, then
+    /// Commits a kernel that writes 64 TB past a four-byte buffer and reads it back, then
     /// evaluates the output so the command buffer is actually submitted rather than left as an
     /// unevaluated graph node.
     ///
-    /// A page fault, not a hang. The first three hand runs tried a kernel that never finishes:
+    /// A page fault, not a hang, and a write rather than a read: a read 256 GB out came back 0 with no fault on an M4 mini. The first three hand runs tried a kernel that never finishes:
     /// an infinite loop is undefined behaviour the Metal compiler deleted twice, and bounded
     /// work of hours ran for nine minutes on an M4 mini with no watchdog ending it, the app
     /// stuck inside `eval`. An access outside every mapping faults at once. The offset is read
@@ -36,7 +36,8 @@ enum GPUFaultProbe {
             outputNames: ["out"],
             source: """
                 uint elem = thread_position_in_grid.x;
-                ulong far = (1ul << 36) + (ulong)flag[0];
+                ulong far = (1ul << 44) + (ulong)flag[0];
+                out[far] = 7;
                 out[elem] = out[far] + flag[elem];
                 """
         )
