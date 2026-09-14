@@ -47,7 +47,7 @@ struct MultiHostLibraryTests {
         }
         let dispatch = GenerationDispatch(hosts: hosts, root: nil)
         #expect(dispatch.canChooseModel("a-model"))
-        #expect(dispatch.modelReadiness("a-model") == "Ready on 1 Macs")
+        #expect(dispatch.modelReadiness("a-model") == "Ready on 1 Mac")
         dispatch.destination = hosts.hosts[0].id
         #expect(!dispatch.canChooseModel("a-model"))
         #expect(dispatch.modelReadiness("a-model") == "Needs 23 GB")

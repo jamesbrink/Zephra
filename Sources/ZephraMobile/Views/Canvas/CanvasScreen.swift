@@ -20,7 +20,7 @@ struct CanvasScreen: View {
                 .background(Color.canvasBackground)
                 .navigationTitle(client.snapshot?.hostName ?? "Zephra")
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .topBarTrailing) { ModelMenu() } }
+                .modifier(CanvasModelToolbar())
                 // The first snapshot seeds the capsule, and a run the Mac starts fills it in
                 // the way the Mac's own capsule follows the run; never over a prompt somebody
                 // is in the middle of typing.

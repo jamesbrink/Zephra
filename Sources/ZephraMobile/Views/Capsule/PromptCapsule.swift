@@ -10,7 +10,7 @@ import ZephraStyle
 /// made of system material for the reason the Mac's is: the picture behind it tints every
 /// control on it.
 ///
-/// Collapsed it is one line of prompt and the button. Expanded it is the whole of the Mac's
+/// Collapsed it is a prompt preview followed by the actions. Expanded it is the whole of the Mac's
 /// capsule — the editor, the reference well, the settings and the negative prompt — because a
 /// phone cannot show them all at once and a person setting up a run is not also watching one.
 struct PromptCapsule: View {
@@ -37,7 +37,9 @@ struct PromptCapsule: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 14)
             }
-            ConnectionNote(state: dispatch.hosts.client.connection)
+            if dispatch.target == nil || dispatch.target?.id == dispatch.hosts.visible?.id {
+                ConnectionNote(state: dispatch.hosts.client.connection)
+            }
         }
         .padding(.vertical, 12)
         .background(

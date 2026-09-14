@@ -899,9 +899,11 @@ US-spelling check.
   prompt line is gone by the time `PromptEditor` exists, so the tap records the
   wish (`expandCapsule(focusingPrompt:)`) and the editor mirrors it into its own
   `@FocusState` in a `.task` after one `Task.yield()`, both ways. One tap opens
-  the prompt with the keyboard up; `collapseCapsule()` — the chevron and the
-  keyboard's Done — takes both down; a tap on the canvas picture drops focus
-  alone. A frozen launch never asks for the keyboard.
+  the prompt with the keyboard up; the navigation bar's Finish Editing checkmark
+  calls `collapseCapsule()` to take both down. A tap on the canvas picture drops
+  focus alone. The expanded composer scrolls above the keyboard; at XXL text and
+  above, the canvas and model picker also scroll, and cramped controls stack.
+  A frozen launch never asks for the keyboard.
 - `MobileSettings` (`Support/`) is the phone's one list of preference keys, the
   Mac's `AppSettings` in a phone's shape: `store` is `.standard` for an ordinary
   launch and a throwaway suite, emptied at launch, under a frozen preview state,

@@ -14,17 +14,29 @@ extension GenerationDispatch {
         let ticket = UUID(); refreshID = ticket
         var updated: [HostID: HostOffer] = [:]
         // At most eight hosts; each offer is lightweight, side-effect-free and independent.
-        await withTaskGroup(of: (HostID, HostOffer?).self) { group in
+        await withTaskGroup(of: (HostID, UUID?, HostOffer?).self) { group in
             for host in hosts.hosts where host.preference.enabled && host.client.connection.isLive
                 && (destination == host.id || (destination == nil && host.preference.allowsAuto)) {
                 let id = host.id
                 let client = host.client
-                received[id] = .now
-                group.addTask { (id, try? await client.offer(generation)) }
+                let session = client.authenticatedSessionID
+                group.addTask { (id, session, try? await client.offer(generation)) }
             }
-            for await (id, offer) in group {
+            for await (id, session, offer) in group {
                 guard ticket == refreshID, !Task.isCancelled else { group.cancelAll(); return }
-                if let offer { updated[id] = offer }
+                guard let host = hosts.hosts.first(where: { $0.id == id }),
+                      host.client.hasFreshSnapshot, host.client.authenticatedSessionID == session else { continue }
+                if let offer {
+                    updated[id] = offer
+                    offers[id] = offer
+                    received[id] = .now
+                    offerSessions[id] = session
+                } else {
+                    offers[id] = nil
+                    received[id] = nil
+                    offerSessions[id] = nil
+                }
+                recommended = HostSelection.best(candidates(), previous: recommended)?.id
             }
         }
         guard ticket == refreshID, !Task.isCancelled else { return }
@@ -32,9 +44,9 @@ extension GenerationDispatch {
         recommended = HostSelection.best(candidates(), previous: recommended)?.id
     }
     func candidates() -> [HostCandidate] {
-        offers.compactMap { id, offer in
+        offers.compactMap { id, _ in
             guard let host = hosts.hosts.first(where: { $0.id == id }), host.preference.enabled,
-                  host.preference.allowsAuto, host.client.connection.isLive, let time = received[id] else { return nil }
+                  host.preference.allowsAuto, let offer = freshOffer(for: host), let time = received[id] else { return nil }
             let age = time.duration(to: .now)
             let reflected = Set((host.client.snapshot?.queue.map(\.batchID) ?? [])
                 + (host.client.snapshot?.running.map { [$0.batchID] } ?? []))

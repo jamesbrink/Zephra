@@ -47,11 +47,5 @@ struct PromptEditor: View {
             }
             .onChange(of: selection.promptIsFocused) { isFocused = selection.promptIsFocused }
             .onChange(of: isFocused) { selection.promptIsFocused = isFocused }
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") { selection.collapseCapsule() }
-                }
-            }
     }
 }

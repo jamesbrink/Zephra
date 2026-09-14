@@ -14,7 +14,7 @@ struct ControlLabel<Content: View>: View {
     }
 
     private var layout: AnyLayout {
-        typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+        typeSize >= .xxLarge ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
             : AnyLayout(HStackLayout(spacing: 12))
     }
 
@@ -24,7 +24,7 @@ struct ControlLabel<Content: View>: View {
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .fixedSize()
-                .frame(width: typeSize.isAccessibilitySize ? nil : 62, alignment: .leading)
+                .frame(width: typeSize >= .xxLarge ? nil : 62, alignment: .leading)
             content
                 .frame(maxWidth: .infinity, alignment: .leading)
         }

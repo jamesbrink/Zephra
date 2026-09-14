@@ -5,7 +5,7 @@ extension MemoryGuard {
     /// weights are read from disk every step, and otherwise the tiled peak when the decode is
     /// tiled and the exact one when it is not. A family with no streamed figure is charged its
     /// resident peak whatever the residency says, since it will be loaded resident regardless.
-    func peakBytes(
+    public func peakBytes(
         of descriptor: ModelDescriptor, residency: WeightResidency, tile: Int?
     ) -> Int64 {
         if residency == .streamed, descriptor.streamedPeakBytes > 0 {
