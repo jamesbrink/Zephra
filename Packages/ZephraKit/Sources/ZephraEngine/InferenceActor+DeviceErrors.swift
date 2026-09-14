@@ -13,7 +13,9 @@ extension InferenceActor {
     /// `body` may therefore find its own task cancelled without anyone having pressed Stop.
     /// What comes out of the boundary in that case is `BackendError.deviceFailed`, never the
     /// `CancellationError` the kit threw.
-    func catchingDeviceErrors<R>(_ body: nonisolated(nonsending) () async throws -> R) async throws -> R {
+    func catchingDeviceErrors<R>(
+        _ body: nonisolated(nonsending) () async throws -> R
+    ) async throws -> R {
         guard let runtime else { return try await body() }
         return try await runtime.catchingDeviceErrors(body)
     }

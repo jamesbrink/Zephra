@@ -117,12 +117,17 @@ actor InferenceActor {
     /// first it would hand back what the model is still holding, which is nothing, and the
     /// gigabytes the released weights leave behind would sit in the cache while the next
     /// model's load measured the machine and found them taken.
+    ///
+    /// The device is drained before that: a streamed pass leaves reads of the next layers
+    /// queued against the model's own files, which a caller that unloads to move that folder
+    /// would pull out from under them.
     func unload() {
         backend?.unload()
         backend = nil
         backendID = nil
         loadedPath = nil
         loadedResidency = nil
+        runtime?.synchronize()
         runtime?.releaseCache()
     }
 

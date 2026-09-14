@@ -74,9 +74,9 @@ nonisolated struct CombinedInferenceRuntime: InferenceRuntime {
     /// MLX's handler stack is process-wide, so a boundary opened on any one of these is the
     /// boundary every family's work runs inside. The first is enough, exactly as it is for the
     /// allocator's limits; opening one per runtime would nest the same handler five deep.
-    nonisolated(nonsending) func catchingDeviceErrors<R>(_ body: nonisolated(nonsending) () async throws -> R)
-        async throws -> R
-    {
+    nonisolated(nonsending) func catchingDeviceErrors<R>(
+        _ body: nonisolated(nonsending) () async throws -> R
+    ) async throws -> R {
         guard let first = runtimes.first else { return try await body() }
         return try await first.catchingDeviceErrors(body)
     }

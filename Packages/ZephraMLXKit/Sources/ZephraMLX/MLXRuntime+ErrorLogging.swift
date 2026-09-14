@@ -23,7 +23,18 @@ private let recordOrLog:
             // out of the command buffer that failed. The kits look for a cancel between
             // denoising steps, between streamed blocks and between decode tiles, so the run
             // unwinds within one step rather than at the end of the ladder.
+            //
+            // The task this cancels is the one the boundary was armed on, which
+            // `DeviceFaultSink` has already checked is the task raising the fault: cancelling
+            // whatever task happens to be on the faulting thread would, for a fault raised by
+            // the wired-limit reservation's own task, end that task rather than the run.
             withUnsafeCurrentTask { $0?.cancel() }
+        case .recordedOffTask:
+            // The run still fails: its box holds the message, and the device faulted while it
+            // was on it. Only the cancel is withheld, because the task that raised this is
+            // some other piece of device work and not the run's.
+            deviceErrorLog.error(
+                "MLX device error off the run's own task: \(text, privacy: .public)")
         case .echo:
             break
         case .unscoped:

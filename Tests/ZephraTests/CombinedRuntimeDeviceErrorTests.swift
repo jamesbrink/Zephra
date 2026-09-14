@@ -16,7 +16,11 @@ struct CombinedRuntimeDeviceErrorTests {
     func boundaryGoesToTheFirstRuntime() async throws {
         let first = CountingRuntime()
         let second = CountingRuntime()
-        let combined = CombinedInferenceRuntime([first, second])
+        // Through the existential, which is how `InferenceActor` holds its runtime: a
+        // concrete call reaches the type's own method whether or not it witnesses the
+        // requirement, and the bug this pins is exactly a method that is an overload beside
+        // the protocol's default rather than the witness in its place.
+        let combined: any InferenceRuntime = CombinedInferenceRuntime([first, second])
 
         let answer = try await combined.catchingDeviceErrors { 7 }
 
@@ -29,7 +33,7 @@ struct CombinedRuntimeDeviceErrorTests {
     func theBoundarysErrorIsRethrown() async throws {
         let first = CountingRuntime()
         first.faults = true
-        let combined = CombinedInferenceRuntime([first, CountingRuntime()])
+        let combined: any InferenceRuntime = CombinedInferenceRuntime([first, CountingRuntime()])
 
         await #expect(throws: BackendError.deviceFailed("discarded")) {
             try await combined.catchingDeviceErrors { 7 }
@@ -40,7 +44,8 @@ struct CombinedRuntimeDeviceErrorTests {
     func loggingGoesToTheFirstRuntime() {
         let first = CountingRuntime()
         let second = CountingRuntime()
-        CombinedInferenceRuntime([first, second]).installDeviceErrorLogging()
+        let combined: any InferenceRuntime = CombinedInferenceRuntime([first, second])
+        combined.installDeviceErrorLogging()
         #expect(first.installs == 1)
         #expect(second.installs == 0)
     }
@@ -55,7 +60,15 @@ struct CombinedRuntimeDeviceErrorTests {
     private nonisolated final class CountingRuntime: InferenceRuntime, @unchecked Sendable {
         private let openings = Mutex(0)
         private let installations = Mutex(0)
-        var faults = false
+        private let faulting = Mutex(false)
+
+        /// Whether the boundary answers the way a faulted device does. A `Mutex` like the
+        /// counters beside it: the boundary may be entered from any task, and a bare `var`
+        /// under `@unchecked Sendable` is a race the annotation only hides.
+        var faults: Bool {
+            get { faulting.withLock { $0 } }
+            set { faulting.withLock { $0 = newValue } }
+        }
 
         /// How many boundaries were opened on this runtime.
         var boundaries: Int { openings.withLock { $0 } }
@@ -74,9 +87,9 @@ struct CombinedRuntimeDeviceErrorTests {
             installations.withLock { $0 += 1 }
         }
 
-        nonisolated(nonsending) func catchingDeviceErrors<R>(_ body: nonisolated(nonsending) () async throws -> R)
-            async throws -> R
-        {
+        nonisolated(nonsending) func catchingDeviceErrors<R>(
+            _ body: nonisolated(nonsending) () async throws -> R
+        ) async throws -> R {
             openings.withLock { $0 += 1 }
             let value = try await body()
             if faults { throw BackendError.deviceFailed("discarded") }

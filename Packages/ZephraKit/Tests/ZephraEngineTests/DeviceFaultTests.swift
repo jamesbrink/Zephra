@@ -50,8 +50,10 @@ struct DeviceFaultTests {
         #expect(store.state == .failed(.backend(.deviceFailed(MockBackend.deviceFaultMessage))))
         #expect(store.loadedDescriptor != nil, "the device recovers; the weights do not move")
 
-        // The device came back, which is what Try Again is for.
-        bed.control.update { $0.deviceFaultAtStep = nil; $0.deviceErrorRaised = nil }
+        // The device came back, which is what Try Again is for. Only the mock's fault is put
+        // away: the fault itself went out with the boundary that caught it, so a retry that
+        // failed here would be a box outliving its run.
+        bed.control.update { $0.deviceFaultAtStep = nil }
         store.retry()
         await store.settle()
         #expect(store.state == .ready)
