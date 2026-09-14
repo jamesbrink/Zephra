@@ -19,12 +19,19 @@ extension GenerationDispatch {
                 && (destination == host.id || (destination == nil && host.preference.allowsAuto)) {
                 let id = host.id
                 let client = host.client
-                received[id] = .now
                 group.addTask { (id, try? await client.offer(generation)) }
             }
             for await (id, offer) in group {
                 guard ticket == refreshID, !Task.isCancelled else { group.cancelAll(); return }
-                if let offer { updated[id] = offer }
+                if let offer {
+                    updated[id] = offer
+                    offers[id] = offer
+                    received[id] = .now
+                } else {
+                    offers[id] = nil
+                    received[id] = nil
+                }
+                recommended = HostSelection.best(candidates(), previous: recommended)?.id
             }
         }
         guard ticket == refreshID, !Task.isCancelled else { return }

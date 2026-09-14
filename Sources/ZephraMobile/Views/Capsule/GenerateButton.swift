@@ -8,13 +8,12 @@ struct GenerateButton: View {
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 4) {
-            HStack(spacing: 10) {
-                if dispatch.hosts.client.snapshot?.running != nil { StopRunButton() }
-                Button("Generate") { generate() }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!referenceIntent.canGenerate || dispatch.isSending || !draft.settings.isReadyToGenerate || dispatch.target == nil)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 12) { actions }
+                    .fixedSize(horizontal: true, vertical: false)
+                VStack(alignment: .trailing, spacing: 12) { actions }
             }
-            if let note = referenceIntent.note ?? dispatch.note {
+            if let note = referenceIntent.note ?? (dispatch.note == dispatch.reason ? nil : dispatch.note) {
                 Text(note).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.trailing)
             }
             if referenceIntent.note != nil && !referenceIntent.isResolving {
@@ -22,6 +21,15 @@ struct GenerateButton: View {
             }
         }
     }
+    @ViewBuilder private var actions: some View {
+        if dispatch.hosts.client.snapshot?.running != nil { StopRunButton() }
+        Button("Generate") { generate() }
+            .buttonStyle(.borderedProminent)
+            .fixedSize()
+            .disabled(!referenceIntent.canGenerate || dispatch.isSending
+                || !draft.settings.isReadyToGenerate || !dispatch.canSend)
+    }
+
     private func generate() {
         guard referenceIntent.canGenerate else { return }
         if MobileSettings.flag(MobileSettings.randomizeSeedEachRun) { draft.randomizeSeed() }

@@ -382,12 +382,16 @@ the Mac's, for the Mac's reason, and `make lint-layers` covers both targets.
 
 `PromptCapsule` sits in the canvas's bottom safe area, **not** in a sheet: a
 sheet covers the tab bar, and the four surfaces have to stay one tap apart
-while a prompt is being typed. Collapsed it is one line of prompt and the
-button, which is what a phone in a pocket is for. Expanded it is the Mac's
+while a prompt is being typed. Collapsed, the prompt has up to two lines with
+actions on a separate row. Stop and Generate stack when their labels do not fit
+side by side. At XXL text and above, the model picker moves below the navigation
+bar, and the reference well and setting labels stack. The expanded composer and
+large-text canvas scroll inside the safe area, including above the keyboard;
+focusing the prompt hides the picture to leave more editing room. No text-size
+cap is applied. Expanded it is the Mac's
 capsule, read top to bottom instead of left to right — the editor and the well,
 the negative prompt, the settings, the count and the button. Whether it is up is
-`MobileSelection`'s, not a `@Binding` threaded down from the canvas: the chevron,
-the collapsed line and the keyboard's Done button all write it.
+`MobileSelection`'s, not a `@Binding` threaded down from the canvas: the collapsed prompt and the navigation bar's Finish Editing checkmark write it.
 
 **One tap opens the prompt with the keyboard up.** It used to take two, and the
 reason is worth writing down, because the obvious fix does not work. The
@@ -886,3 +890,13 @@ The two things that are the phone's own rather than the recipe's:
   repository is a thing that expires without telling anybody.
 
 Deferred work lives in `ROADMAP.md`.
+
+### Auto availability and desktop memory verdicts
+
+Auto reselects from connected Macs whenever a recommendation goes offline and
+publishes each offer as it arrives; a silent peer does not delay a healthy peer's
+availability. An explicitly pinned Mac remains pinned. The Mac owns eligibility:
+its strict check uses the same streamed, tiled, or resident peak as its load
+guard. The phone does not estimate workload memory, and Generate honors the
+desktop's current refusal. Offers remain advisory; the Mac checks again before
+acceptance and execution.

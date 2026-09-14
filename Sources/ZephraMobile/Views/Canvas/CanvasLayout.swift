@@ -6,14 +6,23 @@ struct CanvasLayout: View {
     @Environment(GenerationDispatch.self) private var dispatch
     @Environment(\.dynamicTypeSize) private var typeSize
 
+    @Environment(MobileSelection.self) private var selection
+
     var body: some View {
-        if typeSize.isAccessibilitySize {
+        if typeSize >= .xxLarge || selection.capsuleIsExpanded {
             ScrollView {
                 VStack(spacing: 12) {
-                    picture.frame(height: 180)
+                    if !selection.promptIsFocused {
+                        picture.frame(height: 180)
+                    }
+                    if typeSize >= .xxLarge {
+                        ModelMenu()
+                            .padding(.horizontal, MobileChrome.sideMargin)
+                    }
                     PromptCapsule()
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
         } else {
             picture
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

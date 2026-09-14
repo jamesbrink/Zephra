@@ -15,26 +15,31 @@ struct SeedControl: View {
     @State private var isEntering = false
 
     var body: some View {
-        HStack(spacing: 8) {
-            Button {
-                isEntering = true
-            } label: {
-                Text(format.label(draft.settings.seed))
-                    .font(.callout.monospaced())
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Seed \(String(draft.settings.seed))")
-            .accessibilityHint("Opens a field to type a seed")
-            Button {
-                draft.randomizeSeed()
-            } label: {
-                Image(systemName: "shuffle")
-            }
-            .buttonStyle(.bordered)
-            .accessibilityLabel("Pick a new seed")
-            SeedLockToggle()
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) { controls }.fixedSize()
+            VStack(alignment: .leading, spacing: 8) { controls }
         }
         .sheet(isPresented: $isEntering) { SeedEntrySheet() }
+    }
+
+    @ViewBuilder private var controls: some View {
+        Button {
+            isEntering = true
+        } label: {
+            Text(format.label(draft.settings.seed))
+                .font(.callout.monospaced())
+                .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Seed \(String(draft.settings.seed))")
+        .accessibilityHint("Opens a field to type a seed")
+        Button {
+            draft.randomizeSeed()
+        } label: {
+            Image(systemName: "shuffle")
+        }
+        .buttonStyle(.bordered)
+        .accessibilityLabel("Pick a new seed")
+        SeedLockToggle()
     }
 }

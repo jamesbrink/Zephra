@@ -14,7 +14,7 @@ extension GenerationStore {
         normalized.frames = ChainPlan.frames(settings.frames, capabilities: model.capabilities)
         guard normalized == settings else { return "This Mac cannot run these exact settings." }
         guard strictMemory(for: model, settings: settings) <= memoryBudget.bytes else {
-            return "This job exceeds this Mac's available GPU memory budget."
+            return "This job's estimated peak exceeds this Mac's GPU memory budget."
         }
         guard ProcessInfo.processInfo.thermalState != .critical else { return "This Mac needs to cool down." }
         return nil
@@ -26,7 +26,9 @@ extension GenerationStore {
         let baseline = Double(model.capabilities.defaultSize.width) * Double(model.capabilities.defaultSize.height)
         let frames = Double(min(settings.frames, model.capabilities.frameBounds.upperBound))
         let scale = max(1, pixels / max(1, baseline)) * max(1, frames / Double(max(1, model.capabilities.defaultFrames)))
-        return Double(model.peakBytes) * scale
+        let residency = weightResidencyPolicy.residency(for: model)
+        let peak = memoryGuard.peakBytes(of: model, residency: residency, tile: vaeTile(for: model))
+        return Double(peak) * scale
     }
 
     /// Cancels only the run still named by the UI, preserving unrelated queued work.

@@ -37,7 +37,21 @@ final class GenerationDispatch {
         }
         return found.values.sorted { $0.label < $1.label }
     }
-    var target: HostConnection? { hosts.hosts.first { $0.id == (destination ?? recommended) } }
+    var target: HostConnection? {
+        let id = destination ?? HostSelection.best(candidates(), previous: recommended)?.id
+        return hosts.hosts.first { $0.id == id }
+    }
+    /// Eligibility is the selected Mac's offer; the phone estimates no memory requirements.
+    var canSend: Bool {
+        guard let target, target.preference.enabled, target.client.connection.isLive,
+              target.client.hasFreshSnapshot else { return false }
+        if target.client.supportsMultiHost {
+            guard let offer = offers[target.id], offer.lifetime.isFinite, offer.lifetime > 0,
+                  let time = received[target.id], time.duration(to: .now) <= .seconds(min(offer.lifetime, 5)) else { return false }
+            return offer.refusal == nil
+        }
+        return destination != nil
+    }
     var reason: String {
         guard let target else { return "No eligible Mac. Check connections and model readiness." }
         if !target.preference.enabled { return "This Mac is disabled. Enable it in Settings." }

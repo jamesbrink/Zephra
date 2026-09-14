@@ -27,6 +27,6 @@ extension GenerationDispatch {
                   let model = snapshot.models.first(where: { $0.id == id }) else { return false }
             return model.isSelectable && snapshot.availability[id]?.kind == .available
         }.count
-        return "Ready on \(count) Macs"
+        return "Ready on \(count) \(count == 1 ? "Mac" : "Macs")"
     }
 }

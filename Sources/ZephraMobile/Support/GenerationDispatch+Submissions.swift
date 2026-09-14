@@ -11,7 +11,7 @@ extension GenerationDispatch {
         guard let host = target, host.preference.enabled, host.client.connection.isLive, host.client.hasFreshSnapshot else {
             note = "No connected Mac can take this job."; return
         }
-        if destination == nil && offers[host.id]?.refusal != nil { note = reason; return }
+        if offers[host.id]?.refusal != nil { note = reason; return }
         var submission = Submission(generation: generation, hostID: host.id, hostName: host.name,
             state: .sending, createdAt: Date())
         do { try record(submission) } catch { note = "The submission could not be saved. Nothing was sent."; return }
