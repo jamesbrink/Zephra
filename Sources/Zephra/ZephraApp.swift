@@ -231,6 +231,9 @@ struct ZephraApp: App {
         #endif
         let tuning = InferenceTuning.forThisMachine(
             budget: budget, wiredLimitOverride: environment.wiredLimitBytes)
+        // Before the first call into the runtime: with no handler of its own, an MLX error
+        // raised outside a run's own device-error boundary ends the process.
+        runtime.installDeviceErrorLogging()
         runtime.setCacheLimit(bytes: InferenceTuning.storedCacheLimitBytes())
         runtime.setMemoryLimit(bytes: tuning.memoryLimitBytes)
         runtime.setWiredLimit(bytes: tuning.wiredLimitBytes)

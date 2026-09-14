@@ -20,4 +20,23 @@ struct MockInferenceRuntime: InferenceRuntime {
     func releaseCache() {
         control.update { $0.cacheReleases += 1 }
     }
+
+    /// `MLXInferenceRuntime`'s boundary over the dial instead of over MLX: the fault the mock
+    /// left behind wins on both ways out, so the cancellation it caused never reads as a stop.
+    nonisolated(nonsending) func catchingDeviceErrors<R>(_ body: () async throws -> R)
+        async throws -> R
+    {
+        do {
+            let value = try await body()
+            if let message = control.settings.deviceErrorRaised {
+                throw BackendError.deviceFailed(message)
+            }
+            return value
+        } catch {
+            if let message = control.settings.deviceErrorRaised {
+                throw BackendError.deviceFailed(message)
+            }
+            throw error
+        }
+    }
 }

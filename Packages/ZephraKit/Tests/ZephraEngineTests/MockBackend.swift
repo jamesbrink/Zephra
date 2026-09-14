@@ -23,6 +23,11 @@ final class MockBackend: ImageGenerationBackend {
             pixels: Data((0..<4).flatMap { _ in [UInt8(step % 256), 0, 0, 255] }))
     }
 
+    /// What a Metal command buffer discarded by a GPU recovery is reported as, near enough
+    /// that a test reading the log would recognise it.
+    static let deviceFaultMessage =
+        "[METAL] Command buffer execution failed: Discarded (victim of GPU error/recovery)"
+
     private(set) var loadedModelID: String?
 
     private let control: MockBackendControl
@@ -91,6 +96,10 @@ final class MockBackend: ImageGenerationBackend {
         control.update { $0.loads += 1; $0.lastResidency = residency }
         let dials = control.settings
         if let error = dials.loadError { throw error }
+        if dials.deviceFaultDuringLoad {
+            raiseDeviceFault()
+            try Task.checkCancellation()
+        }
         onProgress(GenerationProgressEvent(phase: .preparing, fraction: 0))
         if dials.loadDelay > .zero {
             try await Task.sleep(for: dials.loadDelay)
@@ -127,6 +136,9 @@ final class MockBackend: ImageGenerationBackend {
                     preview: preview
                 )
             )
+            // The real order: the runtime raises on this thread and cancels the run, and the
+            // loop's own check at the top of the next step is what unwinds it.
+            if dials.deviceFaultAtStep == step { raiseDeviceFault() }
         }
         if !dials.ignoresFinalCancellation { try Task.checkCancellation() }
         onProgress(GenerationProgressEvent(phase: .decoding, fraction: 1))
@@ -146,5 +158,12 @@ final class MockBackend: ImageGenerationBackend {
     func unload() {
         control.update { $0.unloads += 1 }
         loadedModelID = nil
+    }
+
+    /// Leaves the message where `MockInferenceRuntime`'s boundary will find it and cancels the
+    /// run, which is everything MLX's handler does and in that order.
+    private func raiseDeviceFault() {
+        control.update { $0.deviceErrorRaised = Self.deviceFaultMessage }
+        withUnsafeCurrentTask { $0?.cancel() }
     }
 }

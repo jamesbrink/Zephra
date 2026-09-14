@@ -89,6 +89,9 @@ extension GenerationStore {
         } catch BackendError.cancelled {
             finish()
         } catch let error as BackendError {
+            // `.deviceFailed` arrives here, and the boundary that raised it cancelled this very
+            // task to unwind the run. Nothing from here down may sleep or check cancellation,
+            // or a picture the GPU lost would be reported as a stop nobody pressed.
             fail(with: .backend(error))
         } catch {
             fail(with: .backend(.generationFailed(error.localizedDescription)))

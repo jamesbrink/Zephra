@@ -64,6 +64,21 @@ struct CombinedInferenceRuntime: InferenceRuntime {
         runtimes.first?.releaseCache()
     }
 
+    /// MLX's handler stack is process-wide, so a boundary opened on any one of these is the
+    /// boundary every family's work runs inside. The first is enough, exactly as it is for the
+    /// allocator's limits; opening one per runtime would nest the same handler five deep.
+    nonisolated(nonsending) func catchingDeviceErrors<R>(_ body: () async throws -> R)
+        async throws -> R
+    {
+        guard let first = runtimes.first else { return try await body() }
+        return try await first.catchingDeviceErrors(body)
+    }
+
+    /// One global handler, installed through the first, for the same reason.
+    func installDeviceErrorLogging() {
+        runtimes.first?.installDeviceErrorLogging()
+    }
+
     func memorySnapshot() -> MemorySnapshot {
         runtimes.first?.memorySnapshot() ?? MemorySnapshot(
             activeBytes: 0, cacheBytes: 0, peakBytes: 0)

@@ -10,6 +10,11 @@ var environment = InferenceEnvironment.read(ProcessInfo.processInfo.environment)
 environment.previewInterval = options.preview ? PreviewThrottle.defaultInterval : nil
 if let depth = options.streamDepth { environment.streamDepth = depth }
 
+// The bench has no canvas to put a sentence on, but it has a `catch` below and a log: with no
+// handler installed, an MLX error would end the process before either. One copy of MLX serves
+// every family, so the handle this is installed through does not matter.
+BenchBackends.runtime(for: options.backend ?? .zImage).installDeviceErrorLogging()
+
 if options.micro {
     // Token count for a square image: the VAE compresses 8x and the transformer patches 2x2,
     // so a 1024 px side is 64 patches (4,096 tokens), plus a caption stream padded to 64.
