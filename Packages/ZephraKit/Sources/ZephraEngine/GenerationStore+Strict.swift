@@ -26,7 +26,8 @@ extension GenerationStore {
         let baseline = Double(model.capabilities.defaultSize.width) * Double(model.capabilities.defaultSize.height)
         let frames = Double(min(settings.frames, model.capabilities.frameBounds.upperBound))
         let scale = max(1, pixels / max(1, baseline)) * max(1, frames / Double(max(1, model.capabilities.defaultFrames)))
-        let residency = weightResidencyPolicy.residency(for: model)
+        let planned = weightResidencyPolicy.residency(for: model)
+        let residency = loadedDescriptor?.id == model.id ? loadedResidency ?? planned : planned
         let peak = memoryGuard.peakBytes(of: model, residency: residency, tile: vaeTile(for: model))
         return Double(peak) * scale
     }

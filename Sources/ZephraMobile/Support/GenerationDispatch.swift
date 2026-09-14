@@ -15,6 +15,7 @@ final class GenerationDispatch {
     private(set) var submissions: [Submission] = []
     @ObservationIgnored var received: [HostID: ContinuousClock.Instant] = [:]
     @ObservationIgnored let root: URL?
+    @ObservationIgnored var offerSessions: [HostID: UUID] = [:]
     @ObservationIgnored var refreshID = UUID()
     init(hosts: HostConnections, root: URL?) {
         self.hosts = hosts; self.root = root
@@ -46,17 +47,24 @@ final class GenerationDispatch {
         guard let target, target.preference.enabled, target.client.connection.isLive,
               target.client.hasFreshSnapshot else { return false }
         if target.client.supportsMultiHost {
-            guard let offer = offers[target.id], offer.lifetime.isFinite, offer.lifetime > 0,
-                  let time = received[target.id], time.duration(to: .now) <= .seconds(min(offer.lifetime, 5)) else { return false }
+            guard let offer = freshOffer(for: target) else { return false }
             return offer.refusal == nil
         }
         return destination != nil
     }
     var reason: String {
-        guard let target else { return "No eligible Mac. Check connections and model readiness." }
+        guard let target else {
+            let refusals = hosts.hosts.compactMap { host -> String? in
+                guard host.preference.enabled, host.preference.allowsAuto,
+                      let refusal = freshOffer(for: host)?.refusal else { return nil }
+                return "\(host.name): \(refusal)"
+            }
+            return refusals.isEmpty ? "No eligible Mac. Check connections and model readiness."
+                : refusals.joined(separator: "\n")
+        }
         if !target.preference.enabled { return "This Mac is disabled. Enable it in Settings." }
         if !target.client.connection.isLive { return "Reconnect \(target.name) to send this job." }
-        if let offer = offers[target.id] { return offer.refusal ?? HostSelection.reason(offer, selected: destination == nil ? target.id : nil, candidates: candidates()) }
+        if let offer = freshOffer(for: target) { return offer.refusal ?? HostSelection.reason(offer, selected: destination == nil ? target.id : nil, candidates: candidates()) }
         return target.client.supportsMultiHost ? "Checking this Mac…" : "Manual destination · update this Mac to use Auto"
     }
 }

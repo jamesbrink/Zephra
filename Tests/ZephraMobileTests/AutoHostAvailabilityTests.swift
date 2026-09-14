@@ -14,6 +14,10 @@ struct AutoHostAvailabilityTests {
         let dispatch = GenerationDispatch(hosts: hosts, root: nil)
         dispatch.offers = [a.preference.id: offer(seconds: 10), b.preference.id: offer(seconds: 60)]
         dispatch.received = [a.preference.id: .now, b.preference.id: .now]
+        dispatch.offerSessions = [
+            a.preference.id: try #require(a.client.authenticatedSessionID),
+            b.preference.id: try #require(b.client.authenticatedSessionID)
+        ]
         dispatch.recommended = a.preference.id
         #expect(dispatch.target?.id == a.preference.id)
 
@@ -22,6 +26,19 @@ struct AutoHostAvailabilityTests {
         #expect(dispatch.target?.id == b.preference.id)
         #expect(!dispatch.reason.contains("Reconnect"))
 
+        a.host.publishesSnapshotOnConnect = false
+        await a.client.connect()
+        try await MobileHostFixture.settle { a.client.connection.isLive && a.host.isAuthenticated }
+        #expect(!a.client.hasFreshSnapshot)
+        #expect(dispatch.target?.id == b.preference.id)
+        #expect(dispatch.canSend)
+
+        try await a.host.announce(try #require(a.host.world), kind: .snapshot)
+        try await MobileHostFixture.settle { a.client.hasFreshSnapshot }
+        #expect(dispatch.target?.id == b.preference.id, "A new session cannot reuse an old offer")
+        #expect(dispatch.canSend)
+
+        await a.client.disconnect()
         dispatch.destination = a.preference.id
         #expect(dispatch.target?.id == a.preference.id)
         #expect(dispatch.reason.contains("Reconnect"))

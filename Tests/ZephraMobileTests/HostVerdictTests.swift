@@ -19,9 +19,14 @@ struct HostVerdictTests {
             preparationSeconds: nil, executionSeconds: nil, memoryMargin: 1000,
             modelLoaded: true, queueCount: 0, queueRevision: "test", physicalMemory: 10000)
         dispatch.offers[fixture.preference.id] = offer
+        dispatch.offerSessions[fixture.preference.id] = try #require(fixture.client.authenticatedSessionID)
         dispatch.received[fixture.preference.id] = .now
         #expect(!dispatch.canSend)
         #expect(dispatch.reason == "Desktop memory refusal")
+        dispatch.destination = nil
+        #expect(!dispatch.canSend)
+        #expect(dispatch.reason == "Desktop: Desktop memory refusal")
+        dispatch.destination = fixture.preference.id
         offer.refusal = nil
         dispatch.offers[fixture.preference.id] = offer
         #expect(dispatch.canSend)

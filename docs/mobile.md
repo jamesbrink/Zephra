@@ -893,9 +893,11 @@ Deferred work lives in `ROADMAP.md`.
 
 ### Auto availability and desktop memory verdicts
 
-Auto reselects from connected Macs whenever a recommendation goes offline and
+Auto reselects from connected Macs with fresh snapshots whenever a recommendation goes offline and
 publishes each offer as it arrives; a silent peer does not delay a healthy peer's
-availability. An explicitly pinned Mac remains pinned. The Mac owns eligibility:
+availability. Each offer belongs to the authenticated session that returned it;
+reconnecting cannot reuse an earlier session's offer. If every live Mac refuses,
+the phone names each Mac alongside its own refusal. An explicitly pinned Mac remains pinned. The Mac owns eligibility:
 its strict check uses the same streamed, tiled, or resident peak as its load
 guard. The phone does not estimate workload memory, and Generate honors the
 desktop's current refusal. Offers remain advisory; the Mac checks again before

@@ -8,14 +8,22 @@ struct DestinationPicker: View {
     var body: some View {
         @Bindable var dispatch = dispatch
         VStack(alignment: .leading, spacing: 3) {
-            Picker("Send To", selection: $dispatch.destination) {
-                Text("Auto").tag(Optional<HostID>.none)
-                ForEach(dispatch.hosts.hosts) { host in
-                    Text(host.name + (host.client.connection.isLive ? "" : " · Offline"))
-                        .tag(Optional(host.id))
+            Menu {
+                Picker("Send To", selection: $dispatch.destination) {
+                    Text("Auto").tag(Optional<HostID>.none)
+                    ForEach(dispatch.hosts.hosts) { host in
+                        Text(host.name + (host.client.connection.isLive ? "" : " · Offline"))
+                            .tag(Optional(host.id))
+                    }
+                }
+            } label: {
+                HStack {
+                    Text(destinationLabel).multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Image(systemName: "chevron.down").font(.caption)
                 }
             }
-            .pickerStyle(.menu)
+            .accessibilityLabel("Send To, \(destinationLabel)")
             .disabled(dispatch.isSending)
             Text(dispatch.destination == nil ? "Auto · \(dispatch.target?.name ?? "No Mac available")" : dispatch.target?.name ?? "Mac unavailable")
                 .font(.caption.weight(.medium))
@@ -31,6 +39,11 @@ struct DestinationPicker: View {
                 try? await Task.sleep(for: .seconds(3))
             }
         }
+    }
+    private var destinationLabel: String {
+        guard dispatch.destination != nil else { return "Auto" }
+        guard let host = dispatch.target else { return "Mac unavailable" }
+        return host.name + (host.client.connection.isLive ? "" : " · Offline")
     }
     private var fingerprint: String {
         "\(draft.modelID)|\(draft.settings.hashValue)|\(draft.count)|\(dispatch.destination?.rawValue ?? "auto")|\(draft.reference.map { GenerationInput.digest($0) } ?? "none")"
