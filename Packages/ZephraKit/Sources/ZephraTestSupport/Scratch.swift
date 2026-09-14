@@ -6,6 +6,11 @@ import Foundation
 /// leaves nothing behind and two tests never share a path. It lives in its own product because
 /// both the snapshot suites and every backend package's suites need it; a copy per package is
 /// the thing this exists to avoid.
+///
+/// Hold it for the whole test with `defer { withExtendedLifetime(scratch) {} }` right after
+/// creating it: MLX reads what it loaded from a shard lazily, at `eval`, not at load, so a
+/// `Scratch` whose last syntactic use is earlier in the test can be deinitialized — deleting the
+/// directory — before a later streamed pass reads it.
 public final class Scratch {
     /// The root every path is created under.
     public let root: URL

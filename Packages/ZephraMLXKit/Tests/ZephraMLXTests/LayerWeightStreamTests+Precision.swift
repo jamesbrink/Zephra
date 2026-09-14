@@ -16,6 +16,7 @@ extension LayerWeightStreamTests {
     @Test("a slot cast at load keeps its dtype on every later pass")
     func castSurvivesStreaming() throws {
         let scratch = Scratch()
+        defer { withExtendedLifetime(scratch) {} }  // the shards are read lazily, at eval, not at load
         let (directory, weights) = try Self.writeShards(into: scratch)
         let resident = LinearStack(count: Self.count, width: Self.width)
         try resident.update(

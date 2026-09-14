@@ -85,6 +85,7 @@ struct LayerWeightStreamTests {
     @Test("the index knows every tensor's shard and size without reading one")
     func indexKnowsWhereEverythingIs() throws {
         let scratch = Scratch()
+        defer { withExtendedLifetime(scratch) {} }  // the shards are read lazily, at eval, not at load
         let (directory, weights) = try Self.writeShards(into: scratch)
         let index = try ShardIndex(directory: directory)
         #expect(index.shards.count == 2)
@@ -100,6 +101,7 @@ struct LayerWeightStreamTests {
     @Test("a streamed pass is the resident pass bit for bit, twice over")
     func streamedMatchesResident() throws {
         let scratch = Scratch()
+        defer { withExtendedLifetime(scratch) {} }  // the shards are read lazily, at eval, not at load
         let (directory, weights) = try Self.writeShards(into: scratch)
         let resident = LinearStack(count: Self.count, width: Self.width)
         try resident.update(parameters: ModuleParameters.unflattened(weights), verify: .all)
@@ -128,6 +130,7 @@ struct LayerWeightStreamTests {
     @Test("only a window of layers is ever materialised")
     func onlyTheWindowIsResident() throws {
         let scratch = Scratch()
+        defer { withExtendedLifetime(scratch) {} }  // the shards are read lazily, at eval, not at load
         let (directory, _) = try Self.writeShards(into: scratch)
         let stack = try Self.lazyStack(from: directory)
         let stream = try LayerWeightStream(
@@ -175,6 +178,7 @@ struct LayerWeightStreamTests {
     @Test("a tensor the shards do not carry fails at set-up, not mid-pass")
     func missingTensorFailsEarly() throws {
         let scratch = Scratch()
+        defer { withExtendedLifetime(scratch) {} }  // the shards are read lazily, at eval, not at load
         let (directory, _) = try Self.writeShards(into: scratch)
         let tooTall = LinearStack(count: Self.count + 1, width: Self.width)
         #expect {
@@ -190,6 +194,7 @@ struct LayerWeightStreamTests {
     @Test("a module path is looked up under the checkpoint's own name")
     func checkpointNamesAreRenamed() throws {
         let scratch = Scratch()
+        defer { withExtendedLifetime(scratch) {} }  // the shards are read lazily, at eval, not at load
         let (directory, _) = try Self.writeShards(into: scratch)
         let stack = try Self.lazyStack(from: directory)
         let stream = try LayerWeightStream(

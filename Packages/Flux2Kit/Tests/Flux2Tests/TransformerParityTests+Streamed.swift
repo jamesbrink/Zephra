@@ -63,6 +63,7 @@ struct TransformerStreamingTests {
     func streamedMatchesResident() throws {
         let fixture = try Fixture.load("transformer_model")
         let scratch = Scratch()
+        defer { withExtendedLifetime(scratch) {} }  // the shards are read lazily, at eval, not at load
         let index = try ShardIndex(shards: [try Self.shard(fixture, in: scratch)])
 
         let resident = try Self.predict(try Self.loaded(fixture, evaluating: true), fixture)
@@ -101,6 +102,7 @@ struct TransformerStreamingTests {
     func missingTensorIsRefusedAtLoad() throws {
         let fixture = try Fixture.load("transformer_model")
         let scratch = Scratch()
+        defer { withExtendedLifetime(scratch) {} }  // the shards are read lazily, at eval, not at load
         // The single-stream blocks alone, so the dual-stream stack has nothing to read.
         let weights = Fixture.weights(fixture, under: "model.").filter {
             $0.key.hasPrefix(Flux2ResidentParameters.singleBlocks + ".")
