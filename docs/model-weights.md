@@ -236,7 +236,15 @@ path is the rule waiting for the next family rather than a description of one.
 (`AppSettings.weightResidency`) and the budget into a `WeightResidency` for a
 load — under Automatic, streamed whenever the model does not fit resident,
 `.tight` included, since loading a model resident *to page* is what aborted a
-16 GB mini. `ModelCatalog.default(fitting:)` reads the same verdicts the other
+16 GB mini. That answer is the **static** one and stays static: it is what the
+model menu's note, the Performance tab's caption and the timing keys are built
+from, and all three are about what this Mac could do with this model rather than
+about what it has free this minute. The live half is
+`MemoryGuard.loadResidency(for:policy:tile:machine:runtime:)`, which the load
+goes through: it steps a resident answer down to streamed under Automatic when
+the machine has not the room for it right now, and refuses only when streaming
+is short too. `MemoryGuard` is the only thing that reads the live figure, which
+is why the step down lives there and not in the policy. `ModelCatalog.default(fitting:)` reads the same verdicts the other
 way round and prefers a resident fit to a streamed one, because streaming is how
 a Mac runs a model it cannot hold and not what a first launch should open on;
 among the streamed candidates it then takes the **leanest** rather than the first

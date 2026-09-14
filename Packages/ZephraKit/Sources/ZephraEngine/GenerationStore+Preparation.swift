@@ -14,7 +14,6 @@ extension GenerationStore {
         }
         var acquired: AcquiredModel?
         let installedOnly = isSwitchingForQueue && queue.first?.requiresInstalledModel == true
-        let residency = weightResidencyPolicy.residency(for: model)
         // A lease already held for this model is reused rather than borrowed again: one
         // request is borrowed once, whatever path reaches here.
         let held = acquiredModel.flatMap { $0.model.id == model.id && $0.locations == locations ? $0 : nil }
@@ -33,8 +32,11 @@ extension GenerationStore {
             // The last gate before the weights are read: the files are here, and the question
             // is whether this Mac has the memory for them this minute. Asked after the
             // download rather than before it because a download is worth keeping whatever the
-            // machine is doing, and a load is not.
-            if let shortfall = loadShortfall(for: model, residency: residency) { throw shortfall }
+            // machine is doing, and a load is not. It answers with the residency to load at,
+            // not only with a refusal: under Automatic a resident load the machine has not the
+            // room for steps down to streaming rather than failing.
+            let (residency, shortfall) = loadResidency(for: model)
+            if let shortfall { throw shortfall }
             let builtExists = locations.builtCandidates(for: model).contains {
                 $0.standardizedFileURL == acquired.directory.standardizedFileURL
             }

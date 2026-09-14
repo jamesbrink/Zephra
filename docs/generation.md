@@ -116,7 +116,7 @@ menu. There is no failing gracefully after the fact; the only place to stop is
 before the allocation.
 
 So `GenerationStore+MemoryGuard` asks `MemoryGuard` (`ZephraCore/Runtime/`) twice.
-`loadShortfall(for:residency:)` runs in `+Preparation.load` **after** the files are
+`loadResidency(for:)` runs in `+Preparation.load` **after** the files are
 acquired and the cancellation check, and before `reserveBuild` — after the download
 rather than before, because a download is worth keeping whatever the machine is
 doing and a load is not. It charges the peak for the way this load will actually
@@ -129,10 +129,37 @@ scaled by pixels times frames against the size the peak was measured at. The job
 own model and settings are what it reads, not the capsule's, so a run queued behind
 a switch is judged by what it will ask for.
 
+**The load answers with a residency, not only with a refusal.** `MemoryGuard`
+is the only reader of the live figure, so it is where the step down to streaming
+belongs: `loadResidency(for:policy:tile:machine:runtime:)` asks the policy,
+runs `loadShortfall` against that answer, and where a resident load under
+Automatic is short re-asks for `.streamed` before refusing. `WeightResidencyPolicy`
+deliberately stays static — the model menu's note, the Performance tab's caption
+and the timing keys are about what this Mac could do with this model, and a
+figure that moves with whatever a browser is holding would make those flicker.
+On 2026-09-13 a Mac replaying a 12124 MiB working set met exactly the case the
+two halves together fix: klein 4-bit fits that budget held whole, so the policy
+said resident, 11.2 GB was free against its 12.1 GB peak, and the load was
+refused although its 4.06 GB streamed peak would have fitted three times over.
+Only Automatic steps down, and only to a family with a measured streamed peak;
+`Never` is a choice to hold the weights and `Always` is streaming already. A
+refusal after the step-down quotes the streamed figure, which is the load that
+was going to be attempted. The store logs the step-down as one `info` line
+naming both, since a Mac that quietly streamed and one that quietly did not are
+otherwise the same three lines, and it stores what was actually loaded in
+`loadedResidency`: `isResident(_:)` in `+Loading` therefore does *not* compare
+that against the policy, or the next press of Generate would read the whole
+model again to put it back where the static answer says it belongs and find the
+same thing. A change of residency is felt through `setWeightResidencyPolicy`
+and through a model switch, nowhere else.
+
 Either answer is a `MemoryShortfall`: two figures and one of two remedies —
 "Quit other apps and retry.", or "Set Stream weights from disk to Automatic in
-Settings > Performance." for the one case where the memory exists and a `Never`
-preference is what is holding the model whole. It reaches the canvas as
+Settings > Performance." The second is said under the `Never` **mode** alone,
+where the memory exists and a preference is what is holding the model whole.
+The remedy takes the mode rather than reading the residency, because under
+Automatic a refusal means even streaming did not fit: the Mac on 2026-09-13 was
+told to set Automatic while Automatic was what it was on. It reaches the canvas as
 `EngineError.insufficientMemory`, whose message is that sentence. The load check is
 *thrown*, so the `catch` that already unloads the actor and gives the disk lease
 back runs on the way out; the run check calls `fail(with:)`, which empties the

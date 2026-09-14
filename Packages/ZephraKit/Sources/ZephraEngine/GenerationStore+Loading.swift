@@ -83,11 +83,17 @@ extension GenerationStore {
         return task
     }
 
-    /// Whether `model` is loaded the way the policy asks and its lease is the one this store
-    /// holds, so a load would find everything already done.
+    /// Whether `model` is loaded and its lease is the one this store holds, so a load would
+    /// find everything already done.
+    ///
+    /// How it is loaded is deliberately not compared against the policy's answer. A load the
+    /// guard stepped down to streaming — because this Mac had not the room to hold it at that
+    /// moment — is loaded and working, and the static answer still says resident; making that
+    /// a reload would read the whole model again on the next press of Generate and find the
+    /// same thing. A change of residency is felt through `setWeightResidencyPolicy`, which
+    /// reloads on an explicit change of preference, and through a model switch. Nowhere else.
     private func isResident(_ model: ModelDescriptor) -> Bool {
-        loadedDescriptor?.id == model.id
-            && loadedResidency == weightResidencyPolicy.residency(for: model)
+        loadedDescriptor?.id == model.id && loadedResidency != nil
             && acquiredModel?.model.id == model.id
             && acquiredModel?.locations == locations
     }

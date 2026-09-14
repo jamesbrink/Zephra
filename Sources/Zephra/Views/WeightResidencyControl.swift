@@ -45,8 +45,9 @@ struct WeightResidencyControl: View {
             format: "Streaming reads %@'s %.1f GB of weights from the disk again on every step, "
                 + "a few blocks at a time, so it needs about %.1f GB of GPU memory instead of "
                 + "holding all of it. Slower on a Mac that could hold the model; the only way to "
-                + "run it on one that cannot. Automatic streams only when this Mac would "
-                + "otherwise page.",
+                + "run it on one that cannot. Automatic streams when the model does not fit this "
+                + "Mac's GPU memory, and when the Mac has not the room free to hold it at the "
+                + "moment it loads.",
             model.fullName, held, streamed) + neverNote
     }
 

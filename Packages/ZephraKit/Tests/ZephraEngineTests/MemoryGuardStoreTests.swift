@@ -17,6 +17,16 @@ struct MemoryGuardStoreTests {
     /// measured on 2026-09-13; before that it was tight and the store stepped onto klein.
     static let straddling = MemoryBudget(physicalMemory: 16 << 30, gpuWorkingSet: 11_000_000_000)
 
+    /// A budget `WeightResidencyStoreTests.streamable` fits held whole, so Automatic's static
+    /// answer for it is resident and only the machine can say otherwise.
+    static let roomyEnoughToHold = MemoryBudget(
+        physicalMemory: 64 << 30, gpuWorkingSet: 35_000_000_000)
+
+    /// A Mac with room for that model's 9 GB streamed peak and not its 30 GB resident one.
+    static func roomForStreamingOnly() -> MachineMemory {
+        MachineMemory(physicalBytes: 64 << 30, availableBytes: 12_000_000_000)
+    }
+
     /// The catalog entry that budget cannot hold.
     static let tooLarge = ModelCatalog.ltx2DistilledAudio4bit
 
@@ -157,6 +167,51 @@ struct MemoryGuardStoreTests {
         #expect(store.descriptor.id == ModelCatalog.qwenImage2512_4bit.id)
         #expect(store.current != nil)
         #expect(store.settings.prompt == "from another Mac")
+    }
+
+    @Test("Automatic streams a model this Mac has not the room to hold right now")
+    func automaticStepsDownRatherThanRefusing() async throws {
+        let bed = EngineTestBed()
+        // A budget the model fits held whole, so the static policy says resident, over a
+        // machine with room only for the streamed peak. Held, klein 4-bit met exactly this on
+        // 2026-09-13 and was refused with "set Automatic" while Automatic was already on.
+        bed.memoryBudget = Self.roomyEnoughToHold
+        let store = bed.store(descriptor: WeightResidencyStoreTests.streamable)
+        store.warmsUpAfterLoad = false
+        store.weightResidencyPolicy = WeightResidencyPolicy(
+            mode: .automatic, budget: Self.roomyEnoughToHold)
+        #expect(store.weightResidencyPolicy.residency(for: store.descriptor) == .resident)
+        bed.machineMemory = Self.roomForStreamingOnly()
+
+        await store.bootstrap()
+
+        #expect(store.state == .ready)
+        #expect(store.loadedResidency == .streamed)
+        #expect(bed.control.settings.lastResidency == .streamed)
+        #expect(bed.control.settings.loads == 1)
+
+        // A press of Generate does not read the whole model again to put it back where the
+        // static policy says it belongs: it is loaded, and it works.
+        store.settings.prompt = "a cat"
+        store.generate()
+        await store.settle()
+        #expect(store.history.count == 1)
+        #expect(bed.control.settings.loads == 1)
+
+        // An explicit Never is the one thing that reloads it — and on this machine the guard
+        // refuses that load, with the preference the person has just moved as the remedy.
+        store.setWeightResidencyPolicy(
+            WeightResidencyPolicy(mode: .never, budget: Self.roomyEnoughToHold))
+        await store.settle()
+        guard case .failed(let error) = store.state,
+            case .insufficientMemory(let shortfall) = error
+        else {
+            Issue.record("expected a memory refusal, got \(store.state)")
+            return
+        }
+        #expect(shortfall.neededBytes == WeightResidencyStoreTests.streamable.peakBytes)
+        #expect(shortfall.remedy == .streamFromDisk)
+        await store.shutdown()
     }
 
     @Test("a phone is told which of the two refusals it has met")

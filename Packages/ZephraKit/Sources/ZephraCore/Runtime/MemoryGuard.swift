@@ -27,6 +27,7 @@ public struct MemoryGuard: Sendable {
     public func loadShortfall(
         for descriptor: ModelDescriptor,
         residency: WeightResidency,
+        mode: WeightResidencyMode,
         tile: Int?,
         machine: MachineMemory?,
         runtime: MemorySnapshot
@@ -36,7 +37,7 @@ public struct MemoryGuard: Sendable {
         guard needed > free else { return nil }
         return MemoryShortfall(
             modelName: descriptor.fullName, neededBytes: needed, freeBytes: free,
-            phase: .load, remedy: remedy(for: descriptor, residency: residency))
+            phase: .load, remedy: remedy(for: descriptor, residency: residency, mode: mode))
     }
 
     /// What one run at `settings` would take on top of the weights already in, or nil when
@@ -49,6 +50,7 @@ public struct MemoryGuard: Sendable {
     public func runShortfall(
         for descriptor: ModelDescriptor,
         residency: WeightResidency,
+        mode: WeightResidencyMode,
         tile: Int?,
         settings: GenerationSettings,
         machine: MachineMemory?,
@@ -61,7 +63,7 @@ public struct MemoryGuard: Sendable {
         guard needed > free else { return nil }
         return MemoryShortfall(
             modelName: descriptor.fullName, neededBytes: needed, freeBytes: free,
-            phase: .run, remedy: remedy(for: descriptor, residency: residency))
+            phase: .run, remedy: remedy(for: descriptor, residency: residency, mode: mode))
     }
 
     /// The budget, or the machine's own figure where that is smaller. Zephra's own allocator
@@ -73,13 +75,20 @@ public struct MemoryGuard: Sendable {
         return min(ceiling, machine.availableBytes + ours)
     }
 
-    /// Streaming is worth suggesting only when the weights are being held resident by a
-    /// choice — `Never` in Settings > Performance — and reading them from disk would fit.
-    /// Everywhere else the memory simply is not there, and the answer is to free some.
+    /// What to tell the person, which is a question about the **mode** and not only about
+    /// the residency this load was tried at.
+    ///
+    /// Streaming is worth suggesting only where the weights are held resident by a choice —
+    /// `Never` in Settings > Performance — and reading them from disk would fit the budget.
+    /// Under `automatic` a refusal has already been through `loadResidency`, which steps down
+    /// to streaming itself, so a refusal there means even streaming did not fit and sending
+    /// the person to a preference they are already on is no remedy at all: that is what a
+    /// 16 GB Mac was told on 2026-09-13. Everywhere else the memory simply is not there, and
+    /// the answer is to free some.
     private func remedy(
-        for descriptor: ModelDescriptor, residency: WeightResidency
+        for descriptor: ModelDescriptor, residency: WeightResidency, mode: WeightResidencyMode
     ) -> MemoryShortfall.Remedy {
-        guard residency == .resident, descriptor.streamedPeakBytes > 0,
+        guard mode == .never, residency == .resident, descriptor.streamedPeakBytes > 0,
             Double(descriptor.streamedPeakBytes) <= budget.bytes
         else { return .quitOtherApps }
         return .streamFromDisk
