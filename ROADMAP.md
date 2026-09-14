@@ -522,6 +522,21 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   surfacing `BackendError.generationFailed`'s own reason to the log the way
   `.deviceFailed` already logs its raw Metal text, so a non-device generation
   failure is exactly as legible as a device one.
+- **A GPU fault on demand.** 2026-09-14, headless 16 GB M4 mini (bender): tried a
+  Debug-only hook to provoke a real GPU fault by hand and prove the device-error
+  boundary against it directly. Five kernels, none of which Metal reported as a
+  fault: an infinite loop (the compiler deletes it as undefined behaviour, with
+  and without a store in the body), a bounded kernel of hours of hash work (ran
+  nine minutes with no watchdog ending it, the app stuck inside `eval`), a read
+  256 GB past a four-byte buffer (returned 0 in 0.3 s) and a write 64 TB past it
+  (same). The hook was removed; the boundary is proven instead by
+  `MLXDeviceErrorTests`, `DeviceFaultTests` and `CombinedRuntimeDeviceErrorTests`
+  driving a real MLX error through the same handler, plus upstream mlx's own test
+  of the completion-handler rethrow (mlx#3523). Worth trying next: a Mac with a
+  display attached, where the display's own watchdog is what ends a hung command
+  buffer headless GPUs have none of; or a fault injected at the runtime seam
+  (`InferenceRuntime.catchingDeviceErrors`'s own call site) rather than through
+  the GPU itself.
 
 ## Upscaler follow-ups
 

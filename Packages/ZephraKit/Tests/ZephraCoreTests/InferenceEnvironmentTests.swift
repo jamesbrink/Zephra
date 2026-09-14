@@ -14,7 +14,6 @@ struct InferenceEnvironmentTests {
         #expect(values.weightResidency == nil)
         #expect(values.wiredLimitBytes == nil && values.memoryLimitBytes == nil && values.cacheLimitBytes == nil)
         #expect(values.videoStages == nil)
-        #expect(values.faultGPUAtStep == nil)
     }
 
     @Test("every switch is read under its documented name")
@@ -29,7 +28,6 @@ struct InferenceEnvironmentTests {
             "ZEPHRA_MEMORY_LIMIT_MB": "30000",
             "ZEPHRA_CACHE_LIMIT_MB": "512",
             "ZEPHRA_VIDEO_STAGES": "1",
-            "ZEPHRA_FAULT_GPU_AT_STEP": "3",
         ])
         #expect(values.vaeTile == 64)
         #expect(values.streamDepth == 3)
@@ -40,7 +38,6 @@ struct InferenceEnvironmentTests {
         #expect(values.memoryLimitBytes == 30000 * MemoryUnits.mebibyte)
         #expect(values.cacheLimitBytes == 512 * MemoryUnits.mebibyte)
         #expect(values.videoStages == 1)
-        #expect(values.faultGPUAtStep == 3)
         #expect(InferenceEnvironment.read(["ZEPHRA_VIDEO_STAGES": "3"]).videoStages == nil, "only one or two")
     }
 
@@ -66,7 +63,6 @@ struct InferenceEnvironmentTests {
             "ZEPHRA_STREAM_DEPTH": "many",
             "ZEPHRA_WEIGHT_RESIDENCY": "sometimes",
             "ZEPHRA_CACHE_LIMIT_MB": "-1",
-            "ZEPHRA_FAULT_GPU_AT_STEP": "-1",
         ])
         #expect(values == InferenceEnvironment())
     }

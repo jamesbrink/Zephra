@@ -580,8 +580,11 @@ fault shows. mlx-swift's own task-local handlers were not an
 option: handing them the body closure moves the work off `InferenceActor`'s
 queue (the compiler refuses it), and the task-local stack they hold is
 file-private upstream. Outside any boundary — the allocator releasing its
-cache — the same handler logs instead of ending the process; see
-`ZEPHRA_FAULT_GPU_AT_STEP` and `make logs` in "Debugging hooks".
+cache — the same handler logs instead of ending the process. This boundary is
+proven against real MLX rather than by hand: `MLXDeviceErrorTests`,
+`DeviceFaultTests` and `CombinedRuntimeDeviceErrorTests` each drive a real MLX
+error through the same handler, and upstream mlx has its own test of the
+completion-handler rethrow (mlx#3523); see `make logs` in "Debugging hooks".
 
 **Memory is checked twice, and a refusal is a sentence rather than an abort.**
 `MemoryGuard` (`ZephraCore`) is asked in `GenerationStore+MemoryGuard`: once in
@@ -2202,21 +2205,6 @@ environment value.
   `MemoryGuard`'s live reading still asks the real machine, so a hand check
   meant for a 16 GB Mac (12124 is bender's working set) can be run on a Mac
   that is free. Absent or malformed it changes nothing.
-- `ZEPHRA_FAULT_GPU_AT_STEP=N` (Debug only, read once into
-  `InferenceEnvironment.faultGPUAtStep`, honoured by the Z-Image backend
-  alone) fires `GPUFaultProbe` at Z-Image's denoising step `N`, an
-  `MLXFast.metalKernel` that reads an address no page table maps, so the GPU
-  takes an MMU fault and the driver resets it, for a real GPU reset on
-  demand (a kernel that never finishes does not do: an M4 mini ran one for
-  nine minutes with no watchdog ending it) — the same kind of reset a fault
-  in another app's frame leaves this
-  process holding as an innocent victim, and the field's own way of proving
-  `InferenceRuntime.catchingDeviceErrors` end to end without waiting for a Mac
-  to fault on its own. Every other app using the GPU at that moment loses its
-  own in-flight frames, so run it only on a Mac nobody else is using. Never
-  wired to any UI; unreachable in Release, since `GPUFaultProbe` and its one
-  call site in `ZImageBackend+FaultProbe.swift` are both `#if DEBUG`. See
-  "Diagnosing a GPU fault by hand" in `docs/debugging.md` for the run.
 - Launch from a shell (`./build/Release/Zephra.app/Contents/MacOS/Zephra`)
   rather than `open` when the point is the error text: for a C++ abort with
   no boundary around it, MLX prints the Metal error to stderr and the crash

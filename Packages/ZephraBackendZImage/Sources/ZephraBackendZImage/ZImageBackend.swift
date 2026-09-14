@@ -26,10 +26,8 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
     private var pipeline: ZImagePipeline?
     private var loadedDescriptor: ModelDescriptor?
     private var loadedSnapshot: URL?
-    /// The switches the composition root read once: here, how often a preview frame is made,
-    /// and, in a Debug build, `ZEPHRA_FAULT_GPU_AT_STEP`. Not `private`: `ZImageBackend+FaultProbe.swift`
-    /// reads it too.
-    let environment: InferenceEnvironment
+    /// The switches the composition root read once: here, how often a preview frame is made.
+    private let environment: InferenceEnvironment
     /// The VAE tile the engine set for the run about to start; see `ZImageBackendFactory`.
     private let tile: VAETileSetting
 
@@ -122,9 +120,6 @@ public nonisolated final class ZImageBackend: ImageGenerationBackend {
             let png = try await pipeline.generateToMemory(
                 request,
                 progressHandler: { progress in
-                    #if DEBUG
-                    self.fireFaultProbeIfNeeded(for: progress)
-                    #endif
                     onProgress(ZImageProgressMapper.event(from: progress))
                 },
                 previewHandler: previewHandler
