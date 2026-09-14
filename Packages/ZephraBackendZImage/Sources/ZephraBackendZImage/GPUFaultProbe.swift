@@ -19,9 +19,11 @@ enum GPUFaultProbe {
     /// evaluates its output so the command buffer is actually submitted rather than left as an
     /// unevaluated graph node.
     ///
-    /// The condition has to be data-dependent — read from an array holding 0 rather than a
-    /// literal `0` — or the compiler proves the loop never exits and folds it away, and the
-    /// kernel just returns instead of hanging.
+    /// Two things keep the loop alive under the Metal compiler. The condition is data-dependent,
+    /// read from an array holding 0 rather than a literal, so it cannot be proved false at
+    /// compile time. And the body stores to `out` every turn: a loop with no side effect is one
+    /// the compiler may delete outright, and on the first hand run it did — the read was
+    /// hoisted, the empty infinite loop went, and the kernel returned at once.
     static func fire() {
         let flag = MLXArray.zeros([1], dtype: .int32)
         let kernel = MLXFast.metalKernel(
@@ -30,10 +32,13 @@ enum GPUFaultProbe {
             outputNames: ["out"],
             source: """
                 uint elem = thread_position_in_grid.x;
+                int spins = 0;
                 while (flag[0] != 42) {
-                    // Spin forever: flag is always zero, so this data-dependent condition can
-                    // never resolve on its own. The GPU watchdog is what ends it, by resetting
-                    // the device.
+                    // Spin forever: flag is always zero, so this can never resolve on its own,
+                    // and the store each turn is what stops the compiler deleting the loop.
+                    // The GPU watchdog is what ends it, by resetting the device.
+                    spins += 1;
+                    out[elem] = spins;
                 }
                 out[elem] = flag[elem];
                 """
