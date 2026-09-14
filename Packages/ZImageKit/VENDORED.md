@@ -14,7 +14,10 @@
 ## Manifest changes (Package.swift)
 
 - tools-version 5.9 → 6.0; platforms macOS 14 → 15; iOS dropped.
-- mlx-swift `.upToNextMinor(from: "0.29.1")` → `exact: "0.31.3"`.
+- mlx-swift `.upToNextMinor(from: "0.29.1")` → `exact: "0.31.3"` → `revision:
+  "ea8a179690170ca891a97bc0473198ab1ecda5f4"` (main, 2026-09-11), for mlx v0.32.2's completion-handler
+  fix — a GPU reset is rethrown on the calling thread instead of aborting inside Metal's
+  completion handler — until a tagged mlx-swift release carries it.
 - swift-transformers `.upToNextMinor(from: "0.1.24")` → `exact: "0.1.24"`, the pin every
   Zephra package carries: `QwenImageKit`'s assembled tokenizer leans on this version's `Split`
   pre-tokenizer behaviour, and one resolved version keeps the graph one copy.

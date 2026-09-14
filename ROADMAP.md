@@ -431,15 +431,23 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
 - **Bump to the first mlx-swift that tracks mlx >= 0.32.0 (mlx#3810), then delete
   klein's M5 gate.** mlx-swift up to 0.31.6 JIT-compiles the bfloat16 split-K steel
   GEMM with the wrong dtype on M5-class GPUs (mlx#3797), and klein's single-stream
-  `to_out` sits inside the kernel's window. Until a release carries the fix,
-  `Flux2ActivationPrecision` in `ZephraBackendFlux2` runs the stream float32 when
-  `GPUGeneration.isM5Class`, at three times the step time. The gate is unverified: no
+  `to_out` sits inside the kernel's window. Done partway (2026-09-14): every package
+  pins mlx-swift main at revision `ea8a179690170ca891a97bc0473198ab1ecda5f4`
+  (carrying mlx v0.32.2) rather than a tagged release, for a different fix on the
+  same bump — mlx#3810 was not the reason to move, mlx commit a025496c8 ("Catch
+  error in CommandBuffer and poison the events", mlx#3523) was: a GPU reset is now
+  rethrown on the calling thread instead of aborting inside Metal's completion
+  handler. Two things still wait: a tagged mlx-swift release to pin by version
+  instead of by revision, once one exists, and an M5 to run the probes on.
+  `Flux2ActivationPrecision` in `ZephraBackendFlux2` still runs the
+  stream float32 when `GPUGeneration.isM5Class`, at three times the step time — the
+  gate is unverified under the new pin the same way it was under the old one: no
   project Mac is an M5. When one is available, run `Flux2Tests/TransformerParityTests`
   (both probes — the dense GEMM and the packed 4- and 8-bit `quantizedMatmul` the
-  catalog variants take) on it under the current pin and then under the bumped one,
+  catalog variants take) on it under the current pin and then under mlx >= 0.32.0,
   and `make bench ARGS="--model flux2-klein-4b-4bit --size 1024"` with and without
-  `ZEPHRA_DIT_DTYPE=f32`. Both probes green on the bump is the signal to delete the
-  gate and `GPUGeneration` with it.
+  `ZEPHRA_DIT_DTYPE=f32`. Both probes green on mlx >= 0.32.0 is the signal to delete
+  the gate and `GPUGeneration` with it.
 
 ## Streamed weights and the GPU limit: left out on purpose
 

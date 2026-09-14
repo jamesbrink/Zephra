@@ -78,6 +78,17 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
+      # mlx-swift's manifest pins main (`swift-tools-version: 6.3;(experimentalCGen)`,
+      # for the GPU-reset fix — see AGENTS.md's "Conventions"), which needs a Swift
+      # >= 6.3 toolchain; pick the newest Xcode 26 on the runner rather than whatever
+      # `xcode-select` defaults to.
+      - name: Select Xcode
+        run: |
+          xcode=$(/bin/ls -d /Applications/Xcode_26*.app | sort -V | tail -1)
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
+          swift --version
+
       # Xcode 26 ships without the Metal toolchain and mlx-swift's kernels cannot compile
       # without it; `make doctor` counts its absence as a failure, so it is installed even
       # in the job that only lints and tests. The status check is doctor's own, so this is
@@ -144,6 +155,17 @@ jobs:
 
       - name: Install XcodeGen
         run: brew install xcodegen
+
+      # mlx-swift's manifest pins main (`swift-tools-version: 6.3;(experimentalCGen)`,
+      # for the GPU-reset fix — see AGENTS.md's "Conventions"), which needs a Swift
+      # >= 6.3 toolchain; pick the newest Xcode 26 on the runner rather than whatever
+      # `xcode-select` defaults to.
+      - name: Select Xcode
+        run: |
+          xcode=$(/bin/ls -d /Applications/Xcode_26*.app | sort -V | tail -1)
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
+          swift --version
 
       - name: Install the Metal toolchain
         run: |

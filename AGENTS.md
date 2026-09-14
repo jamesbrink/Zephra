@@ -1978,8 +1978,10 @@ Full detail: `docs/model-weights.md`.
   (`isFavourite`, `FavouriteToggle`): no user sees them.
 - Swift 6 strict concurrency in our code. The vendored `ZImageKit` stays in
   Swift 5 language mode so its upstream files compile untouched.
-- Every package pins the same exact `mlx-swift` and `swift-transformers`
-  versions, `ZImageKit`'s manifest included. A swift-transformers bump is
+- Every package pins the same exact `swift-transformers` version and the same
+  exact revision of mlx-swift (`ea8a1796…`, main at 2026-09-11, carrying mlx
+  v0.32.2) until a tagged release carries mlx >= 0.32, then the same exact
+  version again, `ZImageKit`'s manifest included. A swift-transformers bump is
   checked by `QwenImageKit`'s `TokenizerTests`. An mlx-swift bump re-runs
   `Flux2Kit`'s two bf16 matmul probes, dense and quantized, for the M5-class
   split-K bug (mlx#3797, fixed upstream in mlx 0.32.0); the day both pass on an

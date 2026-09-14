@@ -1,5 +1,5 @@
 {
-  "originHash" : "51d330ef63aeb729858ce87e0f4375be6d5f6305386d2ad5719d62666e7abd1c",
+  "originHash" : "13264a910875acf2138f163ac02e5de64534a1cc9169fb90839223ed4b0902a0",
   "pins" : [
     {
       "identity" : "jinja",
@@ -15,8 +15,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/ml-explore/mlx-swift",
       "state" : {
-        "revision" : "61b9e011e09a62b489f6bd647958f1555bdf2896",
-        "version" : "0.31.3"
+        "revision" : "ea8a179690170ca891a97bc0473198ab1ecda5f4"
       }
     },
     {

@@ -14,7 +14,7 @@ let package = Package(
         // is the problem an autoencoder's decode has, so it is the same answer.
         .package(path: "../ZephraMLXKit"),
         // Pinned to the version every other package pins, so the graph stays one copy of MLX.
-        .package(url: "https://github.com/ml-explore/mlx-swift", exact: "0.31.3"),
+        .package(url: "https://github.com/ml-explore/mlx-swift", revision: "ea8a179690170ca891a97bc0473198ab1ecda5f4"),
     ],
     targets: [
         .target(
