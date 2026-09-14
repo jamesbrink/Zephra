@@ -2171,6 +2171,15 @@ environment value.
   `MemoryGuard`'s live reading still asks the real machine, so a hand check
   meant for a 16 GB Mac (12124 is bender's working set) can be run on a Mac
   that is free. Absent or malformed it changes nothing.
+- `ZEPHRA_FAULT_GPU_AT_STEP=N` (Debug only) fires `GPUFaultProbe` at
+  Z-Image's denoising step `N`, a Metal kernel that spins forever on a
+  data-dependent condition and so never completes, for a real GPU reset on
+  demand: the field's own way a command buffer comes back discarded, proving
+  `InferenceRuntime.catchingDeviceErrors` end to end without waiting for a Mac
+  to fault on its own. Every other app using the GPU at that moment loses its
+  own in-flight frames, so run it only on a Mac nobody else is using. Never
+  wired to any UI; unreachable in Release, since `GPUFaultProbe` and its one
+  call site in `ZImageBackend+FaultProbe.swift` are both `#if DEBUG`.
 - Launch from a shell (`./build/Release/Zephra.app/Contents/MacOS/Zephra`)
   rather than `open` when the point is the error text: for a C++ abort with
   no boundary around it, MLX prints the Metal error to stderr and the crash
