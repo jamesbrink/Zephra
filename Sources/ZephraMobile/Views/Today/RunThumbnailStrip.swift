@@ -27,6 +27,7 @@ struct RunThumbnailStrip: View {
                         if let entry = catalog.entry(named: name) {
                             RunThumbnail(entry: entry)
                                 .frame(width: Self.edge, height: Self.edge)
+                                .id(entry.id)
                         } else {
                             RoundedRectangle(
                                 cornerRadius: ZephraChrome.tileRadius, style: .continuous
@@ -39,7 +40,9 @@ struct RunThumbnailStrip: View {
             }
             .scrollIndicators(.hidden)
             .onChange(of: opening?.shown) { _, shown in
-                if let shown, fileNames.contains(shown) { strip.scrollTo(shown) }
+                if let shown, fileNames.contains(where: { catalog.entry(named: $0)?.id == shown }) {
+                    strip.scrollTo(shown)
+                }
             }
         }
     }
