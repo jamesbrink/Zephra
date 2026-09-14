@@ -63,7 +63,8 @@ to say that was already computed and shown nowhere until a toolbar menu was foun
   `ModelMenu`'s, that a model which pages at its default size still runs at a smaller
   one — because it does not: on 2026-09-13 a 16 GB mini asked for Z-Image 8-bit, whose
   tiled peak is 17.9 GB against a 12.7 GB working set, the kernel refused to wire the
-  memory, and MLX threw from Metal's completion queue, where no Swift `catch` reaches.
+  memory, and MLX threw from Metal's completion queue, where no Swift `catch`
+  reached it before mlx-swift 0.32.2 and the device-error boundary.
   Nothing was drawn at any size. So the note became a gate: `ModelChoice.isSelectable`
   is `MemoryFit.isSelectable`, `isRecommended` requires it (an 8 GB Mac is recommended
   nothing rather than pointed at the card the chooser is about to refuse), the footer

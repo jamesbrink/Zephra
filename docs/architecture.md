@@ -190,7 +190,15 @@ Shared, by what a file actually touches:
   beside it replacing the one wired-memory ticket in the order asked, and
   `MLXInferenceRuntime` the one `InferenceRuntime` every family hands out — it
   takes the family's `VAETileSetting`, the locked slot the engine's per-run
-  tile lands in, which is the only thing about it that is not process-wide. `GPUGeneration`: whether this is an
+  tile lands in, which is the only thing about it that is not process-wide. It
+  also carries the two requirements the GPU-fault boundary added to
+  `InferenceRuntime` — `catchingDeviceErrors` and `installDeviceErrorLogging`
+  — over `DeviceFaultSink` (the locked holder that keeps only the first fault),
+  `DeviceErrorBox` (the box a run's own boundary reads a fault into when it was
+  raised off the run's task), `MLXInferenceRuntime+DeviceErrors` (the
+  conformance itself, over MLX's one process-wide handler) and
+  `MLXRuntime+ErrorLogging` (the fallback handler for a fault outside any
+  boundary, installed once at the composition root). `GPUGeneration`: whether this is an
   M5-class GPU, read once from Metal, for the one dtype gate that needs to
   know. `LatentPreview`: how far to pool a latent for a preview frame, and the
   frame's bytes through `PixelBuffer`. `Streaming/`: the `LayerWeightStream`
@@ -272,6 +280,13 @@ Code rules:
   singletons.
 - Vendored code in `ZImageKit` is edited only under `// ZEPHRA-PATCH:`
   discipline (see `Packages/ZImageKit/VENDORED.md`).
+- A protocol requirement with a default implementation that takes an async
+  closure spells the closure's isolation (`nonisolated(nonsending) () async
+  throws -> R`) on the requirement and on every witness, since the app
+  targets' approachable concurrency and the packages' plain Swift 6 mode read
+  a bare async closure type differently and a witness that drifts compiles
+  silently as an overload the default stands in for — see
+  `InferenceRuntime.catchingDeviceErrors` and `CombinedRuntimeDeviceErrorTests`.
 
 Run `make lint-layers` before every commit. It greps for forbidden imports
 across the layers above and fails the build if any are found, and beside those

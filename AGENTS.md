@@ -173,7 +173,12 @@ Shared, by what a file actually touches:
   (latent to PNG or RGBA8), `TiledDecode`, `MLXRuntime` with
   `WiredLimitReservation` and `MLXInferenceRuntime` (the one `InferenceRuntime`,
   over the family's `VAETileSetting`), `GPUGeneration` (M5-class or not),
-  `LatentPreview`, and `Streaming/LayerWeightStream`. A model package may depend
+  `LatentPreview`, and `Streaming/LayerWeightStream`. The GPU-fault boundary is
+  `DeviceFaultSink` (the locked, first-fault-wins holder), `DeviceErrorBox` (a
+  run's own record of a fault raised off its task), `MLXInferenceRuntime+DeviceErrors`
+  (`catchingDeviceErrors`, over MLX's one process-wide handler) and
+  `MLXRuntime+ErrorLogging` (`installDeviceErrorLogging`, for a fault outside
+  any boundary). A model package may depend
   on this; nothing here may depend on a model package. Vendored `ZImageKit` keeps
   its own tiled decode and preview as a `ZEPHRA-PATCH`. What the ports
   deliberately do not share is listed in `PROVENANCE.md`.
@@ -552,20 +557,31 @@ asked for the work, and a process with no handler installed ends there.
 that puts the device to work (build, load, warm-up, generate, upscale) runs
 inside it, on `InferenceActor`'s own serial queue, which is the thread MLX
 raises on. `MLXInferenceRuntime` implements it over MLX's one process-wide
-handler and a locked `DeviceFaultSink`: the first fault is kept, the run's own
-task is cancelled so the kit unwinds at its next `Task.checkCancellation()`
-rather than walking the rest of a ladder over arrays the fault poisoned, and
-the boundary throws `BackendError.deviceFailed`, which wins over the
-`CancellationError` it caused. The canvas reads one sentence — "The GPU
+handler and a locked `DeviceFaultSink`: the first fault is kept, and only the
+task that armed the boundary — the one whose `catchingDeviceErrors` call is
+still on the stack — is cancelled, so the kit unwinds at its next
+`Task.checkCancellation()` rather than walking the rest of a ladder over
+arrays the fault poisoned, and that call's own boundary throws
+`BackendError.deviceFailed`, which wins over the `CancellationError` it
+caused. A fault raised off that task — a wired-limit reservation's own task, a
+Settings poll's — is recorded into the run's `DeviceErrorBox` and logged, but
+that other task is not cancelled: only the boundary the fault actually
+belongs to loses anything. The boundary closes with a synchronize, so a
+streamed run's own read-ahead — queued past the step that asked for it — is
+waited on and settled into this boundary's box rather than landing in the
+next one; `InferenceActor.unload()` synchronizes for the same reason before
+it releases the allocator's cache. The canvas reads one sentence — "The GPU
 stopped responding and this run was lost. Try again." — Try Again works
 because nothing is unloaded on a generate-time fault, and the raw Metal text
-goes to the log alone. mlx-swift's own task-local handlers were not an
+goes to the log alone. Upscale's sentence differs, since a reload is never
+the remedy: `UpscaleError.failed("The GPU stopped responding. Try again.")`
+surfaces as a notice on the picture, not the canvas failure a generation
+fault shows. mlx-swift's own task-local handlers were not an
 option: handing them the body closure moves the work off `InferenceActor`'s
 queue (the compiler refuses it), and the task-local stack they hold is
 file-private upstream. Outside any boundary — the allocator releasing its
-cache, a wired-limit reservation on its own task — the same handler logs
-instead of ending the process; see `ZEPHRA_FAULT_GPU_AT_STEP` and `make logs`
-in "Debugging hooks".
+cache — the same handler logs instead of ending the process; see
+`ZEPHRA_FAULT_GPU_AT_STEP` and `make logs` in "Debugging hooks".
 
 **Memory is checked twice, and a refusal is a sentence rather than an abort.**
 `MemoryGuard` (`ZephraCore`) is asked in `GenerationStore+MemoryGuard`: once in
@@ -773,6 +789,10 @@ Rules in `Support/`:
   hang a binding on. `ModalHost.warning` is the one place button order is
   decided: `NSAlert` gives the *first* button Return, so a three-answer question
   is reordered and a two-answer one has Return lifted off the dangerous button.
+- `installDeviceErrorLogging` (`MLXRuntime+ErrorLogging`, `ZephraMLX`) is a
+  composition-root duty: `ZephraApp` calls it once, before the first runtime
+  use, so a GPU fault outside any `catchingDeviceErrors` boundary is logged
+  rather than left to end the process.
 - Thumbnails: `ThumbnailKey` names a baked file, `ThumbnailFolder` bakes off
   the main thread four at a time, `ThumbnailCache` coalesces requests.
   `ImageCache` is the same shape for this session's pictures, and
@@ -1376,10 +1396,13 @@ Full detail: `docs/reference-pictures.md`.
 ## Build & run
 
 Prerequisites: the full Xcode 26 `Xcode.app` selected with `xcode-select`
-(the Command Line Tools cannot compile Metal), its license accepted and
-`-runFirstLaunch` done, the Metal toolchain fetched once with `xcodebuild
--downloadComponent MetalToolchain`, and `xcodegen` on `PATH`. `make doctor`
-checks each and prints the fix.
+(the Command Line Tools cannot compile Metal), a Swift 6.3 toolchain (Xcode
+26.6 or newer — mlx-swift's manifest is tools-version 6.3), its license
+accepted and `-runFirstLaunch` done, the Metal toolchain fetched once with
+`xcodebuild -downloadComponent MetalToolchain`, and `xcodegen` on `PATH`.
+`make doctor` checks each and prints the fix; `release.yml` selects the
+newest Xcode 26 on the runner for the same reason, rather than trusting
+whatever `xcode-select` defaults to.
 
 `Zephra.xcodeproj` is generated from `project.yml` and gitignored; never edit
 it. mlx-swift's Metal kernels need `xcodebuild`: `swift build` and `swift test`
@@ -1676,10 +1699,17 @@ sentences about behaviour.
   smaller `StubBackend`. `ZephraEngineTests/DeviceFaultTests` and
   `ZephraMLXTests/MLXDeviceErrorTests` pin the GPU-fault boundary.
 - Every test that hands MLX a path under a `Scratch` holds it for the whole
-  test with `defer { withExtendedLifetime(scratch) {} }`: mlx 0.32.2 reads a
-  loaded shard lazily at `eval`, not at load, so a `Scratch` freed earlier in
-  the test — its directory removed in `deinit` — could vanish before a later
-  streamed pass read it.
+  test with `defer { withExtendedLifetime(scratch) {} }` right after creating
+  it: mlx 0.32.2 reads a loaded shard lazily at `eval`, not at load, so a
+  `Scratch` whose last syntactic use is earlier in the test can be
+  deinitialized — its directory removed — before a later streamed pass reads
+  it. A streamed test needs `MLXRuntime.synchronize()` in that same `defer`,
+  before the `withExtendedLifetime`, since a pass leaves the next pass's
+  read-ahead scheduled asynchronously as it ends and a read still in flight on
+  MLX's io pool can fail against a folder the next test's `Scratch` deleted.
+  And never save over a shard you lazily loaded without evaluating it first:
+  `loadArrays` hands back lazy nodes, so loading a shard, dropping a key and
+  saving over the same path reads the file while truncating it.
 
 Full detail: `docs/build-and-release.md`.
 
@@ -2007,6 +2037,15 @@ Full detail: `docs/model-weights.md`.
   (`isFavourite`, `FavouriteToggle`): no user sees them.
 - Swift 6 strict concurrency in our code. The vendored `ZImageKit` stays in
   Swift 5 language mode so its upstream files compile untouched.
+- A protocol requirement with a default implementation that takes an async
+  closure must spell the closure's isolation — `nonisolated(nonsending) ()
+  async throws -> R` — on the requirement and on every witness, because the
+  app targets build with approachable concurrency and read a bare async
+  closure type differently from the packages. A witness whose closure type
+  differs from the requirement's is not a witness: it compiles as an
+  overload, the default stands in silently, and only a test that calls
+  through `any Protocol` — never the concrete type — catches it. See
+  `InferenceRuntime.catchingDeviceErrors` and `CombinedRuntimeDeviceErrorTests`.
 - Every package pins the same exact `swift-transformers` version and the same
   exact revision of mlx-swift (`ea8a1796…`, main at 2026-09-11, carrying mlx
   v0.32.2) until a tagged release carries mlx >= 0.32, then the same exact
@@ -2077,8 +2116,8 @@ environment value.
 - `make logs` streams `os.Logger` output for subsystem `io.zephra` at info and
   above, which is where the memory guard's admitted and refused lines sit and
   where the device-error boundary's "MLX device error: …" line lands; `log
-  stream` without `--level info` shows none of them. Run it as `/usr/bin/log`
-  in a shell whose own `log` function shadows the binary.
+  stream` without `--level info` shows none of them. `make logs` runs under
+  make's own `/bin/sh`, so nothing shadows the binary there.
 - A locally built Zephra (every `make run`, `make build`, any ad-hoc signature)
   keeps its companion identity and pairings in
   `~/Library/Application Support/Zephra/Companion/` (`identity`, `devices.json`),
@@ -2147,14 +2186,6 @@ environment value.
   preference for one launch; `ZEPHRA_STREAM_DEPTH=N` sets the read-ahead
   (2 unless set). Every family in the catalog streams; a family added later with no
   measured streamed figure loads resident regardless.
-- `ZEPHRA_FAULT_GPU_AT_STEP=N` (Debug only, read once into
-  `InferenceEnvironment.faultGPUAtStep`, honoured by the Z-Image backend
-  alone) trips a real GPU watchdog restart at step `N` through
-  `GPUFaultProbe`, an `MLXFast.metalKernel` that spins on a data-dependent
-  condition until `kIOGPUCommandBufferCallbackErrorTimeout` fires — the same
-  kind of reset a fault in another app's frame leaves this process holding as
-  an innocent victim. Never reachable in Release and wired to no UI; see
-  "Diagnosing a GPU fault by hand" in `docs/debugging.md` for the run.
 - `ZEPHRA_GENERATE_ON_LAUNCH=<prompt>` (Debug only; inert in Release, like
   `ZEPHRA_PREVIEW_STATE`) presses Generate once the model is ready, for a real
   in-app run from a shell. `ZEPHRA_REFERENCE_ON_LAUNCH=<path>` fills the well
@@ -2171,15 +2202,19 @@ environment value.
   `MemoryGuard`'s live reading still asks the real machine, so a hand check
   meant for a 16 GB Mac (12124 is bender's working set) can be run on a Mac
   that is free. Absent or malformed it changes nothing.
-- `ZEPHRA_FAULT_GPU_AT_STEP=N` (Debug only) fires `GPUFaultProbe` at
-  Z-Image's denoising step `N`, a Metal kernel that spins forever on a
-  data-dependent condition and so never completes, for a real GPU reset on
-  demand: the field's own way a command buffer comes back discarded, proving
+- `ZEPHRA_FAULT_GPU_AT_STEP=N` (Debug only, read once into
+  `InferenceEnvironment.faultGPUAtStep`, honoured by the Z-Image backend
+  alone) fires `GPUFaultProbe` at Z-Image's denoising step `N`, an
+  `MLXFast.metalKernel` that spins on a data-dependent condition until
+  `kIOGPUCommandBufferCallbackErrorTimeout` fires, for a real GPU reset on
+  demand — the same kind of reset a fault in another app's frame leaves this
+  process holding as an innocent victim, and the field's own way of proving
   `InferenceRuntime.catchingDeviceErrors` end to end without waiting for a Mac
   to fault on its own. Every other app using the GPU at that moment loses its
   own in-flight frames, so run it only on a Mac nobody else is using. Never
   wired to any UI; unreachable in Release, since `GPUFaultProbe` and its one
-  call site in `ZImageBackend+FaultProbe.swift` are both `#if DEBUG`.
+  call site in `ZImageBackend+FaultProbe.swift` are both `#if DEBUG`. See
+  "Diagnosing a GPU fault by hand" in `docs/debugging.md` for the run.
 - Launch from a shell (`./build/Release/Zephra.app/Contents/MacOS/Zephra`)
   rather than `open` when the point is the error text: for a C++ abort with
   no boundary around it, MLX prints the Metal error to stderr and the crash
@@ -2187,7 +2222,9 @@ environment value.
   caught instead never crashes, so its text is not in a crash report at all —
   it is the `make logs` line below, "MLX device error: …" (or "MLX error
   outside any run: …" for a fault no boundary was open for). A GPU restart
-  either way is in `log show` under `IOGPUFamily`, and
+  either way is in `log show` under `IOGPUFamily` — hand-typed, reach for
+  `/usr/bin/log show` by its full path in a shell whose own `log` function
+  shadows the binary — and
   `/Library/Logs/DiagnosticReports/gpuEvent-*.ips` names the blamed process.
 
 Full detail: `docs/debugging.md`.

@@ -128,8 +128,9 @@ rather than disappeared until Zephra added one.
 
 `InferenceRuntime.catchingDeviceErrors(_:)` (`ZephraCore/Runtime`) is that
 handler's boundary, and `InferenceActor` opens it around everything that
-touches the device: build, load, warm-up, generate, upscale
-(`InferenceActor+DeviceErrors.swift`, `+Preparation.swift`). Every one of
+touches the device: build, load, warm-up (`InferenceActor+Preparation.swift`),
+generate and upscale (`InferenceActor.swift`), plus the device-error catch
+itself (`InferenceActor+DeviceErrors.swift`). Every one of
 those calls already runs on the actor's own serial `DispatchQueue`, which is
 the thread MLX raises the fault on, so the boundary is reached and can act on
 the same task the fault interrupted.
@@ -143,30 +144,41 @@ locked slot, `DeviceFaultSink`: opening the boundary arms a fresh
 handler hands whatever MLX raises to whichever box is armed. The *first*
 fault recorded is the one kept — a fault poisons every array the run still
 holds, so what follows is an echo of the one that matters — and recording it
-also cancels the run's own task, so the kit unwinds at its next
+also cancels the task that armed the boundary, so the kit unwinds at its next
 `Task.checkCancellation()` (between denoising steps, between streamed
 blocks, between VAE tiles) rather than walking the rest of a ladder over
-poisoned arrays. What the boundary throws is `BackendError.deviceFailed`,
-carrying the runtime's raw text, and it deliberately wins over the
-`CancellationError` the cancel caused: a run the GPU lost has to read as a
-failure, never as a Stop nobody pressed. `GenerationStore+Generation.run`'s
-catch carries the invariant this depends on — nothing after it may add a
-`Task.sleep` or a further cancellation check, or a `.deviceFailed` racing a
-later cancel could be swallowed. The canvas shows one sentence, "The GPU
-stopped responding and this run was lost. Try again."; `InferenceActor.upscale`
-maps the same case to `UpscaleError.failed("The GPU stopped responding. Try
-again.")` rather than the failure screen, whose remedy is to reload a model
-an upscale never needed. Outside any boundary — the wired-limit reservation
-on its own task, the allocator's cache being released as a model unloads, the
-device asked what generation it is before anything is loaded — the same
+poisoned arrays; a fault MLX raises on a *different* task — a wired-limit
+reservation's own task, a Settings poll's — is still recorded into the box
+and logged, but that other task is not the one cancelled. What the boundary
+throws is `BackendError.deviceFailed`, carrying the runtime's raw text, and
+it deliberately wins over the `CancellationError` the cancel caused: a run
+the GPU lost has to read as a failure, never as a Stop nobody pressed.
+`GenerationStore+Generation.run`'s catch carries the invariant this depends
+on — nothing after it may add a `Task.sleep` or a further cancellation
+check, or a `.deviceFailed` racing a later cancel could be swallowed. The
+boundary closes with a synchronize (`MLXInferenceRuntime.settle(_:)`), which
+waits for the device work this call left queued before reading the box, so a
+streamed pass's read-ahead — still in flight past the step that asked for it
+— settles into this boundary rather than the next one's; `InferenceActor.unload()`
+synchronizes for the same reason before it hands the allocator's cache back.
+The canvas shows one sentence, "The GPU stopped responding and this run was
+lost. Try again."; `InferenceActor.upscale` maps the same case to
+`UpscaleError.failed("The GPU stopped responding. Try again.")` rather than
+the failure screen, whose remedy is to reload a model an upscale never
+needed. Outside any boundary — the allocator's cache being released as a
+model unloads with nothing in flight, the device asked what generation it is
+before anything is loaded — the same
 handler writes "MLX error outside any run" to the log instead of ending the
 process; none of that work is worth the app, and none of it is trusted
 afterwards, since each is asked again the next time it is wanted.
 
 Nothing is unloaded on a generate-time fault: the device recovers on its own,
 and a forced reload is a two-minute wait for weights that never moved. A
-load-time fault still unloads, through the catch `+Preparation.load` already
-had — a half-read model is not something to leave resident. `DeviceFaultTests`
+load-time fault still unloads, through the catch `InferenceActor+Preparation.prepare`
+already had — a half-read model is not something to leave resident. (This is
+`InferenceActor`'s own `prepare`, not `GenerationStore+Preparation.load`,
+which is the other thing by that name and asks `MemoryGuard` before `prepare`
+is ever called.) `DeviceFaultTests`
 (`ZephraEngineTests`) pins all three shapes: the run fails and keeps no
 picture, the weights stay up so retry generates without reloading, and a
 fault mid-load unloads and reports the same sentence.

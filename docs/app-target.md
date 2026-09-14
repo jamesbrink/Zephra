@@ -437,9 +437,10 @@ Six directories, by what a file is rather than what screen it is on:
   GPU is the model's. A breathing opacity animation there, sixty composited
   frames a second over a streamed Qwen-Image step, took a 16 GB M4 mini's GPU
   down every time — a GPU restart the driver blamed on whichever command buffer
-  was in flight, which MLX turns into an uncaught C++ exception on Metal's
-  completion queue, so the app aborted a step in. Reduce Motion off, the same
-  launch crashed at 38 s; on, it made its picture in 144 s. The system's
+  was in flight, which MLX turned into an uncaught C++ exception on Metal's
+  completion queue — no Swift `catch` reached it before mlx-swift 0.32.2 and
+  the device-error boundary — so the app aborted a step in. Reduce Motion off,
+  the same launch crashed at 38 s; on, it made its picture in 144 s. The system's
   indeterminate spinner stayed on screen through that run and is fine. There is
   no context menu and nothing to drag, because there is no file yet; a click
   still tucks the prompt away. The run is not over when the steps are: the

@@ -443,8 +443,10 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   stream float32 when `GPUGeneration.isM5Class`, at three times the step time — the
   gate is unverified under the new pin the same way it was under the old one: no
   project Mac is an M5. When one is available, run `Flux2Tests/TransformerParityTests`
-  (both probes — the dense GEMM and the packed 4- and 8-bit `quantizedMatmul` the
-  catalog variants take) on it under the current pin and then under mlx >= 0.32.0,
+  (both probes — the dense GEMM and the packed 4- and 8-bit `quantizedMM` (renamed
+  from `quantizedMatmul` under the current pin; the vendored `ZImageKit` keeps the
+  old spelling on purpose, see its `VENDORED.md`) the catalog variants take) on it
+  under the current pin and then under mlx >= 0.32.0,
   and `make bench ARGS="--model flux2-klein-4b-4bit --size 1024"` with and without
   `ZEPHRA_DIT_DTYPE=f32`. Both probes green on mlx >= 0.32.0 is the signal to delete
   the gate and `GPUGeneration` with it.
@@ -503,11 +505,10 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   trip the same restart. The abort that used to follow is gone — 2026-09-14's
   device-error boundary (`InferenceRuntime.catchingDeviceErrors`, `AGENTS.md`
   under "How a generation runs") turns a discarded command buffer into
-  `BackendError.deviceFailed` and cancels the run's own task rather than letting
-  MLX end the process, and the boundary cancels whichever task was actually
-  running the faulted work — the run's, and only the run's, because Metal work in
-  this app is single-lane: `InferenceActor`'s serial queue, `DeviceFaultSink`'s
-  one slot. What is still open is *why* a streamed step plus compositing trips
+  `BackendError.deviceFailed` and cancels only the task that armed the
+  boundary, rather than letting MLX end the process; a fault raised off that
+  task is recorded and logged instead, not cancelled. What is still open is
+  *why* a streamed step plus compositing trips
   the restart at all, which the boundary does not explain, only survives; a
   restart still costs every app sharing the GPU that minute, this one included,
   a lost run being the best case rather than a lost process. Not reproduced on

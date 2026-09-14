@@ -9,6 +9,7 @@ let package = Package(
     .library(name: "ZImage", targets: ["ZImage"])
   ],
   dependencies: [
+    // Pinned to the revision every other package pins, so the graph stays one copy of MLX.
     .package(url: "https://github.com/ml-explore/mlx-swift", revision: "ea8a179690170ca891a97bc0473198ab1ecda5f4"),
     .package(url: "https://github.com/huggingface/swift-transformers", exact: "0.1.24"),
     .package(url: "https://github.com/apple/swift-log.git", from: "1.6.4"),

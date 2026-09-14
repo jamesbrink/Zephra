@@ -284,6 +284,9 @@ Every local edit carries a `// ZEPHRA-PATCH: <reason>` comment and a line here.
 - Graph construction for a whole step takes single-digit milliseconds (1.3 ms measured on a quiet
   machine, 2 to 9 ms under load) against seconds of evaluation, so `MLX.compile` has no CPU-side
   overhead to remove.
+- `LoRA/LoRALinear.swift` still calls `quantizedMatmul`, deprecated under the current mlx-swift
+  pin in favour of `quantizedMM`; Zephra's own call sites were renamed, but this file is
+  untouched vendored code and the deprecation warning is upstream's to fix at the next re-sync.
 
 ## Experiments not kept
 

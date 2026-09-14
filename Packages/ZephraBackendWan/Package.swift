@@ -11,6 +11,7 @@ let package = Package(
         .package(path: "../ZephraKit"),
         .package(path: "../ZephraMLXKit"),
         .package(path: "../WanKit"),
+        // Pinned to the revision every other package pins, so the graph stays one copy of MLX.
         .package(url: "https://github.com/ml-explore/mlx-swift", revision: "ea8a179690170ca891a97bc0473198ab1ecda5f4"),
     ],
     targets: [

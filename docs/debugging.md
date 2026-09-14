@@ -123,8 +123,9 @@ the same override the store runs under without a second read of the process envi
 - `make logs` streams `os.Logger` output for subsystem `io.zephra`, which is where the
   device-error boundary's "MLX device error: …" line lands (or "MLX error outside any run: …"
   for a fault no boundary was open for) — the only trace of a GPU fault the boundary caught,
-  since it never reaches a crash report. Reach for `/usr/bin/log` by its full path in a shell
-  whose own `log` function shadows the binary.
+  since it never reaches a crash report. `make logs` runs under make's own `/bin/sh`, so
+  nothing there shadows the `log` binary; see "Diagnosing a GPU fault by hand" below for the
+  hand-typed form, where a shell's own `log` function does shadow it.
 - A locally built Zephra — every `make run`, `make build` and any other ad-hoc
   signature — keeps its companion identity and pairings in
   `~/Library/Application Support/Zephra/Companion/` (`identity` and
@@ -259,10 +260,17 @@ the same override the store runs under without a second read of the process envi
   a fault in another app's frame leaves Zephra's own buffer discarded by, as
   the innocent victim. Read once into `InferenceEnvironment.faultGPUAtStep`;
   never reachable in Release, and wired to no UI, so the only way to reach it
-  is the shell.
+  is the shell. The one call site fires from `ZImageBackend.generate`'s own
+  progress handler, and the one-step warm-up run
+  (`InferenceActor+Preparation.warmUp`) calls that same `generate`, so a
+  target of step 0 faults the warm-up rather than the run a launch means to
+  probe.
 
   **Diagnosing a GPU fault by hand.** Save any open work; a real GPU restart
-  can cost every app's unsaved state, not only Zephra's. On an idle Mac:
+  can cost every app's unsaved state, not only Zephra's. On an idle Mac, after
+  `make build CONFIG=Debug`, and with the saved model a Z-Image entry — the
+  probe's one call site is `ZImageBackend`, so any other model's run
+  completes and proves nothing:
 
   ```
   ZEPHRA_FAULT_GPU_AT_STEP=4 ZEPHRA_GENERATE_ON_LAUNCH="a lighthouse" \
