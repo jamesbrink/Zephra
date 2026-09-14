@@ -252,11 +252,16 @@ the same override the store runs under without a second read of the process envi
   the catalog is any more. The report is `WeightStreamMeter`'s last pass, so a family that
   streams more than one stack reports the last one its forward ran: Z-Image's main stack, and
   klein's single-stream blocks.
-- `ZEPHRA_FAULT_GPU_AT_STEP=N` (Debug only) trips a real GPU watchdog restart
+- `ZEPHRA_FAULT_GPU_AT_STEP=N` (Debug only) trips a real GPU restart
   at step `N` of a Z-Image generation — the only family wired to it —
-  through `GPUFaultProbe`, an `MLXFast.metalKernel` that spins on a
-  data-dependent condition it never satisfies until
-  `kIOGPUCommandBufferCallbackErrorTimeout` fires, exactly the kind of reset
+  through `GPUFaultProbe`, an `MLXFast.metalKernel` that reads 256 GB past a
+  four-byte buffer, an address no page table maps, so the GPU takes an MMU
+  fault (the field crash's own "MMU interrupt") and the driver resets the
+  device. Not a kernel that never finishes: the Metal compiler deletes an
+  infinite loop as undefined behaviour, and an M4 mini ran a bounded
+  hours-long kernel for nine minutes with no watchdog ending it, the app
+  stuck inside `eval`. The probe logs "GPU fault probe firing" and "returned
+  after N s" under category `fault-probe`. Exactly the kind of reset
   a fault in another app's frame leaves Zephra's own buffer discarded by, as
   the innocent victim. Read once into `InferenceEnvironment.faultGPUAtStep`;
   never reachable in Release, and wired to no UI, so the only way to reach it

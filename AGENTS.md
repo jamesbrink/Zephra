@@ -2205,9 +2205,11 @@ environment value.
 - `ZEPHRA_FAULT_GPU_AT_STEP=N` (Debug only, read once into
   `InferenceEnvironment.faultGPUAtStep`, honoured by the Z-Image backend
   alone) fires `GPUFaultProbe` at Z-Image's denoising step `N`, an
-  `MLXFast.metalKernel` that spins on a data-dependent condition until
-  `kIOGPUCommandBufferCallbackErrorTimeout` fires, for a real GPU reset on
-  demand — the same kind of reset a fault in another app's frame leaves this
+  `MLXFast.metalKernel` that reads an address no page table maps, so the GPU
+  takes an MMU fault and the driver resets it, for a real GPU reset on
+  demand (a kernel that never finishes does not do: an M4 mini ran one for
+  nine minutes with no watchdog ending it) — the same kind of reset a fault
+  in another app's frame leaves this
   process holding as an innocent victim, and the field's own way of proving
   `InferenceRuntime.catchingDeviceErrors` end to end without waiting for a Mac
   to fault on its own. Every other app using the GPU at that moment loses its
