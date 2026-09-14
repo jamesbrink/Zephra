@@ -694,7 +694,15 @@ way Photos is, because Photos is what every thumb on a phone already knows.
   `ViewerCover` is the one place both surfaces present the viewer: a
   `fullScreenCover` whose content wears `navigationTransition(.zoom)` against
   a `matchedTransitionSource` on the cell, in a `@Namespace` the cover owns and
-  hands down as `\.viewerNamespace`. The catch is that the zoom's source id is
+  hands down as `\.viewerNamespace`. There is one presenter per screen.
+  On Today that presenter belongs to
+  `CombinedToday`'s `NavigationStack`, not `HostTodayRows`' transparent group.
+  Applying the cover to the group creates competing row presentations: tapping
+  a finished picture crashed with UIKit's "Cannot morph from a view that is
+  not in the hierarchy." `TodayPictures` resolves the selected Mac's run in
+  its original order, and the thumbnail strip scrolls by host-qualified entry
+  ID so paging back lands on the correct cell even when Macs reuse filenames.
+  The zoom's source id is
   fixed at presentation, and after paging the viewer should close into the
   cell it is *now* over. So the cover's item is a `ViewerOpening`: the entry
   opened on, which is its identity so paging changes the content and never the

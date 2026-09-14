@@ -3,7 +3,6 @@ import ZephraLinkProtocol
 
 struct HostTodayRows: View {
     let host: HostConnection
-    @State private var viewing: ViewerOpening?
     var body: some View {
         Group {
             ForEach(host.client.snapshot?.today ?? []) { run in
@@ -16,7 +15,5 @@ struct HostTodayRows: View {
                 }
             }
         }
-        .modifier(LibraryRequests())
-        .modifier(ViewerCover(opening: $viewing) { _ in host.catalog.entries })
     }
 }

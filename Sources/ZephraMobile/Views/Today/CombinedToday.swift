@@ -3,6 +3,7 @@ import SwiftUI
 struct CombinedToday: View {
     @Environment(HostConnections.self) private var hosts
     @Environment(GenerationDispatch.self) private var dispatch
+    @State private var viewing: ViewerOpening?
     var body: some View {
         NavigationStack {
             List {
@@ -29,5 +30,11 @@ struct CombinedToday: View {
             }
             .navigationTitle("Today")
         }
+        // Present once from the screen, never from the transparent group of list rows.
+        // A cover on that group fans out to multiple presenters and crashes UIKit's zoom.
+        .modifier(LibraryRequests())
+        .modifier(ViewerCover(opening: $viewing) { opening in
+            TodayPictures.entries(around: opening.opened, hosts: hosts.hosts)
+        })
     }
 }

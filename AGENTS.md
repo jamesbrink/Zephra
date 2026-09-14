@@ -1057,8 +1057,13 @@ US-spelling check.
   source at all (the system follows a source added or removed, not one whose
   id changes; `ViewerOpeningTests` pins it), and the grid scrolls the shown
   cell into view as the viewer pages.
-- The Today tab is `snapshot.today` drawn in the Mac's order. Nothing in it
-  groups anything: `RunSummary` arrives grouped, and `EngineStateDTO` already
+- The Today tab is `snapshot.today` drawn in the Mac's order.
+  `CombinedToday` owns one `ViewerCover` on its `NavigationStack`,
+  never on `HostTodayRows`' transparent group: a cover on the group fans out to
+  the list rows and competing zoom presentations crash UIKit. `TodayPictures`
+  resolves the opened entry's host and run, preserving run order; thumbnail
+  scrolling uses the same host-qualified entry IDs as the viewer.
+  `RunSummary` arrives grouped, and `EngineStateDTO` already
   carries the derived facts the running card reads (`isBusy`, `isFinishing`,
   `acceptsGeneration`, `canQueue`).
 - Generate never becomes Stop. `GenerateAvailability` (`Support/`) is the whole
