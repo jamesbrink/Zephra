@@ -47,7 +47,12 @@ struct CombinedRuntimeDeviceErrorTests {
 
     /// A runtime with no GPU behind it that records what it was asked to open and install, and
     /// can be told to answer the way a faulted device does.
-    private final class CountingRuntime: InferenceRuntime, @unchecked Sendable {
+    ///
+    /// `nonisolated` for the reason `CombinedInferenceRuntime` is: under this target's
+    /// main-actor default, an isolated conformance witnesses nothing and every call lands on
+    /// the protocol's own defaults, which is a stub that records nothing and a test that
+    /// passes whatever the app does.
+    private nonisolated final class CountingRuntime: InferenceRuntime, @unchecked Sendable {
         private let openings = Mutex(0)
         private let installations = Mutex(0)
         var faults = false

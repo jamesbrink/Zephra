@@ -66,7 +66,11 @@ struct MemoryReadoutTests {
     }
 
     /// A runtime with no GPU behind it that answers the two questions the readout asks.
-    private struct StubRuntime: InferenceRuntime {
+    ///
+    /// `nonisolated` for the reason every conformance in this target is: the default here is
+    /// the main actor, and an isolated conformance would answer from the protocol's defaults
+    /// rather than from this.
+    private nonisolated struct StubRuntime: InferenceRuntime {
         func synchronize() {}
         func setCacheLimit(bytes: Int) {}
         func setMemoryLimit(bytes: Int) {}

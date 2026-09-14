@@ -13,7 +13,12 @@ import ZephraCore
 ///
 /// This names no backend. `ZephraApp` builds it from the concrete runtimes, which is the one
 /// place allowed to know what they are.
-struct CombinedInferenceRuntime: InferenceRuntime {
+///
+/// `nonisolated` explicitly, against this target's main-actor default: what calls most of this
+/// is `InferenceActor`, from its own serial queue, and a main-actor-isolated conformance is not
+/// the protocol's — the requirements would fall through to their defaults, which for the two
+/// device-error ones is no boundary at all and for the rest is a no-op or a nil reading.
+nonisolated struct CombinedInferenceRuntime: InferenceRuntime {
     private let runtimes: [any InferenceRuntime]
 
     /// Creates a runtime that sets the allocator's limits through the first of `runtimes` and
