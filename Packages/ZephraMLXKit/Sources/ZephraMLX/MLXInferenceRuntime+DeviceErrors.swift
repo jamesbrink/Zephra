@@ -10,7 +10,7 @@ import ZephraCore
 /// one would send the run off the actor's queue — the compiler says so — so the boundary is a
 /// box in `DeviceFaultSink` and the handler `MLXRuntime.installErrorLogging` puts in place.
 extension MLXInferenceRuntime {
-    public nonisolated(nonsending) func catchingDeviceErrors<R>(_ body: () async throws -> R)
+    public nonisolated(nonsending) func catchingDeviceErrors<R>(_ body: nonisolated(nonsending) () async throws -> R)
         async throws -> R
     {
         // Self-sufficient: the boundary is only a box until the handler that fills it is in,

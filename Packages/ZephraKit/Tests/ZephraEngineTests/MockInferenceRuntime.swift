@@ -23,7 +23,7 @@ struct MockInferenceRuntime: InferenceRuntime {
 
     /// `MLXInferenceRuntime`'s boundary over the dial instead of over MLX: the fault the mock
     /// left behind wins on both ways out, so the cancellation it caused never reads as a stop.
-    nonisolated(nonsending) func catchingDeviceErrors<R>(_ body: () async throws -> R)
+    nonisolated(nonsending) func catchingDeviceErrors<R>(_ body: nonisolated(nonsending) () async throws -> R)
         async throws -> R
     {
         do {

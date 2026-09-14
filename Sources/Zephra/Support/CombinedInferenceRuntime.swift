@@ -15,9 +15,11 @@ import ZephraCore
 /// place allowed to know what they are.
 ///
 /// `nonisolated` explicitly, against this target's main-actor default: what calls most of this
-/// is `InferenceActor`, from its own serial queue, and a main-actor-isolated conformance is not
-/// the protocol's — the requirements would fall through to their defaults, which for the two
-/// device-error ones is no boundary at all and for the rest is a no-op or a nil reading.
+/// is `InferenceActor`, from its own serial queue, and a runtime handle has no business being
+/// main-actor-isolated. `catchingDeviceErrors` spells its closure's isolation out for a
+/// different reason, given on the requirement itself: under this target's approachable
+/// concurrency a bare async closure type is not the type ZephraCore declared, and a method
+/// whose type differs is an overload beside the default, not the witness in its place.
 nonisolated struct CombinedInferenceRuntime: InferenceRuntime {
     private let runtimes: [any InferenceRuntime]
 
@@ -72,7 +74,7 @@ nonisolated struct CombinedInferenceRuntime: InferenceRuntime {
     /// MLX's handler stack is process-wide, so a boundary opened on any one of these is the
     /// boundary every family's work runs inside. The first is enough, exactly as it is for the
     /// allocator's limits; opening one per runtime would nest the same handler five deep.
-    nonisolated(nonsending) func catchingDeviceErrors<R>(_ body: () async throws -> R)
+    nonisolated(nonsending) func catchingDeviceErrors<R>(_ body: nonisolated(nonsending) () async throws -> R)
         async throws -> R
     {
         guard let first = runtimes.first else { return try await body() }

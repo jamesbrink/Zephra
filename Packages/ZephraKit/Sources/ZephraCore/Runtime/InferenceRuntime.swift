@@ -66,8 +66,17 @@ public protocol InferenceRuntime: Sendable {
     /// never as a stop. Spelled `nonisolated(nonsending)` for the reason every backend
     /// requirement is — the body has to stay on the caller's executor, which is the serial
     /// queue the fault will be raised on.
-    nonisolated(nonsending) func catchingDeviceErrors<R>(_ body: () async throws -> R) async throws
-        -> R
+    ///
+    /// The closure's isolation is spelled out too, and every witness must spell it the same
+    /// way. A module built with approachable concurrency (the app target) reads a bare
+    /// `() async throws -> R` as `nonisolated(nonsending)`, a module without it (this one)
+    /// reads it as concurrent, and a witness whose parameter type differs from the
+    /// requirement's is not a witness: it compiles as an overload, the default below stands in
+    /// for it, and every call through the protocol runs the body with no boundary at all.
+    /// `CombinedRuntimeDeviceErrorTests` pins it through the existential.
+    nonisolated(nonsending) func catchingDeviceErrors<R>(
+        _ body: nonisolated(nonsending) () async throws -> R
+    ) async throws -> R
 
     /// Replaces the runtime's answer to an error raised outside every `catchingDeviceErrors`
     /// boundary — which is to end the process — with one line in the log.
@@ -98,7 +107,7 @@ extension InferenceRuntime {
     public func isM5ClassGPU() -> Bool { false }
 
     /// A runtime with no device to fault runs the body and hands back what it answered.
-    public nonisolated(nonsending) func catchingDeviceErrors<R>(_ body: () async throws -> R)
+    public nonisolated(nonsending) func catchingDeviceErrors<R>(_ body: nonisolated(nonsending) () async throws -> R)
         async throws -> R
     {
         try await body()

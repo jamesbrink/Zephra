@@ -74,7 +74,7 @@ struct CombinedRuntimeDeviceErrorTests {
             installations.withLock { $0 += 1 }
         }
 
-        nonisolated(nonsending) func catchingDeviceErrors<R>(_ body: () async throws -> R)
+        nonisolated(nonsending) func catchingDeviceErrors<R>(_ body: nonisolated(nonsending) () async throws -> R)
             async throws -> R
         {
             openings.withLock { $0 += 1 }
