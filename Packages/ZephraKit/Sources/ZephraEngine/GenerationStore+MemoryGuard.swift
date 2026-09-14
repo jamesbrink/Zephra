@@ -12,19 +12,45 @@ extension GenerationStore {
     /// The guard this Mac's budget makes.
     var memoryGuard: MemoryGuard { MemoryGuard(budget: memoryBudget) }
 
-    /// Why `model` cannot be loaded the way `residency` asks for it right now, or nil when it
-    /// can. Reads the machine once and says in the log what it read and what it decided, since
-    /// the same refusal on two Macs is two different stories about what was holding the memory.
-    func loadShortfall(
-        for model: ModelDescriptor, residency: WeightResidency
-    ) -> MemoryShortfall? {
+    /// How `model`'s weights should be loaded right now, and why they cannot be, or nil when
+    /// they can. Reads the machine once and says in the log what it read and what it decided,
+    /// since the same refusal on two Macs is two different stories about what was holding the
+    /// memory.
+    ///
+    /// The residency handed back is what the load must actually use: under Automatic the guard
+    /// steps a resident answer down to streaming where the machine has not the room for it,
+    /// which is a load rather than a refusal and is logged as one line saying both figures.
+    func loadResidency(
+        for model: ModelDescriptor
+    ) -> (residency: WeightResidency, shortfall: MemoryShortfall?) {
         let machine = machineMemory?.read()
         let snapshot = runtime?.memorySnapshot() ?? .zero
-        let shortfall = memoryGuard.loadShortfall(
-            for: model, residency: residency, tile: vaeTile(for: model), machine: machine,
+        let tile = vaeTile(for: model)
+        let answer = memoryGuard.loadResidency(
+            for: model, policy: weightResidencyPolicy, tile: tile, machine: machine,
             runtime: snapshot)
-        log("load of \(model.id)", machine: machine, snapshot: snapshot, shortfall: shortfall)
-        return shortfall
+        if answer.shortfall == nil, answer.residency != weightResidencyPolicy.residency(for: model) {
+            logStepDown(model, tile: tile, machine: machine, snapshot: snapshot)
+        }
+        log("load of \(model.id)", machine: machine, snapshot: snapshot, shortfall: answer.shortfall)
+        return answer
+    }
+
+    /// The one line that says a load was stepped down rather than refused: what holding the
+    /// weights would have wanted, what the Mac had, and what reading them from disk wants
+    /// instead. Without it a Mac that quietly streamed and one that quietly did not are the
+    /// same three log lines.
+    private func logStepDown(
+        _ model: ModelDescriptor, tile: Int?, machine: MachineMemory?, snapshot: MemorySnapshot
+    ) {
+        guard
+            let resident = memoryGuard.loadShortfall(
+                for: model, residency: .resident, mode: weightResidencyPolicy.mode, tile: tile,
+                machine: machine, runtime: snapshot)
+        else { return }
+        logger.info(
+            "memory before load of \(model.id, privacy: .public): resident needs \(ByteCount.gigabytes(resident.neededBytes), privacy: .public), \(ByteCount.gigabytes(resident.freeBytes), privacy: .public) free; streaming instead, needs \(ByteCount.gigabytes(model.streamedPeakBytes), privacy: .public)"
+        )
     }
 
     /// Why the job in hand cannot be run right now, or nil when it can. The job carries its own
@@ -42,8 +68,8 @@ extension GenerationStore {
         let snapshot = runtime?.memorySnapshot() ?? .zero
         let residency = loadedResidency ?? weightResidencyPolicy.residency(for: model)
         let shortfall = memoryGuard.runShortfall(
-            for: model, residency: residency, tile: vaeTile(for: model), settings: settings,
-            machine: machine, runtime: snapshot)
+            for: model, residency: residency, mode: weightResidencyPolicy.mode,
+            tile: vaeTile(for: model), settings: settings, machine: machine, runtime: snapshot)
         log("run of \(model.id)", machine: machine, snapshot: snapshot, shortfall: shortfall)
         return shortfall
     }
@@ -58,7 +84,8 @@ extension GenerationStore {
         guard !canSelect(model) else { return nil }
         return memoryGuard.loadShortfall(
             for: model, residency: weightResidencyPolicy.residency(for: model),
-            tile: vaeTile(for: model), machine: nil, runtime: .zero)
+            mode: weightResidencyPolicy.mode, tile: vaeTile(for: model), machine: nil,
+            runtime: .zero)
     }
 
     /// One line per decision, so `make logs` says what the Mac looked like when it refused —

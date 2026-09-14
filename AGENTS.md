@@ -551,9 +551,21 @@ read, and once at the first line of `+Generation.run`, before the activity
 assertion, for what this request costs on top of the weights already in. Either
 answer is a `MemoryShortfall` and reaches the canvas as
 `EngineError.insufficientMemory`, whose message is the shortfall's own sentence
-— the two figures and one remedy. The load check is thrown, so the catch that
+— the two figures and one remedy. The load check answers with a **residency**
+as well: `MemoryGuard.loadResidency(for:policy:tile:machine:runtime:)` asks the
+policy, checks that answer against the machine, and under Automatic steps a
+resident load the Mac has not the room for down to streamed rather than refusing
+it, logging one line that names both figures; only a model that cannot be
+streamed either is refused, and the figure it is refused with is the streamed
+one, since that is the load that was going to be attempted. The remedy follows
+the **mode**, not the residency: "Set Stream weights from disk to Automatic" is
+said under `Never` alone, because under Automatic a refusal means even streaming
+did not fit and the person is already on the setting they were being sent to.
+The load check is thrown, so the catch that
 already unloads and releases the lease runs; the run check fails the job and
-empties the queue. Retry goes back through `startLoading`, so it re-reads the
+empties the queue. What was loaded is `loadedResidency`, so a stepped-down model
+is not reloaded on the next Generate; only an explicit preference change or a
+model switch reloads it. Retry goes back through `startLoading`, so it re-reads the
 machine rather than replaying the old verdict, and a Mac where something else
 quit in the meantime loads. Both sites log what they read and what they decided,
 admitted or refused, since the same refusal on two Macs is two different stories
@@ -1762,7 +1774,11 @@ added later that has not learned to stream, which then loads resident under
 every mode); `MemoryFit` tries it after `fitsTiled` and answers `fitsStreamed`;
 `WeightResidencyPolicy` turns the Performance preference and
 the budget into a `WeightResidency` for the load, streamed under Automatic
-whenever the model does not fit resident, `.tight` included. `MemoryFit` is the
+whenever the model does not fit resident, `.tight` included. That answer is
+**static**, from a budget that does not move, because the menu's note and the
+Performance tab are catalog facts; `MemoryGuard.loadResidency` adds the live
+half at the load and steps a resident answer down to streamed under Automatic
+when the Mac has not the room free for it that minute. `MemoryFit` is the
 catalog question — could this Mac ever hold it — and `ModelCatalog.default(fitting:)`
 prefers a **resident** fit over a streamed one, since streaming is the way to run
 a model this Mac cannot hold and not the way to start it. What the Mac has free

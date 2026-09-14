@@ -9,6 +9,12 @@ extension GenerationStore {
     /// are released before the new ones are read and nothing running is interrupted: with a
     /// generation running or queued the new residency waits for the next load, the way a
     /// model chosen mid-run does.
+    ///
+    /// The comparison is against the policy's static answer, which is what makes an explicit
+    /// change of preference the one thing that reloads a model the guard stepped down to
+    /// streaming at its load: choosing Never over such a model asks for it held, and the guard
+    /// is asked again on the way in — and refuses, with the preference as the remedy, if the
+    /// Mac still has not the room.
     public func setWeightResidencyPolicy(_ policy: WeightResidencyPolicy) {
         guard policy != weightResidencyPolicy else { return }
         weightResidencyPolicy = policy
