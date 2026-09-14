@@ -9,7 +9,8 @@ let package = Package(
     .library(name: "ZImage", targets: ["ZImage"])
   ],
   dependencies: [
-    .package(url: "https://github.com/ml-explore/mlx-swift", exact: "0.31.3"),
+    // Pinned to the revision every other package pins, so the graph stays one copy of MLX.
+    .package(url: "https://github.com/ml-explore/mlx-swift", revision: "ea8a179690170ca891a97bc0473198ab1ecda5f4"),
     .package(url: "https://github.com/huggingface/swift-transformers", exact: "0.1.24"),
     .package(url: "https://github.com/apple/swift-log.git", from: "1.6.4"),
     // The shared layer stream, so this family reads its blocks from disk the way every other

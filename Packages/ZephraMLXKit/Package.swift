@@ -10,9 +10,8 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../ZephraKit"),
-        // Pinned to the version ZImageKit and every backend package pin, so the graph
-        // stays one copy of MLX.
-        .package(url: "https://github.com/ml-explore/mlx-swift", exact: "0.31.3"),
+        // Pinned to the revision every other package pins, so the graph stays one copy of MLX.
+        .package(url: "https://github.com/ml-explore/mlx-swift", revision: "ea8a179690170ca891a97bc0473198ab1ecda5f4"),
     ],
     targets: [
         // Packing weights is the same job whatever produced them: read a safetensors shard,
@@ -47,6 +46,7 @@ let package = Package(
                 .product(name: "MLX", package: "mlx-swift"),
                 .product(name: "MLXNN", package: "mlx-swift"),
                 .product(name: "MLXRandom", package: "mlx-swift"),
+                .product(name: "ZephraCore", package: "ZephraKit"),
                 .product(name: "ZephraTestSupport", package: "ZephraKit"),
             ]
         ),

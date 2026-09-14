@@ -8,8 +8,10 @@ public enum EngineError: Error, Hashable, Sendable {
     /// engine the composition root never registered.
     case noBackend(BackendID)
     /// The Mac has not the memory this load or this run would take. Refused before Metal is
-    /// asked for a byte, since a failure there arrives from a completion queue no `catch`
-    /// reaches and takes the app with it.
+    /// asked for a byte, because what a failure there costs is the whole run: it is raised on
+    /// the calling thread, caught by the runtime's device-error boundary, and reported as
+    /// `BackendError.deviceFailed` — a lost picture, rather than this, which is two figures
+    /// and a remedy before anything was started.
     case insufficientMemory(MemoryShortfall)
 
     /// What went wrong and, where possible, what to do about it.

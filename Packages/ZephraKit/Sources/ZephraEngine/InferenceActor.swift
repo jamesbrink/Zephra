@@ -73,8 +73,10 @@ actor InferenceActor {
         }
         runtime?.setVAETileSize(tile)
         var timer = StepTimer()
-        let media = try await backend.generate(settings) { event in
-            events.send(.progress(timer.annotated(event)))
+        let media = try await catchingDeviceErrors {
+            try await backend.generate(settings) { event in
+                events.send(.progress(timer.annotated(event)))
+            }
         }
         // A backend looks for a cancel between steps and not after the decode; a stop that
         // landed during the decode is honoured here, so a stopped run never hands back bytes.
@@ -93,8 +95,17 @@ actor InferenceActor {
         guard let live = try liveUpscaler() else {
             throw UpscaleError.weightsMissing("this build carries no upscaler")
         }
-        return try await live.upscale(png, request) { event in
-            events.send(.upscale(event))
+        do {
+            return try await catchingDeviceErrors {
+                try await live.upscale(png, request) { event in
+                    events.send(.upscale(event))
+                }
+            }
+        } catch BackendError.deviceFailed {
+            // An upscale's failures are `UpscaleError`s, which reach the person as a notice on
+            // the picture; a `BackendError` here would put up the failure screen whose remedy
+            // is to reload a model the upscaler never needed. The raw text is already logged.
+            throw UpscaleError.failed("The GPU stopped responding. Try again.")
         }
     }
 
@@ -106,12 +117,17 @@ actor InferenceActor {
     /// first it would hand back what the model is still holding, which is nothing, and the
     /// gigabytes the released weights leave behind would sit in the cache while the next
     /// model's load measured the machine and found them taken.
+    ///
+    /// The device is drained before that: a streamed pass leaves reads of the next layers
+    /// queued against the model's own files, which a caller that unloads to move that folder
+    /// would pull out from under them.
     func unload() {
         backend?.unload()
         backend = nil
         backendID = nil
         loadedPath = nil
         loadedResidency = nil
+        runtime?.synchronize()
         runtime?.releaseCache()
     }
 

@@ -8,8 +8,8 @@ let package = Package(
         .library(name: "Wan", targets: ["Wan"])
     ],
     dependencies: [
-        // Pinned to the version every other package pins, so the graph stays one copy of MLX.
-        .package(url: "https://github.com/ml-explore/mlx-swift", exact: "0.31.3"),
+        // Pinned to the revision every other package pins, so the graph stays one copy of MLX.
+        .package(url: "https://github.com/ml-explore/mlx-swift", revision: "ea8a179690170ca891a97bc0473198ab1ecda5f4"),
         // MLX work that is not this model's: the packed loader, the pixel packer, the stream.
         .package(path: "../ZephraMLXKit"),
         // Pinned exactly, as every package pins it: the UMT5 tokenizer is read through it and

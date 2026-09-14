@@ -35,27 +35,33 @@ extension InferenceActor {
         events: EngineEventSink
     ) async throws -> URL {
         do {
-            try Task.checkCancellation()
-            let live = try backend(for: acquired.model)
-            // Already up the way `residency` asks: the same shortcut the descriptor overload
-            // takes, so no path through here reads the weights a second time.
-            if live.loadedModelID == acquired.model.id, loadedResidency == residency, let loadedPath {
-                return loadedPath
+            // The boundary covers the build and the load alike: a pack reads and writes tensors
+            // on the device, and a fault in either is the same lost operation.
+            return try await catchingDeviceErrors { () async throws -> URL in
+                try Task.checkCancellation()
+                let live = try self.backend(for: acquired.model)
+                // Already up the way `residency` asks: the same shortcut the descriptor overload
+                // takes, so no path through here reads the weights a second time.
+                if live.loadedModelID == acquired.model.id, self.loadedResidency == residency,
+                    let loadedPath = self.loadedPath
+                {
+                    return loadedPath
+                }
+                let localPath: URL
+                if acquired.installedOnly { localPath = acquired.directory }
+                else {
+                    localPath = try await live.build(acquired.model, at: acquired.directory,
+                        locations: acquired.locations) { events.send(.build($0)) }
+                }
+                try Task.checkCancellation()
+                try await live.load(acquired.model, at: localPath, residency: residency) {
+                    events.send(.progress($0))
+                }
+                try Task.checkCancellation()
+                self.loadedPath = localPath
+                self.loadedResidency = residency
+                return localPath
             }
-            let localPath: URL
-            if acquired.installedOnly { localPath = acquired.directory }
-            else {
-                localPath = try await live.build(acquired.model, at: acquired.directory,
-                    locations: acquired.locations) { events.send(.build($0)) }
-            }
-            try Task.checkCancellation()
-            try await live.load(acquired.model, at: localPath, residency: residency) {
-                events.send(.progress($0))
-            }
-            try Task.checkCancellation()
-            loadedPath = localPath
-            loadedResidency = residency
-            return localPath
         } catch {
             unload()
             throw error
@@ -78,7 +84,9 @@ extension InferenceActor {
             )
         )
         try Task.checkCancellation()
-        _ = try await live.generate(settings) { _ in }
+        _ = try await catchingDeviceErrors {
+            try await live.generate(settings) { _ in }
+        }
         try Task.checkCancellation()
     }
 

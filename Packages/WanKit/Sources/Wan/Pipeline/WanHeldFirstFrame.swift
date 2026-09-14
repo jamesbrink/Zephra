@@ -31,7 +31,7 @@ struct WanHeldFirstFrame {
     init(latent: MLXArray, layout: WanLatentLayout) {
         self.latent = latent
         self.layout = layout
-        var mask = MLXArray.ones([1, 1, layout.frames, layout.height, layout.width])
+        let mask = MLXArray.ones([1, 1, layout.frames, layout.height, layout.width])
         mask[0..., 0..., 0..<1] = MLXArray.zeros([1, 1, 1, layout.height, layout.width])
         self.mask = mask
     }

@@ -13,7 +13,14 @@ import ZephraCore
 ///
 /// This names no backend. `ZephraApp` builds it from the concrete runtimes, which is the one
 /// place allowed to know what they are.
-struct CombinedInferenceRuntime: InferenceRuntime {
+///
+/// `nonisolated` explicitly, against this target's main-actor default: what calls most of this
+/// is `InferenceActor`, from its own serial queue, and a runtime handle has no business being
+/// main-actor-isolated. `catchingDeviceErrors` spells its closure's isolation out for a
+/// different reason, given on the requirement itself: under this target's approachable
+/// concurrency a bare async closure type is not the type ZephraCore declared, and a method
+/// whose type differs is an overload beside the default, not the witness in its place.
+nonisolated struct CombinedInferenceRuntime: InferenceRuntime {
     private let runtimes: [any InferenceRuntime]
 
     /// Creates a runtime that sets the allocator's limits through the first of `runtimes` and
@@ -62,6 +69,21 @@ struct CombinedInferenceRuntime: InferenceRuntime {
 
     func releaseCache() {
         runtimes.first?.releaseCache()
+    }
+
+    /// MLX's handler stack is process-wide, so a boundary opened on any one of these is the
+    /// boundary every family's work runs inside. The first is enough, exactly as it is for the
+    /// allocator's limits; opening one per runtime would nest the same handler five deep.
+    nonisolated(nonsending) func catchingDeviceErrors<R>(
+        _ body: nonisolated(nonsending) () async throws -> R
+    ) async throws -> R {
+        guard let first = runtimes.first else { return try await body() }
+        return try await first.catchingDeviceErrors(body)
+    }
+
+    /// One global handler, installed through the first, for the same reason.
+    func installDeviceErrorLogging() {
+        runtimes.first?.installDeviceErrorLogging()
     }
 
     func memorySnapshot() -> MemorySnapshot {

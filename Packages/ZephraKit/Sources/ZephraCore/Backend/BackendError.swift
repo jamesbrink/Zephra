@@ -11,6 +11,10 @@ public enum BackendError: Error, Sendable, Hashable, LocalizedError {
     case loadFailed(String)
     /// Inference started but did not produce an image.
     case generationFailed(String)
+    /// The GPU stopped answering part-way through: another process faulted the device, the
+    /// driver recovered it, and this process's command buffer came back discarded. The payload
+    /// is the runtime's own text, which is logged and never shown: it names a command buffer.
+    case deviceFailed(String)
     /// The settings cannot be run by this model.
     case invalidSettings(String)
     /// The work was cancelled before it finished.
@@ -27,6 +31,8 @@ public enum BackendError: Error, Sendable, Hashable, LocalizedError {
             "Couldn't load the model. Free up some memory and try again."
         case .generationFailed:
             "The image couldn't be generated. Try again, or lower the size or step count."
+        case .deviceFailed:
+            "The GPU stopped responding and this run was lost. Try again."
         case let .invalidSettings(reason):
             "These settings won't run: \(reason)"
         case .cancelled:

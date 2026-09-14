@@ -49,6 +49,7 @@ struct TransformerConditionedParityTests {
         let fixture = try Fixture.load("transformer_conditioned")
         let model = try TransformerParityTests.loaded(fixture)
         let scratch = Scratch()
+        defer { MLXRuntime.synchronize(); withExtendedLifetime(scratch) {} }  // drain the stream's read-ahead before the folder goes
         // The blocks' tensors under the checkpoint's names, as a shard the stream can read.
         let blocks = Fixture.weights(fixture, under: "model.").filter { $0.key.hasPrefix("blocks.") }
         try MLX.save(arrays: blocks, url: scratch.make("shards/model.safetensors"))

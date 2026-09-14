@@ -66,6 +66,7 @@ struct ZImageTransformerStreamingTests {
     @Test("a streamed step is the resident step, on the first pass and on the second")
     func streamedMatchesResident() throws {
         let scratch = Scratch()
+        defer { MLXRuntime.synchronize(); withExtendedLifetime(scratch) {} }  // drain the stream's read-ahead before the folder goes
         let (held, shards) = try Self.resident(in: scratch)
         let reading = try Self.streamed(from: shards, depth: 1)
         let (latents, timestep, prompt) = Self.inputs()
@@ -86,6 +87,7 @@ struct ZImageTransformerStreamingTests {
     @Test("each stack reads its own weights once a pass")
     func everyStackStreams() throws {
         let scratch = Scratch()
+        defer { MLXRuntime.synchronize(); withExtendedLifetime(scratch) {} }  // drain the stream's read-ahead before the folder goes
         let (_, shards) = try Self.resident(in: scratch)
         let reading = try Self.streamed(from: shards, depth: 1)
         let (latents, timestep, prompt) = Self.inputs()
@@ -101,6 +103,7 @@ struct ZImageTransformerStreamingTests {
     @Test("a block tensor the shards have not got is refused at load, not mid-step")
     func missingTensorIsRefusedAtLoad() throws {
         let scratch = Scratch()
+        defer { withExtendedLifetime(scratch) {} }  // the shards are read lazily, at eval, not at load
         let (_, shards) = try Self.resident(
             in: scratch, dropping: "layers.1.attention.to_q.weight")
         #expect(throws: LayerWeightStreamError.missingTensor("layers.1.attention.to_q.weight")) {

@@ -431,15 +431,25 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
 - **Bump to the first mlx-swift that tracks mlx >= 0.32.0 (mlx#3810), then delete
   klein's M5 gate.** mlx-swift up to 0.31.6 JIT-compiles the bfloat16 split-K steel
   GEMM with the wrong dtype on M5-class GPUs (mlx#3797), and klein's single-stream
-  `to_out` sits inside the kernel's window. Until a release carries the fix,
-  `Flux2ActivationPrecision` in `ZephraBackendFlux2` runs the stream float32 when
-  `GPUGeneration.isM5Class`, at three times the step time. The gate is unverified: no
+  `to_out` sits inside the kernel's window. Done partway (2026-09-14): every package
+  pins mlx-swift main at revision `ea8a179690170ca891a97bc0473198ab1ecda5f4`
+  (carrying mlx v0.32.2) rather than a tagged release, for a different fix on the
+  same bump — mlx#3810 was not the reason to move, mlx commit a025496c8 ("Catch
+  error in CommandBuffer and poison the events", mlx#3523) was: a GPU reset is now
+  rethrown on the calling thread instead of aborting inside Metal's completion
+  handler. Two things still wait: a tagged mlx-swift release to pin by version
+  instead of by revision, once one exists, and an M5 to run the probes on.
+  `Flux2ActivationPrecision` in `ZephraBackendFlux2` still runs the
+  stream float32 when `GPUGeneration.isM5Class`, at three times the step time — the
+  gate is unverified under the new pin the same way it was under the old one: no
   project Mac is an M5. When one is available, run `Flux2Tests/TransformerParityTests`
-  (both probes — the dense GEMM and the packed 4- and 8-bit `quantizedMatmul` the
-  catalog variants take) on it under the current pin and then under the bumped one,
+  (both probes — the dense GEMM and the packed 4- and 8-bit `quantizedMM` (renamed
+  from `quantizedMatmul` under the current pin; the vendored `ZImageKit` keeps the
+  old spelling on purpose, see its `VENDORED.md`) the catalog variants take) on it
+  under the current pin and then under mlx >= 0.32.0,
   and `make bench ARGS="--model flux2-klein-4b-4bit --size 1024"` with and without
-  `ZEPHRA_DIT_DTYPE=f32`. Both probes green on the bump is the signal to delete the
-  gate and `GPUGeneration` with it.
+  `ZEPHRA_DIT_DTYPE=f32`. Both probes green on mlx >= 0.32.0 is the signal to delete
+  the gate and `GPUGeneration` with it.
 
 ## Streamed weights and the GPU limit: left out on purpose
 
@@ -492,14 +502,41 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   restart every time (2026-09-04, three launches; the placeholder is still now and
   `make lint-layers` keeps it so). Zephra can only keep its own window quiet:
   another application animating at sixty frames a second on the same 16 GB Mac may
-  trip the same restart, and MLX makes a discarded command buffer an uncaught
-  exception, so the process aborts rather than failing the run. Not reproduced on
+  trip the same restart. The abort that used to follow is gone — 2026-09-14's
+  device-error boundary (`InferenceRuntime.catchingDeviceErrors`, `AGENTS.md`
+  under "How a generation runs") turns a discarded command buffer into
+  `BackendError.deviceFailed` and cancels only the task that armed the
+  boundary, rather than letting MLX end the process; a fault raised off that
+  task is recorded and logged instead, not cancelled. What is still open is
+  *why* a streamed step plus compositing trips
+  the restart at all, which the boundary does not explain, only survives; a
+  restart still costs every app sharing the GPU that minute, this one included,
+  a lost run being the best case rather than a lost process. Not reproduced on
   the bench, which has no window, nor with the wired limit off, so it is the
-  compositing and not the residency set. What would narrow it: the same launch on a
-  48 GB Mac, resident against streamed with the same animation, and `F_NOCACHE` on
-  the shards to take sixteen gigabytes a step out of the page cache. Catching the
-  exception is MLX's to offer; a `std::set_terminate` here could only write a
-  better last line.
+  compositing and not the residency set. What would narrow it: the same launch on
+  a 48 GB Mac, resident against streamed with the same animation, and `F_NOCACHE`
+  on the shards to take sixteen gigabytes a step out of the page cache. Two
+  smaller follow-ups the boundary opens rather than closes: pin mlx-swift by
+  released version instead of by revision once a tagged release carries
+  mlx >= 0.32 (see "Dependencies: waiting on upstream" above), and consider
+  surfacing `BackendError.generationFailed`'s own reason to the log the way
+  `.deviceFailed` already logs its raw Metal text, so a non-device generation
+  failure is exactly as legible as a device one.
+- **A GPU fault on demand.** 2026-09-14, headless 16 GB M4 mini (bender): tried a
+  Debug-only hook to provoke a real GPU fault by hand and prove the device-error
+  boundary against it directly. Five kernels, none of which Metal reported as a
+  fault: an infinite loop (the compiler deletes it as undefined behaviour, with
+  and without a store in the body), a bounded kernel of hours of hash work (ran
+  nine minutes with no watchdog ending it, the app stuck inside `eval`), a read
+  256 GB past a four-byte buffer (returned 0 in 0.3 s) and a write 64 TB past it
+  (same). The hook was removed; the boundary is proven instead by
+  `MLXDeviceErrorTests`, `DeviceFaultTests` and `CombinedRuntimeDeviceErrorTests`
+  driving a real MLX error through the same handler, plus upstream mlx's own test
+  of the completion-handler rethrow (mlx#3523). Worth trying next: a Mac with a
+  display attached, where the display's own watchdog is what ends a hung command
+  buffer headless GPUs have none of; or a fault injected at the runtime seam
+  (`InferenceRuntime.catchingDeviceErrors`'s own call site) rather than through
+  the GPU itself.
 
 ## Upscaler follow-ups
 

@@ -20,4 +20,32 @@ struct MockInferenceRuntime: InferenceRuntime {
     func releaseCache() {
         control.update { $0.cacheReleases += 1 }
     }
+
+    /// `MLXInferenceRuntime`'s boundary over the dial instead of over MLX: the fault the mock
+    /// left behind wins on both ways out, so the cancellation it caused never reads as a stop.
+    nonisolated(nonsending) func catchingDeviceErrors<R>(
+        _ body: nonisolated(nonsending) () async throws -> R
+    ) async throws -> R {
+        do {
+            let value = try await body()
+            if let message = settle() { throw BackendError.deviceFailed(message) }
+            return value
+        } catch {
+            if let message = settle() { throw BackendError.deviceFailed(message) }
+            throw error
+        }
+    }
+
+    /// Takes the fault rather than reading it, because the real boundary's box is made when it
+    /// opens and dropped when it closes: no fault can reach a run through a box the boundary
+    /// before it left behind. A test that had to clear the dial by hand was standing in for
+    /// that, and hiding the day a box outlived its boundary.
+    private func settle() -> String? {
+        var message: String?
+        control.update {
+            message = $0.deviceErrorRaised
+            $0.deviceErrorRaised = nil
+        }
+        return message
+    }
 }

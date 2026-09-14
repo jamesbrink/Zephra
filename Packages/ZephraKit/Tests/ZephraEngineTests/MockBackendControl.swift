@@ -79,6 +79,15 @@ final class MockBackendControl: Sendable {
         /// What the Mac is said to have free, which `DialMachineMemory` answers with, so a
         /// test can starve the machine between one attempt and the next.
         var machine: MachineMemory?
+        /// The denoising step the pretend device faults at, or nil for a mock whose GPU stays
+        /// up. The step is reported before the fault, so it lands mid-run as a real one does.
+        var deviceFaultAtStep: Int?
+        /// Whether the pretend device faults while the weights are being read.
+        var deviceFaultDuringLoad = false
+        /// The message the pretend fault was raised with. `MockBackend` writes it and
+        /// `MockInferenceRuntime` reads it, which is the pair MLX's handler and its boundary
+        /// are: the error never comes back through the call, it is left somewhere and found.
+        var deviceErrorRaised: String?
         /// What the allocator says it is holding, for the memory guard to read.
         var memory: MemorySnapshot = .zero
     }

@@ -61,6 +61,7 @@ enum CompanionEndpoints {
         let status = getnameinfo(
             address, socklen_t(length), &buffer, socklen_t(buffer.count), nil, 0, NI_NUMERICHOST)
         guard status == 0 else { return nil }
-        return String(cString: buffer)
+        let bytes = buffer.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }
+        return String(decoding: bytes, as: UTF8.self)
     }
 }

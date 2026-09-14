@@ -78,6 +78,20 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
+      # mlx-swift's manifest pins main (`swift-tools-version: 6.3;(experimentalCGen)`,
+      # for the GPU-reset fix — see AGENTS.md's "Conventions"), which needs a Swift
+      # >= 6.3 toolchain; pick the newest Xcode 26 on the runner rather than whatever
+      # `xcode-select` defaults to.
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          # Newest released Xcode 26, never a beta: `sort -V` puts `Xcode_26.1_beta`
+          # above `Xcode_26.0.1`, and a beta toolchain is not what a build ships from.
+          xcode=$(/bin/ls -d /Applications/Xcode_26*.app | grep -vi beta | sort -V | tail -1)
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
+          swift --version
+
       # Xcode 26 ships without the Metal toolchain and mlx-swift's kernels cannot compile
       # without it; `make doctor` counts its absence as a failure, so it is installed even
       # in the job that only lints and tests. The status check is doctor's own, so this is
@@ -144,6 +158,20 @@ jobs:
 
       - name: Install XcodeGen
         run: brew install xcodegen
+
+      # mlx-swift's manifest pins main (`swift-tools-version: 6.3;(experimentalCGen)`,
+      # for the GPU-reset fix — see AGENTS.md's "Conventions"), which needs a Swift
+      # >= 6.3 toolchain; pick the newest Xcode 26 on the runner rather than whatever
+      # `xcode-select` defaults to.
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          # Newest released Xcode 26, never a beta: `sort -V` puts `Xcode_26.1_beta`
+          # above `Xcode_26.0.1`, and a beta toolchain is not what a build ships from.
+          xcode=$(/bin/ls -d /Applications/Xcode_26*.app | grep -vi beta | sort -V | tail -1)
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
+          swift --version
 
       - name: Install the Metal toolchain
         run: |
@@ -248,7 +276,21 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
-      # The phone links no MLX package, so no Metal toolchain here.
+      # The phone links no MLX package, but the archive is built out of the same generated
+      # project, and xcodebuild reads every package manifest in it — mlx-swift's included,
+      # which declares `swift-tools-version: 6.3`. Resolution fails on an older toolchain
+      # before a line of the companion is compiled, so this job picks its Xcode like the rest.
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          # Newest released Xcode 26, never a beta: `sort -V` puts `Xcode_26.1_beta`
+          # above `Xcode_26.0.1`, and a beta toolchain is not what a build ships from.
+          xcode=$(/bin/ls -d /Applications/Xcode_26*.app | grep -vi beta | sort -V | tail -1)
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
+          swift --version
+
+      # No Metal toolchain step: nothing here compiles an MLX kernel.
       #
       # The Apple Distribution certificate comes from a secret rather than being issued
       # on the runner: Apple caps a team at three distribution certificates and a runner

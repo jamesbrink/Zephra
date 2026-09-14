@@ -1,5 +1,5 @@
 #!/bin/sh
-# Checks the four things a fresh Mac gets wrong before `make build` can work, and prints the fix
+# Checks the five things a fresh Mac gets wrong before `make build` can work, and prints the fix
 # for each rather than leaving the reader to decode a bare "Error 127" from make. Exit status is
 # the number of failed checks, so it can gate a script.
 set -u
@@ -40,6 +40,23 @@ if xcodebuild -version >/dev/null 2>&1; then
 else
     fail "xcodebuild does not run; the license is unaccepted or first launch has not completed" \
         "sudo xcodebuild -license accept && sudo xcodebuild -runFirstLaunch"
+fi
+
+# mlx-swift's manifest is `swift-tools-version: 6.3`, so a toolchain older than that cannot
+# read the package at all and every build fails while resolving, before a line is compiled.
+# The version is the selected Xcode's; `swift --version` prints it as "Swift version 6.3".
+swift_version=$(swift --version 2>/dev/null | sed -n 's/.*[Ss]wift version \([0-9][0-9.]*\).*/\1/p' | head -1)
+swift_major=${swift_version%%.*}
+swift_minor=$(printf '%s' "${swift_version#*.}" | cut -d. -f1)
+if [ -z "$swift_version" ]; then
+    fail "swift --version says nothing; the selected Xcode cannot report its toolchain" \
+        "sudo xcode-select -s /Applications/Xcode.app/Contents/Developer && swift --version"
+elif [ "$swift_major" -gt 6 ] 2>/dev/null ||
+    { [ "$swift_major" -eq 6 ] && [ "${swift_minor:-0}" -ge 3 ]; } 2>/dev/null; then
+    ok "Swift $swift_version (mlx-swift's manifest needs 6.3 or newer)"
+else
+    fail "Swift $swift_version is older than the 6.3 mlx-swift's manifest declares; package resolution fails before anything compiles" \
+        "install Xcode 26 or newer, then: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer"
 fi
 
 metal=$(xcodebuild -showComponent MetalToolchain 2>/dev/null | awk -F': ' '/^Status/ { print $2 }')

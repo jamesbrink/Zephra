@@ -14,6 +14,7 @@ extension LayerWeightStreamTests {
     @Test("a body that throws mid-pass leaves the next pass bit for bit right")
     func throwingMidPassLeavesTheNextPassRight() throws {
         let scratch = Scratch()
+        defer { MLXRuntime.synchronize(); withExtendedLifetime(scratch) {} }  // drain the stream's read-ahead before the folder goes
         let (directory, weights) = try Self.writeShards(into: scratch)
         let resident = LinearStack(count: Self.count, width: Self.width)
         try resident.update(parameters: ModuleParameters.unflattened(weights), verify: .all)
@@ -46,6 +47,7 @@ extension LayerWeightStreamTests {
     @Test("after a throw no more than the window is resident")
     func afterAThrowOnlyTheWindowIsResident() throws {
         let scratch = Scratch()
+        defer { MLXRuntime.synchronize(); withExtendedLifetime(scratch) {} }  // drain the stream's read-ahead before the folder goes
         let (directory, _) = try Self.writeShards(into: scratch)
         let stack = try Self.lazyStack(from: directory)
         let stream = try LayerWeightStream(

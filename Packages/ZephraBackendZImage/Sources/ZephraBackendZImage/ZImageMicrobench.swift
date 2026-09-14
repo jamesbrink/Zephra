@@ -55,7 +55,7 @@ public nonisolated enum ZImageMicrobench {
         let start = DispatchTime.now().uptimeNanoseconds
         for (wq, scales, biases) in packed {
             MLX.eval(
-                MLX.quantizedMatmul(
+                MLX.quantizedMM(
                     x, wq, scales: scales, biases: biases,
                     transpose: true, groupSize: 32, bits: 8))
         }
@@ -75,7 +75,7 @@ public nonisolated enum ZImageMicrobench {
         for shape in [[tokens, dim], [1, tokens, dim]] {
             let x = MLXRandomNormal.make(shape, .bfloat16)
             report("ffn w1     bf16 q8/32 rank-\(shape.count) input", time(10) {
-                MLX.quantizedMatmul(
+                MLX.quantizedMM(
                     x, wq, scales: scales, biases: biases,
                     transpose: true, groupSize: 32, bits: 8)
             })
@@ -94,7 +94,7 @@ public nonisolated enum ZImageMicrobench {
         let (wq, scales, biases) = MLX.quantized(w, groupSize: groupSize, bits: bits)
         MLX.eval(wq, scales)
         report(label, time(iterations) {
-            MLX.quantizedMatmul(x, wq, scales: scales, biases: biases, transpose: true, groupSize: groupSize, bits: bits)
+            MLX.quantizedMM(x, wq, scales: scales, biases: biases, transpose: true, groupSize: groupSize, bits: bits)
         })
     }
 

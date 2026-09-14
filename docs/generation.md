@@ -102,6 +102,105 @@ engine be tested in seconds without Metal.
   a snapshot, not a log — and `run` drains before returning, so the state a
   caller sets after an operation is never clobbered by an event still in flight.
 
+### A GPU fault fails the run, not the app
+
+The story: on 2026-09-14, bender was screen-shared to over macOS's own Screen
+Sharing while Zephra generated. `avconferenced`'s encoder took an MMU fault,
+the GPU driver reset the device to recover, and every command buffer in
+flight anywhere on the Mac came back discarded as an innocent victim —
+Zephra's included, though nothing in Zephra had done anything wrong. Up to
+mlx-swift 0.31.x that discarded buffer surfaced as an uncaught C++ exception
+inside Metal's completion-handler callback, a thread no Swift `catch`
+reaches, and the process ended with `SIGABRT` on
+`com.Metal.CompletionQueueDispatch`. The crash report said only `abort()
+called`; the actual reason — Zephra's own "Discarded (victim of GPU
+error/recovery)" line — was in `/usr/bin/log show --info`, alongside the
+kernel's `gpuEvent-*.ips` report naming every process the reset touched.
+
+mlx now carries commit `a025496c8`, "Catch error in CommandBuffer and poison
+the events" (mlx#3523, pulled in 2026-09-14 by pinning mlx-swift to main at
+revision `ea8a179690170ca891a97bc0473198ab1ecda5f4`, mlx v0.32.2): a failed
+command buffer is rethrown on the thread that asked for the work instead of
+inside the completion handler. That moves the failure from "unreachable" to
+"ordinary Swift error on the calling thread" — but MLX still ends the process
+by default when nothing has installed a handler, so the crash simply moved
+rather than disappeared until Zephra added one.
+
+`InferenceRuntime.catchingDeviceErrors(_:)` (`ZephraCore/Runtime`) is that
+handler's boundary, and `InferenceActor` opens it around everything that
+touches the device: build, load, warm-up (`InferenceActor+Preparation.swift`),
+generate and upscale (`InferenceActor.swift`), plus the device-error catch
+itself (`InferenceActor+DeviceErrors.swift`). Every one of
+those calls already runs on the actor's own serial `DispatchQueue`, which is
+the thread MLX raises the fault on, so the boundary is reached and can act on
+the same task the fault interrupted.
+
+`MLXInferenceRuntime+DeviceErrors.swift` implements the boundary over MLX's
+one process-wide handler (`MLX.setErrorHandler`, installed once and
+idempotently by `MLXRuntime+ErrorLogging.swift`, from `ZephraApp` and from
+`ZephraBench/main.swift` before either does anything else with MLX) and a
+locked slot, `DeviceFaultSink`: opening the boundary arms a fresh
+`DeviceErrorBox` in that slot for the length of the body, and the installed
+handler hands whatever MLX raises to whichever box is armed. The *first*
+fault recorded is the one kept — a fault poisons every array the run still
+holds, so what follows is an echo of the one that matters — and recording it
+also cancels the task that armed the boundary, so the kit unwinds at its next
+`Task.checkCancellation()` (between denoising steps, between streamed
+blocks, between VAE tiles) rather than walking the rest of a ladder over
+poisoned arrays; a fault MLX raises on a *different* task — a wired-limit
+reservation's own task, a Settings poll's — is still recorded into the box
+and logged, but that other task is not the one cancelled. What the boundary
+throws is `BackendError.deviceFailed`, carrying the runtime's raw text, and
+it deliberately wins over the `CancellationError` the cancel caused: a run
+the GPU lost has to read as a failure, never as a Stop nobody pressed.
+`GenerationStore+Generation.run`'s catch carries the invariant this depends
+on — nothing after it may add a `Task.sleep` or a further cancellation
+check, or a `.deviceFailed` racing a later cancel could be swallowed. The
+boundary closes with a synchronize (`MLXInferenceRuntime.settle(_:)`), which
+waits for the device work this call left queued before reading the box, so a
+streamed pass's read-ahead — still in flight past the step that asked for it
+— settles into this boundary rather than the next one's; `InferenceActor.unload()`
+synchronizes for the same reason before it hands the allocator's cache back.
+The canvas shows one sentence, "The GPU stopped responding and this run was
+lost. Try again."; `InferenceActor.upscale` maps the same case to
+`UpscaleError.failed("The GPU stopped responding. Try again.")` rather than
+the failure screen, whose remedy is to reload a model an upscale never
+needed. Outside any boundary — the allocator's cache being released as a
+model unloads with nothing in flight, the device asked what generation it is
+before anything is loaded — the same
+handler writes "MLX error outside any run" to the log instead of ending the
+process; none of that work is worth the app, and none of it is trusted
+afterwards, since each is asked again the next time it is wanted.
+
+Nothing is unloaded on a generate-time fault: the device recovers on its own,
+and a forced reload is a two-minute wait for weights that never moved. A
+load-time fault still unloads, through the catch `InferenceActor+Preparation.prepare`
+already had — a half-read model is not something to leave resident. (This is
+`InferenceActor`'s own `prepare`, not `GenerationStore+Preparation.load`,
+which is the other thing by that name and asks `MemoryGuard` before `prepare`
+is ever called.) `DeviceFaultTests`
+(`ZephraEngineTests`) pins all three shapes: the run fails and keeps no
+picture, the weights stay up so retry generates without reloading, and a
+fault mid-load unloads and reports the same sentence.
+
+**Design alternatives rejected.** mlx-swift's *scoped* handlers — the ones
+upstream actually recommends over the process-wide one this uses — take a
+`withErrorHandler(_:)` closure, and handing the run's own body to one moves
+that work off `InferenceActor`'s serial queue; the compiler refuses it, since
+the queue is the actor's isolation and the closure crosses an isolation
+boundary. Their task-local handler *stack*, which would otherwise let a
+nested boundary compose more cleanly than one shared slot, is typed
+file-private upstream and unreachable outside that closure form. A `TaskGroup`
+around the device work, racing a timeout or a cancellation signal, was
+considered and dropped: the fault is not a hang to race against, it is a
+thrown error already on the right thread, and a group would only add a second
+task whose cancellation has to be kept in lock-step with the first. Unloading
+the model on every fault, not only a load-time one, was dropped because a
+generate-time fault is the device recovering from someone else's problem —
+the weights themselves are fine — and unloading would turn a several-second
+retry into the multi-minute reload every streamed family pays for a cold
+start.
+
 ### Memory, checked twice
 
 `MemoryFit` answers a catalog question — could this Mac ever hold that model — and
@@ -111,9 +210,12 @@ there *this minute*, with a browser, a compiler and the model loaded five minute
 ago holding it, and until 2026-09-13 nothing asked. Two incidents in three days
 said what that costs: halcyon (48 GB) kernel-panicked under a model switch with
 Zephra at 37.5 GB resident, and bender (16 GB) aborted from Metal's completion
-queue — where no Swift `catch` reaches — when Z-Image 8-bit was picked from the
-menu. There is no failing gracefully after the fact; the only place to stop is
-before the allocation.
+queue — where no Swift `catch` reached before mlx-swift 0.32.2 — when Z-Image
+8-bit was picked from the menu. 2026-09-14's device-error boundary (above)
+means a fault of that shape no longer takes the app with it, but that changes
+nothing about which is better: a refusal ahead of time is two figures and a
+remedy, and a run the boundary catches after the fact is a picture lost. The
+best place to stop is still before the allocation.
 
 So `GenerationStore+MemoryGuard` asks `MemoryGuard` (`ZephraCore/Runtime/`) twice.
 `loadResidency(for:)` runs in `+Preparation.load` **after** the files are

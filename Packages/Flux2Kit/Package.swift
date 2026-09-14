@@ -8,8 +8,8 @@ let package = Package(
         .library(name: "Flux2", targets: ["Flux2"])
     ],
     dependencies: [
-        // Pinned to the version every other package pins, so the graph stays one copy of MLX.
-        .package(url: "https://github.com/ml-explore/mlx-swift", exact: "0.31.3"),
+        // Pinned to the revision every other package pins, so the graph stays one copy of MLX.
+        .package(url: "https://github.com/ml-explore/mlx-swift", revision: "ea8a179690170ca891a97bc0473198ab1ecda5f4"),
         // MLX work that is not this model's: the tiled decode every family's autoencoder wants.
         .package(path: "../ZephraMLXKit"),
         // The tokenizer, pinned exactly the way mlx-swift is: every package pins one version.

@@ -38,7 +38,7 @@ extension TransformerParityTests {
     }
 
     /// The same shape down the path the app actually takes. Both catalog variants pack `to_out`
-    /// — 4-bit and 8-bit, group 64 — so a generation runs `quantizedMatmul` over bfloat16
+    /// — 4-bit and 8-bit, group 64 — so a generation runs `quantizedMM` over bfloat16
     /// activations with bfloat16 scales, the way `PackedWeightLoading.castFloatParameters`
     /// leaves them. Whether that reaches the split-K kernel is exactly what is not established;
     /// the day an M5 runs this suite, the answer is here rather than in a picture.
@@ -54,7 +54,7 @@ extension TransformerParityTests {
         let reference = MLX.matmul(
             activations,
             MLX.dequantized(wq, scales: scales, biases: biases, groupSize: groupSize, bits: bits).T)
-        let packed = MLX.quantizedMatmul(
+        let packed = MLX.quantizedMM(
             activations.asType(.bfloat16), wq,
             scales: scales.asType(.bfloat16), biases: biases?.asType(.bfloat16),
             transpose: true, groupSize: groupSize, bits: bits

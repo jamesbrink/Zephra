@@ -220,6 +220,11 @@ struct ZephraApp: App {
     /// `ZEPHRA_PREVIEW_STATE` short-circuits to a frozen store so the interface can be run and
     /// screenshotted without a model. See `InterfacePreview`.
     private static func makeStore() -> GenerationStore {
+        // First, before anything reads the device. `Self.budget` asks the GPU what it may keep
+        // resident, which is a call into the runtime like any other: with no handler of its
+        // own, an MLX error raised there — or anywhere else outside a run's own device-error
+        // boundary — ends the process.
+        runtime.installDeviceErrorLogging()
         if let frozen = InterfacePreview.store() {
             // The same figure the views are handed, or a frozen build would grey its cards
             // against one Mac and answer `canSelect` about another.
