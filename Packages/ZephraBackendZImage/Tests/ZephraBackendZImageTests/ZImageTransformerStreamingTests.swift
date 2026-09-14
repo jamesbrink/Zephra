@@ -66,7 +66,7 @@ struct ZImageTransformerStreamingTests {
     @Test("a streamed step is the resident step, on the first pass and on the second")
     func streamedMatchesResident() throws {
         let scratch = Scratch()
-        defer { withExtendedLifetime(scratch) {} }  // the shards are read lazily, at eval, not at load
+        defer { MLXRuntime.synchronize(); withExtendedLifetime(scratch) {} }  // drain the stream's read-ahead before the folder goes
         let (held, shards) = try Self.resident(in: scratch)
         let reading = try Self.streamed(from: shards, depth: 1)
         let (latents, timestep, prompt) = Self.inputs()
@@ -87,7 +87,7 @@ struct ZImageTransformerStreamingTests {
     @Test("each stack reads its own weights once a pass")
     func everyStackStreams() throws {
         let scratch = Scratch()
-        defer { withExtendedLifetime(scratch) {} }  // the shards are read lazily, at eval, not at load
+        defer { MLXRuntime.synchronize(); withExtendedLifetime(scratch) {} }  // drain the stream's read-ahead before the folder goes
         let (_, shards) = try Self.resident(in: scratch)
         let reading = try Self.streamed(from: shards, depth: 1)
         let (latents, timestep, prompt) = Self.inputs()

@@ -10,7 +10,10 @@ import Foundation
 /// Hold it for the whole test with `defer { withExtendedLifetime(scratch) {} }` right after
 /// creating it: MLX reads what it loaded from a shard lazily, at `eval`, not at load, so a
 /// `Scratch` whose last syntactic use is earlier in the test can be deinitialized — deleting the
-/// directory — before a later streamed pass reads it.
+/// directory — before a later streamed pass reads it. A streamed pass also leaves the *next*
+/// pass's read-ahead scheduled asynchronously as it ends, so a test that runs a stream needs
+/// `MLXRuntime.synchronize()` in that same `defer`, before the `withExtendedLifetime`, or a read
+/// still in flight on MLX's io pool can fail against a folder the next test's `Scratch` deleted.
 public final class Scratch {
     /// The root every path is created under.
     public let root: URL

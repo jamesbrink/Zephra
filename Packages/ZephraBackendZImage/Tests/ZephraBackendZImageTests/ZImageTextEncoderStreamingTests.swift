@@ -55,7 +55,7 @@ struct ZImageTextEncoderStreamingTests {
     @Test("a streamed encode is the resident encode, on the first pass and on the second")
     func streamedMatchesResident() throws {
         let scratch = Scratch()
-        defer { withExtendedLifetime(scratch) {} }  // the shards are read lazily, at eval, not at load
+        defer { MLXRuntime.synchronize(); withExtendedLifetime(scratch) {} }  // drain the stream's read-ahead before the folder goes
         let (held, shards) = try Self.resident(in: scratch)
         let reading = try Self.streamed(from: shards, depth: 1)
 
@@ -90,6 +90,7 @@ struct ZImageTextEncoderStreamingTests {
         defer { withExtendedLifetime(scratch) {} }  // the shards are read lazily, at eval, not at load
         let (_, shards) = try Self.resident(in: scratch)
         var weights = try MLX.loadArrays(url: shards.appending(path: "model.safetensors"))
+        MLX.eval(Array(weights.values))  // materialize before overwriting the same path, or the read races the write
         weights.removeValue(forKey: "model.layers.1.mlp.up_proj.weight")
         try MLX.save(arrays: weights, url: shards.appending(path: "model.safetensors"))
         #expect(throws: LayerWeightStreamError.missingTensor("model.layers.1.mlp.up_proj.weight")) {

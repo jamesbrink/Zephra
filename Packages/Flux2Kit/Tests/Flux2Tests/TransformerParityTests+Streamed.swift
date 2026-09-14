@@ -63,7 +63,7 @@ struct TransformerStreamingTests {
     func streamedMatchesResident() throws {
         let fixture = try Fixture.load("transformer_model")
         let scratch = Scratch()
-        defer { withExtendedLifetime(scratch) {} }  // the shards are read lazily, at eval, not at load
+        defer { MLXRuntime.synchronize(); withExtendedLifetime(scratch) {} }  // drain the stream's read-ahead before the folder goes
         let index = try ShardIndex(shards: [try Self.shard(fixture, in: scratch)])
 
         let resident = try Self.predict(try Self.loaded(fixture, evaluating: true), fixture)

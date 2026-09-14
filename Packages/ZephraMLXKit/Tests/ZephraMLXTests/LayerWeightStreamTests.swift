@@ -101,7 +101,7 @@ struct LayerWeightStreamTests {
     @Test("a streamed pass is the resident pass bit for bit, twice over")
     func streamedMatchesResident() throws {
         let scratch = Scratch()
-        defer { withExtendedLifetime(scratch) {} }  // the shards are read lazily, at eval, not at load
+        defer { MLXRuntime.synchronize(); withExtendedLifetime(scratch) {} }  // drain the stream's read-ahead before the folder goes
         let (directory, weights) = try Self.writeShards(into: scratch)
         let resident = LinearStack(count: Self.count, width: Self.width)
         try resident.update(parameters: ModuleParameters.unflattened(weights), verify: .all)
@@ -130,7 +130,7 @@ struct LayerWeightStreamTests {
     @Test("only a window of layers is ever materialised")
     func onlyTheWindowIsResident() throws {
         let scratch = Scratch()
-        defer { withExtendedLifetime(scratch) {} }  // the shards are read lazily, at eval, not at load
+        defer { MLXRuntime.synchronize(); withExtendedLifetime(scratch) {} }  // drain the stream's read-ahead before the folder goes
         let (directory, _) = try Self.writeShards(into: scratch)
         let stack = try Self.lazyStack(from: directory)
         let stream = try LayerWeightStream(
