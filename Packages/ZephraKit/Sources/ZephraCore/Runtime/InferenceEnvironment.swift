@@ -32,6 +32,11 @@ public struct InferenceEnvironment: Hashable, Sendable {
     /// `ZEPHRA_VIDEO_STAGES`: `1` or `2`, forcing a clip model that can refine in a second
     /// stage to run one stage or two for one launch; nil leaves it to the size rule.
     public var videoStages: Int?
+    /// `ZEPHRA_FAULT_GPU_AT_STEP`: the step index a Debug build should provoke a real GPU fault
+    /// at, through `GPUFaultProbe`, to prove the completion-queue path end to end; nil never
+    /// fires it. Parsed on every launch, Debug or Release, but only a Debug build ever reads it
+    /// back — the probe itself is `#if DEBUG`.
+    public var faultGPUAtStep: Int?
 
     /// The values a process with nothing set runs under.
     public init(
@@ -43,7 +48,8 @@ public struct InferenceEnvironment: Hashable, Sendable {
         wiredLimitBytes: Int? = nil,
         memoryLimitBytes: Int? = nil,
         cacheLimitBytes: Int? = nil,
-        videoStages: Int? = nil
+        videoStages: Int? = nil,
+        faultGPUAtStep: Int? = nil
     ) {
         self.vaeTile = vaeTile
         self.streamDepth = streamDepth
@@ -54,6 +60,7 @@ public struct InferenceEnvironment: Hashable, Sendable {
         self.memoryLimitBytes = memoryLimitBytes
         self.cacheLimitBytes = cacheLimitBytes
         self.videoStages = videoStages
+        self.faultGPUAtStep = faultGPUAtStep
     }
 
     /// Reads every switch out of `environment`, which is `ProcessInfo.processInfo.environment`
@@ -81,6 +88,9 @@ public struct InferenceEnvironment: Hashable, Sendable {
         values.cacheLimitBytes = bytes(environment["ZEPHRA_CACHE_LIMIT_MB"])
         if let stages = environment["ZEPHRA_VIDEO_STAGES"].flatMap(Int.init), (1...2).contains(stages) {
             values.videoStages = stages
+        }
+        if let step = environment["ZEPHRA_FAULT_GPU_AT_STEP"].flatMap(Int.init), step >= 0 {
+            values.faultGPUAtStep = step
         }
         return values
     }
