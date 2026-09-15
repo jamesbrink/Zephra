@@ -66,6 +66,37 @@ struct DeviceFaultTests {
         await store.shutdown()
     }
 
+    @Test("a phone may still enqueue after a device fault, and the queue runs from .failed")
+    func aphoneMayEnqueueAfterAFault() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+
+        bed.control.update { $0.deviceFaultAtStep = 1; $0.stepDelay = .zero }
+        store.settings.prompt = "a lighthouse"
+        store.settings.steps = 2
+        store.generate()
+        await store.settle()
+        #expect(store.state == .failed(.backend(.deviceFailed(MockBackend.deviceFaultMessage))))
+
+        // The device came back. Before this, a phone against a Mac that had a fault read
+        // `canQueue: false` for the rest of the session, with no way back but the keyboard.
+        bed.control.update { $0.deviceFaultAtStep = nil }
+        #expect(store.acceptsQueuedGeneration, "the weights are up and the model is loadable")
+        var request = GenerationSettings.defaults(for: store.descriptor)
+        request.prompt = "a lantern on a jetty"
+        request.steps = 2
+        #expect(store.remoteAdmission(for: store.descriptor, settings: request) == .admitted)
+
+        #expect(store.enqueue(request, on: store.descriptor) != nil)
+        try await bed.waitUntil { store.history.count == 1 }
+        await store.settle()
+        #expect(store.state == .ready, "the queue ran straight out of the failure")
+        #expect(bed.control.settings.loads == 1, "over the weights the fault left up")
+        await store.shutdown()
+    }
+
     @Test("a device fault while the weights are read unloads them and says the GPU stopped")
     func deviceFaultDuringLoadUnloads() async throws {
         let bed = EngineTestBed()

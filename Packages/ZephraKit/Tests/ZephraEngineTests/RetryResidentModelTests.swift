@@ -51,6 +51,40 @@ struct RetryResidentModelTests {
         await store.shutdown()
     }
 
+    @Test("Try Again on a Mac that filled up since the load reloads streamed, once")
+    func retryOnAStarvedMacReloadsStreamed() async throws {
+        let bed = EngineTestBed()
+        bed.memoryBudget = MemoryGuardStoreTests.roomyEnoughToHold
+        let store = bed.store(descriptor: WeightResidencyStoreTests.streamable)
+        store.warmsUpAfterLoad = false
+        store.weightResidencyPolicy = WeightResidencyPolicy(
+            mode: .automatic, budget: MemoryGuardStoreTests.roomyEnoughToHold)
+        await store.bootstrap()
+        #expect(store.loadedResidency == .resident)
+
+        bed.control.update { $0.generateError = .generationFailed("boom") }
+        store.settings.prompt = "x"
+        store.settings.steps = 2
+        store.generate()
+        await store.settle()
+        #expect(store.state == .failed(.backend(.generationFailed("boom"))))
+
+        // Something else took the memory while the failure was on screen. Answering ready over
+        // weights this Mac no longer has the room to run on would fail the very next press.
+        bed.control.update { $0.generateError = nil; $0.memory = RunResidencyStepDownTests.held }
+        bed.machineMemory = RunResidencyStepDownTests.roomForStreamedRunOnly()
+        store.retry()
+        await store.settle()
+
+        #expect(store.state == .ready)
+        #expect(store.loadedResidency == .streamed)
+        #expect(bed.control.settings.loads == 2, "read in again once, not twice")
+        let claim = try #require(bed.control.settings.lastAcquisitionID)
+        #expect(store.downloads.retained[claim]?.borrowers == 1, "one borrow per resident model")
+        #expect(await bed.claimCount(store) == 1)
+        await store.shutdown()
+    }
+
     @Test("a residency change on the loaded model reloads it once and holds one lease")
     func residencyChangeReloadsOnce() async throws {
         let bed = EngineTestBed()
