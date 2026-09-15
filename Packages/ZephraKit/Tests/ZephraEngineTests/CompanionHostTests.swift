@@ -145,6 +145,12 @@ struct CompanionHostTests {
     @Test("a submit the Mac will not take comes back with the reason it gave")
     func refusedSubmitCarriesTheReason() async throws {
         let bed = CompanionTestBed()
+        // A Mac with nothing loaded takes a generation now and loads what the entry needs, so
+        // the refusal this is about is a model that is not on the disk to be loaded at all.
+        bed.engine.control.update {
+            $0.availability[ModelCatalog.default.id] = .missing(reason: "never built")
+        }
+        await bed.store.refreshAvailability()
         let phone = try await bed.pairedPhone()
         _ = try await phone.snapshot()
 

@@ -53,10 +53,38 @@ extension RemoteEnqueueTests {
         await store.shutdown()
     }
 
-    @Test("a store that has loaded nothing yet says so rather than blaming the request")
-    func refusedWhileIdle() async throws {
+    @Test("a store that has loaded nothing yet takes the request and loads what it needs")
+    func idleTakesTheRequestAndLoads() async throws {
         let bed = EngineTestBed()
         let store = bed.store()
+        store.warmsUpAfterLoad = false
+        store.loadingMode = .onDemand
+        await store.bootstrap()
+        #expect(store.state == .idle)
+        #expect(store.loadedDescriptor == nil)
+
+        #expect(
+            store.remoteAdmission(for: ModelCatalog.default, settings: Self.request())
+                == .admitted)
+        #expect(store.enqueue(Self.request(), on: ModelCatalog.default) != nil)
+        while store.isDraining || !store.queue.isEmpty { await store.settle() }
+        await store.settle()
+
+        #expect(store.loadedDescriptor?.id == ModelCatalog.default.id)
+        #expect(store.history.count == 1, "the queue loaded the model and then ran the entry")
+        await store.shutdown()
+    }
+
+    @Test("a model that is not on the disk to load is refused, and queues nothing")
+    func refusedWhenNothingIsObtainable() async throws {
+        let bed = EngineTestBed()
+        bed.control.update {
+            $0.availability[ModelCatalog.default.id] = .missing(reason: "never built")
+        }
+        let store = bed.store()
+        store.loadingMode = .onDemand
+        await store.refreshAvailability()
+
         #expect(
             store.remoteAdmission(for: ModelCatalog.default, settings: Self.request())
                 == .refused("No model is loaded yet."))
