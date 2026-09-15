@@ -14,8 +14,14 @@ enum ModelBrowserAction: Hashable {
     case use
     /// The model is here and chosen and not in: read its weights in.
     case load
-    /// The model is here, chosen and in. There is nothing left to do.
+    /// The model is here, chosen and in. There is nothing left to do, and the footer draws no
+    /// second button for it: Done is already standing there as the way out.
     case done
+    /// The disk has not been surveyed yet, so what this card costs is not known. The word is
+    /// what the button will say if the files turn out to be here, and it is not pressable: a
+    /// press would run the whole acquire chain, which for a model that is not here is a
+    /// download of several gigabytes under a button reading Load Model.
+    case pending(String)
     /// Nothing may be pressed, for the reason given.
     case unavailable(String)
 
@@ -37,7 +43,8 @@ enum ModelBrowserAction: Hashable {
         case .needsDownload(let bytes), .needsDownloadAndBuild(let bytes):
             return .download(bytes: bytes)
         case .needsBuild: return .build
-        case .available, nil:
+        case nil: return .pending(isChosen ? "Load Model" : "Use Model")
+        case .available:
             if !isChosen { return .use }
             return isLoaded ? .done : .load
         }
@@ -51,22 +58,30 @@ enum ModelBrowserAction: Hashable {
         case .use: "Use Model"
         case .load: "Load Model"
         case .done: "Done"
+        case .pending(let word): word
         case .unavailable(let reason): reason
         }
     }
 
     /// Whether the button may be pressed.
     var isEnabled: Bool {
-        if case .unavailable = self { return false }
-        return true
+        switch self {
+        case .unavailable, .pending: false
+        case .download, .build, .use, .load, .done: true
+        }
     }
+
+    /// Whether the footer draws a button for this at all. It does not for the model that is
+    /// chosen and already in: Done beside Done, one of them prominent, is two ways out of a
+    /// dialog that has one.
+    var isDrawn: Bool { self != .done }
 
     /// Whether pressing it puts the sheet away. A download does not: the footer turns into the
     /// transfer's own row, which is where it is paused and canceled, and sending somebody to
     /// another window to stop what they just started is the worse answer.
     var dismisses: Bool {
         switch self {
-        case .download, .build, .unavailable: false
+        case .download, .build, .unavailable, .pending: false
         case .use, .load, .done: true
         }
     }

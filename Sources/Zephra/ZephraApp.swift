@@ -206,7 +206,7 @@ struct ZephraApp: App {
         .windowToolbarStyle(.unified)
         .commands {
             ZephraCommands(store: store, workspace: workspace)
-            ModelCommands(store: store, workspace: workspace)
+            ModelCommands(store: store, workspace: workspace, welcome: welcome)
             WorkspaceCommands(workspace: workspace, store: store)
             LibraryCommands(workspace: workspace)
             ThumbnailSizeCommands()

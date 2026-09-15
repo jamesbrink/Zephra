@@ -52,11 +52,31 @@ struct ModelBrowserActionTests {
         #expect(action.dismisses)
     }
 
-    @Test("offers only Done for the model that is chosen and loaded")
+    @Test("draws no second button for the model that is chosen and already loaded")
     func offersDone() {
-        #expect(
-            ModelBrowserAction.action(
-                availability: .available, fit: .fits, isChosen: true, isLoaded: true) == .done)
+        let action = ModelBrowserAction.action(
+            availability: .available, fit: .fits, isChosen: true, isLoaded: true)
+        #expect(action == .done)
+        // Done is already standing there as the way out; a prominent Done beside it would be
+        // two ways out of a dialog that has one.
+        #expect(!action.isDrawn)
+        #expect(ModelBrowserAction.load.isDrawn)
+    }
+
+    @Test("presses nothing until the disk has been surveyed")
+    func waitsForTheSurvey() {
+        // A press here would run the whole acquire chain, so a card read before the survey
+        // lands could start a 13 GB download under a button reading Load Model.
+        let chosen = ModelBrowserAction.action(
+            availability: nil, fit: .fits, isChosen: true, isLoaded: false)
+        #expect(chosen == .pending("Load Model"))
+        #expect(!chosen.isEnabled)
+        #expect(!chosen.dismisses)
+        let other = ModelBrowserAction.action(
+            availability: nil, fit: .fitsStreamed, isChosen: false, isLoaded: false)
+        #expect(other == .pending("Use Model"))
+        #expect(other.label == "Use Model")
+        #expect(!other.isEnabled)
     }
 
     @Test("greys a model this Mac cannot hold, and names the gigabytes it needs")

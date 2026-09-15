@@ -4,12 +4,16 @@ import ZephraEngine
 
 /// What the selected card is for, and the one press that acts on it.
 ///
-/// One button rather than a row of them: which of Download, Build, Use, Load and Done applies
-/// is decided entirely by the disk and this Mac's memory, so `ModelBrowserAction` answers it
-/// once and is tested without a sheet. A model whose transfer is already moving shows that
-/// transfer's own row instead, with its Pause and Cancel Download — the person is looking at
-/// the dialog where they just pressed Download, and sending them to Settings to stop it is a
-/// worse answer than drawing the row they are already looking at.
+/// One button rather than a row of them: which of Download, Build, Use and Load applies is
+/// decided entirely by the disk and this Mac's memory, so `ModelBrowserAction` answers it once
+/// and is tested without a sheet. The model that is chosen and already in gets no button at
+/// all — Done is standing there already, and a second Done beside it would be two ways out of
+/// a dialog that has one.
+///
+/// A model whose transfer is already moving shows that transfer's own row instead, with its
+/// Pause and Cancel Download: the person is looking at the dialog where they just pressed
+/// Download, and sending them to Settings to stop it is a worse answer than drawing the row
+/// they are already looking at.
 struct ModelBrowserFooter: View {
     @Environment(GenerationStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -17,10 +21,23 @@ struct ModelBrowserFooter: View {
     /// The selected model, judged against this Mac.
     let choice: ModelChoice
 
+    /// The footer's own height, fixed and the same in every state. The sheet is 560 tall and
+    /// the grid scrolls inside what is left, so a footer that grew when Download was pressed
+    /// would resize the grid under the card somebody had just chosen — the one card they were
+    /// looking at.
+    ///
+    /// 112 is what `ModelDownloadRow` needs down to its buttons: the name, the status line, the
+    /// bar, the byte counts and Pause / Cancel Download, with its two trailing caption
+    /// paragraphs clipped. Clipped, never forked: two copies of Pause and Cancel Download would
+    /// be two sets of disabled reasoning to keep in step.
+    private static let height: CGFloat = 112
+
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 16) {
+        HStack(alignment: .center, spacing: 16) {
             if let download = liveDownload {
                 ModelDownloadRow(download: download)
+                    .frame(maxWidth: 420, maxHeight: Self.height, alignment: .topLeading)
+                    .clipped()
             } else {
                 Text(choice.reason)
                     .font(.callout)
@@ -31,7 +48,7 @@ struct ModelBrowserFooter: View {
             Spacer(minLength: 12)
             Button("Done") { dismiss() }
                 .keyboardShortcut(.cancelAction)
-            if liveDownload == nil {
+            if liveDownload == nil, action.isDrawn {
                 Button(action.label) { press() }
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
@@ -42,7 +59,7 @@ struct ModelBrowserFooter: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .frame(height: Self.height)
     }
 
     /// What the button says and does for this card.
@@ -71,7 +88,7 @@ struct ModelBrowserFooter: View {
         case .download, .build: store.downloadModel(choice.model)
         case .use: store.switchModelFromInterface(to: choice.model)
         case .load: store.loadModel()
-        case .done, .unavailable: break
+        case .done, .pending, .unavailable: break
         }
         if action.dismisses { dismiss() }
     }

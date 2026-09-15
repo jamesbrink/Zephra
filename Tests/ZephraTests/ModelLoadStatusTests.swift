@@ -24,6 +24,7 @@ struct ModelLoadStatusTests {
         #expect(status == .notLoaded)
         #expect(status.word == nil)
         #expect(status.buttonTitle == "Load")
+        #expect(status.isPressable)
         #expect(status.pressLoads)
     }
 
@@ -33,6 +34,7 @@ struct ModelLoadStatusTests {
         #expect(status == .loaded(streamed: false))
         #expect(status.word == "Loaded")
         #expect(status.buttonTitle == "Unload")
+        #expect(status.isPressable)
         #expect(!status.pressLoads)
     }
 
@@ -59,15 +61,19 @@ struct ModelLoadStatusTests {
         #expect(help == "Loads \(chosen.fullName). Unloads \(other.fullName) first.")
     }
 
-    @Test("offers nothing to press while the model is on its way in")
-    func offersNothingMidFlight() {
-        #expect(status(state: .loading(.preparing)).buttonTitle == nil)
+    @Test("stays in the toolbar while the model is on its way in, saying so and out")
+    func staysPutMidFlight() {
+        #expect(!status(state: .loading(.preparing)).isPressable)
+        #expect(status(state: .loading(.preparing)).buttonTitle == "Loading\u{2026}")
         #expect(status(state: .loading(.preparing)).word == "Loading\u{2026}")
-        #expect(status(state: .building(BuildProgressEvent(
-            component: "transformer", completedComponents: 0, totalComponents: 2, fraction: 0.4
-        ))).word == "Building")
-        #expect(status(state: .downloading(DownloadProgressEvent(
-            completedFiles: 1, totalFiles: 4, fraction: 0.2, bytesPerSecond: nil
-        ))).word == "Downloading")
+        let building = status(state: .building(BuildProgressEvent(
+            component: "transformer", completedComponents: 0, totalComponents: 2, fraction: 0.4)))
+        #expect(building.word == "Building")
+        #expect(building.buttonTitle == "Building")
+        #expect(!building.isPressable)
+        let downloading = status(state: .downloading(DownloadProgressEvent(
+            completedFiles: 1, totalFiles: 4, fraction: 0.2, bytesPerSecond: nil)))
+        #expect(downloading.word == "Downloading")
+        #expect(!downloading.isPressable)
     }
 }

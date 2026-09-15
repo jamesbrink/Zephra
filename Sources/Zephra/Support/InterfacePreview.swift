@@ -71,9 +71,9 @@ enum InterfacePreview {
     /// screenshot the filled well, and `picker`, which forces its sheet open over the same well.
     static var isEditingBuild: Bool { name == "editing" || name == "picker" }
 
-    /// Whether the frozen window should force its reference picker sheet open. The well's own
-    /// `@State` cannot be reached from the composition root the way `workspace.viewing` can, so
-    /// the well reads this itself on appear rather than being handed a value from above.
+    /// Whether the frozen window should open on the reference picker. Read by `workspace()`,
+    /// which states it the way it states the browser and the tuck: the well no longer holds the
+    /// flag itself.
     static var wantsReferencePicker: Bool {
         #if DEBUG
         name == "picker"
@@ -116,6 +116,10 @@ enum InterfacePreview {
         // `models` exists to photograph the browser, so the sheet is up when the screenshot is
         // taken rather than reached through a simulated click, the way `tucked` is tucked.
         if name == "models" { workspace.showsModelBrowser = true }
+        // `picker` photographs the reference sheet, which is the browser's rival for the one
+        // sheet a window has, so it is stated here beside it rather than reached through an
+        // `onAppear` hook inside the well.
+        if wantsReferencePicker { workspace.showsReferencePicker = true }
         return workspace
     }
 

@@ -57,14 +57,28 @@ enum ModelLoadStatus: Hashable {
         }
     }
 
-    /// What the button beside the menu says, or nil while there is nothing to press: a load
-    /// already under way is stopped from the canvas, which is where its progress is.
-    var buttonTitle: String? {
+    /// What the button beside the menu says. Never nothing: a control that leaves the toolbar
+    /// for the length of a load slides the inspector toggle and Settings across and back again,
+    /// which is a bigger movement than the pill's own. While the weights are on their way in it
+    /// carries the state word and is out; stopping a load is the canvas's button, beside the
+    /// bar that says how far along it is.
+    var buttonTitle: String {
         switch self {
         case .notLoaded: "Load"
         case .loaded: "Unload"
         case .failed: "Try Again"
-        case .loading, .downloading, .building: nil
+        case .loading: "Loading\u{2026}"
+        case .downloading: "Downloading"
+        case .building: "Building"
+        }
+    }
+
+    /// Whether the button does anything at all when pressed. False while the model is on its
+    /// way in, where the answer is to wait or to stop it from the canvas.
+    var isPressable: Bool {
+        switch self {
+        case .notLoaded, .loaded, .failed: true
+        case .loading, .downloading, .building: false
         }
     }
 

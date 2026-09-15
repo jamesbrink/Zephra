@@ -64,18 +64,22 @@ struct ModelMenu: View {
         ModelMenuRows.rows(
             budget: budget,
             availability: store.availability,
-            downloading: downloading,
+            transfers: transfers,
             chosen: store.descriptor,
             loaded: store.loadedDescriptor,
             residency: store.loadedResidency)
     }
 
-    /// The models whose transfer is live: queued, running or paused with partial files kept.
-    /// A finished or canceled one is not news and takes no row of its own.
-    private var downloading: Set<ModelDescriptor.ID> {
-        Set(store.downloads.items.filter {
-            $0.status == .queued || $0.status == .downloading || $0.status == .paused
-        }.map(\.model.id))
+    /// What each model's transfer has to say, in the words Settings > Models already uses:
+    /// `ModelDownloads.status(for:)` answers nil for a transfer that is finished or canceled and
+    /// a sentence for every other, so the two surfaces cannot come to differ about what a paused
+    /// or failed download is called.
+    private var transfers: [ModelDescriptor.ID: String] {
+        var map: [ModelDescriptor.ID: String] = [:]
+        for item in store.downloads.items {
+            map[item.model.id] = store.downloads.status(for: item.id)
+        }
+        return map
     }
 
     @ViewBuilder

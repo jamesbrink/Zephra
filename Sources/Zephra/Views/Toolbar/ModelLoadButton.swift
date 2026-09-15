@@ -18,13 +18,13 @@ struct ModelLoadButton: View {
     @Environment(WorkspaceSelection.self) private var workspace
 
     var body: some View {
-        if workspace.pane == .canvas, let title = status.buttonTitle {
-            Button(title) { press() }
+        if workspace.pane == .canvas {
+            Button(status.buttonTitle) { press() }
                 .buttonStyle(.accessoryBar)
                 .fixedSize()
                 .disabled(!isEnabled)
                 .help(status.help(chosen: store.descriptor, loaded: store.loadedDescriptor))
-                .accessibilityLabel(title)
+                .accessibilityLabel(status.buttonTitle)
         }
     }
 
@@ -35,11 +35,12 @@ struct ModelLoadButton: View {
     }
 
     private var isEnabled: Bool {
-        status.pressLoads ? store.canLoad(store.descriptor) : store.canUnload
+        guard status.isPressable else { return false }
+        return status.pressLoads ? store.canLoad(store.descriptor) : store.canUnload
     }
 
-    /// Try Again is the failure's own remedy, which re-reads the launch preferences the way
-    /// the canvas's button does; a plain Load is not a retry and does not go through it.
+    /// Try Again is the failure's own remedy and goes through `retry`, which reloads over
+    /// whatever is there; a plain Load is not a retry and does not go through it.
     private func press() {
         switch status {
         case .failed: store.retryFromInterface()

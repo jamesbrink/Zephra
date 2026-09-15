@@ -55,7 +55,29 @@ final class WorkspaceSelection {
 
     /// Whether the model browser is up over the window. Never persisted, for the same reason
     /// as `promptTucked`: a dialog is something a person opened, not a place the window is.
-    var showsModelBrowser = false
+    ///
+    /// It lives here rather than in a view because three places raise it — the toolbar's
+    /// pull-down, the canvas's idle state and the Model menu — and because one object has to
+    /// arbitrate between it and the reference picker. Both are sheets on the one window, and a
+    /// sheet raised over a sheet stacks: ⇧⌘M while the picker was up put the browser on top of
+    /// it. So neither rises while the other is up, and the menu item that raises this one is
+    /// greyed meanwhile.
+    var showsModelBrowser = false {
+        didSet {
+            if showsModelBrowser, showsReferencePicker { showsModelBrowser = false }
+        }
+    }
+
+    /// Whether the reference picker is up over the window, the browser's twin and its rival for
+    /// the one sheet a window has. The well writes it rather than holding a `@State` of its
+    /// own, so the arbitration above has both answers in one place — and so a screenshot build
+    /// can raise the picker the way it raises the browser, rather than through an `onAppear`
+    /// hook inside the well.
+    var showsReferencePicker = false {
+        didSet {
+            if showsReferencePicker, showsModelBrowser { showsReferencePicker = false }
+        }
+    }
 
     /// The one library image the library pane is showing full size, or nil for the grid. Never
     /// persisted, for the same reason as `promptTucked`, and lives here rather than in the
