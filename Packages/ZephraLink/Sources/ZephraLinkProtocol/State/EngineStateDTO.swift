@@ -49,6 +49,13 @@ public struct EngineStateDTO: Codable, Hashable, Sendable {
     public var totalTiles: Int?
     /// The model this state is about, where the state is about one.
     public var modelID: String?
+    /// The model whose weights are in memory right now, or nil while none are.
+    ///
+    /// Not `modelID`, which is the model *chosen*: under on-demand loading a Mac sits with a
+    /// model chosen and nothing loaded, and a phone that read the two as one would draw a
+    /// loaded dot on a model that is not there. Stamped by the host, since the store knows it
+    /// and `EngineState` does not.
+    public var loadedModelID: String?
     /// What went wrong, on a failure, in the words the Mac would show.
     public var message: String?
     /// Whether the engine is busy with work that shows progress.
@@ -87,6 +94,7 @@ public struct EngineStateDTO: Codable, Hashable, Sendable {
         totalTiles: Int? = nil,
         modelID: String? = nil,
         message: String? = nil,
+        loadedModelID: String? = nil,
         isBusy: Bool = false,
         isFinishing: Bool = false,
         acceptsGeneration: Bool = false,
@@ -110,6 +118,7 @@ public struct EngineStateDTO: Codable, Hashable, Sendable {
         self.totalTiles = totalTiles
         self.modelID = modelID
         self.message = message
+        self.loadedModelID = loadedModelID
         self.isBusy = isBusy
         self.isFinishing = isFinishing
         self.acceptsGeneration = acceptsGeneration

@@ -24,6 +24,22 @@ extension GenerationStore {
         ModelCatalog.fit(model, budget: memoryBudget).isSelectable
     }
 
+    /// Whether this model could be got into memory right now, starting from nothing if need be.
+    ///
+    /// The half of admission that is not about the engine standing ready: a Mac with nothing
+    /// loaded, or one whose last run the GPU lost, will still take a generation — the queue's
+    /// own `drain()` loads what the entry needs before it runs it. Without this a phone against
+    /// a Mac that had a device fault saw `canQueue: false` for the rest of the session, with no
+    /// way back but the Mac's own keyboard.
+    public func canLoad(_ model: ModelDescriptor) -> Bool {
+        switch state {
+        case .idle, .failed: break
+        default: return false
+        }
+        return acceptsWork && !isSwappingModel && !isStoppingPreparation && !isUpscaling
+            && canSelect(model) && availability[model.id]?.isObtainable != false
+    }
+
     /// Whether a variation of `item` can be queued: the store takes work, the engine is ready
     /// or already working down the queue, and the record it would run has a prompt.
     ///

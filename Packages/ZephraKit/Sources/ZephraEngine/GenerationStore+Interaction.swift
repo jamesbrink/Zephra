@@ -14,8 +14,8 @@ extension GenerationStore {
 
     /// True when `generate()` will do something: start now, or queue behind the running one.
     public var canQueue: Bool {
-        acceptsWork && settings.isReadyToGenerate && (state.acceptsGeneration || isDraining)
-            && !isAdoptingReference
+        acceptsWork && settings.isReadyToGenerate && !isAdoptingReference
+            && (state.acceptsGeneration || isDraining || canLoad(descriptor))
     }
 
     /// Shows an earlier image on the canvas and adopts its settings and its model, so the

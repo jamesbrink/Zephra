@@ -49,6 +49,21 @@ extension CompanionSession {
             if let refusal = Self.unholdable(model, on: host) { throw refusal }
             host.store.switchModel(to: model)
             return .ok
+        case .loadModel(let modelID):
+            // One meaning in both loading modes: make this the model and read it in now. Under
+            // `.automatic` the switch already loads and `loadModel()` is then a no-op; under
+            // `.onDemand` the switch only adopts and `loadModel()` does the work.
+            let model = try Self.model(modelID)
+            if let refusal = Self.unholdable(model, on: host) { throw refusal }
+            if model.id != host.store.descriptor.id { host.store.switchModel(to: model) }
+            host.store.loadModel()
+            return .ok
+        case .unloadModel:
+            guard host.store.canUnload else {
+                throw LinkError(code: .busy, reason: "This Mac cannot unload a model just now.")
+            }
+            host.store.unloadModel()
+            return .ok
         case .upscale(let name, let factor): return try upscale(name, factor: factor, on: host)
         case .animate(let name): return try animate(name, on: host)
         default: return try await performLibrary(command, id: id, on: host)

@@ -36,6 +36,7 @@ public enum StateSnapshotProjection {
             libraryCount: LibraryEntryProjection.listing(index.items).count,
             acceptsWork: store.acceptsWork)
         snapshot.multiHost = true
+        snapshot.modelLoading = true
         return snapshot
     }
 }

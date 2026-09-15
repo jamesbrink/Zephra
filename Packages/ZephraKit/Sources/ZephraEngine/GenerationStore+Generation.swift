@@ -28,7 +28,11 @@ extension GenerationStore {
         // The weights are in; what this run wants on top of them may still be more than the
         // Mac has left. Refused here rather than inside Metal, where it is an abort.
         if let shortfall = runShortfall(for: job) {
-            fail(with: .insufficientMemory(shortfall))
+            // The weights are in resident and this request has not the room on top of them.
+            // Under Automatic, reading them from disk instead is a load rather than a refusal:
+            // the same step down the guard makes before a load, made after one.
+            if stepDownToStreaming(for: job) { return }
+            failJob(job, with: .insufficientMemory(shortfall))
             return
         }
         let activity = ProcessInfo.processInfo.beginActivity(
@@ -109,6 +113,21 @@ extension GenerationStore {
         transition(to: .failed(error))
     }
 
+    /// What one job's refusal puts down: that press of Generate and nothing else. A run the GPU
+    /// lost is a reason to stop everything (`fail(with:)`); one request this Mac has not the
+    /// memory for this minute is not a reason to throw away the four queued behind it.
+    ///
+    /// What is left does not drain on: `.failed` is a sentence somebody has to read, and a
+    /// `.generating` arriving on top of it would take it away before anybody had. The next press
+    /// of Generate drains the survivors, and so does Try Again.
+    private func failJob(_ job: QueuedGeneration, with error: EngineError) {
+        if let chain = job.chain { chains[chain.chainID] = nil }
+        queue.removeAll { $0.batchID == job.batchID }
+        running = nil
+        clearLivePreview()
+        transition(to: .failed(error))
+    }
+
     /// Publishes a finished image straight away and only then starts writing it, so the canvas
     /// never waits on the file system.
     ///
@@ -174,5 +193,8 @@ extension GenerationStore {
             "state \(self.state.logName, privacy: .public) -> \(newState.logName, privacy: .public)"
         )
         state = newState
+        // Every load, generation, upscale, swap and failure passes through here, so the idle
+        // clock is reset by the fact of having transitioned and nothing has to remember to.
+        armIdleUnload()
     }
 }

@@ -11,6 +11,7 @@ extension Command: Codable {
     public enum Kind: String, Codable, Hashable, Sendable, CaseIterable {
         case multiHost, resync, enqueue, cancel, removeFromQueue, clearQueue, switchModel, setFavourite
         case setTags, delete, upscale, animate, fetchThumbnail, fetchFile, libraryPage
+        case loadModel, unloadModel
     }
 
     /// Which command this is, without decoding its payload.
@@ -23,6 +24,8 @@ extension Command: Codable {
         case .removeFromQueue: .removeFromQueue
         case .clearQueue: .clearQueue
         case .switchModel: .switchModel
+        case .loadModel: .loadModel
+        case .unloadModel: .unloadModel
         case .setFavourite: .setFavourite
         case .setTags: .setTags
         case .delete: .delete
@@ -40,9 +43,9 @@ extension Command: Codable {
         switch self {
         case .multiHost(let command): try container.encode(command, forKey: .multiHost)
         case .enqueue(let request): try container.encode(request, forKey: .request)
-        case .resync, .cancel, .clearQueue: break
+        case .resync, .cancel, .clearQueue, .unloadModel: break
         case .removeFromQueue(let id): try container.encode(id, forKey: .id)
-        case .switchModel(let id): try container.encode(id, forKey: .modelID)
+        case .switchModel(let id), .loadModel(let id): try container.encode(id, forKey: .modelID)
         case .setFavourite(let names, let on):
             try container.encode(names, forKey: .names)
             try container.encode(on, forKey: .on)
@@ -81,6 +84,8 @@ extension Command: Codable {
         case .removeFromQueue: self = .removeFromQueue(try value(UUID.self, .id))
         case .clearQueue: self = .clearQueue
         case .switchModel: self = .switchModel(try value(String.self, .modelID))
+        case .loadModel: self = .loadModel(try value(String.self, .modelID))
+        case .unloadModel: self = .unloadModel
         case .setFavourite:
             self = .setFavourite(
                 names: try value([String].self, .names), on: try value(Bool.self, .on))

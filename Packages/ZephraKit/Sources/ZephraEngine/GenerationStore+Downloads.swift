@@ -31,12 +31,24 @@ extension GenerationStore {
         } else { _ = downloads.start(model, registry: registry, locations: locations) }
     }
 
+    /// Fetches `model`'s files and stops there, whatever is chosen and whatever is loaded.
+    ///
+    /// What the model browser's Download button presses. `resumeDownload` is the same request
+    /// asked about the chosen model, and answers it with a load where it can; this one never
+    /// loads anything, so a person can queue a download while a run they care about is going.
+    public func downloadModel(_ model: ModelDescriptor) {
+        guard acceptsWork, let registry else { return }
+        _ = downloads.start(model, registry: registry, locations: locations)
+    }
+
     func stopPreparation(discard: Bool) {
         let modelID = preparingModel?.id ?? descriptor.id
         let pendingLoad = bootstrapTask
         let pendingSwitch = switchTask
         loadIdentity = nil
         preparingModel = nil
+        // A stop must not leave a forced residency behind for whatever loads next.
+        residencyOverride = nil
         queue.removeAll()
         isSwitchingForQueue = false
         isStoppingPreparation = true
@@ -47,7 +59,7 @@ extension GenerationStore {
             await downloads.stop(modelID, discard: discard)
             await pendingSwitch?.value
             await pendingLoad?.value
-            await unloadModel()
+            await releaseModel()
             // A swap asked for after this stop began owns the flag; only the swap this stop
             // cancelled gives it up. Clearing it outright opened a window in which a retry
             // could start a load under the pending swap.
@@ -70,7 +82,7 @@ extension GenerationStore {
         await storageSettlement?.wait()
         await downloads.pauseAll()
         await settle()
-        await unloadModel()
+        await releaseModel()
     }
 
     public func modelStorageIsInUse(_ item: ModelStorageItem) -> Bool {

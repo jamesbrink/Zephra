@@ -82,6 +82,18 @@ public final class GenerationStore {
     /// Whether a load ends with a throwaway generation that pays the kernel-compilation cost
     /// up front; the app sets it from the user's preference before it calls `bootstrap()`.
     public var warmsUpAfterLoad = true
+    /// When weights are read in: at launch and on every pick, or only when asked for.
+    public var loadingMode: ModelLoadingMode = .automatic
+    /// How long the weights may sit idle before they are given back; the app sets it.
+    public var idleUnloadDelay: IdleUnloadDelay = .never { didSet { armIdleUnload() } }
+    /// The idle clock, cancelled and re-armed by every transition.
+    @ObservationIgnored var idleTask: Task<Void, Never>?
+    /// How the idle clock waits; the one seam a suite about it replaces.
+    @ObservationIgnored var idleWait: @Sendable (Duration) async -> Void = {
+        try? await Task.sleep(for: $0)
+    }
+    /// The residency the next load must use whatever the policy says; consumed once.
+    @ObservationIgnored var residencyOverride: WeightResidency?
     /// What this Mac's GPU may keep resident, which is what a fallback model is chosen by; the
     /// app sets it from the runtime before `bootstrap()`, else a GPU-less budget's share of RAM.
     public var memoryBudget = MemoryBudget(physicalMemory: ProcessInfo.processInfo.physicalMemory)

@@ -31,6 +31,10 @@ extension GenerationStore {
         openTask?.cancel()
         openTask = nil
         _ = claimReference()
+        // Under on-demand a pick is a pick and nothing else: the descriptor is adopted, the
+        // settings are clamped, and neither a download nor a load is started. "Load the model
+        // I have chosen" is the Load control's job, not the menu's.
+        guard loadingMode == .automatic else { return }
         if let registry { _ = downloads.start(descriptor, registry: registry, locations: locations) }
         guard !isDraining, !isUpscaling, queue.isEmpty else { return }
         // Picking the model that is loaded — back from a picture's — has nothing to swap.
@@ -69,7 +73,7 @@ extension GenerationStore {
             await pendingSwitch?.value
             await pendingLoad?.value
             guard !Task.isCancelled else { return }
-            await self.unloadModel()
+            await self.releaseModel()
             self.isStoppingPreparation = false
             self.transition(to: .idle)
             guard !Task.isCancelled else { return }

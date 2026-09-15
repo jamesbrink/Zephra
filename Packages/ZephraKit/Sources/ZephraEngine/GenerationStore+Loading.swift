@@ -25,7 +25,46 @@ extension GenerationStore {
     /// disk gives way to one that is instead of failing at launch.
     public func bootstrap() async {
         await surveyAvailability()
+        // Under on-demand the launch surveys the disk and stops there: the chosen model stays
+        // chosen, nothing is read in, and Load or a press of Generate is what asks for it.
+        guard loadingMode == .automatic else { return }
         await load(descriptor, asSwap: false)
+    }
+
+    /// Loads the chosen model now. What the Load control presses, and the door a paired
+    /// device's `Command.loadModel` comes in through. Under `.onDemand` this and a press of
+    /// Generate are the only two ways weights reach memory.
+    public func loadModel() {
+        guard acceptsWork, !isDraining, !isUpscaling, !isStoppingPreparation,
+            canLoad(descriptor)
+        else { return }
+        // An explicit Load is the explicit choice a picture's adoption was waiting for, exactly
+        // as a menu pick is and as Generate is.
+        modelAwaitsGenerate = false
+        startLoading(descriptor, asSwap: false)
+    }
+
+    /// Whether Unload would do anything: weights are in and nothing is moving them already.
+    public var canUnload: Bool {
+        acceptsWork && !isDraining && !isUpscaling && !isSwappingModel && !isStoppingPreparation
+            && loadedDescriptor != nil
+    }
+
+    /// Gives the weights and their disk lease back, leaving the chosen model chosen.
+    public func unloadModel() {
+        guard canUnload else { return }
+        // `isSwappingModel` is exactly the right flag: the state passes through `.idle` while
+        // the weights go back, and nothing else may load meanwhile.
+        isSwappingModel = true
+        transition(to: .idle)
+        switchTask = Task {
+            await self.releaseModel()
+            // A swap asked for while this was settling owns the flag; only this unload gives
+            // it up, the rule `reload` and `stopPreparation` both follow.
+            if !Task.isCancelled { self.isSwappingModel = false }
+            self.modelAwaitsGenerate = false
+            self.transition(to: .idle)
+        }
     }
 
     /// Loads `model` and waits for it, unless a load is already under way. `asSwap` marks the
@@ -71,7 +110,17 @@ extension GenerationStore {
         // there is nothing to fetch, build or load. Answer ready and touch neither the pool
         // nor the actor; a second borrow of the same request could never be given back.
         if isResident(model) {
+            // The device came back, or the memory did not. Asking the guard again is what makes
+            // a retry after a fault on a resident model under Automatic land streamed rather
+            // than answering ready over weights this Mac no longer has the room to run on.
+            if let stepped = residencyToStepDownTo(model) {
+                residencyOverride = stepped
+                reload(model, thenDrain: !queue.isEmpty)
+                return switchTask
+            }
             transition(to: .ready)
+            // A job the run check refused is still waiting; Try Again is what gives it its turn.
+            if !queue.isEmpty { drain() }
             return nil
         }
         transition(to: .checkingModel)
