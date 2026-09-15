@@ -15,7 +15,10 @@ import ZephraLinkProtocol
 ///
 /// A refusal is the Mac's own sentence under the button, the way a refused press of Generate is
 /// answered, never an alert: this is a button somebody may press twice in ten seconds, and a
-/// sheet each time would be in the way of the second press.
+/// sheet each time would be in the way of the second press. It is cleared the moment the Mac
+/// moves on or the session comes back, since a sentence about an attempt that is over reads as
+/// a sentence about the attempt in front of it — a timed-out press left "The Mac did not
+/// answer" standing while the Mac went on loading.
 struct TryAgainButton: View {
     @Environment(LinkClient.self) private var client
     /// Where one press has got to.
@@ -34,6 +37,10 @@ struct TryAgainButton: View {
                         .multilineTextAlignment(.center)
                 }
             }
+            // What the refusal was about is gone the moment either of these moves: the engine
+            // left `.failed`, or this is a different session from the one that refused.
+            .onChange(of: engine?.kind) { press = .idle }
+            .onChange(of: client.connection.isLive) { press = .idle }
         }
     }
 
