@@ -117,11 +117,7 @@ struct CanvasStateView: View {
     /// Try Again is the failure's own remedy and goes through `retry`; Load Model is not a
     /// retry and goes through the same door the toolbar's Load button and the Model menu do.
     private func start() {
-        if case .failed = store.state {
-            store.retryFromInterface()
-        } else {
-            store.loadModel()
-        }
+        if case .failed = store.state { store.retryFromInterface() } else { store.loadModel() }
     }
 
     private var isGenerating: Bool {
