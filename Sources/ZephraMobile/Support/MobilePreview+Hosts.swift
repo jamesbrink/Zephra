@@ -24,11 +24,17 @@ extension MobilePreview {
             if let host = client.pairedHost { hosts.add(HostPreference(host: host), client: client, frozen: true) }
         }
     }
+    /// The made-up offer each frozen host answers with, so the destination picker has something
+    /// to draw. Every figure here is invented except `modelLoaded`, which is read from the same
+    /// snapshot the rest of the screen is drawn from: hardcoding it true made the frozen
+    /// `failed` state say "Model loaded · ready now" beside a canvas reading "Not loaded", and a
+    /// screenshot that contradicts itself is worse than no screenshot.
     static func offers(for hosts: HostConnections) -> [HostID: HostOffer]? {
         guard state != nil, !hosts.hosts.isEmpty, hosts.hosts.allSatisfy({ $0.reconnect == nil }) else { return nil }
         return Dictionary(uniqueKeysWithValues: hosts.hosts.filter { $0.client.connection.isLive }.map { host in
             (host.id, HostOffer(refusal: nil, queueSeconds: 0, preparationSeconds: 0,
-                executionSeconds: nil, memoryMargin: 10_000_000_000, modelLoaded: true,
+                executionSeconds: nil, memoryMargin: 10_000_000_000,
+                modelLoaded: host.client.snapshot?.engine.loadedModelID != nil,
                 queueCount: 0, queueRevision: "preview", physicalMemory: 32_000_000_000))
         })
     }
