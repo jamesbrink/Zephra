@@ -41,7 +41,7 @@ struct CanvasPicture: View {
             if entry.isVideo {
                 ClipPicture(name: name)
             } else {
-                ItemPicture(name: name)
+                CanvasFinishedPicture(name: name)
             }
         } else {
             ContentUnavailableView(

@@ -17,8 +17,10 @@ extension MobilePreview {
 
     /// The page of library the fixture holds, or an empty page if the file cannot be read.
     static func library() -> [LibraryEntry] {
-        let entries = fixture([LibraryEntry].self, named: "preview-library") ?? []
+        var entries = fixture([LibraryEntry].self, named: "preview-library") ?? []
         #if DEBUG
+        if state != nil, let prompt = ProcessInfo.processInfo.environment["ZEPHRA_PREVIEW_PROMPT"],
+           !entries.isEmpty { entries[0].record?.prompt = prompt }
         if state != nil, let text = ProcessInfo.processInfo.environment["ZEPHRA_PREVIEW_ITEMS"],
            let count = Int(text), (1...2000).contains(count), !entries.isEmpty {
             return (0..<count).map { index in

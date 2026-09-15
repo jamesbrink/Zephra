@@ -10,6 +10,7 @@ struct LibraryViewerTitle: View {
     let entry: CachedEntry?
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.viewImagePrompt) private var showPrompt
 
     /// The close button's side: a fingertip, not the glyph's own size. Held here, not just in
     /// `MobileChrome`, so `ViewerChromeTests` can measure the button by the type that draws it.
@@ -30,12 +31,20 @@ struct LibraryViewerTitle: View {
             Spacer(minLength: 0)
             if let entry {
                 VStack(alignment: .trailing) {
-                LibraryHostLabel(entry: entry)
-                Text(entry.label)
-                    .font(.footnote)
-                    .lineLimit(1)
-                    .foregroundStyle(.white.opacity(0.85))
-                    .shadow(color: .black.opacity(ZephraChrome.shadowOpacity), radius: 4)
+                    LibraryHostLabel(entry: entry)
+                    Button { showPrompt(entry) } label: {
+                        Text(entry.label)
+                            .font(.footnote)
+                            .lineLimit(1)
+                            .foregroundStyle(.white.opacity(0.85))
+                            .shadow(color: .black.opacity(ZephraChrome.shadowOpacity), radius: 4)
+                            .frame(minHeight: 44, alignment: .trailing)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(entry.prompt.isEmpty)
+                    .accessibilityLabel("View full prompt")
+                    .accessibilityHint(entry.label)
                 }
             }
         }

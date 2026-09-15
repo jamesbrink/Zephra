@@ -14,6 +14,7 @@ extension MobilePreview {
     static func addHosts(to hosts: HostConnections, first: LinkClient) {
         guard let firstHost = first.pairedHost else { return }
         hosts.add(HostPreference(host: firstHost), client: first, frozen: true)
+        defer { scopePictures(to: hosts.hosts) }
         for index in 1..<hostCount {
             guard var snapshot = first.snapshot else { continue }
             if index == 1 { snapshot.multiHost = false } // A mixed-version host remains manual.

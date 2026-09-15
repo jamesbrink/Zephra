@@ -32,7 +32,14 @@ struct PromptCapsule: View {
                     CapsuleCollapsed()
                 }
             } else {
-                Text("Waiting for your Mac.")
+                if selection.capsuleIsExpanded {
+                    PromptEditor().padding(.horizontal, 14)
+                } else {
+                    CapsuleCollapsed()
+                }
+                Text(draft.modelID.isEmpty
+                    ? "Waiting for your Mac."
+                    : "This model is unavailable at the selected destination. Choose another Mac or model.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 14)

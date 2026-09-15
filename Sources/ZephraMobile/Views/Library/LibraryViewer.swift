@@ -91,6 +91,7 @@ struct LibraryViewer: View {
         opening: MobilePreview.library()[0].fileName
     )
     .environment(LibraryCatalog(libraryRoot: nil, filesRoot: nil))
+    .environment(PromptDraft())
     .environment(ReferenceIntent())
     .environment(MobileSelection())
 }

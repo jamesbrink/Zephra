@@ -13,7 +13,9 @@ struct CanvasLayout: View {
             ScrollView {
                 VStack(spacing: 12) {
                     if !selection.promptIsFocused {
-                        picture.frame(height: 180)
+                        picture
+                            .frame(maxWidth: .infinity)
+                            .frame(height: selection.capsuleIsExpanded ? 180 : nil)
                     }
                     if typeSize >= .xxLarge {
                         ModelMenu()

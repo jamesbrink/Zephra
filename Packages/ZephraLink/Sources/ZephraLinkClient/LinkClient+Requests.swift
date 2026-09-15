@@ -12,12 +12,14 @@ extension LinkClient {
     ///
     /// A reply lost to a hole in the stream, or one that never came, is asked for again under a
     /// **fresh id** — the first envelope may yet turn up, and two requests sharing an id would be
-    /// two answers to one continuation. Every `Command` is safe to repeat: the queue commands,
+    /// two answers to one continuation. Commands other than `upscale` are safe to repeat: the queue commands,
     /// the library edits and the fetches all say what the Mac should end up like rather than
     /// counting what it is asked. The one that cannot is `enqueue`, whose repeat the Mac answers
-    /// with the run it already made, keyed by `GenerationRequest.requestID`.
+    /// with the run it already made, keyed by `GenerationRequest.requestID`. Upscale has no
+    /// deduplication key on older Macs and is sent only once.
     public func request(_ command: Command) async throws -> Reply {
         if isFrozen { return .ok }
+        if case .upscale = command { return try await ask(command) }
         do {
             return try await ask(command)
         } catch let error as LinkClientError where error.isWorthRepeating {
