@@ -211,6 +211,79 @@ struct CompanionHostTests {
         await bed.shutdown()
     }
 
+    @Test("a load the Mac will not start is refused, and does not move the chosen model")
+    func loadTheMacWillNotStartIsRefused() async throws {
+        let bed = CompanionTestBed()
+        bed.engine.control.update { $0.stepDelay = .milliseconds(20) }
+        await bed.bootstrap()
+        let phone = try await bed.pairedPhone()
+        _ = try await phone.snapshot()
+        bed.store.settings.prompt = "a lighthouse"
+        bed.store.settings.steps = 8
+        bed.store.generate()
+        try await bed.engine.waitForStep()
+        let chosen = bed.store.descriptor.id
+
+        let reply = try await phone.request(.loadModel(ModelCatalog.zImageTurbo4bit.id))
+
+        guard case .error(let error) = reply else {
+            Issue.record("expected a refusal, got \(reply)")
+            await bed.shutdown()
+            return
+        }
+        #expect(error.code == .busy)
+        // The heart of it: `loadModel()` returns silently when it will not load, so switching
+        // first would move the chosen model and clamp the settings under the person at the
+        // keyboard while the phone was told the load succeeded.
+        #expect(bed.store.descriptor.id == chosen, "the capsule is the person's, not the phone's")
+
+        bed.store.cancel()
+        try await bed.engine.waitUntil { !bed.store.isDraining && bed.store.queue.isEmpty }
+        await bed.shutdown()
+    }
+
+    @Test("a load of a model that is not on the disk is refused rather than answered ok")
+    func loadOfAMissingModelIsRefused() async throws {
+        let bed = CompanionTestBed()
+        bed.engine.control.update {
+            $0.availability[ModelCatalog.zImageTurbo4bit.id] = .missing(reason: "never built")
+        }
+        await bed.bootstrap()
+        let phone = try await bed.pairedPhone()
+        _ = try await phone.snapshot()
+        let chosen = bed.store.descriptor.id
+
+        let reply = try await phone.request(.loadModel(ModelCatalog.zImageTurbo4bit.id))
+
+        guard case .error(let error) = reply else {
+            Issue.record("expected a refusal, got \(reply)")
+            await bed.shutdown()
+            return
+        }
+        #expect(error.code == .busy)
+        #expect(bed.store.descriptor.id == chosen)
+        await bed.shutdown()
+    }
+
+    @Test("an unload asked for twice is answered twice, since a lost reply is asked again")
+    func unloadIsAnsweredWhateverHasAlreadyHappened() async throws {
+        let bed = CompanionTestBed()
+        await bed.bootstrap()
+        let phone = try await bed.pairedPhone()
+        _ = try await phone.snapshot()
+
+        #expect(try await phone.request(.unloadModel) == .ok)
+        // The reply went missing, so the phone asks again under a fresh id — which `request`
+        // does by itself for a repeatable command. The first ask is still settling, so a Mac
+        // that read `canUnload` here would answer "cannot unload" over the unload it is doing.
+        #expect(try await phone.request(.unloadModel) == .ok)
+        try await bed.waitUntil { bed.store.loadedDescriptor == nil }
+        await bed.store.settle()
+        #expect(try await phone.request(.unloadModel) == .ok, "and again once it has settled")
+        #expect(bed.engine.control.settings.unloads == 1, "one unload, however often asked")
+        await bed.shutdown()
+    }
+
     @Test("a load of a model this Mac cannot hold is refused in the words its greyed row carries")
     func loadingAnUnholdableModelIsRefused() async throws {
         let bed = CompanionTestBed()

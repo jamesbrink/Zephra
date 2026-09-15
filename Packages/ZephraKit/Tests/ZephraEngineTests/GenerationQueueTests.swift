@@ -162,4 +162,43 @@ struct GenerationQueueTests {
         #expect(store.queue.isEmpty)
         await store.shutdown()
     }
+
+    @Test("a refused batch takes every seed's chain with it, and nobody else's")
+    func arefusedBatchDropsEveryChain() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+
+        // Four seeds of one press of a chained clip. `generate(count:)` plans a chain per
+        // seed, so there are four to put down and only one of them is the job that was
+        // refused; a `ChainProgress` left behind holds PNG frames nothing will read again.
+        let batch = UUID()
+        var seeds: [QueuedGeneration] = []
+        for index in 0..<4 {
+            let chain = UUID()
+            store.chains[chain] = ChainProgress(segments: [9, 9], source: nil)
+            seeds.append(
+                QueuedGeneration(
+                    model: store.descriptor, settings: store.settings, batchID: batch,
+                    batchIndex: index,
+                    chain: ChainSegment(chainID: chain, index: 0, count: 2)))
+        }
+        // Another press, on a chain of its own, which the refusal must leave alone.
+        let survivingChain = UUID()
+        store.chains[survivingChain] = ChainProgress(segments: [9, 9], source: nil)
+        let survivor = QueuedGeneration(
+            model: store.descriptor, settings: store.settings,
+            chain: ChainSegment(chainID: survivingChain, index: 0, count: 2))
+        store.queue = Array(seeds.dropFirst()) + [survivor]
+        store.running = seeds[0]
+        #expect(store.chains.count == 5)
+
+        store.failJob(seeds[0], with: .backend(.generationFailed("no room")))
+
+        #expect(store.queue.map(\.id) == [survivor.id], "only the refused batch leaves the queue")
+        #expect(Array(store.chains.keys) == [survivingChain], "and every seed's chain with it")
+        #expect(store.running == nil)
+        await store.shutdown()
+    }
 }

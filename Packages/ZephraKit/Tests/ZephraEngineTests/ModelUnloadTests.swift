@@ -150,4 +150,66 @@ struct ModelUnloadTests {
         #expect(store.queue.isEmpty)
         await store.shutdown()
     }
+
+    @Test("Unload is refused in every state the engine is busy with a model in")
+    func unloadIsRefusedWhileTheEngineIsBusyWithAModel() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        #expect(store.canUnload)
+
+        // `loadedDescriptor` can name an *earlier* model while a fresh load runs — a change of
+        // models folder makes the lease this store holds no longer the loaded one — so the
+        // flags alone would offer Unload there, and releasing those weights under a
+        // `bootstrapTask` nobody cancelled leaves that load republishing over a store that
+        // believes it unloaded. The state is what closes it, as it does for `canUpscale`.
+        let busy: [EngineState] = [
+            .checkingModel,
+            .downloading(DownloadProgressEvent(completedFiles: 0, totalFiles: 2, fraction: 0)),
+            .building(BuildProgressEvent(
+                component: "transformer", completedComponents: 0, totalComponents: 3,
+                fraction: 0)),
+            .loading(.preparing),
+            .warmingUp,
+            .generating(GenerationProgressEvent(phase: .preparing, fraction: 0)),
+            .upscaling(UpscaleProgressEvent(completedTiles: 0, totalTiles: 4)),
+            .cancelling,
+        ]
+        for state in busy {
+            store.transition(to: state)
+            #expect(!store.canUnload, "Unload must not be offered in \(state.logName)")
+        }
+
+        // The three states an unload is offered from, which are `canUpscale`'s three.
+        for state in [EngineState.ready, .idle, .failed(.backend(.loadFailed("boom")))] {
+            store.transition(to: state)
+            #expect(store.canUnload, "and it is offered again in \(state.logName)")
+        }
+        store.transition(to: .ready)
+        await store.shutdown()
+    }
+
+    @Test("a residency forced for one load does not outlive a load that never starts")
+    func aforcedResidencyIsNotLeftBehind() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+
+        // What a run-time step-down leaves behind for the reload it asked for. `.ready` is not
+        // a state a load starts from, so this attempt does nothing at all — and must not leave
+        // the forcing for whatever loads next.
+        store.residencyOverride = .streamed
+        store.retry()
+        #expect(store.residencyOverride == nil)
+
+        store.unloadModel()
+        await store.settle()
+        store.loadModel()
+        await store.settle()
+        #expect(store.loadedResidency == .resident, "the next load is the one the policy asked for")
+        #expect(bed.control.settings.lastResidency == .resident)
+        await store.shutdown()
+    }
 }

@@ -133,6 +133,33 @@ struct EngineStateDTOTests {
                 == nil)
     }
 
+    @Test("Every field is written, so one added later cannot be silently left out")
+    func everyFieldSurvivesTheTrip() throws {
+        // `encode(to:)` is written by hand — the one way to say "nothing is loaded" and mean it
+        // — so a field added later compiles and is never sent unless something checks them all
+        // at once. Every value here is deliberately not the default for its type.
+        let full = EngineStateDTO(
+            kind: .generating, phase: "Denoising", step: 3, steps: 9, fraction: 0.33,
+            secondsPerStep: 1.5, completedBytes: 400, totalBytes: 1_000, completedFiles: 2,
+            totalFiles: 5, bytesPerSecond: 1_000, component: "transformer",
+            completedComponents: 1, totalComponents: 3, completedTiles: 2, totalTiles: 8,
+            modelID: "qwen-image-2512-4bit", message: "the GPU stopped responding",
+            loadedModelID: "z-image-turbo-8bit", isBusy: true, isFinishing: true,
+            acceptsGeneration: true, canQueue: true)
+
+        #expect(try LinkFixtures.roundTrip(full) == full)
+
+        // And every one of them is actually in the JSON, rather than surviving by both ends
+        // defaulting the same way.
+        let json = String(decoding: try LinkJSON.encode(full), as: UTF8.self)
+        let mirror = Mirror(reflecting: full)
+        #expect(mirror.children.count == 23, "a field was added; add it to `full` as well")
+        for child in mirror.children {
+            let name = try #require(child.label)
+            #expect(json.contains("\"\(name)\":"), "\(name) is never written")
+        }
+    }
+
     @Test("A download's bytes and files come across")
     func downloadCarriesItsNumbers() {
         let dto = EngineStateDTO(

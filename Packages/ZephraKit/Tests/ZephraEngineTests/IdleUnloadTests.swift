@@ -97,6 +97,7 @@ struct IdleUnloadTests {
         store.idleUnloadDelay = .fiveMinutes
 
         #expect(store.loadedDescriptor != nil)
+        #expect(store.isUpscaling)
         #expect(!store.isIdleCandidate, "a picture is being made larger over those weights")
 
         try await Self.waitForUnload(bed, store)
@@ -124,7 +125,7 @@ struct IdleUnloadTests {
     }
 
     @Test("moving the preference back to Never stops a clock already running")
-    func setttingNeverStopsTheClock() async throws {
+    func settingNeverStopsTheClock() async throws {
         let bed = EngineTestBed()
         let store = bed.store()
         store.warmsUpAfterLoad = false
@@ -141,6 +142,46 @@ struct IdleUnloadTests {
         held.continuation.finish()
         for _ in 0..<20 { await Task.yield() }
         #expect(store.loadedDescriptor != nil, "and its wait finishing changes nothing")
+        await store.shutdown()
+    }
+
+    @Test("what counts as idle is every clause of it, asked one at a time")
+    func everyClauseOfTheIdleQuestion() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        #expect(store.isIdleCandidate, "loaded, ready, and nothing else going")
+
+        // Each clause on its own, over a store that is otherwise idle, so none of them is
+        // standing in for `state == .ready` having already answered.
+        let waiting = QueuedGeneration(model: store.descriptor, settings: store.settings)
+        store.queue = [waiting]
+        #expect(!store.isIdleCandidate, "seeds still waiting are not an idle Mac")
+        store.queue = []
+
+        store.running = waiting
+        #expect(!store.isIdleCandidate, "nor is one whose run the state has not caught up with")
+        store.running = nil
+
+        store.upscaleTask = Task {}
+        #expect(!store.isIdleCandidate, "an upscale outlives the state it puts back")
+        await store.upscaleTask?.value
+        store.upscaleTask = nil
+
+        store.isSwappingModel = true
+        #expect(!store.isIdleCandidate)
+        store.isSwappingModel = false
+
+        store.isStoppingPreparation = true
+        #expect(!store.isIdleCandidate)
+        store.isStoppingPreparation = false
+
+        store.isShuttingDown = true
+        #expect(!store.isIdleCandidate, "a Mac on its way out has nothing to gain by it")
+        store.isShuttingDown = false
+
+        #expect(store.isIdleCandidate, "and it comes back to idle when each of them is put down")
         await store.shutdown()
     }
 
