@@ -183,5 +183,11 @@ public final class GenerationStore {
         self.upscalerFactory = upscaler
         self.runtime = runtime
         self.library = output.map { ImageLibrary(root: $0) } ?? .pictures()
+        // A download nobody is waiting on has no load behind it to re-read the disk, so the
+        // pool says when one lands and this is what answers.
+        downloads.onUnborrowedCompletion = { [weak self] _ in
+            guard let self, self.acceptsWork else { return }
+            Task { await self.refreshAvailability() }
+        }
     }
 }
