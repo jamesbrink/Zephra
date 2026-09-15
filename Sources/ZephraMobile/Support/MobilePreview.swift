@@ -5,7 +5,7 @@ import ZephraLinkClient
 /// surface can be photographed and inspected on its own.
 ///
 /// Set `ZEPHRA_PREVIEW_STATE` to `pairing`, `ready`, `generating`, `capsule`, `library`,
-/// `viewer`, `today`, `offline` or `settings` before launching. Debug builds only; in Release this is inert, exactly as
+/// `viewer`, `today`, `offline`, `failed` or `settings` before launching. Debug builds only; in Release this is inert, exactly as
 /// `InterfacePreview` is on the Mac — the two mechanisms are deliberately the same shape, so a
 /// screenshot of either app is taken the same way.
 ///

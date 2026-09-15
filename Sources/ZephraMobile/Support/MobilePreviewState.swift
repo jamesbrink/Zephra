@@ -20,13 +20,15 @@ enum MobilePreviewState: String, CaseIterable {
     case today
     /// Paired, but the Mac is not answering: everything on screen is the last thing known.
     case offline
+    /// Paired, on the canvas, with the Mac's last run lost and the way back on screen.
+    case failed
     /// Paired, on the settings surface.
     case settings
 
     /// Which surface the frozen app opens on.
     var tab: MobileTab {
         switch self {
-        case .pairing, .ready, .generating, .capsule, .offline: .canvas
+        case .pairing, .ready, .generating, .capsule, .offline, .failed: .canvas
         case .library, .viewer: .library
         case .today: .today
         case .settings: .settings

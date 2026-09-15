@@ -13,7 +13,9 @@ struct GenerateButton: View {
                     .fixedSize(horizontal: true, vertical: false)
                 VStack(alignment: .trailing, spacing: 12) { actions }
             }
-            if let note = referenceIntent.note ?? (dispatch.note == dispatch.reason ? nil : dispatch.note) {
+            if let note = referenceIntent.note
+                ?? (dispatch.note == dispatch.reason ? nil : dispatch.note)
+                ?? dispatch.loadNote(for: draft.modelID) {
                 Text(note).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.trailing)
             }
             if referenceIntent.note != nil && !referenceIntent.isResolving {
