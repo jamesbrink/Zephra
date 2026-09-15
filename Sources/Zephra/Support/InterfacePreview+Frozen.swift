@@ -76,6 +76,10 @@ extension InterfacePreview {
         case "settings", "ready", "image", "editing", "tucked", "batch", "library", "viewer", "picker", "clip",
              "update":
             return .ready
+        case "models":
+            // The browser over a window with nothing loaded, which is what the cards' Download
+            // and Load footers are worth photographing against.
+            return .idle
         case "welcome":
             // The first-launch chooser stands in front of the workspace with nothing loaded,
             // which is exactly what `.idle` means. `wantsWelcome` is what raises it.

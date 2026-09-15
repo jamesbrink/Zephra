@@ -12,7 +12,7 @@ import Foundation
 /// `openingHeight` is only where the window opens, not the least it will shrink to — those used
 /// to be the same number, and on a 13-inch MacBook Air M1, still supported by Sequoia, that
 /// broke: 900 logical points tall less the 24-point menu bar is 876 usable, and Performance's
-/// 820 of content plus the window's own 88 points of chrome (32 title bar, 56 tab-strip
+/// content plus the window's own 88 points of chrome (32 title bar, 56 tab-strip
 /// toolbar, taller than the main window's 52 because it carries the tab icons) is 908 — over by
 /// 32 points before Larger Text is even considered. So the floor is `minimumHeight`, one number
 /// for all four tabs, well clear of that Mac; the window opens at each tab's own height when
@@ -59,10 +59,10 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     ///
     /// Measured from the tabs as built: General is the appearance picker, the images folder
     /// row, the seed toggle, the seed spelling picker with its caption and the two-line
-    /// notification toggle, and the update toggle, with a heading each; Performance is the warm-up toggle, the
-    /// four-row GPU memory group, the tiling picker and the live readout, all of which must
-    /// be on screen at once, since a page that scrolls hides the very reading it is there to
-    /// show; Models scrolls, so its height is what the longest Settings pane on the Mac
+    /// notification toggle, and the update toggle, with a heading each; Performance is the loading section, the
+    /// warm-up toggle, the four-row GPU memory group, the tiling picker and the live readout,
+    /// which wants to be on screen at once, since a page that scrolls hides the very reading
+    /// it is there to show; Models scrolls, so its height is what the longest Settings pane on the Mac
     /// usually takes, which is what the window was before; Companion is the two toggles, the
     /// code and the list of paired devices, with room for the code at the size a phone's camera
     /// reads across a desk.
@@ -73,7 +73,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     var openingHeight: CGFloat {
         switch self {
         case .general: 560
-        case .performance: 820
+        case .performance: 930
         case .models: 620
         case .companion: 600
         }
@@ -86,8 +86,11 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     /// dragged this small rather than being unable to shrink at all.
     ///
     /// 400 clears a 13-inch MacBook Air M1 (876 usable points, menu bar removed) with the
-    /// window's 88 points of chrome added back — 488 against 876, more than the 24-point margin
-    /// the M2/M3 Air would have gotten from Performance's own 820. AppKit clamps a window to the
+    /// window's 88 points of chrome added back — 488 against 876, more than the margin
+    /// the M2/M3 Air would once have gotten from Performance's own 820. Performance now stands
+    /// 930 and so opens clamped and scrolling on a 13-inch Air, which is exactly what this
+    /// floor exists for: the live readout stays at the bottom, under a Loading section added
+    /// at the top, so what is pushed off on that Mac is not the reading the tab is there for. AppKit clamps a window to the
     /// screen's visible frame on open, and it can only do that when the minimum it is holding to
     /// actually fits; pinning the floor at 820 is what made that clamp fail on the smallest
     /// Mac Sequoia still runs on.

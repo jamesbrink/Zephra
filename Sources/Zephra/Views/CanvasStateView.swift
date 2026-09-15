@@ -19,7 +19,6 @@ import ZephraStyle
 struct CanvasStateView: View {
     @Environment(GenerationStore.self) private var store
     @Environment(WorkspaceSelection.self) private var workspace
-    @Environment(WelcomeGate.self) private var welcome
 
     var body: some View {
         VStack(spacing: 12) {
@@ -77,15 +76,17 @@ struct CanvasStateView: View {
                 .foregroundStyle(.secondary)
         }
         if let label = startLabel {
-            Button(label) { store.retryFromInterface() }
+            Button(label) { start() }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
                 .padding(.top, 4)
         }
         if startLabel != nil {
-            // The way back to the first-launch chooser, from the one screen a person who
-            // skipped it or cancelled its download actually lands on.
-            Button("Choose a Model\u{2026}") { welcome.reopen() }
+            // The way to every other model, from the one screen a person with nothing loaded
+            // actually lands on. The browser rather than the first-launch chooser: that screen
+            // takes the whole window and writes the answer to a question already answered, and
+            // with models loaded on demand this is a door people use routinely.
+            Button("Choose a Model\u{2026}") { workspace.showsModelBrowser = true }
                 .buttonStyle(.link)
                 .help("Compare the models and what each one downloads")
         }
@@ -103,13 +104,23 @@ struct CanvasStateView: View {
         }
     }
 
-    /// The word on the button that starts a load: the remedy after a failure, the resume after
-    /// a download the user stopped. Absent whenever there is nothing to start.
+    /// The word on the button that starts a load: the remedy after a failure, and the plain
+    /// load with nothing in. Absent whenever there is nothing to start.
     private var startLabel: String? {
         switch store.state {
         case .failed: "Try Again"
         case .idle: store.isSwappingModel ? nil : "Load Model"
         default: nil
+        }
+    }
+
+    /// Try Again is the failure's own remedy and goes through `retry`; Load Model is not a
+    /// retry and goes through the same door the toolbar's Load button and the Model menu do.
+    private func start() {
+        if case .failed = store.state {
+            store.retryFromInterface()
+        } else {
+            store.loadModel()
         }
     }
 

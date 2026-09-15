@@ -1,21 +1,24 @@
 import SwiftUI
 import ZephraCore
 import ZephraEngine
+import ZephraStyle
 
-/// Picks which model the engine runs, and says what choosing one would cost: already on disk,
-/// a download away, never built, tiled to fit, or more memory than this Mac has.
+/// Picks which model the engine runs, from what is on this Mac.
 ///
 /// Shown only on the canvas, the same way `LibrarySortMenu` shows only in the library: the
 /// model does not change what the library is listing, so a chip naming it there would be
 /// something to look at rather than something to act on.
 ///
-/// Memory is a gate. A model this Mac cannot hold at its default size, with the decode tiled
-/// and the weights streamed, is greyed with the figure it wants: it aborted the app rather than
-/// drawing something smaller, so it is never chosen, never loaded and never downloaded from
-/// here. A model that cannot be had at all — never built, no backend for it — is disabled for
-/// its own reason. Nothing is hidden either way. Choosing while an image is running is fine
-/// too: the running image finishes on its model, and the new one takes over for whatever is
-/// queued next.
+/// The list is the disk's, plus the chosen model whatever its state and any model whose
+/// gigabytes are moving right now. Everything else the catalog knows is behind More Models…,
+/// where a card can show what it makes, what it downloads and how it would run here — which is
+/// a picture and three lines, not a menu row. `ModelMenuRows` is the whole of the decision and
+/// is tested without a window.
+///
+/// Memory is still a gate. A model this Mac cannot hold at its default size, with the decode
+/// tiled and the weights streamed, is greyed with the figure it wants: it aborted the app
+/// rather than drawing something smaller. Choosing while an image is running is fine: the
+/// running image finishes on its model, and the new one takes over for whatever is queued next.
 struct ModelMenu: View {
     @Environment(GenerationStore.self) private var store
     @Environment(WorkspaceSelection.self) private var workspace
@@ -24,18 +27,21 @@ struct ModelMenu: View {
     var body: some View {
         if workspace.pane == .canvas {
             Menu {
-                ForEach(ModelCatalog.all) { model in
-                    Button {
-                        store.switchModelFromInterface(to: model)
-                    } label: {
-                        label(for: model)
+                ForEach(rows) { row in
+                    Button { store.switchModelFromInterface(to: row.model) } label: {
+                        label(for: row)
                     }
-                    .disabled(!canChoose(model))
-                    .help(obstacle(model) ?? model.fullName)
+                    .disabled(!row.isEnabled)
+                    .help(row.help)
                 }
+                Divider()
+                Button("More Models\u{2026}") { workspace.showsModelBrowser = true }
             } label: {
-                Text(store.descriptor.fullName)
-                    .font(.callout)
+                HStack(spacing: 6) {
+                    ModelDot(store.descriptor.id)
+                    Text(labelText)
+                        .font(.callout)
+                }
             }
             .menuStyle(.button)
             .buttonStyle(.accessoryBar)
@@ -45,55 +51,42 @@ struct ModelMenu: View {
         }
     }
 
+    /// The chosen model's name, and where it stands: Loading…, Downloading, Loaded, Streaming.
+    /// Nothing at all while it is simply not loaded, since the button beside it reads Load.
+    private var labelText: String {
+        let status = ModelLoadStatus.status(
+            of: store.descriptor, state: store.state,
+            loaded: store.loadedDescriptor, residency: store.loadedResidency)
+        guard let word = status.word else { return store.descriptor.fullName }
+        return "\(store.descriptor.fullName) \u{00B7} \(word)"
+    }
+
+    private var rows: [ModelMenuRows.Row] {
+        ModelMenuRows.rows(
+            budget: budget,
+            availability: store.availability,
+            downloading: downloading,
+            chosen: store.descriptor,
+            loaded: store.loadedDescriptor,
+            residency: store.loadedResidency)
+    }
+
+    /// The models whose transfer is live: queued, running or paused with partial files kept.
+    /// A finished or canceled one is not news and takes no row of its own.
+    private var downloading: Set<ModelDescriptor.ID> {
+        Set(store.downloads.items.filter {
+            $0.status == .queued || $0.status == .downloading || $0.status == .paused
+        }.map(\.model.id))
+    }
+
     @ViewBuilder
-    private func label(for model: ModelDescriptor) -> some View {
-        let title = note(for: model).map { "\(model.fullName) · \($0)" } ?? model.fullName
-        if model.id == store.descriptor.id {
+    private func label(for row: ModelMenuRows.Row) -> some View {
+        let title = row.note.map { "\(row.model.fullName) \u{00B7} \($0)" } ?? row.model.fullName
+        if row.isChosen {
             Label(title, systemImage: "checkmark")
         } else {
             Text(title)
         }
-    }
-
-    /// The secondary half of a row: what it would take to run this model, or nil when there is
-    /// nothing worth saying. A model that cannot be had at all says so first: "Tiles the decode"
-    /// beside a greyed-out row explains nothing, and a disabled menu item shows no tooltip to
-    /// explain it either. What this Mac cannot hold comes next, ahead of the download size, for
-    /// exactly that reason — the row is greyed by memory, so "Needs 18 GB" is what the greying
-    /// means, and quoting a download that is never going to start would be the worse label. For
-    /// every row that can be chosen a download still comes before the memory note.
-    private func note(for model: ModelDescriptor) -> String? {
-        if let status = store.downloads.status(for: model.id) { return status }
-        let availability = store.availability[model.id]
-        if availability?.isObtainable == false { return availability?.label }
-        let fit = fit(model)
-        if !fit.isSelectable { return fit.label }
-        if availability?.needsNetwork == true { return availability?.label }
-        if let memory = fit.label { return memory }
-        return availability?.label
-    }
-
-    /// The tooltip: how this model would run here, or why it cannot be had. A model that just
-    /// fits has nothing to say about memory, so the availability's own reason stands instead.
-    private func obstacle(_ model: ModelDescriptor) -> String? {
-        let fit = fit(model)
-        guard fit != .fits else { return store.availability[model.id]?.reason }
-        return fit.reason(for: model, budget: budget)
-    }
-
-    /// Two ways to be out of reach: the model cannot be obtained, or this Mac cannot hold it.
-    /// `store.canSelect` is the same answer every other door reads — `switchModel` would make
-    /// the pick a no-op and `startLoading` would refuse it before a byte was fetched — so the
-    /// row is greyed rather than offering a press that goes nowhere.
-    private func canChoose(_ model: ModelDescriptor) -> Bool {
-        store.availability[model.id]?.isObtainable != false && store.canSelect(model)
-    }
-
-    /// How this model lands on this Mac. The budget is read once at launch and does not
-    /// change while the app runs, and the catalog is five entries, so this is cheap enough
-    /// to answer per row rather than memoise.
-    private func fit(_ model: ModelDescriptor) -> MemoryFit {
-        ModelCatalog.fit(model, budget: budget)
     }
 }
 

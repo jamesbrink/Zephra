@@ -20,6 +20,7 @@ struct WorkspaceToolbar: ToolbarContent {
             LibraryZoomSlider()
             LibrarySortMenu()
             ModelMenu()
+            ModelLoadButton()
             InspectorToggle()
             SettingsButton()
         }

@@ -8,7 +8,7 @@ import ZephraSnapshot
 ///
 /// Set `ZEPHRA_PREVIEW_STATE` to `ready`, `image`, `editing`, `tucked`, `clip`, `generating`,
 /// `starting`, `queued`, `watching`, `finishing`, `batch`, `library`, `viewer`, `picker`, `welcome`,
-/// `downloading`, `building`, `update`, or `failed` before launching. `settings` uses the configured library on disk with a frozen engine for
+/// `models`, `downloading`, `building`, `update`, or `failed` before launching. `settings` uses the configured library on disk with a frozen engine for
 /// folder-change UAT; point `imagesDirectory` at a temporary fixture first. Debug builds only; in Release this is inert.
 ///
 /// This half is what the composition root calls. `InterfacePreview+Frozen.swift` is how each
@@ -91,7 +91,7 @@ enum InterfacePreview {
     /// screen nobody with a 16 GB Mac ever sees. A screenshot build states the Mac it is
     /// pretending to be, the way it states which pane is up and what the library holds.
     static func budget() -> MemoryBudget? {
-        guard requestedState != nil, name == "welcome" else { return nil }
+        guard requestedState != nil, name == "welcome" || name == "models" else { return nil }
         return MemoryBudget(physicalMemory: 16 << 30)
     }
 
@@ -103,6 +103,9 @@ enum InterfacePreview {
         // `tucked` exists to photograph the lip, so the window has to actually be tucked when
         // the screenshot is taken rather than reaching that state through a simulated click.
         if name == "tucked" { workspace.promptTucked = true }
+        // `models` exists to photograph the browser, so the sheet is up when the screenshot is
+        // taken rather than reached through a simulated click, the way `tucked` is tucked.
+        if name == "models" { workspace.showsModelBrowser = true }
         return workspace
     }
 

@@ -61,7 +61,10 @@ enum LaunchGeneration {
     @MainActor
     static func run(on store: GenerationStore) async {
         guard let prompt else { return }
-        while store.state != .ready {
+        // Ready, or able to become ready: under on-demand nothing is loaded at launch and the
+        // press of Generate below is what reads the weights in. Waiting for `.ready` there
+        // would spin for the life of the process.
+        while store.state != .ready, !store.canLoad(store.descriptor) {
             if case .failed = store.state { return }
             try? await Task.sleep(for: .milliseconds(250))
         }

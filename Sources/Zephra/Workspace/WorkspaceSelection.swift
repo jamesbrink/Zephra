@@ -53,6 +53,10 @@ final class WorkspaceSelection {
     /// bottom edge. Never persisted: a launch always finds the prompt where it was left showing.
     var promptTucked = false
 
+    /// Whether the model browser is up over the window. Never persisted, for the same reason
+    /// as `promptTucked`: a dialog is something a person opened, not a place the window is.
+    var showsModelBrowser = false
+
     /// The one library image the library pane is showing full size, or nil for the grid. Never
     /// persisted, for the same reason as `promptTucked`, and lives here rather than in the
     /// pane's own state so the menu bar's "Back to Grid" and `InterfacePreview` can reach it.

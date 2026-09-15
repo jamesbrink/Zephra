@@ -48,6 +48,15 @@ struct ZephraApp: App {
     private var companionEnabled = AppSettings.initialCompanionEnabled
     @AppStorage(AppSettings.companionRelayEnabled, store: AppSettings.store)
     private var companionRelayEnabled = AppSettings.initialCompanionRelayEnabled
+    /// The three load preferences, read here so the store follows them while the app runs. An
+    /// explicit store for the reason the companion switches take one: this is the scene above
+    /// the views, where `defaultAppStorage` has not been applied.
+    @AppStorage(AppSettings.loadModelsAutomatically, store: AppSettings.store)
+    private var loadModelsAutomatically = AppSettings.initialLoadModelsAutomatically
+    @AppStorage(AppSettings.idleUnloadMinutes, store: AppSettings.store)
+    private var idleUnloadMinutes = AppSettings.initialIdleUnloadMinutes
+    @AppStorage(AppSettings.warmUpOnLaunch, store: AppSettings.store)
+    private var warmUpOnLaunch = AppSettings.initialWarmUpOnLaunch
     /// Every `ZEPHRA_*` switch the inference path honours, read from the process environment
     /// here and nowhere else, then handed to the backends as a value.
     private static let environment = InferenceEnvironment.read(ProcessInfo.processInfo.environment)
@@ -147,6 +156,20 @@ struct ZephraApp: App {
                 // nothing would ever be written for that session. Still one writer.
                 // The roads follow the two switches, which live in Settings, a scene of its own
                 // that cannot reach the composition root's state. Both call the same one door.
+                // The three load preferences, set on the store here and followed here, so a
+                // change in Settings applies to the next choice rather than to the next
+                // launch. Every door into a load used to re-read the warm-up flag for itself,
+                // which is four readers of one preference; one writer is the rule the two new
+                // ones follow from the start.
+                .onChange(of: loadModelsAutomatically, initial: true) { _, _ in
+                    store.loadingMode = AppSettings.loadingMode()
+                }
+                .onChange(of: idleUnloadMinutes, initial: true) { _, _ in
+                    store.idleUnloadDelay = AppSettings.idleUnloadDelay()
+                }
+                .onChange(of: warmUpOnLaunch, initial: true) { _, warms in
+                    store.warmsUpAfterLoad = warms
+                }
                 .onChange(of: companionEnabled) { _, _ in openCompanionRoads() }
                 .onChange(of: companionRelayEnabled) { _, _ in openCompanionRoads() }
                 .onChange(of: welcome.isShowing) { _, showing in
@@ -183,6 +206,7 @@ struct ZephraApp: App {
         .windowToolbarStyle(.unified)
         .commands {
             ZephraCommands(store: store, workspace: workspace)
+            ModelCommands(store: store, workspace: workspace)
             WorkspaceCommands(workspace: workspace, store: store)
             LibraryCommands(workspace: workspace)
             ThumbnailSizeCommands()
@@ -269,6 +293,12 @@ struct ZephraApp: App {
         store.weightResidencyPolicy = AppSettings.residencyPolicy(
             budget: budget, override: environment.weightResidency)
         store.vaeTilingPolicy = AppSettings.tilingPolicy(budget: budget)
+        // Before `bootstrap()`, which reads it: under on-demand the launch surveys the disk
+        // and loads nothing. The scene's `onChange` keeps all three following the preferences
+        // from there.
+        store.loadingMode = AppSettings.loadingMode()
+        store.idleUnloadDelay = AppSettings.idleUnloadDelay()
+        store.warmsUpAfterLoad = AppSettings.flag(AppSettings.warmUpOnLaunch)
         return store
     }
 }
