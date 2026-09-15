@@ -72,6 +72,8 @@ extension EngineStateDTO {
             totalTiles: try container.decodeIfPresent(Int.self, forKey: .totalTiles),
             modelID: modelID,
             message: try container.decodeIfPresent(String.self, forKey: .message),
+            // `.upscaling` and `.failed` read as loaded on purpose: an older Mac loads at
+            // launch and a generate-time fault leaves the weights up, so both mean the model is.
             loadedModelID: container.contains(.loadedModelID)
                 ? try container.decodeIfPresent(String.self, forKey: .loadedModelID)
                 : (kind == .idle ? nil : modelID),
