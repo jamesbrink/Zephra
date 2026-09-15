@@ -183,6 +183,55 @@ struct CompanionHostTests {
         await bed.shutdown()
     }
 
+    @Test("a phone can tell the Mac to read a model in and to give it back")
+    func loadAndUnloadFromThePhone() async throws {
+        let bed = CompanionTestBed()
+        bed.store.warmsUpAfterLoad = false
+        bed.store.loadingMode = .onDemand
+        await bed.store.bootstrap()
+        #expect(bed.store.loadedDescriptor == nil, "an on-demand launch loads nothing")
+        let phone = try await bed.pairedPhone()
+        let world = try await phone.snapshot()
+        #expect(world.modelLoading == true, "the Mac says it understands the two commands")
+        #expect(world.engine.loadedModelID == nil, "and that it is holding nothing")
+
+        #expect(try await phone.request(.loadModel(ModelCatalog.default.id)) == .ok)
+        try await bed.waitUntil { bed.store.state == .ready }
+        await bed.store.settle()
+        #expect(bed.store.loadedDescriptor?.id == ModelCatalog.default.id)
+        #expect(
+            EngineStateProjection.engine(bed.store).loadedModelID == ModelCatalog.default.id,
+            "which the next state update says")
+
+        #expect(try await phone.request(.unloadModel) == .ok)
+        try await bed.waitUntil { bed.store.loadedDescriptor == nil }
+        await bed.store.settle()
+        #expect(bed.store.descriptor.id == ModelCatalog.default.id, "the choice survives")
+        #expect(EngineStateProjection.engine(bed.store).loadedModelID == nil)
+        await bed.shutdown()
+    }
+
+    @Test("a load of a model this Mac cannot hold is refused in the words its greyed row carries")
+    func loadingAnUnholdableModelIsRefused() async throws {
+        let bed = CompanionTestBed()
+        bed.store.memoryBudget = MemoryGuardStoreTests.straddling
+        await bed.bootstrap()
+        let phone = try await bed.pairedPhone()
+        _ = try await phone.snapshot()
+
+        let reply = try await phone.request(
+            .loadModel(MemoryGuardStoreTests.tooLarge.id))
+
+        guard case .error(let error) = reply else {
+            Issue.record("expected a refusal, got \(reply)")
+            await bed.shutdown()
+            return
+        }
+        #expect(error.reason.hasPrefix("\(MemoryGuardStoreTests.tooLarge.fullName) needs"))
+        #expect(bed.store.descriptor.id != MemoryGuardStoreTests.tooLarge.id)
+        await bed.shutdown()
+    }
+
     @Test("revoking a device closes what it was doing, and says why")
     func revokingClosesTheSession() async throws {
         let bed = CompanionTestBed()

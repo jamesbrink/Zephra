@@ -101,6 +101,38 @@ struct EngineStateDTOTests {
         #expect(!running.canQueue, "and one already rendering takes nothing behind it")
     }
 
+    @Test("Which model is loaded is its own fact, and survives the trip")
+    func loadedModelIsCarried() throws {
+        var dto = EngineStateDTO(.ready, modelID: "qwen-image-2512-4bit")
+        #expect(dto.loadedModelID == nil, "the state alone does not know it")
+        #expect(try LinkFixtures.roundTrip(dto).loadedModelID == nil,
+                "and a Mac that says nothing is loaded is read as saying exactly that")
+
+        dto.loadedModelID = "z-image-turbo-8bit"
+        let read = try LinkFixtures.roundTrip(dto)
+        #expect(read.loadedModelID == "z-image-turbo-8bit")
+        #expect(read.modelID == "qwen-image-2512-4bit", "the chosen model is the other fact")
+    }
+
+    @Test("A Mac that says nothing about it is read the way that Mac meant it")
+    func anOlderMacsLoadedModel() throws {
+        // Every Mac before this loaded whatever it had chosen, so `.idle` meant nothing was
+        // loaded and every other case meant the chosen model was.
+        let idle = #"{"kind":"idle","modelID":"z","isBusy":false,"isFinishing":false,"acceptsGeneration":false}"#
+        #expect(try LinkJSON.decode(EngineStateDTO.self, from: Data(idle.utf8)).loadedModelID == nil)
+
+        let ready = #"{"kind":"ready","modelID":"z","isBusy":false,"isFinishing":false,"acceptsGeneration":true}"#
+        #expect(
+            try LinkJSON.decode(EngineStateDTO.self, from: Data(ready.utf8)).loadedModelID == "z")
+
+        // A Mac that has the field and nothing loaded writes it as null, which is not the same
+        // answer and must not be read as one.
+        let onDemand = #"{"kind":"ready","modelID":"z","loadedModelID":null,"isBusy":false,"isFinishing":false,"acceptsGeneration":true}"#
+        #expect(
+            try LinkJSON.decode(EngineStateDTO.self, from: Data(onDemand.utf8)).loadedModelID
+                == nil)
+    }
+
     @Test("A download's bytes and files come across")
     func downloadCarriesItsNumbers() {
         let dto = EngineStateDTO(

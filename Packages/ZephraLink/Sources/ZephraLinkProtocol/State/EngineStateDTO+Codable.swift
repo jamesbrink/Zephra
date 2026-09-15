@@ -11,9 +11,41 @@ import Foundation
 /// case meant the chosen model was. `QueuedEntry` reads itself by hand for its own reason and is
 /// the precedent.
 ///
-/// Encoding stays synthesised over these same keys: what this Mac sends is simply everything
-/// it has.
+/// Encoding is written by hand for the same one field. Every other key is omitted when it is
+/// absent, as a synthesised encoder would omit it; `loadedModelID` is written **always**, null
+/// included, because its absence is what says the far end is a Mac that never had the field. A
+/// Mac that has it and has nothing loaded would otherwise be indistinguishable from one that
+/// does not have it at all — and under on-demand loading that is the ordinary case, so the
+/// phone would draw a loaded dot on a model that is not there.
 extension EngineStateDTO {
+    /// Writes a state update, always saying whether a model is loaded.
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(kind, forKey: .kind)
+        try container.encodeIfPresent(phase, forKey: .phase)
+        try container.encodeIfPresent(step, forKey: .step)
+        try container.encodeIfPresent(steps, forKey: .steps)
+        try container.encodeIfPresent(fraction, forKey: .fraction)
+        try container.encodeIfPresent(secondsPerStep, forKey: .secondsPerStep)
+        try container.encodeIfPresent(completedBytes, forKey: .completedBytes)
+        try container.encodeIfPresent(totalBytes, forKey: .totalBytes)
+        try container.encodeIfPresent(completedFiles, forKey: .completedFiles)
+        try container.encodeIfPresent(totalFiles, forKey: .totalFiles)
+        try container.encodeIfPresent(bytesPerSecond, forKey: .bytesPerSecond)
+        try container.encodeIfPresent(component, forKey: .component)
+        try container.encodeIfPresent(completedComponents, forKey: .completedComponents)
+        try container.encodeIfPresent(totalComponents, forKey: .totalComponents)
+        try container.encodeIfPresent(completedTiles, forKey: .completedTiles)
+        try container.encodeIfPresent(totalTiles, forKey: .totalTiles)
+        try container.encodeIfPresent(modelID, forKey: .modelID)
+        try container.encodeIfPresent(message, forKey: .message)
+        try container.encode(loadedModelID, forKey: .loadedModelID)
+        try container.encode(isBusy, forKey: .isBusy)
+        try container.encode(isFinishing, forKey: .isFinishing)
+        try container.encode(acceptsGeneration, forKey: .acceptsGeneration)
+        try container.encode(canQueue, forKey: .canQueue)
+    }
+
     /// Reads a state update, defaulting a field an older Mac does not send.
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -40,8 +72,9 @@ extension EngineStateDTO {
             totalTiles: try container.decodeIfPresent(Int.self, forKey: .totalTiles),
             modelID: modelID,
             message: try container.decodeIfPresent(String.self, forKey: .message),
-            loadedModelID: try container.decodeIfPresent(String.self, forKey: .loadedModelID)
-                ?? (kind == .idle ? nil : modelID),
+            loadedModelID: container.contains(.loadedModelID)
+                ? try container.decodeIfPresent(String.self, forKey: .loadedModelID)
+                : (kind == .idle ? nil : modelID),
             isBusy: try container.decode(Bool.self, forKey: .isBusy),
             isFinishing: try container.decode(Bool.self, forKey: .isFinishing),
             acceptsGeneration: acceptsGeneration,
