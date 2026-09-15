@@ -144,6 +144,20 @@ struct IdleUnloadTests {
         await store.shutdown()
     }
 
+    @Test("quitting puts the clock away rather than leaving it holding the store")
+    func shutdownStopsTheClock() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        // A clock whose wait is the app's own, so only the shutdown can end it.
+        await store.bootstrap()
+        store.idleUnloadDelay = .oneHour
+        #expect(store.idleTask != nil)
+
+        await store.shutdown()
+        #expect(store.idleTask == nil)
+    }
+
     @Test("a load arms the clock again, so the next idle stretch counts from there")
     func aloadRearmsTheClock() async throws {
         let bed = EngineTestBed()

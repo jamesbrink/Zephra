@@ -73,6 +73,9 @@ extension GenerationStore {
     public func shutdown() async {
         isShuttingDown = true
         downloads.admissionClosed = true
+        // The idle clock holds this store for as long as its wait lasts, which is up to an hour.
+        idleTask?.cancel()
+        idleTask = nil
         loadIdentity = nil
         queue.removeAll()
         switchTask?.cancel()
