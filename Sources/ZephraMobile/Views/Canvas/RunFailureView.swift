@@ -8,7 +8,10 @@ import ZephraStyle
 /// keyboard, and a second rendering of them here could only be a worse one.
 ///
 /// Still, like `RunPlaceholderView` beside it and for the same reason: no repeating animation
-/// runs in either app target.
+/// runs in either app target. Neutral, unlike it: safelight amber means "only while the model
+/// works" and appears nowhere else, and a run that is over is the one thing this card is about.
+/// The Mac's failed state is a plain floating panel for the same reason. The glyph is the whole
+/// of the signal.
 struct RunFailureView: View {
     /// What went wrong, in the Mac's own words.
     let message: String?
@@ -16,8 +19,8 @@ struct RunFailureView: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: ZephraChrome.cardRadius, style: .continuous)
-                .fill(ZephraChrome.warningWash)
-                .strokeBorder(ZephraChrome.warningStroke, lineWidth: 1)
+                .fill(ZephraChrome.wellFill)
+                .strokeBorder(ZephraChrome.hairline, lineWidth: 1)
             VStack(spacing: 10) {
                 Image(systemName: "exclamationmark.triangle")
                     .font(.title2)
