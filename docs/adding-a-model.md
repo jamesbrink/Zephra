@@ -46,7 +46,7 @@ measured; leave a comment saying where a figure came from. The new entry reaches
 the interface by itself: `ModelBrowserSheet` lists every card `ModelChoice.all(for:)`
 makes out of `ModelCatalog.all`, the toolbar's `ModelMenu` lists it once its files
 are on this Mac (`ModelMenuRows` over the disk, the chosen model and any transfer
-in flight — the whole catalog is behind More Models… rather than in the
+with something to say — the whole catalog is behind More Models… rather than in the
 pull-down), and `GenerationStore.switchModel(to:)` does the rest.
 
 Four of those numbers are the memory figures, and since 2026-09-13 all four are

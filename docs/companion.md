@@ -124,7 +124,10 @@ to a DTO after a release — default it to what its absence meant — and
 
 `loadedModelID`'s fallback is the same rule and reads `kind == .idle ? nil :
 modelID`: an older Mac loaded whatever it had chosen, so `.idle` there meant
-nothing was loaded and every other case meant the chosen model was. That is an
+nothing was loaded and every other case meant the chosen model was. `.upscaling`
+and `.failed` are in that "every other case" on purpose, which a comment at the
+fallback says: that Mac loads at launch, and a generate-time fault leaves the
+weights up, so both of them do mean the model is in. That is an
 honest reading of what that Mac meant, not a guess.
 
 The **encoder** is why this field forced a hand-written writer. Every other key
@@ -947,12 +950,26 @@ Two commands and a flag, and no protocol version bump.
 `Command.loadModel(String)` chooses that model if it is not the chosen one and
 reads its weights in now; `Command.unloadModel` gives them back and leaves the
 choice alone. `CompanionSession+Commands` answers both through the doors the
-Mac's own controls use: `loadModel` refuses an unholdable model through the same
-`unholdable` check `switchModel` goes through, then calls `switchModel(to:)` only
-where the model differs and `store.loadModel()` always — one meaning in both
-loading modes, since under `.automatic` the switch has already loaded and
-`loadModel()` is then a no-op. `unloadModel` throws `.busy` with "This Mac cannot
-unload a model just now." where `canUnload` is false.
+Mac's own controls use, and both were made to answer honestly. `loadModel`
+refuses an unholdable model through the same `unholdable` check `switchModel`
+goes through, then asks `store.canLoad(model)` and throws `.busy` with "This Mac
+cannot load a model just now." where the answer is no. It asks **before the
+switch**: `loadModel()` returns silently whenever `canLoad` is false — a model
+that is not on the disk, a Mac mid-run or mid-upscale, a load already going —
+and the switch running first moved the chosen model and clamped the settings
+under the person at the keyboard while the phone was told the load had
+succeeded, which is the very thing this command exists to avoid. Past that it
+calls `switchModel(to:)` only where the model differs and `store.loadModel()`
+always — one meaning in both loading modes, since under `.automatic` the switch
+has already loaded and `loadModel()` is then a no-op.
+
+`unloadModel` is **idempotent**. An unload that has happened or is happening —
+`loadedDescriptor == nil` or `isSwappingModel` — answers `.ok`, and only past
+that does it throw `.busy` with "This Mac cannot unload a model just now." where
+`canUnload` is false. `LinkClient.request` asks a repeatable command again
+whenever its reply goes missing, and the first ask had already raised
+`isSwappingModel`, so the repeat failed `canUnload` and the phone was told
+"cannot unload" over the unload its own first ask had performed.
 
 `loadModel` is a command of its own rather than `switchModel` of the model
 already chosen, because that is a no-op the Mac answers `.ok` to: the phone drew

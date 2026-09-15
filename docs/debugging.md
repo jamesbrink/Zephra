@@ -30,9 +30,11 @@ the same override the store runs under without a second read of the process envi
   "Needs 27 GB" footer.
   `viewer` opens the library pane on its first image full size; `picker` runs the
   `editing` build with the reference picker sheet forced open, through
-  `InterfacePreview.wantsReferencePicker` — the one flag the well reads on its own,
-  since a `@State` local to a view cannot be set from the composition root the way
-  `workspace.viewing` can.
+  `InterfacePreview.wantsReferencePicker`, which `workspace()` states the way it states
+  `showsModelBrowser` for `models`. The well held that flag as a `@State` of its own and
+  read the hook in `onAppear` until the browser and the picker had to be arbitrated
+  against each other; `WorkspaceSelection.showsReferencePicker` is the flag now, and the
+  hook inside the well is gone.
   `clip` stands the store up on `PreviewModel.video` — an invented model that makes clips
   and reads a picture, for the well, the length control and the strength slider — with the
   well filled and the canvas showing `PreviewImages.sample(frames:modelID:)` stamped with
@@ -274,8 +276,13 @@ the same override the store runs under without a second read of the process envi
   rule `ZEPHRA_PREVIEW_STATE` follows and for the same reason — a shipped, signed Zephra has no
   business starting a generation unattended because a stray variable happened to be set)
   presses Generate with that prompt and the saved settings
-  as soon as the model is ready: one real generation in the app itself, window and all, from a
-  shell on a Mac nobody is sitting at. The bench measures the model without the window; a
+  as soon as the disk has been surveyed and the model is ready or loadable: one real
+  generation in the app itself, window and all, from a shell on a Mac nobody is sitting at.
+  Both halves of that wait are load-bearing under `ModelLoadingMode.onDemand`, where
+  nothing is loaded at launch and the press itself is what reads the weights in — waiting
+  for `.ready` would spin for the life of the process, and waiting on `canLoad` alone falls
+  through on its first tick, since `canLoad` reads `availability` and an empty map answers
+  yes about every model on the list. The bench measures the model without the window; a
   failure that needs the window on screen, as the GPU reset above did, needs this instead.
   `ZEPHRA_REFERENCE_ON_LAUNCH=<path>` puts that picture in the well first, through
   `adoptReference` as a drop would, and Generate waits for it to land, so with LTX-2.5 chosen

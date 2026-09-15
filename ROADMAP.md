@@ -195,11 +195,11 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   the model is ready. A line under the bar saying the prompt can be written now is the
   obvious small addition; it was left out of the chooser's change so the change stayed
   about the choice.
-- **The chooser is not offered again after a model is downloaded.** `reopen()` is
-  wired to the canvas's idle state alone, which is where a person who skipped or
-  cancelled lands. Someone who has klein and wants to see what Qwen-Image would cost
-  reads the model menu, which says it. A Settings > Models "Add a Model" gallery over
-  the same cards is the obvious next home for it.
+- **The chooser itself is never offered again.** `reopen()` is gone: the cards a
+  person who skipped or cancelled wants are `ModelBrowserSheet`'s now, raised from
+  the canvas's idle state, the pull-down's More Models… and ⇧⌘M. What is still
+  missing is a door to them from Settings > Models, which lists what is on the disk
+  and offers no way to add to it.
 - **The recommendation is memory alone.** `ModelCatalog.default(fitting:)` takes the
   first catalog entry that runs at its default size with its weights resident — then
   the first that runs streamed, since a model read off the disk every step is how a
@@ -813,12 +813,6 @@ both the Mac and the phone. See "How a generation runs" in AGENTS.md,
   readout is last, so what falls below the sill is the tail of one live figure.
   Splitting Performance into two tabs, or moving the live readout to its own
   disclosure, is the fix; neither is worth a tab's worth of churn yet.
-- **`MobilePreview.offers(for:)` (`MobilePreview+Hosts.swift`) hardcodes
-  `modelLoaded: true`.** So the frozen
-  `failed` state's destination line reads "Model loaded · ready now" beside a
-  canvas saying "Not loaded". Preview-only: a real Mac builds the offer from
-  `store.loadedDescriptor` (`CompanionSession+Offers.swift`), which is honest.
-  Left alone rather than touching what feeds `HostSelection`.
 - **`GenerateAvailability` is read by its own suite alone.** Multiple
   destinations moved that question onto `GenerationDispatch` (`canSend`,
   `reason`) and the type was left behind; it is not this change's doing and is

@@ -113,9 +113,11 @@ to say that was already computed and shown nowhere until a toolbar menu was foun
   explicit "load it now" in either mode, so the load is said out loud rather than
   left to the mode; under `.automatic` the switch has already loaded and `loadModel()`
   is a no-op.
-- `ZEPHRA_GENERATE_ON_LAUNCH` is inert while the chooser is up: it waits for a model
-  to be ready, and with the chooser up nothing is loading, so it would poll for ever.
-  The hook is for an unattended launch on a Mac that is already set up.
+- `ZEPHRA_GENERATE_ON_LAUNCH` is inert while the chooser is up: `WelcomeHost` returns
+  before it rather than leaving it to poll, since with the chooser up nothing is loading
+  and nothing will be until somebody presses a card. The hook is for an unattended launch
+  on a Mac that is already set up, where it waits for the survey to land and then for a
+  model that is ready or loadable.
 - `ZEPHRA_PREVIEW_STATE=welcome` photographs it. Screenshot it at 1200 x 840 and again
   at the window's 880 x 560 floor: the grid's columns are adaptive and reflow to two
   there, and the footer must stay put under the scroll.

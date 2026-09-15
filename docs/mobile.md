@@ -385,7 +385,11 @@ the failure was about, not whatever the draft has been moved to since — takes
 `GeneratePress`'s three states, since it is one round trip to the Mac exactly as
 Generate is, and puts a refusal **under itself** as the Mac's own sentence rather
 than in an alert: this is a button somebody may press twice in ten seconds, and a
-sheet each time would be in the way of the second press. Against a Mac too old
+sheet each time would be in the way of the second press. That sentence is
+cleared on `engine?.kind` changing and on `client.connection.isLive` changing,
+because it is about one attempt: a timed-out press left "The Mac did not answer"
+standing under the button for as long as the card did, over a Mac that had gone
+on loading. Against a Mac too old
 for the command it is simply not there, and Generate alone is the way back —
 which the Mac's own widened admission already makes work.
 

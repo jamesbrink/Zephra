@@ -361,16 +361,28 @@ Six directories, by what a file is rather than what screen it is on:
 
   The model's three controls sit at the trailing end of the toolbar and behind
   it. `ModelMenu` is the pull-down, and it lists **what is on this Mac** rather
-  than the catalog: `ModelMenuRows` (pure, `Support/`) takes models whose files
-  are here, the chosen model whatever its state, and any model whose gigabytes
-  are moving right now, in `ModelCatalog.ordered(for:)`'s order, checkmarks the
-  chosen one, and puts "Loaded", "Streaming" or "Downloading…" after a name that
-  needs it. A model being merely undownloaded no longer closes a row — only
+  than the catalog: `ModelMenuRows` (pure, `Support/`) takes models whose
+  files are here, the chosen model whatever its state, and any model whose
+  transfer has something to say, in `ModelCatalog.ordered(for:)`'s order,
+  checkmarks the chosen one, and puts "Loaded", "Streaming" or that
+  transfer's own sentence after a name that needs it. The sentence comes in
+  as a `[ModelDescriptor.ID: String]` map filled from
+  `ModelDownloads.status(for:)`, which is what Settings > Models already
+  draws — "Downloading 42%", "Download paused", "Download failed" — and that
+  map is both the note and the reason a model is listed, so the two surfaces
+  cannot come to differ about a transfer. A `Set` of live ids was the first
+  shape and was wrong twice over: a paused transfer read "Downloading…" and
+  a failed one left the menu entirely, which is the one thing the menu's own
+  rule forbids.
+  A model being merely undownloaded no longer closes a row — only
   memory greys one, which is what the greying means — and the catalog's rest is
   behind a Divider and More Models…, because what a model makes and what it
   downloads is a picture and three lines, not a menu row. A transfer somebody
   just started keeps its row, so the one menu in the window that names models
-  never loses the model they are waiting for.
+  never loses the model they are waiting for — a paused transfer and a failed
+  one above all, since those are the two somebody has to come back to. A
+  finished one answers nil and needs no rule: the model is `.available` by
+  then.
 
   The menu's label carries the state word and **no `ModelDot`**: SwiftUI flattens
   a toolbar menu's label to its title and a menu item's to text plus a system
@@ -384,16 +396,31 @@ Six directories, by what a file is rather than what screen it is on:
   once would be past the three stored properties a view is allowed. It reads
   Load, Unload or Try Again — from `ModelLoadStatus`, the pure type that also
   gives the menu its word and the button its tooltip, so the two cannot disagree
-  — and it shows **nothing** while a load is in flight: that progress is a
-  determinate bar on the canvas, and a second, indeterminate one in the toolbar
-  would be a repeating animation, which neither app target runs. Its tooltip is
+  — and it **never leaves the toolbar**. A control that went away for the length
+  of a load would slide the inspector toggle and Settings across and back, which
+  is a bigger movement than the pill's own. While the weights are on their way
+  in it still reads Load and is greyed, by `isPressable`: not the state word,
+  because the menu's label immediately to its left already carries that, and
+  "Z-Image Turbo · 8-bit · Downloading" with a greyed "Downloading" beside it
+  says one thing twice in a strip that then changes width on every state. Load
+  is the press somebody wants and cannot have yet, which is what a greyed button
+  means. The progress itself is a determinate bar on the canvas, where its Stop
+  is; a second, indeterminate one in the toolbar would be a repeating animation,
+  which neither app target runs. Its tooltip is
   the sentence rather than the word, since this is the one place a press that
   unloads one model to load another can say so.
 
   `ModelBrowserSheet` (`Views/Models/`) is 760 x 560 over the window, presented
   once from `RootView` on `WorkspaceSelection.showsModelBrowser`, which is never
   persisted for the reason `promptTucked` is not: a dialog is something a person
-  opened, not a place the window is. Three doors raise it — More Models… in the
+  opened, not a place the window is. It lives on `WorkspaceSelection` rather
+  than in a view because three places raise it and because one object has to
+  arbitrate between it and `showsReferencePicker`, its twin and its rival for
+  the one sheet a window has: `didSet` on each refuses to rise while the other
+  is up, since a sheet raised over a sheet stacks and ⇧⌘M over the reference
+  picker put the browser on top of it. The reference well writes the second flag
+  rather than holding a `@State` of its own, which also retired the `onAppear`
+  hook the `picker` screenshot build needed. Three doors raise it — More Models… in the
   pull-down, "Choose a Model…" on the canvas, and ⇧⌘M in the Model menu — and a
   sheet belongs to the window all three are in. 760 rather than the reference
   picker's 640: the grid's columns are 280 at their narrowest with 16 of spacing
@@ -405,16 +432,28 @@ Six directories, by what a file is rather than what screen it is on:
   describing that rather than an arbitrary first card.
 
   `ModelBrowserFooter` draws one button, not a row of them, because which of
-  Download N GB, Build Model, Use Model, Load Model and Done applies is decided
+  Download N GB, Build Model, Use Model and Load Model applies is decided
   entirely by the disk and this Mac's memory. `ModelBrowserAction` (pure,
   `Support/`) is that decision and asks **memory first**: a model this Mac cannot
   hold says what it would take, since "Download 13.3 GB" over a disabled button
-  offers a transfer nothing will load. Download and Build do not dismiss — the
+  offers a transfer nothing will load. Two answers draw no press at all.
+  `.done` — the model that is chosen and already in — is `isDrawn` false, since
+  Done is standing in the footer already and a second Done beside it would be
+  two ways out of a dialog that has one. And a card judged before the survey has
+  landed is `.pending(String)`: the word the button *will* say, disabled,
+  because nil availability folded in with "it is here" put Load Model over a
+  press that would have run the whole acquire chain and started a 13 GB
+  download. Download and Build do not dismiss — the
   footer becomes that transfer's own `ModelDownloadRow`, with its Pause and
   Cancel Download, because sending somebody to Settings to stop what they just
   pressed in this dialog is the worse answer. Download goes through
   `downloadModel`, never `resumeDownload`, which would load the model already
-  chosen.
+  chosen. The footer is a fixed 112 points in every state, so pressing Download
+  does not resize the grid under the card somebody has just chosen: 112 is what
+  `ModelDownloadRow` needs down to its buttons, and the row is framed and
+  clipped into it — its two trailing caption paragraphs cut — rather than
+  forked, since two copies of Pause and Cancel Download would be two sets of
+  disabled reasoning to keep in step.
 
   The grid is shared with the first-launch chooser and the body is deliberately
   not. `WelcomeView` carries layout that exists for the full-window case alone —
@@ -430,7 +469,12 @@ Six directories, by what a file is rather than what screen it is on:
   Model directly under Generate would also sit the two items that now interact
   ("Generate loads it first") side by side, where they read as alternatives.
   Every item has a visible twin in the window and reads the same two answers,
-  `canLoad(store.descriptor)` and `canUnload`.
+  `canLoad(store.descriptor)` and `canUnload`. More Models… has a third
+  condition of its own: it is greyed while `welcome.isShowing ||
+  workspace.showsReferencePicker`, because the browser is a sheet on `RootView`
+  — which is not in the hierarchy at all while the first-launch chooser is up,
+  so the flag set there raised the browser the moment the chooser went — and
+  because it and the picker are the two sheets one window has.
 
   `ModelLoadingSettings` (`Views/`) is the Loading section, first on the
   Performance tab: "Load models automatically" with a caption saying what each

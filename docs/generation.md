@@ -135,12 +135,21 @@ nothing in memory loads first and then runs, a second press queues behind that
 load rather than being refused, and Stop during that load goes through
 `stopPreparation` — the queue is dropped and the state lands `.idle`.
 
-The explicit doors are new and small. `loadModel()` guards on `canLoad`, clears
+The explicit doors are new and small, and they sit together in
+`GenerationStore+LoadControls.swift`. `loadModel()` guards on `canLoad`, clears
 `modelAwaitsGenerate` (an explicit Load is exactly the explicit choice a
 picture's adoption was waiting for) and calls `startLoading`. `canUnload` is
-"weights in, nothing already moving them"; `unloadModel()` raises
+"weights in, nothing already moving them, and a state of `.idle`, `.ready` or
+`.failed`". That last clause is `canUpscale`'s and is there for `canUpscale`'s
+reason: the flags alone read true during a load, `loadedDescriptor` can still
+name an *earlier* model while a fresh load runs, and releasing those weights
+under a `bootstrapTask` nobody cancelled leaves that load republishing over a
+store that believes it unloaded. `unloadModel()` raises
 `isSwappingModel`, transitions `.idle` and gives the weights and the disk lease
-back on `switchTask`, leaving the chosen model chosen. `isSwappingModel` is
+back on `switchTask`, leaving the chosen model chosen. Both say in `make logs`
+what they did, or which gate refused them, the way a refused press of Generate
+does: a control that appears to do nothing is the one thing a log has to be able
+to explain. `isSwappingModel` is
 exactly the right flag there: the state passes through `.idle` while the weights
 go back, and nothing else may load meanwhile. The internal primitive underneath
 — used by the swap, by `stopPreparation`, by `changeModelDirectory` and by
@@ -149,6 +158,20 @@ public name is the one the interface presses. `downloadModel(_:)` (`+Downloads`)
 is `downloads.start` and nothing else, for any model, never loading: the browser's
 Download button must fetch and stop even for the model already chosen, which
 `resumeDownload` would load.
+
+A transfer with no load behind it is the one nothing was telling the Mac about.
+`refreshAvailability()` ran from the bootstrap, the load path, a storage
+deletion and a folder change, so a download started by `downloadModel(_:)`
+finished and changed nothing this Mac knew: the model stayed `.needsDownload` in
+the pull-down, in the browser's own footer and in a paired phone's
+`ModelSummary` until the next launch, and the footer offered the same download
+again. `ModelDownloads` calls `onUnborrowedCompletion` when a request settles
+with `borrowers == 0`, just before the release that drops it, and
+`GenerationStore.init` answers by re-reading the disk under `acceptsWork`, so a
+refresh cannot land stale availability during a folder change or a deletion. A
+**borrowed** request is a load's and the load refreshes on its way out, so the
+hook fires exactly where the gap was — and covers the menu's and
+`resumeDownload`'s background starts too, not only the browser's.
 
 `canLoad(_ model:)` (`+Admission`) is the other half of admission: `.idle` or
 `.failed`, `acceptsWork`, no swap, stop or upscale in flight, `canSelect`, and an
@@ -371,14 +394,21 @@ Only where that answer is no does a refusal happen, and it is `failJob(_:with:)`
 rather than `fail(with:)`: **the offending batch alone** is removed, and the rest
 of the queue stays. A run the GPU lost is a reason to stop everything; one request
 this Mac has not the memory for this minute is not a reason to throw away the four
-queued behind it. What is left does not drain on by itself — `.failed` is a
+queued behind it. Every entry the batch takes with it takes its
+`ChainProgress` too: `generate(count:)` plans one chain per seed, so clearing
+the refused job's chain alone left the batch's other seeds' chains behind, each
+holding a clip's PNG frames nothing would read again. What is left does not
+drain on by itself — `.failed` is a
 sentence somebody has to read, and a `.generating` arriving on top of it would
 take it away before anybody had — so the next press of Generate drains the
 survivors, and so does Try Again.
 
 `residencyOverride` is the store's own forced answer for the next load, consumed
-once at the top of `+Preparation.load` and cleared by `stopPreparation` so a stop
-leaves none behind for whatever loads next. `loadResidency(for:forcing:)` still
+once at the top of `+Preparation.load` and cleared by `stopPreparation` and by
+every one of `startLoading`'s early returns, which go through `loadNotStarted()`
+for exactly this. A load that never began would otherwise leave the forced
+answer standing, and the next load of any model would read its weights off the
+disk. `loadResidency(for:forcing:)` still
 runs the shortfall check against the forced residency rather than skipping it, so
 a Mac that cannot stream it either is refused with the **streamed** figure — that
 is the load that was going to be attempted, and quoting the resident one would
