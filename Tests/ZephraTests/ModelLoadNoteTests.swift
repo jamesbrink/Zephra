@@ -54,4 +54,12 @@ struct ModelLoadNoteTests {
         store.availability[target.id] = .available
         #expect(ModelLoadNote.text(for: target, store: store) == ". Loads \(target.fullName) first")
     }
+
+    @Test("names the load when nothing at all is loaded, which is the ordinary case now")
+    func nothingIsLoaded() {
+        let store = GenerationStore.preview(state: .idle, descriptor: ModelCatalog.zImageTurbo8bit)
+        let target = ModelCatalog.zImageTurbo8bit
+        store.availability[target.id] = .available
+        #expect(ModelLoadNote.text(for: target, store: store) == ". Loads \(target.fullName) first")
+    }
 }

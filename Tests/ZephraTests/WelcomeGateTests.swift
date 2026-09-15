@@ -189,13 +189,4 @@ struct WelcomeGateTests {
             #expect(!gate.isShowing)
         }
     }
-
-    @Test("the canvas can ask for the chooser back")
-    func reopening() {
-        withDefaults { store in
-            let gate = WelcomeGate(isShowing: false, defaults: store)
-            gate.reopen()
-            #expect(gate.isShowing)
-        }
-    }
 }

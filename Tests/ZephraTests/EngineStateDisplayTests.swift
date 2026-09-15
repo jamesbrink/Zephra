@@ -44,7 +44,7 @@ struct EngineStateDisplayTests {
         let building = EngineState.building(
             BuildProgressEvent(component: "transformer", completedComponents: 0, totalComponents: 3, fraction: 0))
         #expect(building.title(for: model, availability: nil) == "Building Z-Image Turbo · 8-bit. This happens once.")
-        #expect(EngineState.idle.title(for: model, availability: nil) == "Z-Image Turbo · 8-bit isn't loaded yet.")
+        #expect(EngineState.idle.title(for: model, availability: nil) == "Z-Image Turbo · 8-bit isn't loaded. Generate loads it first.")
         let downloading = EngineState.downloading(
             DownloadProgressEvent(completedFiles: 0, totalFiles: 1, fraction: 0))
         #expect(downloading.title(for: model, availability: nil)?.hasPrefix("Z-Image Turbo · 8-bit needs") == true)
