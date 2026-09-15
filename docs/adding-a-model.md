@@ -42,8 +42,12 @@ anything, and for a model that makes clips the frame bounds, default, ladder
 and rate (`frameBounds`, `defaultFrames`, `frameAlignment`, `frameRate`), a
 range in the first being what draws the length control and says the backend
 answers `GeneratedMedia.video`. Every number in an entry is hand-written because every number is
-measured; leave a comment saying where a figure came from. `ModelMenu` lists
-`ModelCatalog.all` and `GenerationStore.switchModel(to:)` does the rest.
+measured; leave a comment saying where a figure came from. The new entry reaches
+the interface by itself: `ModelBrowserSheet` lists every card `ModelChoice.all(for:)`
+makes out of `ModelCatalog.all`, the toolbar's `ModelMenu` lists it once its files
+are on this Mac (`ModelMenuRows` over the disk, the chosen model and any transfer
+in flight — the whole catalog is behind More Models… rather than in the
+pull-down), and `GenerationStore.switchModel(to:)` does the rest.
 
 Four of those numbers are the memory figures, and since 2026-09-13 all four are
 measured for every entry: `residentBytes`, `peakBytes`, `tiledPeakBytes` and
@@ -54,7 +58,9 @@ shipped, and an entry left with one is offered on fewer Macs than it could run
 on. They matter more than they used to, because memory is a **gate** now and not
 a note: `MemoryFit.isSelectable` is false when a model does not fit on any lever
 this Mac has, and a model it is false for is greyed in the model menu, greyed on
-the first-launch card, greyed on a paired phone, refused by
+the first-launch card, greyed in the model browser — where `ModelBrowserAction`
+asks memory **before** the disk, so the button says what it would take rather
+than offering a download nothing will load — greyed on a paired phone, refused by
 `GenerationStore.canSelect` before a byte is downloaded, and stepped off at
 launch by `fallBackIfUnrunnable()` (which was `fallBackIfUnobtainable` until it
 learned to ask about memory as well as about the disk). A figure measured too
@@ -88,6 +94,14 @@ in `Sources/ZephraBench` so `--model` can name it, and the family lists in
 `make lint-layers`, which name every family by hand and lint nothing they do
 not name.
 
+`bootstrap` also reads `ModelLoadingMode`. Under `.onDemand`, which is the
+default, it surveys the disk and returns — the chosen model stays chosen, and
+nothing is read into memory until Load or a press of Generate asks for it. So a
+new entry is never a launch-time cost on a Mac that has not chosen it, and a
+family added later needs nothing new to take part: `drain()`'s next-entry branch
+loads whatever an entry names before it runs it, which is the same call
+`.automatic` makes earlier.
+
 A saved choice this Mac cannot run — a local build deleted from
 Settings > Models, a preference carried to a Mac that never made it, or a model
 this Mac has not the memory to hold — is not loaded into a failure: `bootstrap`
@@ -112,8 +126,9 @@ explicit choice clears the flag: Generate (the drain then swaps to the first
 entry's model as it always did), a pick in the menu (`switchModel`, which
 swaps nothing when the pick is the model already loaded, and which takes a
 pick of the model the menu already shows as "load it now" when that model is
-waiting — the one way a person has to say so), a variation, and a load that
-lands on the chosen model. `retry()` over another model's weights — a run on
+waiting — under `ModelLoadingMode.onDemand` it says so and loads nothing, since
+there the Load control is what a person says it with), an explicit `loadModel()`
+or `unloadModel()`, a variation, and a load that lands on the chosen model. `retry()` over another model's weights — a run on
 them failed, and a picture's model was chosen since — goes through `reload`
 so the old lease goes back rather than a bare load leaving it held, and
 Resume on a download row takes the retry branch only while nothing is
@@ -121,15 +136,20 @@ loaded. A menu pick cancels a square's read still in flight, and abandons
 a picture still on its way into the well (an Animate whose read has not
 landed), so neither lands on top of it. The running card's `watchRun()` restores the run's
 model the same way, which is the loaded one, so nothing waits. While the
-flag is up, the Generate button's tooltip says what pressing it loads or
-downloads first, and the canvas headline, the window subtitle and the
+flag is up, the canvas headline, the window subtitle and the
 background notice name `modelInUse` — the loaded model, or the one on its
 way in — rather than the chosen one. A picture from a model this build has
 dropped keeps the current model and takes its schedule, clamped, as a
-variation of one does. `GenerationStore.animate(origin:read:)` chooses the
+variation of one does. The Generate button's tooltip says what pressing it
+loads or downloads first whether or not the flag is up: `ModelLoadNote` answers
+for **any** model that is not the one in memory, which since on-demand loading
+is most often no model at all, and `GenerateButton` dropped the
+`modelAwaitsGenerate` guard that used to sit in front of it. `GenerationStore.animate(origin:read:)` chooses the
 clip model by exactly this rule, so Animate never swaps weights either; see
-"Starting from a picture" in `docs/reference-pictures.md`. `DeferredModelTests` and `DeferredModelEdgeTests` pin
-all of it, `AnimateTests` the animation's half.
+"Starting from a picture" in `docs/reference-pictures.md`. `DeferredModelTests`
+and `DeferredModelEdgeTests` pin all of it, `AnimateTests` the animation's half;
+both suites live in `FollowingRunTests.swift`, which is worth knowing because
+`swift test --filter` matches the type name and never the file's.
 
 `InferenceActor` keeps one backend at a time and rebuilds it whenever a
 descriptor names a different family, so the old weights are always released

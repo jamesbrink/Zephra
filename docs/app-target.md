@@ -179,9 +179,20 @@ Six directories, by what a file is rather than what screen it is on:
   which is what every Settings window on the Mac does. The height a tab opens at
   is not the least the window may be dragged to — `minimumHeight` is, one
   number for all four, and it must fit the smallest display Sequoia runs on:
-  Performance's 820 points of content plus 88 of chrome is 908, against 876
+  Performance's content plus 88 points of chrome is well past the 876
   usable on a 13-inch MacBook Air M1, and AppKit clamps a window to the screen's
   visible frame on open only when the minimum it is holding to actually fits.
+  Performance stands **1010** now, not the 820 it shipped at, because the
+  Loading section arrived above the warm-up toggle and costs 158 points; the
+  whole tab wants about 1110, which no Mac laptop display has. **The rule that
+  Performance must not scroll is dead**, and it was already untrue at 820, where
+  Peak since launch and VAE decode sat below the sill. 930 was measured first
+  and showed no readout rows at all, which is worse than what shipped; 1010 is
+  what a 1728 x 1010 workstation display allows and restores the reading 820
+  gave, down to Cached. The live readout stays last on purpose, so what falls
+  below the sill is the tail of one figure rather than a setting nobody would
+  find, and the floor of 400 is what lets the tab open clamped and scrolling on
+  a laptop instead of refusing to shrink.
   Those figures are a floor
   and an opening size, not a fixed frame: the window resizes, keeps whatever size
   a person gave it as they step between tabs, and grows only for a tab whose
@@ -215,7 +226,7 @@ Six directories, by what a file is rather than what screen it is on:
   the app too: it names no `LICENSE` file, because none is bundled — the app's
   own terms are the copyright line's "All rights reserved" until terms are
   decided (`ROADMAP.md`). A keyboard shortcut has one owner, the menu bar
-  (`ZephraCommands`, `WorkspaceCommands`, `LibraryCommands`,
+  (`ZephraCommands`, `ModelCommands`, `WorkspaceCommands`, `LibraryCommands`,
   `ThumbnailSizeCommands`); a button that shows a chord shows it as text, the
   way `GenerateButton` writes ⌘⏎, and never declares it too, because a chord
   declared twice is one stray SwiftUI change from firing twice. The two
@@ -332,7 +343,14 @@ Six directories, by what a file is rather than what screen it is on:
   is what the canvas says otherwise, centred, and in a floating panel when a
   picture is under it; the one state that steps aside is a model that simply
   is not loaded over a picture, which sits at the top edge with its Load
-  Model button so a picture opened from the sidebar is seen and not covered. On Liquid Glass
+  Model button so a picture opened from the sidebar is seen and not covered.
+  That button goes through `GenerationStore.loadModel()` and not through
+  `retryFromInterface()`, which Try Again beside it still does: a plain load is
+  not a retry. The link under it, "Choose a Model…", raises
+  `ModelBrowserSheet` rather than `WelcomeGate.reopen()`, which is gone; the
+  idle headline reads "X isn't loaded. Generate loads it first." rather than
+  "isn't loaded yet.", since with on-demand loading that is the ordinary resting
+  state of a Mac and the sentence has to say what to do about it. On Liquid Glass
   the window toolbar floats over content by default, so `RootView` forces
   its background visible (`.toolbarBackgroundVisibility(.visible, for:
   .windowToolbar)`), making it an opaque full-width strip with a hairline
@@ -340,6 +358,89 @@ Six directories, by what a file is rather than what screen it is on:
   `WorkspaceDetail`'s `HStack` (the pane, its `Divider`, and the inspector)
   stays inside the top one too, so the sidebar, the pane, and the inspector
   all start below the strip rather than the divider cutting through it.
+
+  The model's three controls sit at the trailing end of the toolbar and behind
+  it. `ModelMenu` is the pull-down, and it lists **what is on this Mac** rather
+  than the catalog: `ModelMenuRows` (pure, `Support/`) takes models whose files
+  are here, the chosen model whatever its state, and any model whose gigabytes
+  are moving right now, in `ModelCatalog.ordered(for:)`'s order, checkmarks the
+  chosen one, and puts "Loaded", "Streaming" or "Downloading…" after a name that
+  needs it. A model being merely undownloaded no longer closes a row — only
+  memory greys one, which is what the greying means — and the catalog's rest is
+  behind a Divider and More Models…, because what a model makes and what it
+  downloads is a picture and three lines, not a menu row. A transfer somebody
+  just started keeps its row, so the one menu in the window that names models
+  never loses the model they are waiting for.
+
+  The menu's label carries the state word and **no `ModelDot`**: SwiftUI flattens
+  a toolbar menu's label to its title and a menu item's to text plus a system
+  image, so a dot beside the name is drawn nowhere. That was tried and
+  photographed. The word survives because it is part of the title, which is the
+  half that had to.
+
+  `ModelLoadButton` stands beside the menu rather than inside it. A pill whose
+  width moved with its state word would shift every item to its left in the
+  trailing group, and a view holding the model, the load state and the rows at
+  once would be past the three stored properties a view is allowed. It reads
+  Load, Unload or Try Again — from `ModelLoadStatus`, the pure type that also
+  gives the menu its word and the button its tooltip, so the two cannot disagree
+  — and it shows **nothing** while a load is in flight: that progress is a
+  determinate bar on the canvas, and a second, indeterminate one in the toolbar
+  would be a repeating animation, which neither app target runs. Its tooltip is
+  the sentence rather than the word, since this is the one place a press that
+  unloads one model to load another can say so.
+
+  `ModelBrowserSheet` (`Views/Models/`) is 760 x 560 over the window, presented
+  once from `RootView` on `WorkspaceSelection.showsModelBrowser`, which is never
+  persisted for the reason `promptTucked` is not: a dialog is something a person
+  opened, not a place the window is. Three doors raise it — More Models… in the
+  pull-down, "Choose a Model…" on the canvas, and ⇧⌘M in the Model menu — and a
+  sheet belongs to the window all three are in. 760 rather than the reference
+  picker's 640: the grid's columns are 280 at their narrowest with 16 of spacing
+  and 64 of padding, which is 640 exactly and would collapse to one column the
+  moment a scroller appeared. It splits into `ModelBrowserHeader` and
+  `ModelBrowserList` because the sheet would otherwise hold the budget, the
+  selection, the store and `dismiss` at once; the list reuses `ModelChoiceGrid`
+  untouched and seeds its selection from the chosen model, so the footer opens
+  describing that rather than an arbitrary first card.
+
+  `ModelBrowserFooter` draws one button, not a row of them, because which of
+  Download N GB, Build Model, Use Model, Load Model and Done applies is decided
+  entirely by the disk and this Mac's memory. `ModelBrowserAction` (pure,
+  `Support/`) is that decision and asks **memory first**: a model this Mac cannot
+  hold says what it would take, since "Download 13.3 GB" over a disabled button
+  offers a transfer nothing will load. Download and Build do not dismiss — the
+  footer becomes that transfer's own `ModelDownloadRow`, with its Pause and
+  Cancel Download, because sending somebody to Settings to stop what they just
+  pressed in this dialog is the worse answer. Download goes through
+  `downloadModel`, never `resumeDownload`, which would load the model already
+  chosen.
+
+  The grid is shared with the first-launch chooser and the body is deliberately
+  not. `WelcomeView` carries layout that exists for the full-window case alone —
+  the two spacers that centre it, the 1040-point content column, two pinned
+  screenshots — and sharing a body would make this sheet's fixed frame the thing
+  that decides the chooser's layout. One grid, two hosts, two chromes.
+
+  `ModelCommands` (`Views/`) is the menu bar's half: a `CommandMenu("Model")`
+  with Load Model (⌥⌘L), Unload Model (⇧⌥⌘L), a divider and More Models…
+  (⇧⌘M). Its own menu rather than three more items in File, whose group is
+  Generate, Stop and New Album — the things a person makes — while these three
+  are about the engine that makes them and what is on the disk; putting Load
+  Model directly under Generate would also sit the two items that now interact
+  ("Generate loads it first") side by side, where they read as alternatives.
+  Every item has a visible twin in the window and reads the same two answers,
+  `canLoad(store.descriptor)` and `canUnload`.
+
+  `ModelLoadingSettings` (`Views/`) is the Loading section, first on the
+  Performance tab: "Load models automatically" with a caption saying what each
+  answer means, and "Unload after idle" over `IdleUnloadDelay`. The two keys are
+  `loadModelsAutomatically` (false) and `idleUnloadMinutes` (0), and both are set
+  on the store **in `ZephraApp` alone**, each with an `initial: true` `onChange`,
+  so Settings applies to the next choice rather than the next launch. The same
+  change took `warmsUpAfterLoad` there: four doors into a load each re-read that
+  preference for themselves, which is four readers of one preference, and the
+  assignments in `GenerationStore+Interface` are gone.
 
   A clip plays where its poster would be: `Canvas/ClipPlayerView`, an
   `NSViewRepresentable` over AVKit's `AVPlayerView` with no transport controls,

@@ -29,9 +29,15 @@ to say that was already computed and shown nowhere until a toolbar menu was foun
   download a second model to sit beside the one already downloaded. It answers nil for
   a chooser that is already down, which is what keeps a Skip pressed while the survey
   was still running from turning into a download a moment later. `dismiss()` records
-  the answer — a skip is an answer — and `reopen()` is the way back, from
-  `CanvasStateView`'s idle state, the one screen a person who skipped actually lands
-  on.
+  the answer — a skip is an answer — and that is the last of it: **there is no way
+  back to the chooser**. `reopen()` was removed with the model browser. The screen a
+  person who skipped lands on is `CanvasStateView`'s idle state, and its "Choose a
+  Model…" now raises `ModelBrowserSheet` instead. Two reasons. The chooser takes the
+  whole window to ask a question this Mac has already answered, and writing that
+  answer again is a preference write for a press that was only meant to go looking.
+  And with models loaded on demand, going looking is something people do routinely
+  rather than once: a dialog over the window is the right shape for it, and the
+  chooser, which is a first-run screen, is not.
 - `WelcomeHost` (`Views/Welcome/`) is the `Window` scene's root and shows either the
   chooser or `RootView`. `bootstrapFromInterface(loadingModel:)` is why: with the
   chooser up it runs `GenerationStore.surveyAvailability()` — the half of
@@ -97,11 +103,16 @@ to say that was already computed and shown nowhere until a toolbar menu was foun
   `MODELS_DIR` is **skipped, not fetched** — `ZephraBench` downloads what it cannot
   find, which is right for a benchmark and wrong here, where it would quietly pull
   tens of gigabytes; `ALLOW_DOWNLOAD=1` asks for that on purpose.
-- Choosing goes through `GenerationStore.chooseFirstModel(_:)`, not `switchModel`:
-  `switchModel` refuses a pick of the model already chosen, which on a first launch is
-  whatever `default(fitting:)` answered, so pressing the recommended card would
-  otherwise do nothing at all. That case starts the load directly, which from `.idle`
-  with nothing resident is the same work.
+- Choosing goes through `GenerationStore.chooseFirstModel(_:)`, which is now
+  `switchModel` where the pick differs from the chosen model, and then `loadModel()`
+  always. Two rules meet there. `switchModel` refuses a pick of the model already
+  chosen, which on a first launch is whatever `default(fitting:)` answered, so
+  pressing the recommended card would otherwise do nothing at all. And under
+  `ModelLoadingMode.onDemand` — the default — `switchModel` loads nothing even when
+  it does take the pick, since a pick is only a pick there. A first-launch card is an
+  explicit "load it now" in either mode, so the load is said out loud rather than
+  left to the mode; under `.automatic` the switch has already loaded and `loadModel()`
+  is a no-op.
 - `ZEPHRA_GENERATE_ON_LAUNCH` is inert while the chooser is up: it waits for a model
   to be ready, and with the chooser up nothing is loading, so it would poll for ever.
   The hook is for an unattended launch on a Mac that is already set up.

@@ -765,6 +765,66 @@ The updater is in AGENTS.md under "Updates"; the reasoning is in
   can at most point at a Zephra Apple notarized and we signed. Signing it would
   add a key to keep, and would defend the step that is already the most checked.
 
+## On-demand model loading: left out on purpose
+
+Shipped 15 September 2026: a model is loaded when somebody asks for it rather
+than by the fact of being chosen, with `ModelBrowserSheet` for the catalog, an
+idle unload, a run-time step-down to streaming, and Load, Unload and Try Again on
+both the Mac and the phone. See "How a generation runs" in AGENTS.md,
+`docs/generation.md` and `docs/app-target.md`.
+
+- **The first-launch chooser is not rebuilt on the browser's body.** Both draw
+  `ModelChoiceGrid`, and there it stops. `WelcomeView` carries layout that exists
+  for the full-window case alone — the two spacers that centre it, the
+  1040-point content column, two pinned screenshots — so a shared body would make
+  the sheet's fixed 760 x 560 frame the thing that decides the chooser's layout.
+  One grid, two hosts, two chromes was the cheaper answer and stays until the two
+  chromes actually converge.
+- **The browser has no search, no filter and no sort.** Eight cards in
+  `ModelCatalog.ordered(for:)`'s order fit two columns and one scroll. A search
+  field earns its place at the size a catalog is not yet.
+- **Deleting a model's files stays in Settings > Models.** The browser downloads,
+  builds, chooses and loads; it does not free the disk. `ModelStorage` is a list
+  of directories with origins and a loaded-model guard, which is a different
+  question from "what shall I run", and putting a destructive press on a card
+  somebody opened to go looking is the wrong shape.
+- **`canQueueVariation` was not widened by `canLoad`.** `canQueue`,
+  `acceptsQueuedGeneration` and `remoteAdmission` all take a load into account
+  now; a variation still does not, so asking for one with nothing loaded is
+  refused rather than loading first. Deliberate for this pass — a variation is
+  started from a picture somebody is looking at, where Generate is a press away —
+  and one line to change if it turns out to matter.
+- **An idle unload can race a phone's admission.** `unloadModel()` returns
+  synchronously with `isSwappingModel` raised, so an `enqueue` that lands between
+  the clock firing and the unload task running is refused "No model is loaded
+  yet." rather than admitted. Admitting it would put a generation on the
+  inference actor behind a queued unload, which is the worse failure; the next
+  press is taken and loads. Cosmetic, one press wide, and only with the idle
+  clock turned on.
+- **No `ModelDot` in the toolbar's menu label.** SwiftUI flattens a toolbar
+  menu's label to its title and a menu item's to text plus a system image, so a
+  dot beside the model's name is drawn nowhere. It was tried and photographed.
+  The state word survives because it is part of the title. A custom
+  `ToolbarItem` drawing its own menu is the way in if the dot is ever wanted
+  there badly enough to own the menu's chrome.
+- **Settings > Performance cannot show its whole tab on a laptop.** The Loading
+  section costs 158 points and the tab wants about 1110; it opens at 1010, which
+  is what a 1728 x 1010 display allows, and scrolls on every Mac laptop. The
+  readout is last, so what falls below the sill is the tail of one live figure.
+  Splitting Performance into two tabs, or moving the live readout to its own
+  disclosure, is the fix; neither is worth a tab's worth of churn yet.
+- **`MobilePreview.offers(for:)` (`MobilePreview+Hosts.swift`) hardcodes
+  `modelLoaded: true`.** So the frozen
+  `failed` state's destination line reads "Model loaded · ready now" beside a
+  canvas saying "Not loaded". Preview-only: a real Mac builds the offer from
+  `store.loadedDescriptor` (`CompanionSession+Offers.swift`), which is honest.
+  Left alone rather than touching what feeds `HostSelection`.
+- **`GenerateAvailability` is read by its own suite alone.** Multiple
+  destinations moved that question onto `GenerationDispatch` (`canSend`,
+  `reason`) and the type was left behind; it is not this change's doing and is
+  noted here because the load note went to `GenerationDispatch+Loading` rather
+  than to it. Delete it or make it the thing `GenerationDispatch` computes from.
+
 ## Multi-host iOS companion
 
 Implemented architecture and validation are in

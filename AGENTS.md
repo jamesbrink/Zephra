@@ -269,17 +269,51 @@ somebody is waiting on.
 
 Every fact the Mac derives from its own state is **stamped into
 `EngineStateDTO`** rather than worked out again on the phone: `isBusy`,
-`isFinishing`, `acceptsGeneration` and `canQueue`. The last is the one the
+`isFinishing`, `acceptsGeneration`, `canQueue` and `loadedModelID`. The fourth is the one the
 phone's Generate button reads — whether a generation may be started *or queued
 behind the one being rendered* — and it is `GenerationStore.acceptsQueuedGeneration`,
 which `remoteAdmission` gates on, so the button and the refusal are one answer.
 `EngineState` alone cannot answer it, so `EngineStateProjection`
 (`ZephraLinkHost`) is the one place the DTO is built for a phone and both
-projection sites go through it. A field added to the DTO after a Mac has
+projection sites go through it. `loadedModelID` is the model whose weights are **in**, which is not `modelID`,
+the model chosen: under on-demand loading a Mac sits with one chosen and nothing
+read in, and a phone reading the two as one would draw a loaded dot on a model
+that is not there. A field added to the DTO after a Mac has
 shipped is read with `decodeIfPresent` and a default that is what the field's
-absence used to mean (`canQueue` falls back to `acceptsGeneration`);
+absence used to mean (`canQueue` falls back to `acceptsGeneration`;
+`loadedModelID` falls back to nil under `.idle` and to `modelID` otherwise,
+which is what an older Mac, that loaded whatever it had chosen, meant).
 `EngineStateDTO+Codable`, `ModelSummary+Codable` and `QueuedEntry` are the
-hand-written readers. `ModelSummary.isSelectable` and `memoryNote` are the same
+hand-written readers. `EngineStateDTO`'s **encoder** is hand-written too now,
+for one field: every other key is omitted when absent, and `loadedModelID` is
+written **always, null included**, because its absence is what says the far end
+never had the field. A synthesised encoder omits a nil optional, so a new Mac
+with nothing loaded — the ordinary on-demand case — would be byte-identical to
+an older Mac and read back as "the chosen model is loaded". Key order is
+`LinkJSON`'s `.sortedKeys`, so no golden string moved.
+
+**Two commands and a flag, and no protocol version bump.** `Command.loadModel`
+(a model id) chooses that model if it is not the chosen one and reads its
+weights in; `Command.unloadModel` gives them back and leaves the choice.
+`CompanionSession+Commands` answers both — `loadModel` refuses an unholdable
+model with the greyed row's own sentence and is otherwise a switch and a
+`loadModel()`, which under `.automatic` the switch has already done, and
+`unloadModel` throws `.busy` when `canUnload` is false. The phone is gated on
+`StateSnapshot.modelLoading`, stamped true by `StateSnapshotProjection` and
+absent on a Mac without it, rather than on the protocol version, which the
+handshake requires both ends to match exactly and so can never say what one end
+alone can do. `LinkClient.supportsModelLoading` reads that flag and refuses both
+commands client-side without it; a Mac that gets one anyway answers a single
+`badRequest` for an unknown kind and the connection stays. `loadModel` is a
+command of its own rather than `switchModel` of the model already chosen, which
+is a no-op the Mac answers `.ok` to — a phone drawing success over nothing
+having happened, which is exactly how a fault used to trap it.
+
+One refusal is possible and is one press wide: an idle unload firing between the
+phone's admission read and its own `enqueue` is answered `.refused` with "No
+model is loaded yet.", because `unloadModel()` returns synchronously with
+`isSwappingModel` raised. The next press is taken and loads. Admitting it
+instead would put a generation on the inference actor behind a queued unload. `ModelSummary.isSelectable` and `memoryNote` are the same
 rule for a model: `StateSnapshotProjection` stamps both from
 `ModelCatalog.fit(_:budget:)` against the Mac's own budget, the phone greys that
 row and shows the note rather than judging memory itself, a `.switchModel`
@@ -460,8 +494,11 @@ A Mac that has never run Zephra opens on a model chooser, not on a download.
   can hold and answers which model to continue on; a finished download this Mac
   cannot hold settles nothing, since continuing on it would open on a model
   nothing will load. Nil for a chooser already down. `dismiss()` records
-  the answer (a skip is an answer); `reopen()` is the way back from
-  `CanvasStateView`'s idle state.
+  the answer (a skip is an answer). There is no way back to the chooser:
+  `reopen()` is gone, and `CanvasStateView`'s "Choose a Model…" raises
+  `ModelBrowserSheet` instead. The chooser answers a question this Mac has
+  already answered and takes the whole window to do it, and with models loaded
+  on demand that door is one people use routinely rather than once.
 - `WelcomeHost` (`Views/Welcome/`) shows the chooser or `RootView`. With the
   chooser up, `bootstrapFromInterface` runs only `surveyAvailability()`.
   **Nothing is fetched while the chooser is up.**
@@ -492,8 +529,12 @@ A Mac that has never run Zephra opens on a model chooser, not on a download.
   copy; `ModelPortraitTests` fails when a model has neither.
   `scripts/make-samples.sh MODELS_DIR` regenerates the samples (seed 42, one
   prompt) and **skips models not under `MODELS_DIR`** unless `ALLOW_DOWNLOAD=1`.
-- Choosing goes through `GenerationStore.chooseFirstModel(_:)`, not
-  `switchModel`, which refuses the model already chosen.
+- Choosing goes through `GenerationStore.chooseFirstModel(_:)`, which is
+  `switchModel` where the pick is a different model and then `loadModel()`
+  always: a first-launch pick is an explicit "load it now" whatever
+  `ModelLoadingMode` says. `switchModel` alone would refuse the model already
+  chosen, which on a first launch is whatever `ModelCatalog.default(fitting:)`
+  answered, and under `.onDemand` would load nothing even when it did not.
 - `ZEPHRA_GENERATE_ON_LAUNCH` is inert while the chooser is up.
 - `ZEPHRA_PREVIEW_STATE=welcome` photographs it; screenshot at 1200 x 840 and
   at the 880 x 560 floor.
@@ -535,7 +576,8 @@ Metal:
   batches, switching, history,
   availability, preview, tiling, reference, library, following the run,
   upscaling, interaction, downloads, the two folder changes, residency, the
-  memory guard (`+MemoryGuard`).
+  memory guard (`+MemoryGuard`), the idle clock (`+IdleUnload`) and the run-time
+  step-down to streaming (`+RunResidency`).
   **Add a new concern as another extension file**, never as more lines in
   `GenerationStore.swift`.
 - `InferenceActor` is the only place backend code runs. It overrides
@@ -549,6 +591,59 @@ Metal:
 - `EngineEventPump` carries progress back to the main actor: an `AsyncStream`
   buffering the newest four events and dropping the rest; `run` drains before
   returning so a later state set is never clobbered.
+
+**Weights arrive when somebody asks for them.** `ModelLoadingMode`
+(`ZephraCore/Runtime`) is `.automatic` — the launch loads the model chosen last
+time and a pick swaps the weights behind it — or `.onDemand`, where choosing a
+model is only choosing it. The engine defaults to `.automatic`, so a store
+nobody told behaves as it always did; the app sets it from
+`AppSettings.loadingMode()`, whose preference is off by default. The mode is read in
+**three places and nowhere else**: `bootstrap()` surveys the disk and returns
+before `load` under `.onDemand`, `switchModel` adopts the descriptor and clamps
+the settings and returns before the download and the swap, and `drain()`'s
+empty-queue branch reloads the chosen model only under `.automatic`. Everything
+else is mode-blind, which is what keeps the two behaviours one code path.
+
+`drain()`'s **next-entry** branch is the on-demand load path: an entry whose
+model is not the one loaded loads it and then runs, so Generate with nothing in
+memory loads first and a second press queues behind that load rather than being
+refused. Stop during that load goes through `stopPreparation`, which drops the
+queue and lands `.idle`. `loadModel()` is the explicit door — the toolbar's Load, the
+Model menu's ⌥⌘L, the canvas's Load Model, the browser's Load Model, and a
+paired phone's `Command.loadModel` — and it clears `modelAwaitsGenerate` first,
+since an explicit Load is exactly the explicit choice a picture's adoption was
+waiting for. `canUnload` and `unloadModel()` are the way back: the public one
+raises `isSwappingModel`, transitions `.idle` and gives the weights and the disk
+lease back on `switchTask`, leaving the chosen model chosen. The internal
+primitive under it, under a swap, under a stopped preparation and under
+shutdown, is `releaseModel()` — renamed from `unloadModel()` so the public name
+is the one the interface presses. `downloadModel(_:)` (`+Downloads`) fetches any
+model's files and stops there, whatever is chosen and whatever is loaded, which
+is what the browser's Download button needs and what `resumeDownload` is not.
+
+`canLoad(_ model:)` (`+Admission`) is the other half of admission: `.idle` or
+`.failed`, `acceptsWork`, no swap, stop or upscale in flight, `canSelect`, and
+an availability that is obtainable. `canQueue`, `acceptsQueuedGeneration` and
+`remoteAdmission` all widen by it — `remoteAdmission` against the model the
+phone named rather than the chosen one, since a phone may name another. That
+widening alone unsticks an **un-updated** phone after a GPU fault: the Mac
+answers `canQueue: true` from `.failed`, the phone's Generate lights, and the
+queue drains straight over the weights still in memory. No new command needed at
+that end.
+
+**The idle clock gives the weights back.** `IdleUnloadDelay` (`ZephraCore`) is
+`.never` or 5, 15, 30, 60 minutes and answers a `duration`; off by default,
+because weights that went away while somebody was reading are weights to read
+again. `GenerationStore+IdleUnload` is the whole of it: `isIdleCandidate`
+(ready, nothing queued, nothing running, no upscale, no swap, no stop, something
+loaded) and `armIdleUnload()`, called from the **end of `transition(to:)`** so
+every load, generation, upscale, swap and failure resets the clock by the fact
+of having happened, and again at `drain()`'s empty return, which is the other
+way the weights start sitting idle. The wait is the `idleWait` closure seam, so
+`IdleUnloadTests` drives an hour in microseconds; `isIdleCandidate` is read
+**again on the main actor after the wait**, since the Mac may have been asked
+for something meanwhile. `shutdown()` cancels `idleTask`, whose wait is up to an
+hour and which holds the store for all of it.
 
 **A GPU fault fails the run, not the app.** mlx-swift now raises a failed
 Metal command buffer — another process's fault, the driver's own recovery,
@@ -605,12 +700,32 @@ the **mode**, not the residency: "Set Stream weights from disk to Automatic" is
 said under `Never` alone, because under Automatic a refusal means even streaming
 did not fit and the person is already on the setting they were being sent to.
 The load check is thrown, so the catch that
-already unloads and releases the lease runs; the run check fails the job and
-empties the queue. What was loaded is `loadedResidency`, so a stepped-down model
-is not reloaded on the next Generate; only an explicit preference change or a
-model switch reloads it. Retry goes back through `startLoading`, so it re-reads the
-machine rather than replaying the old verdict, and a Mac where something else
-quit in the meantime loads. Both sites log what they read and what they decided,
+already unloads and releases the lease runs. The run check **steps down before
+it refuses**: `GenerationStore+RunResidency.stepDownToStreaming(for:)` asks,
+under Automatic over resident weights of the job's own model, whether the run
+would fit streamed, and where it would it puts the job back at the head of the
+queue, sets `residencyOverride` and reloads — the same step down the guard makes
+before a load, made after one. Only where that answer is no does `failJob(_:with:)`
+refuse, and it **refuses that batch alone**: a run the GPU lost is a reason to
+stop everything, but one request this Mac has not the memory for this minute is
+not a reason to throw away the four queued behind it. What is left does not
+drain on by itself — `.failed` is a sentence somebody has to read, and a
+`.generating` on top of it would take it away before anybody had — so the next
+Generate, or Try Again, is what gives the survivors their turn. What was loaded
+is `loadedResidency`, so a stepped-down model is not reloaded on the next
+Generate; only an explicit preference change or a model switch reloads it.
+`residencyOverride` is the store's own forced answer, consumed once in
+`+Preparation.load` and cleared by `stopPreparation` so a stop leaves none
+behind for whatever loads next; `loadResidency(for:forcing:)` still runs the
+shortfall check against it, so a Mac that cannot stream it either is refused
+with the streamed figure. Retry goes back through `startLoading`, so it re-reads
+the machine rather than replaying the old verdict, and a Mac where something
+else quit in the meantime loads. A retry that finds the model already resident
+asks `residencyToStepDownTo(_:)` before it answers ready: the Mac a retry finds
+may be a fuller one than the load found, and answering ready over weights this
+Mac no longer has the room to run on is how a fault used to repeat itself. A
+resident model that needs nothing drains the queue instead, which is what makes
+Try Again give a refused job its turn. Both sites log what they read and what they decided,
 admitted or refused, since the same refusal on two Macs is two different stories
 about what was holding the memory. `canSelect(_:)` (`+Admission`) is the other
 half and is the budget alone: `switchModel` drops a pick of a model this Mac
@@ -803,7 +918,16 @@ Rules in `Support/`:
   `SessionImage` the one view over it. Nothing decodes an image on the main
   actor: every door into the reference well hands `adoptReference` a closure.
 - `AppSettings` is the one list of preference keys; bind with `@AppStorage` at
-  the picker, read elsewhere through its helpers. `AppearanceApplier` sets the
+  the picker, read elsewhere through its helpers. The three load preferences —
+  `warmUpOnLaunch`, `loadModelsAutomatically` (false) and `idleUnloadMinutes`
+  (0) — are set on the store **once, in `ZephraApp`**, each with an
+  `initial: true` `onChange` so a change in Settings applies to the next choice
+  rather than to the next launch. Every door into a load used to re-read the
+  warm-up flag for itself, which was four readers of one preference; the four
+  assignments in `GenerationStore+Interface` are gone and no door re-reads any
+  of the three. `AppSettings+Policies.loadingMode()` and `idleUnloadDelay()`
+  are the two readers, and an unrecognised stored number reads as never.
+  `AppearanceApplier` sets the
   appearance on `NSApp` so Settings, menus and alerts follow. `AppearanceMode`
   itself is `ZephraStyle`'s, not this app's: the phone reads the same enum and
   applies it through `preferredColorScheme` instead.
@@ -813,7 +937,13 @@ Rules in `Support/`:
 - `ReferenceRole` spells every string a reference picture's role changes,
   from `ModelCapabilities` (`.firstFrame`, `.startFrom`, `.reference`, in that
   order). `ModelLoadNote` is what Generate's and Animate's tooltips say a press
-  costs first. `StepProgress` is the step bar's reading, so it never counts the
+  costs first, for any model that is not the one loaded now. Three more pure
+  answers about models sit beside it, each tested without a window:
+  `ModelLoadStatus` (where the chosen model stands — not loaded, loading,
+  downloading, building, loaded or streaming, failed — which is the toolbar's
+  word, the button's title and its tooltip in one type), `ModelMenuRows` (what
+  the pull-down lists) and `ModelBrowserAction` (the browser's one button).
+  `StepProgress` is the step bar's reading, so it never counts the
   slider. `SeedEntry` is the one seed parser and `SizeEntry` the one size
   parser (two numbers with anything between, fitted to the model's grid
   through `ModelCapabilities.fit`). Those three — `ReferenceRole`, `SeedEntry`
@@ -846,7 +976,16 @@ Rules in `Views/`:
   viewer is the one exemption from the focus ring; an arrow key with nothing
   selected selects an end of the grid (`LibraryCursor`).
 - `SettingsView` is four tabs — General, Performance, Models, Companion.
-  `SettingsTab` gives the opening height;
+  Performance opens on `ModelLoadingSettings`, the Loading section: "Load models
+  automatically" and "Unload after idle" (Never, 5, 15, 30, 60 minutes).
+  `SettingsTab` gives the opening height, and Performance's is **1010**, not the
+  820 it was: the Loading section costs 158 points and the whole tab wants about
+  1110. **Performance no longer fits on any Mac laptop display, and the rule that
+  it must not scroll is dead** — it was already untrue at 820, where Peak since
+  launch and VAE decode were below the sill. 1010 is what a 1728 x 1010 display
+  allows and gives the tab the same reading 820 gave, down to Cached. The live
+  readout stays last on purpose, so what goes below the sill is the tail of one
+  figure rather than a setting nobody would find.
   `minimumHeight` is one number for all four and must fit a 13-inch MacBook
   Air, since AppKit can only clamp a window that fits. `SettingsWindowFrame`
   configures the window from a zero-sized `NSView` and *observes* the
@@ -862,8 +1001,48 @@ Rules in `Views/`:
   with the button under an overlay. `GenerateButtonFrame` (`Support/`) is the
   preference the button reports its place through, since SwiftUI's controls
   are not views AppKit can find. A press the store refuses logs which gate did.
+- The model's three controls are `ModelMenu` (the pull-down),
+  `ModelLoadButton` beside it, and `ModelBrowserSheet` behind both. The menu
+  lists what is **on this Mac** — `ModelMenuRows` over models whose files are
+  here, the chosen model whatever its state, and any model whose gigabytes are
+  moving right now, in `ModelCatalog.ordered(for:)`'s order, with a checkmark on
+  the chosen one, "Loaded"/"Streaming"/"Downloading…" after a name that needs it,
+  greyed only by memory — then a Divider and More Models…. The catalog's rest
+  belongs behind that, where a card shows what a model makes, what it downloads
+  and how it would run here; that is a picture and three lines, not a menu row.
+  The menu's **label carries no `ModelDot`**: SwiftUI flattens a toolbar menu's
+  label to its title and a menu item's to text plus a system image, so a dot is
+  drawn nowhere — the state word is part of the title and survives, which is the
+  half that had to.
+- `ModelLoadButton` is beside the menu rather than inside it: a pill whose width
+  moved with its state word would shift every item to its left in the trailing
+  group, and a view holding the model, the load state and the rows at once would
+  be past three stored properties. It reads Load, Unload or Try Again from
+  `ModelLoadStatus` and nothing while a load is in flight, since a load's
+  progress is a determinate bar on the canvas and a second indeterminate one in
+  the toolbar would be a repeating animation.
+- `ModelBrowserSheet` (`Views/Models/`) is 760 x 560 over the window, presented
+  from `RootView` on `WorkspaceSelection.showsModelBrowser`, which is never
+  persisted: three places raise it — the pull-down's More Models…, the canvas's
+  "Choose a Model…" and the Model menu's ⇧⌘M — and a sheet belongs to the window
+  all three are in. It is `ModelBrowserHeader` plus `ModelBrowserList`, the split
+  the three-properties rule forces; the list reuses `ModelChoiceGrid` untouched
+  and `ModelBrowserFooter` under it draws the one press `ModelBrowserAction`
+  decides: Download N GB, Build Model, Use Model, Load Model, Done, or a greyed
+  reason. Download and Build keep the sheet up and the footer becomes that
+  transfer's own `ModelDownloadRow`, since sending somebody to Settings to stop
+  what they just pressed is the worse answer. The grid is shared with the
+  first-launch chooser and the **body is not**: `WelcomeView` carries layout that
+  exists for the full-window case alone, and sharing it would make this sheet's
+  fixed frame decide the chooser's.
 - A keyboard shortcut has one owner, the menu bar; a button shows its chord as
-  text and never declares it too. The only `.keyboardShortcut` outside the menu
+  text and never declares it too. `ModelCommands` is the fifth `Commands` type,
+  a `CommandMenu("Model")` owning Load Model (⌥⌘L), Unload Model (⇧⌥⌘L) and
+  More Models… (⇧⌘M) — its own menu rather than three more items in File, whose
+  group is Generate, Stop and New Album, the things a person makes. Every item
+  has a visible twin in the window and reads the same two answers,
+  `canLoad(descriptor)` and `canUnload`, so a greyed item and a greyed button
+  cannot disagree. The only `.keyboardShortcut` outside the menu
   bar are a sheet's `.defaultAction` and `.cancelAction`. Return in the library
   belongs to `LibraryOpenCommand` alone. File > Stop Generating is
   `EngineState.stopCommandTitle`; File > Export… (⇧⌘E), never "Save as…".
@@ -1015,7 +1194,11 @@ US-spelling check.
 - The canvas is `Views/Canvas/` and `Views/Capsule/`: the run's frames while
   there is a run (`LivePreviewView`, then `RunPlaceholderView` before the first
   one, which says "Reconnecting" while the link is not live rather than
-  repeating a stale phase), otherwise the newest picture or clip, with the
+  repeating a stale phase), then `RunFailureView` where the Mac's engine is
+  `.failed` — the run's own rectangle, ahead of the newest finished picture,
+  which is the order `CanvasStateView` follows on the Mac, since the last
+  picture standing there as though nothing had happened is the one reading of a
+  failure that is simply wrong — otherwise the newest picture or clip, with the
   capsule in the bottom safe area rather than in a sheet, which would cover the
   tab bar. A frame already here survives a drop: `LinkClient.preview` is cleared
   only by a snapshot or a delta saying the engine is not busy. Every picture
@@ -1032,6 +1215,36 @@ US-spelling check.
   of the Mac's and the phone offers the same chained lengths — `ReferenceRole`
   captions the well, and a refusal is the Mac's own sentence under Generate
   rather than an alert.
+- The Mac has a model **chosen** and a model **loaded**, and they are two facts:
+  `ModelLoadWord` (`Support/`, pure) is the only place the phone says which.
+  `marker(for:engine:)` is the "Loaded" on a row of `ModelPickerSheet` and of
+  `HostModelRow` — a different fact from the checkmark, which is the model this
+  phone's next press names — and `label(_:modelID:engine:)` is the capsule's
+  "klein 4-bit · Not loaded" when nothing is in. Both are silent for a Mac that
+  has said nothing: the decoder's fallback has already answered honestly for it.
+  `ModelLoadNote` (`Support/`, pure) is the Mac's own note as a whole line
+  rather than a tooltip fragment — "Loads X first", "Downloads 24 GB for X
+  first", "Builds X first", nil once loaded — and it is the last fallback under
+  Generate, since a press that is admitted but costs a minute and a half of
+  reading has to say so. `GenerationDispatch+Loading` is the plumbing:
+  `loadedMarker` aggregates over every enabled Mac in scope, which is the scope
+  `modelReadiness` already aggregates, so the two lines on one row cannot
+  disagree; `loadNote` asks the **destination alone**, because it promises what
+  this press does.
+- `TryAgainButton` (`Views/Canvas/`) is the way back from a lost run, shown only
+  while `LinkClient.supportsModelLoading` and the engine is `.failed`. It sends
+  `loadModel(engine.modelID)` — the model the failure was about, not whatever
+  the draft has since moved to — takes `GeneratePress`'s three states, and puts
+  a refusal under itself as the Mac's own sentence, never an alert: this is a
+  button somebody may press twice in ten seconds. Against an older Mac it is
+  hidden and Generate alone is the way back, which the Mac's widened admission
+  already makes work. `RunFailureView` around it is neutral — `wellFill` and
+  `hairline`, never the washes, since safelight amber means "only while the
+  model works" — and, like everything in both targets, still.
+- `HostModelRow` (`Views/Settings/`) offers Load and Unload against a Mac that
+  understands them, Unload only on the loaded row and only while the engine is
+  not busy; an older Mac keeps the one `switchModel` button, which there both
+  chooses and loads.
 - The well has three doors and one rule. `PhotosPicker` is the camera roll;
   `ReferencePickerSheet` and the library's own "Use as Reference" both name a
   picture the Mac already has, through `ReferenceIntent` — a file **name**, never
@@ -1119,17 +1332,21 @@ US-spelling check.
   offers is a press the Mac takes; `StopRunButton` (`Views/Shared/`) appears
   *beside* it while a run is in flight rather than in its place, and a second
   press queues behind the picture being rendered the way it does on the Mac.
-  `GeneratePress` (`Support/`) is where one press has got to, and the line under
-  the button is the Mac's refusal or what is waiting. `CountChip` shows the
+  `GeneratePress` (`Support/`) is where one press has got to — Try Again's too,
+  which is one round trip for the same reason — and the line under
+  the button is the Mac's refusal, what is waiting, or `ModelLoadNote`'s answer. `CountChip` shows the
   seeds a press is worth on the collapsed capsule when it is more than one.
 - `MobilePreview` is `InterfacePreview`'s shape for the phone:
-  `ZEPHRA_PREVIEW_STATE=pairing|ready|generating|capsule|library|viewer|today|offline|settings`,
+  `ZEPHRA_PREVIEW_STATE=pairing|ready|generating|capsule|library|viewer|today|offline|failed|settings`,
   Debug only, over two JSON fixtures decoded with the wire's own decoder. Every
   state but `pairing` is a `LinkClient.frozen`, which has no road under it;
   nothing reconnects behind one, the catalog is built with no roots and writes
   nothing (`viewer` alone reads drawn pictures from a temporary folder
   `MobilePreview.pictureFolder()` empties at every launch), and
-  `shaped(_:for:)` is where `midRun` and `todayRuns` are chosen.
+  `shaped(_:for:)` is where `midRun`, `todayRuns` and `lostRun` are chosen.
+  `lostRun` raises `modelLoading` **on the snapshot rather than in the fixture
+  file**, so the bundled fixture stays a Mac from before the flag and every
+  other frozen state exercises the decoder's fallback.
 - `make build-ios`, `make run-ios PREVIEW=<state>`, `make test-ios`,
   `make screenshot-ios`. `IOS_SIM` names the simulator; CI passes what
   `scripts/ios-sim.sh` finds. There is no benchmark: the phone renders
@@ -1202,15 +1419,20 @@ import patterns in `make lint-layers`, which lint nothing they do not name.
   wholesale (not clamped) while `modelAwaitsGenerate` keeps the loaded weights
   where they are, and `drain()` leaves the loaded model alone while the flag is
   up. Every explicit choice clears it: Generate, a menu pick (`switchModel`,
-  which treats a pick of the waiting model as "load it now"), a variation, a
-  load landing on the chosen model, `watchRun()`. `retry()` over another
+  which treats a pick of the waiting model as "load it now" — under `.onDemand`
+  it says so and loads nothing, since there the Load control is what says it),
+  an explicit `loadModel()` or `unloadModel()`, a variation, a load landing on
+  the chosen model, `watchRun()`. `retry()` over another
   model's weights goes through `reload` so the old lease is returned. A menu
   pick cancels a square's read in flight and a picture on its way into the
   well. While the flag is up the canvas headline, window subtitle and
   background notice name `modelInUse`, and the Generate tooltip says what a
-  press loads first. A picture from a dropped model keeps the current model
-  and takes its schedule clamped. `DeferredModelTests`,
-  `DeferredModelEdgeTests` and `AnimateTests` pin it.
+  press loads first — `ModelLoadNote` answers that for every model that is not
+  the one loaded now, not for the waiting one alone. A picture from a dropped
+  model keeps the current model and takes its schedule clamped.
+  `DeferredModelTests` and `DeferredModelEdgeTests` (both in
+  `FollowingRunTests.swift`, which is the file the filter never matches) and
+  `AnimateTests` pin it.
 - `InferenceActor` keeps one backend at a time and rebuilds it when a
   descriptor names a different family, so old weights are released before new
   ones are asked for. An unregistered family is `EngineError.noBackend`.
@@ -2078,10 +2300,13 @@ reads `ProcessInfo`, and changing a variable after launch changes nothing.
 Performance tab's picker the same way, as the `\.weightResidencyOverride`
 environment value.
 
-- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|clip|generating|starting|queued|watching|finishing|batch|library|viewer|picker|welcome|downloading|building|update|failed|settings`
+- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|clip|generating|starting|queued|watching|finishing|batch|library|viewer|picker|welcome|models|downloading|building|update|failed|settings`
   launches a Debug build frozen in that state with no model, for `make
   screenshot`. `tucked` is `image` with the prompt slid to its lip; `welcome`
-  opens the chooser whatever the preferences say; `viewer` opens the library on
+  opens the chooser whatever the preferences say; `models` raises
+  `ModelBrowserSheet` over an idle window on the same invented 16 GB budget
+  `welcome` uses, so the cards' Download and Load footers are worth
+  photographing; `viewer` opens the library on
   its first image full size; `picker` is `editing` with the reference sheet
   open (`InterfacePreview.wantsReferencePicker`); `clip` stands the store on
   the invented `PreviewModel.video` with a poster stamped as
@@ -2090,7 +2315,12 @@ environment value.
   `starting` has no frame yet, `finishing` is a clip after its last step;
   `downloading`, `update` and `failed` sit over a picture, `update` with a
   frozen `UpdateChecker` holding a made-up release and no timer or feed under
-  it. `settings` freezes the engine
+  it. A frozen store also says which model is **in**
+  (`InterfacePreview.loadedModel(for:_:)`, over `GenerationStore.preview`'s
+  `loaded:`/`residency:`): the chosen one wherever the engine could only have
+  reached that state over loaded weights, and nothing otherwise, or every
+  `ready` screenshot would show a toolbar offering to load the model it is
+  already ready on. `settings` freezes the engine
   but uses a live library index at the configured `imagesDirectory`, for
   folder-change UAT with temporary fixtures.
 - `ZEPHRA_UPDATE_FEED=<url>` points the update check at another manifest and
@@ -2141,8 +2371,8 @@ environment value.
 - The phone has the same switch and a shorter list:
   `make run-ios PREVIEW=<state>` passes `SIMCTL_CHILD_ZEPHRA_PREVIEW_STATE` to
   the simulator, and `MobilePreviewState` is
-  `pairing|ready|generating|capsule|library|viewer|today|offline|settings` —
-  which surface is up and whether the wire is live, since there is no engine
+  `pairing|ready|generating|capsule|library|viewer|today|offline|failed|settings`
+  — which surface is up and whether the wire is live, since there is no engine
   here to freeze. Every state but `pairing` is a `LinkClient.frozen` with no
   road under it. `make screenshot-ios` photographs the simulator; see
   `docs/mobile.md`.

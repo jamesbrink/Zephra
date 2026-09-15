@@ -140,6 +140,16 @@ either app's own: it is one preference two apps apply their own way, and a
 type an iOS target and a macOS target can both compile is what a shared
 package is for.
 
+`HostModelRow` (`Views/Settings/`) is one of a Mac's models with what that Mac
+will do about it on request, and it is two shapes. Against a Mac that understands
+the loading commands it offers Load and, on the loaded row alone and only while
+the engine is not busy, Unload — the phone's half of the Mac's own two controls.
+Against an older Mac it keeps the one button there has always been,
+`switchModel`, which on that Mac both chooses and loads, so nothing a phone could
+already do stopped working. `ModelLoadWord.marker` puts "Loaded" under the row
+whose weights are in. A refusal stays where the buttons are, as a caption, rather
+than in an alert.
+
 ### `LinkClient`, and how it stays connected
 
 `LinkClient` remains the one source of authenticated state for one Mac. The
@@ -149,6 +159,13 @@ combined-library actions resolve the item's host, and generation uses the
 independent `GenerationDispatch` destination. See [Multi-host companion](multi-host.md)
 for ownership, routing, migration and receipt rules.
 
+- **What this Mac can do.** `LinkClient+ModelLoading` (`ZephraLinkClient`) is
+  `supportsModelLoading`, `loadModel(_:)` and `unloadModel()`. The first reads
+  `StateSnapshot.modelLoading`, a flag the Mac stamps, rather than the protocol
+  version, which the handshake makes both ends match exactly and so can never say
+  what one end alone can do. Without it both calls throw `.unsupported` here
+  rather than crossing the link, and every control that would send them is
+  hidden. See `docs/companion.md` for the two commands themselves.
 - **Where the secrets are.** `PairedHosts` resolves one phone identity and
   serializes the `paired-hosts-v2` collection in `MobileKeychain`. `HostKeyStore`
   limits a client to its own pairing. Existing single-host data migrates with
@@ -342,9 +359,35 @@ picked the phone up to see: `client.preview` through `LivePreviewView`, the
 JPEG letterboxed into the run's own aspect at `.medium` interpolation, since a
 frame is an estimate and should not pretend to be the print. Before the first
 frame lands, `RunPlaceholderView` — the safelight card, the system's spinner and
-the Mac's own word for the phase. Otherwise the newest history entry's picture,
+the Mac's own word for the phase. Then, where the Mac's engine is `.failed`,
+`RunFailureView` — the run's own rectangle after a run was lost, ahead of the
+newest finished picture, which is the order `CanvasStateView` follows on the Mac.
+The phone had no failure card at all before: the last picture simply stood there
+as though nothing had happened, which is the one reading of a failure that is
+flatly wrong. Otherwise the newest history entry's picture,
 through `ItemPicture`, or `ClipPicture` and `ClipPlayerView` for a clip, looped
 and muted unless the asset itself says it has a track.
+
+`RunFailureView` carries the Mac's own message and `TryAgainButton`, nothing
+else. The Mac's words and never the phone's: a GPU fault, a model that would not
+fit and a download that failed are three different sentences the Mac has already
+written for the person at its keyboard, and a second rendering of them here could
+only be a worse one. It is **neutral** where `RunPlaceholderView` beside it is
+amber — `wellFill` and `hairline`, never `warningWash` or `warningStroke`, which
+are both `Color.safelight` — because safelight means "only while the model works"
+and a run that is over is the whole of what this card is about. Still, like
+everything in both targets.
+
+`TryAgainButton` is shown only when `client.supportsModelLoading` and the engine
+is `.failed`, which `isShown(supportsModelLoading:kind:)` answers as a static so a
+suite can ask it without a view. It sends `loadModel(engine.modelID)` — the model
+the failure was about, not whatever the draft has been moved to since — takes
+`GeneratePress`'s three states, since it is one round trip to the Mac exactly as
+Generate is, and puts a refusal **under itself** as the Mac's own sentence rather
+than in an alert: this is a button somebody may press twice in ten seconds, and a
+sheet each time would be in the way of the second press. Against a Mac too old
+for the command it is simply not there, and Generate alone is the way back —
+which the Mac's own widened admission already makes work.
 
 Both read `LibraryCatalog`, which is **the one cache on this phone**. The canvas
 had one of its own once — a singleton actor of decoded pictures — and fetched
@@ -458,13 +501,36 @@ the Mac once crashed on a model switch.
   path; the picker draws `LibraryCatalog`'s entries rather than a library of its
   own, so it shows what the Library tab shows, works with no Mac in reach, and
   shares every thumbnail with the grid.
+- `ModelMenu` and `ModelPickerSheet` say what the destination Mac has **loaded**,
+  which since on-demand loading is a different fact from what it has **chosen**.
+  `ModelLoadWord` (`Support/`, pure) is the only place the phone says either:
+  `marker(for:engine:)` is the plain "Loaded" on a row — a different fact from
+  the checkmark beside it, which is the model this phone's next press names — and
+  `label(_:modelID:engine:)` is the menu's "klein 4-bit · Not loaded" when the
+  Mac has nothing in. Both are silent about a *different* model being loaded:
+  that is the Mac's business and not this name's, and the row for the model that
+  is loaded already says so. Both are silent for a Mac that has said nothing at
+  all, since the decoder's fallback has already answered honestly for it, so an
+  older Mac is not a special case here.
+  `GenerationDispatch+Loading` is the plumbing, and its two scopes differ on
+  purpose: `loadedMarker` aggregates over every enabled Mac in scope, because the
+  picker lists every enabled Mac's models at once and Auto has not chosen one
+  until the press — the same scope `modelReadiness` aggregates over, so the two
+  lines on one row can never disagree — while `loadNote` asks the destination
+  alone, because it promises what *this* press does.
 
-`GenerateButton` never changes its word and never goes away. `GenerateAvailability`
-(`Support/`) is the whole of what it may do, read off four things the Mac said:
-a live session, `acceptsWork`, `engine.canQueue`, and a prompt to make. Nothing
+`GenerateButton` never changes its word and never goes away. What it may do is
+read off things the Mac said — a live session, `acceptsWork`, `engine.canQueue`,
+and a prompt to make — through `GenerationDispatch.canSend` and `reason`, since
+multiple destinations moved that question from one client to the set of them;
+`GenerateAvailability` (`Support/`) is the single-host shape of the same four
+answers and is now read by its own suite alone (`ROADMAP.md`). Nothing
 there is recomputed from the engine's case — `canQueue` is the Mac's own answer,
 the one `remoteAdmission` gates on, so a press the button offers is a press the
-Mac takes and a button that is grey is grey for the Mac's own reason.
+Mac takes and a button that is grey is grey for the Mac's own reason. Since
+on-demand loading, `canQueue` is also true on a Mac with **nothing loaded**,
+because the press would load it, which is why the line under the button had to
+learn to say so.
 
 That is what makes queueing from the phone work at all. The engine, the wire and
 the host have always admitted work mid-run; what stopped it was this button
@@ -477,13 +543,19 @@ away the first — and the Mac's own capsule has always behaved this way, where
 Generate mid-run queues and File > Stop Generating is somewhere else entirely.
 
 `GeneratePress` (`Support/`) is where one press has got to: `idle`, `sending`
-while the Mac is being asked, or `refused` with the Mac's own sentence. The
+while the Mac is being asked, or `refused` with the Mac's own sentence. Try Again
+takes the same three states for the same reason, which is why it is `GeneratePress`
+and not a flag of its own. The
 button is disabled while a press is in the air, since a relay round trip is long
 enough for a second press to arrive before the first is answered — and though
 `enqueue` is idempotent by `requestID` at the far end, a button that looks live
 while nothing has happened is a button somebody presses again. One line under it
 carries the refusal, or, with nothing refused, how many runs are waiting
-("3 waiting"). A sentence rather than an alert, since an alert over a phone's
+("3 waiting"), or, with neither, `ModelLoadNote`'s answer for the model in force
+— "Loads klein 4-bit first" — since under on-demand loading a Mac stands idle
+with a model chosen and nothing read in, `canQueue` is true because the press
+would load it, and a button that offered no word for that reads as a press that
+does nothing for a minute and a half. A sentence rather than an alert, since an alert over a phone's
 canvas hides the picture it is about.
 
 `CountChip` (`Views/Capsule/`) is the collapsed capsule's one reading of what a
@@ -792,6 +864,7 @@ business. Read once at launch, `#if DEBUG` only, and handed over by
 | `viewer` | the library with its first picture open full size |
 | `today` | paired, one run four steps in and one waiting behind it |
 | `offline` | paired, the connection `.offline`: everything is the last thing known |
+| `failed` | paired, on the canvas, the Mac's last run lost and Try Again on screen |
 | `settings` | paired, opened on the settings surface |
 
 Every state but `pairing` is a `LinkClient.frozen`: paired with the Mac the
@@ -818,7 +891,13 @@ is the only way to photograph the settings: a screenshot build cannot tap.
 `MobilePreview.todayRuns` (in `MobilePreview+Today.swift`, beside it for
 the same reason) puts a waiting run behind that one and lists both at the head
 of `today`, each under a batch identity of its own so no run is listed twice.
-`MobilePreview.shaped(_:for:)` is the one place a state chooses between them.
+`MobilePreview.lostRun` beside them is `failed`: a `.failed` engine carrying the
+Mac's GPU sentence, `loadedModelID` nil, and `acceptsGeneration`/`canQueue` both
+true, since the Mac would load the model behind the press. It raises
+`modelLoading` **on the snapshot rather than in the fixture file**, which is the
+point: the bundled fixture stays a Mac from before that flag, so every other
+frozen state exercises the decoder's honest fallback and only this one gets Try
+Again. `MobilePreview.shaped(_:for:)` is the one place a state chooses between them.
 
 Under any preview state the catalog is built with no roots at all: it seeds
 itself from the frozen client's library and writes nothing, so photographing a

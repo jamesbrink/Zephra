@@ -83,7 +83,8 @@ carries progress events that carry a decoded preview frame, and a quarter of a
 megabyte of pixels must never ride inside a state update; previews have a message
 kind of their own. The facts the Mac derives from a case (`isBusy`,
 `isFinishing`, `acceptsGeneration`, `canQueue`) are stored fields, so the phone
-never has to know a rule the Mac already knows.
+never has to know a rule the Mac already knows. `loadedModelID` is a fifth,
+derived not from the case but from the store.
 
 `canQueue` is the odd one out, and the reason it exists is worth writing down.
 The other three are functions of `EngineState` alone, so
@@ -92,7 +93,7 @@ the engine's fails to compile there rather than reaching a phone as `idle`.
 Whether a generation may be *queued* is not: a Mac four steps into a picture is
 `.generating`, which says a run is in flight and nothing about whether another
 may wait behind it. That is `GenerationStore.acceptsQueuedGeneration`
-(`state.acceptsGeneration || isDraining`), the store's own fact and the one
+(`state.acceptsGeneration || isDraining || canLoad(descriptor)`), the store's own fact and the one
 `remoteAdmission` gates on — so if the phone worked it out from `kind` it would
 be a second copy of a rule that can disagree with the Mac that then refuses the
 press. `EngineStateProjection` (`ZephraLinkHost/Projection/`) is where the store
@@ -102,15 +103,38 @@ it. An upscale is deliberately not a queue: nothing is draining, no model need
 even be loaded, and a request arriving then is refused with "Zephra is upscaling
 a picture."
 
-`EngineStateDTO` reads itself by hand (`EngineStateDTO+Codable`) for one field.
+`loadedModelID` is the other stamped field and is the model whose weights are
+**in**, which is not `modelID`, the model *chosen*. Those were one fact until
+on-demand loading; now a Mac sits with a model chosen and nothing read in, and a
+phone that read them as one would draw a loaded row for a model that is not
+there. `EngineStateProjection` fills it from `store.loadedDescriptor?.id`, which
+is the store's own fact and not the state's, so it is stamped for the same reason
+`canQueue` is.
+
+`EngineStateDTO` reads itself by hand (`EngineStateDTO+Codable`) for two fields
+now, and **writes** itself by hand for one.
+
 `canQueue` shipped after the first Macs did, and a state without it is not a Mac
 that takes no queued work — it is a Mac that never had an opinion. Read as
 absent it would grey out Generate for good against an older Mac, so it is
 `decodeIfPresent ?? acceptsGeneration`, which is exactly what the field's
-absence used to mean: one picture at a time. Encoding stays synthesised, since
-what this Mac sends is everything it has. That is the rule for every field added
+absence used to mean: one picture at a time. That is the rule for every field added
 to a DTO after a release — default it to what its absence meant — and
 `QueuedEntry` is the other hand-written reader, for its own reason.
+
+`loadedModelID`'s fallback is the same rule and reads `kind == .idle ? nil :
+modelID`: an older Mac loaded whatever it had chosen, so `.idle` there meant
+nothing was loaded and every other case meant the chosen model was. That is an
+honest reading of what that Mac meant, not a guess.
+
+The **encoder** is why this field forced a hand-written writer. Every other key
+is omitted when absent, as a synthesised encoder omits it, and `loadedModelID` is
+written **always, null included**. A synthesised encoder omits a nil optional, so
+a new Mac with nothing loaded — the ordinary on-demand case — would put exactly
+the bytes an older Mac puts, the decoder would take the absent-key branch, and
+the phone would draw a loaded dot on a model that is not there. Writing null is
+what tells the two apart. Key order is fixed by `LinkJSON`'s `.sortedKeys`, so no
+golden string in `StateCodingTests` moved.
 
 `ModelSummary.isSelectable` and `memoryNote` are the same rule applied to a model.
 A model this Mac has not the memory to hold is never loaded and never downloaded,
@@ -915,6 +939,48 @@ A refused submit carries the store's own words: `RemoteAdmission`'s `.busy`,
 `.refused` and `.badRequest` become `LinkError`s of the same three codes.
 `store.clips == nil` refuses Animate as `unsupported`; a file name the index does
 not know is `notFound`.
+
+### Loading a model from the phone
+
+Two commands and a flag, and no protocol version bump.
+
+`Command.loadModel(String)` chooses that model if it is not the chosen one and
+reads its weights in now; `Command.unloadModel` gives them back and leaves the
+choice alone. `CompanionSession+Commands` answers both through the doors the
+Mac's own controls use: `loadModel` refuses an unholdable model through the same
+`unholdable` check `switchModel` goes through, then calls `switchModel(to:)` only
+where the model differs and `store.loadModel()` always — one meaning in both
+loading modes, since under `.automatic` the switch has already loaded and
+`loadModel()` is then a no-op. `unloadModel` throws `.busy` with "This Mac cannot
+unload a model just now." where `canUnload` is false.
+
+`loadModel` is a command of its own rather than `switchModel` of the model
+already chosen, because that is a no-op the Mac answers `.ok` to: the phone drew
+success over nothing having happened, which is exactly how a GPU fault used to
+trap it with no way out.
+
+The gate is `StateSnapshot.modelLoading`, a `Bool?` stamped true by
+`StateSnapshotProjection` and simply absent on a Mac without it, and
+`LinkClient.supportsModelLoading` is `hasFreshSnapshot && snapshot?.modelLoading
+== true`. It is a snapshot flag rather than a protocol version because the
+handshake requires the two versions to **match exactly**, so a version can never
+say what one end alone can do; `multiHost` set the precedent. Without the flag
+the phone refuses both commands client-side with `.unsupported` and shows neither
+control, and a Mac that somehow gets one anyway answers a single `badRequest` for
+an unknown kind while the connection stays up.
+
+The older Mac is not stranded, because the fix for a fault is not the command.
+`GenerationStore.canLoad` widened `canQueue`, `acceptsQueuedGeneration` and
+`remoteAdmission`, so a Mac in `.failed` answers `canQueue: true`, the phone's
+Generate lights, and the queue drains over the weights still in memory. Every
+phone recovers on Generate; a phone against a new Mac gets Try Again as well.
+
+One refusal is possible and lasts one press. `unloadModel()` returns
+synchronously with `isSwappingModel` raised and `loadedDescriptor` still set, so
+an idle unload firing between a phone's admission read and its own `enqueue` is
+answered `.refused` with "No model is loaded yet." rather than admitted —
+admitting it would put a generation on the inference actor behind a queued
+unload. The next press is taken and loads.
 
 **Sessions.** `CompanionSession` is one phone from its handshake to the road
 closing. One loop over the connection's frames, with `channel == nil` standing
