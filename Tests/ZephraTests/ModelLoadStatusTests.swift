@@ -61,15 +61,17 @@ struct ModelLoadStatusTests {
         #expect(help == "Loads \(chosen.fullName). Unloads \(other.fullName) first.")
     }
 
-    @Test("stays in the toolbar while the model is on its way in, saying so and out")
+    @Test("stays in the toolbar while the model is on its way in, greyed, the menu saying why")
     func staysPutMidFlight() {
         #expect(!status(state: .loading(.preparing)).isPressable)
-        #expect(status(state: .loading(.preparing)).buttonTitle == "Loading\u{2026}")
+        // The word it is out for belongs to the menu beside it, not to the button: said in
+        // both places it reads twice over, and the button would change width on every state.
+        #expect(status(state: .loading(.preparing)).buttonTitle == "Load")
         #expect(status(state: .loading(.preparing)).word == "Loading\u{2026}")
         let building = status(state: .building(BuildProgressEvent(
             component: "transformer", completedComponents: 0, totalComponents: 2, fraction: 0.4)))
         #expect(building.word == "Building")
-        #expect(building.buttonTitle == "Building")
+        #expect(building.buttonTitle == "Load")
         #expect(!building.isPressable)
         let downloading = status(state: .downloading(DownloadProgressEvent(
             completedFiles: 1, totalFiles: 4, fraction: 0.2, bytesPerSecond: nil)))

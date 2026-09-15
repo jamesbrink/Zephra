@@ -59,17 +59,19 @@ enum ModelLoadStatus: Hashable {
 
     /// What the button beside the menu says. Never nothing: a control that leaves the toolbar
     /// for the length of a load slides the inspector toggle and Settings across and back again,
-    /// which is a bigger movement than the pill's own. While the weights are on their way in it
-    /// carries the state word and is out; stopping a load is the canvas's button, beside the
-    /// bar that says how far along it is.
+    /// which is a bigger movement than the pill's own.
+    ///
+    /// While the weights are on their way in it still reads Load and is out. Not the state word
+    /// — the menu beside it already carries that, and "Z-Image Turbo · 8-bit · Downloading"
+    /// with "Downloading" greyed out immediately to its right says one thing twice, in a strip
+    /// that would then change width on every state. Load is the press the person wants and
+    /// cannot have yet, which is what a greyed button means. Stopping a load is the canvas's
+    /// button, beside the bar that says how far along it is.
     var buttonTitle: String {
         switch self {
-        case .notLoaded: "Load"
+        case .notLoaded, .loading, .downloading, .building: "Load"
         case .loaded: "Unload"
         case .failed: "Try Again"
-        case .loading: "Loading\u{2026}"
-        case .downloading: "Downloading"
-        case .building: "Building"
         }
     }
 
