@@ -13,6 +13,10 @@ import ZephraLinkProtocol
 /// A frame already here stays through a drop — the run is very likely still being made — but
 /// the rectangle that stands in before the first one says "Reconnecting" rather than repeating
 /// the phase the Mac was in when the link went.
+///
+/// A run that was lost takes the same rectangle, ahead of the newest finished picture, which is
+/// the order `CanvasStateView` follows on the Mac: the last picture standing there as though
+/// nothing had happened is the one reading of a failure that is simply wrong.
 struct CanvasPicture: View {
     @Environment(LinkClient.self) private var client
     /// Where the phone is looking, so a tap on the picture puts the keyboard away.
@@ -37,6 +41,9 @@ struct CanvasPicture: View {
                     isLive: client.connection.isLive)
                     .aspectRatio(runAspect, contentMode: .fit)
             }
+        } else if let engine = client.snapshot?.engine, engine.kind == .failed {
+            RunFailureView(message: engine.message)
+                .aspectRatio(runAspect, contentMode: .fit)
         } else if let entry = newest, let name = entry.fileName {
             if entry.isVideo {
                 ClipPicture(name: name)

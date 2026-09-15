@@ -14,6 +14,7 @@ extension MobilePreview {
         switch state {
         case .generating: midRun(snapshot) ?? snapshot
         case .today: todayRuns(snapshot) ?? snapshot
+        case .failed: lostRun(snapshot)
         default: snapshot
         }
     }
@@ -57,4 +58,24 @@ extension MobilePreview {
 
     private static let runningBatch = UUID(uuidString: "0C6E48D3-92A1-4F57-B3D8-7E2A1F905C46")!
     private static let waitingBatch = UUID(uuidString: "9F31A7C2-5D84-4B06-8E1A-7C40D92B6355")!
+
+    /// The same snapshot with the Mac's last run lost and nothing in memory: the state a GPU
+    /// fault leaves behind, which is the whole of what Try Again exists for.
+    ///
+    /// `modelLoading` is raised here rather than written into the fixture file, because the
+    /// fixture is also what proves an older Mac's snapshot still decodes — it carries neither
+    /// new key, and every other frozen state reads it as that Mac.
+    static func lostRun(_ snapshot: StateSnapshot) -> StateSnapshot {
+        var snapshot = snapshot
+        snapshot.modelLoading = true
+        snapshot.engine = EngineStateDTO(
+            kind: .failed,
+            modelID: snapshot.model.id,
+            message: "The GPU stopped responding and this run was lost. Try again.",
+            loadedModelID: nil,
+            // The Mac would load the model behind the press, so it takes one.
+            acceptsGeneration: true,
+            canQueue: true)
+        return snapshot
+    }
 }

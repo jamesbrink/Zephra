@@ -86,13 +86,14 @@ struct PreviewFixtureTests {
 
     @Test("Every preview state names a surface")
     func everyStateOpensSomewhere() {
-        #expect(MobilePreviewState.allCases.count == 9)
+        #expect(MobilePreviewState.allCases.count == 10)
         #expect(MobilePreviewState.library.tab == .library)
         #expect(MobilePreviewState.viewer.tab == .library)
         #expect(MobilePreviewState.today.tab == .today)
         #expect(MobilePreviewState.settings.tab == .settings)
         #expect(MobilePreviewState.pairing.tab == .canvas)
         #expect(MobilePreviewState.capsule.tab == .canvas)
+        #expect(MobilePreviewState.failed.tab == .canvas)
     }
 
     /// The one state the fixture cannot hold either: a run in flight with another behind it.
