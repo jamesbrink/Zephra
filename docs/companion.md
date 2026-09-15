@@ -49,13 +49,15 @@ kills the connection.
 | `ping` / `pong` | `{}` | either way |
 
 Every command gets exactly one reply, a refusal included, so the phone can hold a
-request open and know it will close — and **every command is safe to send
-twice**, because a reply can go missing. `LinkClient.request` asks once more
+request open and know it will close. Commands other than `upscale` are safe to
+send twice when a reply goes missing. `LinkClient.request` asks once more
 under a fresh envelope id before it throws, so nothing a command does may count
 how many times it was asked: the queue commands, the library edits and the
 fetches all say what the Mac should end up like. The exception is `enqueue`,
 which adds work, and it is answered from what the session already did rather
-than queued again (below).
+than queued again (below). Upscaling has no deduplication key on older Macs, so
+`LinkClient.upscale` and `request(.upscale)` send it once. The phone reports a lost
+acknowledgment as uncertain and asks the user to check Library before retrying.
 
 `resync` is the phone saying it no longer trusts what it is holding: it stepped
 over a hole in the stream. The Mac answers `.ok` and then a fresh `snapshot`
@@ -1217,3 +1219,26 @@ old phones continue to receive the existing snapshot/delta shapes. Each Mac
 keeps its own relay room and secure channel. `GenerationReceipts` persists a
 prepared record before enqueue, and uncertain outcomes never authorize replay.
 See [Multi-host companion](multi-host.md) for limits, storage and failure semantics.
+
+### Image actions on iOS
+
+A finished canvas image opens the shared full-screen viewer when tapped. At larger
+text sizes, the collapsed composer lets the image use the canvas width; the
+180-point preview is reserved for expanded editing.
+
+The image menu offers View Prompt, Copy Prompt, Reuse Settings, and 2×/4× upscale.
+The viewer's prompt heading also opens the full, selectable prompt in a scrollable
+sheet. Reuse restores the recorded model and settings into the phone's composer,
+clears any previous reference or pending reference selection, and does not generate
+anything. Reference pixels are not included in library metadata, so they must be
+chosen separately. The existing seed-randomization preference still applies when
+Generate is pressed.
+
+Upscaling runs on the image's source Mac, independently of the generation
+destination. Clips do not offer it, offline Macs disable it, and the Mac's own
+admission check remains authoritative. The presenting surface shows acknowledgment
+or refusal; an unconfirmed request is never retried automatically.
+
+For UI validation, `ZEPHRA_PREVIEW_STATE=viewer` draws temporary images under the
+same host/version cache keys as production. `ZEPHRA_PREVIEW_HOSTS=2` adds an offline
+source, and `ZEPHRA_PREVIEW_PROMPT` can supply a long, multiline prompt in Debug.

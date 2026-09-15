@@ -16,6 +16,9 @@ struct LibraryRequests: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .modifier(GenerationActionsReader())
+            .modifier(UpscaleRequests())
+            .modifier(PromptRequests())
             .environment(\.tagLibraryItem) { request = .tagging($0) }
             .environment(\.confirmDeleteLibraryItem) { request = .deleting($0) }
             .environment(\.shareLibraryItem, share)

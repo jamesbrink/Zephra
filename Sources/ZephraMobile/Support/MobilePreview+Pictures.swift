@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import ZephraLinkProtocol
 
 /// The pictures the `viewer` state has to show, drawn at launch.
 ///
@@ -34,6 +35,26 @@ extension MobilePreview {
             }
         }
         return folder
+    }
+
+    /// The production cache keys files by source host and version. Keep the drawn fixtures
+    /// under those same keys so a frozen multi-host launch exercises real cached media.
+    static func scopePictures(to hosts: [HostConnection]) {
+        guard state == .viewer else { return }
+        let folder = FileManager.default.temporaryDirectory.appending(path: "ZephraPreviewFiles")
+        for host in hosts {
+            for entry in library() {
+                let cached = CachedEntry(entry, hostID: host.id)
+                let key = host.catalog.mediaKey(cached, fallback: entry.fileName)
+                let names = [(entry.fileName, key)] + (entry.isVideo
+                    ? [(LibraryCatalog.clipName(of: entry.fileName), LibraryCatalog.clipName(of: key))]
+                    : [])
+                for (source, destination) in names {
+                    try? FileManager.default.copyItem(
+                        at: folder.appending(path: source), to: folder.appending(path: destination))
+                }
+            }
+        }
     }
 
     /// One page: a gradient, a fine grid, and its number, at the entry's own size. `sweep` is

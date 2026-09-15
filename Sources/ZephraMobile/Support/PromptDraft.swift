@@ -62,6 +62,9 @@ final class PromptDraft {
         // Only initial defaults are adopted; external runs never replace a multi-host draft.
     }
 
+    /// An explicit local choice must survive the first snapshot arriving later.
+    func preserveChosenSettings() { hasAdopted = true }
+
     /// Names another model, putting the schedule settings on its own ladder the way
     /// `GenerationSettings.onSchedule(of:)` does: steps, guidance, strength and length mean
     /// different things to two families, and a number inside both models' bounds survives

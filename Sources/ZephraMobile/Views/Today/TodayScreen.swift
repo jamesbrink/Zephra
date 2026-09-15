@@ -74,4 +74,7 @@ struct TodayScreen: View {
     TodayScreen()
         .environment(MobilePreview.client() ?? MobilePreview.unpairedClient())
         .environment(LibraryCatalog(libraryRoot: nil, filesRoot: nil))
+        .environment(PromptDraft())
+        .environment(ReferenceIntent())
+        .environment(MobileSelection())
 }

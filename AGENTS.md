@@ -307,10 +307,11 @@ than 256 frames held on one gap still ends the session. **A hole costs the one
 thing it swallowed**, not every transfer and request in flight: the transfer
 whose next chunk is then out of turn fails as `lost` in `LinkClient.receive`, and
 a reply that never comes is closed by `requestTimeout`, which is this end's own
-promise. Every `Command` is safe
-to repeat, so `LinkClient.request` asks once more under a fresh
-id, and the one that adds work — `enqueue` — is answered from the run that
-session already queued for that `GenerationRequest.requestID`. `fetchBlob` asks
+promise. `LinkClient.request` asks once more under a fresh
+id for repeatable commands, and `enqueue` is answered from the run that
+session already queued for that `GenerationRequest.requestID`. `upscale` is sent
+once, because older Macs have no deduplication key for it; a lost acknowledgment
+is reported as uncertain instead of starting another upscale. `fetchBlob` asks
 up to `blobAttempts` (4) times with `LinkBackoff` between and **from where the
 last attempt got to**: `Command.fetchFile(name:fromChunk:)` names the first chunk
 still wanted, written only when past zero and read as zero when absent, so a Mac
