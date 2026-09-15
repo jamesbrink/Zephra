@@ -12,7 +12,7 @@
 - iOS Debug build: passed.
 - iOS: 205 tests in 43 suites passed.
 - ZephraLink: 275 tests in 51 suites passed.
-- ZephraEngine UpscaleTests: 13 tests passed.
+- ZephraKit: all 801 tests in 150 suites passed, including 13 upscale tests.
 - Layer lint and whitespace checks: passed.
 - Independent sub-agent review: findings addressed; final review had no remaining findings.
 
@@ -33,18 +33,37 @@ Verified interactively:
 - Prompt heading and View Prompt menu action open the reading sheet.
 - A 690-character, three-paragraph prompt displays through its final sentence.
 - Copy from the prompt sheet exactly matches all 690 characters and newlines.
-- Prompt text scales at the largest accessibility size.
+- Prompt text scales at the largest accessibility size; drag scrolling reaches the final sentence.
 - Reuse closes the viewer, selects Canvas, and opens the populated composer.
+- Long-pressing a library image opens its actions; Reuse Settings works from that menu.
 - Offline metadata remains usable; offline upscale actions are disabled.
 - Both upscale factors show the correct acknowledgment.
 - Clip playback remains available; clip menus omit upscale actions.
 
-Boundaries: simulator acknowledgments use the frozen client; encrypted request
-routing and engine output are covered separately by tests. No physical-device or
-live GPU upscale was performed. The available native UI driver did not reproduce
-long-press or drag gestures reliably, so library long-press invocation and manual
-scrolling at maximum accessibility size remain unverified; their shared menu and
-prompt-sheet content were verified through the viewer's buttons.
+## Live upscale UAT
 
-Cleanup: simulator text size restored to Large, the test device shut down, and
-Simulator quit. `simctl list devices booted` returned no booted devices.
+A separately launched Debug Mac app used an isolated preferences, model, companion,
+and image directory under `/tmp/zephra-ios-uat/live-host`. A real encrypted LAN
+pairing connected the simulator to this host. No diffusion model was loaded.
+The bundled Real-ESRGAN upscaler ran on Metal against a disposable 128×128 PNG.
+
+Both actions were invoked by long-pressing the original image on iOS. Each showed
+its acknowledgment, completed on the Mac, and appeared in the phone's library.
+PNG dimensions and embedded generation provenance were checked:
+
+| Action | Output | Provenance |
+| --- | --- | --- |
+| 2× | 256×256 | `upscaleFactor: 2`, original source filename |
+| 4× | 512×512 | `upscaleFactor: 4`, original source filename |
+
+The 4× result was opened full screen on iOS and visually inspected. Retained local
+evidence includes `/tmp/zephra-ios-uat/live-upscale-x4.png`,
+`full-prompt.png`, `canvas-large-text.png`, and the input/output PNGs in the isolated
+host's `Images` directory. No physical iPhone was tested.
+
+## Cleanup
+
+Simulator text size was restored to Large. The test-only phone pairing was revoked,
+the isolated Mac's companion connection was disabled, and that app was quit. The
+test simulator was shut down; `simctl list devices booted` returned no booted
+devices, and neither the UAT Mac app nor Simulator remained running.

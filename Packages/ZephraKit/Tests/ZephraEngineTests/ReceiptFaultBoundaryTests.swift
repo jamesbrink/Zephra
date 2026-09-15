@@ -50,6 +50,12 @@ struct ReceiptFaultBoundaryTests {
         let reopened = GenerationReceipts(root: root)
         let held = try reopened.read(peer: identity.publicKeys, request: job.request.requestID)
         if boundary == 0 { #expect(held == nil) }
+        else if boundary >= 2, let held, held.status == .completed {
+            // Generation may finish while the duplicate request or shutdown awaits.
+            // Reconciliation may then persist completion after the injected write failure.
+            let batch = try #require(held.batchID)
+            #expect(bed.store.savedBatchCounts[batch] == 1)
+        }
         else { #expect(held?.status == (boundary == 3 ? .unknown : .prepared)) }
         // Replay through a fresh host command handler. A durable ambiguous receipt wins over enqueue.
         if boundary > 0 {
