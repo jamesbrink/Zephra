@@ -20,11 +20,12 @@ extension GenerationStore {
         idleTask?.cancel()
         idleTask = nil
         guard let delay = idleUnloadDelay.duration, isIdleCandidate else { return }
-        idleTask = Task { [idleWait] in
+        idleTask = Task { [weak self, idleWait] in
             await idleWait(delay)
             // Read again on the main actor after the wait: the Mac may have been asked for
-            // something in the meantime, and this is the one place that can tell.
-            guard !Task.isCancelled, self.isIdleCandidate else { return }
+            // something in the meantime, and this is the one place that can tell. Weakly,
+            // because the wait is up to an hour and a store nobody holds any more should go.
+            guard !Task.isCancelled, let self, self.isIdleCandidate else { return }
             self.logger.info(
                 "unloading \(self.loadedDescriptor?.id ?? "", privacy: .public) after \(self.idleUnloadDelay.rawValue) idle minutes"
             )

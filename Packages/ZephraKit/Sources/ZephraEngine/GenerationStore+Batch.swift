@@ -18,7 +18,7 @@ extension GenerationStore {
             // Every press lands here, from the button and the menu bar alike; a press that
             // did nothing says so in `make logs`, with the gate that refused it.
             logger.info(
-                "generate refused: prompt \(self.settings.isReadyToGenerate), engine \(self.state.acceptsGeneration || self.isDraining), adopting \(self.isAdoptingReference), work \(self.acceptsWork)")
+                "generate refused: prompt \(self.settings.isReadyToGenerate), engine \(self.state.acceptsGeneration || self.isDraining), loadable \(self.canLoad(self.descriptor)), adopting \(self.isAdoptingReference), work \(self.acceptsWork)")
             return
         }
         // Asking for an image is asking to watch it being made, whatever the canvas had been
