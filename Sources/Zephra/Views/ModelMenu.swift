@@ -1,7 +1,6 @@
 import SwiftUI
 import ZephraCore
 import ZephraEngine
-import ZephraStyle
 
 /// Picks which model the engine runs, from what is on this Mac.
 ///
@@ -37,11 +36,11 @@ struct ModelMenu: View {
                 Divider()
                 Button("More Models\u{2026}") { workspace.showsModelBrowser = true }
             } label: {
-                HStack(spacing: 6) {
-                    ModelDot(store.descriptor.id)
-                    Text(labelText)
-                        .font(.callout)
-                }
+                // Text alone: SwiftUI flattens a toolbar menu's label to its title, so a dot
+                // beside the name is drawn nowhere. The state word is part of the title and
+                // survives, which is the half that had to.
+                Text(labelText)
+                    .font(.callout)
             }
             .menuStyle(.button)
             .buttonStyle(.accessoryBar)

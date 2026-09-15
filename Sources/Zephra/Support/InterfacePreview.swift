@@ -37,7 +37,7 @@ enum InterfacePreview {
                 else { ModelCatalog.default }
             let store = GenerationStore.preview(
                 state: state, image: frozenImage(for: state), descriptor: descriptor,
-                swappingModel: name == "downloading")
+                swappingModel: name == "downloading", loaded: loadedModel(for: state, descriptor))
             if isEditingBuild || name == "clip" {
                 // Through the same door the interface uses, so the frozen window shows the
                 // strength a dropped picture really gets rather than the 1 that means none.
@@ -55,6 +55,16 @@ enum InterfacePreview {
         return UpdateChecker.frozen(.available(ReleaseManifest(
             url: URL(string: "https://zephra-assets.urandom.io/releases/Zephra-0.1.0-202609120231.dmg")!,
             version: "0.1.0", build: "202609120231", sha256: String(repeating: "a", count: 64))))
+    }
+
+    /// The model a frozen store says is in memory: the chosen one wherever the engine could
+    /// only have reached this state over loaded weights, and nothing otherwise. Without it the
+    /// toolbar in a `ready` screenshot would offer to load the model it is already ready on.
+    static func loadedModel(for state: EngineState, _ descriptor: ModelDescriptor) -> ModelDescriptor? {
+        switch state {
+        case .ready, .generating, .warmingUp, .upscaling, .cancelling: descriptor
+        case .idle, .checkingModel, .downloading, .building, .loading, .failed: nil
+        }
     }
 
     /// Whether this build wants a reference-capable model standing up: `editing`, to

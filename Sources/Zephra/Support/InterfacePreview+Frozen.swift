@@ -26,7 +26,8 @@ extension InterfacePreview {
             // `starting` is the run before its first frame, which is what the placeholder in
             // the run's rectangle is for; every other running build has a frame in hand.
             livePreview: name == "starting" ? nil : PreviewImages.frame(),
-            following: watching ? false : nil
+            following: watching ? false : nil,
+            loaded: loadedModel(for: state, ModelCatalog.default)
         )
         // The capsule's prompt and controls are drawn from `settings`, so a frozen window
         // whose prompt did not match the run's card would contradict itself. The step bar is
