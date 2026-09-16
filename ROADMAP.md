@@ -291,10 +291,36 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
 ## About: left out on purpose
 
 - **A License Agreement button.** The About window has Acknowledgments and Website;
-  Xcode's has License Agreement beside them. Zephra's own terms are the copyright
-  line's "All rights reserved" for now, and no `LICENSE` file is bundled — the
-  repository's is for the source. When terms for the app are decided, they become a
-  bundled resource and a third button opening them the way Acknowledgments does.
+  Xcode's has License Agreement beside them. Zephra's own terms are the MIT License
+  now, stated in the copyright line and in the repository's `LICENSE`, but that file
+  is not a bundled resource, so there is nothing for a third button to open. Making
+  it one, and adding the button beside Acknowledgments, is the whole of the work.
+
+## The MIT release: left out on purpose
+
+The repository's `LICENSE` is the MIT License as of this change, and it is the
+grant for Zephra's own code. Two things it was deliberately not stretched over:
+
+- **The website's footer still reads "All rights reserved".**
+  `product-mockups/app/page.tsx` and `product-mockups/public/index.md` carry
+  `© 2026 James Brink. All rights reserved.`, which is the marketing site's own
+  copy rather than a statement about the source. It is left standing because the
+  site's prose, screenshots and branding are not what the MIT grant was asked
+  for, and because that file's own source now sits under a repository licensed
+  MIT, the two read oddly side by side. Deciding which of the site is the grant's
+  and rewording the footer to match is the work; nothing here guesses at it.
+- **The branding artwork.** `design/branding/zephyr/` holds the approved copper-Z
+  masters every icon is cut from, and a name and a mark are trademark rather than
+  copyright questions. The MIT text says nothing about either way, so the artwork
+  is neither carved out nor granted; a `NOTICE`-style line saying which is the
+  same decision as the footer's and belongs with it.
+
+Neither is a provenance problem. Nothing in the repository derives from a GPL or
+unlicensed source (`PROVENANCE.md`, `Packages/ZImageKit/VENDORED.md`), so MIT sits
+under every dependency it has to. What the grant does not reach is third-party:
+the bundled Real-ESRGAN checkpoint, whose BSD-3-Clause status is inherited rather
+than granted (`Packages/ZephraUpscaleRealESRGAN/PROVENANCE.md`), the fixtures
+dumped from `diffusers` and `transformers`, and every weight the app downloads.
 
 ## One window: left out on purpose
 

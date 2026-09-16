@@ -313,8 +313,11 @@ manual dispatch.
 
 ## License
 
-Proprietary; all rights reserved. See [LICENSE](LICENSE). Third-party components
-are covered by their own licenses in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Zephra is released under the MIT License; see [LICENSE](LICENSE). Third-party
+code and model weights it bundles or downloads keep their own licenses, listed
+in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md); `Packages/ZImageKit` is
+vendored under its own terms, see its
+[VENDORED.md](Packages/ZImageKit/VENDORED.md).
 
 ### Zephyr branding
 

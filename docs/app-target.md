@@ -256,8 +256,9 @@ Six directories, by what a file is rather than what screen it is on:
   tab duplicating a window that already exists is not what any other Mac app does,
   so it went. The notices file is written so it reads right in
   the app too: it names no `LICENSE` file, because none is bundled — the app's
-  own terms are the copyright line's "All rights reserved" until terms are
-  decided (`ROADMAP.md`). A keyboard shortcut has one owner, the menu bar
+  own terms are the copyright line's MIT, and the full text is the repository's
+  `LICENSE`, which a third About button could open once it is a bundled
+  resource (`ROADMAP.md`). A keyboard shortcut has one owner, the menu bar
   (`ZephraCommands`, `ModelCommands`, `WorkspaceCommands`, `LibraryCommands`,
   `ThumbnailSizeCommands`); a button that shows a chord shows it as text, the
   way `GenerateButton` writes ⌘⏎, and never declares it too, because a chord

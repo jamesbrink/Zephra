@@ -10,9 +10,9 @@ them, and that is a different claim from shipping a translation of their code.
 
 `Packages/ZephraUpscaleRealESRGAN` is a translation with attribution of one class,
 `SRVGGNetCompact`, from `xinntao/Real-ESRGAN` (BSD-3-Clause, Copyright (c) 2021, Xintao Wang).
-BSD-3-Clause permits translating into proprietary software with attribution, so there was no
-reason to pretend to a clean room. The bundled checkpoint is that repository's own published
-`realesr-general-x4v3` release asset, converted to float16 safetensors by
+BSD-3-Clause permits translating with attribution, whatever the result is licensed under, so
+there was no reason to pretend to a clean room. The bundled checkpoint is that repository's
+own published `realesr-general-x4v3` release asset, converted to float16 safetensors by
 `Tools/convert_weights.py` and by nothing else.
 
 **`xocialize/realesrgan-mlx` has no license file and was never opened.** It is the obvious

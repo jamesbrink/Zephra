@@ -41,7 +41,7 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Zephra for iPhone finds this Mac on your home network, so a phone you have paired can watch a run and ask for another picture.</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright © 2026 James Brink. All rights reserved.</string>
+	<string>Copyright © 2026 James Brink. MIT License.</string>
 	<key>NSRemovableVolumesUsageDescription</key>
 	<string>Settings > General can set your image library to a folder on a removable volume, where Zephra saves generated pictures and reads existing ones.</string>
 	<key>NSSupportsAutomaticTermination</key>

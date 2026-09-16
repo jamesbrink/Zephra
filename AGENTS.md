@@ -2454,7 +2454,11 @@ Full detail: `docs/model-weights.md`.
 - Zephra may ship commercially. Every new dependency, vendored file, or model
   gets an entry in `THIRD_PARTY_NOTICES.md` (copyright line, license, and any
   NOTICE file) in the same commit. That file is bundled and shown in the
-  Acknowledgments window; it is the disclosure, so keep it exact.
+  Acknowledgments window; it is the disclosure, so keep it exact. Zephra's own
+  code is MIT (`LICENSE`), which relicenses nothing vendored or third-party:
+  `Packages/ZImageKit`, every bundled or downloaded weight and every dependency
+  keep the terms they arrived under, and that file is still where they are
+  stated.
 
 ## Debugging hooks
 

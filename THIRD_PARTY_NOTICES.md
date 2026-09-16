@@ -1,8 +1,9 @@
 # Third-Party Notices
 
-Zephra is proprietary software, copyright James Brink, all rights reserved. It
-incorporates the following third-party components. Each is used under its own license. The
-copyright notices required by those licenses are listed per component, the
+Zephra's own code is released under the MIT License, copyright James Brink. It
+incorporates the following third-party components, which that license does not
+cover. Each is used under its own license. The copyright notices required by
+those licenses are listed per component, the
 NOTICE file that Apache-2.0 requires reproducing follows, and the full license
 texts appear once per license type at the end of this file.
 
