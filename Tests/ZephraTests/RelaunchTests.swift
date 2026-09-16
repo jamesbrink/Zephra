@@ -31,3 +31,37 @@ struct RelaunchTests {
         #expect(Relaunch.quoted("a b; rm -rf /") == "'a b; rm -rf /'")
     }
 }
+
+/// The latch that keeps two doors from spawning two watcher scripts.
+///
+/// `Relaunch.afterExit` itself cannot be tested: it spawns a shell and asks the run loop to
+/// terminate the process the tests are hosted in. The decision it now takes first is this value,
+/// which is why it is one — the rule is provable without a process that has to die to prove it.
+@Suite("The one relaunch a launch gets")
+struct RelaunchOnceTests {
+    @Test("the first ask takes it and every later one is turned away")
+    func onlyTheFirstAskWins() {
+        var once = RelaunchOnce()
+        // Read into values first: `#expect` puts its expression in a closure, where a mutating
+        // call on a local is not allowed.
+        let button = once.claim()
+        // The canvas button at one second and the five-second timer behind it: the second ask
+        // must open nothing, or two scripts poll one process id and two copies come back.
+        let timer = once.claim()
+        let again = once.claim()
+        #expect(button)
+        #expect(!timer)
+        #expect(!again)
+    }
+
+    @Test("two launches are two relaunches")
+    func eachLaunchGetsItsOwn() {
+        var first = RelaunchOnce()
+        var second = RelaunchOnce()
+        let one = first.claim()
+        let other = second.claim()
+        #expect(one)
+        #expect(other, "the latch is a launch's, not the type's")
+    }
+}
+

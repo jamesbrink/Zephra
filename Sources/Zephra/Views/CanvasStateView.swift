@@ -83,8 +83,6 @@ struct CanvasStateView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.large)
                 .padding(.top, 4)
-        }
-        if startLabel != nil {
             // The way to every other model, from the one screen a person with nothing loaded
             // actually lands on. The browser rather than the first-launch chooser: that screen
             // takes the whole window and writes the answer to a question already answered, and

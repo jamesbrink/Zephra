@@ -46,7 +46,9 @@ struct ModelLoadButton: View {
         case .failed: store.retryFromInterface()
         case .notLoaded: store.loadModel()
         case .loaded: store.unloadModel()
-        case .loading, .downloading, .building: break
+        // Nothing here over a lost GPU: the press is the canvas's Relaunch Zephra, beside the
+        // sentence that says why, and this pill is greyed by `isPressable`.
+        case .loading, .downloading, .building, .lost: break
         }
     }
 }
