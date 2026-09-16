@@ -56,6 +56,15 @@ extension GenerationStore {
         // the weights go back, and nothing else may load meanwhile.
         isSwappingModel = true
         transition(to: .idle)
+        // `transition` is where a loss the runtime latched outside any run is noticed, and this
+        // unload may be what noticed it: `canUnload` was read a line above the latch closing.
+        // `releaseModel` would then do nothing, so the flag must not be left raised over a task
+        // that does nothing either — and nothing else may load anyway, admission being shut.
+        guard !deviceLost else {
+            isSwappingModel = false
+            logger.info("unload abandoned: the GPU is lost for this launch")
+            return
+        }
         switchTask = Task {
             await self.releaseModel()
             // A swap asked for while this was settling owns the flag; only this unload gives

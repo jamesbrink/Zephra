@@ -43,13 +43,12 @@ extension GenerationStore {
         settings: GenerationSettings? = nil,
         count: Int = 1
     ) -> RemoteAdmission {
-        // A bad request is the caller's to fix whatever the Mac is doing, so it is answered
-        // first: telling a phone to wait for a load that will never make its empty prompt
-        // runnable helps nobody.
         // Before everything, the request itself included: no wait and no correction makes a
         // request runnable on a Mac whose GPU has stopped answering it, and what the phone puts
-        // under its Generate button is the Mac's own sentence, which says what the remedy is.
+        // under its Generate button is the Mac's own sentence, which says the remedy.
         if deviceLost { return .refused(BackendError.deviceLostSentence) }
+        // Then the request, which is the caller's to fix whatever the Mac is doing: telling a
+        // phone to wait for a load that will never make its empty prompt runnable helps nobody.
         if let request = badRequest(model, settings, count) { return .badRequest(request) }
         if let busy = busyReason { return .busy(busy) }
         // Not `acceptsQueuedGeneration`, which is asked about the chosen model: a phone may

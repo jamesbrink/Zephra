@@ -38,6 +38,15 @@ extension GenerationStore {
             let (residency, shortfall) = loadResidency(for: model, forcing: residencyOverride)
             residencyOverride = nil
             if let shortfall { throw shortfall }
+            // Said here rather than inside the guard, because the guard is also asked by
+            // `residencyToStepDownTo(_:)`, which loads nothing: a Try Again over a model already
+            // resident would otherwise write "will be resident" for a load that never happened,
+            // which is the same kind of wrong reading the line was added to fix. This is where a
+            // load actually begins. Same sentence `setWeightResidencyPolicy` writes, so the two
+            // paths say one thing.
+            logger.info(
+                "weights of \(model.id, privacy: .public) will be \(residency.rawValue, privacy: .public)"
+            )
             let builtExists = locations.builtCandidates(for: model).contains {
                 $0.standardizedFileURL == acquired.directory.standardizedFileURL
             }
@@ -68,9 +77,15 @@ extension GenerationStore {
             if model.id == descriptor.id { modelAwaitsGenerate = false }
             transition(to: .ready)
         } catch {
+            // Classified before anything is undone, because the undoing is itself three command
+            // buffers — the backend's arrays dropped, Metal synchronized, the allocator's cache
+            // handed back — and a load that failed *because* the driver has stopped running this
+            // process's work is the one path guaranteed to reach here with the device gone.
+            noteIfDeviceLost(error)
             // Even a failed load may have allocated weights. Settle them before releasing
-            // their disk lease; suppressing obsolete UI events must not suppress cleanup.
-            await inference.unload()
+            // their disk lease; suppressing obsolete UI events must not suppress cleanup. Never
+            // over a lost GPU, where the weights go back when the process does.
+            if !deviceLost { await inference.unload() }
             if let acquired {
                 await downloads.release(acquired)
                 // One release per lease: a held lease that failed is no longer held.
@@ -86,9 +101,8 @@ extension GenerationStore {
                     transition(to: .failed(.insufficientMemory(shortfall)))
                 case BackendRegistryError.noBackend(let id): transition(to: .failed(.noBackend(id)))
                 case BackendError.deviceLost:
-                    // Noticed before the transition, so the transition lands on the one state
-                    // a Mac with no GPU has and nothing offers to load again.
-                    noteIfDeviceLost(error)
+                    // Already noticed above, before the undoing, so the transition lands on the
+                    // one state a Mac with no GPU has and nothing offers to load again.
                     transition(to: .failed(.deviceLost))
                 case let error as BackendError: transition(to: .failed(.backend(error)))
                 default: transition(to: .failed(.backend(.loadFailed(error.localizedDescription))))
@@ -105,7 +119,18 @@ extension GenerationStore {
     /// Drops the weights and gives the disk lease back, leaving the state alone: every caller
     /// settles that for itself. The primitive under the public `unloadModel()`, under a model
     /// swap, under a stopped preparation and under shutdown.
+    ///
+    /// Nothing at all over a lost GPU. The rule belongs here rather than at the five doors above
+    /// it, because each of them is reachable in the window a loss opens — the loss happens
+    /// *during* the load or run the door's own task is waiting on, after its `acceptsWork` check
+    /// — and `inference.unload()` is three more command buffers submitted into a channel the
+    /// driver is refusing, outside any `catchingDeviceErrors` boundary. The weights and the
+    /// lease go back when the process does, which is seconds away.
     func releaseModel() async {
+        guard !deviceLost else {
+            logger.info("nothing released: the GPU is lost for this launch and submits no more")
+            return
+        }
         let started = ContinuousClock.now
         let model = loadedDescriptor?.id
         await inference?.unload()

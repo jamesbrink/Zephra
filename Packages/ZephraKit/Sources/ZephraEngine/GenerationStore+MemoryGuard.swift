@@ -45,16 +45,10 @@ extension GenerationStore {
         if answer.shortfall == nil, answer.residency != weightResidencyPolicy.residency(for: model) {
             logStepDown(model, tile: tile, machine: machine, snapshot: snapshot)
         }
-        // Said on **every** load that happens, not only on one the guard moved. Without it a
-        // load whose residency the policy and the machine agreed on logged nothing about how
-        // the weights would be held, so the first load of a launch read, in `make logs`, as a
-        // load that had skipped the check — which is exactly how it was read on 2026-09-15.
-        // Same sentence `setWeightResidencyPolicy` writes, so the two paths say one thing.
-        if answer.shortfall == nil {
-            logger.info(
-                "weights of \(model.id, privacy: .public) will be \(answer.residency.rawValue, privacy: .public)"
-            )
-        }
+        // What the load will do with this answer is said by the load itself, in
+        // `+Preparation.load`: this is also asked by `residencyToStepDownTo(_:)`, which loads
+        // nothing, and a Try Again over a resident model writing "will be resident" would be a
+        // line about a load that never happened.
         log("load of \(model.id)", machine: machine, snapshot: snapshot, shortfall: answer.shortfall)
         return answer
     }

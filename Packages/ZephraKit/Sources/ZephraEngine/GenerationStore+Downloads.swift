@@ -89,6 +89,8 @@ extension GenerationStore {
         // backend's arrays, synchronizes Metal and hands the allocator's cache back — three
         // more command buffers submitted into a channel the driver is refusing, on the way out
         // of a process that is about to end anyway. The weights go back when it does.
+        // `releaseModel` refuses it too, which is where the rule lives now; kept here because a
+        // quit should not await a call whose whole body is a guard.
         guard !deviceLost else { return }
         await releaseModel()
     }

@@ -10,9 +10,14 @@ import ZephraCore
 extension GenerationStore {
     /// Whether the weights are sitting doing nothing: loaded, ready, with no run, no queue, no
     /// upscale, no swap and no stop in flight.
+    /// Never over a lost GPU, and the runtime is asked rather than `acceptsWork` alone: a clock
+    /// already past its wait re-reads this, and a loss latched while it slept has not reached
+    /// `deviceLost` yet, since nothing has transitioned. An unload is the last thing such a Mac
+    /// should do — `releaseModel` refuses it too, which is the rule; this is the cheaper belt.
     var isIdleCandidate: Bool {
-        acceptsWork && state == .ready && queue.isEmpty && running == nil && !isUpscaling
-            && !isSwappingModel && !isStoppingPreparation && loadedDescriptor != nil
+        acceptsWork && runtime?.isDeviceLost != true && state == .ready && queue.isEmpty
+            && running == nil && !isUpscaling && !isSwappingModel && !isStoppingPreparation
+            && loadedDescriptor != nil
     }
 
     /// Starts the idle clock, or stops it.

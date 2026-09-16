@@ -28,10 +28,13 @@ extension CompanionSession {
     /// announcement is its reply and whose chunks follow it.
     private func perform(_ command: Command, id: UUID) async throws -> Reply? {
         guard let host else { throw LinkError.refused }
-        // A Mac whose GPU has stopped answering takes none of the three commands that would
-        // reach it: `enqueue` is refused by `remoteAdmission` below in the same words, and
-        // these two would otherwise be answered "cannot load a model just now", which reads as
-        // a moment passing rather than as a Mac that has to be relaunched.
+        // A Mac whose GPU has stopped answering takes none of the six commands that would
+        // reach it (`needsTheGPU`): `enqueue`, `loadModel`, `unloadModel`, `switchModel`,
+        // `upscale` and `animate` are all refused here, before the switch below and before
+        // `remoteAdmission` — which answers an `enqueue` in the same words anyway, and would
+        // otherwise be the only one of the six that said anything true. The five around it
+        // would have been answered "cannot load a model just now" or a plain `.refused`, which
+        // reads as a moment passing rather than as a Mac that has to be relaunched.
         if host.store.deviceLost, Self.needsTheGPU(command) {
             throw LinkError(code: .refused, reason: EngineError.deviceLost.message)
         }

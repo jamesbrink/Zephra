@@ -48,6 +48,14 @@ extension GenerationStore {
         deviceLost = true
         idleTask?.cancel()
         idleTask = nil
+        // Everything in flight is cancelled the way `shutdown()` cancels it. A loss noticed out
+        // of band — the latch closing with no run to throw — otherwise leaves a generation, an
+        // upscale or a load submitting command buffers for the rest of their steps while the
+        // interface already says the run is gone. Each is cancelled where it stands: a task that
+        // is itself what noticed only takes the flag, which nothing below here reads.
+        generationTask?.cancel()
+        upscaleTask?.cancel()
+        bootstrapTask?.cancel()
         queue.removeAll()
         dropChains()
         running = nil
