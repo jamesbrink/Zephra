@@ -45,9 +45,15 @@ struct LibraryPane: View {
             // same reason: the notice arrives while the canvas is up, so this pane is built
             // after the ask rather than being here to hear it. `LibraryRevealScroll` inside
             // the grid is the other half, and brings it into view.
-            .onChange(of: workspace.revealToken, initial: true) { _, _ in
-                guard let id = workspace.revealing else { return }
+            //
+            // The ask is answered once. Every later mount of this pane runs the same `initial`
+            // pass, and an ask left standing had them all select a picture the person moved on
+            // from. Consuming it on the next turn rather than here is what leaves the grid's
+            // modifier — which reads the same token in this same pass — its half of the answer.
+            .onChange(of: workspace.revealToken, initial: true) { _, token in
+                guard let id = workspace.unansweredReveal else { return }
                 selection.apply(LibraryCursor.Outcome(ids: [id], anchor: id))
+                Task { @MainActor in workspace.markRevealConsumed(token) }
             }
             // A query that no longer lists the picture closes the viewer: left open it would
             // show something the grid behind it cannot, with nowhere to step to.

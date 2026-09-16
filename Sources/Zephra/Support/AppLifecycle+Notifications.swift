@@ -37,8 +37,11 @@ extension AppLifecycle: UNUserNotificationCenterDelegate {
             // `NSApp.windows`, and a window closed with Command W is reopened by the scene.
             NSApp.windows.first { $0.canBecomeMain && !$0.isSheet }?.makeKeyAndOrderFront(nil)
             // Only after the window is up: what this does is move the window somewhere, and
-            // a window that is not yet in front has nowhere to move to.
-            if let destination { self.onNoticeOpened?(destination) }
+            // a window that is not yet in front has nowhere to move to. Through `deliver`,
+            // because a banner clicked while Zephra was not running is answered here before
+            // the root view's `.task` has said what answering one means; it is held and handed
+            // over the moment that closure lands.
+            if let destination { self.deliver(destination) }
         }
     }
 }

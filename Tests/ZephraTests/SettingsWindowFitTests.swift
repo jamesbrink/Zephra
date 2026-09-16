@@ -82,6 +82,16 @@ struct SettingsWindowFitTests {
         #expect(placed.maxY == 1084)
     }
 
+    @Test("a window wider than the display keeps its left edge, where the traffic lights are")
+    func anOverWideWindowKeepsItsTrafficLights() {
+        let placed = SettingsWindowFit.placed(
+            CGRect(x: -120, y: 200, width: 1900, height: 648), inside: screen)
+        #expect(placed.minX == screen.minX)
+        // The two axes answer differently on purpose: the low edge on x, the high edge on y.
+        #expect(placed.minY == 200)
+        #expect(placed.size == CGSize(width: 1900, height: 648))
+    }
+
     @Test("a tab switch never grows past the clamped target")
     func growingStopsAtTheTarget() {
         let target = fit(1010)

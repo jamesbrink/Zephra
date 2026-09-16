@@ -19,7 +19,9 @@ import SwiftUI
 ///
 /// The opening size and the centring happen once per launch. After that the window is the
 /// person's: only a tab taller than the window grows it, because the alternative is a clipped
-/// pane, and a window they made larger stays larger. Both sizes go through
+/// pane, and a window they made larger stays larger — and only when the *tab's* target changes,
+/// since `apply` runs from every layout pass and re-growing there put a window dragged shorter
+/// straight back to the tab's height. Both sizes go through
 /// `SettingsWindowFit`, so neither ever passes the display's visible frame — Performance is
 /// taller than a laptop screen and scrolls the rest — and `contentMinSize` is
 /// `SettingsTab.minimumHeight`, never the tab's own height, which is what left Performance's
@@ -46,9 +48,12 @@ struct SettingsWindowFrame: NSViewRepresentable {
     }
 
     /// Whether this window has been sized and placed yet, kept across the updates a tab change
-    /// brings so the opening size is applied once and not on every switch.
+    /// brings so the opening size is applied once and not on every switch, and the clamped
+    /// target it was last grown toward, so a grow happens when the tab changes and not on every
+    /// layout pass.
     final class Opening {
         var done = false
+        var applied: CGSize?
     }
 
     private static func apply(_ size: CGSize, to window: NSWindow, opening: Opening) {
@@ -68,10 +73,17 @@ struct SettingsWindowFrame: NSViewRepresentable {
             window.setContentSize(target)
             window.center()
             opening.done = true
+            opening.applied = target
             return constrain(window)
         }
-        // A tab taller than the window currently stands at: grow to it, keeping whatever size
-        // the person has chosen otherwise.
+        // Only when the target itself has moved — a tab switch, or a drag onto a display with
+        // different room. Growing on every pass took a size back off whoever had dragged the
+        // window shorter than the tab's clamped height, at the Models tab's next inventory
+        // refresh or any `@AppStorage` write; the window advertises a 400-point floor and has
+        // to keep it.
+        guard opening.applied != target else { return }
+        opening.applied = target
+        // A tab taller than the window stands at grows it; any other size stays the person's.
         let content = window.contentRect(forFrameRect: window.frame).size
         let grown = SettingsWindowFit.grown(current: content, toward: target)
         guard grown != content else { return }
@@ -97,8 +109,8 @@ struct SettingsWindowFrame: NSViewRepresentable {
 /// every layout, and — for the resizable flag alone — whenever SwiftUI takes it away.
 ///
 /// Resizing a window in the middle of a layout pass is what the hop to the next turn of the
-/// run loop avoids. Every pass is idempotent: the floor is already the floor and the size is
-/// only ever grown.
+/// run loop avoids. Every pass is idempotent: the floor is already the floor, and a size is
+/// only ever grown, once, for the tab that asked for it.
 final class WindowFrameView: NSView {
     var configure: ((NSWindow) -> Void)?
     private var mask: NSKeyValueObservation?

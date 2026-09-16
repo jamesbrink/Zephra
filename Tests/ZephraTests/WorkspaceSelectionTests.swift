@@ -154,6 +154,41 @@ final class WorkspaceSelectionTests {
         #expect(workspace.revealing == item.id)
     }
 
+    @Test("an ask that has been answered is not answered again by the next pane built")
+    func aConsumedRevealIsNotReapplied() {
+        let workspace = WorkspaceSelection(pane: .canvas)
+        let item = Self.item(named: "a-picture.png")
+        workspace.reveal(item)
+        #expect(workspace.unansweredReveal == item.id)
+        workspace.markRevealConsumed(workspace.revealToken)
+        // The value stays readable — a pane built after the ask is the ordinary case — but
+        // every later mount of the library finds nothing left to do.
+        #expect(workspace.revealing == item.id)
+        #expect(workspace.unansweredReveal == nil)
+    }
+
+    @Test("asking for the same picture again after it was shown is heard afresh")
+    func aSecondRevealOfTheSamePictureIsHeard() {
+        let workspace = WorkspaceSelection(pane: .library)
+        let item = Self.item(named: "a-picture.png")
+        workspace.reveal(item)
+        workspace.markRevealConsumed(workspace.revealToken)
+        workspace.reveal(item)
+        #expect(workspace.unansweredReveal == item.id)
+    }
+
+    @Test("answering a stale token leaves a newer ask standing")
+    func consumingAnOldTokenDoesNotSwallowTheNextAsk() {
+        let workspace = WorkspaceSelection(pane: .library)
+        let first = Self.item(named: "a-picture.png")
+        workspace.reveal(first)
+        let stale = workspace.revealToken
+        let second = Self.item(named: "another-picture.png")
+        workspace.reveal(second)
+        workspace.markRevealConsumed(stale)
+        #expect(workspace.unansweredReveal == second.id)
+    }
+
     /// One generated picture in the library, which is all `reveal` reads: its identity and
     /// whether the query in force would list it.
     private static func item(named fileName: String) -> LibraryItem {

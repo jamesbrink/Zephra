@@ -1010,7 +1010,15 @@ Six directories, by what a file is rather than what screen it is on:
   the window: it widens a query that would not list the picture (scope back to
   everything, filters off, the sort kept, since the sort hides nothing), moves
   to the library, drops `viewing`, and publishes `revealing` and a bumped
-  `revealToken`, so asking for the same picture twice is heard twice.
+  `revealToken`, so asking for the same picture twice is heard twice. **The ask
+  is consumed, never cleared.** `revealing` stays readable, because the pane
+  that answers it is ordinarily built after it; what goes away is the token,
+  through `markRevealConsumed(_:)`, and both readers act on `unansweredReveal`
+  alone. Without that a single notification click had every later visit to the
+  Library re-select that picture and scroll back to it, since the pane is
+  rebuilt on every pane change and both readers watch with `initial: true`.
+  A token older than the newest consumes nothing, so a second ask arriving
+  while the first is being answered still stands.
 - `Support/` — caches, exports, pickers, previews, and the single homes for
   cross-cutting answers listed below.
 - `Companion/` — everything the link needs that is the Mac's rather than the
@@ -1100,14 +1108,25 @@ Rules in `Support/`:
   and anything a build cannot read decodes to nil rather than to a wrong
   answer. A click goes through `AppLifecycle+Notifications`, which brings the
   app forward and the window with it and then hands the destination to
-  `onNoticeOpened`, injected from the composition root the way `isInstalling`
-  is, so the delegate names neither the library nor the workspace.
+  `AppLifecycle.deliver`, which is `onNoticeOpened` where the composition root
+  has set one and a held `pendingNotice` where it has not — the closure's
+  `didSet` drains it. That order is the cold-launch case and the one the
+  destination exists for: the delegate is set in
+  `applicationDidFinishLaunching` and the system hands the click over at once,
+  while `onNoticeOpened` is assigned from the root view's `.task`, later, so a
+  banner clicked with Zephra not running used to bring the window up and reveal
+  nothing. The closure is injected from the composition root the way
+  `isInstalling` is, so the delegate names neither the library nor the
+  workspace.
   `ZephraApp+Library.openNotice` is that answer: `index.item(named:)`, then
   `WorkspaceSelection.reveal`, which moves to the library, closes the viewer,
   widens a query that would hide the picture and selects it — `LibraryPane`
   applies the selection and `LibraryRevealScroll` inside `LibraryGrid` scrolls
   it into view, both with `initial: true`, since the notice arrives while the
-  canvas is up and the pane is built after the ask. A picture that has gone
+  canvas is up and the pane is built after the ask, and both on
+  `unansweredReveal`; the pane marks the token consumed on the next turn of the
+  run loop, which is what leaves the grid's modifier its half of the same pass.
+  A picture that has gone
   since the banner was posted leaves the library pane up with nothing selected
   and one line in `make logs`. The other three notices are about the window and
   carry no destination, exactly as before.
@@ -1142,8 +1161,14 @@ Rules in `Views/`:
   never off it — after every size change `constrainFrameRect` keeps the title
   bar under the menu bar and `SettingsWindowFit.placed` moves the whole frame
   back inside the visible frame, since a window grows from a corner without
-  moving and AppKit's own constraint says nothing about the bottom edge — and
-  the tab scrolls for the rest.
+  moving and AppKit's own constraint says nothing about the bottom edge (a
+  frame larger than the display keeps the high edge on y, the title bar, and
+  the low edge on x, the traffic lights) — and the tab scrolls for the rest.
+  **A grow happens when the tab's target changes and nowhere else.** `apply`
+  runs from `layout()` and from every `updateNSView`, so growing on every pass
+  took a size straight back off anybody who dragged the window shorter than the
+  tab's clamped height; `SettingsWindowFrame.Opening` keeps the last target
+  applied and compares. The first open is unchanged.
   `minimumHeight` is one number for all four and must fit a 13-inch MacBook
   Air, and it is what `contentMinSize` holds to, **never the tab's own size**:
   a minimum taller than the display is one nothing can clamp, which is what

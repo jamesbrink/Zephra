@@ -88,11 +88,29 @@ final class WorkspaceSelection {
     /// "Image Saved" notification, and nothing else so far. The pane selects it and the grid
     /// scrolls to it; it is not cleared when they do, so a pane mounted after the ask — which
     /// is the ordinary case, since the notice arrives while the canvas is up — finds it there.
+    /// Read through `unansweredReveal`, never directly.
     private(set) var revealing: LibraryItem.ID?
 
     /// Bumped by every `reveal`, so asking for the same picture twice is heard the second
     /// time; the twin of the two focus tokens below, and for the same reason.
     private(set) var revealToken = 0
+
+    /// The token whose ask has been answered — the pane has selected the picture and the grid
+    /// has scrolled to it — so nothing acts on it twice.
+    ///
+    /// The pane is torn down and rebuilt every time the window moves between panes, and both
+    /// readers watch with `initial: true`, so without this a single notification click made
+    /// every later visit to the Library select that picture again and scroll back to it, for
+    /// the rest of the session. Consuming the token rather than clearing `revealing` is what
+    /// keeps the ordinary case working: the ask arrives before the pane that answers it exists,
+    /// so the value has to stay readable and only the fact that it was acted on goes away.
+    private(set) var revealConsumed = 0
+
+    /// The picture asked for and not yet shown, which is what both readers act on: nil once the
+    /// ask has been answered, and the picture again the moment somebody asks for it afresh.
+    var unansweredReveal: LibraryItem.ID? {
+        revealToken == revealConsumed ? nil : revealing
+    }
 
     /// Bumped whenever something asks for the search field. The field watches it and takes
     /// focus; a token rather than a flag, so asking twice in a row works the second time.
@@ -204,5 +222,13 @@ final class WorkspaceSelection {
         paneBeforeSearch = nil
         revealing = item.id
         revealToken += 1
+    }
+
+    /// Records that the ask this token named has been answered, so no later pane answers it
+    /// again. A token that is no longer the newest is ignored: a second ask arriving between
+    /// the answer and this call is one nobody has shown yet.
+    func markRevealConsumed(_ token: Int) {
+        guard token == revealToken else { return }
+        revealConsumed = token
     }
 }

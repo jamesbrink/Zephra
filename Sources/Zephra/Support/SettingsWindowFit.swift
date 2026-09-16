@@ -44,20 +44,38 @@ enum SettingsWindowFit {
     /// Settings window actually goes. A frame larger than the display keeps its top-left corner
     /// on screen and hangs off the far edge, since a title bar nobody can reach is worse than a
     /// bottom row nobody can see.
+    ///
+    /// Which end wins is the axis's own answer and the two differ: on y it is the **high** edge,
+    /// the one carrying the title bar, and on x the **low** edge, the one carrying the traffic
+    /// lights. Taking the high edge on both — which reads as symmetry — pushes the left of an
+    /// over-wide window off the screen, so the one control a window may not lose goes with it.
     nonisolated static func placed(_ frame: CGRect, inside visible: CGRect) -> CGRect {
         CGRect(
-            x: start(frame.minX, length: frame.width, low: visible.minX, high: visible.maxX),
-            y: start(frame.minY, length: frame.height, low: visible.minY, high: visible.maxY),
+            x: start(
+                frame.minX, length: frame.width, low: visible.minX, high: visible.maxX,
+                overflowKeeping: .low),
+            y: start(
+                frame.minY, length: frame.height, low: visible.minY, high: visible.maxY,
+                overflowKeeping: .high),
             width: frame.width, height: frame.height)
     }
 
+    /// Which end of one axis a frame too long for it keeps inside the display. `nonisolated`
+    /// like everything else here: the app target's default isolation is the main actor, and a
+    /// main-actor `Equatable` is not one these pure functions may compare with.
+    private nonisolated enum Overflow {
+        case low
+        case high
+    }
+
     /// One axis of `placed`: the furthest a frame of this length may start and still end inside,
-    /// which is where a frame too long for the axis is put.
+    /// or, for a frame too long for the axis, whichever end `overflowKeeping` names.
     private nonisolated static func start(
-        _ origin: CGFloat, length: CGFloat, low: CGFloat, high: CGFloat
+        _ origin: CGFloat, length: CGFloat, low: CGFloat, high: CGFloat,
+        overflowKeeping overflow: Overflow
     ) -> CGFloat {
         let last = high - length
-        guard last > low else { return last }
+        guard last > low else { return overflow == .low ? low : last }
         return min(max(origin, low), last)
     }
 }

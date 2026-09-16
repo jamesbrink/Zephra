@@ -78,7 +78,17 @@ Six directories, by what a file is rather than what screen it is on:
   publishes `revealing` with a bumped `revealToken`, the twin of the two focus
   tokens: a token rather than a flag, so asking for the same picture twice is
   heard the second time. Neither is cleared when it is read, because the pane
-  that reads it is usually built *after* the ask.
+  that reads it is usually built *after* the ask. What happens instead is that
+  the ask is **consumed**: `markRevealConsumed(_:)` records the token that was
+  answered, and `unansweredReveal` — the picture, or nil once the token has
+  been consumed — is the only thing either reader looks at. Clearing `revealing`
+  would break the ordinary case, which is the pane arriving late; leaving the
+  ask standing broke everything after it, because the pane is torn down and
+  rebuilt on every pane change and both readers watch with `initial: true`, so
+  one notification click made every later visit to the Library select that
+  picture and scroll three screens back to it for the rest of the session. A
+  token that is no longer the newest consumes nothing, so a second ask made
+  while the first is being answered is still heard.
 - `Support/` — caches, exports, pickers, previews. `ModalHost` is where every
   alert and every file panel in the app is raised: it answers with the window to
   hang a sheet from — the key window, which is already the Settings window when a
@@ -223,8 +233,20 @@ Six directories, by what a file is rather than what screen it is on:
   and AppKit's own constraint says nothing about the bottom edge — measured on
   a 1728 x 1117-point display, Performance grown on a tab switch stood 39
   points below it. A frame larger than the display keeps its top-left corner on
-  screen. So the Settings window is never taller than the display and never off
-  it, on any tab, and Performance scrolls for the rest.
+  screen, and the two axes say that differently on purpose: y keeps the high
+  edge, which carries the title bar, and x the low edge, which carries the
+  traffic lights. Taking the high edge on both reads as symmetry and pushes the
+  left of an over-wide window off the screen. So the Settings window is never
+  taller than the display and never off it, on any tab, and Performance scrolls
+  for the rest.
+  The grow itself happens **only when the tab's target changes**.
+  `SettingsWindowFrame.apply` runs from `layout()` and from every
+  `updateNSView`, and re-growing on each pass meant a window dragged shorter
+  than the tab's clamped height — which the 400-point `contentMinSize` now
+  allows — snapped back to that height at the Models tab's next inventory
+  refresh, or at any `@AppStorage` write. `Opening` keeps the last target it
+  grew toward and compares; the first open is unchanged, and `grown` is still
+  what refuses to shrink a window somebody made taller.
   Those figures are a floor
   and an opening size, not a fixed frame: the window resizes, keeps whatever size
   a person gave it as they step between tabs, and grows only for a tab whose
@@ -371,7 +393,15 @@ Six directories, by what a file is rather than what screen it is on:
   the way `isInstalling` is, so that file names neither the library nor the
   workspace, and the destination is read off the notification's content on the
   system's own queue (two strings, so nothing that is not `Sendable` crosses
-  into the main-actor task) and acted on only after the window is up.
+  into the main-actor task) and acted on only after the window is up. It goes
+  through `AppLifecycle.deliver`, which calls the closure where there is one and
+  holds the destination in `pendingNotice` where there is not; the closure's
+  `didSet` drains it. The two arrive in that order whenever the click is what
+  *launches* Zephra — the delegate is set in `applicationDidFinishLaunching` and
+  the system calls back at once, while `onNoticeOpened` is assigned from the
+  root view's `.task` — which is the case the destination is most for: a banner
+  left in Notification Center overnight, clicked cold, used to bring the window
+  up and reveal nothing. `AppLifecycleNoticeTests` pins both orders.
   `ZephraApp+Library.openNotice` is the answer, because that is the one place
   the index and the workspace are both in reach: `index.item(named:)` — which
   already skips Recently Deleted — then `WorkspaceSelection.reveal(item)`, or,
@@ -385,8 +415,14 @@ Six directories, by what a file is rather than what screen it is on:
   up, where the pane and the grid are built after the ask and would otherwise
   never hear it. The grid's existing `onAppear` scroll covers only the grid
   that is appearing; the one already on screen is what the modifier is for.
+  Both read `unansweredReveal`, and the pane marks the token consumed from a
+  `Task { @MainActor … }` rather than inline — the hop is what leaves the grid's
+  modifier, which reads the same token in the same pass, its half of the answer,
+  and a pane holding the consumed token itself would be a fourth stored
+  property.
   `NoticeDestinationTests` pins the round trip and the refusals,
-  `WorkspaceSelectionTests` the pane, the viewer, the widening and the token. `Sidebar/CanvasSidebar` is the canvas sidebar,
+  `WorkspaceSelectionTests` the pane, the viewer, the widening, the token and
+  its consumption. `Sidebar/CanvasSidebar` is the canvas sidebar,
   which builds today's runs once and hands them to `Sidebar/Timeline/` — a
   card per run still waiting, the running run's card in amber, and under those
   the wall of today's pictures in small squares — and to the "Today in

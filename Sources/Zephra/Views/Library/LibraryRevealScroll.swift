@@ -10,8 +10,9 @@ import ZephraEngine
 ///
 /// A modifier rather than more lines in `LibraryGrid`, which is at its three stored properties
 /// already; `LibraryGridKeyboard` beside it is the same split for the same reason. It reads
-/// `WorkspaceSelection.revealing` rather than the selection, so it does not depend on whether
-/// the pane above has applied the selection yet.
+/// `WorkspaceSelection.unansweredReveal` rather than the selection, so it does not depend on
+/// whether the pane above has applied the selection yet — and an ask already answered reads as
+/// nothing, so a grid mounted later does not scroll back to a picture nobody asked for again.
 struct LibraryRevealScroll: ViewModifier {
     /// The grid's scroll view, for revealing whatever was asked for.
     let proxy: ScrollViewProxy
@@ -21,7 +22,7 @@ struct LibraryRevealScroll: ViewModifier {
     func body(content: Content) -> some View {
         // `initial`, because a grid built in answer to the ask has already missed the change.
         content.onChange(of: workspace.revealToken, initial: true) { _, _ in
-            guard let id = workspace.revealing else { return }
+            guard let id = workspace.unansweredReveal else { return }
             proxy.scrollTo(id, anchor: .center)
         }
     }
