@@ -37,10 +37,12 @@ struct BackgroundNoticeTests {
 
     @Test("a saved image is named by its prompt, and a clip is called one")
     func savedImage() {
-        let notice = BackgroundNotice.imageSaved(prompt: "a cat on a limestone wall", isClip: false)
+        let notice = BackgroundNotice.imageSaved(
+            prompt: "a cat on a limestone wall", isClip: false, fileName: "cat.png")
         #expect(notice.title == "Image Saved")
         #expect(notice.body == "a cat on a limestone wall")
-        let clip = BackgroundNotice.imageSaved(prompt: "the cat turns", isClip: true)
+        let clip = BackgroundNotice.imageSaved(
+            prompt: "the cat turns", isClip: true, fileName: "cat-turns.png")
         #expect(clip.title == "Clip Saved")
     }
 

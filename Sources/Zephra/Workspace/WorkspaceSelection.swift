@@ -84,6 +84,16 @@ final class WorkspaceSelection {
     /// pane's own state so the menu bar's "Back to Grid" and `InterfacePreview` can reach it.
     var viewing: LibraryItem.ID?
 
+    /// The library picture something outside the window has asked to be shown: a click on the
+    /// "Image Saved" notification, and nothing else so far. The pane selects it and the grid
+    /// scrolls to it; it is not cleared when they do, so a pane mounted after the ask — which
+    /// is the ordinary case, since the notice arrives while the canvas is up — finds it there.
+    private(set) var revealing: LibraryItem.ID?
+
+    /// Bumped by every `reveal`, so asking for the same picture twice is heard the second
+    /// time; the twin of the two focus tokens below, and for the same reason.
+    private(set) var revealToken = 0
+
     /// Bumped whenever something asks for the search field. The field watches it and takes
     /// focus; a token rather than a flag, so asking twice in a row works the second time.
     private(set) var searchFocusToken = 0
@@ -170,5 +180,29 @@ final class WorkspaceSelection {
     func show(tag: String) {
         query.tag = tag
         pane = .library
+    }
+
+    /// Shows one picture in the library grid, selected and scrolled to: the whole of what a
+    /// click on its notification means.
+    ///
+    /// It takes the item rather than a file name because the one hard part is the query. A
+    /// person who walked away with the Favorites scope up, or with something typed in the
+    /// search field, comes back to a grid that does not list the picture they just clicked
+    /// on, and a selection nothing shows is a click that did nothing. So a query that would
+    /// not list this picture is widened to one that does — the scope back to everything and
+    /// the filters off, the sort left alone, since the sort hides nothing. `LibraryQuery`
+    /// already answers "would this list it", so that judgement is not made twice.
+    ///
+    /// The viewer goes down explicitly: `pane`'s own observer does it, but only when the pane
+    /// actually moves, and the notice may well arrive with the library already up.
+    func reveal(_ item: LibraryItem) {
+        if !query.matches(item) { query = LibraryQuery(sort: query.sort) }
+        pane = .library
+        viewing = nil
+        // Whatever search the widening just emptied is not a search anybody is coming back
+        // from, so nothing should bounce them out of the library when the field next clears.
+        paneBeforeSearch = nil
+        revealing = item.id
+        revealToken += 1
     }
 }

@@ -15,6 +15,11 @@ final class AppLifecycle: NSObject, NSApplicationDelegate {
     /// Whether an update is being swapped into place. Injected from `ZephraApp` rather than
     /// read from a type here, so this file names no updater.
     var isInstalling: (@MainActor () -> Bool)?
+    /// What a clicked notification that named somewhere is worth doing about it, once the app
+    /// is forward and the window is up. Injected from the composition root the way
+    /// `isInstalling` is, so this file names neither the library nor the workspace: all it
+    /// knows is that a notice carried a destination.
+    var onNoticeOpened: (@MainActor (NoticeDestination) -> Void)?
     private var stopping = false
 
     func applicationWillFinishLaunching(_ notification: Notification) {

@@ -40,6 +40,15 @@ struct LibraryPane: View {
                 guard let id else { return }
                 selection.apply(LibraryCursor.Outcome(ids: [id], anchor: id))
             }
+            // A picture asked for from outside the window — a click on its "Image Saved"
+            // notification — is selected the same way the viewer's is. `initial`, and for the
+            // same reason: the notice arrives while the canvas is up, so this pane is built
+            // after the ask rather than being here to hear it. `LibraryRevealScroll` inside
+            // the grid is the other half, and brings it into view.
+            .onChange(of: workspace.revealToken, initial: true) { _, _ in
+                guard let id = workspace.revealing else { return }
+                selection.apply(LibraryCursor.Outcome(ids: [id], anchor: id))
+            }
             // A query that no longer lists the picture closes the viewer: left open it would
             // show something the grid behind it cannot, with nowhere to step to.
             .onChange(of: index.library.root) {

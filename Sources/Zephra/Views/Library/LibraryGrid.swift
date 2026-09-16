@@ -55,6 +55,9 @@ struct LibraryGrid: View {
             // closes, so a selection left over from stepping through the viewer would
             // otherwise land off screen with nothing to bring it back into view.
             .onAppear { if let id = selection.single { proxy.scrollTo(id, anchor: .center) } }
+            // The grid already on screen when a notification is clicked: nothing appears, so
+            // nothing above would bring the revealed picture into view.
+            .modifier(LibraryRevealScroll(proxy: proxy))
         }
         .modifier(LibraryOpenCommand(selection: selection))
         .modifier(LibraryQuickLook(selection: selection))

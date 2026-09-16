@@ -6,6 +6,9 @@ import ZephraEngine
 /// What the composition root decides before the window is up, for `make logs`.
 private nonisolated let launchLogger = Logger(subsystem: "io.zephra", category: "launch")
 
+/// What a clicked notification found, or did not, for `make logs`.
+private nonisolated let noticeLogger = Logger(subsystem: "io.zephra", category: "notices")
+
 /// What the composition root does that names no backend: wiring the library to the store, and
 /// reading which model the last launch was on.
 ///
@@ -30,9 +33,8 @@ extension ZephraApp {
             // The image was attached its file before this was called, so the one at this URL
             // is in the session's history; an image the history has let go is named only as
             // saved.
-            let image = store.history.first { $0.fileURL == url }
             BackgroundNotices.post(
-                .imageSaved(prompt: image?.settings.prompt ?? "", isClip: image?.isVideo ?? false))
+                .saved(at: url, image: store.history.first { $0.fileURL == url }))
         }
         store.onImageDeleted = { _ in Task { await index.rescanNow() } }
         // The reverse direction: a delete made through the index — the grid, the viewer, the
@@ -40,6 +42,31 @@ extension ZephraApp {
         // is told separately when one of the files it might be showing is gone.
         index.onRecentlyDeleted = { urls in
             for url in urls { store.forget(fileAt: url) }
+        }
+        termination.onNoticeOpened = { openNotice($0) }
+    }
+
+    /// What a clicked notification means once the window is forward: this is the one place
+    /// the library and the workspace are both in reach, which is why the answer is the
+    /// composition root's rather than the delegate's.
+    ///
+    /// A picture that has gone since the banner was posted — deleted, or moved out of the
+    /// folder — leaves the library pane up and nothing selected, which is the honest answer
+    /// and is what every notice did before any of them carried a destination. It is logged,
+    /// because from the outside that is a click that did almost nothing.
+    func openNotice(_ destination: NoticeDestination) {
+        switch destination {
+        case .library(let fileName):
+            guard let item = index.item(named: fileName) else {
+                noticeLogger.info(
+                    """
+                    notification named \(fileName, privacy: .public), which the library does \
+                    not hold; showing the library
+                    """)
+                workspace.pane = .library
+                return
+            }
+            workspace.reveal(item)
         }
     }
 
