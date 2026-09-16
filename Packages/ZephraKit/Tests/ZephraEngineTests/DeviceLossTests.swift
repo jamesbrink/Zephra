@@ -52,6 +52,16 @@ struct DeviceLossTests {
         await store.shutdown()
     }
 
+    @Test("a load event arriving late does not paint over the lost state")
+    func aLateLoadEventIsDropped() async throws {
+        let bed = EngineTestBed()
+        let store = await Self.lostStore(bed)
+
+        store.applyLoadEvent(.progress(GenerationProgressEvent(phase: .preparing, fraction: 0)))
+        #expect(store.state == .failed(.deviceLost))
+        await store.shutdown()
+    }
+
     @Test("Try Again loads nothing, whatever the backend would have done")
     func retryDoesNotReload() async throws {
         let bed = EngineTestBed()

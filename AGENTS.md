@@ -1118,8 +1118,10 @@ Rules in `Support/`:
   nothing. The closure is injected from the composition root the way
   `isInstalling` is, so the delegate names neither the library nor the
   workspace.
-  `ZephraApp+Library.openNotice` is that answer: `index.item(named:)`, then
-  `WorkspaceSelection.reveal`, which moves to the library, closes the viewer,
+  `ZephraApp+Library.openNotice` is that answer: `index.item(named:)` — and on a
+  miss one `rescanNow()` and a second look, since a click that launched Zephra
+  arrives before the first scan has read the folder, and only then the library
+  pane and a log line — then `WorkspaceSelection.reveal`, which moves to the library, closes the viewer,
   widens a query that would hide the picture and selects it — `LibraryPane`
   applies the selection and `LibraryRevealScroll` inside `LibraryGrid` scrolls
   it into view, both with `initial: true`, since the notice arrives while the

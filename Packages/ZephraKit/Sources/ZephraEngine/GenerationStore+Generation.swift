@@ -101,7 +101,12 @@ extension GenerationStore {
         }
     }
 
+    /// A load event landing after the GPU is lost is dropped: the load it belongs to has been
+    /// cancelled and `.failed(.deviceLost)` is the one state the interface may show over it.
+    /// `transition(to:)` rewrites its own answer for the same reason; this is the one other
+    /// writer of `state` a load reaches.
     func applyLoadEvent(_ event: EngineEvent) {
+        guard !deviceLost else { return }
         switch event {
         case .download(let progress): state = .downloading(progress)
         case .build(let progress): state = .building(progress)

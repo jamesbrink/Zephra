@@ -57,16 +57,23 @@ extension ZephraApp {
     func openNotice(_ destination: NoticeDestination) {
         switch destination {
         case .library(let fileName):
-            guard let item = index.item(named: fileName) else {
-                noticeLogger.info(
-                    """
-                    notification named \(fileName, privacy: .public), which the library does \
-                    not hold; showing the library
-                    """)
-                workspace.pane = .library
-                return
+            if let item = index.item(named: fileName) { return workspace.reveal(item) }
+            // Not indexed yet is the ordinary case for a click that launched Zephra: the
+            // delegate fires before the first scan has read the folder. One scan, then the
+            // honest answer either way.
+            Task { @MainActor in
+                await index.rescanNow()
+                guard let item = index.item(named: fileName) else {
+                    noticeLogger.info(
+                        """
+                        notification named \(fileName, privacy: .public), which the library \
+                        does not hold; showing the library
+                        """)
+                    workspace.pane = .library
+                    return
+                }
+                workspace.reveal(item)
             }
-            workspace.reveal(item)
         }
     }
 

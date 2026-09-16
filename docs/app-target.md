@@ -404,9 +404,12 @@ Six directories, by what a file is rather than what screen it is on:
   up and reveal nothing. `AppLifecycleNoticeTests` pins both orders.
   `ZephraApp+Library.openNotice` is the answer, because that is the one place
   the index and the workspace are both in reach: `index.item(named:)` — which
-  already skips Recently Deleted — then `WorkspaceSelection.reveal(item)`, or,
-  for a picture that has gone since the banner was posted, the library pane and
-  one line in `make logs`. `LibraryPane` applies the selection from
+  already skips Recently Deleted — then `WorkspaceSelection.reveal(item)`. A
+  miss is answered with one `rescanNow()` and a second look before it is
+  believed: a click that launched Zephra fires the delegate before the first
+  scan has read the folder, so without the retry a cold click could never
+  reveal anything. Only a picture still missing after that scan — gone since
+  the banner was posted — gets the library pane and one line in `make logs`. `LibraryPane` applies the selection from
   `revealToken` the way it already does from `workspace.viewing`, and
   `LibraryRevealScroll` — a modifier inside `LibraryGrid`'s `ScrollViewReader`,
   split out because the grid is at its three stored properties, as
