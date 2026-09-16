@@ -26,7 +26,8 @@ extension InterfacePreview {
             // `starting` is the run before its first frame, which is what the placeholder in
             // the run's rectangle is for; every other running build has a frame in hand.
             livePreview: name == "starting" ? nil : PreviewImages.frame(),
-            following: watching ? false : nil
+            following: watching ? false : nil,
+            loaded: loadedModel(for: state, ModelCatalog.default)
         )
         // The capsule's prompt and controls are drawn from `settings`, so a frozen window
         // whose prompt did not match the run's card would contradict itself. The step bar is
@@ -76,6 +77,10 @@ extension InterfacePreview {
         case "settings", "ready", "image", "editing", "tucked", "batch", "library", "viewer", "picker", "clip",
              "update":
             return .ready
+        case "models":
+            // The browser over a window with nothing loaded, which is what the cards' Download
+            // and Load footers are worth photographing against.
+            return .idle
         case "welcome":
             // The first-launch chooser stands in front of the workspace with nothing loaded,
             // which is exactly what `.idle` means. `wantsWelcome` is what raises it.

@@ -51,11 +51,12 @@ struct GenerateButton: View {
         return "Queue this prompt behind the current image" + loadNote
     }
 
-    /// What pressing Generate costs first when the chosen model is a picture's and not the one
-    /// loaded: the size is on the screen before the download starts, here as everywhere else.
+    /// What pressing Generate costs first when the chosen model is not the one loaded — most
+    /// often nothing is loaded at all — so the size is on the screen before the download
+    /// starts, here as everywhere else. `ModelLoadNote` answers "" when the chosen model is
+    /// already in, which is the whole of the condition.
     private var loadNote: String {
-        guard store.modelAwaitsGenerate else { return "" }
-        return ModelLoadNote.text(for: store.descriptor, store: store)
+        ModelLoadNote.text(for: store.descriptor, store: store)
     }
 }
 

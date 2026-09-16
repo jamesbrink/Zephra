@@ -30,9 +30,14 @@ extension GenerationStore {
         guard acceptsWork else { return }
         guard let next = queue.first else {
             isSwitchingForQueue = false
-            if descriptor.id != loadedDescriptor?.id, !modelAwaitsGenerate {
+            if loadingMode == .automatic, descriptor.id != loadedDescriptor?.id,
+                !modelAwaitsGenerate
+            {
                 reload(descriptor, thenDrain: false)
             }
+            // The queue can empty without a transition, which is the other way the weights
+            // start sitting idle.
+            armIdleUnload()
             return
         }
         if next.requiresInstalledModel,

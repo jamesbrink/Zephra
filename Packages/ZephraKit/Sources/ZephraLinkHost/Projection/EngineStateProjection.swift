@@ -17,6 +17,9 @@ public enum EngineStateProjection {
     public static func engine(_ store: GenerationStore) -> EngineStateDTO {
         var dto = EngineStateDTO(store.state, modelID: store.descriptor.id)
         dto.canQueue = store.acceptsQueuedGeneration
+        // Which model is *loaded* is the store's fact too, and under on-demand loading it is a
+        // different model from the chosen one — or none at all.
+        dto.loadedModelID = store.loadedDescriptor?.id
         return dto
     }
 }

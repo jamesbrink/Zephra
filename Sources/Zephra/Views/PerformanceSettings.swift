@@ -1,13 +1,14 @@
 import SwiftUI
 import ZephraEngine
 
-/// What the engine does with the GPU: whether it warms up, how much scratch it may hold, and
-/// what it is holding right now.
+/// What the engine does with the GPU: when a model is loaded and unloaded, whether it warms
+/// up, how much scratch it may hold, and what it is holding right now.
 struct PerformanceSettings: View {
     @AppStorage(AppSettings.warmUpOnLaunch) private var warmUpOnLaunch = AppSettings.initialWarmUpOnLaunch
 
     var body: some View {
         Form {
+            ModelLoadingSettings()
             Section {
                 Toggle("Warm up the model after loading", isOn: $warmUpOnLaunch)
                 Text("A throwaway generation compiles the Metal kernels, so the first real image "

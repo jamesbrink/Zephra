@@ -67,6 +67,39 @@ struct ModelAvailabilityTests {
         #expect(store.availability[ModelCatalog.default.id] == .missing(reason: "gone"))
     }
 
+    @Test("a download nobody was waiting on still says so when it lands")
+    func abackgroundDownloadRefreshesWhatIsKnown() async throws {
+        let bed = EngineTestBed()
+        let control = bed.control
+        let other = ModelCatalog.zImageTurbo4bit
+        control.update { $0.availability[other.id] = .needsDownload(bytes: 1) }
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        store.loadingMode = .onDemand
+        await store.bootstrap()
+        #expect(store.availability[other.id] == .needsDownload(bytes: 1))
+        let loads = control.settings.loads
+
+        // The transfer is what puts the files there, so the disk's answer moves as it runs.
+        control.update { settings in
+            settings.downloadGate = { model in
+                guard model.id == other.id else { return }
+                control.update { $0.availability[other.id] = .available }
+            }
+        }
+        store.downloadModel(other)
+
+        // A load refreshes availability on its way out; a download has no load behind it, so
+        // without the pool saying when one lands this model reads `.needsDownload` in the menu,
+        // the browser and a paired phone's summary until the next launch.
+        try await bed.waitUntil { store.availability[other.id] == .available }
+
+        #expect(control.settings.loads == loads, "a download is not a load")
+        #expect(store.loadedDescriptor == nil, "and nothing was read into memory for it")
+        #expect(store.descriptor.id != other.id, "nor did it become the chosen model")
+        await store.shutdown()
+    }
+
     @Test("a preview store has no backend, so nothing is ever asked")
     func previewStoreAsksNothing() async throws {
         let store = GenerationStore.preview(state: .ready)

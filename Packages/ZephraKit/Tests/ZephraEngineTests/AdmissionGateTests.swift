@@ -74,6 +74,30 @@ struct AdmissionGateTests {
         await store.shutdown()
     }
 
+    @Test("a Mac with nothing loaded takes a press, and one with nothing to load does not")
+    func canQueueWithNothingLoaded() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        store.loadingMode = .onDemand
+        await store.bootstrap()
+        #expect(store.state == .idle)
+        #expect(!store.canQueue, "still nothing to run without a prompt")
+
+        store.settings.prompt = "a lighthouse"
+        #expect(store.canQueue, "the queue loads what the entry needs before it runs it")
+        #expect(store.canLoad(store.descriptor))
+
+        // A model that is not on the disk at all is the one case that still refuses.
+        bed.control.update {
+            for model in ModelCatalog.all { $0.availability[model.id] = .missing(reason: "gone") }
+        }
+        await store.refreshAvailability()
+        #expect(!store.canLoad(store.descriptor))
+        #expect(!store.canQueue)
+        await store.shutdown()
+    }
+
     @Test("the queue resumes once a deletion has finished")
     func queueResumesAfterDeletion() async throws {
         let bed = EngineTestBed()

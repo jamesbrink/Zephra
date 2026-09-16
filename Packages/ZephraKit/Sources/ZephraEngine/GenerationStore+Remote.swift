@@ -24,7 +24,9 @@ extension GenerationStore {
     /// which is a queue one more entry may join. It is `EngineStateDTO.canQueue` on the wire,
     /// stamped by `EngineStateProjection`, so a phone's Generate button and this gate are one
     /// answer rather than two that can disagree.
-    public var acceptsQueuedGeneration: Bool { state.acceptsGeneration || isDraining }
+    public var acceptsQueuedGeneration: Bool {
+        state.acceptsGeneration || isDraining || canLoad(descriptor)
+    }
 
     /// Whether a request from a paired device would be queued right now, and if not, why.
     ///
@@ -45,7 +47,11 @@ extension GenerationStore {
         // runnable helps nobody.
         if let request = badRequest(model, settings, count) { return .badRequest(request) }
         if let busy = busyReason { return .busy(busy) }
-        guard acceptsQueuedGeneration else { return .refused(state.remoteRefusal) }
+        // Not `acceptsQueuedGeneration`, which is asked about the chosen model: a phone may
+        // name another, and that model is the one that has to be loadable.
+        guard state.acceptsGeneration || isDraining || canLoad(model) else {
+            return .refused(state.remoteRefusal)
+        }
         // What the Mac has free this minute is worth asking again in a moment, so a run this
         // machine has not the memory for right now is `refused` rather than a bad request.
         // Only with settings in hand: without them there is no size and no length to charge.

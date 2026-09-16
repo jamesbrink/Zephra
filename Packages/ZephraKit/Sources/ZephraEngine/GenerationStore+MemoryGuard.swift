@@ -20,15 +20,28 @@ extension GenerationStore {
     /// The residency handed back is what the load must actually use: under Automatic the guard
     /// steps a resident answer down to streaming where the machine has not the room for it,
     /// which is a load rather than a refusal and is logged as one line saying both figures.
+    /// `forced` is a residency the store has already decided on — a run that stepped down, or a
+    /// retry that did — and it still goes through the shortfall check against that residency,
+    /// so a Mac that cannot stream it either is refused with the streamed figure, which is what
+    /// the load that was going to be attempted would have taken.
     func loadResidency(
-        for model: ModelDescriptor
+        for model: ModelDescriptor, forcing forced: WeightResidency? = nil
     ) -> (residency: WeightResidency, shortfall: MemoryShortfall?) {
         let machine = machineMemory?.read()
         let snapshot = runtime?.memorySnapshot() ?? .zero
         let tile = vaeTile(for: model)
-        let answer = memoryGuard.loadResidency(
-            for: model, policy: weightResidencyPolicy, tile: tile, machine: machine,
-            runtime: snapshot)
+        let answer =
+            forced.map {
+                (
+                    residency: $0,
+                    shortfall: memoryGuard.loadShortfall(
+                        for: model, residency: $0, mode: weightResidencyPolicy.mode, tile: tile,
+                        machine: machine, runtime: snapshot)
+                )
+            }
+            ?? memoryGuard.loadResidency(
+                for: model, policy: weightResidencyPolicy, tile: tile, machine: machine,
+                runtime: snapshot)
         if answer.shortfall == nil, answer.residency != weightResidencyPolicy.residency(for: model) {
             logStepDown(model, tile: tile, machine: machine, snapshot: snapshot)
         }
@@ -61,12 +74,16 @@ extension GenerationStore {
     }
 
     /// Why one request on one model cannot be run right now, or nil when it can.
+    ///
+    /// `residency` asks the question of a way of loading other than the one in force, which is
+    /// what "would this run fit if the weights were read from disk instead" is.
     func runShortfall(
-        for model: ModelDescriptor, settings: GenerationSettings
+        for model: ModelDescriptor, settings: GenerationSettings,
+        residency: WeightResidency? = nil
     ) -> MemoryShortfall? {
         let machine = machineMemory?.read()
         let snapshot = runtime?.memorySnapshot() ?? .zero
-        let residency = loadedResidency ?? weightResidencyPolicy.residency(for: model)
+        let residency = residency ?? loadedResidency ?? weightResidencyPolicy.residency(for: model)
         let shortfall = memoryGuard.runShortfall(
             for: model, residency: residency, mode: weightResidencyPolicy.mode,
             tile: vaeTile(for: model), settings: settings, machine: machine, runtime: snapshot)

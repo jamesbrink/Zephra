@@ -16,17 +16,25 @@ changes nothing. (`ZephraQuantize` honours none of them, so it reads nothing.)
 value, and `AppSettings.residencyPolicy(mode:budget:override:)` is pure, so the picker applies
 the same override the store runs under without a second read of the process environment.
 
-- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|clip|generating|starting|queued|watching|finishing|batch|library|viewer|picker|welcome|downloading|building|update|failed`
+- `ZEPHRA_PREVIEW_STATE=ready|image|editing|tucked|clip|generating|starting|queued|watching|finishing|batch|library|viewer|picker|welcome|models|downloading|building|update|failed`
   launches a Debug build frozen in that state with no model, for screenshots (`make screenshot`).
   `tucked` is `image` with the canvas's floating prompt slid down to its lip.
   `welcome` opens the first-launch model chooser over a frozen engine, whatever this Mac's
   preferences say (`InterfacePreview.wantsWelcome`, read by `WelcomeGate` in `init`, since the
   chooser has to be up before the first frame rather than raised after it).
+  `models` raises `ModelBrowserSheet` over an idle window —
+  `InterfacePreview.workspace()` sets `showsModelBrowser`, the way it sets
+  `promptTucked` for `tucked`, so the sheet is up when the shutter goes rather than
+  reached through a simulated click — and it borrows `welcome`'s invented 16 GB budget,
+  since a workstation that holds everything photographs no greyed card and no
+  "Needs 27 GB" footer.
   `viewer` opens the library pane on its first image full size; `picker` runs the
   `editing` build with the reference picker sheet forced open, through
-  `InterfacePreview.wantsReferencePicker` — the one flag the well reads on its own,
-  since a `@State` local to a view cannot be set from the composition root the way
-  `workspace.viewing` can.
+  `InterfacePreview.wantsReferencePicker`, which `workspace()` states the way it states
+  `showsModelBrowser` for `models`. The well held that flag as a `@State` of its own and
+  read the hook in `onAppear` until the browser and the picker had to be arbitrated
+  against each other; `WorkspaceSelection.showsReferencePicker` is the flag now, and the
+  hook inside the well is gone.
   `clip` stands the store up on `PreviewModel.video` — an invented model that makes clips
   and reads a picture, for the well, the length control and the strength slider — with the
   well filled and the canvas showing `PreviewImages.sample(frames:modelID:)` stamped with
@@ -51,6 +59,13 @@ the same override the store runs under without a second read of the process envi
   `UpdateChecker.frozen(.available(...))` — a made-up release, no timer, no feed, and
   `UpdateChecker.start()` returns before anything else while a preview state is set, so a
   screenshot build never reaches the update server any more than it opens a link road.
+
+  A frozen store also says **which model is in memory**. `GenerationStore.preview` gained
+  `loaded:` and `residency:`, and `InterfacePreview.loadedModel(for:_:)` answers them from
+  the state alone: the chosen model wherever the engine could only have reached that state
+  over loaded weights (`ready`, `generating`, `warmingUp`, `upscaling`, `cancelling`) and
+  nothing otherwise. Without it every `ready` screenshot showed a toolbar offering to Load
+  the model it was already ready on, which is not a state the app can be in.
 - `ZEPHRA_FRESH_START=<directory>` launches the app as a Mac that has never run it: its
   preferences go to a suite of their own, its models folder is `<directory>/Models` and its
   library `<directory>/Images`, and the single-instance guard lets it run beside a real
@@ -106,11 +121,16 @@ the same override the store runs under without a second read of the process envi
   at the configured `imagesDirectory`, for native folder-change UAT with temporary fixtures.
 - The phone has the same switch and a shorter list. `make run-ios PREVIEW=<state>` hands it to
   the simulator as `SIMCTL_CHILD_ZEPHRA_PREVIEW_STATE`, and `MobilePreviewState` is
-  `pairing`, `ready`, `generating`, `capsule`, `library`, `viewer`, `today`, `offline` and
+  `pairing`, `ready`, `generating`, `capsule`, `library`, `viewer`, `today`, `offline`,
+  `failed` and
   `settings`: the Mac's list is longer because the Mac has an engine to freeze, while here
   there are only two axes — which surface is up, and whether the wire is live. Every state but
   `pairing` is a `LinkClient.frozen` over two JSON fixtures, with no road under it, so nothing
-  reconnects behind a screenshot and the catalog writes nothing. `docs/mobile.md` has the
+  reconnects behind a screenshot and the catalog writes nothing. `failed` is the canvas after
+  a run the Mac lost: `MobilePreview.lostRun` puts a `.failed` engine with the GPU sentence
+  and `loadedModelID: nil` on the snapshot, and raises `modelLoading` **there rather than in
+  the fixture file**, so the bundled fixture stays a Mac from before that flag and every other
+  frozen state goes on exercising the decoder's fallback. `docs/mobile.md` has the
   rest. A frozen *Mac* build opens no road either: `startCompanion` refuses while
   `InterfacePreview.requestedState` is set.
 - `ZEPHRA_FORCE_RELAY=1` shuts every road on the phone but the relay, so a simulator sitting on
@@ -256,8 +276,13 @@ the same override the store runs under without a second read of the process envi
   rule `ZEPHRA_PREVIEW_STATE` follows and for the same reason — a shipped, signed Zephra has no
   business starting a generation unattended because a stray variable happened to be set)
   presses Generate with that prompt and the saved settings
-  as soon as the model is ready: one real generation in the app itself, window and all, from a
-  shell on a Mac nobody is sitting at. The bench measures the model without the window; a
+  as soon as the disk has been surveyed and the model is ready or loadable: one real
+  generation in the app itself, window and all, from a shell on a Mac nobody is sitting at.
+  Both halves of that wait are load-bearing under `ModelLoadingMode.onDemand`, where
+  nothing is loaded at launch and the press itself is what reads the weights in — waiting
+  for `.ready` would spin for the life of the process, and waiting on `canLoad` alone falls
+  through on its first tick, since `canLoad` reads `availability` and an empty map answers
+  yes about every model on the list. The bench measures the model without the window; a
   failure that needs the window on screen, as the GPU reset above did, needs this instead.
   `ZEPHRA_REFERENCE_ON_LAUNCH=<path>` puts that picture in the well first, through
   `adoptReference` as a drop would, and Generate waits for it to land, so with LTX-2.5 chosen

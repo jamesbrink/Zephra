@@ -75,7 +75,7 @@ extension EngineState {
     func title(for descriptor: ModelDescriptor, availability: ModelAvailability?) -> String? {
         switch self {
         case .idle:
-            "\(descriptor.fullName) isn't loaded yet."
+            "\(descriptor.fullName) isn't loaded. Generate loads it first."
         case .checkingModel, .loading:
             "Preparing model…"
         case .downloading(let event):

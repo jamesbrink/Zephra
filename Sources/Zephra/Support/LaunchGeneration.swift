@@ -61,7 +61,15 @@ enum LaunchGeneration {
     @MainActor
     static func run(on store: GenerationStore) async {
         guard let prompt else { return }
-        while store.state != .ready {
+        // Ready, or able to become ready: under on-demand nothing is loaded at launch and the
+        // press of Generate below is what reads the weights in, so waiting for `.ready` there
+        // would spin for the life of the process. The survey has to have landed first either
+        // way — `canLoad` reads `availability`, and an empty map answers yes about every model
+        // on the list, so without this the wait falls through on its first tick and Generate is
+        // pressed before the disk has been looked at.
+        while store.availability.isEmpty
+            || (store.state != .ready && !store.canLoad(store.descriptor))
+        {
             if case .failed = store.state { return }
             try? await Task.sleep(for: .milliseconds(250))
         }

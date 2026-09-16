@@ -30,6 +30,28 @@ struct ClaimAccountingTests {
         await store.shutdown()
     }
 
+    @Test("unloading by hand gives the claim back, and loading again takes exactly one")
+    func unloadingReleasesAndLoadingTakesOne() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        let first = try #require(bed.control.settings.lastAcquisitionID)
+
+        store.unloadModel()
+        await store.settle()
+        #expect(await store.downloads.transfers.claims[first] == nil)
+        #expect(store.downloads.retained[first] == nil)
+        #expect(await bed.claimCount(store) == 0, "nothing is left holding a folder")
+
+        store.loadModel()
+        await store.settle()
+        let second = try #require(bed.control.settings.lastAcquisitionID)
+        #expect(await bed.claimCount(store) == 1)
+        #expect(store.downloads.retained[second]?.borrowers == 1)
+        await store.shutdown()
+    }
+
     @Test("shutdown leaves no claim behind")
     func shutdownReleasesEverything() async throws {
         let bed = EngineTestBed()

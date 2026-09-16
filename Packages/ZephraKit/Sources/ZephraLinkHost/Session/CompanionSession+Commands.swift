@@ -49,6 +49,36 @@ extension CompanionSession {
             if let refusal = Self.unholdable(model, on: host) { throw refusal }
             host.store.switchModel(to: model)
             return .ok
+        case .loadModel(let modelID):
+            // One meaning in both loading modes: make this the model and read it in now. Under
+            // `.automatic` the switch already loads and `loadModel()` is then a no-op; under
+            // `.onDemand` the switch only adopts and `loadModel()` does the work.
+            let model = try Self.model(modelID)
+            if let refusal = Self.unholdable(model, on: host) { throw refusal }
+            // Asked **before** the switch, not after. `loadModel()` returns silently when it
+            // will not load — a model that is not on the disk, a Mac mid-run or mid-upscale, a
+            // load already going — and switching first would then move the chosen model and
+            // clamp the settings under the person at the keyboard while the phone was told the
+            // load succeeded. That is the very thing this command exists to avoid.
+            guard host.store.canLoad(model) else {
+                throw LinkError(
+                    code: .busy, reason: "This Mac cannot load a model just now.")
+            }
+            if model.id != host.store.descriptor.id { host.store.switchModel(to: model) }
+            host.store.loadModel()
+            return .ok
+        case .unloadModel:
+            // Answered `.ok` for an unload that has already happened or is happening, because
+            // a request is repeated whenever its reply goes missing and a phone must not be
+            // told "cannot unload" over the unload its own first ask performed.
+            guard host.store.loadedDescriptor != nil, !host.store.isSwappingModel else {
+                return .ok
+            }
+            guard host.store.canUnload else {
+                throw LinkError(code: .busy, reason: "This Mac cannot unload a model just now.")
+            }
+            host.store.unloadModel()
+            return .ok
         case .upscale(let name, let factor): return try upscale(name, factor: factor, on: host)
         case .animate(let name): return try animate(name, on: host)
         default: return try await performLibrary(command, id: id, on: host)

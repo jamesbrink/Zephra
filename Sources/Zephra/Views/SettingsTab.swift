@@ -12,7 +12,7 @@ import Foundation
 /// `openingHeight` is only where the window opens, not the least it will shrink to — those used
 /// to be the same number, and on a 13-inch MacBook Air M1, still supported by Sequoia, that
 /// broke: 900 logical points tall less the 24-point menu bar is 876 usable, and Performance's
-/// 820 of content plus the window's own 88 points of chrome (32 title bar, 56 tab-strip
+/// content plus the window's own 88 points of chrome (32 title bar, 56 tab-strip
 /// toolbar, taller than the main window's 52 because it carries the tab icons) is 908 — over by
 /// 32 points before Larger Text is even considered. So the floor is `minimumHeight`, one number
 /// for all four tabs, well clear of that Mac; the window opens at each tab's own height when
@@ -59,10 +59,9 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     ///
     /// Measured from the tabs as built: General is the appearance picker, the images folder
     /// row, the seed toggle, the seed spelling picker with its caption and the two-line
-    /// notification toggle, and the update toggle, with a heading each; Performance is the warm-up toggle, the
-    /// four-row GPU memory group, the tiling picker and the live readout, all of which must
-    /// be on screen at once, since a page that scrolls hides the very reading it is there to
-    /// show; Models scrolls, so its height is what the longest Settings pane on the Mac
+    /// notification toggle, and the update toggle, with a heading each; Performance is the
+    /// loading section, the warm-up toggle, the four-row GPU memory group, the tiling picker
+    /// and the live readout; Models scrolls, so its height is what the longest Settings pane on the Mac
     /// usually takes, which is what the window was before; Companion is the two toggles, the
     /// code and the list of paired devices, with room for the code at the size a phone's camera
     /// reads across a desk.
@@ -70,10 +69,18 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     /// General's figure was re-measured with `make screenshot WINDOW=General` when the update
     /// section arrived: 420 and 480 both left the Updates toggle below the sill, and 560 is
     /// where the tab shows its last row with a margin under it.
+    ///
+    /// Performance no longer fits on any display a Mac laptop has. Measured on a 1728 x 1010
+    /// workstation display: the Loading section costs 158 points, and the whole tab wants about
+    /// 1110 — the live readout's last two rows, Peak since launch and VAE decode, are below the
+    /// sill at anything less. 1010 is what the screen allowed and is what gives the tab the same
+    /// reading its 820 had before the section arrived: down to Cached, with the rest scrolled
+    /// to. The readout is deliberately still last, so what goes below the sill is the tail of
+    /// one live figure rather than a setting nobody would find.
     var openingHeight: CGFloat {
         switch self {
         case .general: 560
-        case .performance: 820
+        case .performance: 1010
         case .models: 620
         case .companion: 600
         }
@@ -82,14 +89,14 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     /// The least the window's content may be dragged to, whichever tab is showing. One number
     /// rather than one per tab, because this is a question about the window, not about any
     /// tab's own layout — a tab shorter than this simply sits with room beneath it, and
-    /// Performance, the one tab that must not scroll at its full height, is free to scroll once
-    /// dragged this small rather than being unable to shrink at all.
+    /// Performance, the tallest of the four, is free to scroll once dragged this small rather
+    /// than being unable to shrink at all.
     ///
     /// 400 clears a 13-inch MacBook Air M1 (876 usable points, menu bar removed) with the
-    /// window's 88 points of chrome added back — 488 against 876, more than the 24-point margin
-    /// the M2/M3 Air would have gotten from Performance's own 820. AppKit clamps a window to the
-    /// screen's visible frame on open, and it can only do that when the minimum it is holding to
-    /// actually fits; pinning the floor at 820 is what made that clamp fail on the smallest
-    /// Mac Sequoia still runs on.
+    /// window's 88 points of chrome added back — 488 against 876. Performance stands 1010 now
+    /// and so opens clamped and scrolling on every Mac laptop, which is exactly what this floor
+    /// exists for. AppKit clamps a window to the screen's visible frame on open, and it can only
+    /// do that when the minimum it is holding to actually fits; pinning the floor at 820 is what
+    /// made that clamp fail on the smallest Mac Sequoia still runs on.
     static let minimumHeight: CGFloat = 400
 }

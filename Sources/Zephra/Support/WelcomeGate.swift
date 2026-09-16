@@ -101,10 +101,4 @@ final class WelcomeGate {
         isShowing = false
         defaults.set(true, forKey: AppSettings.hasChosenModel)
     }
-
-    /// Shows the chooser again, from the canvas of a session that skipped it or cancelled the
-    /// download it started.
-    func reopen() {
-        isShowing = true
-    }
 }

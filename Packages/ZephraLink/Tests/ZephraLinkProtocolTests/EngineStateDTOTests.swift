@@ -101,6 +101,65 @@ struct EngineStateDTOTests {
         #expect(!running.canQueue, "and one already rendering takes nothing behind it")
     }
 
+    @Test("Which model is loaded is its own fact, and survives the trip")
+    func loadedModelIsCarried() throws {
+        var dto = EngineStateDTO(.ready, modelID: "qwen-image-2512-4bit")
+        #expect(dto.loadedModelID == nil, "the state alone does not know it")
+        #expect(try LinkFixtures.roundTrip(dto).loadedModelID == nil,
+                "and a Mac that says nothing is loaded is read as saying exactly that")
+
+        dto.loadedModelID = "z-image-turbo-8bit"
+        let read = try LinkFixtures.roundTrip(dto)
+        #expect(read.loadedModelID == "z-image-turbo-8bit")
+        #expect(read.modelID == "qwen-image-2512-4bit", "the chosen model is the other fact")
+    }
+
+    @Test("A Mac that says nothing about it is read the way that Mac meant it")
+    func anOlderMacsLoadedModel() throws {
+        // Every Mac before this loaded whatever it had chosen, so `.idle` meant nothing was
+        // loaded and every other case meant the chosen model was.
+        let idle = #"{"kind":"idle","modelID":"z","isBusy":false,"isFinishing":false,"acceptsGeneration":false}"#
+        #expect(try LinkJSON.decode(EngineStateDTO.self, from: Data(idle.utf8)).loadedModelID == nil)
+
+        let ready = #"{"kind":"ready","modelID":"z","isBusy":false,"isFinishing":false,"acceptsGeneration":true}"#
+        #expect(
+            try LinkJSON.decode(EngineStateDTO.self, from: Data(ready.utf8)).loadedModelID == "z")
+
+        // A Mac that has the field and nothing loaded writes it as null, which is not the same
+        // answer and must not be read as one.
+        let onDemand = #"{"kind":"ready","modelID":"z","loadedModelID":null,"isBusy":false,"isFinishing":false,"acceptsGeneration":true}"#
+        #expect(
+            try LinkJSON.decode(EngineStateDTO.self, from: Data(onDemand.utf8)).loadedModelID
+                == nil)
+    }
+
+    @Test("Every field is written, so one added later cannot be silently left out")
+    func everyFieldSurvivesTheTrip() throws {
+        // `encode(to:)` is written by hand — the one way to say "nothing is loaded" and mean it
+        // — so a field added later compiles and is never sent unless something checks them all
+        // at once. Every value here is deliberately not the default for its type.
+        let full = EngineStateDTO(
+            kind: .generating, phase: "Denoising", step: 3, steps: 9, fraction: 0.33,
+            secondsPerStep: 1.5, completedBytes: 400, totalBytes: 1_000, completedFiles: 2,
+            totalFiles: 5, bytesPerSecond: 1_000, component: "transformer",
+            completedComponents: 1, totalComponents: 3, completedTiles: 2, totalTiles: 8,
+            modelID: "qwen-image-2512-4bit", message: "the GPU stopped responding",
+            loadedModelID: "z-image-turbo-8bit", isBusy: true, isFinishing: true,
+            acceptsGeneration: true, canQueue: true)
+
+        #expect(try LinkFixtures.roundTrip(full) == full)
+
+        // And every one of them is actually in the JSON, rather than surviving by both ends
+        // defaulting the same way.
+        let json = String(decoding: try LinkJSON.encode(full), as: UTF8.self)
+        let mirror = Mirror(reflecting: full)
+        #expect(mirror.children.count == 23, "a field was added; add it to `full` as well")
+        for child in mirror.children {
+            let name = try #require(child.label)
+            #expect(json.contains("\"\(name)\":"), "\(name) is never written")
+        }
+    }
+
     @Test("A download's bytes and files come across")
     func downloadCarriesItsNumbers() {
         let dto = EngineStateDTO(

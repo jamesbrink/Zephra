@@ -58,7 +58,7 @@ extension GenerationStore {
         isStoppingPreparation = false
         preparingModel = nil
         if source != nil || interrupted {
-            await unloadModel()
+            await releaseModel()
             transition(to: .idle)
         }
         let updates = AsyncStream<String>.makeStream(bufferingPolicy: .bufferingNewest(1))

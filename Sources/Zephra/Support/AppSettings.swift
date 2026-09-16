@@ -25,6 +25,12 @@ enum AppSettings {
     static let randomizeSeedEachRun = "randomizeSeedEachRun"
     /// Whether the model runs a throwaway generation after loading.
     static let warmUpOnLaunch = "warmUpOnLaunch"
+    /// Whether choosing a model loads it, and whether the launch loads the one chosen last
+    /// time. Off means the weights arrive when Load or Generate asks for them.
+    static let loadModelsAutomatically = "loadModelsAutomatically"
+    /// How many minutes a loaded model may sit doing nothing before its weights go back, as an
+    /// `IdleUnloadDelay` raw value. 0 is never.
+    static let idleUnloadMinutes = "idleUnloadMinutes"
     /// Whether a saved image, a finished download or a published update is announced while the
     /// app is in the background.
     static let backgroundNotifications = "backgroundNotifications"
@@ -92,6 +98,11 @@ enum AppSettings {
     static let initialRandomizeSeedEachRun = true
     /// Warming up costs a second at launch and saves several on the first real image.
     static let initialWarmUpOnLaunch = true
+    /// Off: a launch that reads thirteen gigabytes in before anybody has asked for a picture
+    /// is a launch that took the GPU for a model nobody is using yet.
+    static let initialLoadModelsAutomatically = false
+    /// Never: weights that went away while somebody was reading are weights to read again.
+    static let initialIdleUnloadMinutes = IdleUnloadDelay.never.rawValue
     /// A run and a download are both things a person walks away from.
     static let initialBackgroundNotifications = true
     /// On, because a Mac quietly running an old build is the failure mode worth avoiding; the
@@ -198,6 +209,7 @@ enum AppSettings {
         switch key {
         case randomizeSeedEachRun: initialRandomizeSeedEachRun
         case warmUpOnLaunch: initialWarmUpOnLaunch
+        case loadModelsAutomatically: initialLoadModelsAutomatically
         case backgroundNotifications: initialBackgroundNotifications
         case checksForUpdates: initialChecksForUpdates
         case inspectorVisible: initialInspectorVisible
@@ -210,6 +222,7 @@ enum AppSettings {
     private static func initialInteger(of key: String) -> Int {
         switch key {
         case batchCount: initialBatchCount
+        case idleUnloadMinutes: initialIdleUnloadMinutes
         default: 0
         }
     }

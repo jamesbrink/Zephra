@@ -14,6 +14,10 @@ extension GenerationStore {
     /// see the sidebar's queue and the strip under the capsule without a backend: both are
     /// `internal(set)` on the real store, and rightly so.
     ///
+    /// `loaded` is the model the frozen store says is in memory. Nothing is ever really loaded
+    /// here, but a state the engine only reaches over loaded weights — ready, generating,
+    /// warming up — would otherwise be photographed beside a toolbar offering to load one.
+    ///
     /// `livePreview` is the frame the canvas would be showing. `following` overrides the rule
     /// below it, and `false` with a run standing up is the one state that cannot be reached any
     /// other way: the model working while the user looks at an earlier picture.
@@ -27,10 +31,14 @@ extension GenerationStore {
         livePreview: GenerationPreview? = nil,
         following: Bool? = nil,
         swappingModel: Bool = false,
+        loaded: ModelDescriptor? = nil,
+        residency: WeightResidency? = nil,
         outputDirectory: URL? = nil
     ) -> GenerationStore {
         let store = GenerationStore(descriptor: descriptor, registry: nil, output: outputDirectory)
         store.state = state
+        store.loadedDescriptor = loaded
+        store.loadedResidency = loaded == nil ? nil : (residency ?? .resident)
         store.isSwappingModel = swappingModel
         store.history = images.isEmpty ? image.map { [$0] } ?? [] : images
         store.current = image ?? store.history.first

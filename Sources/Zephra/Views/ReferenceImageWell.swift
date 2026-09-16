@@ -15,8 +15,10 @@ import ZephraStyle
 /// already does nothing worth taking.
 struct ReferenceImageWell: View {
     @Environment(GenerationStore.self) private var store
-
-    @State private var isPickerPresented = false
+    /// Where the window is looking, which owns whether this picker is up: it and the model
+    /// browser are two sheets on one window, and `WorkspaceSelection` is what keeps them from
+    /// stacking. See `showsReferencePicker` there.
+    @Environment(WorkspaceSelection.self) private var workspace
     /// Whether a drop is in flight over the well right now, whichever of the three types below
     /// it turns out to be. Shared across all three so the empty and the filled state agree
     /// about it, and a replacement drop over an already-filled well shows the same accent.
@@ -27,6 +29,7 @@ struct ReferenceImageWell: View {
     private var isTargeted: Bool { !targeted.isEmpty }
 
     var body: some View {
+        @Bindable var workspace = workspace
         if store.descriptor.capabilities.supportsReferenceImage {
             well
                 .dropDestination(for: LibraryItemReference.self) { references, _ in
@@ -48,13 +51,8 @@ struct ReferenceImageWell: View {
                     store.adoptReference { ReferenceImageEncoder.pngData(from: data) }
                     return true
                 } isTargeted: { if $0 { targeted.insert(3) } else { targeted.remove(3) } }
-                .sheet(isPresented: $isPickerPresented) {
+                .sheet(isPresented: $workspace.showsReferencePicker) {
                     ReferencePickerSheet { item in ReferenceAdoption.adopt(item, into: store) }
-                }
-                // The `picker` screenshot build's one hook into this view's own state; see
-                // `InterfacePreview.wantsReferencePicker`. False, and free, everywhere else.
-                .onAppear {
-                    if InterfacePreview.wantsReferencePicker { isPickerPresented = true }
                 }
         }
     }
@@ -98,7 +96,7 @@ struct ReferenceImageWell: View {
                 .help("Clear the reference image")
             }
             .contextMenu {
-                Button("From Library…") { isPickerPresented = true }
+                Button("From Library…") { workspace.showsReferencePicker = true }
                 Button("Choose File…") { chooseFile() }
                 Divider()
                 Button("Clear") { ReferenceAdoption.use(nil, into: store) }
@@ -108,13 +106,13 @@ struct ReferenceImageWell: View {
 
     private var empty: some View {
         Button {
-            isPickerPresented = true
+            workspace.showsReferencePicker = true
         } label: {
             ReferencePlaceholder(title: role.wellCaption, isTargeted: isTargeted)
         }
         .buttonStyle(.plain)
         .contextMenu {
-            Button("From Library…") { isPickerPresented = true }
+            Button("From Library…") { workspace.showsReferencePicker = true }
             Button("Choose File…") { chooseFile() }
         }
         .help(role.emptyWellHelp)
@@ -141,6 +139,7 @@ struct ReferenceImageWell: View {
         .environment(ImageCache())
         .environment(ThumbnailCache())
         .environment(PreviewImages.library(count: 8))
+        .environment(WorkspaceSelection(pane: .canvas))
         .environment(GenerationStore.preview(state: .ready, descriptor: PreviewModel.editing))
 }
 
@@ -150,6 +149,7 @@ struct ReferenceImageWell: View {
         .environment(ImageCache())
         .environment(ThumbnailCache())
         .environment(PreviewImages.library(count: 8))
+        .environment(WorkspaceSelection(pane: .canvas))
         .environment(GenerationStore.preview(
             state: .ready,
             image: PreviewImages.sample(reference: PreviewImages.referencePNG()),

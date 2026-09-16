@@ -8,7 +8,7 @@ import ZephraSnapshot
 ///
 /// Set `ZEPHRA_PREVIEW_STATE` to `ready`, `image`, `editing`, `tucked`, `clip`, `generating`,
 /// `starting`, `queued`, `watching`, `finishing`, `batch`, `library`, `viewer`, `picker`, `welcome`,
-/// `downloading`, `building`, `update`, or `failed` before launching. `settings` uses the configured library on disk with a frozen engine for
+/// `models`, `downloading`, `building`, `update`, or `failed` before launching. `settings` uses the configured library on disk with a frozen engine for
 /// folder-change UAT; point `imagesDirectory` at a temporary fixture first. Debug builds only; in Release this is inert.
 ///
 /// This half is what the composition root calls. `InterfacePreview+Frozen.swift` is how each
@@ -37,7 +37,7 @@ enum InterfacePreview {
                 else { ModelCatalog.default }
             let store = GenerationStore.preview(
                 state: state, image: frozenImage(for: state), descriptor: descriptor,
-                swappingModel: name == "downloading")
+                swappingModel: name == "downloading", loaded: loadedModel(for: state, descriptor))
             if isEditingBuild || name == "clip" {
                 // Through the same door the interface uses, so the frozen window shows the
                 // strength a dropped picture really gets rather than the 1 that means none.
@@ -57,13 +57,23 @@ enum InterfacePreview {
             version: "0.1.0", build: "202609120231", sha256: String(repeating: "a", count: 64))))
     }
 
+    /// The model a frozen store says is in memory: the chosen one wherever the engine could
+    /// only have reached this state over loaded weights, and nothing otherwise. Without it the
+    /// toolbar in a `ready` screenshot would offer to load the model it is already ready on.
+    static func loadedModel(for state: EngineState, _ descriptor: ModelDescriptor) -> ModelDescriptor? {
+        switch state {
+        case .ready, .generating, .warmingUp, .upscaling, .cancelling: descriptor
+        case .idle, .checkingModel, .downloading, .building, .loading, .failed: nil
+        }
+    }
+
     /// Whether this build wants a reference-capable model standing up: `editing`, to
     /// screenshot the filled well, and `picker`, which forces its sheet open over the same well.
     static var isEditingBuild: Bool { name == "editing" || name == "picker" }
 
-    /// Whether the frozen window should force its reference picker sheet open. The well's own
-    /// `@State` cannot be reached from the composition root the way `workspace.viewing` can, so
-    /// the well reads this itself on appear rather than being handed a value from above.
+    /// Whether the frozen window should open on the reference picker. Read by `workspace()`,
+    /// which states it the way it states the browser and the tuck: the well no longer holds the
+    /// flag itself.
     static var wantsReferencePicker: Bool {
         #if DEBUG
         name == "picker"
@@ -91,7 +101,7 @@ enum InterfacePreview {
     /// screen nobody with a 16 GB Mac ever sees. A screenshot build states the Mac it is
     /// pretending to be, the way it states which pane is up and what the library holds.
     static func budget() -> MemoryBudget? {
-        guard requestedState != nil, name == "welcome" else { return nil }
+        guard requestedState != nil, name == "welcome" || name == "models" else { return nil }
         return MemoryBudget(physicalMemory: 16 << 30)
     }
 
@@ -103,6 +113,13 @@ enum InterfacePreview {
         // `tucked` exists to photograph the lip, so the window has to actually be tucked when
         // the screenshot is taken rather than reaching that state through a simulated click.
         if name == "tucked" { workspace.promptTucked = true }
+        // `models` exists to photograph the browser, so the sheet is up when the screenshot is
+        // taken rather than reached through a simulated click, the way `tucked` is tucked.
+        if name == "models" { workspace.showsModelBrowser = true }
+        // `picker` photographs the reference sheet, which is the browser's rival for the one
+        // sheet a window has, so it is stated here beside it rather than reached through an
+        // `onAppear` hook inside the well.
+        if wantsReferencePicker { workspace.showsReferencePicker = true }
         return workspace
     }
 

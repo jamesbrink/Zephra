@@ -50,7 +50,8 @@ engine be tested in seconds without Metal.
   the upscaled result, the interface's own questions (`+Interaction`), the
   download requests it keeps alive (`+Downloads`), the two folder changes
   (`+ImageDirectory`, `+ModelDirectory`), weight residency (`+Residency`), the
-  live memory check (`+MemoryGuard`), and
+  live memory check (`+MemoryGuard`), the idle clock (`+IdleUnload`), the
+  run-time step-down to streaming (`+RunResidency`), and
   the seam a paired device submits through (`+Remote`).
   Add a new concern as another extension file, not as more lines in
   `GenerationStore.swift`.
@@ -101,6 +102,119 @@ engine be tested in seconds without Metal.
   `AsyncStream` buffers the newest four events and drops the rest — progress is
   a snapshot, not a log — and `run` drains before returning, so the state a
   caller sets after an operation is never clobbered by an event still in flight.
+
+### Weights arrive when somebody asks for them
+
+Until 2026-09-15 a model was loaded by the fact of being chosen: the launch read
+in whatever was chosen last time, and a pick in the pull-down swapped the weights
+behind it. On a Mac with five families on disk that is thirteen gigabytes read
+before anybody has asked for a picture, and a look at what else is installed
+costs a model swap. LM Studio's shape is the one James asked for instead: choose
+a model, load it when you want it, unload it easily, and keep the old behaviour
+behind a preference.
+
+`ModelLoadingMode` (`ZephraCore/Runtime/`) is the two answers, `.automatic` and
+`.onDemand`. The engine's own default is `.automatic`, so a `GenerationStore`
+nobody configured behaves exactly as it always did and every existing suite still
+describes the store it is driving; the app sets `.onDemand` from
+`AppSettings.loadingMode()`, whose preference is **off** by default.
+
+The mode is read in three places and nowhere else, which is what keeps this one
+code path rather than two:
+
+- `bootstrap()` surveys the disk and returns before `load` under `.onDemand`.
+- `switchModel` adopts the descriptor, clamps the settings, clears the tickets,
+  and returns before the download and the swap.
+- `drain()`'s **empty-queue** branch, which otherwise brings the loaded model in
+  line with the chosen one when a run ends, does that only under `.automatic`.
+
+Everything else is mode-blind. In particular `drain()`'s **next-entry** branch is
+untouched, and that branch is the on-demand load path: an entry whose model is
+not the one loaded has always loaded it before running it. So Generate with
+nothing in memory loads first and then runs, a second press queues behind that
+load rather than being refused, and Stop during that load goes through
+`stopPreparation` — the queue is dropped and the state lands `.idle`.
+
+The explicit doors are new and small, and they sit together in
+`GenerationStore+LoadControls.swift`. `loadModel()` guards on `canLoad`, clears
+`modelAwaitsGenerate` (an explicit Load is exactly the explicit choice a
+picture's adoption was waiting for) and calls `startLoading`. `canUnload` is
+"weights in, nothing already moving them, and a state of `.idle`, `.ready` or
+`.failed`". That last clause is `canUpscale`'s and is there for `canUpscale`'s
+reason: the flags alone read true during a load, `loadedDescriptor` can still
+name an *earlier* model while a fresh load runs, and releasing those weights
+under a `bootstrapTask` nobody cancelled leaves that load republishing over a
+store that believes it unloaded. `unloadModel()` raises
+`isSwappingModel`, transitions `.idle` and gives the weights and the disk lease
+back on `switchTask`, leaving the chosen model chosen. Both say in `make logs`
+what they did, or which gate refused them, the way a refused press of Generate
+does: a control that appears to do nothing is the one thing a log has to be able
+to explain. `isSwappingModel` is
+exactly the right flag there: the state passes through `.idle` while the weights
+go back, and nothing else may load meanwhile. The internal primitive underneath
+— used by the swap, by `stopPreparation`, by `changeModelDirectory` and by
+`shutdown` — was called `unloadModel()` and is now `releaseModel()`, so the
+public name is the one the interface presses. `downloadModel(_:)` (`+Downloads`)
+is `downloads.start` and nothing else, for any model, never loading: the browser's
+Download button must fetch and stop even for the model already chosen, which
+`resumeDownload` would load.
+
+A transfer with no load behind it is the one nothing was telling the Mac about.
+`refreshAvailability()` ran from the bootstrap, the load path, a storage
+deletion and a folder change, so a download started by `downloadModel(_:)`
+finished and changed nothing this Mac knew: the model stayed `.needsDownload` in
+the pull-down, in the browser's own footer and in a paired phone's
+`ModelSummary` until the next launch, and the footer offered the same download
+again. `ModelDownloads` calls `onUnborrowedCompletion` when a request settles
+with `borrowers == 0`, just before the release that drops it, and
+`GenerationStore.init` answers by re-reading the disk under `acceptsWork`, so a
+refresh cannot land stale availability during a folder change or a deletion. A
+**borrowed** request is a load's and the load refreshes on its way out, so the
+hook fires exactly where the gap was — and covers the menu's and
+`resumeDownload`'s background starts too, not only the browser's.
+
+`canLoad(_ model:)` (`+Admission`) is the other half of admission: `.idle` or
+`.failed`, `acceptsWork`, no swap, stop or upscale in flight, `canSelect`, and an
+availability that is obtainable. `canQueue`, `acceptsQueuedGeneration` and
+`remoteAdmission` each widen by it. That widening is also the **phone fix**: a
+GPU fault leaves the Mac in `.failed` with `canQueue` false, and before this a
+paired phone had no way out of it at all — picking the same model again is a
+no-op the Mac answers `.ok` to, so the phone drew success over nothing happening.
+Widened, the Mac answers `canQueue: true` from `.failed`, the phone's Generate
+lights, and the queue drains straight over the weights still in memory. A phone
+that is never updated recovers on Generate alone.
+
+One race is left and is one press wide. `unloadModel()` returns synchronously
+with `isSwappingModel` raised and `loadedDescriptor` still set, so an `enqueue`
+landing between an idle unload and its own task is **refused** ("No model is
+loaded yet.") rather than admitted: admitting it would put a generation on the
+inference actor behind a queued unload. The next press is taken and loads.
+`ModelUnloadTests` pins the refusal, that the same request is taken the moment the
+unload settles, one picture, one lease, and `isSwappingModel` false at rest.
+
+#### The idle clock
+
+`IdleUnloadDelay` (`ZephraCore/Runtime/`) is `.never` or 5, 15, 30 or 60 minutes,
+answering a `Duration?`. Off by default, because weights that went away while
+somebody was reading are weights that have to be read again, and a Mac with the
+room to hold them has no reason to give them back. It is the Mac that is short of
+memory, or shared with something else, that wants the clock.
+
+`GenerationStore+IdleUnload.swift` is the whole of it. `isIdleCandidate` is
+"ready, nothing queued, nothing running, no upscale, no swap, no stop, something
+loaded". `armIdleUnload()` cancels the old task and starts a new one, and it is
+called from exactly two places: the **end of `transition(to:)`**, which every
+state change funnels through, so a load, a generation, an upscale, a swap and a
+failure all reset the clock by the fact of having happened and nothing has to
+remember to; and `drain()`'s empty return, since the queue can empty without a
+transition, which is the other way the weights start sitting idle.
+
+Two details are load-bearing. The wait goes through the `idleWait` closure
+property, so `IdleUnloadTests` drives an hour in microseconds without sleeping;
+and `isIdleCandidate` is read **again on the main actor after the wait**, because
+the Mac may have been asked for something in the meantime and that is the one
+place that can tell. `shutdown()` cancels `idleTask`: its wait is up to an hour
+and it holds the store for all of it.
 
 ### A GPU fault fails the run, not the app
 
@@ -264,9 +378,52 @@ Automatic a refusal means even streaming did not fit: the Mac on 2026-09-13 was
 told to set Automatic while Automatic was what it was on. It reaches the canvas as
 `EngineError.insufficientMemory`, whose message is that sentence. The load check is
 *thrown*, so the `catch` that already unloads the actor and gives the disk lease
-back runs on the way out; the run check calls `fail(with:)`, which empties the
-queue. Retry goes back through `startLoading`, which asks again rather than
+back runs on the way out.
+
+**The run check steps down before it refuses**, which is
+`GenerationStore+RunResidency.swift`. `MemoryGuard.loadResidency` already turns a
+resident load the Mac has not the room for into a streamed one; these two do the
+same thing after the weights are in. `stepDownToStreaming(for:)` asks, under
+Automatic, over resident weights of the job's *own* model, whether the run would
+fit streamed — `runShortfall(for:settings:residency:)` gained that third argument
+for exactly this question — and where it would, it sets `residencyOverride`, puts
+the job back at the head of the queue, clears `running` and the live preview, and
+reloads. The job then runs off the disk instead of being told to quit other apps.
+
+Only where that answer is no does a refusal happen, and it is `failJob(_:with:)`
+rather than `fail(with:)`: **the offending batch alone** is removed, and the rest
+of the queue stays. A run the GPU lost is a reason to stop everything; one request
+this Mac has not the memory for this minute is not a reason to throw away the four
+queued behind it. Every entry the batch takes with it takes its
+`ChainProgress` too: `generate(count:)` plans one chain per seed, so clearing
+the refused job's chain alone left the batch's other seeds' chains behind, each
+holding a clip's PNG frames nothing would read again. What is left does not
+drain on by itself — `.failed` is a
+sentence somebody has to read, and a `.generating` arriving on top of it would
+take it away before anybody had — so the next press of Generate drains the
+survivors, and so does Try Again.
+
+`residencyOverride` is the store's own forced answer for the next load, consumed
+once at the top of `+Preparation.load` and cleared by `stopPreparation` and by
+every one of `startLoading`'s early returns, which go through `loadNotStarted()`
+for exactly this. A load that never began would otherwise leave the forced
+answer standing, and the next load of any model would read its weights off the
+disk. `loadResidency(for:forcing:)` still
+runs the shortfall check against the forced residency rather than skipping it, so
+a Mac that cannot stream it either is refused with the **streamed** figure — that
+is the load that was going to be attempted, and quoting the resident one would
+name a load nobody was about to make. A refusal at the run check carries the
+figure for the residency in force, which is the resident one, for the same reason.
+
+Retry goes back through `startLoading`, which asks again rather than
 replaying a verdict, so a Mac where something else has quit in the meantime loads.
+A retry that finds the model **already resident** used to answer ready at once;
+it now asks `residencyToStepDownTo(_:)` first, because the Mac a retry finds may
+be a fuller one than the load found, and answering ready over weights this Mac no
+longer has the room to run on is how a fault repeated itself. Where the guard now
+says streaming fits and holding does not, the retry reloads streamed — one lease,
+through `reload`. Where nothing has changed it answers ready and, if the queue is
+not empty, drains: that is what makes Try Again give a refused job its turn.
 Both sites log the reading and the decision — admitted as well as refused, since
 the admitted line is what makes the next refusal legible in `make logs`.
 
@@ -310,8 +467,12 @@ no second schedule to come off; `on model:` is the schedule.
 submit, and answers `RemoteAdmission` rather than a Bool because the device has
 to say something: `.busy` when `acceptsWork` is closed (a folder change, a
 storage deletion, a quit), `.refused` when the engine is not in a state that
-takes a generation (worded from the same vocabulary as `EngineState+Display`, in
-`EngineState+Remote`), and `.badRequest` when nothing about the request could
+takes a generation *and could not be got into one* — the gate is
+`state.acceptsGeneration || isDraining || canLoad(model)`, asked about the model
+the phone **named** rather than about the chosen one, since a phone may name
+another and that is the model that has to be loadable — worded from the same
+vocabulary as `EngineState+Display`, in
+`EngineState+Remote`; and `.badRequest` when nothing about the request could
 ever run — no prompt, a count outside 1...`batchLimit`, a model this build's
 catalog does not know. A bad request is answered first, whatever the Mac is
 doing: telling a phone to wait for a load that will never make its empty prompt

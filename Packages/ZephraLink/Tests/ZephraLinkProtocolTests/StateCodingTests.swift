@@ -36,6 +36,16 @@ struct StateCodingTests {
         #expect(try LinkFixtures.roundTrip(Self.snapshot) == Self.snapshot)
     }
 
+    @Test("Whether the Mac can be told to load a model is advertised, and absent on an older one")
+    func modelLoadingIsAdvertised() throws {
+        var snapshot = Self.snapshot
+        #expect(snapshot.modelLoading == nil, "a snapshot nobody stamped claims nothing")
+        #expect(try LinkFixtures.roundTrip(snapshot).modelLoading == nil)
+
+        snapshot.modelLoading = true
+        #expect(try LinkFixtures.roundTrip(snapshot).modelLoading == true)
+    }
+
     @Test("Every kind of delta survives being written and read back")
     func deltasRoundTrip() throws {
         let deltas: [StateDelta] = [

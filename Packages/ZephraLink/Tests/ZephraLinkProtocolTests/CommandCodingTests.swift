@@ -18,6 +18,8 @@ struct CommandCodingTests {
             .removeFromQueue(Self.id),
             .clearQueue,
             .switchModel("qwen-image-2512-4bit"),
+            .loadModel("qwen-image-2512-4bit"),
+            .unloadModel,
             .setFavourite(names: ["a.png", "b.png"], on: true),
             .setTags(names: ["a.png"], tags: ["dusk", "sea"]),
             .delete(["a.png"]),
@@ -66,6 +68,23 @@ struct CommandCodingTests {
         #expect(
             try LinkFixtures.roundTrip(Command.fetchFile(name: "a.mp4", fromChunk: 630))
                 == .fetchFile(name: "a.mp4", fromChunk: 630))
+    }
+
+    @Test("Loading and unloading read as English, and an unknown command throws")
+    func modelLoadingCommands() throws {
+        #expect(
+            String(
+                decoding: try LinkJSON.encode(Command.loadModel("qwen-image-2512-4bit")),
+                as: UTF8.self) == #"{"kind":"loadModel","modelID":"qwen-image-2512-4bit"}"#)
+        #expect(
+            String(decoding: try LinkJSON.encode(Command.unloadModel), as: UTF8.self)
+                == #"{"kind":"unloadModel"}"#)
+
+        // A Mac too old to know the kind throws on decode, which is what makes it answer one
+        // `badRequest` for that envelope and carry on rather than closing the connection.
+        #expect(throws: (any Error).self) {
+            try LinkJSON.decode(Command.self, from: Data(#"{"kind":"unheardOf"}"#.utf8))
+        }
     }
 
     @Test("Every reply survives being written and read back")

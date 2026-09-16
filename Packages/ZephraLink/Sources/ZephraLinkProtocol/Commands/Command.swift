@@ -24,6 +24,14 @@ public enum Command: Hashable, Sendable {
     case clearQueue
     /// Choose another model, by descriptor identifier.
     case switchModel(String)
+    /// Choose this model if it is not the chosen one, and read its weights in now.
+    ///
+    /// The phone's Try Again after a GPU fault, and its Load control. Not `switchModel` of the
+    /// model already chosen, which is a no-op the Mac answers `.ok` to — a phone drawing
+    /// success over nothing having happened.
+    case loadModel(String)
+    /// Give the weights and their disk lease back, leaving the chosen model chosen.
+    case unloadModel
     /// Mark these pictures as favorites, or unmark them.
     case setFavourite(names: [String], on: Bool)
     /// Replace the tags on these pictures.

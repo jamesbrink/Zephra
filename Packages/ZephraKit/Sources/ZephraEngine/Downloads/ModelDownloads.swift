@@ -12,6 +12,12 @@ public final class ModelDownloads {
     @ObservationIgnored var requests: [String: DownloadRequest] = [:]
     @ObservationIgnored var retained: [UUID: DownloadRequest] = [:]
     @ObservationIgnored var admissionClosed = false
+    /// Called with a model whose transfer finished with nobody waiting on it — a download
+    /// started from the model browser or the menu rather than by a load. The store answers by
+    /// re-reading what is on disk: a load refreshes availability on its way out, and a download
+    /// nobody borrowed has no load behind it, so without this the model reads `.needsDownload`
+    /// in the menu, the browser and a paired phone's summary until the next launch.
+    @ObservationIgnored var onUnborrowedCompletion: (@MainActor (ModelDescriptor) -> Void)?
 
     public init(transfers: ModelTransfers = ModelTransfers()) { self.transfers = transfers }
 
@@ -35,6 +41,9 @@ public final class ModelDownloads {
                 try Task.checkCancellation()
                 request.settled = true
                 publish(request, .completed)
+                // Before the release, which drops the request: a borrowed one is a load's, and
+                // the load refreshes availability itself once the weights are in.
+                if request.borrowers == 0 { onUnborrowedCompletion?(request.model) }
                 await releaseIfUnused(request)
                 return path
             } catch {

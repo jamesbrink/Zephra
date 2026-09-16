@@ -13,22 +13,17 @@ extension GenerationStore {
         generationTask = Task { await self.run(job, on: inference) }
     }
 
-    /// Returns to `.ready`, then works on down the queue. Every way a run can end goes through
-    /// here so the queue never stalls.
-    private func finish() {
-        running = nil
-        clearLivePreview()
-        transition(to: .ready)
-        drain()
-    }
-
     /// Drives one generation from start to finish. The activity assertion keeps the Mac awake:
     /// a generation is a long stretch of silent Metal work with no user input behind it.
     func run(_ job: QueuedGeneration, on inference: InferenceActor) async {
         // The weights are in; what this run wants on top of them may still be more than the
         // Mac has left. Refused here rather than inside Metal, where it is an abort.
         if let shortfall = runShortfall(for: job) {
-            fail(with: .insufficientMemory(shortfall))
+            // The weights are in resident and this request has not the room on top of them.
+            // Under Automatic, reading them from disk instead is a load rather than a refusal:
+            // the same step down the guard makes before a load, made after one.
+            if stepDownToStreaming(for: job) { return }
+            failJob(job, with: .insufficientMemory(shortfall))
             return
         }
         let activity = ProcessInfo.processInfo.beginActivity(
@@ -98,54 +93,6 @@ extension GenerationStore {
         }
     }
 
-    /// Everything a failed generation puts down: the queue, the run, and the frame it was last
-    /// showing. One place rather than two, because the two `catch` clauses differ only in how
-    /// they name the error.
-    private func fail(with error: EngineError) {
-        queue.removeAll()
-        dropChains()
-        running = nil
-        clearLivePreview()
-        transition(to: .failed(error))
-    }
-
-    /// Publishes a finished image straight away and only then starts writing it, so the canvas
-    /// never waits on the file system.
-    ///
-    /// It reaches the canvas only while the canvas is following the run. A result that lands
-    /// while the user is looking at something else still enters history, the wall, and the
-    /// library; what it does not do is yank the picture out from under them.
-    ///
-    /// The batch and the model are the job's own rather than `running`'s or the store's: a
-    /// cancel empties `running` and a switch moves `descriptor` before the run is over.
-    ///
-    /// A clip arrives as its poster and its MP4; the poster is the picture everything below
-    /// handles, and the MP4 rides along to be written beside it.
-    private func complete(
-        _ media: GeneratedMedia, job: QueuedGeneration, settings: GenerationSettings, duration: Duration,
-        profile: WorkloadTimingKey?, execution: Double
-    ) {
-        var video: GeneratedVideo?
-        if case .video(let clip) = media { video = clip }
-        let image = GeneratedImage(
-            pngData: media.posterPNG,
-            settings: Self.published(settings),
-            modelID: job.model.id,
-            duration: duration,
-            batchID: job.batchID,
-            video: video
-        )
-        if followsRun { current = image }
-        history.insert(image, at: 0)
-        if history.count > Self.historyLimit {
-            history.removeLast(history.count - Self.historyLimit)
-        }
-        lastDuration = duration
-        save(image, timing: profile.map { WorkloadTimings.Sample(key: $0, execution: execution,
-            finalization: max(0, duration.seconds - execution)) })
-        finish()
-    }
-
     func applyLoadEvent(_ event: EngineEvent) {
         switch event {
         case .download(let progress): state = .downloading(progress)
@@ -174,5 +121,8 @@ extension GenerationStore {
             "state \(self.state.logName, privacy: .public) -> \(newState.logName, privacy: .public)"
         )
         state = newState
+        // Every load, generation, upscale, swap and failure passes through here, so the idle
+        // clock is reset by the fact of having transitioned and nothing has to remember to.
+        armIdleUnload()
     }
 }

@@ -35,7 +35,8 @@ extension GenerationStore {
             // machine is doing, and a load is not. It answers with the residency to load at,
             // not only with a refusal: under Automatic a resident load the machine has not the
             // room for steps down to streaming rather than failing.
-            let (residency, shortfall) = loadResidency(for: model)
+            let (residency, shortfall) = loadResidency(for: model, forcing: residencyOverride)
+            residencyOverride = nil
             if let shortfall { throw shortfall }
             let builtExists = locations.builtCandidates(for: model).contains {
                 $0.standardizedFileURL == acquired.directory.standardizedFileURL
@@ -96,7 +97,10 @@ extension GenerationStore {
         await refreshAvailability()
     }
 
-    func unloadModel() async {
+    /// Drops the weights and gives the disk lease back, leaving the state alone: every caller
+    /// settles that for itself. The primitive under the public `unloadModel()`, under a model
+    /// swap, under a stopped preparation and under shutdown.
+    func releaseModel() async {
         let started = ContinuousClock.now
         let model = loadedDescriptor?.id
         await inference?.unload()

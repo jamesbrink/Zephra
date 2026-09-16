@@ -8,6 +8,11 @@ import Foundation
 public struct StateSnapshot: Codable, Hashable, Sendable {
     /// Optional capability advertisement; absent on legacy hosts.
     public var multiHost: Bool?
+    /// Whether this Mac understands `Command.loadModel` and `Command.unloadModel`, and stamps
+    /// `EngineStateDTO.loadedModelID`. Absent on a Mac that does not, which is what keeps the
+    /// phone from offering Load, Unload or Try Again there. A version bump could not say this:
+    /// the handshake requires the versions to match exactly.
+    public var modelLoading: Bool?
 
     /// Which protocol this Mac speaks, repeated here so a snapshot read from a log says.
     public var protocolVersion: Int

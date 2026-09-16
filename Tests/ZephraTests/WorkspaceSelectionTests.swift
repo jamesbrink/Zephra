@@ -100,4 +100,11 @@ final class WorkspaceSelectionTests {
         workspace.focusPrompt()
         #expect(workspace.promptFocusToken == prompt + 1)
     }
+
+    @Test("the model browser is a dialog somebody opened, and is never persisted")
+    func theModelBrowserIsNeverPersisted() {
+        let workspace = WorkspaceSelection(pane: .canvas)
+        workspace.showsModelBrowser = true
+        #expect(WorkspaceSelection(pane: .canvas).showsModelBrowser == false)
+    }
 }

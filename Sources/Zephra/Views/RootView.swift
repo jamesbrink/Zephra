@@ -31,6 +31,9 @@ struct RootView: View {
     @Environment(LibraryIndex.self) private var index
 
     var body: some View {
+        // A binding for the sheet's flag, which lives on the window's own selection rather
+        // than in this view: three places raise the browser and all of them set that flag.
+        @Bindable var workspace = workspace
         WorkspaceSplitView()
         // Above the panes rather than over them: the sidebar, the pane and the inspector all
         // lay out under the top inset, the same way they do under the toolbar strip. The
@@ -45,6 +48,10 @@ struct RootView: View {
         // makes it an opaque full-width strip with a hairline under it, so the sidebar, the
         // pane, and the inspector all read as starting below it rather than under it.
         .toolbarBackgroundVisibility(.visible, for: .windowToolbar)
+        // The browser is the window's, not the toolbar's: it is raised from the toolbar's
+        // menu, from the canvas's idle state and from the Model menu in the menu bar, and a
+        // sheet belongs to the window all three of those are in.
+        .sheet(isPresented: $workspace.showsModelBrowser) { ModelBrowserSheet() }
         .environment(\.openLibraryItem, open)
         .environment(\.viewLibraryItem, view)
         .registeringLibraryUndo()

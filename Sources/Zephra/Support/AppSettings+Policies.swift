@@ -1,8 +1,8 @@
 import Foundation
 import ZephraCore
 
-/// The two memory policies built from stored preferences, for the composition root and the
-/// Performance tab, which have to answer the same question the pickers do outside a view.
+/// The policies built from stored preferences, for the composition root and the Performance
+/// tab, which have to answer the same question the pickers do outside a view.
 extension AppSettings {
     /// How the stored preference and this machine's memory budget decide the VAE tile, for
     /// the composition root, which has to answer the question outside a picker.
@@ -39,5 +39,19 @@ extension AppSettings {
             case nil: nil
             }
         return WeightResidencyPolicy(mode: overridden ?? mode, budget: budget)
+    }
+
+    /// Whether choosing a model loads it, from the stored preference. The composition root
+    /// sets it on the store once and follows it, so a change in Settings applies to the next
+    /// choice rather than to the next launch.
+    static func loadingMode() -> ModelLoadingMode {
+        flag(loadModelsAutomatically) ? .automatic : .onDemand
+    }
+
+    /// How long a loaded model may sit idle before its weights go back. An unrecognised stored
+    /// number reads as never: a preference nothing in the picker can produce must not be a
+    /// clock nobody chose.
+    static func idleUnloadDelay() -> IdleUnloadDelay {
+        IdleUnloadDelay(rawValue: integer(idleUnloadMinutes)) ?? .never
     }
 }

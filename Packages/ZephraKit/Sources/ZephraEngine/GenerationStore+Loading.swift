@@ -25,41 +25,33 @@ extension GenerationStore {
     /// disk gives way to one that is instead of failing at launch.
     public func bootstrap() async {
         await surveyAvailability()
+        // Under on-demand the launch surveys the disk and stops there: the chosen model stays
+        // chosen, nothing is read in, and Load or a press of Generate is what asks for it.
+        guard loadingMode == .automatic else { return }
         await load(descriptor, asSwap: false)
-    }
-
-    /// Loads `model` and waits for it, unless a load is already under way. `asSwap` marks the
-    /// load a model swap makes for itself; nothing else may load while a swap is in flight.
-    func load(_ model: ModelDescriptor, asSwap: Bool) async {
-        guard let task = startLoading(model, asSwap: asSwap) else { return }
-        await task.value
-    }
-
-    /// Starts the same work as `bootstrap` without waiting for it, for a button that only has
-    /// to kick it off: the remedy after a failure, and the resume after a cancelled download.
-    public func retry() {
-        startLoading(descriptor, asSwap: false)
     }
 
     /// Begins a load unless one is already under way, handing back the task that runs it. The
     /// store keeps that task so `cancel()` has something to cancel while the model is loading.
     /// A preview store has no backend to build, so it never starts anything.
     @discardableResult
-    private func startLoading(_ model: ModelDescriptor, asSwap: Bool) -> Task<Void, Never>? {
-        guard acceptsWork, !isStoppingPreparation, let inference = inferenceActor() else { return nil }
+    func startLoading(_ model: ModelDescriptor, asSwap: Bool) -> Task<Void, Never>? {
+        guard acceptsWork, !isStoppingPreparation, let inference = inferenceActor() else {
+            return loadNotStarted()
+        }
         switch state {
         case .idle, .failed: break
-        default: return nil
+        default: return loadNotStarted()
         }
         // A model this Mac cannot hold any way at all is refused here, before a byte of it is
         // fetched: greying it in the picker is the first answer, and this is the one that
         // holds when a saved choice, a picture or a phone names it anyway.
         if let shortfall = staticShortfall(for: model) {
             transition(to: .failed(.insufficientMemory(shortfall)))
-            return nil
+            return loadNotStarted()
         }
         // A swap passes through .idle while the old weights go back; only the swap may load.
-        if isSwappingModel, !asSwap { return nil }
+        if isSwappingModel, !asSwap { return loadNotStarted() }
         // Another model's weights are up — a generation on it failed, and a picture's model
         // has been chosen since — so this is a swap, not a load: the old lease goes back
         // first, or Settings > Models would show it in use for the rest of the session.
@@ -71,8 +63,18 @@ extension GenerationStore {
         // there is nothing to fetch, build or load. Answer ready and touch neither the pool
         // nor the actor; a second borrow of the same request could never be given back.
         if isResident(model) {
+            // The device came back, or the memory did not. Asking the guard again is what makes
+            // a retry after a fault on a resident model under Automatic land streamed rather
+            // than answering ready over weights this Mac no longer has the room to run on.
+            if let stepped = residencyToStepDownTo(model) {
+                residencyOverride = stepped
+                reload(model, thenDrain: !queue.isEmpty)
+                return switchTask
+            }
             transition(to: .ready)
-            return nil
+            // A job the run check refused is still waiting; Try Again is what gives it its turn.
+            if !queue.isEmpty { drain() }
+            return loadNotStarted()
         }
         transition(to: .checkingModel)
         let identity = UUID()
@@ -81,6 +83,14 @@ extension GenerationStore {
         let task = Task { await self.load(model, on: inference, identity: identity) }
         bootstrapTask = task
         return task
+    }
+
+    /// The answer for a load that is not going to happen, and the one thing such a load owes
+    /// the store: a residency an earlier step-down forced must not outlive the load it was
+    /// forced for, or the next load of any model reads its weights off the disk.
+    private func loadNotStarted() -> Task<Void, Never>? {
+        residencyOverride = nil
+        return nil
     }
 
     /// Whether `model` is loaded and its lease is the one this store holds, so a load would
