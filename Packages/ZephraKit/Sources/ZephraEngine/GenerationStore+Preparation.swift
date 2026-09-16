@@ -85,6 +85,11 @@ extension GenerationStore {
                 case let shortfall as MemoryShortfall:
                     transition(to: .failed(.insufficientMemory(shortfall)))
                 case BackendRegistryError.noBackend(let id): transition(to: .failed(.noBackend(id)))
+                case BackendError.deviceLost:
+                    // Noticed before the transition, so the transition lands on the one state
+                    // a Mac with no GPU has and nothing offers to load again.
+                    noteIfDeviceLost(error)
+                    transition(to: .failed(.deviceLost))
                 case let error as BackendError: transition(to: .failed(.backend(error)))
                 default: transition(to: .failed(.backend(.loadFailed(error.localizedDescription))))
                 }

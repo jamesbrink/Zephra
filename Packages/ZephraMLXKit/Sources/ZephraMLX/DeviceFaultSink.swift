@@ -53,6 +53,12 @@ enum DeviceFaultSink {
 
     private static let slot = Mutex<Armed?>(nil)
 
+    /// What the GPU has done to this process, kept whether or not a boundary was open: the
+    /// fault that ends a launch was seen on bender landing in the allocator's cache release,
+    /// where no run owns it. Process-wide for the reason the slot is — MLX's handler is — and
+    /// read by `MLXInferenceRuntime.isDeviceLost`, which is how the engine hears about it.
+    static let faults = DeviceFaultLatch()
+
     /// Collects into `box` from now on, charged to the calling task, and hands back what was
     /// armed before for the caller to put back when it is done.
     static func arm(_ box: DeviceErrorBox) -> Armed? {

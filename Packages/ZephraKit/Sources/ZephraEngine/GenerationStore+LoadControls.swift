@@ -76,6 +76,13 @@ extension GenerationStore {
     /// Starts the same work as `bootstrap` without waiting for it, for a button that only has
     /// to kick it off: the remedy after a failure, and the resume after a cancelled download.
     public func retry() {
+        // Never over a lost GPU. `startLoading` refuses it anyway through `acceptsWork`, but a
+        // retry is the one press people make twice in ten seconds and the reason it does
+        // nothing belongs in the log rather than in a silent early return two files away.
+        guard !deviceLost else {
+            logger.info("retry refused: the GPU is lost for this launch")
+            return
+        }
         startLoading(descriptor, asSwap: false)
     }
 }

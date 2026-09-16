@@ -15,10 +15,23 @@ public enum BackendError: Error, Sendable, Hashable, LocalizedError {
     /// driver recovered it, and this process's command buffer came back discarded. The payload
     /// is the runtime's own text, which is logged and never shown: it names a command buffer.
     case deviceFailed(String)
+    /// The GPU is gone for the rest of this process: the driver has put this client on its
+    /// ignore list and completes its command buffers without running them
+    /// (`kIOGPUCommandBufferCallbackErrorSubmissionsIgnored`). Nothing in the app recovers it —
+    /// an unload, a reload and a switch to another model were each measured failing in a third
+    /// of a second — so this is not a lost run but a lost launch, and the remedy is to relaunch.
+    /// The payload is the runtime's own text, logged and never shown.
+    case deviceLost(String)
     /// The settings cannot be run by this model.
     case invalidSettings(String)
     /// The work was cancelled before it finished.
     case cancelled
+
+    /// What a person is told when the GPU has gone for this launch. One sentence, in one
+    /// place, because the canvas, the engine's own failure and a paired phone's refusal all say
+    /// it and two wordings would read as two different faults.
+    public static let deviceLostSentence =
+        "Zephra has lost the GPU and has to relaunch to get it back."
 
     /// A short, plain-language explanation, with a next step wherever there is one.
     public var errorDescription: String? {
@@ -33,6 +46,8 @@ public enum BackendError: Error, Sendable, Hashable, LocalizedError {
             "The image couldn't be generated. Try again, or lower the size or step count."
         case .deviceFailed:
             "The GPU stopped responding and this run was lost. Try again."
+        case .deviceLost:
+            Self.deviceLostSentence
         case let .invalidSettings(reason):
             "These settings won't run: \(reason)"
         case .cancelled:

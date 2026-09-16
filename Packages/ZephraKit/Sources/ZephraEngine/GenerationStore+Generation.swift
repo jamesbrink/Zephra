@@ -87,6 +87,14 @@ extension GenerationStore {
             // `.deviceFailed` arrives here, and the boundary that raised it cancelled this very
             // task to unwind the run. Nothing from here down may sleep or check cancellation,
             // or a picture the GPU lost would be reported as a stop nobody pressed.
+            //
+            // `.deviceLost` is the other one: the run is lost the same way, but so is the GPU,
+            // so the failure is the store's own rather than the backend's and nothing else is
+            // offered to submit.
+            if noteIfDeviceLost(error) {
+                fail(with: .deviceLost)
+                return
+            }
             fail(with: .backend(error))
         } catch {
             fail(with: .backend(.generationFailed(error.localizedDescription)))
@@ -116,6 +124,12 @@ extension GenerationStore {
     /// The one place `state` changes for a reason worth a log line. Progress updates go through
     /// the two apply methods above instead, because one line per denoising step is noise.
     func transition(to newState: EngineState) {
+        // Asked here because every state change funnels through, which is the only way to
+        // notice a loss the runtime latched outside a run — the allocator's cache handed back
+        // by an unload is where bender's first ignored submission landed. Once it is noticed
+        // the engine has one state: a Mac whose GPU refuses it is not idle and is not ready.
+        noteDeviceLossIfLatched()
+        let newState = deviceLost ? EngineState.failed(.deviceLost) : newState
         guard newState != state else { return }
         logger.info(
             "state \(self.state.logName, privacy: .public) -> \(newState.logName, privacy: .public)"

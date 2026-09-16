@@ -18,6 +18,11 @@ public struct MLXInferenceRuntime: InferenceRuntime {
 
     public func synchronize() { MLXRuntime.synchronize() }
 
+    /// Whether the driver has stopped running this process's command buffers — an ignored
+    /// submission, which nothing but a relaunch clears. Sticky for the rest of the launch, so
+    /// the engine can close admission and stop handing Metal work to a device that refuses it.
+    public var isDeviceLost: Bool { DeviceFaultSink.faults.isLost }
+
     public func isM5ClassGPU() -> Bool { GPUGeneration.isM5Class }
 
     public func setCacheLimit(bytes: Int) {

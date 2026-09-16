@@ -68,6 +68,10 @@ public final class GenerationStore {
     /// True while the engine is between queued generations, swapping to the model the next one
     /// needs. The queue accepts more work throughout.
     public internal(set) var isSwitchingForQueue = false
+    /// True once the GPU has stopped running this process's work: the driver has put this
+    /// client on its ignore list and every submission after that is answered without being
+    /// run. Sticky for the rest of the launch, and the whole of `GenerationStore+DeviceLoss`.
+    public internal(set) var deviceLost = false
     /// True from the moment a model swap is asked for until the new model has loaded or the
     /// swap was stopped; the state passes through `.idle` meanwhile, so nothing else may load.
     public internal(set) var isSwappingModel = false

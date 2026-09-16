@@ -85,6 +85,11 @@ extension GenerationStore {
         await storageSettlement?.wait()
         await downloads.pauseAll()
         await settle()
+        // Not over a lost GPU. `releaseModel` unloads on the inference actor, which drops the
+        // backend's arrays, synchronizes Metal and hands the allocator's cache back — three
+        // more command buffers submitted into a channel the driver is refusing, on the way out
+        // of a process that is about to end anyway. The weights go back when it does.
+        guard !deviceLost else { return }
         await releaseModel()
     }
 

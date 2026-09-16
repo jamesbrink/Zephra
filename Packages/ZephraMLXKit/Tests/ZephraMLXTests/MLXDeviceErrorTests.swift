@@ -47,6 +47,11 @@ struct MLXDeviceErrorTests {
         } catch {
             expectShapeMismatch(error, "the boundary must carry MLX's own text")
         }
+        // And through the real handler and the real latch: only IOGPU's own
+        // `SubmissionsIgnored` ends a launch, so an error that is not a command-buffer failure
+        // must never say the GPU is gone — an app that relaunched itself over a broadcast
+        // error would be a fault of its own.
+        #expect(!runtime.isDeviceLost)
         // Still here: the handler MLX would otherwise abort the process through never ran,
         // because the boundary's box caught the error first.
     }

@@ -70,7 +70,14 @@ extension GenerationStore {
         } catch is CancellationError {
         } catch UpscaleError.cancelled {
         } catch {
-            upscaleFailed(url, reason: error.readableMessage)
+            // A lost GPU is not a notice on a picture: the upscaler is fine and so is the
+            // picture, and there is nothing to try again with. `resumeAfterUpscale` below
+            // lands on the one state such a Mac has, since `transition` answers for it.
+            if noteIfDeviceLost(error) {
+                logger.error("upscale lost the GPU: \(error.readableMessage, privacy: .public)")
+            } else {
+                upscaleFailed(url, reason: error.readableMessage)
+            }
         }
         resumeAfterUpscale(from: resumeState)
     }

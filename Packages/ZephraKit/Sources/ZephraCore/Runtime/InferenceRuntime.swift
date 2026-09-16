@@ -78,6 +78,16 @@ public protocol InferenceRuntime: Sendable {
         _ body: nonisolated(nonsending) () async throws -> R
     ) async throws -> R
 
+    /// Whether this process has lost the GPU for the rest of its life.
+    ///
+    /// Not a fault, which costs one run: the driver refusing to run this client's command
+    /// buffers at all, because it holds the process responsible for earlier faults. Every
+    /// remedy an app has — dropping the weights, releasing the allocator's cache, building
+    /// another backend — is itself more Metal work into the channel that is being refused, so
+    /// once this is true the engine submits nothing more and the app relaunches. Sticky: it is
+    /// never false again within the launch that set it.
+    var isDeviceLost: Bool { get }
+
     /// Replaces the runtime's answer to an error raised outside every `catchingDeviceErrors`
     /// boundary — which is to end the process — with one line in the log.
     ///
@@ -112,6 +122,9 @@ extension InferenceRuntime {
     {
         try await body()
     }
+
+    /// A runtime with no device to lose never loses one: the stubs, the tools and the bench.
+    public var isDeviceLost: Bool { false }
 
     /// A runtime that raises no errors of its own has no default answer to replace.
     public func installDeviceErrorLogging() {}

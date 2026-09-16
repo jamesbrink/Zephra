@@ -33,6 +33,16 @@ extension CompanionSession {
         return LinkError(code: .badRequest, reason: fit.reason(for: model, budget: budget))
     }
 
+    /// Whether this command would put the device to work, which is what a Mac that has lost
+    /// the GPU cannot take. Browsing the library, reading a picture and a resync all still
+    /// work: the folder is a folder whatever the GPU is doing.
+    static func needsTheGPU(_ command: Command) -> Bool {
+        switch command {
+        case .enqueue, .loadModel, .unloadModel, .switchModel, .upscale, .animate: true
+        default: false
+        }
+    }
+
     /// One admission answer as the refusal it is, or nil when the request was admitted.
     ///
     /// The three ways a request can fail are three different words on a phone, and the
