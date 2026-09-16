@@ -740,19 +740,39 @@ nothing more, including the undoing.** `deviceLost` closes `acceptsWork`, so
 `canLoad`, `canUnload`, `canUpscale`, `canQueue`, `acceptsQueuedGeneration` and
 the idle clock all shut together; `transition(to:)` asks the runtime's latch on
 every state change and, once lost, answers `.failed(.deviceLost)` whatever it
-was handed, so a Mac with no GPU has exactly one state; `retry()` refuses and
-says so; and `shutdown()` skips `releaseModel()` while `ZephraApp`'s own
-shutdown skips the Metal synchronize, because dropping the weights, releasing
-the allocator's cache and synchronizing are each one more command buffer into a
-channel the driver is refusing. `EngineError.deviceLost` is the sentence, one
+was handed, so a Mac with no GPU has exactly one state; `closeForDeviceLoss`
+cancels `generationTask`, `upscaleTask` and `bootstrapTask` as `shutdown()`
+does, so nothing already on the actor goes on submitting for the rest of its
+steps behind an interface that says the run is gone; and `retry()` refuses and
+says so. **The rule about the undoing belongs to the primitive**: `releaseModel()`
+returns at once while `deviceLost` holds, which covers its five doors —
+`stopPreparation`, `unloadModel`, `changeModelDirectory`, `reload` and
+`shutdown` — since each is reachable in the window a loss opens, the loss
+happening *during* the load or run the door's own task is waiting on. Beside it,
+`InferenceActor.prepare`'s catch skips its own `unload()` when the runtime's
+latch has closed, and the store's load catch classifies (`noteIfDeviceLost`)
+*before* it undoes anything, because a load is the likeliest thing to be what
+discovered the loss; `unloadModel` re-reads the flag after its `transition` and
+drops `isSwappingModel` rather than starting a task that would do nothing;
+`isIdleCandidate` asks the runtime directly, for a clock already past its wait;
+`shutdown()` keeps its own guard so a quit does not await a call whose whole
+body is one; and `ZephraApp`'s shutdown skips the Metal synchronize. Dropping
+the weights, releasing the allocator's cache and synchronizing are each one more
+command buffer into a channel the driver is refusing.
+`EngineError.deviceLost` is the sentence, one
 place (`BackendError.deviceLostSentence`): "Zephra has lost the GPU and has to
 relaunch to get it back." A paired phone is answered `.refused` with that same
-sentence — `remoteAdmission` before every other question, and
-`CompanionSession+Commands` for `loadModel`, `unloadModel`, `switchModel`,
-`upscale` and `animate` through `needsTheGPU`; browsing the library still
+sentence: `CompanionSession+Commands` refuses all six commands
+`needsTheGPU` names — `enqueue`, `loadModel`, `unloadModel`, `switchModel`,
+`upscale` and `animate` — at the top of `perform`, before the switch and before
+`remoteAdmission`, which answers an `enqueue` in the same words anyway and puts
+a lost GPU before every other question. Browsing the library still
 works, since a folder is a folder. No protocol change: the sentence crosses as
 the failure message `EngineStateDTO` already carries, and the phone's
-`RunFailureView` shows it.
+`RunFailureView` shows it. In the toolbar `ModelLoadStatus.lost` is the reading:
+the menu's label says "GPU lost" rather than "Failed" and the pill reads
+**Relaunch**, greyed, since the press belongs beside the sentence on the canvas
+the way a load's Stop does.
 
 **The Mac relaunches, once.** `CanvasStateView` draws **Relaunch Zephra** in
 Try Again's place for this failure and no "Choose a Model…" beside it, since
@@ -765,9 +785,18 @@ nobody in front of them: one serving a phone, one being screen-shared.
 automatic relaunch in ten minutes, stamped in `AppSettings.lastDeviceLossRelaunch`,
 and past that the button alone, so a Mac whose GPU is genuinely broken cannot
 be put in a loop. `ZephraApp`'s `onChange(of: store.deviceLost)` is the one
-wiring. The prompt survives, since `lastPrompt` is persisted; the queue, the
+wiring. **One relaunch per launch, whichever door asks**: the button is on
+screen for the whole of that five-second wait and the quit behind either takes
+seconds with a phone paired, so `Relaunch.afterExit` claims `RelaunchOnce`
+first — two watcher scripts would poll one process id and open two copies, and
+`SingleInstance` can have each stand down for the other, leaving the Mac with no
+Zephra at all. `Relaunch.thisApp()` also refuses a `ZEPHRA_FRESH_START` session
+and logs: `open -n` carries no environment, so the copy that came back would be
+an ordinary Zephra over the person's real library and models. The prompt survives, since `lastPrompt` is persisted; the queue, the
 reference well and the session's history do not (`ROADMAP.md`).
-`DeviceFaultKindTests`, `DeviceFaultLatchTests`, `DeviceLossTests` and
+`DeviceFaultKindTests`, `DeviceFaultLatchTests`, `DeviceLossTests` (the thrown
+path, the latch closing with nothing running, what is in flight, and a load that
+undoes nothing), `CompanionDeviceLossTests`, `RelaunchOnceTests` and
 `DeviceLossRelaunchTests` pin it. What a reset is usually *about* is worth
 knowing before blaming Zephra: on bender it is Screen Sharing — WindowServer
 and `avconferenced` were the processes the driver blamed in every reset of
@@ -2531,9 +2560,11 @@ environment value.
   in 5 seconds" (or "…relaunched itself recently; offering the button only").
   The *first* fault named in the first line is the one to diagnose: an ignored
   submission is never the first error, and on bender the first was an innocent
-  victim of a reset the driver blamed WindowServer for. Every load also says
-  "weights of <model> will be resident" or "… streamed" now, whether or not the
-  guard stepped it down.
+  victim of a reset the driver blamed WindowServer for. A load that begins also says
+  "weights of <model> will be resident" or "… streamed", whether or not the
+  guard stepped it down — written by `+Preparation.load` itself rather than by
+  the guard, which is also asked by `residencyToStepDownTo(_:)`, where nothing
+  loads.
 - A locally built Zephra (every `make run`, `make build`, any ad-hoc signature)
   keeps its companion identity and pairings in
   `~/Library/Application Support/Zephra/Companion/` (`identity`, `devices.json`),

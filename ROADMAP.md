@@ -587,6 +587,18 @@ dumped from `diffusers` and `transformers`, and every weight the app downloads.
   throughput, and whether it changes the reset rate is unmeasured. Apple
   documents no compute-side mitigation at all; queue priority, residency sets
   and the wired limit have no documented effect on resets either way.
+- **`MLXInferenceRuntime.failure`'s latch-to-`.deviceLost` mapping is untested.**
+  The one seam of the device-loss change with no test behind it. The instance
+  `DeviceFaultLatch` is pure and pinned (`DeviceFaultLatchTests`), and the
+  classification is pinned against the verbatim messages
+  (`DeviceFaultKindTests`), but the line that turns a closed latch into
+  `BackendError.deviceLost` rather than `.deviceFailed` reads
+  `DeviceFaultSink.faults`, which is process-wide: a test that closed it would
+  leave every later test in the process running on a Mac that believes its GPU
+  is gone, and there is no way to reopen it (that being the whole point of a
+  latch). Injecting the latch into `MLXInferenceRuntime` would make it testable
+  and would also give MLX's one process-wide handler slot a second owner, which
+  is why it was not done. Worth revisiting only if that seam grows.
 - **What a device-loss relaunch does not carry back.** The prompt survives
   (`lastPrompt` is persisted) and so does the chosen model, the images folder and
   every finished picture, since the library is the folder. What does not: the
