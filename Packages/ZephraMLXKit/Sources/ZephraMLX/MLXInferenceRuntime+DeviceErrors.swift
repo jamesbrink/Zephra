@@ -39,14 +39,25 @@ extension MLXInferenceRuntime {
             let value = try await body()
             // A fault MLX reported that nothing in the body happened to notice still cost the
             // run: the value handed back was computed over the failed command buffer.
-            if let message = Self.settle(box) { throw BackendError.deviceFailed(message) }
+            if let message = Self.settle(box) { throw Self.failure(message) }
             return value
         } catch {
             // The fault wins over the cancellation it caused, or a lost picture would be
             // reported as a Stop nobody pressed.
-            if let message = Self.settle(box) { throw BackendError.deviceFailed(message) }
+            if let message = Self.settle(box) { throw Self.failure(message) }
             throw error
         }
+    }
+
+    /// Which failure one fault is: a run lost, or the GPU lost.
+    ///
+    /// The process latch rather than this message alone, so a code 5 arriving after the driver
+    /// has already stopped running this process's buffers is still reported as the end of the
+    /// GPU: a victim is recoverable, and a victim over a refusing client is not.
+    private static func failure(_ message: String) -> BackendError {
+        DeviceFaultSink.faults.isLost
+            ? .deviceLost(message)
+            : .deviceFailed(message)
     }
 
     /// Waits for the device work this run left queued, then says what the boundary caught —

@@ -15,9 +15,11 @@ import Foundation
 /// content plus the window's own 88 points of chrome (32 title bar, 56 tab-strip
 /// toolbar, taller than the main window's 52 because it carries the tab icons) is 908 — over by
 /// 32 points before Larger Text is even considered. So the floor is `minimumHeight`, one number
-/// for all four tabs, well clear of that Mac; the window opens at each tab's own height when
-/// the display has room for it, and a person who has made it taller keeps that size when they
-/// step between tabs.
+/// for all four tabs, well clear of that Mac; the window opens at each tab's own height, or at
+/// as much of it as the display has room for — `SettingsWindowFit` (`Support/`) answers
+/// `min(tab height, visible frame - chrome)` and never less than the floor, and the tab scrolls
+/// for the rest — and a person who has made it taller keeps that size when they step between
+/// tabs.
 enum SettingsTab: String, CaseIterable, Identifiable {
     case general
     case performance
@@ -50,8 +52,8 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     /// since every tab is a form of the same rows.
     static let openingWidth: CGFloat = 520
 
-    /// The content size this tab opens at, when the display has room for it — see
-    /// `minimumHeight` for what the window may be shrunk to instead.
+    /// The content size this tab asks to open at. What it actually opens at is this clamped to
+    /// the display through `SettingsWindowFit`; see `minimumHeight` for the other end.
     var openingSize: CGSize { CGSize(width: Self.openingWidth, height: openingHeight) }
 
     /// How tall the tab's content stands, in points, under the tab strip: where the window
@@ -95,8 +97,8 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     /// 400 clears a 13-inch MacBook Air M1 (876 usable points, menu bar removed) with the
     /// window's 88 points of chrome added back — 488 against 876. Performance stands 1010 now
     /// and so opens clamped and scrolling on every Mac laptop, which is exactly what this floor
-    /// exists for. AppKit clamps a window to the screen's visible frame on open, and it can only
-    /// do that when the minimum it is holding to actually fits; pinning the floor at 820 is what
-    /// made that clamp fail on the smallest Mac Sequoia still runs on.
+    /// exists for. This number, and never the tab's own height, is what `SettingsWindowFrame`
+    /// pins `contentMinSize` at: a minimum taller than the display is one nothing can clamp,
+    /// which is how Performance's bottom came to sit off a 1080-point display.
     static let minimumHeight: CGFloat = 400
 }

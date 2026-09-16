@@ -5,7 +5,7 @@
   "private": true,
   "type": "module",
   "main": "index.mjs",
-  "license": "SEE LICENSE IN ../../LICENSE",
+  "license": "MIT",
   "scripts": {
     "test": "node --test test/"
   }

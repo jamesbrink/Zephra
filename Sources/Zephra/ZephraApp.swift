@@ -14,7 +14,8 @@ import ZephraUpscaleRealESRGAN
 /// know which backend it is built on.
 @main
 struct ZephraApp: App {
-    @NSApplicationDelegateAdaptor(AppLifecycle.self) private var termination
+    // Not private: `ZephraApp+Library.swift` hands it what a clicked notification means.
+    @NSApplicationDelegateAdaptor(AppLifecycle.self) var termination
     // Not private: `ZephraApp+Library.swift` wires these four together once the window is up.
     @State var store = ZephraApp.makeStore()
     @State private var cache = ImageCache()
@@ -170,6 +171,12 @@ struct ZephraApp: App {
                 .onChange(of: warmUpOnLaunch, initial: true) { _, warms in
                     store.warmsUpAfterLoad = warms
                 }
+                // The GPU going is the one engine state the app itself acts on: everything
+                // else the store handles by refusing work. See `ZephraApp+DeviceLoss`.
+                .onChange(of: store.deviceLost) { _, lost in
+                    guard lost else { return }
+                    relaunchAfterDeviceLoss()
+                }
                 .onChange(of: companionEnabled) { _, _ in openCompanionRoads() }
                 .onChange(of: companionRelayEnabled) { _, _ in openCompanionRoads() }
                 .onChange(of: welcome.isShowing) { _, showing in
@@ -188,6 +195,10 @@ struct ZephraApp: App {
                         // which must land before the index stops taking anything.
                         await store.shutdown()
                         await index.shutdown()
+                        // Not over a lost GPU: a synchronize is one more command buffer into a
+                        // channel the driver is refusing, and there is nothing left in flight
+                        // to drain — the store submitted nothing after the loss.
+                        guard !store.deviceLost else { return }
                         let runtime = Self.runtime
                         await Task.detached { runtime.synchronize() }.value
                     }

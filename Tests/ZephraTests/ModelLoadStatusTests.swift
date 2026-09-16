@@ -53,6 +53,19 @@ struct ModelLoadStatusTests {
         #expect(status.word == "Failed")
     }
 
+    @Test("names the relaunch, not a retry, once the GPU is lost")
+    func saysTheGPUIsLost() {
+        let status = status(state: .failed(.deviceLost))
+        #expect(status == .lost, "a failure with its own remedy, not one more failure")
+        // The one control that is always visible must not offer what the canvas has just said
+        // is over: Try Again on a driver refusing every command buffer fails in a third of a
+        // second. The press itself is the canvas's, beside the sentence that explains it.
+        #expect(status.buttonTitle == "Relaunch")
+        #expect(!status.isPressable)
+        #expect(status.word == "GPU lost")
+        #expect(status.help(chosen: chosen, loaded: chosen).contains("Relaunch"))
+    }
+
     @Test("says what unloading costs when another model is the one in memory")
     func namesTheModelThatGoesFirst() {
         let status = status(state: .ready, loaded: other, residency: .resident)

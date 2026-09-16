@@ -64,7 +64,31 @@ Six directories, by what a file is rather than what screen it is on:
 - `Workspace/` — which pane is up, which query the library is showing, whether
   the inspector is open, and the labels those enums draw themselves with.
   `WorkspaceSelection` is one `@Observable`, injected by the composition root
-  and persisted through `AppSettings`.
+  and persisted through `AppSettings`. `reveal(_ item:)` is how something
+  outside the window asks for one picture to be shown — a click on its
+  notification, and nothing else so far. It takes the item rather than a name
+  because the hard part is the query: a person who walked away with Favorites
+  up, or with something typed in the search field, comes back to a grid that
+  does not list what they clicked on, and a selection nothing shows is a click
+  that did nothing. So `LibraryQuery.matches` is asked, and a query that
+  answers no is replaced with one over everything at the same sort — the sort
+  hides nothing. Past that it moves the pane, drops `viewing` explicitly (the
+  pane's own observer only does it when the pane actually moves, and the notice
+  may well arrive with the library already up), clears `paneBeforeSearch`, and
+  publishes `revealing` with a bumped `revealToken`, the twin of the two focus
+  tokens: a token rather than a flag, so asking for the same picture twice is
+  heard the second time. Neither is cleared when it is read, because the pane
+  that reads it is usually built *after* the ask. What happens instead is that
+  the ask is **consumed**: `markRevealConsumed(_:)` records the token that was
+  answered, and `unansweredReveal` — the picture, or nil once the token has
+  been consumed — is the only thing either reader looks at. Clearing `revealing`
+  would break the ordinary case, which is the pane arriving late; leaving the
+  ask standing broke everything after it, because the pane is torn down and
+  rebuilt on every pane change and both readers watch with `initial: true`, so
+  one notification click made every later visit to the Library select that
+  picture and scroll three screens back to it for the rest of the session. A
+  token that is no longer the newest consumes nothing, so a second ask made
+  while the first is being answered is still heard.
 - `Support/` — caches, exports, pickers, previews. `ModalHost` is where every
   alert and every file panel in the app is raised: it answers with the window to
   hang a sheet from — the key window, which is already the Settings window when a
@@ -180,8 +204,11 @@ Six directories, by what a file is rather than what screen it is on:
   is not the least the window may be dragged to — `minimumHeight` is, one
   number for all four, and it must fit the smallest display Sequoia runs on:
   Performance's content plus 88 points of chrome is well past the 876
-  usable on a 13-inch MacBook Air M1, and AppKit clamps a window to the screen's
-  visible frame on open only when the minimum it is holding to actually fits.
+  usable on a 13-inch MacBook Air M1. That floor, and never the tab's own
+  height, is what `contentMinSize` holds to: AppKit clamps a window to the
+  screen's visible frame only when the minimum it is holding to actually fits,
+  and pinning the minimum at the tab's height is what left Performance's bottom
+  off a 1728 x 1080-point display.
   Performance stands **1010** now, not the 820 it shipped at, because the
   Loading section arrived above the warm-up toggle and costs 158 points; the
   whole tab wants about 1110, which no Mac laptop display has. **The rule that
@@ -193,6 +220,33 @@ Six directories, by what a file is rather than what screen it is on:
   below the sill is the tail of one figure rather than a setting nobody would
   find, and the floor of 400 is what lets the tab open clamped and scrolling on
   a laptop instead of refusing to shrink.
+  1010 is what the tab *asks* for. What it opens at, and what a tab switch
+  grows the window to, is `SettingsWindowFit` (`Support/`, pure and tested in
+  `SettingsWindowFitTests`): `min(tab height, visible frame - chrome)`, never
+  under `minimumHeight`, the width untouched, and `grown(current:toward:)`
+  which takes that target but never shrinks a window somebody made taller.
+  `SettingsWindowFrame` asks the window itself for the chrome
+  (`frameRect(forContentRect:)`) and the screen for the room, and after every
+  size change runs `constrainFrameRect`, which keeps the title bar under the
+  menu bar, and then `SettingsWindowFit.placed`, which moves the whole frame
+  back inside the visible frame: a window grows from a corner without moving,
+  and AppKit's own constraint says nothing about the bottom edge — measured on
+  a 1728 x 1117-point display, Performance grown on a tab switch stood 39
+  points below it. A frame larger than the display keeps its top-left corner on
+  screen, and the two axes say that differently on purpose: y keeps the high
+  edge, which carries the title bar, and x the low edge, which carries the
+  traffic lights. Taking the high edge on both reads as symmetry and pushes the
+  left of an over-wide window off the screen. So the Settings window is never
+  taller than the display and never off it, on any tab, and Performance scrolls
+  for the rest.
+  The grow itself happens **only when the tab's target changes**.
+  `SettingsWindowFrame.apply` runs from `layout()` and from every
+  `updateNSView`, and re-growing on each pass meant a window dragged shorter
+  than the tab's clamped height — which the 400-point `contentMinSize` now
+  allows — snapped back to that height at the Models tab's next inventory
+  refresh, or at any `@AppStorage` write. `Opening` keeps the last target it
+  grew toward and compares; the first open is unchanged, and `grown` is still
+  what refuses to shrink a window somebody made taller.
   Those figures are a floor
   and an opening size, not a fixed frame: the window resizes, keeps whatever size
   a person gave it as they step between tabs, and grows only for a tab whose
@@ -224,8 +278,9 @@ Six directories, by what a file is rather than what screen it is on:
   tab duplicating a window that already exists is not what any other Mac app does,
   so it went. The notices file is written so it reads right in
   the app too: it names no `LICENSE` file, because none is bundled — the app's
-  own terms are the copyright line's "All rights reserved" until terms are
-  decided (`ROADMAP.md`). A keyboard shortcut has one owner, the menu bar
+  own terms are the copyright line's MIT, and the full text is the repository's
+  `LICENSE`, which a third About button could open once it is a bundled
+  resource (`ROADMAP.md`). A keyboard shortcut has one owner, the menu bar
   (`ZephraCommands`, `ModelCommands`, `WorkspaceCommands`, `LibraryCommands`,
   `ThumbnailSizeCommands`); a button that shows a chord shows it as text, the
   way `GenerateButton` writes ⌘⏎, and never declares it too, because a chord
@@ -304,10 +359,13 @@ Six directories, by what a file is rather than what screen it is on:
   pure function over two states, pinned by `BackgroundNoticeTests`, and
   `BackgroundNoticeObserver` on `RootView` feeds it every transition. A saved
   image is the other notice, posted from the `onImageSaved` wiring in
-  `ZephraApp+Library`, titled "Image Saved" or "Clip Saved" and carrying the
-  prompt folded to one line and cut at a word (`BackgroundNotice.summary`),
-  since the file name is a stamp and a seed and says nothing to a person who
-  walked away. `BackgroundNotices.post` is the one place
+  `ZephraApp+Library` through `BackgroundNotice.saved(at:image:)`, titled
+  "Image Saved" or "Clip Saved" and carrying the prompt folded to one line and
+  cut at a word (`BackgroundNotice.summary`), since the file name is a stamp
+  and a seed and says nothing to a person who walked away. It carries that file
+  name all the same, unsaid, because it is what a click on the banner needs;
+  `saved(at:image:)` is a pure function rather than three expressions at the
+  call site precisely so the name coming off `url.lastPathComponent` is tested. `BackgroundNotices.post` is the one place
   `UNUserNotificationCenter` is touched: it posts only when `NSApp` is not
   active and the General toggle (`AppSettings.backgroundNotifications`)
   allows, and asks permission the first time it has something to say rather
@@ -316,10 +374,58 @@ Six directories, by what a file is rather than what screen it is on:
   the toggle's label names all three. What a click on one does is
   `AppLifecycle+Notifications`, which adopts `UNUserNotificationCenterDelegate`
   in `applicationDidFinishLaunching` and, on a response, activates the app and
-  orders the main window front: every notice Zephra posts is about that one
-  window, so none of them carries a destination, and without a delegate a Mac
-  whose window had been closed with Command W gets a Dock icon and nothing
-  else. `Sidebar/CanvasSidebar` is the canvas sidebar,
+  orders the main window front — without a delegate a Mac whose window had been
+  closed with Command W gets a Dock icon and nothing else — and then goes
+  wherever the notice said. Two of the three notices say nowhere: a finished
+  download is about a model now on the disk and an update is about the banner
+  in the window, and bringing that window forward is the whole of what they
+  mean. The saved picture is the exception, because the thing it is about is a
+  file. `NoticeDestination` (`Support/`) is how it travels: `case
+  library(fileName:)`, a `userInfo` of two plain strings (all a notification
+  may carry), and an `init?(userInfo:)` that reads it back, both halves in one
+  file and neither importing UserNotifications, so the round trip is tested
+  without one. Anything unrecognised — a notification posted by an older build
+  and clicked after an update, a value of the wrong type — reads as nil, which
+  is the honest answer and is the old behaviour. `BackgroundNotices.deliver`
+  sets `content.userInfo` from `BackgroundNotice.destination`, which is non-nil
+  for the saved picture alone. Where a destination goes is *not* decided in the
+  delegate: `AppLifecycle.onNoticeOpened` is injected from the composition root
+  the way `isInstalling` is, so that file names neither the library nor the
+  workspace, and the destination is read off the notification's content on the
+  system's own queue (two strings, so nothing that is not `Sendable` crosses
+  into the main-actor task) and acted on only after the window is up. It goes
+  through `AppLifecycle.deliver`, which calls the closure where there is one and
+  holds the destination in `pendingNotice` where there is not; the closure's
+  `didSet` drains it. The two arrive in that order whenever the click is what
+  *launches* Zephra — the delegate is set in `applicationDidFinishLaunching` and
+  the system calls back at once, while `onNoticeOpened` is assigned from the
+  root view's `.task` — which is the case the destination is most for: a banner
+  left in Notification Center overnight, clicked cold, used to bring the window
+  up and reveal nothing. `AppLifecycleNoticeTests` pins both orders.
+  `ZephraApp+Library.openNotice` is the answer, because that is the one place
+  the index and the workspace are both in reach: `index.item(named:)` — which
+  already skips Recently Deleted — then `WorkspaceSelection.reveal(item)`. A
+  miss is answered with one `rescanNow()` and a second look before it is
+  believed: a click that launched Zephra fires the delegate before the first
+  scan has read the folder, so without the retry a cold click could never
+  reveal anything. Only a picture still missing after that scan — gone since
+  the banner was posted — gets the library pane and one line in `make logs`. `LibraryPane` applies the selection from
+  `revealToken` the way it already does from `workspace.viewing`, and
+  `LibraryRevealScroll` — a modifier inside `LibraryGrid`'s `ScrollViewReader`,
+  split out because the grid is at its three stored properties, as
+  `LibraryGridKeyboard` beside it was — scrolls to it. Both watch with
+  `initial: true`: the ordinary case is a notice clicked while the canvas is
+  up, where the pane and the grid are built after the ask and would otherwise
+  never hear it. The grid's existing `onAppear` scroll covers only the grid
+  that is appearing; the one already on screen is what the modifier is for.
+  Both read `unansweredReveal`, and the pane marks the token consumed from a
+  `Task { @MainActor … }` rather than inline — the hop is what leaves the grid's
+  modifier, which reads the same token in the same pass, its half of the answer,
+  and a pane holding the consumed token itself would be a fourth stored
+  property.
+  `NoticeDestinationTests` pins the round trip and the refusals,
+  `WorkspaceSelectionTests` the pane, the viewer, the widening, the token and
+  its consumption. `Sidebar/CanvasSidebar` is the canvas sidebar,
   which builds today's runs once and hands them to `Sidebar/Timeline/` — a
   card per run still waiting, the running run's card in amber, and under those
   the wall of today's pictures in small squares — and to the "Today in

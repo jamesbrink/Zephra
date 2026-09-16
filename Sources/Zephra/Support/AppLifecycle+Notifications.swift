@@ -1,14 +1,18 @@
 import AppKit
 import UserNotifications
 
-/// What clicking one of Zephra's notifications does: bring the app forward and put its window
-/// in front.
+/// What clicking one of Zephra's notifications does: bring the app forward, put its window in
+/// front, and then go wherever the notice said.
 ///
-/// Every notice Zephra posts is about something that happened in the one window — a picture
-/// saved, a download finished, an update ready to install — so every one of them means the
-/// same thing when it is clicked, and none of them needs to carry a destination. Without a
-/// delegate the system brings the app forward and leaves the window wherever it was, which on
-/// a Mac whose window had been closed with Command W is a Dock icon and nothing else.
+/// Most notices are about the one window — a download finished, an update ready to install —
+/// so bringing it forward is all they mean. Without a delegate the system brings the app
+/// forward and leaves the window wherever it was, which on a Mac whose window had been closed
+/// with Command W is a Dock icon and nothing else.
+///
+/// The saved picture is the one notice about a thing rather than about the window, and it
+/// carries its file name as a `NoticeDestination`. Where that goes is not decided here:
+/// `onNoticeOpened` is the composition root's, so this file imports no library and no
+/// workspace, and a notice whose destination this build cannot read is simply the window.
 extension AppLifecycle: UNUserNotificationCenterDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         UNUserNotificationCenter.current().delegate = self
@@ -24,11 +28,20 @@ extension AppLifecycle: UNUserNotificationCenterDelegate {
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         completionHandler()
+        // Read here, off the notification's own content, so nothing that is not `Sendable`
+        // crosses into the task: a destination is two strings.
+        let destination = NoticeDestination(userInfo: response.notification.request.content.userInfo)
         Task { @MainActor in
             NSApp.activate()
             // The one window, whatever the notice was about. `Window(id:)` keeps it in
             // `NSApp.windows`, and a window closed with Command W is reopened by the scene.
             NSApp.windows.first { $0.canBecomeMain && !$0.isSheet }?.makeKeyAndOrderFront(nil)
+            // Only after the window is up: what this does is move the window somewhere, and
+            // a window that is not yet in front has nowhere to move to. Through `deliver`,
+            // because a banner clicked while Zephra was not running is answered here before
+            // the root view's `.task` has said what answering one means; it is held and handed
+            // over the moment that closure lands.
+            if let destination { self.deliver(destination) }
         }
     }
 }

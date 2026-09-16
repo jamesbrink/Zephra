@@ -706,6 +706,102 @@ proven against real MLX rather than by hand: `MLXDeviceErrorTests`,
 error through the same handler, and upstream mlx has its own test of the
 completion-handler rethrow (mlx#3523); see `make logs` in "Debugging hooks".
 
+**A GPU the driver has stopped running costs the launch, and Zephra relaunches
+itself.** There are **two kinds** of command-buffer failure and they are told
+apart from the text, which is always
+`[METAL] Command buffer execution failed: <description> (<8 hex>:<IOGPU enum
+name>).` — IOGPU composes the inner part and MLX only wraps it, and the
+`NSError` never reaches Swift. `DeviceFaultKind` (`ZephraMLX`, pure, five names
+matched case-insensitively and corroborated by the hex code, nil for a message
+that is not a command-buffer failure at all) is the whole of that reading, and
+the bit that matters is `.lost` —
+`kIOGPUCommandBufferCallbackErrorSubmissionsIgnored`, code 4 — against
+everything else. A victim (code 5) is somebody else's fault recovered around
+this process and is one lost run: the weights stay up, **Try Again works**,
+nothing below changes. An ignored submission is the driver refusing this
+client's command buffers because it holds the process responsible for earlier
+faults, and it is **permanent for the life of the process**: on a 16 GB mini on
+2026-09-15 every Try Again, an unload and a reload, and a switch to another
+model each failed in a third of a second for four minutes, and MLX leaks its
+`MTLDevice` as a process-wide singleton with no way to rebuild it.
+
+So the first `.lost` is **latched**, process-wide, in `DeviceFaultLatch`
+(`DeviceFaultSink.faults`), from the handler and therefore whether or not a
+boundary was open — bender's landed in `releaseCache` during an unload. The
+boundary then throws `BackendError.deviceLost` in place of `.deviceFailed`, and
+`MLXRuntime+ErrorLogging` writes one line at error naming the **first fault of
+the process** beside it, since an ignored submission is never the first error
+and a line carrying only the refusal sends the reading to whatever the Mac
+happened to be doing. `InferenceRuntime.isDeviceLost` is how the engine hears
+about it (default false; `CombinedInferenceRuntime` answers for any of them).
+
+`GenerationStore+DeviceLoss` is the engine's whole answer, and it is: **submit
+nothing more, including the undoing.** `deviceLost` closes `acceptsWork`, so
+`canLoad`, `canUnload`, `canUpscale`, `canQueue`, `acceptsQueuedGeneration` and
+the idle clock all shut together; `transition(to:)` asks the runtime's latch on
+every state change and, once lost, answers `.failed(.deviceLost)` whatever it
+was handed, so a Mac with no GPU has exactly one state; `closeForDeviceLoss`
+cancels `generationTask`, `upscaleTask` and `bootstrapTask` as `shutdown()`
+does, so nothing already on the actor goes on submitting for the rest of its
+steps behind an interface that says the run is gone; and `retry()` refuses and
+says so. **The rule about the undoing belongs to the primitive**: `releaseModel()`
+returns at once while `deviceLost` holds, which covers its five doors —
+`stopPreparation`, `unloadModel`, `changeModelDirectory`, `reload` and
+`shutdown` — since each is reachable in the window a loss opens, the loss
+happening *during* the load or run the door's own task is waiting on. Beside it,
+`InferenceActor.prepare`'s catch skips its own `unload()` when the runtime's
+latch has closed, and the store's load catch classifies (`noteIfDeviceLost`)
+*before* it undoes anything, because a load is the likeliest thing to be what
+discovered the loss; `unloadModel` re-reads the flag after its `transition` and
+drops `isSwappingModel` rather than starting a task that would do nothing;
+`isIdleCandidate` asks the runtime directly, for a clock already past its wait;
+`shutdown()` keeps its own guard so a quit does not await a call whose whole
+body is one; and `ZephraApp`'s shutdown skips the Metal synchronize. Dropping
+the weights, releasing the allocator's cache and synchronizing are each one more
+command buffer into a channel the driver is refusing.
+`EngineError.deviceLost` is the sentence, one
+place (`BackendError.deviceLostSentence`): "Zephra has lost the GPU and has to
+relaunch to get it back." A paired phone is answered `.refused` with that same
+sentence: `CompanionSession+Commands` refuses all six commands
+`needsTheGPU` names — `enqueue`, `loadModel`, `unloadModel`, `switchModel`,
+`upscale` and `animate` — at the top of `perform`, before the switch and before
+`remoteAdmission`, which answers an `enqueue` in the same words anyway and puts
+a lost GPU before every other question. Browsing the library still
+works, since a folder is a folder. No protocol change: the sentence crosses as
+the failure message `EngineStateDTO` already carries, and the phone's
+`RunFailureView` shows it. In the toolbar `ModelLoadStatus.lost` is the reading:
+the menu's label says "GPU lost" rather than "Failed" and the pill reads
+**Relaunch**, greyed, since the press belongs beside the sentence on the canvas
+the way a load's Stop does.
+
+**The Mac relaunches, once.** `CanvasStateView` draws **Relaunch Zephra** in
+Try Again's place for this failure and no "Choose a Model…" beside it, since
+another model would be read in over the same dead device, and the press is
+`Relaunch.thisApp()` — the updater's own script and run-loop `NSApp.terminate`,
+never a second quit path. It also happens **without a click**, five seconds
+after the sentence goes up, because most of the Macs this happens on have
+nobody in front of them: one serving a phone, one being screen-shared.
+`DeviceLossRelaunch` (`Support/`, pure) is that rule and its guard — one
+automatic relaunch in ten minutes, stamped in `AppSettings.lastDeviceLossRelaunch`,
+and past that the button alone, so a Mac whose GPU is genuinely broken cannot
+be put in a loop. `ZephraApp`'s `onChange(of: store.deviceLost)` is the one
+wiring. **One relaunch per launch, whichever door asks**: the button is on
+screen for the whole of that five-second wait and the quit behind either takes
+seconds with a phone paired, so `Relaunch.afterExit` claims `RelaunchOnce`
+first — two watcher scripts would poll one process id and open two copies, and
+`SingleInstance` can have each stand down for the other, leaving the Mac with no
+Zephra at all. `Relaunch.thisApp()` also refuses a `ZEPHRA_FRESH_START` session
+and logs: `open -n` carries no environment, so the copy that came back would be
+an ordinary Zephra over the person's real library and models. The prompt survives, since `lastPrompt` is persisted; the queue, the
+reference well and the session's history do not (`ROADMAP.md`).
+`DeviceFaultKindTests`, `DeviceFaultLatchTests`, `DeviceLossTests` (the thrown
+path, the latch closing with nothing running, what is in flight, and a load that
+undoes nothing), `CompanionDeviceLossTests`, `RelaunchOnceTests` and
+`DeviceLossRelaunchTests` pin it. What a reset is usually *about* is worth
+knowing before blaming Zephra: on bender it is Screen Sharing — WindowServer
+and `avconferenced` were the processes the driver blamed in every reset of
+2026-09-15, and Zephra's buffers were the innocent victims.
+
 **Memory is checked twice, and a refusal is a sentence rather than an abort.**
 `MemoryGuard` (`ZephraCore`) is asked in `GenerationStore+MemoryGuard`: once in
 `+Preparation.load`, after the files are acquired and before the weights are
@@ -910,7 +1006,19 @@ Six directories, by what a file is rather than what screen it is on:
 - `Workspace/` — which pane is up, the library query, whether the inspector is
   open, and which of the window's two sheets is: `WorkspaceSelection`, one
   `@Observable` injected by the root and persisted through `AppSettings`, the
-  two sheet flags excepted.
+  two sheet flags excepted. `reveal(_ item:)` is the one way in from outside
+  the window: it widens a query that would not list the picture (scope back to
+  everything, filters off, the sort kept, since the sort hides nothing), moves
+  to the library, drops `viewing`, and publishes `revealing` and a bumped
+  `revealToken`, so asking for the same picture twice is heard twice. **The ask
+  is consumed, never cleared.** `revealing` stays readable, because the pane
+  that answers it is ordinarily built after it; what goes away is the token,
+  through `markRevealConsumed(_:)`, and both readers act on `unansweredReveal`
+  alone. Without that a single notification click had every later visit to the
+  Library re-select that picture and scroll back to it, since the pane is
+  rebuilt on every pane change and both readers watch with `initial: true`.
+  A token older than the newest consumes nothing, so a second ask arriving
+  while the first is being answered still stands.
 - `Support/` — caches, exports, pickers, previews, and the single homes for
   cross-cutting answers listed below.
 - `Companion/` — everything the link needs that is the Mac's rather than the
@@ -973,7 +1081,11 @@ Rules in `Support/`:
   word, the button's title and its tooltip in one type), `ModelMenuRows` (what
   the pull-down lists) and `ModelBrowserAction` (the browser's one button).
   `StepProgress` is the step bar's reading, so it never counts the
-  slider. `SeedEntry` is the one seed parser and `SizeEntry` the one size
+  slider; `SettingsWindowFit` is the same kind of answer for a window — the
+  content size the Settings window opens at or grows to, `min(tab height,
+  visible frame - chrome)` and never under the floor, and where that frame goes
+  so it is wholly on screen. `SeedEntry` is the one
+  seed parser and `SizeEntry` the one size
   parser (two numbers with anything between, fitted to the model's grid
   through `ModelCapabilities.fit`). Those three — `ReferenceRole`, `SeedEntry`
   and `SizeEntry` — are pure and live in `ZephraCore` now, not here, since the
@@ -986,10 +1098,40 @@ Rules in `Support/`:
   worth a notification while another app is in front; `BackgroundNotices.post`
   is the one place `UNUserNotificationCenter` is touched, posts only when
   `NSApp` is inactive and the General toggle allows, and asks permission the
-  first time it has something to say. A click on any of them goes through
-  `AppLifecycle+Notifications`, which brings the app forward and the window with
-  it: every notice is about the one window, so none of them carries a
-  destination.
+  first time it has something to say. `BackgroundNotice.saved(at:image:)` is
+  how the saved picture's notice is built, so the file name it carries is taken
+  off the URL in one tested place.
+- **The saved picture's notice knows which picture it is about.** `imageSaved`
+  carries the file name, unsaid, and `NoticeDestination` (`Support/`, pure) is
+  how it crosses `UNMutableNotificationContent.userInfo` as two strings and
+  comes back: `BackgroundNotice.destination` is non-nil for that notice alone,
+  and anything a build cannot read decodes to nil rather than to a wrong
+  answer. A click goes through `AppLifecycle+Notifications`, which brings the
+  app forward and the window with it and then hands the destination to
+  `AppLifecycle.deliver`, which is `onNoticeOpened` where the composition root
+  has set one and a held `pendingNotice` where it has not — the closure's
+  `didSet` drains it. That order is the cold-launch case and the one the
+  destination exists for: the delegate is set in
+  `applicationDidFinishLaunching` and the system hands the click over at once,
+  while `onNoticeOpened` is assigned from the root view's `.task`, later, so a
+  banner clicked with Zephra not running used to bring the window up and reveal
+  nothing. The closure is injected from the composition root the way
+  `isInstalling` is, so the delegate names neither the library nor the
+  workspace.
+  `ZephraApp+Library.openNotice` is that answer: `index.item(named:)` — and on a
+  miss one `rescanNow()` and a second look, since a click that launched Zephra
+  arrives before the first scan has read the folder, and only then the library
+  pane and a log line — then `WorkspaceSelection.reveal`, which moves to the library, closes the viewer,
+  widens a query that would hide the picture and selects it — `LibraryPane`
+  applies the selection and `LibraryRevealScroll` inside `LibraryGrid` scrolls
+  it into view, both with `initial: true`, since the notice arrives while the
+  canvas is up and the pane is built after the ask, and both on
+  `unansweredReveal`; the pane marks the token consumed on the next turn of the
+  run loop, which is what leaves the grid's modifier its half of the same pass.
+  A picture that has gone
+  since the banner was posted leaves the library pane up with nothing selected
+  and one line in `make logs`. The other three notices are about the window and
+  carry no destination, exactly as before.
 
 Rules in `Views/`:
 
@@ -1015,8 +1157,24 @@ Rules in `Views/`:
   allows and gives the tab the same reading 820 gave, down to Cached. The live
   readout stays last on purpose, so what goes below the sill is the tail of one
   figure rather than a setting nobody would find.
+  **1010 is what the tab asks for, never what it takes.** The window opens, and
+  grows on a tab switch, at `min(tab height, visible frame - chrome)` through
+  `SettingsWindowFit` (`Support/`), so it is never taller than the display and
+  never off it — after every size change `constrainFrameRect` keeps the title
+  bar under the menu bar and `SettingsWindowFit.placed` moves the whole frame
+  back inside the visible frame, since a window grows from a corner without
+  moving and AppKit's own constraint says nothing about the bottom edge (a
+  frame larger than the display keeps the high edge on y, the title bar, and
+  the low edge on x, the traffic lights) — and the tab scrolls for the rest.
+  **A grow happens when the tab's target changes and nowhere else.** `apply`
+  runs from `layout()` and from every `updateNSView`, so growing on every pass
+  took a size straight back off anybody who dragged the window shorter than the
+  tab's clamped height; `SettingsWindowFrame.Opening` keeps the last target
+  applied and compares. The first open is unchanged.
   `minimumHeight` is one number for all four and must fit a 13-inch MacBook
-  Air, since AppKit can only clamp a window that fits. `SettingsWindowFrame`
+  Air, and it is what `contentMinSize` holds to, **never the tab's own size**:
+  a minimum taller than the display is one nothing can clamp, which is what
+  had Performance's bottom off a 1080-point display. `SettingsWindowFrame`
   configures the window from a zero-sized `NSView` and *observes* the
   resizable flag, putting it back whenever SwiftUI strips it. Escape does not
   close Settings.
@@ -2352,7 +2510,11 @@ Full detail: `docs/model-weights.md`.
 - Zephra may ship commercially. Every new dependency, vendored file, or model
   gets an entry in `THIRD_PARTY_NOTICES.md` (copyright line, license, and any
   NOTICE file) in the same commit. That file is bundled and shown in the
-  Acknowledgments window; it is the disclosure, so keep it exact.
+  Acknowledgments window; it is the disclosure, so keep it exact. Zephra's own
+  code is MIT (`LICENSE`), which relicenses nothing vendored or third-party:
+  `Packages/ZImageKit`, every bundled or downloaded weight and every dependency
+  keep the terms they arrived under, and that file is still where they are
+  stated.
 
 ## Debugging hooks
 
@@ -2416,7 +2578,20 @@ environment value.
   above, which is where the memory guard's admitted and refused lines sit and
   where the device-error boundary's "MLX device error: …" line lands; `log
   stream` without `--level info` shows none of them. `make logs` runs under
-  make's own `/bin/sh`, so nothing shadows the binary there.
+  make's own `/bin/sh`, so nothing shadows the binary there. A **lost** GPU
+  (code 4, `SubmissionsIgnored`) reads as three lines in a row and they are
+  worth knowing by sight: "MLX device lost: … — the first fault of this process
+  was <kind>; the GPU comes back only when Zephra is relaunched", then the
+  engine's "the GPU is lost for this launch: … — no more work is submitted and
+  Zephra relaunches to get it back", then "the GPU is lost; relaunching Zephra
+  in 5 seconds" (or "…relaunched itself recently; offering the button only").
+  The *first* fault named in the first line is the one to diagnose: an ignored
+  submission is never the first error, and on bender the first was an innocent
+  victim of a reset the driver blamed WindowServer for. A load that begins also says
+  "weights of <model> will be resident" or "… streamed", whether or not the
+  guard stepped it down — written by `+Preparation.load` itself rather than by
+  the guard, which is also asked by `residencyToStepDownTo(_:)`, where nothing
+  loads.
 - A locally built Zephra (every `make run`, `make build`, any ad-hoc signature)
   keeps its companion identity and pairings in
   `~/Library/Application Support/Zephra/Companion/` (`identity`, `devices.json`),

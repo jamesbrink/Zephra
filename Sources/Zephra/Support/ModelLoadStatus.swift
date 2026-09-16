@@ -19,6 +19,8 @@ enum ModelLoadStatus: Hashable {
     case loaded(streamed: Bool)
     /// The last attempt ended in a failure the canvas is showing.
     case failed
+    /// The GPU has stopped running this launch's work, and only a relaunch gets it back.
+    case lost
 
     /// What the chosen model's state is, from the engine's own state and what is actually in.
     ///
@@ -33,6 +35,9 @@ enum ModelLoadStatus: Hashable {
         residency: WeightResidency?
     ) -> ModelLoadStatus {
         switch state {
+        // A lost GPU is its own reading, not a failure with a different message: the pill's
+        // word is the remedy, and over this one the remedy is not to try again.
+        case .failed(.deviceLost): return .lost
         case .failed: return .failed
         case .downloading: return .downloading
         case .building: return .building
@@ -54,6 +59,7 @@ enum ModelLoadStatus: Hashable {
         case .building: "Building"
         case .loaded(let streamed): streamed ? "Streaming" : "Loaded"
         case .failed: "Failed"
+        case .lost: "GPU lost"
         }
     }
 
@@ -72,6 +78,11 @@ enum ModelLoadStatus: Hashable {
         case .notLoaded, .loading, .downloading, .building: "Load"
         case .loaded: "Unload"
         case .failed: "Try Again"
+        // The canvas's Relaunch Zephra is the press, beside the sentence that says why, as the
+        // canvas's Stop is the press that stops a load. What this control owes the person is
+        // not naming a remedy that no longer exists: Try Again over a driver that refuses
+        // every command buffer is a button that fails in a third of a second.
+        case .lost: "Relaunch"
         }
     }
 
@@ -80,7 +91,7 @@ enum ModelLoadStatus: Hashable {
     var isPressable: Bool {
         switch self {
         case .notLoaded, .loaded, .failed: true
-        case .loading, .downloading, .building: false
+        case .loading, .downloading, .building, .lost: false
         }
     }
 
@@ -109,6 +120,8 @@ enum ModelLoadStatus: Hashable {
             return "Tries loading \(chosen.fullName) again."
         case .loading, .downloading, .building:
             return "\(chosen.fullName) is on its way in."
+        case .lost:
+            return "Zephra has lost the GPU. Relaunch it from the canvas to get it back."
         }
     }
 }

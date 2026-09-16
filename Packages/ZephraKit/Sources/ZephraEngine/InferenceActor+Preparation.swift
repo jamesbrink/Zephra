@@ -63,7 +63,13 @@ extension InferenceActor {
                 return localPath
             }
         } catch {
-            unload()
+            // The actor's own undoing, and it is skipped for the reason `releaseModel()` skips
+            // its own: `unload()` drops the backend's arrays, synchronizes Metal and hands the
+            // allocator's cache back, which is three more command buffers submitted into a
+            // channel the driver is refusing — and a load is the likeliest thing to have been
+            // what discovered the loss in the first place. A fault the device recovered from is
+            // not this: there the weights are settled here as they always were.
+            if runtime?.isDeviceLost != true { unload() }
             throw error
         }
     }

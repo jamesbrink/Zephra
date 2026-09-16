@@ -71,6 +71,11 @@ nonisolated struct CombinedInferenceRuntime: InferenceRuntime {
         runtimes.first?.releaseCache()
     }
 
+    /// Any of them, not the first: the device client is the process's, so a loss one runtime
+    /// saw is a loss for all of them, and reading only the first would hide a fault raised
+    /// through another family's handle.
+    var isDeviceLost: Bool { runtimes.contains { $0.isDeviceLost } }
+
     /// MLX's handler stack is process-wide, so a boundary opened on any one of these is the
     /// boundary every family's work runs inside. The first is enough, exactly as it is for the
     /// allocator's limits; opening one per runtime would nest the same handler five deep.

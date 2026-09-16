@@ -56,6 +56,15 @@ extension GenerationStore {
         // the weights go back, and nothing else may load meanwhile.
         isSwappingModel = true
         transition(to: .idle)
+        // `transition` is where a loss the runtime latched outside any run is noticed, and this
+        // unload may be what noticed it: `canUnload` was read a line above the latch closing.
+        // `releaseModel` would then do nothing, so the flag must not be left raised over a task
+        // that does nothing either — and nothing else may load anyway, admission being shut.
+        guard !deviceLost else {
+            isSwappingModel = false
+            logger.info("unload abandoned: the GPU is lost for this launch")
+            return
+        }
         switchTask = Task {
             await self.releaseModel()
             // A swap asked for while this was settling owns the flag; only this unload gives
@@ -76,6 +85,13 @@ extension GenerationStore {
     /// Starts the same work as `bootstrap` without waiting for it, for a button that only has
     /// to kick it off: the remedy after a failure, and the resume after a cancelled download.
     public func retry() {
+        // Never over a lost GPU. `startLoading` refuses it anyway through `acceptsWork`, but a
+        // retry is the one press people make twice in ten seconds and the reason it does
+        // nothing belongs in the log rather than in a silent early return two files away.
+        guard !deviceLost else {
+            logger.info("retry refused: the GPU is lost for this launch")
+            return
+        }
         startLoading(descriptor, asSwap: false)
     }
 }

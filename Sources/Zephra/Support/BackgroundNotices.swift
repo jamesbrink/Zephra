@@ -19,16 +19,19 @@ enum BackgroundNotices {
     /// Posts `notice` if the app is in the background and the preference allows it.
     static func post(_ notice: BackgroundNotice) {
         guard AppSettings.flag(AppSettings.backgroundNotifications), !NSApp.isActive else { return }
-        // The two strings are read here, where the notice is, rather than inside the delivery:
-        // what crosses into the notification centre's own types is plain text.
-        deliver(title: notice.title, body: notice.body)
+        // The strings are read here, where the notice is, rather than inside the delivery:
+        // what crosses into the notification centre's own types is plain text, the destination
+        // included, which is why `NoticeDestination` spells itself as one.
+        deliver(
+            title: notice.title, body: notice.body,
+            userInfo: notice.destination?.userInfo ?? [:])
     }
 
     /// Asks once, then hands the banner over. Both halves are the notification centre's own
     /// async calls, so each takes a freshly fetched centre and neither holds one across an
     /// await — the centre is not `Sendable`, and a captured one is a data race the compiler
     /// is right to refuse.
-    private static func deliver(title: String, body: String) {
+    private static func deliver(title: String, body: String, userInfo: [String: String]) {
         let ask = authorization ?? Task {
             _ = try? await UNUserNotificationCenter.current()
                 .requestAuthorization(options: [.alert, .sound])
@@ -40,6 +43,9 @@ enum BackgroundNotices {
             content.title = title
             content.body = body
             content.sound = .default
+            // What a click on the banner is about, for `AppLifecycle+Notifications` to read
+            // back. Empty for every notice that is about the window and nothing else.
+            content.userInfo = userInfo
             let request = UNNotificationRequest(
                 identifier: UUID().uuidString, content: content, trigger: nil)
             try? await UNUserNotificationCenter.current().add(request)

@@ -1,4 +1,5 @@
 import Foundation
+import ZephraCore
 import ZephraEngine
 
 /// Something worth a notification when it happens while Zephra is not the front app: a
@@ -12,12 +13,28 @@ import ZephraEngine
 enum BackgroundNotice: Equatable {
     /// A picture or a clip on the disk, named by the prompt that made it: the file name is a
     /// stamp and a seed, which says nothing to the person who walked away from the window.
-    case imageSaved(prompt: String, isClip: Bool)
+    ///
+    /// The file name is carried all the same, unsaid, because it is what a click on the banner
+    /// needs: this is the one notice that is about a thing rather than about the window, and
+    /// `NoticeDestination` is how it travels to the other side of the notification centre.
+    case imageSaved(prompt: String, isClip: Bool, fileName: String)
     case downloadFinished(model: String)
     case downloadFailed(model: String, reason: String)
     /// A newer Zephra has been published. Nothing has been fetched; the banner in the window
     /// is where it is installed from, and this is only what says the banner is there.
     case updateAvailable(version: String, build: String)
+
+    /// The notice a picture written to `url` is worth, given the session's own record of it.
+    ///
+    /// A pure function rather than three expressions at the call site, because the file name
+    /// it takes off the URL is the whole of what a click on the banner then finds again. An
+    /// image the session's history has already let go is named only as saved.
+    static func saved(at url: URL, image: GeneratedImage?) -> BackgroundNotice {
+        .imageSaved(
+            prompt: image?.settings.prompt ?? "",
+            isClip: image?.isVideo ?? false,
+            fileName: url.lastPathComponent)
+    }
 
     /// The notice a change from `old` to `new` is worth, or nil when it is worth none.
     static func transition(from old: EngineState, to new: EngineState, model: String) -> BackgroundNotice? {
@@ -34,7 +51,7 @@ enum BackgroundNotice: Equatable {
 
     var title: String {
         switch self {
-        case .imageSaved(_, let isClip): isClip ? "Clip Saved" : "Image Saved"
+        case .imageSaved(_, let isClip, _): isClip ? "Clip Saved" : "Image Saved"
         case .downloadFinished: "Download Finished"
         case .downloadFailed: "Download Failed"
         case .updateAvailable: "Update Available"
@@ -43,7 +60,7 @@ enum BackgroundNotice: Equatable {
 
     var body: String {
         switch self {
-        case .imageSaved(let prompt, _): Self.summary(of: prompt)
+        case .imageSaved(let prompt, _, _): Self.summary(of: prompt)
         case .downloadFinished(let model): "\(model) is ready to load."
         case .downloadFailed(let model, let reason): "\(model): \(reason)"
         case .updateAvailable(let version, let build):

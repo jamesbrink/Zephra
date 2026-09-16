@@ -291,10 +291,36 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
 ## About: left out on purpose
 
 - **A License Agreement button.** The About window has Acknowledgments and Website;
-  Xcode's has License Agreement beside them. Zephra's own terms are the copyright
-  line's "All rights reserved" for now, and no `LICENSE` file is bundled — the
-  repository's is for the source. When terms for the app are decided, they become a
-  bundled resource and a third button opening them the way Acknowledgments does.
+  Xcode's has License Agreement beside them. Zephra's own terms are the MIT License
+  now, stated in the copyright line and in the repository's `LICENSE`, but that file
+  is not a bundled resource, so there is nothing for a third button to open. Making
+  it one, and adding the button beside Acknowledgments, is the whole of the work.
+
+## The MIT release: left out on purpose
+
+The repository's `LICENSE` is the MIT License as of this change, and it is the
+grant for Zephra's own code. Two things it was deliberately not stretched over:
+
+- **The website's footer still reads "All rights reserved".**
+  `product-mockups/app/page.tsx` and `product-mockups/public/index.md` carry
+  `© 2026 James Brink. All rights reserved.`, which is the marketing site's own
+  copy rather than a statement about the source. It is left standing because the
+  site's prose, screenshots and branding are not what the MIT grant was asked
+  for, and because that file's own source now sits under a repository licensed
+  MIT, the two read oddly side by side. Deciding which of the site is the grant's
+  and rewording the footer to match is the work; nothing here guesses at it.
+- **The branding artwork.** `design/branding/zephyr/` holds the approved copper-Z
+  masters every icon is cut from, and a name and a mark are trademark rather than
+  copyright questions. The MIT text says nothing about either way, so the artwork
+  is neither carved out nor granted; a `NOTICE`-style line saying which is the
+  same decision as the footer's and belongs with it.
+
+Neither is a provenance problem. Nothing in the repository derives from a GPL or
+unlicensed source (`PROVENANCE.md`, `Packages/ZImageKit/VENDORED.md`), so MIT sits
+under every dependency it has to. What the grant does not reach is third-party:
+the bundled Real-ESRGAN checkpoint, whose BSD-3-Clause status is inherited rather
+than granted (`Packages/ZephraUpscaleRealESRGAN/PROVENANCE.md`), the fixtures
+dumped from `diffusers` and `transformers`, and every weight the app downloads.
 
 ## One window: left out on purpose
 
@@ -537,6 +563,51 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   buffer headless GPUs have none of; or a fault injected at the runtime seam
   (`InferenceRuntime.catchingDeviceErrors`'s own call site) rather than through
   the GPU itself.
+- **Whether a fresh command queue un-poisons a lost device.** The one cheap
+  experiment the 2026-09-15 research left standing. A code 4
+  (`SubmissionsIgnored`) is treated as terminal for the process because that is
+  what every published account says, but nobody has shown whether the refusal is
+  the process's *device client* or only its `MTLCommandQueue`. MLX keeps one
+  queue per stream (`CommandEncoder`, `backend/metal/device.cpp:309-324`) and a
+  new stream makes a new queue, which Swift can reach: `Stream(Device.gpu)`
+  (`Source/MLX/Stream.swift:144-150`). Running one trivial op on a fresh stream
+  after a real code 4 would settle it — if it succeeds, Zephra could recover
+  in-process instead of relaunching. Two cautions: `~CommandEncoder` calls
+  `synchronize()` before releasing its queue, which is one more submission into
+  the refusing channel, and a real code 4 has only ever been reproduced by
+  accident (see the entry above). Until somebody measures it, the latch and the
+  relaunch are the whole answer.
+- **`MLX_MAX_OPS_PER_BUFFER` / `MLX_MAX_MB_PER_BUFFER` against Screen Sharing
+  resets.** Untested mitigation, not a fix. MLX bounds command-buffer length per
+  architecture (40 ops / 40 MB on a base or pro part, `mlx/utils.h:182-192`
+  reading both variables at launch); lowering them makes each buffer shorter,
+  which is the only documented knob that plausibly narrows the watchdog window a
+  twenty-second streamed step leaves open while WindowServer and `avconferenced`
+  composite and encode every frame of a screen-sharing session. It would cost
+  throughput, and whether it changes the reset rate is unmeasured. Apple
+  documents no compute-side mitigation at all; queue priority, residency sets
+  and the wired limit have no documented effect on resets either way.
+- **`MLXInferenceRuntime.failure`'s latch-to-`.deviceLost` mapping is untested.**
+  The one seam of the device-loss change with no test behind it. The instance
+  `DeviceFaultLatch` is pure and pinned (`DeviceFaultLatchTests`), and the
+  classification is pinned against the verbatim messages
+  (`DeviceFaultKindTests`), but the line that turns a closed latch into
+  `BackendError.deviceLost` rather than `.deviceFailed` reads
+  `DeviceFaultSink.faults`, which is process-wide: a test that closed it would
+  leave every later test in the process running on a Mac that believes its GPU
+  is gone, and there is no way to reopen it (that being the whole point of a
+  latch). Injecting the latch into `MLXInferenceRuntime` would make it testable
+  and would also give MLX's one process-wide handler slot a second owner, which
+  is why it was not done. Worth revisiting only if that seam grows.
+- **What a device-loss relaunch does not carry back.** The prompt survives
+  (`lastPrompt` is persisted) and so does the chosen model, the images folder and
+  every finished picture, since the library is the folder. What does not: the
+  queue (`GenerationStore.queue` is memory only), the reference picture in the
+  well, the session's `history` filmstrip, and a chained clip's passes so far
+  (`chains`, whose PNG frames are dropped with the queue). Persisting the queue
+  and the well across a relaunch is worth doing the day something else wants
+  them persisted too — a crash, a Quit mid-batch — and is not worth its own
+  mechanism for a fault that should be rare.
 
 ## Upscaler follow-ups
 

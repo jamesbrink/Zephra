@@ -75,13 +75,14 @@ struct CanvasStateView: View {
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
         }
+        // No Try Again over a GPU this launch has lost, and no "Choose a Model…" under it
+        // either: another model would only be read in over the same dead device.
+        if store.state == .failed(.deviceLost) { RelaunchZephraButton() }
         if let label = startLabel {
             Button(label) { start() }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
                 .padding(.top, 4)
-        }
-        if startLabel != nil {
             // The way to every other model, from the one screen a person with nothing loaded
             // actually lands on. The browser rather than the first-launch chooser: that screen
             // takes the whole window and writes the answer to a question already answered, and
@@ -108,6 +109,7 @@ struct CanvasStateView: View {
     /// load with nothing in. Absent whenever there is nothing to start.
     private var startLabel: String? {
         switch store.state {
+        case .failed(.deviceLost): nil
         case .failed: "Try Again"
         case .idle: store.isSwappingModel ? nil : "Load Model"
         default: nil

@@ -13,6 +13,12 @@ public enum EngineError: Error, Hashable, Sendable {
     /// `BackendError.deviceFailed` — a lost picture, rather than this, which is two figures
     /// and a remedy before anything was started.
     case insufficientMemory(MemoryShortfall)
+    /// The GPU has stopped running this process's work altogether, and only a relaunch gets it
+    /// back. Its own case rather than a `BackendError` carrying text, because everything that
+    /// reads a failure has to be able to ask this one question — the canvas offers Relaunch
+    /// Zephra instead of Try Again, admission closes, and shutdown gives the weights back to
+    /// nobody rather than committing one more command buffer into a channel that refuses them.
+    case deviceLost
 
     /// What went wrong and, where possible, what to do about it.
     public var message: String {
@@ -23,6 +29,8 @@ public enum EngineError: Error, Hashable, Sendable {
             return "No engine is available for \(id.rawValue). Choose a different model."
         case .insufficientMemory(let shortfall):
             return shortfall.sentence
+        case .deviceLost:
+            return BackendError.deviceLostSentence
         }
     }
 }

@@ -315,6 +315,139 @@ the weights themselves are fine — and unloading would turn a several-second
 retry into the multi-minute reload every streamed family pays for a cold
 start.
 
+### A GPU the driver has stopped running costs the launch
+
+The story continues. On 2026-09-15 bender was screen-shared again, and the
+driver reset the GPU twice in ten seconds blaming WindowServer both times;
+Zephra's run failed as an innocent victim, correctly, and Try Again was the
+right remedy. Then the process's Metal client went into the penalty box. From
+17:43:46 every submission came back
+`Ignored (for causing prior/excessive GPU errors)
+(00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)` in 0.1 to 0.35
+seconds — every Try Again, an unload followed by a reload, and a switch to
+`flux2-klein-4b-4bit` — for four minutes, while the canvas went on saying "Try
+again." Quitting the app was the only thing that fixed it.
+
+The research behind the fix (2026-09-15, in the session's scratchpad) found no
+published account of any process recovering in-process from a code 4: an MLX
+service that measured it deliberately found model eviction, cache release and
+generator reset all reporting success and all failing identically, with the
+respawn the only thing that worked; ollama's runner stayed wedged for six
+hours over 64 requests; Apple's own wording for the Metal-level analogue
+(`MTLCommandBufferErrorAccessRevoked`) is "access to this device has been
+revoked because this client has been responsible for too many timeouts or
+hangs". MLX cannot help either: its `MTLDevice` is a deliberately leaked
+process-wide singleton (`backend/metal/device.cpp`) with no reset, reinit or
+recreate anywhere in its public surface, and what *is* reachable from Swift —
+a fresh `Stream(Device.gpu)`, hence a fresh `MTLCommandQueue` — has never been
+tested against a real code 4 (`ROADMAP.md` keeps that experiment).
+
+So a code 4 is treated as a terminal, process-scoped verdict:
+
+- **Reading it.** `DeviceFaultKind` (`ZephraMLX`) parses only messages
+  beginning `[METAL] Command buffer execution failed:` — MLX's own format
+  string, over the `NSError`'s `localizedDescription`, which IOGPU composes as
+  `%s (%08x:%s)`. The five names are matched case-insensitively and
+  corroborated by the hex code; anything else is `.other`, and a message that
+  is not a command-buffer failure at all (a shape error, `[metal::malloc]`) is
+  nil. `NSError.code` is never read: MLX drops the error inside the completion
+  handler, and Metal's enum is not IOGPU's anyway (IOGPU `PageFault` is 11,
+  `MTLCommandBufferErrorPageFault` is 3).
+- **Latching it.** `DeviceFaultLatch`, held as `DeviceFaultSink.faults`, is
+  written by the installed handler whether or not a boundary is open — bender's
+  first code 4 landed in `releaseCache` during an unload, which no run owns. It
+  also keeps the *first* fault of the process, which is what the one log line
+  at error names beside the refusal: an ignored submission is never the first
+  error, and a line carrying only the refusal sends diagnosis to whatever the
+  Mac was doing at the time. The boundary then throws
+  `BackendError.deviceLost` rather than `.deviceFailed`, and
+  `InferenceRuntime.isDeviceLost` (default false, `CombinedInferenceRuntime`
+  answering for any of its runtimes) is how the engine can ask.
+- **Submitting nothing more, the undoing included.**
+  `GenerationStore+DeviceLoss` sets `deviceLost`, which closes `acceptsWork`
+  and with it `canLoad`, `canUnload`, `canUpscale`, `canQueue`,
+  `acceptsQueuedGeneration` and the idle clock; `transition(to:)` reads the
+  runtime's latch on every state change and answers `.failed(.deviceLost)`
+  whatever it was handed, so such a Mac has one state; `closeForDeviceLoss`
+  cancels `generationTask`, `upscaleTask` and `bootstrapTask` the way
+  `shutdown()` does, since a loss noticed out of band otherwise leaves a run or
+  a load submitting for the rest of its steps behind an interface that already
+  says the run is gone; `retry()` refuses and logs; and `ZephraApp`'s shutdown
+  skips the Metal synchronize. That last part is the counter-intuitive one and
+  it is deliberate: dropping the weights, releasing the allocator's cache and
+  synchronizing each commit one more command buffer into a channel the driver
+  is refusing, and none of them recovers anything.
+- **The undoing is refused by the primitive, not by its callers.**
+  `releaseModel()` returns at once while `deviceLost` holds. It has five doors
+  — `stopPreparation`, `unloadModel`, `changeModelDirectory`, `reload` and
+  `shutdown` — and every one of them is reachable in the window a loss opens,
+  because the loss happens *during* the load or run that door's own task is
+  waiting on, after its `acceptsWork` check has already passed. One guard in
+  the primitive is the whole of that rule; `shutdown()` keeps its own so a quit
+  does not await a call whose entire body is a guard. Two more sit where the
+  undoing would otherwise beat the classification: `InferenceActor.prepare`'s
+  catch skips its own `unload()` when the runtime's latch has closed, and the
+  store's load catch calls `noteIfDeviceLost(error)` *before* it undoes
+  anything — a load is the likeliest thing to be what discovered the loss, and
+  that catch used to be the one path guaranteed to submit three more buffers.
+  `unloadModel` re-reads the flag after its `transition` (which is where the
+  latch is polled) and drops `isSwappingModel` rather than starting a task that
+  would do nothing, and `isIdleCandidate` asks the runtime directly, for a
+  clock already past its wait with nothing yet transitioned.
+- **Saying it once.** `BackendError.deviceLostSentence` — "Zephra has lost the
+  GPU and has to relaunch to get it back." — is the canvas headline
+  (`EngineError.deviceLost`), the phone's refusal (`remoteAdmission` answers
+  `.refused` with it before any other question, and
+  `CompanionSession+Commands` refuses all six commands `needsTheGPU` names —
+  `enqueue`, `loadModel`, `unloadModel`, `switchModel`, `upscale` and `animate`
+  — at the top of `perform`, before the switch and before `remoteAdmission`
+  answers the `enqueue` in the same words), and the
+  failure message that crosses in `EngineStateDTO` with no protocol change.
+  Library browsing over the link keeps working: a folder is a folder. In the
+  toolbar it is `ModelLoadStatus.lost`: the menu's label reads "GPU lost"
+  rather than "Failed" and the pill reads **Relaunch**, greyed, because the one
+  control that is always visible must not name a remedy that no longer exists,
+  and the press belongs beside the sentence that explains it — the rule a
+  load's Stop already follows.
+- **Relaunching.** `CanvasStateView` draws **Relaunch Zephra** in Try Again's
+  place and drops "Choose a Model…", since another model would be read in over
+  the same dead device; it presses `Relaunch.thisApp()`, which is the updater's
+  script and run-loop `NSApp.terminate` and not a second quit path. The app
+  also does it on its own five seconds later, because most Macs this happens to
+  have nobody in front of them — one serving a phone, one being screen-shared.
+  `DeviceLossRelaunch` (`Support/`, pure) holds the guard: one automatic
+  relaunch in ten minutes, stamped in `AppSettings.lastDeviceLossRelaunch`, so
+  a Mac whose GPU is genuinely broken gets the button rather than a loop. It is
+  **one relaunch per launch** whichever door asks: the button is on screen for
+  the whole of that five-second wait, the quit behind either takes seconds with
+  a phone paired, and two watcher scripts polling one process id open two
+  copies within 200 ms of each other — where `SingleInstance.yieldToRunningCopy`
+  can have each stand down for the other and leave the Mac with no Zephra at
+  all, the one outcome the feature exists to prevent. `Relaunch.afterExit`
+  claims `RelaunchOnce` before it spawns anything, which also covers a double
+  press of the updater's Update Now; `RelaunchOnce` is a value rather than a
+  flag so the rule is a test rather than something only a terminating process
+  could prove. `Relaunch.thisApp()` additionally refuses a
+  `ZEPHRA_FRESH_START` session and logs why: `open -n` carries no environment,
+  so the copy that came back would be an ordinary Zephra over the person's real
+  library and real models, which is the one thing a fresh start promises not to
+  touch. What survives is the prompt (`lastPrompt` is persisted); the queue, the
+  reference well and the session's history do not, which is in `ROADMAP.md`.
+
+A **victim** (code 5) keeps every word of the section above this one: one lost
+run, weights up, Try Again. The distinction is the whole point of the parser.
+`DeviceFaultKindTests` and `DeviceFaultLatchTests` (`ZephraMLXTests`),
+`DeviceLossTests` and `CompanionDeviceLossTests` (`ZephraEngineTests`) and
+`DeviceLossRelaunchTests` with `RelaunchOnceTests` (`ZephraTests`) pin it.
+`DeviceLossTests` drives all four shapes: the thrown `.deviceLost`, the latch
+closing with nothing running (the `MockBackendControl.deviceLost` dial, which
+is how bender's own loss arrived), a run and a load already in flight, and a
+load that discovers the loss and undoes nothing. And the thing worth remembering before blaming Zephra
+for a reset: on bender the guilty process was WindowServer or `avconferenced`
+in every reset recorded, and Screen Sharing is what has both of them
+compositing and encoding while a streamed step holds the GPU for twenty
+seconds at a stretch.
+
 ### Memory, checked twice
 
 `MemoryFit` answers a catalog question — could this Mac ever hold that model — and

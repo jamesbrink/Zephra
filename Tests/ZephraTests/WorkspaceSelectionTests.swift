@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import ZephraCore
 import ZephraEngine
 
 @testable import Zephra
@@ -99,6 +100,114 @@ final class WorkspaceSelectionTests {
         let prompt = workspace.promptFocusToken
         workspace.focusPrompt()
         #expect(workspace.promptFocusToken == prompt + 1)
+    }
+
+    @Test("revealing a picture brings the library up, closes the viewer and selects it")
+    func revealingBringsTheLibraryUp() {
+        let workspace = WorkspaceSelection(pane: .canvas)
+        workspace.viewing = "something-else.png"
+        let item = Self.item(named: "a-picture.png")
+        workspace.reveal(item)
+        #expect(workspace.pane == .library)
+        #expect(workspace.viewing == nil)
+        #expect(workspace.revealing == item.id)
+    }
+
+    @Test("the viewer goes down even when the library was already the pane up")
+    func revealingClosesTheViewerWithoutMovingPane() {
+        let workspace = WorkspaceSelection(pane: .library)
+        workspace.viewing = "something-else.png"
+        workspace.reveal(Self.item(named: "a-picture.png"))
+        #expect(workspace.pane == .library)
+        #expect(workspace.viewing == nil)
+    }
+
+    @Test("a query that would not list the picture is widened; the sort is kept")
+    func revealingWidensAQueryThatHidesThePicture() {
+        let workspace = WorkspaceSelection(
+            pane: .canvas,
+            query: LibraryQuery(scope: .favourites, text: "fog", tag: "night", sort: .oldestFirst))
+        workspace.reveal(Self.item(named: "a-picture.png"))
+        #expect(workspace.query.scope == .all)
+        #expect(workspace.query.text.isEmpty)
+        #expect(workspace.query.tag == nil)
+        #expect(workspace.query.modelID == nil)
+        #expect(workspace.query.sort == .oldestFirst, "the sort hides nothing, so it stays")
+    }
+
+    @Test("a query that already lists the picture is left exactly as it was")
+    func revealingLeavesAQueryThatShowsThePictureAlone() {
+        let query = LibraryQuery(scope: .all, sort: .oldestFirst)
+        let workspace = WorkspaceSelection(pane: .canvas, query: query)
+        workspace.reveal(Self.item(named: "a-picture.png"))
+        #expect(workspace.query == query)
+    }
+
+    @Test("asking for the same picture twice hands out two tokens, so the second ask is heard")
+    func revealTokensAdvanceOnEveryAsk() {
+        let workspace = WorkspaceSelection(pane: .library)
+        let item = Self.item(named: "a-picture.png")
+        let before = workspace.revealToken
+        workspace.reveal(item)
+        workspace.reveal(item)
+        #expect(workspace.revealToken == before + 2)
+        #expect(workspace.revealing == item.id)
+    }
+
+    @Test("an ask that has been answered is not answered again by the next pane built")
+    func aConsumedRevealIsNotReapplied() {
+        let workspace = WorkspaceSelection(pane: .canvas)
+        let item = Self.item(named: "a-picture.png")
+        workspace.reveal(item)
+        #expect(workspace.unansweredReveal == item.id)
+        workspace.markRevealConsumed(workspace.revealToken)
+        // The value stays readable — a pane built after the ask is the ordinary case — but
+        // every later mount of the library finds nothing left to do.
+        #expect(workspace.revealing == item.id)
+        #expect(workspace.unansweredReveal == nil)
+    }
+
+    @Test("asking for the same picture again after it was shown is heard afresh")
+    func aSecondRevealOfTheSamePictureIsHeard() {
+        let workspace = WorkspaceSelection(pane: .library)
+        let item = Self.item(named: "a-picture.png")
+        workspace.reveal(item)
+        workspace.markRevealConsumed(workspace.revealToken)
+        workspace.reveal(item)
+        #expect(workspace.unansweredReveal == item.id)
+    }
+
+    @Test("answering a stale token leaves a newer ask standing")
+    func consumingAnOldTokenDoesNotSwallowTheNextAsk() {
+        let workspace = WorkspaceSelection(pane: .library)
+        let first = Self.item(named: "a-picture.png")
+        workspace.reveal(first)
+        let stale = workspace.revealToken
+        let second = Self.item(named: "another-picture.png")
+        workspace.reveal(second)
+        workspace.markRevealConsumed(stale)
+        #expect(workspace.unansweredReveal == second.id)
+    }
+
+    /// One generated picture in the library, which is all `reveal` reads: its identity and
+    /// whether the query in force would list it.
+    private static func item(named fileName: String) -> LibraryItem {
+        let image = GeneratedImage(
+            pngData: Data(),
+            settings: GenerationSettings(
+                prompt: "a harbour in the rain",
+                size: ImageSize(width: 1024, height: 1024),
+                steps: 8,
+                guidance: 0,
+                seed: 42),
+            modelID: "z-image-turbo-8bit",
+            duration: .seconds(3))
+        return LibraryItem(
+            url: URL(filePath: "/Zephra Tests/\(fileName)"),
+            collection: .generated,
+            provenance: .generated(GenerationRecord(image)),
+            fileSize: 1_800_000,
+            contentModifiedAt: Date())
     }
 
     @Test("the model browser is a dialog somebody opened, and is never persisted")

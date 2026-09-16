@@ -16,6 +16,10 @@ private let recordOrLog:
     @convention(c) @Sendable (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void = {
         message, _ in
         let text = message.map { String(cString: $0) } ?? "no message"
+        // The latch first, and whether or not a boundary is open: an ignored submission ends
+        // this process's use of the GPU wherever it lands, and the boundary below reads the
+        // latch to decide which failure it throws.
+        if DeviceFaultSink.faults.record(text) { logDeviceLoss(text) }
         switch DeviceFaultSink.record(text) {
         case .recorded:
             deviceErrorLog.error("MLX device error: \(text, privacy: .public)")
@@ -41,6 +45,23 @@ private let recordOrLog:
             deviceErrorLog.error("MLX error outside any run: \(text, privacy: .public)")
         }
     }
+
+/// The one line that says the launch is over as far as the GPU is concerned, written the
+/// moment the latch closes and never again.
+///
+/// It names the *first* fault of the process beside this one, because an ignored submission is
+/// never the first error: the driver refuses a client it already blamed for something, and a
+/// line carrying only the refusal sends the reading to whatever the Mac was doing at the time
+/// rather than to the hang, the timeout or the reset that caused it.
+private func logDeviceLoss(_ text: String) {
+    let first = DeviceFaultSink.faults.firstKind?.logName ?? "nothing recorded"
+    deviceErrorLog.error(
+        """
+        MLX device lost: \(text, privacy: .public) \
+        — the first fault of this process was \(first, privacy: .public); \
+        the GPU comes back only when Zephra is relaunched
+        """)
+}
 
 /// Installed exactly once, whoever asks first: a global `let` is initialised under the
 /// runtime's own once, so `installErrorLogging` may be called from the composition root and

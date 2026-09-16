@@ -15,7 +15,39 @@ final class AppLifecycle: NSObject, NSApplicationDelegate {
     /// Whether an update is being swapped into place. Injected from `ZephraApp` rather than
     /// read from a type here, so this file names no updater.
     var isInstalling: (@MainActor () -> Bool)?
+    /// What a clicked notification that named somewhere is worth doing about it, once the app
+    /// is forward and the window is up. Injected from the composition root the way
+    /// `isInstalling` is, so this file names neither the library nor the workspace: all it
+    /// knows is that a notice carried a destination.
+    ///
+    /// Setting it delivers whatever arrived before it was there, because the case the whole
+    /// destination is for — a banner left in Notification Center overnight and clicked with
+    /// Zephra not running — arrives in the other order: the delegate is set in
+    /// `applicationDidFinishLaunching` and the system calls back at once, while this closure is
+    /// assigned from the root view's `.task`, which has not run yet.
+    var onNoticeOpened: (@MainActor (NoticeDestination) -> Void)? {
+        didSet {
+            guard let onNoticeOpened, let pending = pendingNotice else { return }
+            pendingNotice = nil
+            onNoticeOpened(pending)
+        }
+    }
+
+    /// Where a click that landed before anything could answer it was going. One at most: two
+    /// notifications cannot be clicked before the first frame, and the newer ask is the one a
+    /// person would mean anyway.
+    private var pendingNotice: NoticeDestination?
     private var stopping = false
+
+    /// Hands a clicked notification's destination to whoever answers them, or holds it until
+    /// somebody does.
+    func deliver(_ destination: NoticeDestination) {
+        guard let onNoticeOpened else {
+            pendingNotice = destination
+            return
+        }
+        onNoticeOpened(destination)
+    }
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         SingleInstance.yieldToRunningCopy()

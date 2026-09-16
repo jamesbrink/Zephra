@@ -37,6 +37,10 @@ enum AppSettings {
     /// Whether Zephra looks for a newer published build on its own. The look is one small
     /// request; nothing is fetched, and nothing is installed, without a press.
     static let checksForUpdates = "checksForUpdates"
+    /// When Zephra last relaunched itself because the GPU had stopped answering, as seconds
+    /// since 1970. Unset until it has happened once; `DeviceLossRelaunch` is what reads it, so
+    /// a Mac whose GPU is genuinely broken cannot be put in a relaunch loop.
+    static let lastDeviceLossRelaunch = "lastDeviceLossRelaunch"
     /// The `ModelDescriptor.id` chosen in the model menu, restored on the next launch.
     static let selectedModelID = "selectedModelID"
     /// Whether the first-launch chooser has been answered, either by picking a model or by
@@ -184,6 +188,19 @@ enum AppSettings {
             .filter { seen.insert($0.standardizedFileURL.path).inserted }
             .prefix(5)
         return ModelLocations(root: root, previous: Array(previous))
+    }
+
+    /// When this Mac last relaunched itself over a lost GPU, or nil while it never has.
+    static func deviceLossRelaunchStamp() -> Date? {
+        guard let seconds = store.object(forKey: lastDeviceLossRelaunch) as? Double else {
+            return nil
+        }
+        return Date(timeIntervalSince1970: seconds)
+    }
+
+    /// Records one, so the next loss inside the guard window offers the button instead.
+    static func recordDeviceLossRelaunch(_ date: Date) {
+        write(date.timeIntervalSince1970, to: lastDeviceLossRelaunch)
     }
 
     /// A stored flag as it stands right now, for the code that has to read one outside a view

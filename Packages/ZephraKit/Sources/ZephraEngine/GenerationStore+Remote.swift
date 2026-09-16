@@ -25,7 +25,8 @@ extension GenerationStore {
     /// stamped by `EngineStateProjection`, so a phone's Generate button and this gate are one
     /// answer rather than two that can disagree.
     public var acceptsQueuedGeneration: Bool {
-        state.acceptsGeneration || isDraining || canLoad(descriptor)
+        guard !deviceLost else { return false }
+        return state.acceptsGeneration || isDraining || canLoad(descriptor)
     }
 
     /// Whether a request from a paired device would be queued right now, and if not, why.
@@ -42,9 +43,12 @@ extension GenerationStore {
         settings: GenerationSettings? = nil,
         count: Int = 1
     ) -> RemoteAdmission {
-        // A bad request is the caller's to fix whatever the Mac is doing, so it is answered
-        // first: telling a phone to wait for a load that will never make its empty prompt
-        // runnable helps nobody.
+        // Before everything, the request itself included: no wait and no correction makes a
+        // request runnable on a Mac whose GPU has stopped answering it, and what the phone puts
+        // under its Generate button is the Mac's own sentence, which says the remedy.
+        if deviceLost { return .refused(BackendError.deviceLostSentence) }
+        // Then the request, which is the caller's to fix whatever the Mac is doing: telling a
+        // phone to wait for a load that will never make its empty prompt runnable helps nobody.
         if let request = badRequest(model, settings, count) { return .badRequest(request) }
         if let busy = busyReason { return .busy(busy) }
         // Not `acceptsQueuedGeneration`, which is asked about the chosen model: a phone may
@@ -134,6 +138,10 @@ extension GenerationStore {
     /// deletion may not be, and quitting is the end of it.
     private var busyReason: String? {
         guard !acceptsWork else { return nil }
+        // `remoteAdmission` answers a lost GPU before it asks this, and this is the other
+        // reader of `acceptsWork`: without it a Mac whose GPU has gone would tell a phone it
+        // was deleting model storage.
+        if deviceLost { return BackendError.deviceLostSentence }
         if isShuttingDown { return "Zephra is quitting." }
         if isChangingModelDirectory { return "Zephra is changing its models folder." }
         if isChangingImageDirectory { return "Zephra is changing its images folder." }

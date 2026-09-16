@@ -3,14 +3,20 @@ import ZephraCore
 /// Whether anything new may begin at all.
 extension GenerationStore {
     /// True when the store may take on new work: no folder is being changed, no model storage
-    /// is being deleted, and the app is not quitting. The one answer every entry point reads;
-    /// a caller adds only the conditions that are its own — a prompt, an idle engine, a queue.
+    /// is being deleted, the GPU is still answering, and the app is not quitting. The one
+    /// answer every entry point reads; a caller adds only the conditions that are its own —
+    /// a prompt, an idle engine, a queue.
+    ///
+    /// `deviceLost` is here rather than at each door because every door leads to the same
+    /// place: a command buffer the driver has already said it will not run. Closing admission
+    /// in one line is what greys Generate, Load, Unload and Upscale together and refuses a
+    /// paired phone in the same sentence (`GenerationStore+DeviceLoss`).
     ///
     /// `canStopDownload` deliberately reads a narrower set: pausing a download is allowed
     /// during an image-folder change and during a deletion, since neither touches the transfer.
     public var acceptsWork: Bool {
         !isChangingModelDirectory && !isChangingImageDirectory && !isShuttingDown
-            && !deletionInProgress
+            && !deletionInProgress && !deviceLost
     }
 
     /// Whether this Mac may choose `model` at all: whether it can hold it some way, held

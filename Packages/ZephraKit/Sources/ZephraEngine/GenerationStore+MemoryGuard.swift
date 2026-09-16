@@ -45,6 +45,10 @@ extension GenerationStore {
         if answer.shortfall == nil, answer.residency != weightResidencyPolicy.residency(for: model) {
             logStepDown(model, tile: tile, machine: machine, snapshot: snapshot)
         }
+        // What the load will do with this answer is said by the load itself, in
+        // `+Preparation.load`: this is also asked by `residencyToStepDownTo(_:)`, which loads
+        // nothing, and a Try Again over a resident model writing "will be resident" would be a
+        // line about a load that never happened.
         log("load of \(model.id)", machine: machine, snapshot: snapshot, shortfall: answer.shortfall)
         return answer
     }

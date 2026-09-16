@@ -107,10 +107,10 @@ shows the port being built component by component, each one landing with its
 
 `Packages/Flux2Kit` is a translation, not a clean-room port. Two MIT-licensed
 Swift implementations of FLUX.2 klein exist, and MIT permits translating them
-into proprietary software with attribution, so there was no reason to pretend
-otherwise. Both are credited in `THIRD_PARTY_NOTICES.md`. **No GPL-licensed
-source was consulted**, and one unlicensed package was deliberately not
-opened.
+with attribution, whatever the result is licensed under, so there was no reason
+to pretend otherwise. Both are credited in `THIRD_PARTY_NOTICES.md`. **No
+GPL-licensed source was consulted**, and one unlicensed package was
+deliberately not opened.
 
 ## What was used
 

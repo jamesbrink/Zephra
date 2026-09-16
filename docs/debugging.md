@@ -328,3 +328,35 @@ the same override the store runs under without a second read of the process envi
   under `/Library/Logs/DiagnosticReports/gpuEvent-*.ips` say which process the firmware
   blamed — the one place that still names the fault when it was a full-process abort and the
   one place that names it when it was another app's frame Zephra was the innocent victim of.
+
+  **Telling a lost run from a lost launch.** The `make logs` line carries IOGPU's own enum
+  name, and only one of them is terminal. `…(00000005:kIOGPUCommandBufferCallbackErrorInnocentVictim)`
+  is this process paying for somebody else's reset: one run, Try Again works, nothing else
+  changes. `…(00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)` is the driver
+  refusing this process's command buffers for the rest of its life, and Zephra now says so
+  in three lines rather than offering Try Again over a device that cannot answer:
+
+  ```
+  [runtime] MLX device lost: [METAL] Command buffer execution failed: Ignored (for causing
+            prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored).
+            — the first fault of this process was an innocent victim; the GPU comes back only
+            when Zephra is relaunched
+  [engine]  the GPU is lost for this launch: … — no more work is submitted and Zephra
+            relaunches to get it back
+  [engine]  the GPU is lost; relaunching Zephra in 5 seconds
+  ```
+
+  The **first fault** in that first line is the one to diagnose: a code 4 is never the first
+  error, so what to look for in `gpuEvent-*.ips` is the hang, the timeout or the address
+  fault that came before it, and which process the firmware blamed for *that*. The third line
+  reads "…relaunched itself recently; offering the button only" when an automatic relaunch
+  already happened inside ten minutes (`DeviceLossRelaunch`, stamped in
+  `lastDeviceLossRelaunch`), which is how a Mac whose GPU is genuinely broken stops short of
+  a loop. Past the loss nothing else is submitted at all — no unload, no cache release, no
+  synchronize on the way out — so the log goes quiet; that is the fix working, not a hang.
+
+  Beside it, every load now logs how the weights are held — "weights of <model> will be
+  resident" or "… streamed" — whether or not the guard stepped the policy's answer down. Before
+  2026-09-15 only a step-down said anything, so a first load whose policy and machine agreed
+  logged its admission line and nothing else, and read exactly like a load that had skipped
+  the residency check.

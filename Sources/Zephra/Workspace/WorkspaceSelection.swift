@@ -84,6 +84,34 @@ final class WorkspaceSelection {
     /// pane's own state so the menu bar's "Back to Grid" and `InterfacePreview` can reach it.
     var viewing: LibraryItem.ID?
 
+    /// The library picture something outside the window has asked to be shown: a click on the
+    /// "Image Saved" notification, and nothing else so far. The pane selects it and the grid
+    /// scrolls to it; it is not cleared when they do, so a pane mounted after the ask — which
+    /// is the ordinary case, since the notice arrives while the canvas is up — finds it there.
+    /// Read through `unansweredReveal`, never directly.
+    private(set) var revealing: LibraryItem.ID?
+
+    /// Bumped by every `reveal`, so asking for the same picture twice is heard the second
+    /// time; the twin of the two focus tokens below, and for the same reason.
+    private(set) var revealToken = 0
+
+    /// The token whose ask has been answered — the pane has selected the picture and the grid
+    /// has scrolled to it — so nothing acts on it twice.
+    ///
+    /// The pane is torn down and rebuilt every time the window moves between panes, and both
+    /// readers watch with `initial: true`, so without this a single notification click made
+    /// every later visit to the Library select that picture again and scroll back to it, for
+    /// the rest of the session. Consuming the token rather than clearing `revealing` is what
+    /// keeps the ordinary case working: the ask arrives before the pane that answers it exists,
+    /// so the value has to stay readable and only the fact that it was acted on goes away.
+    private(set) var revealConsumed = 0
+
+    /// The picture asked for and not yet shown, which is what both readers act on: nil once the
+    /// ask has been answered, and the picture again the moment somebody asks for it afresh.
+    var unansweredReveal: LibraryItem.ID? {
+        revealToken == revealConsumed ? nil : revealing
+    }
+
     /// Bumped whenever something asks for the search field. The field watches it and takes
     /// focus; a token rather than a flag, so asking twice in a row works the second time.
     private(set) var searchFocusToken = 0
@@ -170,5 +198,37 @@ final class WorkspaceSelection {
     func show(tag: String) {
         query.tag = tag
         pane = .library
+    }
+
+    /// Shows one picture in the library grid, selected and scrolled to: the whole of what a
+    /// click on its notification means.
+    ///
+    /// It takes the item rather than a file name because the one hard part is the query. A
+    /// person who walked away with the Favorites scope up, or with something typed in the
+    /// search field, comes back to a grid that does not list the picture they just clicked
+    /// on, and a selection nothing shows is a click that did nothing. So a query that would
+    /// not list this picture is widened to one that does — the scope back to everything and
+    /// the filters off, the sort left alone, since the sort hides nothing. `LibraryQuery`
+    /// already answers "would this list it", so that judgement is not made twice.
+    ///
+    /// The viewer goes down explicitly: `pane`'s own observer does it, but only when the pane
+    /// actually moves, and the notice may well arrive with the library already up.
+    func reveal(_ item: LibraryItem) {
+        if !query.matches(item) { query = LibraryQuery(sort: query.sort) }
+        pane = .library
+        viewing = nil
+        // Whatever search the widening just emptied is not a search anybody is coming back
+        // from, so nothing should bounce them out of the library when the field next clears.
+        paneBeforeSearch = nil
+        revealing = item.id
+        revealToken += 1
+    }
+
+    /// Records that the ask this token named has been answered, so no later pane answers it
+    /// again. A token that is no longer the newest is ignored: a second ask arriving between
+    /// the answer and this call is one nobody has shown yet.
+    func markRevealConsumed(_ token: Int) {
+        guard token == revealToken else { return }
+        revealConsumed = token
     }
 }
