@@ -11,6 +11,12 @@ extension Relaunch {
     /// The script is never waited on and its output goes nowhere. It outlives this process on
     /// purpose, which is the whole point of it, and it is the shell's child rather than a
     /// process this one has to reap.
+    /// Relaunches the copy that is running, which is what a lost GPU asks for: the same script
+    /// and the same run-loop quit the updater uses, over this bundle rather than a new one.
+    @MainActor static func thisApp() {
+        afterExit(of: ProcessInfo.processInfo.processIdentifier, open: Bundle.main.bundleURL)
+    }
+
     @MainActor static func afterExit(of pid: pid_t, open bundle: URL) {
         let process = Process()
         process.executableURL = URL(filePath: "/bin/sh")
