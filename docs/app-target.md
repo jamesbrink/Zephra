@@ -64,7 +64,21 @@ Six directories, by what a file is rather than what screen it is on:
 - `Workspace/` — which pane is up, which query the library is showing, whether
   the inspector is open, and the labels those enums draw themselves with.
   `WorkspaceSelection` is one `@Observable`, injected by the composition root
-  and persisted through `AppSettings`.
+  and persisted through `AppSettings`. `reveal(_ item:)` is how something
+  outside the window asks for one picture to be shown — a click on its
+  notification, and nothing else so far. It takes the item rather than a name
+  because the hard part is the query: a person who walked away with Favorites
+  up, or with something typed in the search field, comes back to a grid that
+  does not list what they clicked on, and a selection nothing shows is a click
+  that did nothing. So `LibraryQuery.matches` is asked, and a query that
+  answers no is replaced with one over everything at the same sort — the sort
+  hides nothing. Past that it moves the pane, drops `viewing` explicitly (the
+  pane's own observer only does it when the pane actually moves, and the notice
+  may well arrive with the library already up), clears `paneBeforeSearch`, and
+  publishes `revealing` with a bumped `revealToken`, the twin of the two focus
+  tokens: a token rather than a flag, so asking for the same picture twice is
+  heard the second time. Neither is cleared when it is read, because the pane
+  that reads it is usually built *after* the ask.
 - `Support/` — caches, exports, pickers, previews. `ModalHost` is where every
   alert and every file panel in the app is raised: it answers with the window to
   hang a sheet from — the key window, which is already the Settings window when a
@@ -322,10 +336,13 @@ Six directories, by what a file is rather than what screen it is on:
   pure function over two states, pinned by `BackgroundNoticeTests`, and
   `BackgroundNoticeObserver` on `RootView` feeds it every transition. A saved
   image is the other notice, posted from the `onImageSaved` wiring in
-  `ZephraApp+Library`, titled "Image Saved" or "Clip Saved" and carrying the
-  prompt folded to one line and cut at a word (`BackgroundNotice.summary`),
-  since the file name is a stamp and a seed and says nothing to a person who
-  walked away. `BackgroundNotices.post` is the one place
+  `ZephraApp+Library` through `BackgroundNotice.saved(at:image:)`, titled
+  "Image Saved" or "Clip Saved" and carrying the prompt folded to one line and
+  cut at a word (`BackgroundNotice.summary`), since the file name is a stamp
+  and a seed and says nothing to a person who walked away. It carries that file
+  name all the same, unsaid, because it is what a click on the banner needs;
+  `saved(at:image:)` is a pure function rather than three expressions at the
+  call site precisely so the name coming off `url.lastPathComponent` is tested. `BackgroundNotices.post` is the one place
   `UNUserNotificationCenter` is touched: it posts only when `NSApp` is not
   active and the General toggle (`AppSettings.backgroundNotifications`)
   allows, and asks permission the first time it has something to say rather
@@ -334,10 +351,41 @@ Six directories, by what a file is rather than what screen it is on:
   the toggle's label names all three. What a click on one does is
   `AppLifecycle+Notifications`, which adopts `UNUserNotificationCenterDelegate`
   in `applicationDidFinishLaunching` and, on a response, activates the app and
-  orders the main window front: every notice Zephra posts is about that one
-  window, so none of them carries a destination, and without a delegate a Mac
-  whose window had been closed with Command W gets a Dock icon and nothing
-  else. `Sidebar/CanvasSidebar` is the canvas sidebar,
+  orders the main window front — without a delegate a Mac whose window had been
+  closed with Command W gets a Dock icon and nothing else — and then goes
+  wherever the notice said. Two of the three notices say nowhere: a finished
+  download is about a model now on the disk and an update is about the banner
+  in the window, and bringing that window forward is the whole of what they
+  mean. The saved picture is the exception, because the thing it is about is a
+  file. `NoticeDestination` (`Support/`) is how it travels: `case
+  library(fileName:)`, a `userInfo` of two plain strings (all a notification
+  may carry), and an `init?(userInfo:)` that reads it back, both halves in one
+  file and neither importing UserNotifications, so the round trip is tested
+  without one. Anything unrecognised — a notification posted by an older build
+  and clicked after an update, a value of the wrong type — reads as nil, which
+  is the honest answer and is the old behaviour. `BackgroundNotices.deliver`
+  sets `content.userInfo` from `BackgroundNotice.destination`, which is non-nil
+  for the saved picture alone. Where a destination goes is *not* decided in the
+  delegate: `AppLifecycle.onNoticeOpened` is injected from the composition root
+  the way `isInstalling` is, so that file names neither the library nor the
+  workspace, and the destination is read off the notification's content on the
+  system's own queue (two strings, so nothing that is not `Sendable` crosses
+  into the main-actor task) and acted on only after the window is up.
+  `ZephraApp+Library.openNotice` is the answer, because that is the one place
+  the index and the workspace are both in reach: `index.item(named:)` — which
+  already skips Recently Deleted — then `WorkspaceSelection.reveal(item)`, or,
+  for a picture that has gone since the banner was posted, the library pane and
+  one line in `make logs`. `LibraryPane` applies the selection from
+  `revealToken` the way it already does from `workspace.viewing`, and
+  `LibraryRevealScroll` — a modifier inside `LibraryGrid`'s `ScrollViewReader`,
+  split out because the grid is at its three stored properties, as
+  `LibraryGridKeyboard` beside it was — scrolls to it. Both watch with
+  `initial: true`: the ordinary case is a notice clicked while the canvas is
+  up, where the pane and the grid are built after the ask and would otherwise
+  never hear it. The grid's existing `onAppear` scroll covers only the grid
+  that is appearing; the one already on screen is what the modifier is for.
+  `NoticeDestinationTests` pins the round trip and the refusals,
+  `WorkspaceSelectionTests` the pane, the viewer, the widening and the token. `Sidebar/CanvasSidebar` is the canvas sidebar,
   which builds today's runs once and hands them to `Sidebar/Timeline/` — a
   card per run still waiting, the running run's card in amber, and under those
   the wall of today's pictures in small squares — and to the "Today in

@@ -910,7 +910,11 @@ Six directories, by what a file is rather than what screen it is on:
 - `Workspace/` — which pane is up, the library query, whether the inspector is
   open, and which of the window's two sheets is: `WorkspaceSelection`, one
   `@Observable` injected by the root and persisted through `AppSettings`, the
-  two sheet flags excepted.
+  two sheet flags excepted. `reveal(_ item:)` is the one way in from outside
+  the window: it widens a query that would not list the picture (scope back to
+  everything, filters off, the sort kept, since the sort hides nothing), moves
+  to the library, drops `viewing`, and publishes `revealing` and a bumped
+  `revealToken`, so asking for the same picture twice is heard twice.
 - `Support/` — caches, exports, pickers, previews, and the single homes for
   cross-cutting answers listed below.
 - `Companion/` — everything the link needs that is the Mac's rather than the
@@ -990,10 +994,27 @@ Rules in `Support/`:
   worth a notification while another app is in front; `BackgroundNotices.post`
   is the one place `UNUserNotificationCenter` is touched, posts only when
   `NSApp` is inactive and the General toggle allows, and asks permission the
-  first time it has something to say. A click on any of them goes through
-  `AppLifecycle+Notifications`, which brings the app forward and the window with
-  it: every notice is about the one window, so none of them carries a
-  destination.
+  first time it has something to say. `BackgroundNotice.saved(at:image:)` is
+  how the saved picture's notice is built, so the file name it carries is taken
+  off the URL in one tested place.
+- **The saved picture's notice knows which picture it is about.** `imageSaved`
+  carries the file name, unsaid, and `NoticeDestination` (`Support/`, pure) is
+  how it crosses `UNMutableNotificationContent.userInfo` as two strings and
+  comes back: `BackgroundNotice.destination` is non-nil for that notice alone,
+  and anything a build cannot read decodes to nil rather than to a wrong
+  answer. A click goes through `AppLifecycle+Notifications`, which brings the
+  app forward and the window with it and then hands the destination to
+  `onNoticeOpened`, injected from the composition root the way `isInstalling`
+  is, so the delegate names neither the library nor the workspace.
+  `ZephraApp+Library.openNotice` is that answer: `index.item(named:)`, then
+  `WorkspaceSelection.reveal`, which moves to the library, closes the viewer,
+  widens a query that would hide the picture and selects it — `LibraryPane`
+  applies the selection and `LibraryRevealScroll` inside `LibraryGrid` scrolls
+  it into view, both with `initial: true`, since the notice arrives while the
+  canvas is up and the pane is built after the ask. A picture that has gone
+  since the banner was posted leaves the library pane up with nothing selected
+  and one line in `make logs`. The other three notices are about the window and
+  carry no destination, exactly as before.
 
 Rules in `Views/`:
 
