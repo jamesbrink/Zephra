@@ -180,8 +180,11 @@ Six directories, by what a file is rather than what screen it is on:
   is not the least the window may be dragged to — `minimumHeight` is, one
   number for all four, and it must fit the smallest display Sequoia runs on:
   Performance's content plus 88 points of chrome is well past the 876
-  usable on a 13-inch MacBook Air M1, and AppKit clamps a window to the screen's
-  visible frame on open only when the minimum it is holding to actually fits.
+  usable on a 13-inch MacBook Air M1. That floor, and never the tab's own
+  height, is what `contentMinSize` holds to: AppKit clamps a window to the
+  screen's visible frame only when the minimum it is holding to actually fits,
+  and pinning the minimum at the tab's height is what left Performance's bottom
+  off a 1728 x 1080-point display.
   Performance stands **1010** now, not the 820 it shipped at, because the
   Loading section arrived above the warm-up toggle and costs 158 points; the
   whole tab wants about 1110, which no Mac laptop display has. **The rule that
@@ -193,6 +196,21 @@ Six directories, by what a file is rather than what screen it is on:
   below the sill is the tail of one figure rather than a setting nobody would
   find, and the floor of 400 is what lets the tab open clamped and scrolling on
   a laptop instead of refusing to shrink.
+  1010 is what the tab *asks* for. What it opens at, and what a tab switch
+  grows the window to, is `SettingsWindowFit` (`Support/`, pure and tested in
+  `SettingsWindowFitTests`): `min(tab height, visible frame - chrome)`, never
+  under `minimumHeight`, the width untouched, and `grown(current:toward:)`
+  which takes that target but never shrinks a window somebody made taller.
+  `SettingsWindowFrame` asks the window itself for the chrome
+  (`frameRect(forContentRect:)`) and the screen for the room, and after every
+  size change runs `constrainFrameRect`, which keeps the title bar under the
+  menu bar, and then `SettingsWindowFit.placed`, which moves the whole frame
+  back inside the visible frame: a window grows from a corner without moving,
+  and AppKit's own constraint says nothing about the bottom edge — measured on
+  a 1728 x 1117-point display, Performance grown on a tab switch stood 39
+  points below it. A frame larger than the display keeps its top-left corner on
+  screen. So the Settings window is never taller than the display and never off
+  it, on any tab, and Performance scrolls for the rest.
   Those figures are a floor
   and an opening size, not a fixed frame: the window resizes, keeps whatever size
   a person gave it as they step between tabs, and grows only for a tab whose

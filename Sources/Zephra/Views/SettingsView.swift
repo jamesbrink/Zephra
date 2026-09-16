@@ -13,11 +13,14 @@ import ZephraEngine
 ///
 /// That height is an opening size rather than a fixed one, and not the window's floor either —
 /// `SettingsTab.minimumHeight` is, one number for all four tabs rather than each tab's own,
-/// because Performance's 820 does not fit the smallest Mac Sequoia still runs on (see that
-/// type's comment for the arithmetic). The window resizes, and a person who has made it larger
-/// keeps that size when they step between tabs. `SettingsWindowFrame` is what opens it at the
-/// tab's size — the scene modifiers cannot, for the reasons written there — and the `.frame`
-/// here only sets the floor, so a tab is laid out at its own width whatever the window is doing.
+/// because Performance's 1010 does not fit the smallest Mac Sequoia still runs on (see that
+/// type's comment for the arithmetic), and it is what `contentMinSize` holds to. The window
+/// resizes, and a person who has made it larger keeps that size when they step between tabs.
+/// `SettingsWindowFrame` is what opens it at the tab's size — the scene modifiers cannot, for
+/// the reasons written there — clamped to the display's visible frame by `SettingsWindowFit`,
+/// so Performance opens scrolling on a screen that has not the room rather than with its
+/// bottom off the bottom. The `.frame` here only sets the floor, so a tab is laid out at its
+/// own width whatever the window is doing.
 ///
 /// Escape does nothing here on purpose. On the Mac it dismisses sheets and dialogs, not
 /// windows — System Settings does not close on it — and ⌘W already does; a second

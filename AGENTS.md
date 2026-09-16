@@ -973,7 +973,11 @@ Rules in `Support/`:
   word, the button's title and its tooltip in one type), `ModelMenuRows` (what
   the pull-down lists) and `ModelBrowserAction` (the browser's one button).
   `StepProgress` is the step bar's reading, so it never counts the
-  slider. `SeedEntry` is the one seed parser and `SizeEntry` the one size
+  slider; `SettingsWindowFit` is the same kind of answer for a window — the
+  content size the Settings window opens at or grows to, `min(tab height,
+  visible frame - chrome)` and never under the floor, and where that frame goes
+  so it is wholly on screen. `SeedEntry` is the one
+  seed parser and `SizeEntry` the one size
   parser (two numbers with anything between, fitted to the model's grid
   through `ModelCapabilities.fit`). Those three — `ReferenceRole`, `SeedEntry`
   and `SizeEntry` — are pure and live in `ZephraCore` now, not here, since the
@@ -1015,8 +1019,18 @@ Rules in `Views/`:
   allows and gives the tab the same reading 820 gave, down to Cached. The live
   readout stays last on purpose, so what goes below the sill is the tail of one
   figure rather than a setting nobody would find.
+  **1010 is what the tab asks for, never what it takes.** The window opens, and
+  grows on a tab switch, at `min(tab height, visible frame - chrome)` through
+  `SettingsWindowFit` (`Support/`), so it is never taller than the display and
+  never off it — after every size change `constrainFrameRect` keeps the title
+  bar under the menu bar and `SettingsWindowFit.placed` moves the whole frame
+  back inside the visible frame, since a window grows from a corner without
+  moving and AppKit's own constraint says nothing about the bottom edge — and
+  the tab scrolls for the rest.
   `minimumHeight` is one number for all four and must fit a 13-inch MacBook
-  Air, since AppKit can only clamp a window that fits. `SettingsWindowFrame`
+  Air, and it is what `contentMinSize` holds to, **never the tab's own size**:
+  a minimum taller than the display is one nothing can clamp, which is what
+  had Performance's bottom off a 1080-point display. `SettingsWindowFrame`
   configures the window from a zero-sized `NSView` and *observes* the
   resizable flag, putting it back whenever SwiftUI strips it. Escape does not
   close Settings.
