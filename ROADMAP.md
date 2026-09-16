@@ -537,6 +537,39 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   buffer headless GPUs have none of; or a fault injected at the runtime seam
   (`InferenceRuntime.catchingDeviceErrors`'s own call site) rather than through
   the GPU itself.
+- **Whether a fresh command queue un-poisons a lost device.** The one cheap
+  experiment the 2026-09-15 research left standing. A code 4
+  (`SubmissionsIgnored`) is treated as terminal for the process because that is
+  what every published account says, but nobody has shown whether the refusal is
+  the process's *device client* or only its `MTLCommandQueue`. MLX keeps one
+  queue per stream (`CommandEncoder`, `backend/metal/device.cpp:309-324`) and a
+  new stream makes a new queue, which Swift can reach: `Stream(Device.gpu)`
+  (`Source/MLX/Stream.swift:144-150`). Running one trivial op on a fresh stream
+  after a real code 4 would settle it — if it succeeds, Zephra could recover
+  in-process instead of relaunching. Two cautions: `~CommandEncoder` calls
+  `synchronize()` before releasing its queue, which is one more submission into
+  the refusing channel, and a real code 4 has only ever been reproduced by
+  accident (see the entry above). Until somebody measures it, the latch and the
+  relaunch are the whole answer.
+- **`MLX_MAX_OPS_PER_BUFFER` / `MLX_MAX_MB_PER_BUFFER` against Screen Sharing
+  resets.** Untested mitigation, not a fix. MLX bounds command-buffer length per
+  architecture (40 ops / 40 MB on a base or pro part, `mlx/utils.h:182-192`
+  reading both variables at launch); lowering them makes each buffer shorter,
+  which is the only documented knob that plausibly narrows the watchdog window a
+  twenty-second streamed step leaves open while WindowServer and `avconferenced`
+  composite and encode every frame of a screen-sharing session. It would cost
+  throughput, and whether it changes the reset rate is unmeasured. Apple
+  documents no compute-side mitigation at all; queue priority, residency sets
+  and the wired limit have no documented effect on resets either way.
+- **What a device-loss relaunch does not carry back.** The prompt survives
+  (`lastPrompt` is persisted) and so does the chosen model, the images folder and
+  every finished picture, since the library is the folder. What does not: the
+  queue (`GenerationStore.queue` is memory only), the reference picture in the
+  well, the session's `history` filmstrip, and a chained clip's passes so far
+  (`chains`, whose PNG frames are dropped with the queue). Persisting the queue
+  and the well across a relaunch is worth doing the day something else wants
+  them persisted too — a crash, a Quit mid-batch — and is not worth its own
+  mechanism for a fault that should be rare.
 
 ## Upscaler follow-ups
 

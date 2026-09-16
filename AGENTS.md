@@ -706,6 +706,73 @@ proven against real MLX rather than by hand: `MLXDeviceErrorTests`,
 error through the same handler, and upstream mlx has its own test of the
 completion-handler rethrow (mlx#3523); see `make logs` in "Debugging hooks".
 
+**A GPU the driver has stopped running costs the launch, and Zephra relaunches
+itself.** There are **two kinds** of command-buffer failure and they are told
+apart from the text, which is always
+`[METAL] Command buffer execution failed: <description> (<8 hex>:<IOGPU enum
+name>).` — IOGPU composes the inner part and MLX only wraps it, and the
+`NSError` never reaches Swift. `DeviceFaultKind` (`ZephraMLX`, pure, five names
+matched case-insensitively and corroborated by the hex code, nil for a message
+that is not a command-buffer failure at all) is the whole of that reading, and
+the bit that matters is `.lost` —
+`kIOGPUCommandBufferCallbackErrorSubmissionsIgnored`, code 4 — against
+everything else. A victim (code 5) is somebody else's fault recovered around
+this process and is one lost run: the weights stay up, **Try Again works**,
+nothing below changes. An ignored submission is the driver refusing this
+client's command buffers because it holds the process responsible for earlier
+faults, and it is **permanent for the life of the process**: on a 16 GB mini on
+2026-09-15 every Try Again, an unload and a reload, and a switch to another
+model each failed in a third of a second for four minutes, and MLX leaks its
+`MTLDevice` as a process-wide singleton with no way to rebuild it.
+
+So the first `.lost` is **latched**, process-wide, in `DeviceFaultLatch`
+(`DeviceFaultSink.faults`), from the handler and therefore whether or not a
+boundary was open — bender's landed in `releaseCache` during an unload. The
+boundary then throws `BackendError.deviceLost` in place of `.deviceFailed`, and
+`MLXRuntime+ErrorLogging` writes one line at error naming the **first fault of
+the process** beside it, since an ignored submission is never the first error
+and a line carrying only the refusal sends the reading to whatever the Mac
+happened to be doing. `InferenceRuntime.isDeviceLost` is how the engine hears
+about it (default false; `CombinedInferenceRuntime` answers for any of them).
+
+`GenerationStore+DeviceLoss` is the engine's whole answer, and it is: **submit
+nothing more, including the undoing.** `deviceLost` closes `acceptsWork`, so
+`canLoad`, `canUnload`, `canUpscale`, `canQueue`, `acceptsQueuedGeneration` and
+the idle clock all shut together; `transition(to:)` asks the runtime's latch on
+every state change and, once lost, answers `.failed(.deviceLost)` whatever it
+was handed, so a Mac with no GPU has exactly one state; `retry()` refuses and
+says so; and `shutdown()` skips `releaseModel()` while `ZephraApp`'s own
+shutdown skips the Metal synchronize, because dropping the weights, releasing
+the allocator's cache and synchronizing are each one more command buffer into a
+channel the driver is refusing. `EngineError.deviceLost` is the sentence, one
+place (`BackendError.deviceLostSentence`): "Zephra has lost the GPU and has to
+relaunch to get it back." A paired phone is answered `.refused` with that same
+sentence — `remoteAdmission` before every other question, and
+`CompanionSession+Commands` for `loadModel`, `unloadModel`, `switchModel`,
+`upscale` and `animate` through `needsTheGPU`; browsing the library still
+works, since a folder is a folder. No protocol change: the sentence crosses as
+the failure message `EngineStateDTO` already carries, and the phone's
+`RunFailureView` shows it.
+
+**The Mac relaunches, once.** `CanvasStateView` draws **Relaunch Zephra** in
+Try Again's place for this failure and no "Choose a Model…" beside it, since
+another model would be read in over the same dead device, and the press is
+`Relaunch.thisApp()` — the updater's own script and run-loop `NSApp.terminate`,
+never a second quit path. It also happens **without a click**, five seconds
+after the sentence goes up, because most of the Macs this happens on have
+nobody in front of them: one serving a phone, one being screen-shared.
+`DeviceLossRelaunch` (`Support/`, pure) is that rule and its guard — one
+automatic relaunch in ten minutes, stamped in `AppSettings.lastDeviceLossRelaunch`,
+and past that the button alone, so a Mac whose GPU is genuinely broken cannot
+be put in a loop. `ZephraApp`'s `onChange(of: store.deviceLost)` is the one
+wiring. The prompt survives, since `lastPrompt` is persisted; the queue, the
+reference well and the session's history do not (`ROADMAP.md`).
+`DeviceFaultKindTests`, `DeviceFaultLatchTests`, `DeviceLossTests` and
+`DeviceLossRelaunchTests` pin it. What a reset is usually *about* is worth
+knowing before blaming Zephra: on bender it is Screen Sharing — WindowServer
+and `avconferenced` were the processes the driver blamed in every reset of
+2026-09-15, and Zephra's buffers were the innocent victims.
+
 **Memory is checked twice, and a refusal is a sentence rather than an abort.**
 `MemoryGuard` (`ZephraCore`) is asked in `GenerationStore+MemoryGuard`: once in
 `+Preparation.load`, after the files are acquired and before the weights are
@@ -2451,7 +2518,18 @@ environment value.
   above, which is where the memory guard's admitted and refused lines sit and
   where the device-error boundary's "MLX device error: …" line lands; `log
   stream` without `--level info` shows none of them. `make logs` runs under
-  make's own `/bin/sh`, so nothing shadows the binary there.
+  make's own `/bin/sh`, so nothing shadows the binary there. A **lost** GPU
+  (code 4, `SubmissionsIgnored`) reads as three lines in a row and they are
+  worth knowing by sight: "MLX device lost: … — the first fault of this process
+  was <kind>; the GPU comes back only when Zephra is relaunched", then the
+  engine's "the GPU is lost for this launch: … — no more work is submitted and
+  Zephra relaunches to get it back", then "the GPU is lost; relaunching Zephra
+  in 5 seconds" (or "…relaunched itself recently; offering the button only").
+  The *first* fault named in the first line is the one to diagnose: an ignored
+  submission is never the first error, and on bender the first was an innocent
+  victim of a reset the driver blamed WindowServer for. Every load also says
+  "weights of <model> will be resident" or "… streamed" now, whether or not the
+  guard stepped it down.
 - A locally built Zephra (every `make run`, `make build`, any ad-hoc signature)
   keeps its companion identity and pairings in
   `~/Library/Application Support/Zephra/Companion/` (`identity`, `devices.json`),

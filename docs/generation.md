@@ -315,6 +315,95 @@ the weights themselves are fine — and unloading would turn a several-second
 retry into the multi-minute reload every streamed family pays for a cold
 start.
 
+### A GPU the driver has stopped running costs the launch
+
+The story continues. On 2026-09-15 bender was screen-shared again, and the
+driver reset the GPU twice in ten seconds blaming WindowServer both times;
+Zephra's run failed as an innocent victim, correctly, and Try Again was the
+right remedy. Then the process's Metal client went into the penalty box. From
+17:43:46 every submission came back
+`Ignored (for causing prior/excessive GPU errors)
+(00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)` in 0.1 to 0.35
+seconds — every Try Again, an unload followed by a reload, and a switch to
+`flux2-klein-4b-4bit` — for four minutes, while the canvas went on saying "Try
+again." Quitting the app was the only thing that fixed it.
+
+The research behind the fix (2026-09-15, in the session's scratchpad) found no
+published account of any process recovering in-process from a code 4: an MLX
+service that measured it deliberately found model eviction, cache release and
+generator reset all reporting success and all failing identically, with the
+respawn the only thing that worked; ollama's runner stayed wedged for six
+hours over 64 requests; Apple's own wording for the Metal-level analogue
+(`MTLCommandBufferErrorAccessRevoked`) is "access to this device has been
+revoked because this client has been responsible for too many timeouts or
+hangs". MLX cannot help either: its `MTLDevice` is a deliberately leaked
+process-wide singleton (`backend/metal/device.cpp`) with no reset, reinit or
+recreate anywhere in its public surface, and what *is* reachable from Swift —
+a fresh `Stream(Device.gpu)`, hence a fresh `MTLCommandQueue` — has never been
+tested against a real code 4 (`ROADMAP.md` keeps that experiment).
+
+So a code 4 is treated as a terminal, process-scoped verdict:
+
+- **Reading it.** `DeviceFaultKind` (`ZephraMLX`) parses only messages
+  beginning `[METAL] Command buffer execution failed:` — MLX's own format
+  string, over the `NSError`'s `localizedDescription`, which IOGPU composes as
+  `%s (%08x:%s)`. The five names are matched case-insensitively and
+  corroborated by the hex code; anything else is `.other`, and a message that
+  is not a command-buffer failure at all (a shape error, `[metal::malloc]`) is
+  nil. `NSError.code` is never read: MLX drops the error inside the completion
+  handler, and Metal's enum is not IOGPU's anyway (IOGPU `PageFault` is 11,
+  `MTLCommandBufferErrorPageFault` is 3).
+- **Latching it.** `DeviceFaultLatch`, held as `DeviceFaultSink.faults`, is
+  written by the installed handler whether or not a boundary is open — bender's
+  first code 4 landed in `releaseCache` during an unload, which no run owns. It
+  also keeps the *first* fault of the process, which is what the one log line
+  at error names beside the refusal: an ignored submission is never the first
+  error, and a line carrying only the refusal sends diagnosis to whatever the
+  Mac was doing at the time. The boundary then throws
+  `BackendError.deviceLost` rather than `.deviceFailed`, and
+  `InferenceRuntime.isDeviceLost` (default false, `CombinedInferenceRuntime`
+  answering for any of its runtimes) is how the engine can ask.
+- **Submitting nothing more, the undoing included.**
+  `GenerationStore+DeviceLoss` sets `deviceLost`, which closes `acceptsWork`
+  and with it `canLoad`, `canUnload`, `canUpscale`, `canQueue`,
+  `acceptsQueuedGeneration` and the idle clock; `transition(to:)` reads the
+  runtime's latch on every state change and answers `.failed(.deviceLost)`
+  whatever it was handed, so such a Mac has one state; `retry()` refuses and
+  logs; `shutdown()` skips `releaseModel()` and `ZephraApp`'s shutdown skips
+  the Metal synchronize. That last part is the counter-intuitive one and it is
+  deliberate: dropping the weights, releasing the allocator's cache and
+  synchronizing each commit one more command buffer into a channel the driver
+  is refusing, and none of them recovers anything.
+- **Saying it once.** `BackendError.deviceLostSentence` — "Zephra has lost the
+  GPU and has to relaunch to get it back." — is the canvas headline
+  (`EngineError.deviceLost`), the phone's refusal (`remoteAdmission` answers
+  `.refused` with it before any other question, and
+  `CompanionSession+Commands` refuses `loadModel`, `unloadModel`,
+  `switchModel`, `upscale` and `animate` through `needsTheGPU`), and the
+  failure message that crosses in `EngineStateDTO` with no protocol change.
+  Library browsing over the link keeps working: a folder is a folder.
+- **Relaunching.** `CanvasStateView` draws **Relaunch Zephra** in Try Again's
+  place and drops "Choose a Model…", since another model would be read in over
+  the same dead device; it presses `Relaunch.thisApp()`, which is the updater's
+  script and run-loop `NSApp.terminate` and not a second quit path. The app
+  also does it on its own five seconds later, because most Macs this happens to
+  have nobody in front of them — one serving a phone, one being screen-shared.
+  `DeviceLossRelaunch` (`Support/`, pure) holds the guard: one automatic
+  relaunch in ten minutes, stamped in `AppSettings.lastDeviceLossRelaunch`, so
+  a Mac whose GPU is genuinely broken gets the button rather than a loop. What
+  survives is the prompt (`lastPrompt` is persisted); the queue, the reference
+  well and the session's history do not, which is in `ROADMAP.md`.
+
+A **victim** (code 5) keeps every word of the section above this one: one lost
+run, weights up, Try Again. The distinction is the whole point of the parser.
+`DeviceFaultKindTests` and `DeviceFaultLatchTests` (`ZephraMLXTests`),
+`DeviceLossTests` (`ZephraEngineTests`) and `DeviceLossRelaunchTests`
+(`ZephraTests`) pin it. And the thing worth remembering before blaming Zephra
+for a reset: on bender the guilty process was WindowServer or `avconferenced`
+in every reset recorded, and Screen Sharing is what has both of them
+compositing and encoding while a streamed step holds the GPU for twenty
+seconds at a stretch.
+
 ### Memory, checked twice
 
 `MemoryFit` answers a catalog question — could this Mac ever hold that model — and
