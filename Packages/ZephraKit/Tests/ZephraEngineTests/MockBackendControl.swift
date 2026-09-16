@@ -88,6 +88,12 @@ final class MockBackendControl: Sendable {
         /// `MockInferenceRuntime` reads it, which is the pair MLX's handler and its boundary
         /// are: the error never comes back through the call, it is left somewhere and found.
         var deviceErrorRaised: String?
+        /// Whether the runtime's latch has closed: the GPU has stopped running this process's
+        /// work, whether or not anything threw. `MLXInferenceRuntime` answers `isDeviceLost`
+        /// from a process-wide latch a fault records into, which is the path bender took — the
+        /// latch closed inside `releaseCache` during an unload, with no run to throw — so it is
+        /// a dial here rather than a consequence of a thrown error.
+        var deviceLost = false
         /// What the allocator says it is holding, for the memory guard to read.
         var memory: MemorySnapshot = .zero
     }

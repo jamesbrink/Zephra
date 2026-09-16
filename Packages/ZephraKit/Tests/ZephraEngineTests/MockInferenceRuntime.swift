@@ -21,6 +21,11 @@ struct MockInferenceRuntime: InferenceRuntime {
         control.update { $0.cacheReleases += 1 }
     }
 
+    /// The process-wide latch, as a dial. True here means what it means in
+    /// `MLXInferenceRuntime`: the driver has stopped running this process's command buffers and
+    /// will go on doing so until the app is relaunched, whether or not any call threw.
+    var isDeviceLost: Bool { control.settings.deviceLost }
+
     /// `MLXInferenceRuntime`'s boundary over the dial instead of over MLX: the fault the mock
     /// left behind wins on both ways out, so the cancellation it caused never reads as a stop.
     nonisolated(nonsending) func catchingDeviceErrors<R>(

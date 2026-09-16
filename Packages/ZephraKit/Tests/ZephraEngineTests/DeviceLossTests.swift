@@ -136,4 +136,97 @@ struct DeviceLossTests {
         #expect(store.canLoad(store.descriptor))
         await store.shutdown()
     }
+
+    @Test("the latch closing with nothing running is noticed at the next state change")
+    func theLatchIsNoticedWithoutAThrow() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        let unloads = bed.control.settings.unloads
+
+        // The path bender actually took: the driver stopped answering inside `releaseCache`
+        // during an unload, so nothing threw and the store heard about it only when something
+        // next transitioned. `unloadModel` is that something here, and it is also the window
+        // the flag bookkeeping is about: `canUnload` is read before the latch is polled.
+        bed.control.update { $0.deviceLost = true }
+        store.unloadModel()
+        await store.settle()
+
+        #expect(store.deviceLost, "the runtime's latch is what says so, not a thrown error")
+        #expect(store.state == .failed(.deviceLost))
+        #expect(!store.acceptsWork)
+        #expect(!store.canLoad(store.descriptor))
+        #expect(!store.isSwappingModel, "a flag raised for a task that never ran")
+        #expect(bed.control.settings.unloads == unloads, "and the weights were not handed back")
+        await store.shutdown()
+    }
+
+    @Test("a run already on the actor is cancelled where it stands")
+    func whatIsInFlightIsCancelled() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        bed.control.update { $0.stepDelay = .milliseconds(20); $0.stepOverride = 200 }
+        store.settings.prompt = "a lighthouse"
+        store.generate()
+        try await bed.waitUntil { store.running != nil }
+
+        bed.control.update { $0.deviceLost = true }
+        // Any state change is where the latch is read; on a Mac left alone the next one arrives
+        // on its own, from a download settling or the run itself ending.
+        store.transition(to: .idle)
+
+        #expect(store.generationTask?.isCancelled == true, "it submits nothing more")
+        #expect(store.running == nil)
+        #expect(store.queue.isEmpty)
+        await store.settle()
+        #expect(store.state == .failed(.deviceLost))
+        #expect(store.history.isEmpty, "a run the GPU lost keeps nothing")
+        await store.shutdown()
+    }
+
+    @Test("a load already under way is cancelled too")
+    func aLoadInFlightIsCancelled() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        bed.control.update { $0.loadDelay = .seconds(5) }
+        let booting = Task { await store.bootstrap() }
+        try await bed.waitUntil { store.bootstrapTask != nil }
+
+        bed.control.update { $0.deviceLost = true }
+        store.transition(to: .idle)
+
+        #expect(store.bootstrapTask?.isCancelled == true, "the weights stop being read in")
+        await booting.value
+        #expect(store.state == .failed(.deviceLost))
+        #expect(bed.control.settings.unloads == 0, "and the failed load undoes nothing either")
+        await store.shutdown()
+    }
+
+    @Test("a load that is what discovers the loss undoes nothing")
+    func aLostLoadDoesNotUnload() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        // The one path guaranteed to be taken when a load is what finds the driver gone: the
+        // catch that used to run `inference.unload()` — the backend's arrays dropped, Metal
+        // synchronized, the allocator's cache handed back — before the error was classified.
+        // Both dials, because a real `.deviceLost` *is* the latch: `MLXInferenceRuntime.failure`
+        // composes it by reading `DeviceFaultSink.faults`, so a runtime that throws it and one
+        // that answers `isDeviceLost` false is a Mac that cannot exist.
+        bed.control.update { $0.loadError = .deviceLost(Self.message); $0.deviceLost = true }
+
+        await store.bootstrap()
+        await store.settle()
+
+        #expect(store.deviceLost)
+        #expect(store.state == .failed(.deviceLost))
+        #expect(bed.control.settings.unloads == 0, "three submissions into a refusing channel")
+        #expect(!store.acceptsWork)
+        await store.shutdown()
+    }
 }
+
