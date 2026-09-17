@@ -46,16 +46,27 @@ extension CompanionSession {
 
     /// The two multi-host commands that put work on the device are the strict offer and the
     /// strict submit; the rest — pausing previews, cancelling a run, reading a receipt back,
-    /// listing the library — answer over a lost GPU like everything else that only reads. The
-    /// submit matters most: it writes its `.prepared` receipt before the store ever sees the
-    /// work, so refusing below that line, where `strictRefusal` and `enqueue` are the only
-    /// doors, would leave the phone holding a receipt frozen at `unknown` beside the plain
-    /// refusal it was told — one work named two ways.
+    /// listing the library — answer over a lost GPU like everything else that only reads.
     private static func needsTheGPU(_ command: MultiHostCommand) -> Bool {
         switch command {
         case .offer, .submit: true
         case .previews, .cancelRun, .receipt, .listing: false
         }
+    }
+
+    /// The one command that needs the GPU but is not turned away at the door, because it cannot
+    /// yet tell what it is refusing: the strict `submit`, which reads its receipt ledger first.
+    ///
+    /// Every command but `upscale` is asked again when its reply goes missing, and the repeat of
+    /// a submit this Mac *did* accept has to answer with the receipt that says so. The phone
+    /// writes a `LinkError` on a submission as `.rejected`, and its `reconcile` never revisits a
+    /// rejection, so refusing the replay here would bury a recorded acceptance under a failure
+    /// that never happened — one work named twice, which is the thing the ledger exists to stop.
+    /// `submitStrict` refuses a fresh one in these same words before it writes anything, so the
+    /// ledger still never holds a `.prepared` record of work no device will run.
+    static func isStrictSubmit(_ command: Command) -> Bool {
+        if case .multiHost(.submit) = command { return true }
+        return false
     }
 
     /// One admission answer as the refusal it is, or nil when the request was admitted.

@@ -401,12 +401,16 @@ So a code 4 is treated as a terminal, process-scoped verdict:
   `CompanionSession+Commands` refuses all eight commands `needsTheGPU` names —
   `enqueue`, `loadModel`, `unloadModel`, `switchModel`, `upscale` and `animate`,
   plus the two multi-host commands that put work on the device, `offer` and
-  `submit` — at the top of `perform`, before the switch and before
-  `remoteAdmission` answers the `enqueue` in the same words; the strict `submit`
-  has to be refused that early because it writes its `.prepared` receipt before
-  the store sees the work, so a refusal further down would have left the phone
-  with one work named both as this sentence and as a receipt frozen at `unknown`,
-  while the multi-host reads — previews, `cancelRun`, `receipt`, `listing` — go on
+  `submit`. Seven are turned away at the top of `perform`, before the switch and
+  before `remoteAdmission` answers the `enqueue` in the same words. The strict
+  `submit` answers itself instead, inside `submitStrict` and just past the
+  receipt ledger: refusing it further down would have filed a `.prepared`
+  receipt for work `enqueue` then turned away, and refusing it up at the door
+  would have refused the *repeat* of a submit already accepted — every command
+  but `upscale` is asked again when its reply is lost, and the phone files a
+  refusal as a `.rejected` submission that `reconcile` never revisits — so the
+  ledger is read first and one work is named once either way, while the
+  multi-host reads — previews, `cancelRun`, `receipt`, `listing` — go on
   answering), and the failure message that crosses in `EngineStateDTO` with no
   protocol change.
   Library browsing over the link keeps working: a folder is a folder. In the

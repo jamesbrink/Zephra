@@ -765,14 +765,21 @@ relaunch to get it back." A paired phone is answered `.refused` with that same
 sentence: `CompanionSession+Commands` refuses all eight commands
 `needsTheGPU` names — `enqueue`, `loadModel`, `unloadModel`, `switchModel`,
 `upscale` and `animate`, plus the two multi-host commands that put work on the
-device, `offer` and `submit` — at the top of `perform`, before the switch and
-before `remoteAdmission`, which answers an `enqueue` in the same words anyway
-and puts a lost GPU before every other question. The strict `submit` belongs up
-there rather than refused at the store: it writes its `.prepared` receipt before
-the store ever sees the work, so a refusal below that line left the phone
-holding one work named both as that sentence and as a receipt frozen at
-`unknown`. The multi-host reads — previews, `cancelRun`, `receipt`, `listing` —
-answer over a lost GPU like everything else that only reads. Browsing the
+device, `offer` and `submit`. Seven of them are turned away at the top of
+`perform`, before the switch and before `remoteAdmission`, which answers an
+`enqueue` in the same words anyway and puts a lost GPU before every other
+question. The strict `submit` is the eighth and answers itself a little later,
+inside `submitStrict` and just past the receipt ledger, because it is the one
+command that cannot yet tell what it is refusing: below that line the work was
+written as `.prepared` and only then turned away by `enqueue`, so the phone held
+one work named both as the sentence and as a receipt frozen at `unknown`; above
+it, a refusal would also have caught the **repeat** of a submit the Mac did
+accept — every command but `upscale` is asked again when its reply goes missing
+— and a phone files a `LinkError` on a submission as `.rejected`, which its
+`reconcile` never revisits. Both are one work named twice; reading the ledger
+first is what names it once. The multi-host reads — previews, `cancelRun`,
+`receipt`, `listing` — answer over a lost GPU like everything else that only
+reads. Browsing the
 library still works, since a folder is a folder. No protocol change: the
 sentence crosses as the failure message `EngineStateDTO` already carries, and
 the phone's `RunFailureView` shows it. In the toolbar `ModelLoadStatus.lost` is

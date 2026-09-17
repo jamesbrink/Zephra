@@ -31,15 +31,16 @@ extension CompanionSession {
         // A Mac whose GPU has stopped answering takes none of the eight commands that would
         // reach it (`needsTheGPU`): `enqueue`, `loadModel`, `unloadModel`, `switchModel`,
         // `upscale` and `animate`, and the two multi-host commands that put work on the
-        // device — `offer` and `submit` — are all refused here, before the switch below and
-        // before `remoteAdmission`, which answers an `enqueue` in the same words anyway, and
-        // would otherwise be the only one of the eight that said anything true. The six
-        // around it would have been answered "cannot load a model just now" or a plain
-        // `.refused`, which reads as a moment passing rather than as a Mac that has to be
-        // relaunched; a strict `submit` refused only at the store would additionally have
-        // written its `.prepared` receipt before it failed, leaving one work named both as
-        // that sentence and as a receipt frozen at `unknown`.
-        if host.store.deviceLost, Self.needsTheGPU(command) {
+        // device — `offer` and `submit`. Each hears the Mac's own sentence rather than "cannot
+        // load a model just now" or a plain `.refused`, which reads as a moment passing rather
+        // than as a Mac that has to be relaunched. Seven of the eight are turned away here,
+        // before the switch and before `remoteAdmission` — which answers an `enqueue` in the
+        // same words anyway, and would otherwise be the only one of them that said anything
+        // true. The eighth is the strict `submit`, which answers itself a few lines below,
+        // once the receipt ledger has been read: it must not file a `.prepared` receipt for
+        // work no device will ever run, and it must not refuse the repeat of a submit this Mac
+        // did accept.
+        if host.store.deviceLost, Self.needsTheGPU(command), !Self.isStrictSubmit(command) {
             throw LinkError(code: .refused, reason: EngineError.deviceLost.message)
         }
         switch command {
