@@ -231,4 +231,21 @@ final class WorkspaceSelection {
         guard token == revealToken else { return }
         revealConsumed = token
     }
+
+    /// Answers the ask once the list on screen actually holds the picture it names, and says
+    /// which picture that was — nil, and nothing consumed, while it does not.
+    ///
+    /// The rule the grid's scroller needs, written here so it can be tested without a scroll
+    /// view. A reveal widens the query and the index catches up a beat later, so there is a
+    /// moment when the picture is asked for and nowhere to anchor a `scrollTo` on; consuming the
+    /// ask in that moment left it stranded off screen with no retry, which is exactly the case
+    /// the reveal exists for. Answering only what is listed is also what keeps a second call nil
+    /// and a newer ask standing.
+    func answerReveal(listed: (LibraryItem.ID) -> Bool) -> LibraryItem.ID? {
+        guard let asked = revealing, revealToken != revealConsumed, listed(asked) else {
+            return nil
+        }
+        markRevealConsumed(revealToken)
+        return asked
+    }
 }

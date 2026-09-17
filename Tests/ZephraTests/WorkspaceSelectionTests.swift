@@ -189,6 +189,47 @@ final class WorkspaceSelectionTests {
         #expect(workspace.unansweredReveal == second.id)
     }
 
+    @Test("an ask nothing lists yet is left standing, so there is still something to retry")
+    func anAskAgainstAStaleListingIsNotConsumed() {
+        let workspace = WorkspaceSelection(pane: .library)
+        let item = Self.item(named: "a-picture.png")
+        workspace.reveal(item)
+        // The widened query has not reached the index yet, which is the beat the whole
+        // answering rule is about: the grid has nowhere to anchor a scroll.
+        #expect(workspace.answerReveal { _ in false } == nil)
+        #expect(
+            workspace.unansweredReveal == item.id,
+            "and the ask is still there for the pass that can actually scroll to it")
+    }
+
+    @Test("the ask is answered once the picture is on the list, and answered only once")
+    func anAskIsAnsweredOnceAnswered() {
+        let workspace = WorkspaceSelection(pane: .library)
+        let item = Self.item(named: "a-picture.png")
+        workspace.reveal(item)
+        let id = item.id
+        #expect(workspace.answerReveal { $0 == id } == id)
+        #expect(workspace.unansweredReveal == nil)
+        // The sections change again the moment the query settles, and every later mount of the
+        // grid asks the same question: a second answer would scroll back over the person's own
+        // browsing.
+        #expect(workspace.answerReveal { $0 == id } == nil)
+        #expect(workspace.revealing == id, "the ask stays readable, as ever, once shown")
+    }
+
+    @Test("answering one picture leaves a newer ask standing")
+    func answeringAnAskLeavesTheNextOneToAnswer() {
+        let workspace = WorkspaceSelection(pane: .library)
+        let first = Self.item(named: "a-picture.png")
+        workspace.reveal(first)
+        let asked = Self.item(named: "another-picture.png")
+        workspace.reveal(asked)
+        // Only the newest ask can be answered, and only when the list holds it.
+        #expect(workspace.answerReveal { $0 == first.id } == nil)
+        #expect(workspace.answerReveal { $0 == asked.id } == asked.id)
+        #expect(workspace.unansweredReveal == nil)
+    }
+
     /// One generated picture in the library, which is all `reveal` reads: its identity and
     /// whether the query in force would list it.
     private static func item(named fileName: String) -> LibraryItem {
