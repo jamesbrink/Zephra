@@ -173,7 +173,17 @@ struct ZephraApp: App {
                 }
                 // The GPU going is the one engine state the app itself acts on: everything
                 // else the store handles by refusing work. See `ZephraApp+DeviceLoss`.
-                .onChange(of: store.deviceLost) { _, lost in
+                //
+                // `initial`, because this observer only exists while the window does. A loss
+                // that lands with the window closed — a Mac left answering a paired phone —
+                // has no change event to catch when the window is opened again, and without
+                // the initial pass a Zephra whose GPU went out behind a closed window would
+                // say so to nobody and never come back. Nothing fires on a fresh launch: the
+                // loss cannot precede the first frame, so the initial value is false until
+                // there is one to catch; and a reopened window that is a second look at an ask
+                // already armed is answered `offerButtonOnly` by the burned stamp, with
+                // `RelaunchOnce` behind it as the launch's one script.
+                .onChange(of: store.deviceLost, initial: true) { _, lost in
                     guard lost else { return }
                     relaunchAfterDeviceLoss()
                 }
