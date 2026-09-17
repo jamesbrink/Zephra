@@ -37,7 +37,12 @@ final class AppLifecycle: NSObject, NSApplicationDelegate {
     /// notifications cannot be clicked before the first frame, and the newer ask is the one a
     /// person would mean anyway.
     private var pendingNotice: NoticeDestination?
-    private var stopping = false
+    /// Whether a Quit has been asked for and answered, whether the deferral is still settling
+    /// or the reply was to terminate at once. The device-loss relaunch reads this so a
+    /// deliberate ⌘Q is not followed five seconds later by its watcher script reopening the
+    /// app the person just closed; `QuitReply` stays the answer, and this only records that
+    /// the question was asked.
+    private(set) var stopping = false
 
     /// Hands a clicked notification's destination to whoever answers them, or holds it until
     /// somebody does.
@@ -58,9 +63,12 @@ final class AppLifecycle: NSObject, NSApplicationDelegate {
             isInstalling: isInstalling?() ?? false,
             canShutDown: shutdown != nil,
             alreadyStopping: stopping)
+        // Asked is stopping, whatever the answer turns out to be: even the immediate reply
+        // has this process gone by the end of the run-loop turn, and a watcher armed between
+        // the ask and the end would be armed against a Quit already on its way.
+        stopping = true
         guard reply.isDeferred else { return .terminateNow }
         guard reply != .alreadyDeferred else { return .terminateLater }
-        stopping = true
         Task {
             // The swap is a rename and a copy, seconds at most, and it is not cancellable:
             // stopping half way is the one outcome worse than waiting for it.
