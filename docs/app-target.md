@@ -418,14 +418,21 @@ Six directories, by what a file is rather than what screen it is on:
   up, where the pane and the grid are built after the ask and would otherwise
   never hear it. The grid's existing `onAppear` scroll covers only the grid
   that is appearing; the one already on screen is what the modifier is for.
-  Both read `unansweredReveal`, and the pane marks the token consumed from a
-  `Task { @MainActor … }` rather than inline — the hop is what leaves the grid's
-  modifier, which reads the same token in the same pass, its half of the answer,
-  and a pane holding the consumed token itself would be a fourth stored
-  property.
+  Both read the selection rather than each other, and neither of them decides
+  when the ask has been answered: that is `WorkspaceSelection.answerReveal(listed:)`,
+  which consumes only once the sections on screen actually hold the picture. The
+  pane's own selection is provisional and consumes nothing at all, because the
+  widening above reaches `index.query` through `RootView`'s observer a beat
+  *after* the token, so the pass the token fires in often has nothing for
+  `scrollTo` to anchor on — and an ask spent on that pass left the picture
+  stranded off screen with no retry, which is the one case the reveal exists
+  for. The modifier wakes on `index.sections` beside the token, which is what
+  makes the rule reachable, and the rule sits in the selection so that it is one
+  rule and a testable one rather than a fact about a `ViewModifier`.
   `NoticeDestinationTests` pins the round trip and the refusals,
-  `WorkspaceSelectionTests` the pane, the viewer, the widening, the token and
-  its consumption. `Sidebar/CanvasSidebar` is the canvas sidebar,
+  `WorkspaceSelectionTests` the pane, the viewer, the widening, the token, and
+  the answering: a stale listing consumes nothing, a listed picture is answered
+  once, a newer ask is left standing. `Sidebar/CanvasSidebar` is the canvas sidebar,
   which builds today's runs once and hands them to `Sidebar/Timeline/` — a
   card per run still waiting, the running run's card in amber, and under those
   the wall of today's pictures in small squares — and to the "Today in
@@ -500,9 +507,11 @@ Six directories, by what a file is rather than what screen it is on:
   width moved with its state word would shift every item to its left in the
   trailing group, and a view holding the model, the load state and the rows at
   once would be past the three stored properties a view is allowed. It reads
-  Load, Unload or Try Again — from `ModelLoadStatus`, the pure type that also
-  gives the menu its word and the button its tooltip, so the two cannot disagree
-  — and it **never leaves the toolbar**. A control that went away for the length
+  Load, Unload, Try Again or — over a lost GPU, where the word *is* the press
+  rather than a label on somebody else's button — Relaunch, from
+  `ModelLoadStatus`, the pure type that also gives the menu its word and the
+  button its tooltip, so the two cannot disagree — and it **never leaves the
+  toolbar**. A control that went away for the length
   of a load would slide the inspector toggle and Settings across and back, which
   is a bigger movement than the pill's own. While the weights are on their way
   in it still reads Load and is greyed, by `isPressable`: not the state word,
