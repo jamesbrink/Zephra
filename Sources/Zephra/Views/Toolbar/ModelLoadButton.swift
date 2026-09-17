@@ -36,6 +36,10 @@ struct ModelLoadButton: View {
 
     private var isEnabled: Bool {
         guard status.isPressable else { return false }
+        // The relaunch needs nothing the store can withhold — over a lost GPU `canLoad` is
+        // false for the rest of the launch, and a pill named for the one remedy that always
+        // works must never be the greyed one.
+        if status == .lost { return true }
         return status.pressLoads ? store.canLoad(store.descriptor) : store.canUnload
     }
 
@@ -46,9 +50,11 @@ struct ModelLoadButton: View {
         case .failed: store.retryFromInterface()
         case .notLoaded: store.loadModel()
         case .loaded: store.unloadModel()
-        // Nothing here over a lost GPU: the press is the canvas's Relaunch Zephra, beside the
-        // sentence that says why, and this pill is greyed by `isPressable`.
-        case .loading, .downloading, .building, .lost: break
+        // The word above and this press are one thing: the same `Relaunch.thisApp()` the
+        // canvas's Relaunch Zephra runs, whichever of the two is pressed first behind the
+        // launch's one-shot.
+        case .lost: Relaunch.thisApp()
+        case .loading, .downloading, .building: break
         }
     }
 }

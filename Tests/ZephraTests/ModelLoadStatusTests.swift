@@ -57,11 +57,13 @@ struct ModelLoadStatusTests {
     func saysTheGPUIsLost() {
         let status = status(state: .failed(.deviceLost))
         #expect(status == .lost, "a failure with its own remedy, not one more failure")
-        // The one control that is always visible must not offer what the canvas has just said
-        // is over: Try Again on a driver refusing every command buffer fails in a third of a
-        // second. The press itself is the canvas's, beside the sentence that explains it.
+        // The one control that is always visible must not offer a retry: Try Again on a
+        // driver refusing every command buffer fails in a third of a second. What it must
+        // offer is the true remedy, pressable — a pill titled Relaunch and greyed is a dead
+        // control naming a cure. The press is `ModelLoadButton`'s, the same
+        // `Relaunch.thisApp()` the canvas's button runs.
         #expect(status.buttonTitle == "Relaunch")
-        #expect(!status.isPressable)
+        #expect(status.isPressable)
         #expect(status.word == "GPU lost")
         #expect(status.help(chosen: chosen, loaded: chosen).contains("Relaunch"))
     }

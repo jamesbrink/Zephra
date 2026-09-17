@@ -78,20 +78,23 @@ enum ModelLoadStatus: Hashable {
         case .notLoaded, .loading, .downloading, .building: "Load"
         case .loaded: "Unload"
         case .failed: "Try Again"
-        // The canvas's Relaunch Zephra is the press, beside the sentence that says why, as the
-        // canvas's Stop is the press that stops a load. What this control owes the person is
-        // not naming a remedy that no longer exists: Try Again over a driver that refuses
-        // every command buffer is a button that fails in a third of a second.
+        // The one remedy, named here and pressable here: Try Again over a driver that refuses
+        // every command buffer is a button that fails in a third of a second, and a pill that
+        // names the true remedy while greyed out is a dead control — the word would be a
+        // label on somebody else's button. The press is the canvas's own `Relaunch.thisApp()`,
+        // whichever of the two controls is pressed first behind the launch's one-shot.
         case .lost: "Relaunch"
         }
     }
 
     /// Whether the button does anything at all when pressed. False while the model is on its
-    /// way in, where the answer is to wait or to stop it from the canvas.
+    /// way in, where the answer is to wait or to stop it from the canvas. `.lost` presses:
+    /// the pill's word is its own press, not a label, and over a lost GPU it is the only
+    /// press the toolbar has left — see `ModelLoadButton`.
     var isPressable: Bool {
         switch self {
-        case .notLoaded, .loaded, .failed: true
-        case .loading, .downloading, .building, .lost: false
+        case .notLoaded, .loaded, .failed, .lost: true
+        case .loading, .downloading, .building: false
         }
     }
 
