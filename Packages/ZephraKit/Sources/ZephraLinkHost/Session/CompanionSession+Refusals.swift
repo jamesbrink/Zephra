@@ -39,7 +39,22 @@ extension CompanionSession {
     static func needsTheGPU(_ command: Command) -> Bool {
         switch command {
         case .enqueue, .loadModel, .unloadModel, .switchModel, .upscale, .animate: true
+        case .multiHost(let inner): needsTheGPU(inner)
         default: false
+        }
+    }
+
+    /// The two multi-host commands that put work on the device are the strict offer and the
+    /// strict submit; the rest — pausing previews, cancelling a run, reading a receipt back,
+    /// listing the library — answer over a lost GPU like everything else that only reads. The
+    /// submit matters most: it writes its `.prepared` receipt before the store ever sees the
+    /// work, so refusing below that line, where `strictRefusal` and `enqueue` are the only
+    /// doors, would leave the phone holding a receipt frozen at `unknown` beside the plain
+    /// refusal it was told — one work named two ways.
+    private static func needsTheGPU(_ command: MultiHostCommand) -> Bool {
+        switch command {
+        case .offer, .submit: true
+        case .previews, .cancelRun, .receipt, .listing: false
         }
     }
 

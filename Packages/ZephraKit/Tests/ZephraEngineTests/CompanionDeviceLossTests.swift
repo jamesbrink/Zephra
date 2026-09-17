@@ -51,6 +51,33 @@ struct CompanionDeviceLossTests {
         await bed.shutdown()
     }
 
+    @Test("a strict offer and a strict submit are refused before any receipt exists")
+    func multiHostWorkHearsTheSameSentence() async throws {
+        let bed = try await Self.lostBed()
+        let phone = try await bed.pairedPhone()
+        _ = try await phone.snapshot()
+        var settings = GenerationSettings.defaults(for: bed.store.descriptor)
+        settings.prompt = "a lighthouse at dusk"
+        let job = StrictGeneration(
+            request: GenerationRequest(
+                modelID: bed.store.descriptor.id, count: 1, settings: settings))
+
+        for command in [Command.multiHost(.offer(job)), .multiHost(.submit(job))] {
+            let reply = try await phone.request(command)
+            guard case .error(let error) = reply else {
+                Issue.record("expected \(command) to be refused, got \(reply)")
+                continue
+            }
+            #expect(error.code == .refused)
+            #expect(error.reason == EngineError.deviceLost.message)
+        }
+        // The submit refused here is the whole point: past this line it would have written a
+        // `.prepared` receipt before the store turned it away, and the phone would hold a
+        // receipt frozen at `unknown` beside a refusal it was never given.
+        #expect(bed.store.queue.isEmpty, "and no work reached the store")
+        await bed.shutdown()
+    }
+
     @Test("a generation is refused with the same sentence rather than a busy Mac's")
     func enqueueHearsTheSameSentence() async throws {
         let bed = try await Self.lostBed()
@@ -81,6 +108,7 @@ struct CompanionDeviceLossTests {
         _ = try await phone.snapshot()
 
         #expect(try await phone.request(.resync) == .ok)
+        #expect(try await phone.request(.multiHost(.previews(false))) == .ok)
         await bed.shutdown()
     }
 }
