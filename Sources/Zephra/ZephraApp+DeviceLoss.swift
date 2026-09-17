@@ -8,6 +8,28 @@ import os
 /// updater. The decision is `DeviceLossRelaunch`'s and the quit is `Relaunch`'s, the one the
 /// updater goes through; nothing new is written about either.
 extension ZephraApp {
+    /// Starts the app-lifetime watch on the GPU, from the window's task.
+    ///
+    /// The window is where the composition root's state is wired, but it is not what keeps the
+    /// watch alive: the watch is a plain object held here for the length of the launch, and its
+    /// own loop runs on the main actor independently of any scene. Calling it again on a window
+    /// reopened is answered by `DeviceLossWatch.start` doing nothing, so the one reader of the
+    /// store's latch stays the one reader.
+    ///
+    /// Not under a frozen screenshot build, which is the same guard the relaunch carries — and
+    /// the hosted tests run inside one, so what is tested is the watch itself, not a preview's
+    /// refusal of it.
+    @MainActor
+    func startDeviceLossWatch() {
+        guard InterfacePreview.requestedState == nil else { return }
+        let store = store
+        let watch = lossWatch ?? DeviceLossWatch(
+            lost: { store.deviceLost },
+            heard: relaunchAfterDeviceLoss)
+        lossWatch = watch
+        watch.start()
+    }
+
     /// Relaunches this copy a few seconds after the sentence went up, unless an automatic
     /// relaunch has already happened inside the guard window, when the canvas's Relaunch
     /// Zephra button is the whole of the offer.
