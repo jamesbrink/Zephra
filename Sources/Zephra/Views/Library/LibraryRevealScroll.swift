@@ -9,9 +9,10 @@ import ZephraEngine
 /// and a picture three screens down reads as a click that did nothing.
 ///
 /// A modifier rather than more lines in `LibraryGrid`, which is at its three stored properties
-/// already; `LibraryGridKeyboard` beside it is the same split for the same reason. It asks the
-/// selection what is unanswered rather than reading the pane's selection, so it does not depend
-/// on whether the pane above has applied it yet.
+/// already; `LibraryGridKeyboard` beside it is the same split for the same reason.
+/// It answers a reveal through one callback that selects and scrolls together.
+/// A separate observer in the enclosing pane would run
+/// after this modifier consumed the token and miss the selection.
 ///
 /// Whether there is an ask to answer, and whether this is the moment to answer it, is
 /// `WorkspaceSelection.answerReveal`'s judgement and not this view's: the selection is what
@@ -21,8 +22,8 @@ import ZephraEngine
 /// index catches up a beat later, so the sections arriving is the first moment there is anywhere
 /// for `scrollTo` to anchor on.
 struct LibraryRevealScroll: ViewModifier {
-    /// The grid's scroll view, for revealing whatever was asked for.
-    let proxy: ScrollViewProxy
+    /// Selects and scrolls together, so consumption cannot overtake another observer.
+    let show: (LibraryItem.ID) -> Void
 
     @Environment(WorkspaceSelection.self) private var workspace
     @Environment(LibraryIndex.self) private var index
@@ -47,6 +48,6 @@ struct LibraryRevealScroll: ViewModifier {
         guard let id = workspace.answerReveal(listed: { id in
             sections.contains(where: { $0.items.contains { $0.id == id } })
         }) else { return }
-        proxy.scrollTo(id, anchor: .center)
+        show(id)
     }
 }

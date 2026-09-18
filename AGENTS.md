@@ -1046,10 +1046,12 @@ Six directories, by what a file is rather than what screen it is on:
   `revealToken`, so asking for the same picture twice is heard twice. **The ask
   is consumed, never cleared.** `revealing` stays readable, because the pane
   that answers it is ordinarily built after it; what goes away is the token,
-  through `markRevealConsumed(_:)`, and both readers act on `unansweredReveal`
-  alone. Without that a single notification click had every later visit to the
+  through `markRevealConsumed(_:)`. The grid answers through one callback
+  that selects and scrolls together; the pane has no separate reveal observer.
+  A child observer consumes before a parent observer can read the same ask.
+  Without token consumption a single notification click had every later visit to the
   Library re-select that picture and scroll back to it, since the pane is
-  rebuilt on every pane change and both readers watch with `initial: true`.
+  rebuilt on every pane change and the grid watches with `initial: true`.
   A token older than the newest consumes nothing, so a second ask arriving
   while the first is being answered still stands. **The consuming is
   `answerReveal(listed:)`'s**, the selection's own rather than the grid

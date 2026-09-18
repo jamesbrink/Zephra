@@ -409,26 +409,19 @@ Six directories, by what a file is rather than what screen it is on:
   believed: a click that launched Zephra fires the delegate before the first
   scan has read the folder, so without the retry a cold click could never
   reveal anything. Only a picture still missing after that scan — gone since
-  the banner was posted — gets the library pane and one line in `make logs`. `LibraryPane` applies the selection from
-  `revealToken` the way it already does from `workspace.viewing`, and
-  `LibraryRevealScroll` — a modifier inside `LibraryGrid`'s `ScrollViewReader`,
-  split out because the grid is at its three stored properties, as
-  `LibraryGridKeyboard` beside it was — scrolls to it. Both watch with
-  `initial: true`: the ordinary case is a notice clicked while the canvas is
-  up, where the pane and the grid are built after the ask and would otherwise
-  never hear it. The grid's existing `onAppear` scroll covers only the grid
-  that is appearing; the one already on screen is what the modifier is for.
-  Both read the selection rather than each other, and neither of them decides
-  when the ask has been answered: that is `WorkspaceSelection.answerReveal(listed:)`,
-  which consumes only once the sections on screen actually hold the picture. The
-  pane's own selection is provisional and consumes nothing at all, because the
-  widening above reaches `index.query` through `RootView`'s observer a beat
-  *after* the token, so the pass the token fires in often has nothing for
-  `scrollTo` to anchor on — and an ask spent on that pass left the picture
-  stranded off screen with no retry, which is the one case the reveal exists
-  for. The modifier wakes on `index.sections` beside the token, which is what
-  makes the rule reachable, and the rule sits in the selection so that it is one
-  rule and a testable one rather than a fact about a `ViewModifier`.
+  the banner was posted — gets the library pane and one line in `make logs`.
+  `LibraryRevealScroll`, a modifier inside
+  `LibraryGrid`'s `ScrollViewReader`, answers each reveal through one callback
+  that selects the image and scrolls to it together. The pane has no separate
+  reveal observer: a child observer consumes before its parent's observer runs,
+  which previously left the old image selected when the target was already listed.
+  The modifier watches the token with `initial: true` for a grid mounted after
+  the ask, and watches `index.sections` for a widened query arriving later.
+  `WorkspaceSelection.answerReveal(listed:)` consumes only when the sections
+  hold the target, so a stale listing leaves the ask available for retry.
+  `LibraryRevealSelectionTests` hosts the real grid and checks selection on
+  mount, on an existing grid, and after a delayed listing, plus no replay after
+  the user selects another image.
   `NoticeDestinationTests` pins the round trip and the refusals,
   `WorkspaceSelectionTests` the pane, the viewer, the widening, the token, and
   the answering: a stale listing consumes nothing, a listed picture is answered

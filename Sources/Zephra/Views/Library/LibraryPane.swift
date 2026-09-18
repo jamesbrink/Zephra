@@ -40,24 +40,6 @@ struct LibraryPane: View {
                 guard let id else { return }
                 selection.apply(LibraryCursor.Outcome(ids: [id], anchor: id))
             }
-            // A picture asked for from outside the window — a click on its "Image Saved"
-            // notification — is selected the same way the viewer's is. `initial`, and for the
-            // same reason: the notice arrives while the canvas is up, so this pane is built
-            // after the ask rather than being here to hear it. `LibraryRevealScroll` inside
-            // the grid is the other half, and brings it into view.
-            //
-            // The ask is answered once — but by the grid's modifier, at the moment the list
-            // on screen holds the asked-for picture. Consuming it from here on the next turn,
-            // scroll or no scroll, burned the ask on exactly the case the reveal exists for:
-            // the widening above reaches the index a beat after the token, so the scroll that
-            // pass had nothing to anchor on and no retry left. Until that moment this
-            // selection is provisional — and if the widened query never lists the picture
-            // after all, the grid's `selection.keeping` trims it on the sections change
-            // anyway.
-            .onChange(of: workspace.revealToken, initial: true) { _, _ in
-                guard let id = workspace.unansweredReveal else { return }
-                selection.apply(LibraryCursor.Outcome(ids: [id], anchor: id))
-            }
             // A query that no longer lists the picture closes the viewer: left open it would
             // show something the grid behind it cannot, with nowhere to step to.
             .onChange(of: index.library.root) {
