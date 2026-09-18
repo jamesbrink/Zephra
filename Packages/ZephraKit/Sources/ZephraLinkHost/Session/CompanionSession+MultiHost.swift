@@ -46,6 +46,14 @@ extension CompanionSession {
             }
             return .multiHost(.receipt(receipt))
         }
+        // Past the ledger, so this refusal is only ever a fresh ask, and a repeat of a submit
+        // this Mac accepted has already been answered with the receipt above. Here rather than
+        // at the door of `perform` for that reason: below this line the work would be written
+        // as `.prepared` and then turned away by `enqueue`, which is one work named twice — the
+        // sentence and a receipt frozen at `unknown`.
+        guard !host.store.deviceLost else {
+            throw LinkError(code: .refused, reason: EngineError.deviceLost.message)
+        }
         let assessment = try offer(strict, on: host)
         if let refusal = assessment.refusal { throw LinkError(code: .refused, reason: refusal) }
         var settings = request.settings

@@ -398,23 +398,48 @@ So a code 4 is treated as a terminal, process-scoped verdict:
   GPU and has to relaunch to get it back." — is the canvas headline
   (`EngineError.deviceLost`), the phone's refusal (`remoteAdmission` answers
   `.refused` with it before any other question, and
-  `CompanionSession+Commands` refuses all six commands `needsTheGPU` names —
-  `enqueue`, `loadModel`, `unloadModel`, `switchModel`, `upscale` and `animate`
-  — at the top of `perform`, before the switch and before `remoteAdmission`
-  answers the `enqueue` in the same words), and the
-  failure message that crosses in `EngineStateDTO` with no protocol change.
+  `CompanionSession+Commands` refuses all eight commands `needsTheGPU` names —
+  `enqueue`, `loadModel`, `unloadModel`, `switchModel`, `upscale` and `animate`,
+  plus the two multi-host commands that put work on the device, `offer` and
+  `submit`. Seven are turned away at the top of `perform`, before the switch and
+  before `remoteAdmission` answers the `enqueue` in the same words. The strict
+  `submit` answers itself instead, inside `submitStrict` and just past the
+  receipt ledger: refusing it further down would have filed a `.prepared`
+  receipt for work `enqueue` then turned away, and refusing it up at the door
+  would have refused the *repeat* of a submit already accepted — every command
+  but `upscale` is asked again when its reply is lost, and the phone files a
+  refusal as a `.rejected` submission that `reconcile` never revisits — so the
+  ledger is read first and one work is named once either way, while the
+  multi-host reads — previews, `cancelRun`, `receipt`, `listing` — go on
+  answering), and the failure message that crosses in `EngineStateDTO` with no
+  protocol change.
   Library browsing over the link keeps working: a folder is a folder. In the
   toolbar it is `ModelLoadStatus.lost`: the menu's label reads "GPU lost"
-  rather than "Failed" and the pill reads **Relaunch**, greyed, because the one
-  control that is always visible must not name a remedy that no longer exists,
-  and the press belongs beside the sentence that explains it — the rule a
-  load's Stop already follows.
+  rather than "Failed" and the pill reads **Relaunch**, and presses it: the
+  word has to be the press, because a pill that names the one true remedy
+  greyed out is a dead control, and the toolbar's alternative was `Try Again`,
+  which over such a driver fails in a third of a second. `isPressable` therefore
+  counts `.lost`, and `ModelLoadButton` runs the canvas's own
+  `Relaunch.thisApp()` for it — answering `isEnabled` yes outright, since the
+  leave `canLoad` withholds for the rest of the launch is a leave the relaunch
+  does not need.
 - **Relaunching.** `CanvasStateView` draws **Relaunch Zephra** in Try Again's
   place and drops "Choose a Model…", since another model would be read in over
   the same dead device; it presses `Relaunch.thisApp()`, which is the updater's
   script and run-loop `NSApp.terminate` and not a second quit path. The app
   also does it on its own five seconds later, because most Macs this happens to
   have nobody in front of them — one serving a phone, one being screen-shared.
+  What hears the loss is `DeviceLossWatch`, held by the composition root for the
+  life of the launch and started from the window's task, not a view's
+  `onChange`: a window's observer exists only while the window does, and a Mac
+  that lost its GPU behind a closed window it never reopened had no reader at
+  all. It reports the edge rather than the write, so one loss is one report
+  however often the latch is written, and a window reopened later asks for the
+  watch it already has rather than starting a second one. And the five seconds are
+  the person's to answer: `AppLifecycle.stopping` is read before arming and again
+  when the wait is up, so ⌘Q in front of the sentence is a declined offer, not an
+  app that opens itself again a few seconds after being closed — which would also
+  be a launch's single `RelaunchOnce` spent on the reopening that person refused.
   `DeviceLossRelaunch` (`Support/`, pure) holds the guard: one automatic
   relaunch in ten minutes, stamped in `AppSettings.lastDeviceLossRelaunch`, so
   a Mac whose GPU is genuinely broken gets the button rather than a loop. It is

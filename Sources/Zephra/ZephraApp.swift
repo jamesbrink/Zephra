@@ -34,6 +34,10 @@ struct ZephraApp: App {
     /// and a `@State` initializer cannot read another. Nil until then, and on a preview build;
     /// `ZephraApp+Companion.swift` is the whole of it.
     @State var companion: CompanionHost?
+    /// The watch on the GPU, built in `.task` beside the companion it sits alongside and for the
+    /// same reason: it reads the store, which a `@State` initialiser cannot. Not private, because
+    /// `ZephraApp+DeviceLoss.swift` is the half that builds and starts it.
+    @State var lossWatch: DeviceLossWatch?
     /// Whether a newer Zephra has been published, and how far along installing it is. Built
     /// here with everything else the window observes, and never a singleton; a frozen
     /// `ZEPHRA_PREVIEW_STATE=update` build gets one standing still, with no timer under it.
@@ -171,12 +175,6 @@ struct ZephraApp: App {
                 .onChange(of: warmUpOnLaunch, initial: true) { _, warms in
                     store.warmsUpAfterLoad = warms
                 }
-                // The GPU going is the one engine state the app itself acts on: everything
-                // else the store handles by refusing work. See `ZephraApp+DeviceLoss`.
-                .onChange(of: store.deviceLost) { _, lost in
-                    guard lost else { return }
-                    relaunchAfterDeviceLoss()
-                }
                 .onChange(of: companionEnabled) { _, _ in openCompanionRoads() }
                 .onChange(of: companionRelayEnabled) { _, _ in openCompanionRoads() }
                 .onChange(of: welcome.isShowing) { _, showing in
@@ -204,6 +202,9 @@ struct ZephraApp: App {
                     }
                     openLibrary()
                     startUpdates()
+                    // The GPU's loss is caught from here rather than from a view, so a window
+                    // that stays shut is not a Mac that never learns of it; `DeviceLossWatch`.
+                    startDeviceLossWatch()
                     // After the library, so the saved and deleted closures it sets are wrapped
                     // rather than replaced.
                     await startCompanion()

@@ -57,7 +57,10 @@ struct LibraryGrid: View {
             .onAppear { if let id = selection.single { proxy.scrollTo(id, anchor: .center) } }
             // The grid already on screen when a notification is clicked: nothing appears, so
             // nothing above would bring the revealed picture into view.
-            .modifier(LibraryRevealScroll(proxy: proxy))
+            .modifier(LibraryRevealScroll { id in
+                selection.apply(LibraryCursor.Outcome(ids: [id], anchor: id))
+                proxy.scrollTo(id, anchor: .center)
+            })
         }
         .modifier(LibraryOpenCommand(selection: selection))
         .modifier(LibraryQuickLook(selection: selection))

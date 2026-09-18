@@ -762,17 +762,37 @@ command buffer into a channel the driver is refusing.
 `EngineError.deviceLost` is the sentence, one
 place (`BackendError.deviceLostSentence`): "Zephra has lost the GPU and has to
 relaunch to get it back." A paired phone is answered `.refused` with that same
-sentence: `CompanionSession+Commands` refuses all six commands
+sentence: `CompanionSession+Commands` refuses all eight commands
 `needsTheGPU` names — `enqueue`, `loadModel`, `unloadModel`, `switchModel`,
-`upscale` and `animate` — at the top of `perform`, before the switch and before
-`remoteAdmission`, which answers an `enqueue` in the same words anyway and puts
-a lost GPU before every other question. Browsing the library still
-works, since a folder is a folder. No protocol change: the sentence crosses as
-the failure message `EngineStateDTO` already carries, and the phone's
-`RunFailureView` shows it. In the toolbar `ModelLoadStatus.lost` is the reading:
-the menu's label says "GPU lost" rather than "Failed" and the pill reads
-**Relaunch**, greyed, since the press belongs beside the sentence on the canvas
-the way a load's Stop does.
+`upscale` and `animate`, plus the two multi-host commands that put work on the
+device, `offer` and `submit`. Seven of them are turned away at the top of
+`perform`, before the switch and before `remoteAdmission`, which answers an
+`enqueue` in the same words anyway and puts a lost GPU before every other
+question. The strict `submit` is the eighth and answers itself a little later,
+inside `submitStrict` and just past the receipt ledger, because it is the one
+command that cannot yet tell what it is refusing: below that line the work was
+written as `.prepared` and only then turned away by `enqueue`, so the phone held
+one work named both as the sentence and as a receipt frozen at `unknown`; above
+it, a refusal would also have caught the **repeat** of a submit the Mac did
+accept — every command but `upscale` is asked again when its reply goes missing
+— and a phone files a `LinkError` on a submission as `.rejected`, which its
+`reconcile` never revisits. Both are one work named twice; reading the ledger
+first is what names it once. The multi-host reads — previews, `cancelRun`,
+`receipt`, `listing` — answer over a lost GPU like everything else that only
+reads. Browsing the
+library still works, since a folder is a folder. No protocol change: the
+sentence crosses as the failure message `EngineStateDTO` already carries, and
+the phone's `RunFailureView` shows it. In the toolbar `ModelLoadStatus.lost` is
+the reading: the menu's label says "GPU lost" rather than "Failed" and the pill
+reads
+**Relaunch** and **presses it**: `ModelLoadButton` runs the same
+`Relaunch.thisApp()` the canvas runs, whichever of the two is pressed first
+behind the launch's one-shot. `Try Again` is still never offered — over a driver
+refusing every command buffer it fails in a third of a second — but a pill
+naming the one true remedy while greyed out is a dead control, the word reduced
+to a label on somebody else's button. So `isPressable` counts `.lost`, and
+`isEnabled` answers yes for it outright rather than asking the store's leave,
+which `canLoad` withholds for the rest of the launch.
 
 **The Mac relaunches, once.** `CanvasStateView` draws **Relaunch Zephra** in
 Try Again's place for this failure and no "Choose a Model…" beside it, since
@@ -784,10 +804,21 @@ nobody in front of them: one serving a phone, one being screen-shared.
 `DeviceLossRelaunch` (`Support/`, pure) is that rule and its guard — one
 automatic relaunch in ten minutes, stamped in `AppSettings.lastDeviceLossRelaunch`,
 and past that the button alone, so a Mac whose GPU is genuinely broken cannot
-be put in a loop. `ZephraApp`'s `onChange(of: store.deviceLost)` is the one
-wiring. **One relaunch per launch, whichever door asks**: the button is on
-screen for the whole of that five-second wait and the quit behind either takes
-seconds with a phone paired, so `Relaunch.afterExit` claims `RelaunchOnce`
+be put in a loop. `DeviceLossWatch` is the wiring: an object the composition
+root holds for the life of the **launch**, started from the window's task and
+reading the store through a closure, because a view's `onChange` exists only
+while the window does — and a loss that lands behind a closed window nobody
+reopens, on a Mac left answering a paired phone, then has no reader at all, with
+only the crash the relaunch is waiting out left to end the wait. It reports the
+edge rather than the write, and a reopened window asking again starts nothing
+new. **A Quit is taken at face value**: `relaunchAfterDeviceLoss` reads
+`AppLifecycle.stopping` before it arms and again when the wait is up, so the
+sentence on screen is an offer a person may decline with ⌘Q and get a closed app
+from, rather than one that reopens itself — and a launch's single `RelaunchOnce`
+is not spent reopening what they just refused. **One relaunch per launch,
+whichever door asks**: the button is on screen for the whole of that five-second
+wait and the quit behind either takes seconds with a phone paired, so
+`Relaunch.afterExit` claims `RelaunchOnce`
 first — two watcher scripts would poll one process id and open two copies, and
 `SingleInstance` can have each stand down for the other, leaving the Mac with no
 Zephra at all. `Relaunch.thisApp()` also refuses a `ZEPHRA_FRESH_START` session
@@ -796,8 +827,10 @@ an ordinary Zephra over the person's real library and models. The prompt survive
 reference well and the session's history do not (`ROADMAP.md`).
 `DeviceFaultKindTests`, `DeviceFaultLatchTests`, `DeviceLossTests` (the thrown
 path, the latch closing with nothing running, what is in flight, and a load that
-undoes nothing), `CompanionDeviceLossTests`, `RelaunchOnceTests` and
-`DeviceLossRelaunchTests` pin it. What a reset is usually *about* is worth
+undoes nothing), `CompanionDeviceLossTests` (the strict multi-host `submit`
+among them), `RelaunchOnceTests`, `DeviceLossRelaunchTests`,
+`AppLifecycleStoppingTests` and `DeviceLossWatchTests` (a loss heard with no
+window anywhere near it) pin it. What a reset is usually *about* is worth
 knowing before blaming Zephra: on bender it is Screen Sharing — WindowServer
 and `avconferenced` were the processes the driver blamed in every reset of
 2026-09-15, and Zephra's buffers were the innocent victims.
@@ -1013,12 +1046,22 @@ Six directories, by what a file is rather than what screen it is on:
   `revealToken`, so asking for the same picture twice is heard twice. **The ask
   is consumed, never cleared.** `revealing` stays readable, because the pane
   that answers it is ordinarily built after it; what goes away is the token,
-  through `markRevealConsumed(_:)`, and both readers act on `unansweredReveal`
-  alone. Without that a single notification click had every later visit to the
+  through `markRevealConsumed(_:)`. The grid answers through one callback
+  that selects and scrolls together; the pane has no separate reveal observer.
+  A child observer consumes before a parent observer can read the same ask.
+  Without token consumption a single notification click had every later visit to the
   Library re-select that picture and scroll back to it, since the pane is
-  rebuilt on every pane change and both readers watch with `initial: true`.
+  rebuilt on every pane change and the grid watches with `initial: true`.
   A token older than the newest consumes nothing, so a second ask arriving
-  while the first is being answered still stands.
+  while the first is being answered still stands. **The consuming is
+  `answerReveal(listed:)`'s**, the selection's own rather than the grid
+  modifier's, so the rule is one and is tested without a scroll view: nil and
+  nothing consumed while the sections on screen do not hold the picture, the id
+  and the ask answered when they do. The grid wakes on `index.sections` beside
+  the token because the widening above reaches `index.query` through
+  `RootView`'s observer a pass later, and an ask consumed against the stale
+  sections — where `scrollTo` has nothing to anchor on — left the picture
+  stranded off screen with no retry, which is the case the reveal exists for.
 - `Support/` — caches, exports, pickers, previews, and the single homes for
   cross-cutting answers listed below.
 - `Companion/` — everything the link needs that is the Mac's rather than the
@@ -2584,7 +2627,9 @@ environment value.
   was <kind>; the GPU comes back only when Zephra is relaunched", then the
   engine's "the GPU is lost for this launch: … — no more work is submitted and
   Zephra relaunches to get it back", then "the GPU is lost; relaunching Zephra
-  in 5 seconds" (or "…relaunched itself recently; offering the button only").
+  in 5 seconds" (or "…relaunched itself recently; offering the button only"),
+  and a ⌘Q inside that wait says "Zephra was quit while the device-loss relaunch
+  waited; not reopening it" — the one line that means the person declined.
   The *first* fault named in the first line is the one to diagnose: an ignored
   submission is never the first error, and on bender the first was an innocent
   victim of a reset the driver blamed WindowServer for. A load that begins also says

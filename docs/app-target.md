@@ -409,23 +409,23 @@ Six directories, by what a file is rather than what screen it is on:
   believed: a click that launched Zephra fires the delegate before the first
   scan has read the folder, so without the retry a cold click could never
   reveal anything. Only a picture still missing after that scan — gone since
-  the banner was posted — gets the library pane and one line in `make logs`. `LibraryPane` applies the selection from
-  `revealToken` the way it already does from `workspace.viewing`, and
-  `LibraryRevealScroll` — a modifier inside `LibraryGrid`'s `ScrollViewReader`,
-  split out because the grid is at its three stored properties, as
-  `LibraryGridKeyboard` beside it was — scrolls to it. Both watch with
-  `initial: true`: the ordinary case is a notice clicked while the canvas is
-  up, where the pane and the grid are built after the ask and would otherwise
-  never hear it. The grid's existing `onAppear` scroll covers only the grid
-  that is appearing; the one already on screen is what the modifier is for.
-  Both read `unansweredReveal`, and the pane marks the token consumed from a
-  `Task { @MainActor … }` rather than inline — the hop is what leaves the grid's
-  modifier, which reads the same token in the same pass, its half of the answer,
-  and a pane holding the consumed token itself would be a fourth stored
-  property.
+  the banner was posted — gets the library pane and one line in `make logs`.
+  `LibraryRevealScroll`, a modifier inside
+  `LibraryGrid`'s `ScrollViewReader`, answers each reveal through one callback
+  that selects the image and scrolls to it together. The pane has no separate
+  reveal observer: a child observer consumes before its parent's observer runs,
+  which previously left the old image selected when the target was already listed.
+  The modifier watches the token with `initial: true` for a grid mounted after
+  the ask, and watches `index.sections` for a widened query arriving later.
+  `WorkspaceSelection.answerReveal(listed:)` consumes only when the sections
+  hold the target, so a stale listing leaves the ask available for retry.
+  `LibraryRevealSelectionTests` hosts the real grid and checks selection on
+  mount, on an existing grid, and after a delayed listing, plus no replay after
+  the user selects another image.
   `NoticeDestinationTests` pins the round trip and the refusals,
-  `WorkspaceSelectionTests` the pane, the viewer, the widening, the token and
-  its consumption. `Sidebar/CanvasSidebar` is the canvas sidebar,
+  `WorkspaceSelectionTests` the pane, the viewer, the widening, the token, and
+  the answering: a stale listing consumes nothing, a listed picture is answered
+  once, a newer ask is left standing. `Sidebar/CanvasSidebar` is the canvas sidebar,
   which builds today's runs once and hands them to `Sidebar/Timeline/` — a
   card per run still waiting, the running run's card in amber, and under those
   the wall of today's pictures in small squares — and to the "Today in
@@ -500,9 +500,11 @@ Six directories, by what a file is rather than what screen it is on:
   width moved with its state word would shift every item to its left in the
   trailing group, and a view holding the model, the load state and the rows at
   once would be past the three stored properties a view is allowed. It reads
-  Load, Unload or Try Again — from `ModelLoadStatus`, the pure type that also
-  gives the menu its word and the button its tooltip, so the two cannot disagree
-  — and it **never leaves the toolbar**. A control that went away for the length
+  Load, Unload, Try Again or — over a lost GPU, where the word *is* the press
+  rather than a label on somebody else's button — Relaunch, from
+  `ModelLoadStatus`, the pure type that also gives the menu its word and the
+  button its tooltip, so the two cannot disagree — and it **never leaves the
+  toolbar**. A control that went away for the length
   of a load would slide the inspector toggle and Settings across and back, which
   is a bigger movement than the pill's own. While the weights are on their way
   in it still reads Load and is greyed, by `isPressable`: not the state word,
