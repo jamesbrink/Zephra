@@ -2,7 +2,7 @@
 
 Zephra is a native macOS app that generates images locally on Apple Silicon,
 via MLX/Metal. It runs five model families today, Z-Image-Turbo,
-Qwen-Image-2512, FLUX.2 klein 4B, Wan 2.2 and LTX-2.5 (video, with sound on one
+Qwen-Image 2.1, FLUX.2 klein 4B, Wan 2.2 and LTX-2.5 (video, with sound on one
 entry), behind one backend seam.
 
 ## Quick reference
@@ -42,7 +42,7 @@ In order:
 1. **Very clean code.** Small files, one type per file, compiler-enforced
    module boundaries, no god objects.
 2. **Extensible for more models later.** An explicit backend/model seam
-   (protocol + descriptor catalog). Z-Image-Turbo, Qwen-Image, FLUX.2 klein
+   (protocol + descriptor catalog). Z-Image-Turbo, Qwen-Image 2.1, FLUX.2 klein
    and LTX-2.5 are the implementations; the UI never touches any family's types.
 3. **Performance on Apple Silicon**, then a nice, fully native SwiftUI UI.
 
@@ -186,7 +186,7 @@ Shared, by what a file actually touches:
   `ZephraCore` and `ZephraSnapshot`, nothing else. Backends arrive as an injected
   `BackendRegistry` of `@Sendable` factories; this layer never names a concrete
   backend. `ModelInventory` is its one use of `ZephraSnapshot`.
-- `ZephraBackendZImage`, `ZephraBackendQwenImage`, `ZephraBackendFlux2`,
+- `ZephraBackendZImage`, `ZephraBackendQwenImage21`, `ZephraBackendFlux2`,
   `ZephraBackendLTX2`, `ZephraBackendWan` (own packages): translate `ZephraCore` types to and from
   one family's kit. No state, no UI. Each takes `ZephraCore`, `ZephraSnapshot`,
   `ZephraQuantization` and its own kit (`ZephraMedia` too for video), and packs a
@@ -194,8 +194,10 @@ Shared, by what a file actually touches:
   keeps `Packages/ZephraKit` MLX-free.
 - `Packages/ZImageKit`: vendored. Edit only with a `// ZEPHRA-PATCH: <reason>`
   comment and a matching `VENDORED.md` entry.
-- `Packages/QwenImageKit`: ours, clean-room from Qwen-Image-2512's configs and
-  `diffusers`, never from the GPL-3.0 `mzbac/qwen.image.swift`.
+- `Packages/QwenImage21Kit`: ours, clean-room from Qwen-Image 2.1's configs and
+  `diffusers` at commit `6256aa76` with `transformers` 5.17.0, pinned by dumped
+  fixtures; never from the GPL-3.0 `mzbac/qwen.image.swift` or any other port
+  of this model. Its weights, unlike every other entry's, are non-commercial.
 - `Packages/Flux2Kit`: ours, translated with attribution from two MIT ports and
   `diffusers`, pinned against `diffusers`; never from GPL code or the unlicensed
   `xocialize/flux2-vae-mlx-swift`.
@@ -255,17 +257,33 @@ milliseconds without a socket — `cd Packages/ZephraLink && swift test`.
 
 Three rules it is built on. A preview frame never rides inside a state update —
 `EngineStateDTO` is scalars, and previews have a message kind of their own. A
-reference picture never rides inside a request — it crosses as a blob and
-`GenerationRequest` strips the bytes on the way in *and* on the way out. And a
-blob's chunks are accepted in order only, because `OrderedInbox` underneath has
+reference picture never rides inside a request — pictures, plural, each its own
+blob, sent one at a time in order, because the channel is one ordered stream
+and a phone that sends five pictures is five transfers the Mac may evict
+independently. `GenerationRequest.referenceBlobIDs` names them in the order the
+model reads them and `GenerationSettings.withoutPixels()` strips the bytes on
+the way in *and* on the way out, leaving each `ReferencePicture` emptied rather
+than gone: what it was of is provenance, and keeping it is what lets a Mac
+refuse a request naming more pictures than its model reads before a byte is put
+back. `CompanionSession+References` is the one place they go back in, strictly
+by the order the request named, re-marrying each blob to its stripped
+provenance by position — a missing one is refused by position too ("Picture N
+for that request never arrived."), never quietly leaving a short strip — and
+the strict multi-host `submit` matches every picture before it consumes any.
+And a blob's chunks are accepted in order only, because `OrderedInbox` underneath has
 already made the stream ordered and a gap above it means loss or tampering;
 `BlobReassembly` also holds a sender to the `byteCount` it announced, and a chunk
 for a blob nothing announced is dropped rather than opening a transfer of
 whatever size it likes. A transfer's clock is **idle time** (`blobIdleTimeout`,
 15 s, re-armed by every chunk), since a wall clock caught neither a clip crossing
-slowly nor a transfer that stopped at chunk 630; and `blobLimit` (4) counts only
-the transfers nobody asked for, or the grid's next five thumbnails evict the clip
-somebody is waiting on.
+slowly nor a transfer that stopped at chunk 630; and the phone's
+`LinkClient.blobLimit` (4) counts only the transfers nobody asked for, or the
+grid's next five thumbnails evict the clip somebody is waiting on. The Mac's
+hold is two numbers rather than one, because a count is not a budget when each
+blob may be 16 MiB: `CompanionSession.blobLimit` is
+`ReferenceLimits.maximumPictures + 2` (12), so a full strip plus a little slack,
+and `blobByteLimit` is 48 MiB, evicting oldest first on whichever bound is
+crossed. A blob a run named belongs to that run and is consumed with it.
 
 Every fact the Mac derives from its own state is **stamped into
 `EngineStateDTO`** rather than worked out again on the phone: `isBusy`,
@@ -283,8 +301,17 @@ shipped is read with `decodeIfPresent` and a default that is what the field's
 absence used to mean (`canQueue` falls back to `acceptsGeneration`;
 `loadedModelID` falls back to nil under `.idle` and to `modelID` otherwise,
 which is what an older Mac, that loaded whatever it had chosen, meant).
-`EngineStateDTO+Codable`, `ModelSummary+Codable` and `QueuedEntry` are the
-hand-written readers. `EngineStateDTO`'s **encoder** is hand-written too now,
+`CapabilitiesSummary` follows the same rule twice over:
+`referenceImageCount` falls back to `1...1`, which is what a Mac that never
+mentioned it meant, and `readsTransparentReferences` to false, which is what a
+Mac from before any model read alpha did — it matted every reference over
+white, and the phone's `ReferenceMatteNote` says so on its behalf. Each is
+**written only when it is not that default**, so every summary a Mac sent
+before the fields existed is byte for byte what it sends now. There is no
+snapshot flag beside them and does not need to be: the capabilities are
+already per model, and a phone that reads one picture's worth of room simply
+sends one. `EngineStateDTO+Codable`, `CapabilitiesSummary+Codable`,
+`ModelSummary+Codable` and `QueuedEntry` are the hand-written readers. `EngineStateDTO`'s **encoder** is hand-written too now,
 for one field: every other key is omitted when absent, and `loadedModelID` is
 written **always, null included**, because its absence is what says the far end
 never had the field. A synthesised encoder omits a nil optional, so a new Mac
@@ -956,11 +983,29 @@ a file moved, renamed or copied to another Mac keeps its prompt, favourite and
 tags. `ZephraEngine/Library/` is that folder read as an index, Foundation only,
 so `make test` covers all of it.
 
-- Two text chunks, two owners. `zephra:generation` is `GenerationRecord`,
-  provenance written once and never edited; a PNG without it was not made here
-  and is skipped. It carries the `batchID` of the press of Generate, so runs
-  survive a relaunch. `zephra:library` is `LibraryAnnotation`: favourite, tags,
-  albums. Anything mutable goes in the second chunk.
+- Two owners, and the reference owner may hold ten chunks.
+  `zephra:generation` is `GenerationRecord`, provenance written once and never
+  edited; a PNG without it was not made here and is skipped. It carries the
+  `batchID` of the press of Generate, so runs survive a relaunch.
+  `zephra:library` is `LibraryAnnotation`: favourite, tags, albums. Anything
+  mutable goes in the second chunk. The reference pictures an edit was made
+  from are base64 in their own chunks, **numbered from the second**:
+  `zephra:reference`, then `zephra:reference.2` through `.10`, so a
+  one-picture edit's file is byte for byte what it always was. That is also why
+  ten is `ReferenceLimits.maximumPictures` — the keywords stop there.
+- **A picture Zephra writes may be RGBA.** Qwen-Image 2.1 decodes four
+  channels, so `PixelBuffer` packs straight alpha with
+  `CGImageAlphaInfo.last` — never premultiplied, because that channel came out
+  of the autoencoder in −1 to 1 like the other three and premultiplying would
+  lose colour in every near-transparent pixel — and every drawing site puts
+  `TransparencyGround` behind it. **Where a picture leaves as a JPEG it is
+  composited first**, because a JPEG has no alpha and the alternative is black:
+  `CheckerboardComposite` is that one rule, used by `CompanionThumbnails` and by
+  the link's `PreviewEncoder`, and it draws the checkerboard's light grey at the
+  picture's **top left** whichever way the bitmap context counts rows. The two
+  greys are the light appearance's deliberately: what a JPEG carries is fixed
+  when it is encoded, and the Mac cannot know which appearance the phone reading
+  it will be in.
 - `PNGHeader` reads a file's text, its size and whether its pixels carry alpha
   in one seeking walk: each chunk's body is read when it is under 64 KiB and
   **seeked past** otherwise, stopping at the first IDAT, so a picture carrying a
@@ -1442,7 +1487,10 @@ US-spelling check.
   download/build; Auto cannot. Receipts account for pending output writes before
   declaring interruption. Details and validation: `docs/multi-host.md`.
 - `PromptDraft` (`Support/`) is the phone's capsule: the settings, the model, the
-  picture in the well and the seeds one press is worth, injected beside the
+  pictures in the well (`references`, a `[ReferencePicture]` held **outside**
+  `settings`, since a `GenerationSettings` carries a picture only as part of a
+  request and the well holds one until a press composes that request) and the
+  seeds one press is worth, injected beside the
   client and the one object here holding something the Mac did not say. It seeds
   itself from the **first** snapshot only. Later host runs never replace the
   phone's draft automatically. `AdoptHostSettings` explicitly copies the watched
@@ -1466,7 +1514,12 @@ US-spelling check.
   read the same capabilities. The one thing it does not clamp is the clip's
   length: `clamp` bounds that at one pass and the Mac plans the chain from what
   it is handed, so the request carries the whole length through
-  `ChainPlan.frames`.
+  `ChainPlan.frames`. **A Mac that never mentioned the count gets one picture.**
+  `PromptDraft+Sending.references(allowedBy:)` takes
+  `prefix(min(referenceImageCount.upperBound, ReferenceLimits.maximumPictures))`
+  and then the byte budget, which against an older Mac's `1...1` summary is the
+  first picture alone: the Mac would refuse the rest, and the phone would have
+  paid for them over a relay before hearing so.
 - The canvas is `Views/Canvas/` and `Views/Capsule/`: the run's frames while
   there is a run (`LivePreviewView`, then `RunPlaceholderView` before the first
   one, which says "Reconnecting" while the link is not live rather than
@@ -1525,6 +1578,15 @@ US-spelling check.
   understands them, Unload only on the loaded row and only while the engine is
   not busy; an older Mac keeps the one `switchModel` button, which there both
   chooses and loads.
+- The well is a strip where the model reads several, drawn by
+  `Views/Capsule/ReferenceStrip.swift` — **two** tiles wide before it scrolls,
+  against the Mac's four, because a phone's capsule has not the width — with the
+  reorder drag carrying the index as a plain `String` rather than a UTI of its
+  own, and a drop that is not a valid position moving nothing.
+  `PromptDraft+ReferenceStrip` is its half of the store's API, D7's rule
+  included, and `UseAsReferenceLabel` reads the same answer the press does, so
+  it says **"Add to References"** where there is room and **"Use as Reference"**
+  where there is not.
 - The well has three doors and one rule. `PhotosPicker` is the camera roll;
   `ReferencePickerSheet` and the library's own "Use as Reference" both name a
   picture the Mac already has, through `ReferenceIntent` — a file **name**, never
@@ -1766,20 +1828,25 @@ request. `ModelDownloaderTests+Mirror` pins it.
 Written once for every family: `SnapshotBuild` (`.partial` renamed on success,
 removed on failure, free-space refusal before reading), `BuildTally` (progress
 weighted by a dictionary of gigabytes per component), and
-`LocalSnapshot.downloadedRelease(of:in:)` (app folder, then hub cache, adapters
-counted). A `<Family>SnapshotBuild` is its plan and its weights, nothing else.
+`LocalSnapshot.downloadedRelease(of:in:)` (app folder, then hub cache).
+A `<Family>SnapshotBuild` is its plan and its weights, nothing else.
 
-**A model whose build needs more than the release** lists `ModelAdapter`s on
-`ModelDescriptor.adapters`, fetched into `locations.adapter(_:)` by the same
-`fetch` call in one transfer. `transferBytes` is release plus adapters;
-availability charges only what `ModelLocations.bytesToFetch` says is missing,
-and an adapter already under any root or in the hub cache is not fetched
-again. The adapter is a build input only; nothing downstream sees one.
+**No catalog entry takes an adapter.** `ModelDescriptor.adapters`,
+`ModelLocations.adapter(_:)` and `LoRAAdapter`'s build-time merge went with
+Qwen-Image-2512, the one model that used them, so `transferBytes` is the
+release and nothing else, and availability charges what
+`ModelLocations.bytesToFetch` says is missing of it. A family that needs a
+second repository again is a seam to write back, not one to find.
 
-**A model that edits** reads `GenerationSettings.referenceImage`, PNG bytes
-capped at 1024 pixels an edge. `ModelCapabilities.supportsReferenceImage` is
-the gate: `clamp` drops the picture for any model without it, and the well
-shows only for one that has it. The picture persists in a second PNG chunk.
+**A model that edits** reads `GenerationSettings.referenceImages`, each PNG
+bytes capped at 1024 pixels an edge and the whole strip capped by
+`ReferenceLimits` (ten pictures, 24 MiB). `referenceImage` and
+`referenceOrigin` are computed aliases over the first of that list, permanently,
+so the backends, the bench and every reader written before several pictures
+existed need no change. `ModelCapabilities.supportsReferenceImage` is the gate:
+`clamp` drops every picture for a model without it, drops a picture whose bytes
+were stripped for the wire, trims to `referenceImageCount.upperBound` and then
+to the byte budget. The pictures persist in numbered PNG chunks.
 
 `ReferenceAdoption` (`Support/`) is the one door every picture enters the well
 through: a library image hands back what it was itself edited from. It holds
@@ -1788,7 +1855,8 @@ is made, not when its bytes arrive, so a slow read never lands on a later
 choice. The well's three doors are the `ReferencePickerSheet` (whole library
 but Recently Deleted, keyboard-walked by `ReferencePickerKeyboard` over
 `LibraryCursor`), "Choose File…", and a drop of a Finder file or a
-`LibraryItemReference`.
+`LibraryItemReference` — each of which may bring several where the model reads
+several.
 
 **A model that reads several** declares `ModelCapabilities.referenceImageCount`
 past one, and the well draws `ReferenceStrip` instead: a `ReferenceTile` per
@@ -1816,27 +1884,64 @@ Full detail: `docs/adding-a-model.md`.
 
 ## Starting from a picture
 
-Every model takes a reference picture, in one of three ways that look identical
-from the interface:
+Every model takes at least one reference picture, in one of four ways that look
+identical from the interface:
 
 - **Conditioning on it.** FLUX.2 klein encodes the picture to tokens placed
   after the image being made on their own rotary image index, and still walks
   the whole schedule from noise (`Flux2ReferenceConditioning`,
   `Flux2Pipeline+Denoise`). There is no "how much to keep".
-- **Starting from a noised copy.** Z-Image and Qwen-Image encode the picture,
-  noise it to a step's level and resume from there (SDEdit). How far down is
+- **Conditioning on several, in order.** Qwen-Image 2.1 reads up to **ten**
+  pictures: each goes through the Qwen3-VL vision tower and through the
+  autoencoder, and their latents become ordered prefix blocks the transformer
+  attends over from a KV cache held across every step. Order is meaning, which
+  is why the strip can be dragged. Like klein it walks the whole schedule from
+  noise, so it declares `referenceStrengthBounds` `1...1` and no slider is
+  drawn. It is also the one family that reads a picture's alpha rather than
+  being handed it over white, which it says with
+  `ModelCapabilities.readsTransparentReferences`.
+- **Starting from a noised copy.** Z-Image encodes the picture, noises it to a
+  step's level and resumes from there (SDEdit). How far down is
   `GenerationSettings.referenceStrength`.
 - **Holding it as the first frame.** LTX-2.5 encodes one picture to one causal
   latent frame, holds it there and generates the clip around it; strength is
   how strongly to hold, inverted (`1 - strength`) in `LTX2RequestMapper` only.
+  Wan holds its one frame exactly and declares `1...1`.
 
 `referenceStrength` is a plain `Double`, 1 changing nothing.
 `ModelCapabilities.referenceStrengthBounds` says whether it applies: a
 degenerate `1...1` means it does not (as `guidanceBounds: 0...0` means no
-guidance) and `clamp` pins it. klein declares `1...1`; Z-Image and Qwen-Image
-`0.1...0.9` default `0.6`; LTX-2.5 `0.0...0.9` default `0`, where 0 holds the
-frame exactly. The interface decides whether to draw a slider from the range
-alone, and "lower keeps more of the picture" is true of all three.
+guidance) and `clamp` pins it. klein, Qwen-Image 2.1 and Wan declare `1...1`;
+Z-Image `0.1...0.9` default `0.6`; LTX-2.5 `0.0...0.9` default `0`, where 0
+holds the frame exactly. The interface decides whether to draw a slider from
+the range alone, and "lower keeps more of the picture" is true wherever one is
+drawn.
+
+**How many** is `ModelCapabilities.referenceImageCount`, `1...1` for every
+entry but Qwen-Image 2.1's `1...10`, and `acceptsSeveralReferences` is the
+computed answer the interface branches on. Above it sit `ReferenceLimits`' two
+hard caps, which no capability may exceed: `maximumPictures` (10, because the
+numbered PNG keywords stop at `zephra:reference.10`) and `maximumTotalBytes`
+(24 MiB across the whole strip, not per picture). `clamp`'s
+`constrainReferences` is where all of it lands — no picture for a model that
+reads none, no picture whose bytes were stripped for the wire, then
+`prefix(min(count.upperBound, maximumPictures))`, then
+`ReferenceLimits.withinBudget`, which drops from the **end** so the picture
+chosen first survives.
+
+**The record numbers its chunks.** The first picture stays in
+`zephra:reference`, unsuffixed, and the rest go in `zephra:reference.2` through
+`.10`, so a one-picture edit's PNG is byte for byte what it always was.
+`GenerationRecord.referenceByteCounts` and `referenceOrigins` are written
+**only when there is more than one picture**, for the same reason; a reader
+falls back to `[referenceBytes]` and `[referenceOrigin]` without them, and a
+chunk that is missing or the wrong length ends the read there, so a file whose
+fourth chunk went bad is an edit of three pictures rather than of none.
+
+Which door a picture arrives at, how the strip is drawn, D7's append-or-replace
+rule and the white-matte note are one section up, under "A model that reads
+several"; they are the interface's half of the same answer and are written
+once.
 
 For the noised-copy models:
 
@@ -1844,21 +1949,21 @@ For the noised-copy models:
 - **Strength buys a share of the steps, not a noise level.** `steps * strength`
   run, truncated and never fewer than one, entering that far from the end from
   the encoded picture mixed with that step's share of the seeded noise. A
-  distilled ladder is not evenly spaced, so reading strength as a sigma sent
-  most of Qwen-Image's slider to its last step and returned the picture
+  distilled ladder is not evenly spaced, so reading strength as a sigma sends
+  most of a nine-step slider to its last step and returns the picture
   untouched. Truncation rather than diffusers' ceiling keeps the top of the
-  slider from discarding the picture; the product is nudged up (`1e-9` in
-  `QwenImageReferenceLatents`, `1e-7` in `ReferenceLatents`) before truncating,
-  safe at the slider's 0.05 granularity.
+  slider from discarding the picture; the product is nudged up (`1e-7` in
+  `ReferenceLatents`) before truncating, safe at the slider's 0.05 granularity.
 - Progress still counts the full step count, so skipped steps read as finished.
-- `ZImage.ReferenceLatents` and `QwenImage.QwenImageReferenceLatents` are two
-  copies on purpose: one is inside re-synced vendored code and the schedules are
-  typed differently.
+- `ZImage.ReferenceLatents` is the one implementation left, and it lives inside
+  re-synced vendored code: a second copy outside it would have to be kept in
+  step by hand, which is why the rule is written here rather than only there.
 - `GenerationRecord.referenceStrength` records what ran: nil for no picture, 1
   when the model conditioned directly. `referenceOrigin` (settings and record)
-  is the library **file name** the picture came from — nil for a chooser pick or
-  a drop — cleared with the picture and dropped by `clamp` wherever it drops
-  the picture; `LibraryIndex.item(named:)` looks it back up, Recently Deleted
+  is the library **file name** the *first* picture came from and
+  `referenceOrigins` names each of them, the first included — nil for a chooser
+  pick or a drop — cleared with the pictures and dropped by `clamp` wherever it
+  drops them; `LibraryIndex.item(named:)` looks one back up, Recently Deleted
   excluded.
 
 Extending a clip is the fourth way, one call: `GenerationStore.extend(_:)` takes
@@ -1904,12 +2009,16 @@ Each backend package decodes bytes to a `CGImage` in its own
 `ReferenceImageDecoding`, duplicated because no backend may import another;
 kits are handed decoded images and never touch the filesystem.
 
-**A transparent reference is matted over white.** Every context a reference is
-drawn into — `QwenPixelBuffer`, `Flux2PixelBuffer`, `CoveringPicture` and
-`UpscalePixelBuffer`'s opaque door — is cleared to white before the draw. Black
-was what an uncleared bitmap happened to give rather than a decision, and
-transparent pictures were not producible inside Zephra before there was a model
-that makes them, so the default had to be chosen rather than inherited.
+**A transparent reference is matted over white, except where a model reads
+alpha.** Every context a reference is drawn into — `Flux2PixelBuffer`,
+`CoveringPicture` and `UpscalePixelBuffer`'s opaque door — is cleared to white
+before the draw. Black was what an uncleared bitmap happened to give rather
+than a decision, and transparent pictures were not producible inside Zephra
+before there was a model that makes them, so the default had to be chosen
+rather than inherited. `QwenImage21ReferencePicture` is the exception and the
+reason the rule had to be stated: it hands the autoencoder all four channels
+and flattens over white only for the vision tower, which is what
+`readsTransparentReferences: true` promises.
 
 ## Upscaling
 
@@ -1919,6 +2028,16 @@ BSD-3-Clause), the seam a later post-process should copy:
 - `ImageUpscaler` in `ZephraCore/Upscale/` is the whole protocol: PNG in, PNG
   out at `UpscaleRequest.factor`, progress by tile, cancellation between tiles.
   Deliberately not `ImageGenerationBackend`: it needs no model loaded.
+- **A transparent picture keeps its transparency**, at the cost of running
+  through twice. `UpscaleInput` holds the colour and the alpha as two tensors
+  rather than one four-channel one, because the network takes three channels:
+  the colour goes through as it always did, and the alpha plane goes through as
+  a grey triplet whose three output channels are meaned back into one. They are
+  recombined as straight RGBA. That is twice the tiles, which is why the
+  progress counts both lanes, and `UpscalePixelBuffer` un-premultiplies after
+  the draw and clips and rounds at the end rather than in the network, since the
+  tiler's cross-fade is a weighted mean and a value clipped before the fade
+  moves the seam instead of the pixel. Its opaque door draws over **white**.
 - `InferenceActor` owns the one upscaler, built lazily from the injected
   `UpscalerFactory`, resident across model switches, on the same serial queue
   as generation so two Metal jobs never overlap. `GenerationStore+Upscale`
@@ -2031,14 +2150,15 @@ Makefile targets:
   alias, verify the public download, write `product-mockups/app/release.json`.
   The site's Download button links the `Zephra-latest.dmg` alias
   (`product-mockups/app/download.ts`); the manifest only gives it the version.
-- `prefetch`, `prefetch-flux2`, `prefetch-qwen`, `prefetch-ltx2`,
+- `prefetch`, `prefetch-flux2`, `prefetch-qwen21`, `prefetch-ltx2`,
   `prefetch-wan` — `hf download` a release to where the app would have written
-  it (`MODELS_DIR`, `QWEN_MODELS`, `LTX2_MODELS`, `WAN_MODELS`); the Qwen, LTX
-  and Wan ones name files explicitly because those repositories ship more than
-  the build reads.
-- `quantize`, `quantize-qwen`, `quantize-flux2`, `quantize-ltx2`,
+  it (`MODELS_DIR`, `QWEN21_MODELS`, `LTX2_MODELS`, `WAN_MODELS`, each under
+  `EXTERNAL_MODELS`); the Qwen, LTX and Wan ones name files explicitly because
+  those repositories ship more than the build reads. `prefetch-qwen21` is one
+  call, since there is no adapter.
+- `quantize`, `quantize-qwen21`, `quantize-flux2`, `quantize-ltx2`,
   `quantize-ltx2-audio`, `quantize-wan` — the build the app does on first
-  load, by hand, into the app's models folder (`QUANT_OUT`, `QWEN_OUT`,
+  load, by hand, into the app's models folder (`QUANT_OUT`, `QWEN21_OUT`,
   `FLUX2_OUT`, `LTX2_OUT`, `LTX2_AUDIO_OUT`, `WAN_OUT`; `BITS`, `GROUP_SIZE`).
   `prefetch-ltx2` fetches the two audio files too, so one pack serves both
   LTX builds.
@@ -2089,9 +2209,9 @@ packer empties what it writes to); it builds into a sibling `.partial` renamed
 on success and removed on ^C; an `--out` named for a catalog entry checks the
 volume for that entry's `builtBytes` first and writes the
 `.zephra-packed-source` stamp the app checks, so a build by hand is one the app
-accepts; and Qwen-Image refuses to build without `--lora`
-(`QuantizeFamily.requiresAdapter`) — `--no-lora` needs an `--out` other than the
-catalog's.
+accepts; and a plan carrying a `QuantizationPlan.notice` has it written as
+`NOTICE` beside the copied weights, which is how Qwen-Image 2.1's build by hand
+is as redistributable as the app's own.
 
 ## Updates
 
@@ -2231,19 +2351,29 @@ sentences about behaviour.
   -skipPackagePluginValidation -only-testing:<Tests>/<Suite>` (`ZephraMLXKit`'s
   scheme is `ZephraMLXKit-Package`). For the app: the `test-app` line with
   `-only-testing:ZephraTests/<Suite>`.
-- `QwenImageKit`, `Flux2Kit` and `LTX2Kit` check the ports against tensors
-  dumped from `diffusers`/`transformers` by each kit's
-  `Tools/dump_reference.py`, which pins the reference versions in
-  `Fixtures/versions.json`. Adding a component means adding its fixture in the
+- `QwenImage21Kit`, `Flux2Kit`, `LTX2Kit` and `WanKit` check the ports against
+  tensors dumped from `diffusers`/`transformers` by each kit's `Tools/`, which
+  pins the reference versions in `Fixtures/versions.json`. `QwenImage21Kit`
+  pins a `diffusers` **commit** and `transformers` 5.17.0 where the others pin
+  0.40.0 and 5.16.1, because 2.1 landed after 0.40.0 was cut and Qwen3-VL does
+  not exist before 5.17; the divergence is stated in its fixture README. Adding a component means adding its fixture in the
   same commit; the clean-room claim in `PROVENANCE.md` rests on it. Each kit's
   `WeightKeyCoverageTests` checks every published tensor against the module
   trees. `ZephraMLXTests` pins the shared pieces.
 - No test loads model weights. A few kit suites read a real snapshot's
   config, tokenizer and safetensors headers through `SnapshotUnderTest`
-  (`ZephraTestSupport`), looking in order at `QWEN_IMAGE_SNAPSHOT`,
+  (`ZephraTestSupport`), looking in order at `QWEN_IMAGE_21_SNAPSHOT`,
   `FLUX2_KLEIN_SNAPSHOT` or `LTX2_SNAPSHOT`, the app's models folder, then a
   hub cache holding exactly one snapshot; header tests gate on `hasRelease`.
   Under `xcodebuild test` spell the variable `TEST_RUNNER_<NAME>`.
+  `QwenImage21Kit` is the one kit that breaks the rule twice on purpose and says
+  so in its `PROVENANCE.md`: five autoencoder suites read the release's 1.35 GB
+  `vae/*.safetensors`, and `PipelineParityTests` loads the whole release
+  streamed for two end-to-end steps against what `diffusers` made from the same
+  noise. It is also why that package must run with
+  `-parallel-testing-enabled NO` — the flag `make test-mlx` already passes every
+  MLX package — since beside that heavy suite `TiledDecodeTests` fails in
+  parallel and passes alone.
 - Engine tests drive `MockBackend` through `MockBackendControl`, a
   lock-protected dial a `@Sendable` factory closes over, inside an
   `EngineTestBed` with a throwaway output folder; `ZephraCoreTests` uses the
@@ -2287,9 +2417,15 @@ each family.
   file, or a 4xx that is not a timeout or rate limit, stops it early.
 - Settings > Models (`ModelStorage` in `ZephraSnapshot`, observed through
   `ModelInventory`) lists every directory the catalog's models occupy, with its
-  `origin`; a release two variants pack from is one row, a stopped download and
-  an adapter are rows of their own, and a directory the loaded model is using
-  cannot be deleted. Changing the folder offers Move Models, Keep in Place, or
+  `origin`; a release two variants pack from is one row, a stopped download is
+  a row of its own, and a directory the loaded model is using cannot be
+  deleted. Past those, `ModelStorage+Retired` sweeps every root for directories
+  no catalog entry claims — a `Downloads/<org>--<repo>` or a variant carrying
+  one of `.zephra-packed-source`, `quantization.json` or `model_index.json`,
+  never a `.partial`, never a symbolic link and never an unmarked folder, which
+  is somebody's own — and lists them as **"No longer in the catalog"**:
+  deletable, never loadable. That is what a Mac that held Qwen-Image-2512 sees
+  of it now. Changing the folder offers Move Models, Keep in Place, or
   Cancel: Keep retains previous roots as read-only fallbacks; Move unloads,
   copies into staging, verifies bytes, publishes, then removes originals, and
   refuses on a collision rather than overwrite. Neither touches the image
@@ -2329,30 +2465,77 @@ each family.
   **not** what that Mac is started on: `default(fitting:)` prefers klein 4-bit,
   which fits resident. Streamed at 1024 it is minutes a picture there.
 
-### Qwen-Image-2512: `qwen-image-2512-4bit`
+### Qwen-Image 2.1: `qwen-image-2.1-4bit`
 
-- Packed on the user's Mac from the bf16 release with the
-  `lightx2v/Qwen-Image-2512-Lightning` adapter merged as it packs; the runtime
-  never sees an adapter. `make quantize-qwen` is the same build by hand;
-  `QWEN_SOURCE`, `QWEN_LORA` and `QWEN_IMAGE_SNAPSHOT` point at the copy on
-  `/Volumes/ExternalStorage/Models`, or set `MODELS_DIR` there instead.
-- **The adapter is not optional.** The base model wants fifty steps and real
-  guidance; the merged weights were distilled to four steps without either,
-  which is why the entry reads `guidanceBounds: 0...0` and
-  `supportsNegativePrompt: false`. A build without it is soft and hazy.
-- The modulation layers stay at eight bits while the rest goes to four: they
-  decide how strongly every other layer responds, and four-bit builds that pack
-  them lose coherent structure.
-- The vision tower and `lm_head` are neither ported nor loaded; the pipeline
-  never supplies pixels. `WeightKeyCoverageTests` asserts it.
-- The autoencoder's encoder is loaded unconditionally, for starting from a
-  noised copy; a lazily rebuilt module would have to keep the shard mapped.
+- Packed on the user's Mac from the 33.1 GB bf16 release, or fetched already
+  packed from the mirror, which is the path most people take.
+  `make quantize-qwen21` is the same build by hand; `QWEN21_MODELS` points at
+  the copy under `EXTERNAL_MODELS` and `QWEN_IMAGE_21_SNAPSHOT` is what the
+  kit's release-reading suites look at first. **There is no adapter**: 2.1's
+  release is the model that runs, which is why the whole `ModelDescriptor.adapters`
+  seam went with the entry this replaced.
+- **The license is not Apache-2.0, and it is the only one in the catalog that
+  is not.** The Qwen RESEARCH LICENSE AGREEMENT permits research and evaluation
+  only; every earlier Qwen-Image release was Apache-2.0 and this one is not.
+  `LICENSE` is in the entry's file patterns so the packed variant carries it,
+  and `QwenImage21QuantizationPlan.notice` is the sentence section 3 requires,
+  written as `NOTICE` beside the weights by `SnapshotAncillaryFiles` — last, so
+  it beats anything the release shipped. `ModelPortrait`'s line says
+  non-commercial on the chooser card and in the model browser, before a byte is
+  fetched, and `THIRD_PARTY_NOTICES.md` carries the whole text.
+- A **single-stream** transformer, 32 blocks, 32 heads at 128, hidden 4096,
+  `mlp_ratio` 3 (SwiGLU at 12288), `axes_dims_rope` `[16, 56, 56]`,
+  `patch_size` 1 so one token is one latent cell and nothing is patchified, and
+  **no biases anywhere**. One shared 16384 x 4096 modulation table serves all 32
+  blocks rather than a table per block, and it is held whole by the plan: 134 MB
+  at bfloat16 against a saving that rounds to nothing, and four-bit builds of
+  the equivalent table in 2512 lost coherent structure. Attention is
+  block-causal and runs as ordinary SDPA passes over
+  `QwenImage21AttentionSegments` — two calls a layer on the first step, one
+  after it, because the prefix is cached.
+- **The prefix KV cache is always on**, which is the reference's own default:
+  one `QwenImage21KVLayerCache` per layer, head-major, committed once. It is
+  about half a megabyte a prefix token, so a 1024-pixel reference is about two
+  gigabytes and guidance holds two caches. That is what
+  `ModelDescriptor.referencePrefixBytes` charges, and why the entry caps
+  `maxPromptTokens` at 512.
+- In and out channels are **64**, matching the autoencoder's `z_dim`, and the
+  autoencoder is four-channel in and out: **2.1 carries alpha**, and the decode,
+  `PixelBuffer` and the PNG path all carry it through. Its spatial factor is 16,
+  so `QwenImage21RequestMapper` halves the engine's VAE tile on the way in the
+  way Wan does, flooring it at 12 cells because 8 measured 17 dB.
+- The text encoder is **Qwen3-VL**: a 36-layer language model (GQA 32/8, head
+  dim 128, `rope_theta` 5e6, interleaved MRoPE) and a **27-block vision tower**
+  with three DeepStack taps injected after the first three decoder layers. The
+  tower is built, loaded and packed — unlike 2512's, which was never ported —
+  because it is what reads a reference picture; it is the one stack that never
+  streams. `lm_head` and the decoder's final norm are neither built nor packed:
+  the pipeline takes a hidden state out of the stack and never reaches a logit.
+- The release publishes a real `tokenizer.json`, under `processor/`, so
+  swift-transformers reads it directly and the assembled byte-level BPE the
+  previous port needed is gone.
+- **Forty steps and real controls.** `stepBounds` 8...50 default 40,
+  `guidanceBounds` 1...8 default 1, and a negative prompt read wherever
+  guidance is over one. This is not a distilled checkpoint, so unlike every
+  other entry both controls mean something; 1 is the default because the
+  release's own card samples it that way and because it is the value at which
+  the second forward, and its share of the prefix cache, is not paid.
+- Sizes are multiples of **32** — a 2x2 patch over a 16-pixel cell — bounds
+  512...2752, default 1024 square, and the presets carry the card's 2K set.
+  1344 rather than 1328: 1328 is not a multiple of 32.
+- Both layer stacks stream under `WeightResidency.streamed`: the transformer's
+  32 blocks and the language model's 36 layers.
+- **Every memory figure is an estimate** (`BENCHMARKS.md`, "Owed reruns"), and
+  the catalog entry says so at each one. Measured are the download,
+  33,131,609,424 bytes, and the build, 11,564,552,844. `tiledPeakBytes` is the
+  one to read carefully: it is rounded to the side that streams on a 16 GB Mac,
+  and moving it under that budget is a decision rather than a correction.
 
 ### Streaming the weights
 
 `LayerWeightStream` (`ZephraMLX`) runs a model on a GPU that cannot hold it by
-reading it from disk every step. Every family does it now — Qwen-Image, LTX-2.5,
-Wan, Z-Image and klein — so every catalog entry carries a measured
+reading it from disk every step. Every family does it now — Qwen-Image 2.1,
+LTX-2.5, Wan, Z-Image and klein — so every catalog entry carries a
 `streamedPeakBytes` and no model is ever loaded resident and left to page.
 MLX reads a shard's
 arrays with `pread` only when evaluated and has no mmap path, so the stream
@@ -2560,12 +2743,12 @@ budget (tests, GPU-less builds) assumes four fifths.
   rules per component, first match wins. `QuantizableWeight` answers whether MLX
   *can* pack a tensor; `QuantizedComponent.precision(for:)` answers whether we
   *want* it, and is asked first.
-- An adapter naming weights the component has not got stops the build, since a
-  mismatched adapter merges nothing and hands back the base model. One whose
-  tensors follow no naming `LoRAAdapter` reads stops with `adapterNamesNothing`
-  before a weight is read. `ZephraQuantize` refuses Qwen-Image without `--lora`
-  (`QuantizeFamily.requiresAdapter`); `--no-lora` builds it on purpose only into
-  an `--out` other than the catalog's.
+- A plan may carry a `notice`, which `SnapshotAncillaryFiles` writes as `NOTICE`
+  beside the weights, last, so it beats any the release shipped. The release's
+  own `LICENSE` needs no rule: a top-level file that is neither
+  `quantization.json` nor a `.safetensors` is copied. Together they are what
+  makes a packed Qwen-Image 2.1 redistributable under the terms its weights
+  arrived under.
 - Tensors stream one at a time out of the source shard and spill at four
   gigabytes, so a build runs at a fraction of the source's size.
 
@@ -2601,7 +2784,7 @@ Full detail: `docs/model-weights.md`.
   exact revision of mlx-swift (`ea8a1796…`, main at 2026-09-11, carrying mlx
   v0.32.2) until a tagged release carries mlx >= 0.32, then the same exact
   version again, `ZImageKit`'s manifest included. A swift-transformers bump is
-  checked by `QwenImageKit`'s `TokenizerTests`. An mlx-swift bump re-runs
+  checked by `QwenImage21Kit`'s `TokenizerTests`. An mlx-swift bump re-runs
   `Flux2Kit`'s two bf16 matmul probes, dense and quantized, for the M5-class
   split-K bug (mlx#3797, fixed upstream in mlx 0.32.0); the day both pass on an
   M5 under a fixed mlx-swift, the float32 gate in `Flux2ActivationPrecision`
