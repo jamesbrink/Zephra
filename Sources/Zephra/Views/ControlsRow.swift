@@ -49,7 +49,7 @@ struct ControlsRow: View {
     /// Strength says how much of a picture survives, so it means nothing without one, and
     /// nothing on a model that conditions on the picture instead of starting from it.
     private var showsReferenceStrength: Bool {
-        store.settings.referenceImage != nil
+        !store.settings.referenceImages.isEmpty
             && store.descriptor.capabilities.adjustsReferenceStrength
     }
 }

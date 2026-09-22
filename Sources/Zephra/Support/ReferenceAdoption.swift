@@ -74,8 +74,9 @@ enum ReferenceAdoption {
     /// makes) rather than the full read the closure above makes: `adoptReference`'s `origin`
     /// travels with the choice and so has to be known before the read starts, unlike the bytes
     /// themselves, which only the closure needs.
-    @MainActor
-    private static func referenceOrigin(droppedFrom url: URL) -> String? {
+    /// `nonisolated` so the several-picture doors can ask it inside their own detached read,
+    /// where N of these would otherwise be N file reads on the main actor.
+    nonisolated static func referenceOrigin(droppedFrom url: URL) -> String? {
         guard let text = try? PNGTextChunks.read(fromHeaderOf: url),
             let record = GenerationRecord.decode(from: text), record.referenceBytes != nil
         else { return url.lastPathComponent }
