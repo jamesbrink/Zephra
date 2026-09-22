@@ -36,7 +36,7 @@ enum QwenImage21RequestMapper {
             // One line, and the one line a multi-reference `GenerationSettings` changes: when
             // Core grows `referenceImages: [ReferencePicture]` this becomes that array mapped
             // to its bytes. The model card allows ten; the engine offers one today.
-            references: [clamped.referenceImage].compactMap { $0 }
+            references: clamped.referenceImages.map(\.data)
         )
     }
 

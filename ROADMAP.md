@@ -904,36 +904,3 @@ deduplication, cross-host versions of source-local edit operations, and
 unattended dispatch while the phone is in the background. These require their
 own ownership, resource and recovery policies; pairing multiple Macs does not
 imply them.
-
-## Qwen-Image 2.1 does not reproduce the reference from a reference picture
-
-`PipelineReferenceParityTests` (`Packages/QwenImage21Kit`) is written, its fixture is dumped
-from the real `diffusers` pipeline, and the suite is **`.disabled`** because the port does not
-pass it. The text-to-picture path is fine — `PipelineParityTests` is 0.87 per cent on the
-finished latent — and the fixture is sound: the fitted picture the two halves of the model read
-is byte-identical to the reference's, and so are `img_shapes`, the encoder's 1046 tokens, the
-4352-token pad mask and the prefix length.
-
-Two independent things are out, measured on halcyon on 2026-09-22:
-
-- the **vision tower's own 1024 tokens** are 23.5 per cent relative, while the text positions
-  either side of the picture sit at this run's bfloat16 floor of 3.2 to 3.6 per cent;
-- the **condition latents** are 76 per cent relative at a Pearson correlation of 0.77, evenly
-  over the picture rather than in one region.
-
-Together they carry the finished latent to 99.6 per cent and the decoded picture to a mean byte
-difference of 101 on a range of 255. Neither is positional — nothing is transposed or
-mis-ordered — and both appear only at the size a real reference picture lands on, 1024 square,
-which is a 64 by 64 patch grid for the tower and a 64 by 64 latent grid for the autoencoder.
-Everything pinned today is below that: `dump_vision.py` dumps the published tower's
-interpolation and rotary tables at 6 by 8 and 32 by 32, and `dump_vae.py` encodes 64 by 64.
-
-One candidate for the condition half is the kit's deliberate **float32 autoencoder**: the
-reference pipeline runs its VAE in bfloat16 with the rest of itself, and the normalisation by
-`latents_std` can amplify what that costs. If that is the whole of the 76 per cent, the fix is
-to `Tools/dump_pipeline_reference.py` — run the reference's condition encode in float32 to
-match the port — rather than to the port. It explains nothing about the vision tokens, which
-are bfloat16 at both ends.
-
-`PROVENANCE.md` carries the same table beside the departure it belongs to. Enabling the suite
-is deleting its one `.disabled` trait.
