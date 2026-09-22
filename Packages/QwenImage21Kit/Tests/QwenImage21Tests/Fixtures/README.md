@@ -35,6 +35,12 @@ directory in the same commit, and saying so in the commit message.
 | --- | --- | --- |
 | `scheduler.safetensors` | `dump_scheduler.py` | `ScheduleTests` |
 | `tokenizer_ids.json` | `dump_tokenizer.py` | `TokenizerTests` |
+| `rope.safetensors` | `dump_rope.py` | `RopeTests`, `JointLayoutTests` |
+| `joint_layout.safetensors` | `dump_rope.py` | `JointLayoutTests` |
+| `segments.safetensors` | `dump_rope.py` | `AttentionSegmentsTests` |
+| `modulation.safetensors` | `dump_transformer.py` | `ModulationTests` |
+| `transformer_block.safetensors` | `dump_transformer.py` | `TransformerParityTests`, `KVCacheTests` |
+| `transformer_model.safetensors` | `dump_transformer.py` | `TransformerParityTests`, `KVCacheTests` |
 | `versions.json` | every dumper | nothing; it is the record |
 
 `scheduler.safetensors` holds seven ladders as `steps<N>.tokens<M>.{sigmas,timesteps,mu}`. Two
@@ -52,7 +58,14 @@ the transformer sees anything, and a count one out shifts every conditioning vec
 `TokenizerTests` asserts the constant against the real tokenizer's own count rather than
 trusting it.
 
-The five dumpers that write nothing yet — `dump_rope.py`, `dump_transformer.py`,
-`dump_text_encoder.py`, `dump_vision.py`, `dump_vae.py` — landed with the kit's skeleton so the
-seven live in one place. Each states in its docstring what it pins and which suite will read it;
-their doll's-house widths are settled by the step that adds that suite.
+The transformer's three files are all one doll's house — two heads of sixteen, three rotary axes
+filling one head, two layers — over three layouts: text-only, one reference image inside the
+prompt, and a right-padded prompt, which is the only thing that exercises the joint key-valid
+mask. `transformer_block.safetensors` and `transformer_model.safetensors` each carry a cached
+group beside their prefill: the same step run from a prefix cache and run fresh over the whole
+sequence, which is what `KVCacheTests` compares.
+
+The dumpers that write nothing yet — `dump_text_encoder.py`, `dump_vision.py`, `dump_vae.py` —
+landed with the kit's skeleton so the seven live in one place. Each states in its docstring what
+it pins and which suite will read it; their doll's-house widths are settled by the step that
+adds that suite.
