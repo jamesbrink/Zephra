@@ -1,6 +1,7 @@
 import SwiftUI
 import ZephraBackendFlux2
 import ZephraBackendLTX2
+import ZephraBackendQwenImage21
 import ZephraBackendWan
 import ZephraBackendZImage
 import ZephraCore
@@ -70,6 +71,7 @@ struct ZephraApp: App {
         ZImageBackendFactory.runtime,
         Flux2BackendFactory.runtime,
         LTX2BackendFactory.runtime,
+        QwenImage21BackendFactory.runtime,
         WanBackendFactory.runtime,
     ])
     private var runtime: CombinedInferenceRuntime { Self.runtime }
@@ -280,6 +282,7 @@ struct ZephraApp: App {
         registry.register(.zImage, ZImageBackendFactory.make(environment))
         registry.register(.flux2, Flux2BackendFactory.make(environment))
         registry.register(.ltx2, LTX2BackendFactory.make(environment))
+        registry.register(.qwenImage21, QwenImage21BackendFactory.make(environment))
         registry.register(.wan, WanBackendFactory.make(environment))
         // The upscaler is registered here for the same reason the backends are: this is the one
         // file that may name a concrete one.

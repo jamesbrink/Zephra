@@ -15,6 +15,20 @@ minutes' worth — `doctor`, `lint-layers`, `test`, `relay-test`, `test-ios`;
 so. See "Build & run" in AGENTS.md and the CI section of
 `docs/build-and-release.md`.
 
+## Qwen-Image 2.1: what the catalog entry still owes
+
+- **Its sample picture.** `ModelPortrait` has its line and the chooser draws a plain
+  card until `scripts/make-samples.sh` renders one, which needs the packed variant on
+  the Mac and a forty-step generation. `ModelPortraitTests.awaitingSample` names the
+  entry and fails once the asset is there, so the list cannot go stale.
+  `crop-sample.py` flattens nothing today and 2.1 emits RGBA: check the card is not
+  drawn on black before the asset is committed.
+- **Its six memory figures**, which are estimates. `BENCHMARKS.md`'s "Owed reruns"
+  carries the run that replaces them and why `tiledPeakBytes` is the one to read
+  carefully.
+- **`builtBytes`**, an estimate from the release's own arithmetic until
+  `make quantize-qwen21` has written the variant once and `du` has been read.
+
 ## Next steps, in order
 
 1. **Upscale with Real-ESRGAN** (shipped, PR #7). A post-process beside the

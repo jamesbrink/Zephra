@@ -17,7 +17,7 @@ extension CapabilitiesSummary {
         case supportsReferenceImage, referenceStrengthBounds, defaultReferenceStrength
         case frameBounds, defaultFrames, frameAlignment, frameRate
         case continuationFrames, defaultContinuationFrames, producesAudio
-        case referenceImageCount
+        case referenceImageCount, readsTransparentReferences
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -46,6 +46,11 @@ extension CapabilitiesSummary {
         // other summary the bytes it has always been.
         if referenceImageCount != Self.oneReferencePicture {
             try container.encode(referenceImageCount, forKey: .referenceImageCount)
+        }
+        // And only a model that reads alpha, for the same reason: every other summary keeps
+        // the bytes it had before there was a family whose tower takes four channels.
+        if readsTransparentReferences {
+            try container.encode(readsTransparentReferences, forKey: .readsTransparentReferences)
         }
     }
 
@@ -78,6 +83,10 @@ extension CapabilitiesSummary {
         // A Mac from before several pictures existed read one, which is what its silence means.
         referenceImageCount = try container.decodeIfPresent(
             ClosedRange<Int>.self, forKey: .referenceImageCount) ?? Self.oneReferencePicture
+        // And one from before any model read alpha matted every reference over white, which is
+        // what the phone's `ReferenceMatteNote` says on its behalf.
+        readsTransparentReferences = try container.decodeIfPresent(
+            Bool.self, forKey: .readsTransparentReferences) ?? false
     }
 
     /// What every model read before a model read several, and what a summary saying nothing

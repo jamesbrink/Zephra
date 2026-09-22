@@ -1,6 +1,7 @@
 import Foundation
 import ZephraBackendFlux2
 import ZephraBackendLTX2
+import ZephraBackendQwenImage21
 import ZephraBackendWan
 import ZephraBackendZImage
 import ZephraCore
@@ -17,6 +18,7 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
     case ltx2 = "ltx2"
     case ltx2Audio = "ltx2-audio"
     case wan = "wan"
+    case qwenImage21 = "qwen-image-2.1"
 
     /// Every value `--family` accepts, for the usage text.
     static var names: String { allCases.map(\.rawValue).joined(separator: "|") }
@@ -30,6 +32,7 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
         case .ltx2: "ltx-2.5-distilled-4bit"
         case .ltx2Audio: "ltx-2.5-distilled-audio-4bit"
         case .wan: "wan-2.2-ti2v-5b-4bit"
+        case .qwenImage21: "qwen-image-2.1-4bit"
         }
     }
 
@@ -40,6 +43,7 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
         case .flux2: "black-forest-labs/FLUX.2-klein-4B"
         case .ltx2, .ltx2Audio: "mlx-community/ltx-2.5-mlx"
         case .wan: "FastVideo/FastWan2.2-TI2V-5B-FullAttn-Diffusers"
+        case .qwenImage21: "Qwen/Qwen-Image-2.1"
         }
     }
 
@@ -51,6 +55,11 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
     /// LTX-2.5 omits its audio stream and holds its two embeddings at eight bits.
     ///
     /// Wan 2.2 holds its conditioning and UMT5's token table at eight bits.
+    ///
+    /// Qwen-Image 2.1 holds its one modulation table whole and takes the text encoder's token
+    /// embedding and the transformer's text projection at eight bits. It takes **no adapter**:
+    /// the release is the checkpoint that runs, which is why forty steps and real guidance are
+    /// what the catalog entry offers.
     func plan(
         transformer: QuantizationPrecision,
         textEncoder: QuantizationPrecision
@@ -70,6 +79,14 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
                     ? try QuantizationPrecision(bits: 8, groupSize: transformer.groupSize)
                     : transformer,
                 audio: self == .ltx2Audio
+            )
+        case .qwenImage21:
+            return QwenImage21QuantizationPlan.plan(
+                transformer: transformer,
+                textEncoder: textEncoder,
+                sensitive: transformer.bits < 8
+                    ? try QuantizationPrecision(bits: 8, groupSize: transformer.groupSize)
+                    : transformer
             )
         case .wan:
             return WanQuantizationPlan.plan(

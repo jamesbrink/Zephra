@@ -356,6 +356,13 @@ The last two were taken on a busy machine and are ceilings.
   has been re-measured under the new pin either; klein 4-bit and Z-Image
   8-bit on halcyon are owed the first rerun, since they are the two entries
   this file's own numbers lean on most.**
+- **Qwen-Image 2.1's whole memory row: `residentBytes`, `peakBytes`, `tiledPeakBytes`,
+  `streamedPeakBytes`, `streamedResidentBytes` and `referencePrefixBytes` are estimates
+  dated 2026-09-22, arithmetic from the packed sizes rather than readings. Measure at
+  1024 pixels, forty steps, three runs on an idle Mac, with a `--reference` run beside
+  it for the prefix cache, and replace them in `ModelCatalog+QwenImage21.swift`.
+  `tiledPeakBytes` is the one to read carefully: it is rounded to the side that streams
+  on a 16 GB Mac, and moving it under that budget is a decision, not a correction.**
 - Qwen-Image resident timings and peaks in bfloat16, with the VAE encoder loaded.
 - Qwen-Image streamed step time on an idle halcyon.
 - klein's edit peak and time with the reference tokens cast.

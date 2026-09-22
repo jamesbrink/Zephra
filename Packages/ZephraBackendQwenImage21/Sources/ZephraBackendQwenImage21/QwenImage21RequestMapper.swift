@@ -33,9 +33,11 @@ enum QwenImage21RequestMapper {
             steps: clamped.steps,
             guidance: clamped.guidance,
             seed: clamped.seed,
-            // One line, and the one line a multi-reference `GenerationSettings` changes: when
-            // Core grows `referenceImages: [ReferencePicture]` this becomes that array mapped
-            // to its bytes. The model card allows ten; the engine offers one today.
+            // Every picture in the well, in the order the model reads them.
+            // `ModelCapabilities.referenceImageCount` is `1...10` on this entry, the model
+            // card's own limit and `ReferenceLimits.maximumPictures`, and `clamp` has already
+            // trimmed to it — so this is the whole list rather than its first entry, and it is
+            // the one place the order the strip shows becomes the order the pipeline reads.
             references: clamped.referenceImages.map(\.data)
         )
     }
