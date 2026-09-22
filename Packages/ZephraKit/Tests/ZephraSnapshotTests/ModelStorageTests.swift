@@ -136,6 +136,14 @@ struct ModelStorageTests {
             for: ModelCatalog.all, cache: scratch.url("hub"),
             locations: ModelLocations(root: scratch.url("models")))
         #expect(items.isEmpty)
+
+        // An existing but empty root walks cleanly too: the retired sweep has something to
+        // `contentsOfDirectory` over now, not just a path that fails to resolve.
+        try scratch.make("models", isDirectory: true)
+        let overAnEmptyRoot = ModelStorage.items(
+            for: ModelCatalog.all, cache: scratch.url("hub"),
+            locations: ModelLocations(root: scratch.url("models")))
+        #expect(overAnEmptyRoot.isEmpty)
     }
 
     @Test("a directory is measured by its files, and a link does not count its target twice")

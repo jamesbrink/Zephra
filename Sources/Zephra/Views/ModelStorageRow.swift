@@ -40,6 +40,8 @@ struct ModelStorageRow: View {
     /// folder is written to, the hub cache is only ever read (see `ModelStorageItem.Origin`).
     private var state: String {
         switch item.kind {
+        case _ where item.origin == .retired:
+            "No longer in the catalog"
         case .download where !item.isComplete && item.origin == .hubCache:
             "Partial download left by hf; Zephra reads this cache and never writes it"
         case .download where !item.isComplete:
@@ -80,6 +82,13 @@ struct ModelStorageRow: View {
                 name: "Z-Image Turbo · 8-bit", kind: .download,
                 url: URL(filePath: "/tmp/hub"), location: "~/.cache/huggingface/hub/models/mzbac/Z-Image-Turbo-8bit",
                 modelIDs: ["z"], isComplete: false, origin: .hubCache),
+            inUse: false
+        ) {}
+        ModelStorageRow(
+            item: ModelStorageItem(
+                name: "Qwen-Image 2512 · 4-bit", kind: .built,
+                url: URL(filePath: "/tmp/qwen-image-2512-4bit"), location: "qwen-image-2512-4bit",
+                modelIDs: [], isComplete: true, origin: .retired, bytes: 21_600_000_000),
             inUse: false
         ) {}
     }

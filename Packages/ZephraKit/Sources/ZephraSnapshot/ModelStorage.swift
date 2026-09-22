@@ -64,6 +64,13 @@ public nonisolated enum ModelStorage {
                 }
             }
         }
+        // Trailing slash off, so a directory named with `directoryHint: .isDirectory` still
+        // compares equal to the same directory as `contentsOfDirectory` hands it back.
+        let claimed = Set(items.map { item -> String in
+            let path = item.url.standardizedFileURL.path(percentEncoded: false)
+            return path.count > 1 && path.hasSuffix("/") ? String(path.dropLast()) : path
+        })
+        items += retired(claimed: claimed, locations: locations)
         return items
     }
 

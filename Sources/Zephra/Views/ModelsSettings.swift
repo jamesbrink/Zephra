@@ -75,6 +75,10 @@ struct ModelsSettings: View {
     private func consequence(of item: ModelStorageItem) -> String {
         let frees = item.bytes.map { "frees \($0.formatted(.byteCount(style: .file)))" }
             ?? "frees the space it takes"
+        guard item.origin != .retired else {
+            return "Deleting \(item.name) \(frees). This cannot be undone. No model in Zephra "
+                + "uses it."
+        }
         let cost = switch item.kind {
         case .download: "downloads it again"
         case .built: "builds it again"
