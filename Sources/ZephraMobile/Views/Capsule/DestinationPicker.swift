@@ -34,7 +34,7 @@ struct DestinationPicker: View {
             while !Task.isCancelled {
                 await dispatch.refresh(StrictGeneration(request: GenerationRequest(
                     modelID: draft.modelID, count: draft.count, settings: draft.settings),
-                    input: draft.reference.map { GenerationInput(data: $0, originHost: draft.referenceOrigin.flatMap { dispatch.hosts.catalog.entry(named: $0)?.hostID }, dimensions: draft.referenceSize) }))
+                    inputs: dispatch.inputs(for: draft.references)))
                 
                 try? await Task.sleep(for: .seconds(3))
             }
@@ -46,6 +46,6 @@ struct DestinationPicker: View {
         return host.name + (host.client.connection.isLive ? "" : " · Offline")
     }
     private var fingerprint: String {
-        "\(draft.modelID)|\(draft.settings.hashValue)|\(draft.count)|\(dispatch.destination?.rawValue ?? "auto")|\(draft.reference.map { GenerationInput.digest($0) } ?? "none")"
+        "\(draft.modelID)|\(draft.settings.hashValue)|\(draft.count)|\(dispatch.destination?.rawValue ?? "auto")|\(dispatch.fingerprint(of: draft.references))"
     }
 }

@@ -3,7 +3,7 @@ import ZephraLinkClient
 import ZephraLinkProtocol
 
 extension GenerationDispatch {
-    func send(_ generation: StrictGeneration, reference: Data?) async {
+    func send(_ generation: StrictGeneration, references: [Data]) async {
         guard !isSending else { return }
         isSending = true; note = nil
         defer { isSending = false }
@@ -17,11 +17,11 @@ extension GenerationDispatch {
         do { try record(submission) } catch { note = "The submission could not be saved. Nothing was sent."; return }
         do {
             if host.client.supportsMultiHost {
-                let receipt = try await host.client.submit(generation, reference: reference)
+                let receipt = try await host.client.submit(generation, references: references)
                 submission.batchID = receipt.batchID
                 submission.state = Self.state(receipt.status)
             } else {
-                submission.batchID = try await host.client.enqueue(generation.request, reference: reference)
+                submission.batchID = try await host.client.enqueue(generation.request, references: references)
                 submission.state = .accepted
             }
             note = submission.state == .accepted ? "Queued on \(host.name)" : "Checking submission on \(host.name)"

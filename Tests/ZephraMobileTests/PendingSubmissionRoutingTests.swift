@@ -38,12 +38,12 @@ struct PendingSubmissionRoutingTests {
         let dispatch = GenerationDispatch(hosts: hosts, root: nil)
         let first = StrictGeneration(request: GenerationRequest(modelID: "z-image-turbo-4bit", count: 1,
             settings: PromptDraft().settings))
-        await dispatch.send(first, reference: nil)
+        await dispatch.send(first, references: [])
         #expect(dispatch.submissions.first?.hostID == a.preference.id)
         #expect(dispatch.candidates().first { $0.id == a.preference.id }?.pendingSeconds == 60)
         let second = StrictGeneration(request: GenerationRequest(modelID: first.request.modelID, count: 1,
             settings: first.request.settings))
-        await dispatch.send(second, reference: nil)
+        await dispatch.send(second, references: [])
         #expect(dispatch.submissions.first { $0.id == second.request.requestID }?.hostID == b.preference.id)
         let accepted = try #require(receipts[first.request.requestID])
         let row = QueuedEntry(id: UUID(), batchID: try #require(accepted.batchID), batchIndex: 0,

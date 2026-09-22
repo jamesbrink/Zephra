@@ -87,7 +87,7 @@ struct MultiHostRecoveryTests {
         let job = StrictGeneration(request: GenerationRequest(modelID: "z-image-turbo-4bit", count: 1,
             settings: PromptDraft().settings))
         await withTaskGroup(of: Void.self) { group in
-            for _ in 0..<10 { group.addTask { await dispatch.send(job, reference: nil) } }
+            for _ in 0..<10 { group.addTask { await dispatch.send(job, references: []) } }
         }
         #expect(dispatch.submissions.isEmpty)
         #expect(!a.host.commands.contains { if case .enqueue = $0 { return true }; if case .multiHost(.submit) = $0 { return true }; return false })
