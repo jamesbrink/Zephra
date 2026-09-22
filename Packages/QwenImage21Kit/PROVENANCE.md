@@ -94,7 +94,7 @@ both are guarded on what the feature cache holds at their index, and on the only
 image has, the encoder's cache holds `None` there (the branch taken records the activation and
 moves on) and the decoder's the sentinel `"Rep"` (the branch taken replaces it). The
 convolution is reached from the second chunk onward and there is never a second chunk.
-`VAEWeightKeyCoverageTests` claims all 238 published keys: 226 as parameters of the tree and
+`WeightKeyCoverageTests+VAE` claims all 238 published keys: 226 as parameters of the tree and
 those twelve by name, so the count has no hole in it.
 
 The temporal half of the two parameter-free shortcuts is **not** dropped, because for one frame
@@ -136,13 +136,14 @@ model is small enough to run in a second, and a doll's house cannot catch a scal
 wrong axis of a 96-channel stage or a shortcut that only misbehaves at the published widths.
 The doll's-house suites beside them need no release and pin the architecture on any Mac.
 
-### `QwenImage21PixelBuffer` is temporary
+### The pixels go out through the shared buffer, which now carries four channels
 
-It is `ZephraMLX.PixelBuffer` with the alpha channel carried rather than invented. The shared
-one appends an opaque alpha column unconditionally, which over four channels would make five,
-so 2.1 cannot use it at all. When the shared buffer learns four channels -- straight alpha,
-`CGImageAlphaInfo.last`, the same rounding -- this file is deleted and the calls move over;
-`PixelBufferTests` pins the same bytes either way, so the swap is checked rather than assumed.
+`QwenImage21PixelBuffer` existed while `ZephraMLX.PixelBuffer` appended an opaque alpha column
+unconditionally, which over four channels would have made five. The shared one now takes three
+channels or four — straight alpha, `CGImageAlphaInfo.last`, the same rounding — so the kit's
+copy and `PixelBufferTests` beside it are **deleted** and both doors, the finished PNG and the
+preview frame, call the shared one. `LatentPreviewTests.alphaIsCarried` is what still says the
+fourth channel is the picture's own and not an invented 255.
 
 ### The text encoder's final norm is not built
 
@@ -216,3 +217,70 @@ there is nothing padded, so `Qwen3VLAttentionMask` is the causal triangle and no
 `encode_prompt`'s own `if prompt_embeds_mask.all(): prompt_embeds_mask = None` means the
 transformer is handed no mask either. A batched encoder would need the left-padding term, and
 `Qwen3VLAttentionMask` is the one file that would grow it.
+
+### A picture cannot match `diffusers` bit for bit, because the noise is not torch's
+
+`prepare_latents` draws the starting noise with a `torch.Generator` seeded by the caller.
+`QwenImage21Pipeline` draws it with `MLXRandom.normal(_:key:)` over the request's seed, in the
+unpacked latent grid, and packs it the way the reference does. The two generators are different
+algorithms, so the same seed is a different picture, and no tolerance on a finished image means
+anything.
+
+What *is* comparable is a run that starts from the same noise, and that is what
+`QwenImage21Request.noise` is for: `Tools/dump_pipeline.py` saves the packed latent it drew and
+`PipelineParityTests` hands it straight in, so the Swift loop and the reference loop walk the
+same ladder from the same place and their final latents can be compared.
+
+### The prefix cache is always on, and it is part of what a seed means
+
+The reference's `use_kv_cache` defaults to true and its own docstring says the flag does not
+reproduce a picture bit for bit in reduced precision: caching makes a decode step attend over a
+different sequence layout from the prefill, the two tile differently and land on different
+rounding, and 32 blocks over forty steps amplify one unit in the last place into a visibly
+different -- equally valid -- sample.
+
+This port does not expose the flag. Every run caches, which is the reference's default, so a
+seed means one thing here; a build that offered the choice would have to record which was used
+beside every picture, or the same seed would give two pictures.
+
+### One resample, and it is Core Graphics' rather than PIL's
+
+The reference resizes each condition image once, to `calculate_dimensions(output_resolution`
+squared`, its own aspect)`, with `PIL_INTERPOLATION["lanczos"]`, and that one copy feeds both
+the vision tower and the autoencoder. `QwenImage21ReferencePicture.fitted` is that resize, and
+it lands on the same size -- `ImageFittingTests` pins the arithmetic against the reference --
+but it draws through Core Graphics at `.high` interpolation, which is a different kernel. A
+picture conditioned on a reference is therefore a resample away from the reference's, wherever
+the resample changed anything.
+
+Two smaller consequences of using Core Graphics at all. It has no straight-alpha context, so
+the draw is premultiplied and un-premultiplied afterwards, which loses the colour under a fully
+transparent pixel -- the colour the autoencoder does not carry either, measured above. And the
+whole picture goes into the whole bitmap rather than being scaled to cover and centred the way
+klein's reference decode does: the fit keeps the aspect to within one 32-pixel step, so there
+is nothing to crop, and a matte colour at the edges would be a matte the reference never
+applies.
+
+### A reference picture crosses as encoded bytes
+
+`QwenImage21Request.references` is `[Data]` -- PNG, JPEG, anything ImageIO reads -- rather than
+an array of pixels. That is the shape `Flux2GenerationRequest.referenceImage` uses and the
+shape the engine already holds a reference in, and it puts the decode and the fit at one door:
+an `MLXArray` handed in at an arbitrary size would have to be resampled here anyway, and by
+then it would have been decoded once already.
+
+### The Euler step is taken in float32 over bfloat16 latents
+
+`FlowMatchEulerDiscreteScheduler.step` upcasts the sample to float32, takes the step there and
+casts back to the model output's dtype. `QwenImage21Schedule.step` is the bare formula and the
+pipeline does the upcast at the call site, which is the same arithmetic: forty steps of
+bfloat16 accumulation drifts visibly in the darkest and lightest parts of a picture, and the
+upcast is one multiply-add a step.
+
+### The end-to-end parity suite loads the release's real weights
+
+`PipelineParityTests` is the second place this kit departs from the repository's "no test loads
+model weights", and it is the one that says the port makes the reference's picture rather than
+a plausible one. It loads the whole 33 GB release -- streamed, so the two layer stacks are read
+per step rather than held -- runs the reference's own noise through a short ladder at a small
+size, and compares the finished latent. Everything else in the suite runs without a release.

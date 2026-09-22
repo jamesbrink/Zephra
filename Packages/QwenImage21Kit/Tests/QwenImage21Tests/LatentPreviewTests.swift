@@ -23,7 +23,7 @@ struct LatentPreviewTests {
         // 4 x 4 cells need no pooling, and the doll's house is four pixels a cell.
         let latents = VAEFixture.channelsLast(try #require(fixture["out.normalised"]))
 
-        let preview = QwenImage21LatentPreview.make(
+        let preview = try QwenImage21LatentPreview.make(
             latents: latents, normalization: normalization, autoencoder: autoencoder)
         #expect(preview.width == 16)
         #expect(preview.height == 16)
@@ -39,7 +39,7 @@ struct LatentPreviewTests {
         // 68 cells an edge pools by 3 to 22, which at four pixels a cell is 88.
         let latents = MLXRandom.normal([1, 68, 68, VAEFixture.dollsHouse.zDim])
 
-        let preview = QwenImage21LatentPreview.make(
+        let preview = try QwenImage21LatentPreview.make(
             latents: latents, normalization: normalization, autoencoder: autoencoder)
         #expect(preview.width == 88)
         #expect(preview.height == 88)
@@ -52,7 +52,7 @@ struct LatentPreviewTests {
         let autoencoder = try VAEFixture.dollsHouseAutoencoder(fixture)
         let normalization = QwenImage21LatentNormalization(VAEFixture.dollsHouse)
         let latents = VAEFixture.channelsLast(try #require(fixture["out.normalised"]))
-        let preview = QwenImage21LatentPreview.make(
+        let preview = try QwenImage21LatentPreview.make(
             latents: latents, normalization: normalization, autoencoder: autoencoder)
 
         let alpha = stride(from: 3, to: preview.pixels.count, by: 4).map { preview.pixels[$0] }

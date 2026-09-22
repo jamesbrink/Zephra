@@ -5,34 +5,29 @@ import ZephraTestSupport
 
 @testable import QwenImage21
 
-/// Every tensor the published transformer ships, accounted for before a weight is read.
+/// The transformer's 297 published tensors, accounted for before a weight is read.
 ///
-/// This is the cheap way to be certain the module tree matches what it will be handed: the
-/// expected names and shapes are derived from `transformer/config.json`, and the shard index and
-/// headers say what is actually there. A name on one side and not the other is a rename, a
-/// miscounted block, or something this port has forgotten — each of which is hours of parity
-/// debugging when it is found later.
+/// The expected names and shapes are derived from `transformer/config.json`, and the shard
+/// index and headers say what is actually there. A name on one side and not the other is a
+/// rename, a miscounted block, or something this port has forgotten — each of which is hours of
+/// parity debugging when it is found later.
 ///
 /// Nothing here loads a weight. The index and the headers only, so fourteen gigabytes are
 /// checked in well under a second.
-@Suite("Every published transformer tensor is accounted for")
-struct TransformerKeyCoverageTests {
+extension WeightKeyCoverageTests {
     @Test(
         "the transformer's 297 tensors are exactly the ones this architecture implies",
         .enabled(if: SnapshotUnderTest.qwenImage21.hasRelease))
-    func transformerTensors() throws {
+    func transformerKeys() throws {
         let snapshot = try #require(SnapshotUnderTest.qwenImage21.release)
         let directory = snapshot.appending(path: "transformer")
-        let configuration = try Self.configuration(in: directory)
-        let published = try Self.publishedShapes(in: directory)
-        let expected = Self.expectedTensors(configuration)
+        let configuration = try Self.transformerConfiguration(in: directory)
+        let published = try Self.transformerShapes(in: directory)
+        let expected = Self.expectedTransformerTensors(configuration)
 
         #expect(published.count == 297)
-        let absent = Set(expected.keys).subtracting(published.keys).sorted()
-        let unaccounted = Set(published.keys).subtracting(expected.keys).sorted()
-        #expect(absent.isEmpty, Comment(rawValue: "expected but absent: \(absent)"))
-        #expect(
-            unaccounted.isEmpty, Comment(rawValue: "present but unaccounted for: \(unaccounted)"))
+        Self.expectNamesMatch(
+            published: Set(published.keys), expected: Set(expected.keys))
 
         let wrong = expected.compactMap { name, shape -> String? in
             guard let actual = published[name], actual != shape else { return nil }
@@ -44,18 +39,23 @@ struct TransformerKeyCoverageTests {
         #expect(!published.keys.contains { $0.hasSuffix(".bias") })
         // The layer norms are parameterless, so they appear in no shard at all.
         #expect(!published.keys.contains { $0.contains("img_norm") })
-        #expect(published["norm_out.linear.weight"] == [configuration.innerDim, configuration.innerDim])
+        #expect(
+            published["norm_out.linear.weight"] == [
+                configuration.innerDim, configuration.innerDim,
+            ])
     }
 
     /// The reference's own names, which is what `sanitized` maps out of.
-    static func expectedTensors(_ configuration: QwenImage21TransformerConfiguration)
+    static func expectedTransformerTensors(_ configuration: QwenImage21TransformerConfiguration)
         -> [String: [Int]]
     {
         let dim = configuration.innerDim
         let head = configuration.attentionHeadDim
         let mlp = configuration.mlpHiddenSize
         var tensors: [String: [Int]] = [
-            "img_in.weight": [dim, configuration.inChannels * configuration.patchSize * configuration.patchSize],
+            "img_in.weight": [
+                dim, configuration.inChannels * configuration.patchSize * configuration.patchSize,
+            ],
             "txt_in.text_norm.weight": [configuration.contextInDim],
             "txt_in.in_layer.weight": [dim, configuration.contextInDim],
             "txt_in.out_layer.weight": [dim, dim],
@@ -85,7 +85,9 @@ struct TransformerKeyCoverageTests {
         return tensors
     }
 
-    static func configuration(in directory: URL) throws -> QwenImage21TransformerConfiguration {
+    static func transformerConfiguration(in directory: URL) throws
+        -> QwenImage21TransformerConfiguration
+    {
         try JSONDecoder()
             .decode(
                 QwenImage21TransformerConfiguration.self,
@@ -95,7 +97,7 @@ struct TransformerKeyCoverageTests {
     }
 
     /// Every tensor in the sharded component, by name, with its shape and none of its bytes.
-    static func publishedShapes(in directory: URL) throws -> [String: [Int]] {
+    static func transformerShapes(in directory: URL) throws -> [String: [Int]] {
         struct Index: Decodable { let weightMap: [String: String] }
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase

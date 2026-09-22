@@ -13,9 +13,19 @@ import ZephraTestSupport
 /// block, or a component this port has forgotten — each of which is hours of parity debugging
 /// if it is found later.
 ///
-/// Nothing here reads a weight. Index files and headers only, so seventeen gigabytes are
+/// Nothing here reads a weight. Index files and headers only, so thirty-three gigabytes are
 /// checked in well under a second. The per-component claims are in the `+` files beside this
-/// one.
+/// one, and between them they account for every tensor the release ships:
+///
+/// | component | published | claimed |
+/// | --- | --- | --- |
+/// | `transformer` | 297 | all 297, `+Transformer` |
+/// | `vae` | 238 | 226 as parameters and 12 named unreachable, `+VAE` |
+/// | `text_encoder` | 750 | 397 decoder and 351 tower, `+TextEncoder` and `+Vision` |
+///
+/// The text encoder's other two are `lm_head.weight` and `model.language_model.norm.weight`,
+/// named in `Qwen3VLTextWeights.omitted` and left on disk on purpose: 748 of 750 loaded.
+/// One suite type, so a component's claim cannot quietly stop running while the others pass.
 @Suite("Every published tensor is accounted for")
 struct WeightKeyCoverageTests {
     /// The tensor names in a sharded component's index.

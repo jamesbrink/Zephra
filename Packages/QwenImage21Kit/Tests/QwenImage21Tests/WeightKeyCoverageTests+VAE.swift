@@ -17,32 +17,28 @@ import ZephraTestSupport
 /// modules exist in the checkpoint and cannot run for a still image, so the tree does not build
 /// them; naming them is what keeps "every published key is accounted for" a true statement
 /// rather than a count with a hole in it.
-///
-/// (Named for the file it will merge into when the pipeline's own `WeightKeyCoverageTests`
-/// lands; it stands alone until then, so the suite type carries its own name.)
-@Suite("the real autoencoder's 238 tensors are the tree's parameters, or named as unreachable")
-struct VAEWeightKeyCoverageTests {
-    static let file = "diffusion_pytorch_model.safetensors"
-    static let publishedKeyCount = 238
-    static let unreachableKeyCount = 12
+extension WeightKeyCoverageTests {
+    static let vaeFile = "diffusion_pytorch_model.safetensors"
+    static let vaePublishedKeyCount = 238
+    static let vaeUnreachableKeyCount = 12
 
-    static func header() throws -> SafeTensorsHeader {
+    static func vaeHeader() throws -> SafeTensorsHeader {
         let release = try #require(SnapshotUnderTest.qwenImage21.release)
-        return try SafeTensorsHeader(contentsOf: release.appending(path: "vae/\(file)"))
+        return try SafeTensorsHeader(contentsOf: release.appending(path: "vae/\(vaeFile)"))
     }
 
     @Test(
-        "every published tensor is a parameter of the tree or a named unreachable one",
+        "every published autoencoder tensor is a parameter of the tree or a named unreachable one",
         .enabled(if: SnapshotUnderTest.qwenImage21.hasRelease))
-    func namesMatch() throws {
+    func vaeNamesMatch() throws {
         let (_, configuration) = try VAEFixture.publishedConfiguration()
-        let published = Set(try Self.header().entries.map(\.name))
-        #expect(published.count == Self.publishedKeyCount)
+        let published = Set(try Self.vaeHeader().entries.map(\.name))
+        #expect(published.count == Self.vaePublishedKeyCount)
 
         let unreachable = published.filter {
             $0.contains(QwenImage21VAEWeights.temporalInfix)
         }
-        #expect(unreachable.count == Self.unreachableKeyCount)
+        #expect(unreachable.count == Self.vaeUnreachableKeyCount)
 
         let claimed = Set(
             QwenImage21Autoencoder(configuration).parameters().flattened().map(\.0))
@@ -53,15 +49,15 @@ struct VAEWeightKeyCoverageTests {
         #expect(
             unclaimed.isEmpty,
             Comment(rawValue: "present but unclaimed: \(unclaimed.sorted().prefix(8))"))
-        #expect(claimed.count == Self.publishedKeyCount - Self.unreachableKeyCount)
+        #expect(claimed.count == Self.vaePublishedKeyCount - Self.vaeUnreachableKeyCount)
     }
 
     @Test(
-        "every parameter's shape, put back in the checkpoint's layout, is the file's",
+        "every autoencoder parameter's shape, put back in the checkpoint's layout, is the file's",
         .enabled(if: SnapshotUnderTest.qwenImage21.hasRelease))
-    func shapesMatch() throws {
+    func vaeShapesMatch() throws {
         let (_, configuration) = try VAEFixture.publishedConfiguration()
-        let published = try Self.header().entries.reduce(into: [String: [Int]]()) {
+        let published = try Self.vaeHeader().entries.reduce(into: [String: [Int]]()) {
             $0[$1.name] = $1.shape
         }
         for (path, parameter) in QwenImage21Autoencoder(configuration).parameters().flattened() {
@@ -72,9 +68,9 @@ struct VAEWeightKeyCoverageTests {
     }
 
     @Test(
-        "the published config is the one the port's widths are built from",
+        "the published autoencoder config is the one the port's widths are built from",
         .enabled(if: SnapshotUnderTest.qwenImage21.hasRelease))
-    func configurationMatchesTheFile() throws {
+    func vaeConfigurationMatchesTheFile() throws {
         let (_, configuration) = try VAEFixture.publishedConfiguration()
         #expect(configuration.encoderStageDims == [96, 96, 192, 384, 768, 768])
         #expect(configuration.decoderStageDims == [1152, 1152, 1152, 576, 288, 144])
@@ -87,7 +83,7 @@ struct VAEWeightKeyCoverageTests {
     }
 
     @Test("the fixture's tensors go into the tree's layouts and come back to their own shapes")
-    func layoutsRoundTrip() throws {
+    func vaeLayoutsRoundTrip() throws {
         let weights = VAEFixture.weights(try Fixture.load("vae"), under: "model.")
         let sanitized = QwenImage21VAEWeights.sanitized(weights)
         let dropped = weights.keys.filter {
@@ -102,14 +98,15 @@ struct VAEWeightKeyCoverageTests {
         }
         // A kernel's channels move to the end, a gain flattens, a bias stays.
         #expect(sanitized["encoder.conv_in.weight"]?.shape == [8, 3, 3, 4])
-        #expect(sanitized["decoder.up_blocks.0.upsampler.resample.1.weight"]?.shape == [24, 3, 3, 24])
+        #expect(
+            sanitized["decoder.up_blocks.0.upsampler.resample.1.weight"]?.shape == [24, 3, 3, 24])
         #expect(sanitized["decoder.mid_block.attentions.0.norm.gamma"]?.shape == [24])
         #expect(sanitized["decoder.norm_out.gamma"]?.shape == [12])
         #expect(sanitized["decoder.conv_out.bias"]?.shape == [4])
     }
 
-    @Test("the doll's-house fixture covers the tree exactly, once the dead tensors are dropped")
-    func fixtureCoversTheTree() throws {
+    @Test("the doll's-house fixture covers the autoencoder tree exactly, dead tensors dropped")
+    func vaeFixtureCoversTheTree() throws {
         let sanitized = QwenImage21VAEWeights.sanitized(
             VAEFixture.weights(try Fixture.load("vae"), under: "model."))
         let tree = Set(

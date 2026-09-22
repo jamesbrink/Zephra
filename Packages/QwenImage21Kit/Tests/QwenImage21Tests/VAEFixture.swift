@@ -84,7 +84,7 @@ enum VAEFixture {
         let autoencoder = QwenImage21Autoencoder(configuration)
         try autoencoder.load(
             weights: MLX.loadArrays(
-                url: release.appending(path: "vae/\(VAEWeightKeyCoverageTests.file)")))
+                url: release.appending(path: "vae/\(WeightKeyCoverageTests.vaeFile)")))
         eval(autoencoder.parameters())
         return (autoencoder, configuration)
     }

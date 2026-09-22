@@ -10,10 +10,10 @@ import ZephraMLX
 /// of at most 512 pixels and a decode a small fraction of the real one. The decode is untiled,
 /// since a frame that small has no peak worth bounding.
 ///
-/// The bytes are `QwenImage21PixelBuffer`'s rather than `LatentPreview.rgba8`'s, and only
-/// because the shared one invents an opaque alpha. A 2.1 preview carries the picture's own
-/// alpha the way the finished PNG does; when the shared buffer learns four channels this calls
-/// it instead and the bytes do not move.
+/// The bytes are `ZephraMLX.PixelBuffer`'s, which carries a fourth channel as the picture's own
+/// straight alpha rather than appending an opaque one. `LatentPreview.rgba8` is the
+/// three-channel door and would make five channels out of these four, so it is deliberately not
+/// what a 2.1 frame goes through.
 public struct QwenImage21LatentPreview: Sendable {
     /// Pixels across.
     public let width: Int
@@ -34,7 +34,7 @@ public struct QwenImage21LatentPreview: Sendable {
         latents: MLXArray,
         normalization: QwenImage21LatentNormalization,
         autoencoder: QwenImage21Autoencoder
-    ) -> QwenImage21LatentPreview {
+    ) throws -> QwenImage21LatentPreview {
         let factor = LatentPreview.poolingFactor(height: latents.dim(1), width: latents.dim(2))
         // `LatentPreview.pooled` takes a channels-first latent, as the other families hold one;
         // 2.1's crosses channels last, so it is turned for the pooling and turned back. Two
@@ -45,6 +45,6 @@ public struct QwenImage21LatentPreview: Sendable {
         eval(image)
         return QwenImage21LatentPreview(
             width: image.dim(2), height: image.dim(1),
-            pixels: QwenImage21PixelBuffer.rgba8(image))
+            pixels: try PixelBuffer.rgba8(image))
     }
 }
