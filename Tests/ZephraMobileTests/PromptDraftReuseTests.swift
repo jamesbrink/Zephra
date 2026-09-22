@@ -18,7 +18,9 @@ struct PromptDraftReuseTests {
         let record = try #require(entry.record)
         let draft = PromptDraft()
         draft.settings.prompt = "Unrelated draft"
-        draft.reference = Data([1, 2, 3])
+        draft.replaceReferences(
+            [ReferencePicture(data: Data([1, 2, 3]), origin: "old.png")],
+            fitting: ReferenceIntentTests.Bed.pictureCapabilities.capabilities)
         draft.settings.referenceImages = [
             ReferencePicture(data: Data([1, 2, 3]), origin: "old.png")
         ]
