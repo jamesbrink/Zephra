@@ -350,3 +350,12 @@ vision tokens, which are bfloat16 on both sides.
 `ROADMAP.md` carries this as work owed. The suite is `.disabled` rather than left red because a
 red test that everyone learns to skip past is worse than a written-down one; enabling it is
 deleting that one trait.
+
+### An opaque picture is written opaque
+
+The reference writes every picture as RGBA, and for an ordinary prompt the fourth channel is
+opaque with noise on it: on the first pictures made here every alpha byte landed in 250...255,
+none below. This port drops the channel when the lowest alpha is at or above 250 of 255
+(`QwenImage21Opacity`), so a landscape is an RGB file and only a picture with a real hole keeps
+its alpha. The pixels that are written are the reference's own; what changes is the colour type
+of the file, and `PipelineParityTests` compares the decoded pixels, not the PNG bytes.

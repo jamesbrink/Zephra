@@ -4,7 +4,8 @@ import ZephraMLX
 
 /// The finished latent turned back into a picture: §C.11, in order.
 extension QwenImage21Pipeline {
-    /// Unpacks, denormalises, decodes and encodes the result as an RGBA PNG.
+    /// Unpacks, denormalises, decodes and encodes the result as a PNG, RGBA only where the
+    /// picture has transparency.
     func decode(
         _ request: QwenImage21Request,
         latents: MLXArray,
@@ -19,10 +20,12 @@ extension QwenImage21Pipeline {
         let pixels = model.autoencoder.decode(
             model.normalization.denormalize(grid), tile: tile(request, with: model))
         MLX.eval(pixels)
-        // Four channels, so `PixelBuffer` writes `CGImageAlphaInfo.last` and the fourth channel
-        // is the picture's own straight alpha rather than an invented opaque column.
+        // Four channels where the picture has transparency, so `PixelBuffer` writes
+        // `CGImageAlphaInfo.last` and the fourth channel is the picture's own straight alpha;
+        // three where it does not, so an ordinary picture is an ordinary opaque file
+        // (`QwenImage21Opacity`).
         return QwenImage21Result(
-            png: try PixelBuffer.png(from: pixels),
+            png: try PixelBuffer.png(from: QwenImage21Opacity.flattened(pixels)),
             width: request.width, height: request.height, latents: latents)
     }
 

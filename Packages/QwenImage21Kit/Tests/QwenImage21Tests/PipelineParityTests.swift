@@ -78,9 +78,15 @@ struct PipelineParityTests {
         #expect(Self.correlation(ours, expected) > 0.999)
 
         #expect(result.width == reference.width && result.height == reference.height)
-        let bytes = try Self.rgba(of: result.png, width: reference.width, height: reference.height)
-        let pixels = try #require(fixture["pixels"]).reshaped(-1).asType(.float32)
-        #expect(bytes.dim(0) == pixels.dim(0), "four channels a pixel on both sides")
+        let bytes = try Self.pixels(of: result.png, width: reference.width, height: reference.height)
+        let all = try #require(fixture["pixels"]).reshaped([-1, 4]).asType(.float32)
+        // An opaque picture is written with three channels (`QwenImage21Opacity`), which is
+        // only right when the reference's own alpha never dropped below the floor.
+        let channels = bytes.dim(1)
+        if channels == 3 {
+            #expect(all[.ellipsis, 3].min().item(Float.self) >= 250, "opaque only where the reference was")
+        }
+        let pixels = all[.ellipsis, ..<channels]
         let byteError = MLX.mean(MLX.abs(bytes - pixels)).item(Float.self)
         #expect(
             byteError < Self.pixelTolerance,
@@ -113,16 +119,24 @@ struct PipelineParityTests {
         return (MLX.sum(dx * dy) / denominator).item(Float.self)
     }
 
-    /// A PNG this pipeline wrote, back as the straight-alpha bytes it was written from.
+    /// A PNG this pipeline wrote, back as the bytes it was written from, `[pixels, channels]`:
+    /// three for an opaque picture, four straight-alpha ones for a transparent picture.
     ///
     /// The provider's own bytes, never a redraw: Core Graphics has no straight-alpha context,
     /// so drawing the image into one to read it back would premultiply the very channel under
     /// test.
-    static func rgba(of png: Data, width: Int, height: Int) throws -> MLXArray {
+    static func pixels(of png: Data, width: Int, height: Int) throws -> MLXArray {
         let source = try #require(CGImageSourceCreateWithData(png as CFData, nil))
         let image = try #require(CGImageSourceCreateImageAtIndex(source, 0, nil))
         #expect(image.width == width && image.height == height)
-        #expect(image.alphaInfo == .last, "straight alpha, never premultiplied")
-        return MLXArray([UInt8](try #require(image.dataProvider?.data) as Data)).asType(.float32)
+        let channels: Int
+        switch image.alphaInfo {
+        case .last: channels = 4
+        case .none: channels = 3
+        default: Issue.record("straight alpha or none, never premultiplied: \(image.alphaInfo)"); channels = 4
+        }
+        let data = try #require(image.dataProvider?.data) as Data
+        #expect(data.count == width * height * channels, "no row padding in the provider's bytes")
+        return MLXArray([UInt8](data)).asType(.float32).reshaped([-1, channels])
     }
 }

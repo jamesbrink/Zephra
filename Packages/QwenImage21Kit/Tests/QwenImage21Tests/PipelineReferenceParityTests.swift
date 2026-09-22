@@ -69,11 +69,11 @@ struct PipelineReferenceParityTests {
         // own pixels stand in for it rather than a second 4.2 MB copy in the fixture. A
         // failure here is the resize or the premultiplied round trip, never the port.
         let fitted = try QwenImage21ReferencePicture.fitted(png)
-        let decoded = try PipelineParityTests.rgba(
+        let decoded = try PipelineParityTests.pixels(
             of: png, width: reference.conditionWidth, height: reference.conditionHeight)
         #expect(fitted.shape == [reference.conditionHeight, reference.conditionWidth, 4])
         #expect(
-            Fixture.maxAbsoluteDifference(fitted.reshaped(-1), decoded) == 0,
+            Fixture.maxAbsoluteDifference(fitted.reshaped(-1), decoded.reshaped(-1)) == 0,
             "the committed picture is already at the fitted size, so nothing is resampled")
 
         let pipeline = QwenImage21Pipeline()
@@ -106,10 +106,14 @@ struct PipelineReferenceParityTests {
         #expect(PipelineParityTests.correlation(ours, expected) > 0.999)
 
         #expect(result.width == reference.width && result.height == reference.height)
-        let bytes = try PipelineParityTests.rgba(
+        let bytes = try PipelineParityTests.pixels(
             of: result.png, width: reference.width, height: reference.height)
-        let pixels = try #require(fixture["pixels"]).reshaped(-1).asType(.float32)
-        #expect(bytes.dim(0) == pixels.dim(0), "four channels a pixel on both sides")
+        let all = try #require(fixture["pixels"]).reshaped([-1, 4]).asType(.float32)
+        let channels = bytes.dim(1)
+        if channels == 3 {
+            #expect(all[.ellipsis, 3].min().item(Float.self) >= 250, "opaque only where the reference was")
+        }
+        let pixels = all[.ellipsis, ..<channels]
         let byteError = MLX.mean(MLX.abs(bytes - pixels)).item(Float.self)
         #expect(
             byteError < PipelineParityTests.pixelTolerance,
