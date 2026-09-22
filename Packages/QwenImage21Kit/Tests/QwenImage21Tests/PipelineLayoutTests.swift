@@ -112,14 +112,19 @@ struct PipelineLayoutTests {
         #expect(request(4, "blurry").usesGuidance)
     }
 
-    @Test("the snapshot layout names the packer's stamp first and no model_index.json")
+    @Test("the snapshot layout names the packer's stamp first and the release's own index")
     func snapshotLayout() {
+        // The packer writes `quantization.json` last, so a build stopped part-way reads as
+        // incomplete rather than half-loaded.
         #expect(QwenImage21SnapshotLayout.builtEntries.first == "quantization.json")
         #expect(
             QwenImage21SnapshotLayout.directories
                 == ["transformer", "text_encoder", "vae", "scheduler", "processor"])
-        #expect(!QwenImage21SnapshotLayout.releaseEntries.contains("model_index.json"))
-        #expect(QwenImage21SnapshotLayout.releaseEntries.count == 16)
+        // A packed variant carries no `model_index.json`; the release does, and it is what
+        // tells 2.1 from Qwen-Image 2512 before a weight is read.
+        #expect(!QwenImage21SnapshotLayout.builtEntries.contains("model_index.json"))
+        #expect(QwenImage21SnapshotLayout.releaseEntries.contains("model_index.json"))
+        #expect(QwenImage21SnapshotLayout.releaseEntries.count == 17)
         #expect(
             QwenImage21SnapshotLayout.releaseEntries.contains(
                 "text_encoder/model-00004-of-00004.safetensors"))

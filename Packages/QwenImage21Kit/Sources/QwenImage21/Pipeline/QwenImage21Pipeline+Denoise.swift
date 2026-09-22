@@ -27,9 +27,10 @@ extension QwenImage21Pipeline {
         let negativeCache = conditioning.negative.map { _ in QwenImage21KVCache(layers: blocks) }
 
         for (index, timestep) in schedule.timesteps.enumerated() {
-            // A stop is answered here and between the transformer's blocks. It **breaks** the
-            // run rather than skipping a step: a skipped step zero never fills the prefix
-            // cache, and step one would then decode from an empty one.
+            // A stop is answered here and between the transformer's blocks, and it **ends the
+            // run** rather than skipping a step — which is what the reference's `interrupt`
+            // does too, and for its reason: a skipped step zero never fills the prefix cache,
+            // and step one would then decode from an empty one.
             try Task.checkCancellation()
             onProgress(
                 QwenImage21GenerationProgress(stage: .denoising(step: index, of: request.steps)))
@@ -130,13 +131,12 @@ extension QwenImage21Pipeline {
         with model: Loaded
     ) {
         guard let onPreview, index < steps - 1 else { return }
-        let estimate = latents - velocity * sigma
         let normalization = model.normalization
         let autoencoder = model.autoencoder
         let (height, width) = (conditioning.latentHeight, conditioning.latentWidth)
         onPreview(index, steps) {
             try QwenImage21LatentPreview.make(
-                latents: Self.unpacked(estimate, height: height, width: width),
+                latents: Self.unpacked(latents - velocity * sigma, height: height, width: width),
                 normalization: normalization, autoencoder: autoencoder)
         }
     }

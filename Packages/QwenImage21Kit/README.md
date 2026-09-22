@@ -30,15 +30,22 @@ Sources/QwenImage21/
   Weights/      every published config, read and checked before a weight is touched
 Tests/QwenImage21Tests/
   Fixtures/     what the reference produced, and the README that says how
-Tools/          the seven dumpers and their driver, PEP 723 scripts run with uv
+Tools/          the eight dumpers and their driver, PEP 723 scripts run with uv
 ```
 
 ## Running the tests
 
 ```
 cd Packages/QwenImage21Kit
-xcodebuild test -scheme QwenImage21Kit -destination 'platform=macOS' -skipPackagePluginValidation
+xcodebuild test -scheme QwenImage21Kit -destination 'platform=macOS' \
+  -skipPackagePluginValidation -parallel-testing-enabled NO
 ```
+
+`-parallel-testing-enabled NO` is not optional here, and it is the flag `make test-mlx` already
+passes every MLX package for the same reason: in parallel, an autoencoder parity suite that
+lands beside a heavy one reads a tensor back off by whole units, and the same suite passes
+alone. `PipelineParityTests` is that heavy one, and with it in the suite
+`TiledDecodeTests` fails in parallel and passes serially.
 
 `swift test` does not work here: the package links mlx-swift, whose Metal kernels need
 `xcodebuild`.
@@ -46,7 +53,14 @@ xcodebuild test -scheme QwenImage21Kit -destination 'platform=macOS' -skipPackag
 The suites that read a real release skip without one. They look at
 `QWEN_IMAGE_21_SNAPSHOT` — spelled `TEST_RUNNER_QWEN_IMAGE_21_SNAPSHOT` under `xcodebuild` —
 then the app's own models folder, then `/Volumes/ExternalStorage/Models/Qwen-Image-2.1`, then a
-hub cache holding exactly one snapshot. No test loads model weights.
+hub cache holding exactly one snapshot.
+
+**Two of those do load weights**, which is a departure from the repository's rule and is stated
+in `PROVENANCE.md`: five autoencoder suites read `vae/*.safetensors` (1.35 GB, a second to
+run), and `PipelineParityTests` loads the whole release streamed and runs two steps end to end
+against what `diffusers` produced for the same noise. That last one is 35 seconds streamed
+against the suite's usual three, and it is the one test that says this port makes the
+reference's picture. Everything else here runs on a Mac with no release at all.
 
 ## The licence
 

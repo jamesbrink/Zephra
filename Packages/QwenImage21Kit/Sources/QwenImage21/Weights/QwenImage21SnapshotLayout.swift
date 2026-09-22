@@ -26,14 +26,15 @@ public enum QwenImage21SnapshotLayout {
     /// and the plan read, so a download stopped between shards is a download and not a failed
     /// build.
     ///
-    /// `model_index.json` is **not** here. The published release does not ship one — the
-    /// directories and their configs are the whole of it — and
-    /// `QwenImage21Configuration.modelIndex(in:)` answers nil rather than throwing for exactly
-    /// that reason. A release that does carry one is still checked against
-    /// `QwenImage21ModelIndex.expectedClasses`, which is where a Qwen-Image 2512 snapshot in a
-    /// 2.1 folder is caught.
+    /// `model_index.json` is listed because the release ships one and it is what tells a 2.1
+    /// snapshot from a Qwen-Image 2512 one before a weight is read — the two have the same five
+    /// directories with the same file names inside them. It is 447 bytes.
+    /// `QwenImage21Configuration.modelIndex(in:)` still answers nil rather than throwing when
+    /// it is absent, because a **packed variant** is built from the component directories alone
+    /// and carries none; a file that is there and names another pipeline throws.
     public static let releaseEntries: [String] =
         [
+            "model_index.json",
             "transformer/config.json",
             "transformer/diffusion_pytorch_model.safetensors.index.json",
             "transformer/diffusion_pytorch_model-00001-of-00002.safetensors",

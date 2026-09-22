@@ -8,6 +8,7 @@
 #     "safetensors==0.8.0",
 #     "numpy==2.5.2",
 #     "pillow",
+#     "torchvision",
 # ]
 # ///
 """Dump reference tensors from the Apache-2.0 diffusers implementation of Qwen-Image 2.1.
@@ -38,6 +39,7 @@ import torch
 # Each component's dumper lives beside this script in a module of its own, so a component can
 # be regenerated alone with --only and its dumper read next to its Swift test.
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import dump_pipeline  # noqa: E402
 import dump_rope  # noqa: E402
 import dump_scheduler  # noqa: E402
 import dump_text_encoder  # noqa: E402
@@ -91,6 +93,8 @@ def main() -> None:
         "text_encoder": dump_text_encoder.dump,
         "vision": dump_vision.dump,
         "vae": dump_vae.dump,
+        # Last, and the only one that loads the release whole: the pipeline end to end.
+        "pipeline": dump_pipeline.dump,
     }
     for name, dumper in dumpers.items():
         if arguments.only and name not in arguments.only:

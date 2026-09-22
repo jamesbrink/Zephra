@@ -32,6 +32,9 @@ extension QwenImage21Pipeline {
     ) throws {
         onProgress(QwenImage21GenerationProgress(stage: .loading))
         let configuration = try QwenImage21Configuration(readingFrom: snapshot)
+        // Read for its refusal and nothing else: a Qwen-Image 2512 release has the same five
+        // directories with the same file names inside them, and the class names are what tell
+        // the two apart before a weight is touched. Nil for a packed variant, which carries none.
         _ = try QwenImage21Configuration.modelIndex(in: snapshot)
         let manifest = try PackedSnapshotManifest.read(from: snapshot)
         let tokenizer = try QwenImage21Tokenizer(snapshot: snapshot)

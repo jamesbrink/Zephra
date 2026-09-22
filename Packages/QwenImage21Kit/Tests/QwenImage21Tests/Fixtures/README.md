@@ -45,7 +45,20 @@ directory in the same commit, and saying so in the commit message.
 | `vae_real.safetensors` | `dump_vae.py` | the autoencoder suites, with a release |
 | `text_encoder.safetensors` | `dump_text_encoder.py` | `Qwen3VLLanguageModelTests`, `Qwen3VLRotaryTests` |
 | `vision.safetensors` | `dump_vision.py` | `VisionTowerTests`, `VisionPositionTests`, `DeepStackTests`, `ImagePreprocessingTests`, `PromptEncoderTests` |
+| `pipeline.safetensors`, `pipeline.json` | `dump_pipeline.py` | `PipelineParityTests` |
 | `versions.json` | every dumper | nothing; it is the record |
+
+`pipeline.safetensors` is the whole reference pipeline run end to end, and it is the only
+fixture here that needed the release loaded in Python. Two steps at 256 square — 16 by 16
+latent cells, 256 target tokens — over one short prompt, and it holds four things: the packed
+latent the reference **drew** (`noise`), the latent it finished on (`latents`), the RGBA bytes
+it decoded that to (`pixels`), and the sigma ladder it walked (`sigmas`). `pipeline.json` says
+what was asked for, so the Swift side cannot drift from it.
+
+The noise is in the file because `MLXRandom` is not a `torch.Generator`: the same seed is a
+different draw, so the Swift run is handed the reference's own noise through
+`QwenImage21Request.noise` and the two loops walk one ladder from one place. Without that there
+is no tolerance on a picture that means anything. `PROVENANCE.md` states it.
 
 `scheduler.safetensors` holds seven ladders as `steps<N>.tokens<M>.{sigmas,timesteps,mu}`. Two
 of the seven are the pipeline's own defaults — 40 steps at 1024 square (4096 latent tokens) and

@@ -282,5 +282,14 @@ upcast is one multiply-add a step.
 `PipelineParityTests` is the second place this kit departs from the repository's "no test loads
 model weights", and it is the one that says the port makes the reference's picture rather than
 a plausible one. It loads the whole 33 GB release -- streamed, so the two layer stacks are read
-per step rather than held -- runs the reference's own noise through a short ladder at a small
-size, and compares the finished latent. Everything else in the suite runs without a release.
+per step rather than held -- runs the reference's own noise through two steps at 256 square,
+and compares both the finished latent and the RGBA bytes it decodes to. Everything else in the
+suite runs without a release, in seconds.
+
+What it measures, on halcyon against `Tools/dump_pipeline.py`'s bfloat16 `mps` run: the
+finished latent's mean absolute difference is **0.0082** against a mean latent magnitude of
+0.943, which is **0.87 per cent**, at a Pearson correlation of **0.99996**; the decoded
+picture's mean byte difference is **0.70 on a range of 255**. Both ends run bfloat16
+activations over the same weights, so what is left is rounding compounded through 32 blocks and
+two steps rather than a difference in the arithmetic. The suite's bounds are two per cent and
+two bytes -- a bit over twice each measurement -- and the whole run takes 35 seconds streamed.
