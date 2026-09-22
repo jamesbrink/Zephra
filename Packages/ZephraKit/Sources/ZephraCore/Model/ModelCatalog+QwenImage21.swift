@@ -6,8 +6,8 @@ extension ModelCatalog {
     /// Qwen-Image 2.1 at four-bit precision, built on this Mac from the bf16 release the first
     /// time it is loaded.
     ///
-    /// The most capable model Zephra runs and the slowest: a 20-billion-parameter MMDiT over
-    /// Qwen3-VL, forty steps rather than klein's four, and the only entry that reads **several**
+    /// The most capable picture model Zephra runs and the slowest: a 7-billion-parameter
+    /// single-stream transformer of 32 blocks over a Qwen3-VL encoder, forty steps rather than klein's four, and the only entry that reads **several**
     /// pictures at once and reads their transparency rather than being handed them over white.
     /// Legible text in a picture is what it is known for.
     ///
@@ -64,7 +64,8 @@ extension ModelCatalog {
         // hand, the way `zImageTurbo4bit`'s 12.15 GB was.
         tiledPeakBytes: 14_400_000_000,
         // ESTIMATE, 2026-09-22, to be measured with `make bench --stream --stream-depth 2`.
-        // Both 60-block stacks stream, so what is left is the float32 autoencoder, the
+        // The 32 transformer blocks and the 36 language-model layers stream, so what is left is
+        // the float32 autoencoder, the vision tower (resident, run once a picture), the
         // embeddings, the norms and the modulation table, plus the decode's tile and the
         // depth-2 window.
         streamedPeakBytes: 7_500_000_000,
@@ -140,8 +141,9 @@ extension ModelCatalog {
         supportsSeed: true,
         supportsReferenceImage: true,
         referenceImageCount: 1...10,
-        // The one family whose vision tower takes four channels, so a cut-out arrives as a
-        // cut-out rather than over white and `ReferenceMatteNote` says nothing about it.
+        // The one family whose autoencoder takes four channels: a cut-out's alpha reaches the
+        // condition latents as itself (the vision tower still reads it over white, as the
+        // reference pipeline does), so `ReferenceMatteNote` says nothing about it.
         readsTransparentReferences: true,
         referenceStrengthBounds: 1...1,
         defaultReferenceStrength: 1
