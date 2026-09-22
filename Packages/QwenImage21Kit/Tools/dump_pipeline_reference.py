@@ -111,7 +111,47 @@ def condition_picture() -> PILImage.Image:
         np.concatenate([colour, alpha[..., None]], axis=-1).astype(np.uint8), mode="RGBA")
 
 
+def fold_in_row_bands() -> None:
+    """Run `QwenImage21AvgDown3D` a band of rows at a time, which is the whole of the fixture fix.
+
+    **`mps` computes this encoder's shortcut as zeros at the size a real condition picture
+    lands on.** `QwenImage21AvgDown3D` is the residual shortcut around every encoder stage: it
+    front-pads the frame axis, folds the frame and the two spatial offsets into the channel
+    axis with an eight-dimensional `permute(...).contiguous()`, and averages groups back down.
+    On torch 2.14's `mps` backend that fold returns **all zeros** once the padded tensor passes
+    about 16.7 million elements (2**24), which is exactly the first two stages of a 1024-square
+    picture -- 96 channels at 512 square, then 192 at 256 -- and none of the three below them.
+    Measured on halcyon on 2026-09-22 and reproduced in a dozen lines against `torch.randn` with
+    no model in sight: `mean|cpu| 0.19942, mean|mps| 0.00000` at 96 to 192 at 512 square, and
+    identical answers at 384 to 768 at 128. An unpatched `mps` run therefore drops two of the
+    five shortcuts, and the condition latents it produced were **68 per cent** from a correct
+    encode at a Pearson correlation of 0.76 -- what this fixture recorded until now, and what
+    made `PipelineReferenceParityTests` unpassable by a correct port. This kit's own encoder
+    matches a correct (CPU, float32) reference to 3e-6 at this size.
+
+    The fold reads no neighbour across a band of `factor_s` rows, so running it a band of rows
+    at a time is the same arithmetic in pieces each well under the limit. Everything stays on
+    `mps` in the pipeline's own dtype.
+    """
+    from diffusers.models.autoencoders.autoencoder_kl_qwenimage21 import QwenImage21AvgDown3D
+
+    whole = QwenImage21AvgDown3D.forward
+    limit = 1 << 22
+
+    def banded(self, x: torch.Tensor) -> torch.Tensor:
+        height = x.shape[3]
+        per_row = x.numel() // height * self.factor_t
+        rows = max(self.factor_s, (limit // max(per_row, 1)) // self.factor_s * self.factor_s)
+        if rows >= height:
+            return whole(self, x)
+        return torch.cat(
+            [whole(self, x[:, :, :, top:top + rows]) for top in range(0, height, rows)], dim=3)
+
+    QwenImage21AvgDown3D.forward = banded
+
+
 def dump(out: pathlib.Path) -> None:
+    fold_in_row_bands()
     from diffusers import QwenImage21Pipeline
     from diffusers.pipelines.qwenimage21.pipeline_qwenimage21 import calculate_dimensions
 
@@ -149,6 +189,15 @@ def dump(out: pathlib.Path) -> None:
     unpacked = torch.randn((1, 1, channels, *cells), generator=generator, dtype=torch.float32)
     packed = unpacked.view(1, channels, cells[0] * cells[1]).transpose(1, 2)
 
+    # The condition picture as the transformer reads it, pinned on its own as well as through
+    # the run: this is the array a wrong autoencoder produces, and the finished latent is four
+    # thousand tokens and two steps away from saying so. A megabyte, stored float32.
+    condition = pipe._encode_vae_image(
+        pipe.image_processor.preprocess(picture, width=CONDITION, height=CONDITION)
+        .unsqueeze(2).to(device=device, dtype=dtype),
+        None)
+    condition = pipe._pack_latents(condition, 1, channels, condition.shape[3], condition.shape[4])
+
     common = dict(
         prompt=PROMPT, image=picture, height=HEIGHT, width=WIDTH, num_inference_steps=STEPS,
         output_resolution=OUTPUT_RESOLUTION, latents=packed.to(device=device, dtype=dtype))
@@ -156,6 +205,7 @@ def dump(out: pathlib.Path) -> None:
     rendered = pipe(**common, output_type="np").images[0]
 
     tensors = {
+        "condition": condition.to("cpu", torch.float32).contiguous(),
         "noise": packed.to(torch.float32).contiguous(),
         "latents": latents.to("cpu", torch.float32).contiguous(),
         "pixels": torch.from_numpy(np.round(rendered * 255).astype(np.uint8)).contiguous(),

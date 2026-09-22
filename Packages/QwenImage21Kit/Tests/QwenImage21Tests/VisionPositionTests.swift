@@ -101,6 +101,10 @@ struct VisionPositionTests {
             ("doll.4x4", doll, Qwen3VLImageGrid(rows: 4, columns: 4)),
             ("real.6x8", real, Qwen3VLImageGrid(rows: 6, columns: 8)),
             ("real.32x32", real, Qwen3VLImageGrid(rows: 32, columns: 32)),
+            // The grid a 1024-square reference picture lands on, which is what
+            // `calculate_dimensions` brings every condition image to. Nothing above it was
+            // pinned past 32 by 32 until the reference-conditioned parity suite went looking.
+            ("real.64x64", real, Qwen3VLImageGrid(rows: 64, columns: 64)),
         ]
     }
 

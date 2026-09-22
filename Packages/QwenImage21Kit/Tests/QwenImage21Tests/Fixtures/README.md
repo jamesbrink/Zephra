@@ -65,9 +65,12 @@ is no tolerance on a picture that means anything. `PROVENANCE.md` states it.
 half of 2.1 the first fixture cannot reach: the picture goes through the vision tower as
 context *and* through the autoencoder as latent tokens prepended to the noise, and a port that
 showed the tower a picture the autoencoder never saw would still make a plausible picture from
-the prompt alone. Beside `noise`, `latents` and `pixels` it carries `condition`, the fitted
-RGBA the model actually read, so a Swift run shows its own decode of the committed PNG is those
-very bytes before it blames the port for a latent that moved.
+the prompt alone. Beside `noise`, `latents` and `pixels` it carries `condition`, the picture's
+packed condition latents `[1, 4096, 64]` (float32, a megabyte), which `ConditionLatentParityTests`
+compares with the autoencoder alone. The whole run is `mps` bfloat16 except that the dumper
+runs the autoencoder's `QwenImage21AvgDown3D` fold a band of rows at a time: whole, `mps`
+returns zeros from it at this size, and the first dump of this fixture recorded exactly that
+(`PROVENANCE.md`).
 
 `pipeline_reference.png` (37 KB) is that picture, committed at **1024 square, which is the size
 the pipeline would have resized it to** — `calculate_dimensions(1024², 1)`. That is the whole
@@ -142,7 +145,7 @@ is decided by a configuration — and they are what say which half-dim reads whi
 whole doll's-house `Qwen3VLModel` over one picture under the same hook (so the slots, the
 three-axis positions and the DeepStack injections are all in one hidden state), the tower's
 inverse frequencies and theta at both widths, the position table's interpolation taps and the
-tower rotary's tables for three grids, `smart_resize` at the **published** bounds for six
+tower rotary's tables for four grids (the last 64 by 64, a 1024-square reference), `smart_resize` at the **published** bounds for six
 shapes, the processor's own block-major patch tensor, and PIL's alpha-over-white blend. The
 theta is the point of the rope entries: it is in no shipped config and in none of the 750
 published tensors, and 10,000 is what transformers supplies.

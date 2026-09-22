@@ -43,18 +43,6 @@ struct PipelineReferenceParityTests {
     @Test(
         "two steps at 256 square over one condition picture land on the reference's own answer",
         .enabled(if: SnapshotUnderTest.qwenImage21.hasRelease),
-        // The port does not pass this yet, and the fixture is why it is known. Measured on
-        // halcyon on 2026-09-22: the fitted picture and the whole joint layout are identical to
-        // the reference's, the text positions either side of the picture are at this run's
-        // bfloat16 floor (3.6 and 3.2 per cent), and then the picture's own 1024 vision tokens
-        // are 23.5 per cent out and the condition latents 76 per cent (Pearson 0.77, evenly
-        // over the picture), which carries the finished latent to 99.6 per cent and the decoded
-        // bytes to 101 on a range of 255. Two independent parts of the reference-conditioned
-        // path, both only at the 1024-square size a real reference lands on, which is past
-        // everything `dump_vision.py` and `dump_vae.py` pin. `PROVENANCE.md` has the table and
-        // `ROADMAP.md` owes the fix; enabling this suite is deleting this one trait.
-        .disabled(
-            "the reference-conditioned path does not match the reference yet; see PROVENANCE.md"),
         .timeLimit(.minutes(30)))
     func endToEnd() throws {
         let snapshot = try #require(SnapshotUnderTest.qwenImage21.release)
@@ -101,9 +89,9 @@ struct PipelineReferenceParityTests {
         let scale = MLX.mean(MLX.abs(expected)).item(Float.self)
         let error = MLX.mean(MLX.abs(ours - expected)).item(Float.self)
         #expect(
-            error / scale < PipelineParityTests.latentTolerance,
+            error / scale < Self.latentTolerance,
             Comment(rawValue: "mean |delta| \(error) against mean |latent| \(scale)"))
-        #expect(PipelineParityTests.correlation(ours, expected) > 0.999)
+        #expect(PipelineParityTests.correlation(ours, expected) > Self.minimumCorrelation)
 
         #expect(result.width == reference.width && result.height == reference.height)
         let bytes = try PipelineParityTests.pixels(
@@ -116,9 +104,32 @@ struct PipelineReferenceParityTests {
         let pixels = all[.ellipsis, ..<channels]
         let byteError = MLX.mean(MLX.abs(bytes - pixels)).item(Float.self)
         #expect(
-            byteError < PipelineParityTests.pixelTolerance,
+            byteError < Self.pixelTolerance,
             Comment(rawValue: "mean byte difference \(byteError) on a range of 255"))
     }
+
+    /// The finished latent's allowed mean absolute difference, relative to its mean magnitude.
+    ///
+    /// **Measured 0.047** (mean |delta| 0.060 against 1.276), Pearson 0.9988, on halcyon on
+    /// 2026-09-22, and every part of it is bfloat16 rather than the port, which is why
+    /// `PipelineParityTests`' two per cent cannot hold here. The joint sequence is 4374 tokens
+    /// against that suite's 278, and one forward pass of the transformer over the reference's
+    /// **own** inputs already lands 1.8 per cent from the reference, evenly over text,
+    /// condition and target (1.7, 1.8, 1.4) — no block and no mask singled out. Two steps take
+    /// that to 2.6 per cent; this port's own vision tower and decoder, both bfloat16 and both
+    /// exact in float32 at this size, add 0.8; and the reference's bfloat16 condition encode
+    /// against this port's float32 one (`ConditionLatentParityTests`) the last 1.3. A bit
+    /// under twice the measurement, as the other suite's bounds are; a missing encoder stage,
+    /// which is what this fixture recorded until the dumper's `mps` fold was fixed, read 0.996.
+    static let latentTolerance: Float = 0.08
+
+    /// Measured 0.99877; the 0.996-wrong latent above read 0.57.
+    static let minimumCorrelation: Float = 0.995
+
+    /// Mean byte difference allowed on a range of 255. **Measured 7.4**: two steps of a
+    /// forty-step ladder decode to nearly pure noise, where a latent a few per cent away moves
+    /// bytes further than it would in a finished picture. The broken fixture read 101.
+    static let pixelTolerance: Float = 15
 
     /// The bytes of one committed PNG fixture, as a host would hand them to the pipeline.
     static func picture(_ name: String) throws -> Data {

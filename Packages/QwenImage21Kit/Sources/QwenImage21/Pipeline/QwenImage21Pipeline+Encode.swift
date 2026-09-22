@@ -92,14 +92,36 @@ extension QwenImage21Pipeline {
     ) throws -> MLXArray? {
         guard !pictures.isEmpty else { return nil }
         onProgress(QwenImage21GenerationProgress(stage: .encodingReferences))
-        let packed = pictures.map { picture -> MLXArray in
-            let pixels = picture.expandedDimensions(axis: 0).asType(.float32) / 127.5 - 1
-            let latent = model.normalization.normalize(model.autoencoder.encode(pixels))
-            return QwenImage21LatentPacking.tokens(latent.transposed(0, 3, 1, 2))
-                .asType(model.activation)
+        let packed = pictures.map {
+            Self.conditionTokens(
+                of: $0, autoencoder: model.autoencoder, normalization: model.normalization,
+                activation: model.activation)
         }
         let tokens = packed.count == 1 ? packed[0] : MLX.concatenated(packed, axis: 1)
         MLX.eval(tokens)
         return tokens
+    }
+
+    /// One reference picture as the transformer reads it: `[1, tokens, zDim]`.
+    ///
+    /// Lifted out of the call above so a suite can pin it against the reference at the size a
+    /// real reference picture lands on -- 1024 square, a 64 by 64 latent grid -- without the
+    /// 33 GB the rest of a load is. That is worth a seam: the reference's own `mps` run
+    /// computes this encoder's shortcut as zeros past about 16.7 million elements, which is
+    /// two of its five stages at exactly this size, so the fixture this is compared against
+    /// was wrong before it was ever compared. `PROVENANCE.md` has the measurement.
+    ///
+    /// - Parameter picture: `[height, width, 4]` over 0 to 255. All four channels reach the
+    ///   autoencoder -- the flattening over white is the vision tower's copy alone -- and the
+    ///   scaling to -1 to 1 here is the reference's `VaeImageProcessor.preprocess`.
+    static func conditionTokens(
+        of picture: MLXArray,
+        autoencoder: QwenImage21Autoencoder,
+        normalization: QwenImage21LatentNormalization,
+        activation: DType
+    ) -> MLXArray {
+        let pixels = picture.expandedDimensions(axis: 0).asType(.float32) / 127.5 - 1
+        let latent = normalization.normalize(autoencoder.encode(pixels))
+        return QwenImage21LatentPacking.tokens(latent.transposed(0, 3, 1, 2)).asType(activation)
     }
 }

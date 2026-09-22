@@ -318,38 +318,49 @@ The picture's transparent third carries **zero colour**, so the premultiplied ro
 measured above is lossless on it. That is deliberate: the one departure this fixture could not
 measure honestly is the one it is built not to measure.
 
-**The suite is `.disabled` and the fixture is why.** Written against the release on halcyon on
-2026-09-22, the port does **not** reproduce the reference on this path, and the numbers say so
-clearly enough to be worth writing down rather than widening a bound around:
+**The fixture was wrong, not the port, and it was `mps`.** The suite was first written
+`.disabled`: on halcyon on 2026-09-22 the port landed 99.6 per cent from the reference's
+finished latent (Pearson 0.57, 101 bytes a pixel), with the condition latents 76 per cent out
+and the picture's own vision tokens 23.5. Walking the real 1024-square run stage by stage
+against the reference found **no fault in the port**: in float32 this kit's autoencoder encoder
+matches `diffusers` on the CPU to 3e-6 at every one of its stages, and the vision tower matches
+`transformers` to 2.8e-5 at its merger, both at the real 64 by 64 grid. What differed was the
+reference run itself. `QwenImage21AvgDown3D`, the shortcut around every encoder stage, folds
+the frame axis and both spatial offsets into the channel axis through an eight-dimensional
+`permute(...).contiguous()`, and torch 2.14's `mps` backend returns **all zeros** from that fold
+once the padded tensor passes about 2**24 elements. At a 1024-square picture that is stages 1
+and 2 (96 channels at 512 square, 192 at 256), so the `mps` dump silently dropped two of five
+shortcuts and recorded condition latents 68 per cent from a correct encode. A dozen lines
+against `torch.randn` reproduce it with no model loaded: `mean|cpu| 0.19942, mean|mps| 0.00000`,
+identical answers once the tensor is 384 by 128 square. `Tools/dump_pipeline_reference.py` now
+runs that fold a band of rows at a time (`fold_in_row_bands`), which is exact against the CPU
+and keeps the whole run on `mps` in bfloat16.
 
-| measured | port against reference |
+What is left is bfloat16, and it is wider than `PipelineParityTests`' because the sequence is:
+
+| measured, halcyon, 2026-09-22 | port against reference |
 | --- | --- |
-| the fitted picture the two halves read | **identical, to the byte** |
-| the joint layout (`img_shapes`, encoder tokens, pad mask, prefix) | **identical** -- 1046 encoder tokens, 4352 image tokens, shapes `(1,64,64)` and `(1,16,16)` |
-| the vision-language embedding, text positions before and after the picture | 3.6 and 3.2 per cent relative, which is this run's bfloat16 floor |
-| the vision-language embedding, the picture's own 1024 tokens | **23.5 per cent relative** |
-| the condition latents (`[1, 4096, 64]`, normalised) | **76 per cent relative**, Pearson 0.77, evenly across the picture |
-| the finished latent | 99.6 per cent relative, Pearson 0.57 |
-| the decoded picture | mean byte difference **101 on a range of 255** |
+| the fitted picture, the joint layout, the prefix of 4118 | identical |
+| condition latents, `[1, 4096, 64]` | **1.06 per cent** (the reference's bfloat16 encoder against this port's float32 one; 68 before the fix) |
+| one transformer pass over the reference's own inputs, 4374 tokens | 1.8 per cent, evenly: text 1.7, condition 1.8, target 1.4 |
+| two steps over the reference's own text embedding | 2.6 per cent |
+| the finished latent, the whole port | **4.7 per cent**, Pearson 0.9988 (99.6 and 0.57 before) |
+| the decoded picture | **7.4** bytes a pixel on 255 (101 before) |
 
-So the fixture is sound and two independent parts of the reference-conditioned path are not:
-the vision tower's own tokens, and the autoencoder's encode of the condition picture. Both are
-uniform rather than positional -- nothing is transposed or mis-ordered -- and both show only at
-the size a real reference picture lands on, 1024 square, which is a 64 by 64 patch grid and a
-64 by 64 latent grid. What is pinned today is smaller: `dump_vision.py` dumps the published
-tower's interpolation and rotary tables at 6 by 8 and 32 by 32, and `dump_vae.py` encodes a
-64 by 64 picture. Whatever is wrong is above both.
+The joint sequence is sixteen times the text-to-picture suite's 278 tokens and its attention
+sums over sixteen times the keys, which is where one pass's 1.8 per cent comes from; nothing is
+concentrated in a block, which is what a mask or a layout fault would look like. The suite's
+bounds are therefore its own, a bit under twice each measurement as the other suite's are: 8
+per cent and Pearson 0.995 on the latent, 15 bytes on the picture. Against the broken fixture
+those read 99.6, 0.57 and 101, so they still separate a working port from one missing an
+encoder stage by more than an order of magnitude.
 
-One candidate for the condition half is this kit's own **float32 autoencoder**, stated above:
-the reference pipeline runs its VAE in bfloat16 with the rest of itself, and the normalisation
-by `latents_std` that follows can amplify what that costs. If that turns out to be the whole of
-the 76 per cent then this dumper should run the reference's condition encode in float32 to
-match, and that is a change to the fixture rather than to the port. It does not explain the
-vision tokens, which are bfloat16 on both sides.
-
-`ROADMAP.md` carries this as work owed. The suite is `.disabled` rather than left red because a
-red test that everyone learns to skip past is worse than a written-down one; enabling it is
-deleting that one trait.
+Two suites now pin the real size directly. `ConditionLatentParityTests` loads the autoencoder
+alone and compares this kit's condition tokens for the committed picture against the fixture's
+`condition` (a megabyte, float32) at 3 per cent and Pearson 0.999: the check that would have
+said, in a second, which half was wrong. And `vision.safetensors` now carries the tower's
+interpolation taps, patch order and rotary tables at the 64 by 64 grid a 1024-square reference
+lands on (2.5 MB), which `VisionPositionTests` reads beside the 6 by 8 and 32 by 32 it read before.
 
 ### An opaque picture is written opaque
 

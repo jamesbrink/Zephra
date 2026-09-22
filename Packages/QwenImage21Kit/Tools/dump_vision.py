@@ -143,7 +143,7 @@ def rotary_and_interpolation(out_tensors: dict) -> None:
 
     for label, settings, grids in [
         ("doll", VISION_CONFIG, [GRID]),
-        ("real", REAL_VISION_CONFIG, [(1, 6, 8), (1, 32, 32)]),
+        ("real", REAL_VISION_CONFIG, [(1, 6, 8), (1, 32, 32), (1, 64, 64)]),
     ]:
         config = Qwen3VLVisionConfig(**settings)
         inv_freq, scaling = Qwen3VLVisionRotaryEmbedding.compute_axial_rope_parameters(config)
