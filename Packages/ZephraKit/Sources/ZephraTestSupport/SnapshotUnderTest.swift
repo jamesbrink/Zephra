@@ -16,10 +16,18 @@ public struct SnapshotUnderTest: Sendable {
     public let repository: String
     /// The environment variable that names a snapshot directory outright.
     public let environmentVariable: String
+    /// Directories looked in after the app's own folders and before the hub cache, for a
+    /// release a machine keeps somewhere of its own. Empty for every kit that does not.
+    public let alsoLookIn: [URL]
 
-    public init(repository: String, environmentVariable: String) {
+    public init(
+        repository: String,
+        environmentVariable: String,
+        alsoLookIn: [URL] = []
+    ) {
         self.repository = repository
         self.environmentVariable = environmentVariable
+        self.alsoLookIn = alsoLookIn
     }
 
     /// Whether any snapshot is here, for `.enabled(if:)`.
@@ -30,12 +38,12 @@ public struct SnapshotUnderTest: Sendable {
 
     /// The release, or a variant packed from it: whichever is found first.
     public var directory: URL? {
-        override ?? (builtVariants + [download] + cached).first(where: exists)
+        override ?? (builtVariants + [download] + alsoLookIn + cached).first(where: exists)
     }
 
     /// The release itself, never a packed variant.
     public var release: URL? {
-        override ?? ([download] + cached).first(where: exists)
+        override ?? ([download] + alsoLookIn + cached).first(where: exists)
     }
 
     // The override is taken as given, so a wrong path fails the test that reads it rather than
