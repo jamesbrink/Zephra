@@ -29,10 +29,17 @@ extension CompanionSession {
         blobs[chunk.blobID] = whole
         blobOrder.removeAll { $0 == chunk.blobID }
         blobOrder.append(chunk.blobID)
-        while blobOrder.count > Self.blobLimit {
+        // Oldest first, on either bound: a strip of ten pictures must all survive until the
+        // request that names them arrives, and ten 16 MiB pictures must not be held because the
+        // count alone allowed it.
+        while blobOrder.count > Self.blobLimit || heldBlobBytes > Self.blobByteLimit {
+            guard !blobOrder.isEmpty else { break }
             blobs.removeValue(forKey: blobOrder.removeFirst())
         }
     }
+
+    /// What the finished blobs come to, which is the other half of the eviction rule.
+    var heldBlobBytes: Int { blobs.values.reduce(0) { $0 + $1.count } }
 
     /// Announces a blob as the answer to one request and sends its bytes behind it.
     ///

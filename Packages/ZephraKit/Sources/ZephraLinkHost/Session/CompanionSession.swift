@@ -1,4 +1,5 @@
 import Foundation
+import ZephraCore
 import ZephraLinkProtocol
 import os
 
@@ -67,10 +68,18 @@ public final class CompanionSession: Identifiable {
     /// The clock on the plaintext stage, cancelled the moment there is a channel.
     private var deadline: Task<Void, Never>?
 
-    /// How many finished blobs a session holds before the oldest is dropped. A phone sends one
-    /// reference picture and then asks for a generation; more than a couple waiting means a
-    /// phone that sends and never asks, and that is not memory this Mac should keep.
-    static let blobLimit = 4
+    /// How many finished blobs a session holds before the oldest is dropped.
+    ///
+    /// `ReferenceLimits.maximumPictures` and two over: a phone sends its pictures one at a time
+    /// and then asks for the generation, so all ten must still be held when the request that
+    /// names them arrives. Past that is a phone that sends and never asks, and that is not
+    /// memory this Mac should keep.
+    static let blobLimit = ReferenceLimits.maximumPictures + 2
+
+    /// How many bytes of finished blobs a session holds, over which the oldest go whatever the
+    /// count is. A count alone is not a budget when each blob may be 16 MiB: ten of those is
+    /// 160 MiB held for a request that may never come.
+    static let blobByteLimit = 48 << 20
 
     /// How many presses of Generate a session remembers having queued. A phone retries the one
     /// request it is holding open, so this only has to outlast the moment; it is a bound on the
