@@ -30,9 +30,16 @@ struct ReferenceStrip: View {
             }
             .frame(height: ReferenceStripLayout.tile)
         }
-        .scrollDisabled(!layout.scrolls)
-        .scrollIndicators(layout.scrolls ? .visible : .hidden)
-        .frame(width: layout.visibleWidth, height: ReferenceStripLayout.tile)
+        // Flexible rather than fixed, and this is the whole of why the capsule survives a
+        // narrow window: at the 880-point floor with both the sidebar and the inspector open
+        // the capsule is a few hundred points wide, and a strip that demanded its four tiles
+        // there would leave the prompt a column one character wide. Asking for at most four and
+        // at least one lets the row divide what there is, and the scroll covers the rest.
+        .scrollIndicators(.automatic)
+        .frame(
+            minWidth: ReferenceStripLayout.tile, maxWidth: layout.visibleWidth,
+            alignment: .trailing)
+        .frame(height: ReferenceStripLayout.tile)
         .accessibilityLabel(accessibilityLabel)
     }
 

@@ -38,9 +38,13 @@ enum InterfacePreview {
             let store = GenerationStore.preview(
                 state: state, image: frozenImage(for: state), descriptor: descriptor,
                 swappingModel: name == "downloading", loaded: loadedModel(for: state, descriptor))
-            if isEditingBuild || name == "clip" {
+            if isEditingBuild {
                 // Through the same door the interface uses, so the frozen window shows the
                 // strength a dropped picture really gets rather than the 1 that means none.
+                // Two pictures unless `ZEPHRA_PREVIEW_REFERENCES` says otherwise, which is what
+                // photographs the strip rather than one tile standing on its own.
+                store.useAsReferences(PreviewImages.referencePNGs(count: referenceCount))
+            } else if name == "clip" {
                 store.useAsReference(PreviewImages.referencePNG())
             }
             return store
@@ -70,6 +74,27 @@ enum InterfacePreview {
     /// Whether this build wants a reference-capable model standing up: `editing`, to
     /// screenshot the filled well, and `picker`, which forces its sheet open over the same well.
     static var isEditingBuild: Bool { name == "editing" || name == "picker" }
+
+    /// How many pictures the frozen strip holds: two, so a screenshot shows a strip rather than
+    /// one tile, and whatever `ZEPHRA_PREVIEW_REFERENCES` says when the point is the scroll past
+    /// four. Clamped to what the limits carry, so no number in an environment variable can put
+    /// the window in a state the app could not reach.
+    ///
+    /// A hook of its own rather than another preview state, for the reason `ZEPHRA_VAE_TILE` is
+    /// not a state: it is one number inside a state, and `editing10` would be a second state to
+    /// keep in step with the first.
+    static func referenceCount(in environment: [String: String] = ProcessInfo.processInfo.environment)
+        -> Int
+    {
+        guard let value = environment[referenceCountVariable], let count = Int(value) else {
+            return 2
+        }
+        return min(max(count, 0), ReferenceLimits.maximumPictures)
+    }
+
+    static let referenceCountVariable = "ZEPHRA_PREVIEW_REFERENCES"
+
+    private static var referenceCount: Int { referenceCount() }
 
     /// Whether the frozen window should open on the reference picker. Read by `workspace()`,
     /// which states it the way it states the browser and the tuck: the well no longer holds the

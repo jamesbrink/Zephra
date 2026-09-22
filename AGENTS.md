@@ -1781,6 +1781,28 @@ but Recently Deleted, keyboard-walked by `ReferencePickerKeyboard` over
 `LibraryCursor`), "Choose File…", and a drop of a Finder file or a
 `LibraryItemReference`.
 
+**A model that reads several** declares `ModelCapabilities.referenceImageCount`
+past one, and the well draws `ReferenceStrip` instead: a `ReferenceTile` per
+picture in the order the model reads them, a `ReferenceAddTile` while
+`GenerationStore.referenceRoom` is positive, four tiles on screen and a sideways
+scroll past that (`ReferenceStripLayout`, pure and tested), so the capsule's
+width never moves. Reordering is a drag of `ReferenceSlotReference`
+(`io.zephra.reference-slot`, its own exported UTI so a drop can tell a picture
+arriving from the library from a picture already in the strip) and is in each
+tile's menu too. Every door takes what it was handed rather than its first item,
+through **one** `adoptReferences` claim (`ReferenceAdoption+Several`): the open
+panel allows multiple selection up to the room, `ReferencePickerSheet` picks with
+command and shift over `LibraryCursor`'s own rules and its Use button says the
+number, and `ZEPHRA_REFERENCE_ON_LAUNCH` splits on a colon. A door handed exactly
+one picture still goes through the single-picture door, so D7's rule — add where
+there is room, replace where there is not — stays written once, in
+`GenerationStore.useAsReference`. `ReferenceNotes` is the modifier under the
+well: the store's `referenceNote` when it took fewer than it was offered, and
+`ReferenceMatteNote` — the pictures' own PNG headers read off the main actor —
+when one carries alpha and the model does not declare
+`readsTransparentReferences`, which every entry in the catalog leaves false
+today. A model that reads one draws exactly the well it always drew.
+
 Full detail: `docs/adding-a-model.md`.
 
 ## Starting from a picture
@@ -2607,7 +2629,12 @@ environment value.
   photographing; `viewer` opens the library on
   its first image full size; `picker` is `editing` with the reference sheet
   open (`InterfacePreview.wantsReferencePicker`, stated through `workspace()`
-  the way `models` states the browser); `clip` stands the store on
+  the way `models` states the browser); `editing` and `picker` both stand on
+  `PreviewModel.editing`, which reads ten pictures, so they photograph the
+  **strip**, and `ZEPHRA_PREVIEW_REFERENCES=N` (2 unless set, clamped to
+  `ReferenceLimits.maximumPictures`) is how many tiles are in it — one number
+  inside a state rather than a second state, so `ZEPHRA_PREVIEW_REFERENCES=10`
+  is what photographs the sideways scroll; `clip` stands the store on
   the invented `PreviewModel.video` with a poster stamped as
   `ModelCatalog.ltx2Distilled4bit`, since the inspector reads the record's
   model; `generating` and `queued` follow a made-up run, `watching` does not,

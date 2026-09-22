@@ -73,8 +73,13 @@ enum PreviewModel {
         )
     )
 
-    /// A model that edits a picture handed in beside the prompt, the way FLUX.2 klein does, with
+    /// A model that edits pictures handed in beside the prompt, the way FLUX.2 klein does, with
     /// none of the controls it does not read.
+    ///
+    /// It reads up to ten of them, so the `editing` and `picker` screenshot builds photograph
+    /// the strip rather than the single well. `video` beside it stays at one, which is what
+    /// keeps the single well photographable through `clip` and keeps the two shapes both
+    /// covered by a preview state.
     static let editing = ModelDescriptor(
         id: "preview-editing",
         displayName: "Preview Model",
@@ -99,6 +104,7 @@ enum PreviewModel {
             supportsNegativePrompt: false,
             supportsSeed: true,
             supportsReferenceImage: true,
+            referenceImageCount: 1...10,
             referenceStrengthBounds: 0.1...0.9,
             defaultReferenceStrength: 0.6
         )
