@@ -148,6 +148,17 @@ tile the decode peaks about 5.2 GB over the weights. The encoder is left as it w
 reference picture's encode (4.9 GB over the weights at 1024) sits under the first step that
 reads it.
 
+### A preview frame is pooled to sixteen cells, not the shared thirty-two
+
+`LatentPreview.cellLimit` is 32 cells because every other family's latent cell is eight
+pixels, which is a 256-pixel frame, the size `GenerationPreview` is drawn at. This
+autoencoder's cell is sixteen pixels, so the shared limit made 512-pixel frames through a
+float32 decoder: four times the pixels anybody sees, and 2.3 seconds a frame at 1024 square
+on a busy GPU. `QwenImage21LatentPreview.cellLimit` is 16, the same 256 pixels, and a frame
+costs 0.11 seconds against a step of about 5.8 -- under two percent -- so the family keeps
+the shared `PreviewThrottle` interval rather than a longer one of its own. The preview
+decoder stays float32: at that cost there is nothing a bfloat16 copy of it would buy.
+
 ### Two kinds of suite, and five of them load the release's autoencoder weights
 
 `AutoencoderTests`, `AutoencoderStageTests`, `LatentNormalizationTests`, `TiledDecodeTests` and

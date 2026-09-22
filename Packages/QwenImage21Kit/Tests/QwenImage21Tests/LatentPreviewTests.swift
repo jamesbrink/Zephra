@@ -7,12 +7,15 @@ import ZephraMLX
 
 @Suite("the latent preview decodes one small RGBA frame")
 struct LatentPreviewTests {
-    @Test("the long edge is pooled to at most thirty-two cells, and small latents are left alone")
+    @Test("the long edge is pooled to at most sixteen cells, and small latents are left alone")
     func pooling() {
-        #expect(LatentPreview.poolingFactor(height: 64, width: 64) == 2)
-        #expect(LatentPreview.poolingFactor(height: 64, width: 128) == 4)
-        #expect(LatentPreview.poolingFactor(height: 32, width: 32) == 1)
-        #expect(LatentPreview.poolingFactor(height: 4, width: 6) == 1)
+        // 1024 square is 64 cells, pooled by 4 to 16: a 256-pixel frame, not the shared
+        // limit's 512.
+        #expect(QwenImage21LatentPreview.poolingFactor(height: 64, width: 64) == 4)
+        #expect(QwenImage21LatentPreview.poolingFactor(height: 64, width: 128) == 8)
+        #expect(QwenImage21LatentPreview.poolingFactor(height: 48, width: 48) == 3)
+        #expect(QwenImage21LatentPreview.poolingFactor(height: 16, width: 16) == 1)
+        #expect(QwenImage21LatentPreview.poolingFactor(height: 4, width: 6) == 1)
     }
 
     @Test("a frame is the latent decoded at the pooled size, as RGBA8 with the picture's alpha")
@@ -36,14 +39,14 @@ struct LatentPreviewTests {
         let autoencoder = try VAEFixture.dollsHouseAutoencoder(fixture)
         let normalization = QwenImage21LatentNormalization(VAEFixture.dollsHouse)
         MLXRandom.seed(3)
-        // 68 cells an edge pools by 3 to 22, which at four pixels a cell is 88.
+        // 68 cells an edge pools by 5 to 13, which at four pixels a cell is 52.
         let latents = MLXRandom.normal([1, 68, 68, VAEFixture.dollsHouse.zDim])
 
         let preview = try QwenImage21LatentPreview.make(
             latents: latents, normalization: normalization, autoencoder: autoencoder)
-        #expect(preview.width == 88)
-        #expect(preview.height == 88)
-        #expect(preview.pixels.count == 88 * 88 * 4)
+        #expect(preview.width == 52)
+        #expect(preview.height == 52)
+        #expect(preview.pixels.count == 52 * 52 * 4)
     }
 
     @Test("the frame's alpha is the picture's own, not an opaque column")
