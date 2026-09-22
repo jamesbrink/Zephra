@@ -17,27 +17,13 @@ struct ModelPortraitTests {
 
     /// The entries whose sample has not been rendered yet.
     ///
-    /// An entry belongs here only between the commit that adds it to the catalog and the
-    /// `scripts/make-samples.sh` run that draws its card, which needs the packed variant on the
-    /// Mac and a generation at forty steps. The list is what keeps that gap visible instead of
-    /// silent, and it is checked against the catalog below so a stale name fails too.
-    static let awaitingSample: Set<ModelDescriptor.ID> = ["qwen-image-2.1-4bit"]
-
-    @Test("every model has a picture of its own bundled, or is named as still owing one")
+    @Test("every model has a picture of its own bundled")
     func everyModelHasASample() {
         // The one thing that stops a model shipping with a blank card. The chooser degrades to
         // a plain panel rather than a hole, so nothing else would notice.
-        for model in ModelCatalog.all where !Self.awaitingSample.contains(model.id) {
+        for model in ModelCatalog.all {
             guard let name = ModelPortrait.of(model)?.sampleName else { continue }
             #expect(NSImage(named: name) != nil, "no image set named \(name)")
-        }
-        for id in Self.awaitingSample {
-            #expect(
-                ModelCatalog.descriptor(id: id) != nil,
-                "\(id) is no longer in the catalog; take it out of awaitingSample")
-            #expect(
-                NSImage(named: "Sample-\(id)") == nil,
-                "\(id) has its sample now; take it out of awaitingSample")
         }
     }
 
