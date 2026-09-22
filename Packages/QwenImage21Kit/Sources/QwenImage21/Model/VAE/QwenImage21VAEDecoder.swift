@@ -46,10 +46,20 @@ final class QwenImage21VAEDecoder: Module {
     /// `[batch, height, width, zDim]` to `[batch, height * 16, width * 16, 4]`, unclamped --
     /// the reference clamps in `_decode`, outside the decoder, and so does
     /// `QwenImage21Autoencoder`.
+    ///
+    /// **Evaluated a stage at a time**, and inside each stage around its upsampler (see
+    /// `QwenImage21ResidualUpBlock`). A whole decode handed to MLX as one graph keeps every
+    /// stage's scratch alive together -- the 3 x 3 convolutions at these widths run as
+    /// Winograd, whose transformed inputs and outputs are held until their command buffer
+    /// completes -- and at 1024 square that measured 15.1 GB over the weights. Evaluated in
+    /// stages the same operations are 9.5 GB over them: nothing is computed differently, only
+    /// sooner.
     func callAsFunction(_ x: MLXArray) -> MLXArray {
         var x = midBlock(convIn(x))
+        eval(x)
         for block in upBlocks {
             x = block(x)
+            eval(x)
         }
         return convOut(silu(normOut(x)))
     }

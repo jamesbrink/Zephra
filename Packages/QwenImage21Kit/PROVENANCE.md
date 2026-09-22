@@ -125,6 +125,29 @@ own size is the untiled decode exactly. Over random normal latents -- the worst 
 24-cell tile. Nothing here is wrong; the tile the backend ships has to be chosen well up that
 curve, and `TiledDecodeTests` carries the figures so the choice is made against measurements.
 
+### The decoder is evaluated a stage at a time, and the decode is the run's peak
+
+Not a departure from the reference's arithmetic, only from when MLX is asked to do it, and
+written down because the figure it moves is the one the catalog charges. Measured with the
+4-bit variant at 1024 square on an M4 Max (2026-09-22), phase by phase: the weights hold
+10.6 GB, the transformer's first step peaks 3.3 GB over them and every cached step 1.4 GB,
+and the untiled float32 decode peaked **15.1 GB** over them -- the whole of the gap between
+the live figure and the peak. The transformer was never the cause: its activations are
+bfloat16 throughout, attention runs fused with no array mask, and a cached step computes the
+target's 4096 tokens alone.
+
+The decode is that expensive because MLX runs a 3 x 3 convolution whose channels are
+multiples of 32 as Winograd, and at 1024 square the upsampler's 288-channel convolution
+alone holds its float32 input, a padded copy of it, the two Winograd transforms (2.2 GB
+each) and its output -- about 8 GB -- beside what the stage around it has computed. Handed to MLX as one graph, every stage's
+scratch was alive at once. `QwenImage21VAEDecoder` now evaluates after each stage and
+`QwenImage21ResidualUpBlock` after its residual blocks and after its upsampler, and the
+same decode peaks 9.5 GB over the weights (25.7 GB to 20.1 GB in all). What is left is that
+one upsampler convolution, and the tiled decode is what bounds it: at the backend's 32-cell
+tile the decode peaks about 5.2 GB over the weights. The encoder is left as it was, since a
+reference picture's encode (4.9 GB over the weights at 1024) sits under the first step that
+reads it.
+
 ### Two kinds of suite, and five of them load the release's autoencoder weights
 
 `AutoencoderTests`, `AutoencoderStageTests`, `LatentNormalizationTests`, `TiledDecodeTests` and

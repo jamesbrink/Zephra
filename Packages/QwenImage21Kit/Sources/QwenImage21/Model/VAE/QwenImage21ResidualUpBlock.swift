@@ -35,10 +35,15 @@ final class QwenImage21ResidualUpBlock: Module {
         super.init()
     }
 
+    /// The residual blocks and the upsampler are each evaluated before the next thing is built
+    /// on them, which bounds the stage's peak at the upsampler's one convolution rather than at
+    /// everything the stage computes; `QwenImage21VAEDecoder` has the measurement.
     func callAsFunction(_ x: MLXArray) -> MLXArray {
         var h = resnets.reduce(x) { $1($0) }
+        eval(h)
         if let upsampler {
             h = upsampler(h)
+            eval(h)
         }
         if let shortcut {
             h = h + shortcut(x)
