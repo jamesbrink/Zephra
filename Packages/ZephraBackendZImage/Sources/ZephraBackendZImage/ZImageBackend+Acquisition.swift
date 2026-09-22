@@ -40,7 +40,7 @@ extension ZImageBackend {
             }
             let check = LocalSnapshot.zImage(for: descriptor)
             let here = check.downloadedRelease(of: descriptor, in: locations)
-            if let here, locations.missingAdapters(of: descriptor).isEmpty { return here }
+            if let here { return here }
             // The four-bit variant is published ready-made: it is fetched instead of the
             // release it is packed from, and nil means the mirror has not got it. The
             // eight-bit model has no mirror, and the call answers nil at once.

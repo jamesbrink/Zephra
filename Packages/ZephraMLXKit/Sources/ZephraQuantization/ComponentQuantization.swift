@@ -11,9 +11,6 @@ import MLX
 ///
 /// Anything the component's rules leave alone — norms, embeddings, biases, whatever a family
 /// declares — is copied across untouched, in its original dtype.
-///
-/// When the component names adapter files, each weight is merged with its low-rank update on the
-/// way past, so a distilled variant costs one extra matmul per adapted tensor and no extra pass.
 public struct ComponentQuantization {
     /// Which component this run converts, and how finely each of its tensors should be packed.
     public let component: QuantizedComponent
@@ -69,22 +66,12 @@ public struct ComponentQuantization {
         let writer = QuantizedShardWriter(
             directory: try emptiedOutputDirectory(), budgetBytes: shardBudgetBytes)
 
-        let adapter =
-            component.adapters.isEmpty ? nil : try LoRAAdapter(contentsOf: component.adapters)
-        if let adapter {
-            note("\(component.directoryName): merging \(adapter.count) adapted weights")
-        }
-
         var packed: [(QuantizableWeight, QuantizationPrecision)] = []
         for (index, shard) in shards.enumerated() {
             note(
                 "\(component.directoryName): reading \(shard.lastPathComponent) "
                     + "(\(index + 1) of \(shards.count))")
-            packed += try convert(shard: shard, into: writer, adapter: adapter)
-        }
-        if let adapter, !adapter.unmatchedKeys.isEmpty {
-            throw QuantizationError.unmatchedAdapterLayers(
-                component: component.directoryName, keys: adapter.unmatchedKeys)
+            packed += try convert(shard: shard, into: writer)
         }
         let shardOfTensor = try writer.finish(relativeTo: component.directoryName)
         note("\(component.directoryName): packed \(packed.count) layers")

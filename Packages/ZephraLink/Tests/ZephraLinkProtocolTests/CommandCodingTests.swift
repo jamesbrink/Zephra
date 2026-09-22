@@ -17,8 +17,8 @@ struct CommandCodingTests {
             .cancel,
             .removeFromQueue(Self.id),
             .clearQueue,
-            .switchModel("qwen-image-2512-4bit"),
-            .loadModel("qwen-image-2512-4bit"),
+            .switchModel("flux2-klein-4b-4bit"),
+            .loadModel("flux2-klein-4b-4bit"),
             .unloadModel,
             .setFavourite(names: ["a.png", "b.png"], on: true),
             .setTags(names: ["a.png"], tags: ["dusk", "sea"]),
@@ -74,8 +74,8 @@ struct CommandCodingTests {
     func modelLoadingCommands() throws {
         #expect(
             String(
-                decoding: try LinkJSON.encode(Command.loadModel("qwen-image-2512-4bit")),
-                as: UTF8.self) == #"{"kind":"loadModel","modelID":"qwen-image-2512-4bit"}"#)
+                decoding: try LinkJSON.encode(Command.loadModel("flux2-klein-4b-4bit")),
+                as: UTF8.self) == #"{"kind":"loadModel","modelID":"flux2-klein-4b-4bit"}"#)
         #expect(
             String(decoding: try LinkJSON.encode(Command.unloadModel), as: UTF8.self)
                 == #"{"kind":"unloadModel"}"#)

@@ -2,14 +2,13 @@ import Foundation
 import ZephraCore
 
 extension ModelDownloader {
-    /// Fetches every part of a download — the release, and any adapter merged into it — as one
-    /// transfer.
+    /// Fetches every part of a download as one transfer.
     ///
-    /// Every part is listed before a single byte is fetched, so an adapter repository that has
-    /// moved is a failure in a second rather than after fifty-seven gigabytes. And every
-    /// listing feeds one tally, so the fraction and the file count are the whole download's:
-    /// otherwise a release and the adapter merged into it would be two bars, each running to a
-    /// hundred per cent, the second of them after the first had said it was finished.
+    /// Every part is listed before a single byte is fetched, so a repository that has moved is
+    /// a failure in a second rather than after fifty-seven gigabytes. And every listing feeds
+    /// one tally, so the fraction and the file count are the whole download's: otherwise two
+    /// parts would be two bars, each running to a hundred per cent, the second of them after
+    /// the first had said it was finished.
     public func download(
         _ parts: [RepositoryDownload],
         onProgress: @escaping @Sendable (DownloadProgressEvent) -> Void
@@ -36,8 +35,8 @@ extension ModelDownloader {
         }
         if let event = tally.report(force: true) { onProgress(event) }
 
-        // Two parts may share a folder — two adapters out of one repository — and the folder
-        // is finished only when the last of them is, or a stop between the two would leave it
+        // Two parts may share a folder — two file sets out of one repository — and the
+        // folder is finished only when the last of them is, or a stop between the two would leave it
         // recorded complete with the second still to come, and the next transfer at a newer
         // commit would clear it under the one part it thought remained.
         var partsLeft = Dictionary(grouping: work.map { $0.0 }, by: { Self.folder($0.destination) })

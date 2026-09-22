@@ -51,19 +51,6 @@ public struct ModelLocations: Hashable, Sendable {
             path: repoID.replacingOccurrences(of: "/", with: "--"), directoryHint: .isDirectory)
     }
 
-    /// Where an adapter's repository is downloaded to. An adapter is a download like any other,
-    /// so it lands in `Downloads` beside the releases rather than in a folder of its own: one
-    /// listing of that directory is still one row per repository, and a Delete in Settings is
-    /// still a repository.
-    public func adapter(_ adapter: ModelAdapter) -> URL {
-        downloads(repoID: adapter.repoID)
-    }
-
-    /// The adapter file itself, under this root.
-    public func adapterFile(_ adapter: ModelAdapter) -> URL {
-        self.adapter(adapter).appending(path: adapter.file)
-    }
-
     /// Where `repoID`'s download would be under each root, the current one first.
     public func downloadsCandidates(repoID: String) -> [URL] {
         roots.map { ModelLocations(root: $0).downloads(repoID: repoID) }

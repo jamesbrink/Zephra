@@ -11,8 +11,7 @@ extension ModelTransfers {
         }
         try Task.checkCancellation()
         try ModelDirectoryAccess.prepare(locations.root)
-        let missing = Set(locations.missingAdapters(of: model).map(\.repoID))
-        let parts = claim.parts.filter { ($0.repoID == repo && release == nil) || missing.contains($0.repoID) }
+        let parts = claim.parts.filter { $0.repoID == repo && release == nil }
         // Preflight every dependency before starting any of this model's bodies. The task
         // is registered before suspension, so compatible requests share even revision lookup.
         for part in parts {

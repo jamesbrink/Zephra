@@ -43,9 +43,6 @@ public nonisolated enum ModelStorage {
                                 isComplete: HubSnapshotCheck.isComplete(downloads), in: locations),
                             to: &items)
                     }
-                    for item in descriptor.adapters {
-                        add(adapter(item, of: descriptor, in: folder, captioned: locations), to: &items)
-                    }
                     if descriptor.isBuiltLocally {
                         add(built(descriptor, at: folder.built(descriptor), in: locations), to: &items)
                     }
@@ -57,11 +54,6 @@ public nonisolated enum ModelStorage {
                         descriptor, at: repository.url, isComplete: repository.isComplete,
                         in: locations, origin: .hubCache),
                     to: &items)
-            }
-            for item in descriptor.adapters {
-                for repository in HubCache.repositories(of: item.repoID, in: cache) {
-                    add(adapter(item, of: descriptor, at: repository, captioned: locations), to: &items)
-                }
             }
         }
         // Trailing slash off, so a directory named with `directoryHint: .isDirectory` still

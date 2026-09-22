@@ -33,7 +33,6 @@ MODELS_AND_SIZES=(
   "flux2-klein-4b-8bit 1344x768 black-forest-labs--FLUX.2-klein-4B"
   "z-image-turbo-8bit 1344x768 mzbac--Z-Image-Turbo-8bit"
   "z-image-turbo-4bit 1344x768 Tongyi-MAI--Z-Image-Turbo"
-  "qwen-image-2512-4bit 1664x928 Qwen--Qwen-Image-2512"
   "wan-2.2-ti2v-5b-4bit 832x480 FastVideo--FastWan2.2-TI2V-5B-FullAttn-Diffusers"
   "ltx-2.5-distilled-4bit 768x512 mlx-community--ltx-2.5-mlx"
   "ltx-2.5-distilled-audio-4bit 768x512 mlx-community--ltx-2.5-mlx"

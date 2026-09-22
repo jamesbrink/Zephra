@@ -39,61 +39,18 @@ struct DownloadedReleaseTests {
                 of: Self.model(), in: ModelLocations(root: scratch.url("models"))) == nil)
     }
 
-    @Test("a release is a release without its adapter, and the adapter alone is what is missing")
-    func anAdapterIsAskedAboutSeparately() throws {
-        let scratch = Scratch("Downloaded")
-        let locations = ModelLocations(root: scratch.url("models"))
-        let adapter = ModelAdapter(repoID: "org/lora", file: "lightning.safetensors", bytes: 8)
-        let descriptor = Self.model(adapters: [adapter])
-        try Self.snapshot(scratch, at: "models/Downloads/org--repo")
-
-        #expect(
-            check.downloadedRelease(of: descriptor, in: locations) != nil,
-            "thirty gigabytes already here are not fetched again for want of the distillation")
-        #expect(locations.missingAdapters(of: descriptor, cache: scratch.url("hub")) == [adapter])
-
-        try scratch.make("models/Downloads/org--lora/lightning.safetensors")
-        #expect(locations.missingAdapters(of: descriptor, cache: scratch.url("hub")).isEmpty)
-    }
-
-    @Test("an adapter `hf download` put in the cache is used from there, not fetched again")
-    func aCachedAdapterIsNotMissing() throws {
-        let scratch = Scratch("Downloaded")
-        let locations = ModelLocations(root: scratch.url("models"))
-        let adapter = ModelAdapter(repoID: "org/lora", file: "lightning.safetensors", bytes: 8)
-        let descriptor = Self.model(adapters: [adapter])
-        let cache = scratch.url("hub")
-        try scratch.write("abc", to: "hub/models--org--lora/refs/main")
-        try scratch.make("hub/models--org--lora/snapshots/abc/lightning.safetensors")
-
-        #expect(locations.missingAdapters(of: descriptor, cache: cache).isEmpty)
-        #expect(
-            locations.adapterFileOnDisk(adapter, cache: cache)
-                == scratch.url("hub/models--org--lora/snapshots/abc/lightning.safetensors"))
-        #expect(
-            locations.bytesToFetch(for: descriptor, releasePresent: false, cache: cache)
-                == descriptor.downloadBytes,
-            "the release is the whole of what is left to fetch")
-    }
-
-    @Test("a release and an adapter under a folder the setting used to point at are still found")
+    @Test("a release under a folder the setting used to point at is still found")
     func aPreviousRootStillCounts() throws {
         let scratch = Scratch("Downloaded")
         let locations = ModelLocations(
             root: scratch.url("new"), previous: [scratch.url("old")])
-        let adapter = ModelAdapter(repoID: "org/lora", file: "lightning.safetensors", bytes: 8)
-        let descriptor = Self.model(adapters: [adapter])
+        let descriptor = Self.model()
         try Self.snapshot(scratch, at: "old/Downloads/org--repo")
-        try scratch.make("old/Downloads/org--lora/lightning.safetensors")
 
         #expect(
             check.downloadedRelease(of: descriptor, in: locations)?.lastPathComponent == "org--repo"
                 && check.downloadedRelease(of: descriptor, in: locations)?.path(percentEncoded: false)
                     .contains("/old/Downloads/") == true)
-        #expect(locations.missingAdapters(of: descriptor, cache: scratch.url("hub")).isEmpty)
-        #expect(
-            locations.adapterFileOnDisk(adapter, cache: scratch.url("hub"))
-                == scratch.url("old/Downloads/org--lora/lightning.safetensors"))
         #expect(
             locations.builtCandidates(for: descriptor).map(\.lastPathComponent) == [descriptor.id, descriptor.id],
             "the packed variant is looked for under both roots, the current one first")
@@ -131,7 +88,7 @@ struct DownloadedReleaseTests {
     }
 
     /// A model from a repository no cache can answer for.
-    static func model(revision: String = "main", adapters: [ModelAdapter] = []) -> ModelDescriptor {
+    static func model(revision: String = "main") -> ModelDescriptor {
         let base = ModelCatalog.default
         return ModelDescriptor(
             id: "downloaded-test", displayName: base.displayName, variantName: base.variantName,
@@ -140,7 +97,7 @@ struct DownloadedReleaseTests {
             quantization: base.quantization, downloadBytes: 9,
             residentBytes: base.residentBytes, peakBytes: base.peakBytes,
             tiledPeakBytes: base.tiledPeakBytes, maxPromptTokens: base.maxPromptTokens,
-            capabilities: base.capabilities, builtBytes: 4, adapters: adapters)
+            capabilities: base.capabilities, builtBytes: 4)
     }
 
     /// A directory holding what a loader opens, with an index naming its components the way a

@@ -100,11 +100,11 @@ extension EngineState {
     /// catalog's figure for a Mac with nothing.
     ///
     /// The event's own total first, because it is the sum of the files the transfer listed
-    /// after the descriptor's globs and after what was already on disk was counted — a cached
-    /// Qwen-Image release with its adapter missing lists 1.7 GB, not 59.4. Before the listing
-    /// lands, what availability said the disk was missing, which every backend fills from
+    /// after the descriptor's globs and after what was already on disk was counted — a release
+    /// half here lists what is left, not the whole of it. Before the listing lands, what
+    /// availability said the disk was missing, which every backend fills from
     /// `ModelLocations.bytesToFetch` by the same rule. Only then the catalog's `transferBytes`,
-    /// which is the release plus its adapters, since a Mac with nothing fetches both.
+    /// which is the whole release, since that is what a Mac with nothing fetches.
     private static func transferBytes(
         _ event: DownloadProgressEvent, _ availability: ModelAvailability?, _ descriptor: ModelDescriptor
     ) -> Int64 {

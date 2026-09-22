@@ -24,18 +24,4 @@ extension DownloadedReleaseTests {
         #expect(check.packedVariant(of: model, in: locations) != nil)
         #expect(check.packedVariant(of: Self.model(revision: "v2"), in: locations) == nil)
     }
-
-    @Test("explicit adapter revisions never fall back to an unrelated flat or lone cached copy")
-    func adapterRevisionIdentity() throws {
-        let scratch = Scratch("AdapterRevision")
-        let locations = ModelLocations(root: scratch.url("models"))
-        let adapter = ModelAdapter(repoID: "org/lora", revision: "v2", file: "a.safetensors", bytes: 1)
-        try scratch.make("models/Downloads/org--lora/a.safetensors")
-        try scratch.write("v1", to: "models/Downloads/org--lora/.zephra-requested-revision")
-        try scratch.make("hub/models--org--lora/snapshots/sha1/a.safetensors")
-        try scratch.make("hub/models/org/lora/a.safetensors")
-        #expect(locations.adapterFileOnDisk(adapter, cache: scratch.url("hub")) == nil)
-        try scratch.write("sha1", to: "hub/models--org--lora/refs/v2")
-        #expect(locations.adapterFileOnDisk(adapter, cache: scratch.url("hub")) != nil)
-    }
 }

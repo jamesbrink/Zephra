@@ -36,7 +36,7 @@ public struct HubRepository: Hashable, Sendable {
     }
 
     /// One file of the snapshot for `revision`, or nil when it is not here. Asked about a file
-    /// rather than the snapshot because an adapter's repository holds no config to satisfy
+    /// rather than the snapshot because a one-file repository holds no config to satisfy
     /// `HubSnapshotCheck`, and one finished file is all that is wanted of it. Either tool
     /// puts the file in place only once it is whole, so being there is being finished.
     public func file(_ path: String, revision: String = "main") -> URL? {

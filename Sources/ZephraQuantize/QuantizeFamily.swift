@@ -1,7 +1,6 @@
 import Foundation
 import ZephraBackendFlux2
 import ZephraBackendLTX2
-import ZephraBackendQwenImage
 import ZephraBackendWan
 import ZephraBackendZImage
 import ZephraCore
@@ -14,7 +13,6 @@ import ZephraQuantization
 /// codebase keeps, and because two arms are easier to read than a registration dance.
 enum QuantizeFamily: String, CaseIterable, Sendable {
     case zImage = "z-image"
-    case qwenImage = "qwen-image"
     case flux2 = "flux2"
     case ltx2 = "ltx2"
     case ltx2Audio = "ltx2-audio"
@@ -28,7 +26,6 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
     var defaultOutputName: String {
         switch self {
         case .zImage: "z-image-turbo-4bit"
-        case .qwenImage: "qwen-image-2512-4bit"
         case .flux2: "flux2-klein-4b-4bit"
         case .ltx2: "ltx-2.5-distilled-4bit"
         case .ltx2Audio: "ltx-2.5-distilled-audio-4bit"
@@ -40,62 +37,32 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
     var defaultSourceName: String {
         switch self {
         case .zImage: "Tongyi-MAI/Z-Image-Turbo"
-        case .qwenImage: "Qwen/Qwen-Image-2512"
         case .flux2: "black-forest-labs/FLUX.2-klein-4B"
         case .ltx2, .ltx2Audio: "mlx-community/ltx-2.5-mlx"
         case .wan: "FastVideo/FastWan2.2-TI2V-5B-FullAttn-Diffusers"
         }
     }
 
-    /// Whether the catalog's build of this family is the release with an adapter merged in.
-    ///
-    /// Qwen-Image's four-step distillation ships as an adapter, and the catalog entry — no
-    /// guidance, no negative prompt — describes the merged weights. A build without it loads
-    /// under that entry and runs, and makes soft, hazy pictures; so the tool refuses to make
-    /// one unless told to with `--no-lora`.
-    var requiresAdapter: Bool { self == .qwenImage }
-
     /// This family's packing plan at the requested precisions.
-    ///
-    /// Qwen-Image holds its modulation layers at eight bits whatever the rest is set to: they
-    /// are a third of its parameters and they decide how strongly every other layer responds.
     ///
     /// FLUX.2 klein holds its three shared modulation linears whole and omits the text encoder
     /// layers past the last one the transformer reads.
     ///
-    /// LTX-2.5 omits its audio stream and holds its two embeddings at eight bits; it merges no
-    /// adapter, so `adapters` is refused rather than silently dropped.
+    /// LTX-2.5 omits its audio stream and holds its two embeddings at eight bits.
     ///
-    /// Wan 2.2 holds its conditioning and UMT5's token table at eight bits, and likewise merges
-    /// no adapter: FastWan's distillation is in the weights already.
-    ///
-    /// `adapters` are merged into whichever component the family adapts, which for every family
-    /// here is the diffusion transformer.
+    /// Wan 2.2 holds its conditioning and UMT5's token table at eight bits.
     func plan(
         transformer: QuantizationPrecision,
-        textEncoder: QuantizationPrecision,
-        adapters: [URL]
+        textEncoder: QuantizationPrecision
     ) throws -> QuantizationPlan {
         switch self {
         case .zImage:
             return ZImageQuantizationPlan.plan(
-                transformer: transformer, textEncoder: textEncoder, adapters: adapters)
-        case .qwenImage:
-            return QwenImageQuantizationPlan.plan(
-                transformer: transformer,
-                textEncoder: textEncoder,
-                modulation: transformer.bits < 8
-                    ? try QuantizationPrecision(bits: 8, groupSize: transformer.groupSize)
-                    : transformer,
-                adapters: adapters
-            )
+                transformer: transformer, textEncoder: textEncoder)
         case .flux2:
             return Flux2QuantizationPlan.plan(
-                transformer: transformer, textEncoder: textEncoder, adapters: adapters)
+                transformer: transformer, textEncoder: textEncoder)
         case .ltx2, .ltx2Audio:
-            if !adapters.isEmpty {
-                throw QuantizeUsageError.adapterNotRead(family: rawValue)
-            }
             return LTX2QuantizationPlan.plan(
                 transformer: transformer,
                 textEncoder: textEncoder,
@@ -105,9 +72,6 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
                 audio: self == .ltx2Audio
             )
         case .wan:
-            if !adapters.isEmpty {
-                throw QuantizeUsageError.adapterNotRead(family: rawValue)
-            }
             return WanQuantizationPlan.plan(
                 transformer: transformer,
                 textEncoder: textEncoder,

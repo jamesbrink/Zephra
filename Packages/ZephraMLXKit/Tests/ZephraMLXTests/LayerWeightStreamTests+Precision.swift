@@ -11,7 +11,7 @@ import ZephraTestSupport
 /// A loader that brings float32 parameters down to the activation dtype does so before the
 /// stream is attached, the way the kits' `castFloatParameters` do. The stream must then hand
 /// back that dtype on every pass, and not the shards' own float32 from the second pass on,
-/// which is what widened Qwen-Image's whole stream after its first block.
+/// which is what widened a packed model's whole stream after its first block.
 extension LayerWeightStreamTests {
     @Test("a slot cast at load keeps its dtype on every later pass")
     func castSurvivesStreaming() throws {

@@ -86,8 +86,8 @@ struct ModelStorageRow: View {
         ) {}
         ModelStorageRow(
             item: ModelStorageItem(
-                name: "Qwen-Image 2512 · 4-bit", kind: .built,
-                url: URL(filePath: "/tmp/qwen-image-2512-4bit"), location: "qwen-image-2512-4bit",
+                name: "old-model-4bit", kind: .built,
+                url: URL(filePath: "/tmp/old-model-4bit"), location: "old-model-4bit",
                 modelIDs: [], isComplete: true, origin: .retired, bytes: 21_600_000_000),
             inUse: false
         ) {}

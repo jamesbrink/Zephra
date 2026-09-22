@@ -15,9 +15,9 @@ struct LibraryQueryTests {
     @Test("a scope, a model, a tag, and a search each become one token, in reading order")
     func tokensReadInOrder() {
         let query = LibraryQuery(
-            scope: .favourites, text: "  bicycle ", modelID: "qwen-image-2512-4bit", tag: "keep")
+            scope: .favourites, text: "  bicycle ", modelID: "flux2-klein-4b-4bit", tag: "keep")
         #expect(query.tokens == [
-            .scope(.favourites), .model("qwen-image-2512-4bit"), .tag("keep"), .search("bicycle"),
+            .scope(.favourites), .model("flux2-klein-4b-4bit"), .tag("keep"), .search("bicycle"),
         ])
     }
 

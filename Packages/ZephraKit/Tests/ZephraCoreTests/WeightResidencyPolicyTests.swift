@@ -5,7 +5,7 @@ import Testing
 
 @Suite("WeightResidencyPolicy")
 struct WeightResidencyPolicyTests {
-    /// A model that can stream: Qwen-Image's peaks with a streamed figure a 16 GB Mac holds.
+    /// A model that can stream: peaks a 16 GB Mac cannot hold, with a streamed figure it can.
     static let streamable = MemoryFitTests.model(
         peak: 30_360_000_000, tiled: 26_070_000_000, streamed: 9_000_000_000)
 

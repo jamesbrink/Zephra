@@ -29,9 +29,6 @@ public struct ModelMigration: Sendable {
         for model in catalog {
             guard case .huggingFace(let repo, _, _) = model.source else { continue }
             paths.insert("Downloads/" + repo.replacingOccurrences(of: "/", with: "--"))
-            for adapter in model.adapters {
-                paths.insert("Downloads/" + adapter.repoID.replacingOccurrences(of: "/", with: "--"))
-            }
             if model.isBuiltLocally {
                 paths.insert(model.id)
                 paths.insert(model.id + ".partial")

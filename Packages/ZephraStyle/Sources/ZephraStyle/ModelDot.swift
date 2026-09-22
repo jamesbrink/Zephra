@@ -20,7 +20,7 @@ public struct ModelDot: View {
 
 #Preview("Dots") {
     VStack(alignment: .leading, spacing: 6) {
-        ForEach(["z-image-turbo-8bit", "z-image-turbo-4bit", "qwen-image-2512-4bit", "flux"], id: \.self) { id in
+        ForEach(["z-image-turbo-8bit", "z-image-turbo-4bit", "flux2-klein-4b-4bit", "flux"], id: \.self) { id in
             HStack(spacing: 8) {
                 ModelDot(id)
                 Text(id)

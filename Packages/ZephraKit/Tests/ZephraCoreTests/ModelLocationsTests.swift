@@ -43,15 +43,6 @@ struct ModelLocationsTests {
         ])
     }
 
-    @Test("an adapter lands in Downloads beside the release it is merged into")
-    func anAdapterIsADownloadLikeAnyOther() throws {
-        let adapter = try #require(ModelCatalog.qwenImage2512_4bit.adapters.first)
-        #expect(
-            scratch.adapter(adapter).path(percentEncoded: false)
-                == "/tmp/zephra-models/Downloads/lightx2v--Qwen-Image-2512-Lightning/")
-        #expect(scratch.adapterFile(adapter).lastPathComponent == adapter.file)
-    }
-
     /// A descriptor whose weights are a directory on this Mac rather than a repository.
     private static func local(at directory: URL) -> ModelDescriptor {
         let base = ModelCatalog.zImageTurbo4bit

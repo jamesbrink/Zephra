@@ -48,12 +48,6 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
     public let maxPromptTokens: Int
     /// The settings this model will accept.
     public let capabilities: ModelCapabilities
-    /// Low-rank adapters fetched beside the release and merged in while the variant is packed.
-    ///
-    /// Empty for every model whose release is already the weights to load. A model that has one
-    /// cannot be run without it — Qwen-Image's four-step distillation is what makes the model
-    /// usable on a Mac at all — so it is part of the download, not an option beside it.
-    public let adapters: [ModelAdapter]
     /// Approximate bytes the packed variant occupies once built on this Mac, or 0 for a model
     /// whose download is what gets loaded.
     ///
@@ -88,7 +82,6 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
         maxPromptTokens: Int,
         capabilities: ModelCapabilities,
         builtBytes: Int64 = 0,
-        adapters: [ModelAdapter] = [],
         mirror: ModelMirror? = nil
     ) {
         self.id = id
@@ -106,7 +99,6 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
         self.maxPromptTokens = maxPromptTokens
         self.capabilities = capabilities
         self.builtBytes = builtBytes
-        self.adapters = adapters
         self.mirror = mirror
     }
 
@@ -118,12 +110,10 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
     /// choosing the model transfers, not `transferBytes`.
     public var isPublishedPrebuilt: Bool { mirror != nil && isBuiltLocally }
 
-    /// Every byte choosing this model would transfer: the release, and every adapter merged
-    /// into it. This, not `downloadBytes`, is what a picker states, because both are fetched
-    /// before anything can be built and a person deciding whether to spend it wants the total.
-    public var transferBytes: Int64 {
-        downloadBytes + adapters.reduce(0) { $0 + $1.bytes }
-    }
+    /// Every byte choosing this model would transfer, which is its release. It is kept as a
+    /// name of its own, rather than folded into `downloadBytes`, because it is the figure a
+    /// picker states: what a person deciding whether to spend it is actually spending.
+    public var transferBytes: Int64 { downloadBytes }
 
     /// What a packed variant's manifest records as where the weights came from: the repository
     /// when there is one, and the descriptor's own identifier when the source is a directory.

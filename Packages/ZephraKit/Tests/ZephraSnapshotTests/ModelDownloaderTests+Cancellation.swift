@@ -42,29 +42,6 @@ extension ModelDownloaderTests {
         #expect(FileManager.default.fileExists(atPath: destination.appending(path: "model.safetensors").path))
     }
 
-    @Test("cancelling an adapter keeps an existing cached release")
-    func cancellationPreservesCachedRelease() async throws {
-        let scratch = Scratch("CancelAdapter")
-        try scratch.write("keep", to: "cache/model.safetensors")
-        let locations = ModelLocations(root: scratch.url("models"))
-        let listing = try JSONSerialization.data(withJSONObject: [
-            ["type": "file", "path": "lightning.safetensors", "size": 8]
-        ])
-        StubHub.reset(StubHub.Behaviour(
-            pages: [listing], files: ["lightning.safetensors": Data(repeating: 7, count: 8)], pause: 10))
-        let downloader = ModelDownloader(configuration: StubHub.configuration())
-        let cached = scratch.url("cache")
-        let task = Task {
-            try await downloader.fetch(Self.withAdapter(), into: locations, release: cached, onProgress: { _ in })
-        }
-        defer { task.cancel() }
-        try await waitForFileRequest()
-        task.cancel()
-        await #expect(throws: CancellationError.self) { try await task.value }
-        #expect(try String(contentsOf: scratch.url("cache/model.safetensors"), encoding: .utf8) == "keep")
-        #expect(!FileManager.default.fileExists(atPath: locations.downloads(repoID: "org/lora").path))
-    }
-
     @Test("cleanup preserves completed repositories and refuses linked destinations")
     func cancellationCleanupBoundaries() throws {
         let scratch = Scratch("CancelBoundaries")

@@ -16,7 +16,7 @@ extension ModelDownloader {
             let pin = pin(in: destination)
             let partials = HubSnapshotCheck.incompleteFiles(in: destination)
             guard files.fileExists(atPath: pin.path) || !partials.isEmpty else { continue }
-            // A finished repository may also hold another adapter being fetched. Preserve
+            // A finished repository may also hold another part being fetched. Preserve
             // its completed files; a new, unfinished repository goes in its entirety,
             // including whole shards that are useless without the rest of that model.
             if files.fileExists(atPath: completed(in: destination).path) {

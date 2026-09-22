@@ -1,7 +1,6 @@
 import Foundation
 import ZephraBackendFlux2
 import ZephraBackendLTX2
-import ZephraBackendQwenImage
 import ZephraBackendWan
 import ZephraBackendZImage
 import ZephraCore
@@ -16,7 +15,6 @@ enum BenchBackends {
     static func registry(_ environment: InferenceEnvironment) -> BackendRegistry {
         var registry = BackendRegistry()
         registry.register(.zImage, ZImageBackendFactory.make(environment))
-        registry.register(.qwenImage, QwenImageBackendFactory.make(environment))
         registry.register(.flux2, Flux2BackendFactory.make(environment))
         registry.register(.ltx2, LTX2BackendFactory.make(environment))
         registry.register(.wan, WanBackendFactory.make(environment))
@@ -31,7 +29,6 @@ enum BenchBackends {
     /// allowed to know that any of them exist.
     static func runtime(for backend: BackendID) -> any InferenceRuntime {
         switch backend {
-        case .qwenImage: QwenImageBackendFactory.runtime
         case .flux2: Flux2BackendFactory.runtime
         case .ltx2: LTX2BackendFactory.runtime
         case .wan: WanBackendFactory.runtime

@@ -5,9 +5,9 @@ import os
 extension ModelDownloader {
     private static let logger = Logger(subsystem: "io.zephra", category: "download")
 
-    /// Fetches `descriptor`'s release, and every adapter merged into it, into `locations`,
-    /// trying again when the transfer breaks, and reports what stopped it in words a person can
-    /// act on. Returns the directory the release landed in.
+    /// Fetches `descriptor`'s release into `locations`, trying again when the transfer
+    /// breaks, and reports what stopped it in words a person can act on. Returns the directory
+    /// the release landed in.
     ///
     /// This is the one call each backend makes: every family downloads the same way, so the
     /// retry, the classification and the message are here rather than three times over. Only an
@@ -24,21 +24,14 @@ extension ModelDownloader {
         guard case .huggingFace(let repoID, let revision, let patterns) = descriptor.source else {
             throw BackendError.modelNotAvailable(descriptor.fullName)
         }
-        // A release already on this Mac — in the models folder or the hub cache — is kept,
-        // and only what is missing moves: thirty gigabytes are never fetched for want of an
-        // adapter of two.
+        // A release already on this Mac — in the models folder or the hub cache — is kept
+        // rather than fetched again.
         let release = existing ?? locations.downloads(repoID: repoID)
-        let releasePart = existing == nil
-            ? [RepositoryDownload(
-                repoID: repoID, revision: revision, patterns: patterns, destination: release)]
-            : []
-        let parts = releasePart
-            + locations.missingAdapters(of: descriptor).map {
-                RepositoryDownload(
-                    repoID: $0.repoID, revision: $0.revision, patterns: [$0.file],
-                    destination: locations.adapter($0))
-            }
-        if parts.isEmpty { return release }
+        guard existing == nil else { return release }
+        let parts = [
+            RepositoryDownload(
+                repoID: repoID, revision: revision, patterns: patterns, destination: release)
+        ]
         try ModelDirectoryAccess.prepare(locations.root)
         do {
             try await DownloadRetry.run(

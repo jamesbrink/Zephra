@@ -70,11 +70,11 @@ struct EngineStateDisplayTests {
         #expect(
             unlisted.title(for: model, availability: .needsDownload(bytes: 2_000_000_000))
                 == "Z-Image Turbo · 8-bit needs a one-time 2 GB download.")
-        let qwen = ModelCatalog.qwenImage2512_4bit
-        let expected = "Qwen-Image 2512 · 4-bit needs a one-time \(ByteCount.gigabytes(qwen.transferBytes)) download."
-        #expect(unlisted.title(for: qwen, availability: nil) == expected)
-        #expect(unlisted.title(for: qwen, availability: .available) == expected)
-        #expect(qwen.transferBytes > qwen.downloadBytes)
+        let other = ModelCatalog.ltx2DistilledAudio4bit
+        let expected = "\(other.fullName) needs a one-time "
+            + "\(ByteCount.gigabytes(other.transferBytes)) download."
+        #expect(unlisted.title(for: other, availability: nil) == expected)
+        #expect(unlisted.title(for: other, availability: .available) == expected)
     }
 
     @Test("ready and generating need no headline; a failure's headline is its message")

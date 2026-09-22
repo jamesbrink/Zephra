@@ -27,8 +27,7 @@ struct MemoryFitTests {
             source: .localDirectory(URL(filePath: "/tmp/test")), quantization: .int4,
             downloadBytes: 0, residentBytes: 1, peakBytes: peak, tiledPeakBytes: tiled,
             streamedPeakBytes: streamed, maxPromptTokens: 512,
-            capabilities: ModelCatalog.zImageTurbo4bit.capabilities, builtBytes: 0,
-            adapters: [])
+            capabilities: ModelCatalog.zImageTurbo4bit.capabilities, builtBytes: 0)
     }
 
     @Test("the budget is what the GPU may keep, and the fallback is four fifths of RAM")
@@ -63,8 +62,8 @@ struct MemoryFitTests {
 
     @Test("a tight verdict names the working set that would clear it")
     func tightNamesTheWorkingSet() {
-        // Qwen-Image's peaks without its streamed figure: what the catalog said before
-        // streaming, and what a family that cannot stream says still.
+        // A 26 GB tiled peak with no streamed figure beside it: what a family that cannot
+        // stream says.
         let unstreamable = Self.model(peak: 30_360_000_000, tiled: 26_070_000_000)
         guard case .tight(let needed) = MemoryFit(descriptor: unstreamable, budget: Self.sixteenDefault)
         else {
@@ -96,8 +95,8 @@ struct MemoryFitTests {
             return
         }
         #expect(MemoryFit.wouldFitWithWiredLimitRaised(unstreamable, budget: thirtyTwo))
-        // Qwen-Image itself streams there, so the picker offers it rather than the hint.
-        #expect(MemoryFit(descriptor: ModelCatalog.qwenImage2512_4bit, budget: thirtyTwo) == .fitsStreamed)
+        // LTX-2.5 with sound streams there, so the picker offers it rather than the hint.
+        #expect(MemoryFit(descriptor: ModelCatalog.ltx2DistilledAudio4bit, budget: thirtyTwo) == .fitsStreamed)
     }
 
     @Test("tight quotes the leanest figure, which is the streamed one where the family streams")

@@ -14,7 +14,7 @@ import ZephraLinkProtocol
 /// that can disagree with the Mac about which models are on offer.
 extension CompanionHostTests {
     /// A budget the catalog straddles, as `MemoryGuardStoreTests` uses it: klein runs tiled,
-    /// Qwen-Image streams, and LTX-2.5 with sound is over even its streamed figure.
+    /// Z-Image 8-bit streams, and LTX-2.5 with sound is over even its streamed figure.
     static let straddling = MemoryBudget(physicalMemory: 16 << 30, gpuWorkingSet: 11_000_000_000)
 
     /// The catalog entry that budget cannot hold.
