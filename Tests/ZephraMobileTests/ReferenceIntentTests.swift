@@ -25,7 +25,7 @@ struct ReferenceIntentTests {
         await bed.take()
 
         #expect(bed.draft.reference != nil, "the well is filled")
-        #expect(bed.draft.settings.referenceOrigin == bed.name)
+        #expect(bed.draft.referenceOrigin == bed.name)
         #expect(bed.intent.fileName == nil, "and the request is spent")
     }
 
@@ -67,7 +67,7 @@ struct ReferenceIntentTests {
         await bed.take()
 
         #expect(bed.draft.reference == nil)
-        #expect(bed.draft.settings.referenceOrigin == nil)
+        #expect(bed.draft.referenceOrigin == nil)
     }
 
     @Test("On a model that makes clips the size follows the picture, as it does on the Mac")

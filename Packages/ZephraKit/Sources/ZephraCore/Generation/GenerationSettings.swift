@@ -14,13 +14,15 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
     public var guidance: Double
     /// The noise seed, so an image can be reproduced exactly.
     public var seed: UInt64
-    /// A picture to edit rather than start from noise, as PNG bytes, on models that read one.
+    /// The pictures to work from rather than starting from noise, in the order the model reads
+    /// them, on models that read any.
     ///
-    /// Bytes and not a file URL. A settings value is what the user chose, and it has to keep
-    /// meaning that after the file is moved, after the app quits, and twenty minutes later when
-    /// its queue entry finally runs. The interface caps the picture before it lands here, so a
-    /// reference is a megabyte or two, the same order as the images history already holds.
-    public var referenceImage: Data?
+    /// The list is the stored truth and `referenceImage` and `referenceOrigin` name its first
+    /// entry, because most of the app and five of the six families read one picture and should
+    /// never learn that a list exists — the way `frames` and `continuation` were added.
+    /// `ModelCapabilities.referenceImageCount` says how many a model reads, and `clamp` trims to
+    /// it and to `ReferenceLimits`.
+    public var referenceImages: [ReferencePicture]
     /// How far from that picture to start, on models that begin from a noised copy of it.
     ///
     /// 1 discards the picture entirely and is the ordinary text-to-image path; smaller values
@@ -35,14 +37,6 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
     /// not the decoder's — so reading a value written before strength existed takes a
     /// hand-written `init(from:)`.
     public var referenceStrength: Double
-    /// The library file name the reference picture came out of, when it came from the library,
-    /// and nil when it came from a file chooser or a drop.
-    ///
-    /// A name and not a path, for the reason the record it is written into is inside the PNG: a
-    /// library that survives being moved to another Mac cannot hold absolute paths. It is
-    /// provenance for the person looking at the result — "this started from that picture" —
-    /// and nothing reads it to find the file except an interface offering to show it.
-    public var referenceOrigin: String?
     /// How many frames to make, on models that make a clip; 1 is a picture.
     ///
     /// Not optional, for the same reason `referenceStrength` is not: every generation has a
@@ -60,6 +54,12 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
     public var continuation: ClipContinuation?
 
     /// Creates a settings value from explicit choices.
+    ///
+    /// The one picture and the list are both offered, so every call site written before the list
+    /// existed compiles and means what it meant. Passing both is a programmer error:
+    /// `referenceImages` wins, and the two scalars are folded into one picture only when it is
+    /// empty. A `referenceOrigin` with no `referenceImage` is dropped, since an origin is only
+    /// ever a fact about a picture.
     public init(
         prompt: String,
         negativePrompt: String? = nil,
@@ -68,6 +68,7 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
         guidance: Double,
         seed: UInt64,
         referenceImage: Data? = nil,
+        referenceImages: [ReferencePicture] = [],
         referenceStrength: Double = 1,
         referenceOrigin: String? = nil,
         frames: Int = 1,
@@ -79,9 +80,14 @@ public struct GenerationSettings: Hashable, Sendable, Codable {
         self.steps = steps
         self.guidance = guidance
         self.seed = seed
-        self.referenceImage = referenceImage
+        if referenceImages.isEmpty {
+            self.referenceImages = referenceImage.map {
+                [ReferencePicture(data: $0, origin: referenceOrigin)]
+            } ?? []
+        } else {
+            self.referenceImages = referenceImages
+        }
         self.referenceStrength = referenceStrength
-        self.referenceOrigin = referenceOrigin
         self.frames = frames
         self.continuation = continuation
     }
