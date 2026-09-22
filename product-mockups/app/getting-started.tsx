@@ -15,10 +15,10 @@ const models = [
     use: 'Another way to explore still images.',
   },
   {
-    name: 'Qwen-Image-2512',
-    size: '21.6 GB',
-    setup: '81.0 GB',
-    use: 'Image generation and reference edits.',
+    name: 'Qwen-Image 2.1',
+    size: '11.6 GB',
+    setup: '44.7 GB',
+    use: 'Images with legible text, and edits from up to ten reference pictures. Research license, non-commercial use only.',
   },
   {
     name: 'Wan 2.2 TI2V-5B',
@@ -136,8 +136,7 @@ export default function GettingStarted({ id }: { id: string }) {
           <summary>How much memory does generation use?</summary>
           <p>
             Recorded image-generation peaks at 1024 × 1024 with tiled decoding:
-            FLUX.2 klein 4-bit, about 7.7 GB; Z-Image-Turbo 4-bit, 12.0 GB;
-            Qwen-Image 4-bit, 26.1 GB, or about 10.3 GB with streaming.
+            FLUX.2 klein 4-bit, about 7.7 GB; Z-Image-Turbo 4-bit, 12.0 GB.
           </p>
           <p>
             Wan 2.2 at 832 × 480 and 49 frames measured about 15.1 GB, 12.4 GB
@@ -171,8 +170,8 @@ export default function GettingStarted({ id }: { id: string }) {
             or animate a picture with the TI2V-5B model.
           </li>
           <li>
-            <strong>More control over memory.</strong> Stream Qwen-Image, Wan
-            2.2, and LTX-2.5 weights from disk in Settings → Performance.
+            <strong>More control over memory.</strong> Stream Qwen-Image 2.1,
+            Wan 2.2, and LTX-2.5 weights from disk in Settings → Performance.
           </li>
         </ul>
       </section>

@@ -98,13 +98,13 @@ function Features({ id }: { id: string }) {
         </span>
         <div className="model-names">
           <span>Z-Image-Turbo</span>
-          <span>Qwen-Image-2512</span>
+          <span>Qwen-Image 2.1</span>
           <span>FLUX.2 klein 4B</span>
           <span>Wan 2.2</span>
           <span>LTX-2.5</span>
         </div>
         <p>
-          Generate and edit images with Z-Image-Turbo, Qwen-Image, or FLUX.2
+          Generate and edit images with Z-Image-Turbo, Qwen-Image 2.1, or FLUX.2
           klein. Create video with Wan 2.2 or LTX-2.5, including sound with
           LTX-2.5’s audio variant. Finish still images with 2× or 4× Real-ESRGAN
           upscaling.

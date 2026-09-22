@@ -5,7 +5,7 @@ Reviewed the product page against this branch's README and implementation.
 | Claim | Evidence / disposition |
 | --- | --- |
 | Native macOS, Apple Silicon, MLX | `project.yml` declares macOS 15 and arm64; app uses SwiftUI and registered MLX backends. |
-| Five model families | `ModelCatalog.swift`, `ModelCatalog+QwenImage.swift`, `ModelCatalog+Flux2.swift` `ModelCatalog+Wan.swift` and `ModelCatalog+LTX2.swift` enumerate the named families and multiple quantized variants. Copy now says families. |
+| Five model families | `ModelCatalog.swift`, `ModelCatalog+QwenImage21.swift`, `ModelCatalog+Flux2.swift` `ModelCatalog+Wan.swift` and `ModelCatalog+LTX2.swift` enumerate the named families and multiple quantized variants. Copy now says families. |
 | Prompt and reference generation | README's reference workflow and each backend's reference handling support this; no claim of a general image editor. |
 | Live previews, queue, searchable library | `PreviewThrottle`, `GenerationStore+Queue`, `LibraryQuery+Matching`, and the app's actual UI support these features. |
 | 2× / 4× Real-ESRGAN | README and registered `ZephraUpscaleRealESRGAN` implementation; weights bundled locally. |
@@ -22,7 +22,7 @@ without presenting an invented quotation as an exact generation prompt.
 ## Getting started and compatibility update — 2026-09-08
 
 - macOS 15 / Apple Silicon: `project.yml` and README requirements.
-- Model disk figures: `ModelCatalog*.swift` download + built bytes; Qwen includes its Lightning adapter. Decimal GB, approximate; extra setup/library space called out.
+- Model disk figures: `ModelCatalog*.swift` download + built bytes; no catalog entry takes a second repository. Decimal GB, approximate; extra setup/library space called out.
 - 16 GB guidance and streamed/resident peaks: README Models and memory and catalog measurement comments. Figures identify workload settings and are explicitly not minimum system RAM guarantees.
 - First launch: README's installation/model workflow. Prepared mirror fallback is explained without promising a fixed download size.
 - Release highlights: current LTX-2.5, MP4 library, and weight streaming implementation; version/build come from the same manifest as the download.
@@ -50,13 +50,33 @@ Source checks: `ModelCatalog*.swift` for actual variants/defaults; `ReferenceRol
 `ControlsRow`, `SeedControl`, `BatchCountControl`, `DurationControl`, `ChainPlan`,
 `GenerationStore+Extend`, `GenerationStore+Chaining`, library menu and command
 views, welcome chooser, model downloads, and performance/general settings.
-The guide distinguishes Qwen-Image from Qwen-Image-Edit, a single reference from
-upstream multi-reference tools, and LTX audio from silent variants. It does not
-advertise upstream masks, prompt enhancement, custom audio, or voice selection.
+The guide distinguishes the single-reference models from Qwen-Image 2.1's strip of
+up to ten, Z-Image's Strength from direct conditioning, and LTX audio from silent
+variants. It states Qwen-Image 2.1's research license, which is non-commercial and
+the only such license in the catalog. It does not advertise upstream masks, prompt
+enhancement, custom audio, or voice selection.
 
 Primary upstream guidance consulted: Black Forest Labs' Building a Good Prompt
 and Single-Reference Editing; Tongyi-MAI's Z-Image-Turbo model card; Qwen's
-Qwen-Image-2512 model card and official demo prompting instructions; LTX's
+Qwen-Image 2.1 model card; LTX's
 open-source Prompting Guide; Wan-Video/Wan2.2 `wan/utils/system_prompt.py`.
 Direct source links appear in relevant chapters. App behavior takes precedence
 over upstream tutorials for other variants or interfaces.
+
+## Qwen-Image 2.1 update — 2026-09-22
+
+- The catalog entry is `qwen-image-2.1-4bit`, from `Qwen/Qwen-Image-2.1`, and it
+  replaces the model the earlier entries describe. Download 33.1 GB and built copy
+  11.6 GB are the measured figures; the card reads 11.6 GB prepared and 44.7 GB with
+  source files.
+- Every memory and peak figure for this entry is an unmeasured estimate, so the page
+  publishes none: the Qwen line is gone from the recorded-peaks note rather than
+  carrying a stale or estimated number.
+- License: the Qwen Research License permits research and evaluation only. That is
+  stated on the getting-started card, in the models chapter, in `public/index.md`
+  and in `public/llms.txt`, since every other model here is permissive.
+- Controls and references: 40 steps by default (8-50), Guidance 1-8 default 1, and a
+  negative prompt, which no other entry has; up to ten reference pictures read in
+  order and conditioned on directly, so there is no Strength setting. The guide's
+  reference role for it is Reference, not Start from.
+- There is no adapter and no local merge step in the build any more.

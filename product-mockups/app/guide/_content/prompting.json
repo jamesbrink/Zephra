@@ -22,15 +22,9 @@
       "id": "text",
       "title": "Put exact lettering in quotation marks",
       "paragraphs": [
-        "For a sign or poster, spell out the words and where they belong. Qwen’s official example app recommends specifying the lettering, placement, and visual treatment. Proofread the result; generated lettering can still be wrong."
+        "For a sign or poster, spell out the words and where they belong. Qwen-Image 2.1 is the model here best suited to lettering, and it is the one model with Guidance and a negative prompt when a first attempt needs correcting. Proofread the result; generated lettering can still be wrong."
       ],
-      "prompt": "A simple illustrated poster of a lemon tree. The title at the top reads \"SUNDAY MARKET\" in large dark green letters. Cream background, flat screen-print style.",
-      "links": [
-        {
-          "label": "Upstream: Qwen’s prompting instructions",
-          "url": "https://huggingface.co/spaces/Qwen/Qwen-Image-2512/blob/main/app.py"
-        }
-      ]
+      "prompt": "A simple illustrated poster of a lemon tree. The title at the top reads \"SUNDAY MARKET\" in large dark green letters. Cream background, flat screen-print style."
     },
     {
       "id": "change",
@@ -46,7 +40,8 @@
       "paragraphs": [],
       "items": [
         "New image: describe the finished scene.",
-        "Z-Image or Qwen with a starting picture: describe the finished image, then adjust Strength to control how much it changes.",
+        "Z-Image with a starting picture: describe the finished image, then adjust Strength to control how much it changes.",
+        "Qwen-Image 2.1 with reference pictures: describe the finished image. It conditions on the pictures directly, as FLUX does, so there is no Strength setting.",
         "FLUX photo edit: name the change and the details to preserve.",
         "Video: describe what happens over time and how the camera behaves. With a first frame, focus on the movement that follows."
       ],
@@ -74,8 +69,8 @@
           "url": "https://huggingface.co/Tongyi-MAI/Z-Image-Turbo"
         },
         {
-          "label": "Qwen-Image 2512 model card",
-          "url": "https://huggingface.co/Qwen/Qwen-Image-2512"
+          "label": "Qwen-Image 2.1 model card",
+          "url": "https://huggingface.co/Qwen/Qwen-Image-2.1"
         },
         {
           "label": "FLUX single-reference editing",

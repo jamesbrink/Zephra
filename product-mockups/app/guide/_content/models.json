@@ -10,7 +10,7 @@
       "items": [
         "FLUX.2 klein 4B: create an image from words or ask for a specific change to a photo. A useful starting point for editing.",
         "Z-Image Turbo: make still images from a description, or reinterpret an existing picture with a Strength setting.",
-        "Qwen-Image 2512: another still-image option, including scenes with written text. It can start from a picture, but Zephra uses Qwen-Image 2512, not the separate Qwen-Image-Edit model.",
+        "Qwen-Image 2.1: make still images with legible text and dense scenes, or edit from as many as ten reference pictures at once. Its weights are under a research license for non-commercial use; the other models here are not restricted that way.",
         "Wan 2.2: create silent video from words or a first-frame image. Zephra includes the 5B variant.",
         "LTX-2.5: create video from words or a first frame. Choose “video only” for silent output or “with sound” to generate audio together with the video."
       ]
@@ -27,7 +27,7 @@
       "id": "space",
       "title": "Make room for the first download",
       "paragraphs": [
-        "The prepared 4-bit models use roughly 5.4 GB for FLUX.2 klein, 7.1 GB for Z-Image, 21.6 GB for Qwen, 10.1 GB for Wan, 20.8 GB for LTX video only, or 25.8 GB for LTX with sound. Setup also needs source files, so allow substantially more free space.",
+        "The prepared 4-bit models use roughly 5.4 GB for FLUX.2 klein, 7.1 GB for Z-Image, 11.6 GB for Qwen-Image 2.1, 10.1 GB for Wan, 20.8 GB for LTX video only, or 25.8 GB for LTX with sound. Setup also needs source files, so allow substantially more free space.",
         "Storage is disk space; memory is the working space your Mac uses while generating. Having enough of one does not guarantee enough of the other. Check the notes in Zephra’s model chooser and Settings → Models."
       ],
       "links": [
@@ -45,8 +45,8 @@
       "id": "controls",
       "title": "Why do the controls change?",
       "paragraphs": [
-        "Zephra shows only settings the selected model uses. All current models have seeds. Still-image models offer Steps; video models use a fixed step schedule and instead offer Length. Current variants do not expose Guidance or a negative-prompt field.",
-        "Reference images also change meaning: Start from for Z-Image and Qwen, Reference for FLUX, and First frame for video. Use the matching guide instead of copying settings from a tutorial for another app."
+        "Zephra shows only settings the selected model uses. All current models have seeds. Still-image models offer Steps; video models use a fixed step schedule and instead offer Length. Qwen-Image 2.1 is the only model here that also offers Guidance and a negative prompt; the others are distilled and do not use them.",
+        "Reference images also change meaning: Start from for Z-Image, Reference for FLUX.2 klein and Qwen-Image 2.1, and First frame for video. Use the matching guide instead of copying settings from a tutorial for another app."
       ],
       "links": [
         {

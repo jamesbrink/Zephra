@@ -54,7 +54,7 @@ Pick the tool for your task, then let Zephra handle the technical settings.
 
 - FLUX.2 klein 4B: create an image from words or ask for a specific change to a photo. A useful starting point for editing.
 - Z-Image Turbo: make still images from a description, or reinterpret an existing picture with a Strength setting.
-- Qwen-Image 2512: another still-image option, including scenes with written text. It can start from a picture, but Zephra uses Qwen-Image 2512, not the separate Qwen-Image-Edit model.
+- Qwen-Image 2.1: make still images with legible text and dense scenes, or edit from as many as ten reference pictures at once. Its weights are under a research license for non-commercial use; the other models here are not restricted that way.
 - Wan 2.2: create silent video from words or a first-frame image. Zephra includes the 5B variant.
 - LTX-2.5: create video from words or a first frame. Choose “video only” for silent output or “with sound” to generate audio together with the video.
 
@@ -66,7 +66,7 @@ A larger model or variant is not automatically a better choice for every idea. T
 
 ### Make room for the first download
 
-The prepared 4-bit models use roughly 5.4 GB for FLUX.2 klein, 7.1 GB for Z-Image, 21.6 GB for Qwen, 10.1 GB for Wan, 20.8 GB for LTX video only, or 25.8 GB for LTX with sound. Setup also needs source files, so allow substantially more free space.
+The prepared 4-bit models use roughly 5.4 GB for FLUX.2 klein, 7.1 GB for Z-Image, 11.6 GB for Qwen-Image 2.1, 10.1 GB for Wan, 20.8 GB for LTX video only, or 25.8 GB for LTX with sound. Setup also needs source files, so allow substantially more free space.
 
 Storage is disk space; memory is the working space your Mac uses while generating. Having enough of one does not guarantee enough of the other. Check the notes in Zephra’s model chooser and Settings → Models.
 
@@ -75,9 +75,9 @@ Storage is disk space; memory is the working space your Mac uses while generatin
 
 ### Why do the controls change?
 
-Zephra shows only settings the selected model uses. All current models have seeds. Still-image models offer Steps; video models use a fixed step schedule and instead offer Length. Current variants do not expose Guidance or a negative-prompt field.
+Zephra shows only settings the selected model uses. All current models have seeds. Still-image models offer Steps; video models use a fixed step schedule and instead offer Length. Qwen-Image 2.1 is the only model here that also offers Guidance and a negative prompt; the others are distilled and do not use them.
 
-Reference images also change meaning: Start from for Z-Image and Qwen, Reference for FLUX, and First frame for video. Use the matching guide instead of copying settings from a tutorial for another app.
+Reference images also change meaning: Start from for Z-Image, Reference for FLUX.2 klein and Qwen-Image 2.1, and First frame for video. Use the matching guide instead of copying settings from a tutorial for another app.
 
 - [Start from an image](https://zephra.urandom.io/guide/reference-images/)
 - [Edit a photo](https://zephra.urandom.io/guide/photo-editing/)
@@ -103,13 +103,11 @@ Try this prompt:
 
 ### Put exact lettering in quotation marks
 
-For a sign or poster, spell out the words and where they belong. Qwen’s official example app recommends specifying the lettering, placement, and visual treatment. Proofread the result; generated lettering can still be wrong.
+For a sign or poster, spell out the words and where they belong. Qwen-Image 2.1 is the model here best suited to lettering, and it is the one model with Guidance and a negative prompt when a first attempt needs correcting. Proofread the result; generated lettering can still be wrong.
 
 Try this prompt:
 
 > A simple illustrated poster of a lemon tree. The title at the top reads "SUNDAY MARKET" in large dark green letters. Cream background, flat screen-print style.
-
-- [Upstream: Qwen’s prompting instructions](https://huggingface.co/spaces/Qwen/Qwen-Image-2512/blob/main/app.py)
 
 ### Change one thing, then compare
 
@@ -120,7 +118,8 @@ A seed is a number that chooses a starting point for generation. It is useful fo
 ### Match the wording to the task
 
 - New image: describe the finished scene.
-- Z-Image or Qwen with a starting picture: describe the finished image, then adjust Strength to control how much it changes.
+- Z-Image with a starting picture: describe the finished image, then adjust Strength to control how much it changes.
+- Qwen-Image 2.1 with reference pictures: describe the finished image. It conditions on the pictures directly, as FLUX does, so there is no Strength setting.
 - FLUX photo edit: name the change and the details to preserve.
 - Video: describe what happens over time and how the camera behaves. With a first frame, focus on the movement that follows.
 
@@ -134,7 +133,7 @@ These lessons adapt the model authors’ guidance to the controls in Zephra. The
 Z-Image’s own Turbo example uses a descriptive scene and nine steps, matching Zephra’s default. You do not need the Python commands from the model card.
 
 - [Z-Image Turbo model card](https://huggingface.co/Tongyi-MAI/Z-Image-Turbo)
-- [Qwen-Image 2512 model card](https://huggingface.co/Qwen/Qwen-Image-2512)
+- [Qwen-Image 2.1 model card](https://huggingface.co/Qwen/Qwen-Image-2.1)
 - [FLUX single-reference editing](https://docs.bfl.ai/guides/prompting_editing_single_reference)
 - [LTX prompting guide](https://docs.ltx.io/open-source-model/usage-guides/prompting-guide)
 - [Wan’s official prompt-expansion guidance](https://github.com/Wan-Video/Wan2.2/blob/main/wan/utils/system_prompt.py)
@@ -147,22 +146,22 @@ Use a photo or drawing as the starting point for a new still image.
 
 ### Choose the right workflow
 
-Use Z-Image Turbo or Qwen-Image 2512 when you want to reinterpret a picture: explore a different style, mood, or version of a scene. For a targeted instruction such as changing one object’s color, try FLUX.2 klein and the photo-editing guide.
+Use Z-Image Turbo when you want to reinterpret one picture: explore a different style, mood, or version of a scene, with a Strength setting for how far it moves. Use Qwen-Image 2.1 when you want a new image built from pictures you supply: it reads as many as ten at once, in the order you place them, and has no Strength setting. For a targeted instruction such as changing one object’s color, try FLUX.2 klein and the photo-editing guide.
 
 - [Edit a photo with FLUX](https://zephra.urandom.io/guide/photo-editing/)
 
 ### Add your starting picture
 
-1. Select Z-Image Turbo or Qwen-Image 2512 in the model menu.
-2. Click Start from beside the prompt. Choose a picture from the library or use Choose File… for a local photo. You can also drop a picture into that box.
-3. Check the thumbnail so you know which picture will be used. Zephra accepts one reference picture at a time.
+1. Select Z-Image Turbo or Qwen-Image 2.1 in the model menu.
+2. Click Start from beside the prompt, labeled Reference on Qwen-Image 2.1. Choose a picture from the library or use Choose File… for a local photo. You can also drop pictures into that box.
+3. Check the thumbnails so you know which pictures will be used. Z-Image Turbo takes one picture at a time. Qwen-Image 2.1 takes as many as ten, shown as a strip you can drag to reorder, and their order changes the result.
 4. Choose an output Size with the shape you want. The size menu offers choices based on the reference’s proportions; custom dimensions may be adjusted to the model’s supported sizes.
 
 ### Describe the new version
 
 1. Describe the finished image you want rather than giving only an editing command.
-2. Begin with the default Strength of 0.60 and the model’s default Steps. Click Generate.
-3. Compare the completed result to the starting picture. Lower Strength to preserve more of its structure; raise it to allow a larger change. Keep the prompt and seed steady while comparing.
+2. Begin with the model’s default Steps, and on Z-Image Turbo the default Strength of 0.60. Click Generate.
+3. Compare the completed result to the starting picture. On Z-Image Turbo, lower Strength to preserve more of its structure and raise it to allow a larger change. Keep the prompt and seed steady while comparing.
 
 Try this prompt:
 
@@ -170,13 +169,15 @@ Try this prompt:
 
 ### Understand Strength
 
-For these two models, Strength ranges from 0.10 to 0.90. It controls how much the starting picture is reworked. Low values may make very little change, especially with a small step count. High values may change the subject or composition substantially.
+Strength applies to Z-Image Turbo, where it ranges from 0.10 to 0.90. It controls how much the starting picture is reworked. Low values may make very little change, especially with a small step count. High values may change the subject or composition substantially.
+
+Qwen-Image 2.1 has no Strength setting. Like FLUX.2 klein, it conditions on your pictures directly and builds a new image from your description, so say in the prompt what should carry over.
 
 This is a whole-image transformation. It does not protect faces, text, or selected areas. Zephra does not offer a masking brush for editing only one region.
 
 ### Start another experiment
 
-Use the × on the reference thumbnail to return to generation from text alone. Right-click the thumbnail for From Library…, Choose File…, or Clear.
+Use the × on a reference thumbnail to remove that picture; clearing the last one returns to generation from text alone. On Z-Image Turbo, right-click the thumbnail for From Library…, Choose File…, or Clear. On Qwen-Image 2.1, right-click a tile in the strip to Move Left, Move Right, Replace, or Remove it, and use the + tile to add another.
 
 If you want to use an edited result itself as the next starting picture, export it and choose that file. Reusing a saved edit through Use as Reference can restore its original source, which is useful for trying a different edit of the same original.
 
@@ -400,7 +401,7 @@ If setup runs out of space, check the selected model-storage disk. Preparing a m
 
 Start with a smaller Size, a shorter video Length, and one seed. Close other memory-heavy apps. Video and reference-image work can need more memory than a basic still image.
 
-In Settings → Performance, leave Stream weights from disk on Automatic to let supported models use less memory when needed. Streaming repeatedly reads model data from storage, so slower disks can make generation slower. Qwen, Wan, and LTX support it; Z-Image and FLUX stay in memory.
+In Settings → Performance, leave Stream weights from disk on Automatic to let supported models use less memory when needed. Streaming repeatedly reads model data from storage, so slower disks can make generation slower. Qwen-Image 2.1, Wan, and LTX support it; Z-Image and FLUX stay in memory.
 
 Tiled VAE decode in the same settings splits the final conversion into pixels into smaller pieces. Automatic is a useful default. It can reduce peak memory, with possible small differences in the result. It does not make a model’s memory needs disappear.
 
@@ -416,14 +417,14 @@ The first generation after loading may also take longer while your Mac prepares 
 
 Wait for the finished result before judging an in-progress preview. Start with the model’s default Steps, where available, rather than assuming the highest number is best.
 
-Simplify your prompt and change one setting at a time. For photo edits, check that FLUX.2 klein is selected. For Z-Image or Qwen with a starting image, try lowering Strength if the original changes too much.
+Simplify your prompt and change one setting at a time. For photo edits, check that FLUX.2 klein is selected. For Z-Image with a starting image, try lowering Strength if the original changes too much.
 
 - [Prompt-writing help](https://zephra.urandom.io/guide/prompting/)
 - [Photo-editing workflow](https://zephra.urandom.io/guide/photo-editing/)
 
 ### A control or result seems to be missing
 
-The model determines which controls appear. Current variants do not have Guidance or negative prompts. Strength appears only for models that use it and when an image is present.
+The model determines which controls appear. Guidance and a negative prompt appear for Qwen-Image 2.1 only; the other models are distilled and do not use them. Strength appears only for models that use it and when an image is present.
 
 If you are still looking at an older picture, check the running job or Library for the result. If a video is silent, confirm it was generated with LTX “with sound” and check the player’s volume.
 
