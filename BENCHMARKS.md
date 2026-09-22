@@ -82,9 +82,9 @@ go higher, so these are a working Mac's figures rather than a ceiling.
 
 - **"Read per step" is the last stream's pass only**, which is what the meter
   records: Z-Image's 30-block `layers` stack and klein's 20 single blocks, not
-  the whole model. Qwen-Image's 16.15 GB row further up is the whole model,
-  measured before the meter was per-stream, so the column is not comparable
-  between families.
+  the whole model. A figure taken before the meter was per-stream counted the
+  whole model instead, so the column is not comparable between families or
+  across that change.
 - **The two variants stream at the same peak and hold the same live figure, to
   the byte.** What the stream leaves resident is the same tensors either way —
   the float32 autoencoder, the embeddings, the norms — and the peak is those plus
@@ -113,46 +113,73 @@ go higher, so these are a working Mac's figures rather than a ceiling.
   so `tiledPeakBytes` is 12_150_000_000 and `residentBytes` 6_700_000_000.
 - The run: `ZEPHRA_VAE_TILE=64 make bench ARGS="--model z-image-turbo-8bit --size 1024 --steps 9 --runs 3 --stream --stream-depth 2"`.
 
-## Qwen-Image-2512 4-bit
+## Qwen-Image 2.1 4-bit
 
-`qwen-image-2512-4bit`, packed here from the 57.7 GB bf16 release with the
-1.7 GB Lightning adapter merged. 21.6 GB on disk, of which the transformer is
-16.2 GB: holding the modulation layers at eight bits costs about 3.4 GB over
-the 12.8 GB a pure four-bit build would write. About 269 MB per packed block.
+`qwen-image-2.1-4bit`, packed here from the 33.1 GB bf16 release, or taken
+prebuilt from the mirror. The weights are under the Qwen Research License and
+are non-commercial; `THIRD_PARTY_NOTICES.md` carries the terms.
 
-Resident, halcyon, four steps:
+Two figures are measured. **The release is 33,131,609,424 bytes** as the
+catalog's file patterns fetch it — transformer 14,230,315,061, text encoder
+17,534,409,013, autoencoder 1,350,991,591, processor 15,884,996, scheduler 485,
+`LICENSE` 7,831 and the index — carried as `downloadBytes: 33_140_000_000`,
+rounded up as a transfer estimate is. **The build writes 11,564,552,844 bytes**,
+by `make quantize-qwen21` on halcyon on 2026-09-22 at four bits, group 64, in
+43 seconds: 568 packed layers plus the float32 autoencoder, the processor and
+the scheduler copied whole, carried as `builtBytes: 11_570_000_000`, rounded up
+as a figure the free-space check is made against. The arithmetic estimate it
+replaced said 9.95 GB, 16% under, because the packer writes every scale and
+bias float32 where the published four-bit repacks do not.
+
+**Every memory figure below is an ESTIMATE dated 2026-09-22, not a reading.**
+They are arithmetic from the packed sizes and from the ratios the measured
+families show, and the catalog entry says so at each one. `make bench` at 1024
+pixels, forty steps, three runs on an idle Mac replaces them, with a
+`--reference` run beside it for the prefix cache; this file and
+`ModelCatalog+QwenImage21.swift` change in the same commit.
+
+### Resident
 
 | Size | Seconds | s/step | Peak | Tiled peak |
 | ---: | ---: | ---: | ---: | ---: |
-| 512 | 6.9 | 1.57 | 26053 MB | |
-| 1024 | 33.6 | 8.15 | 30364 MB | 26068 MB |
-| 1328 (native) | 66.7 | 16.25 | 32520 MB | 26088 MB |
+| 1024 (default) | TO MEASURE | TO MEASURE | 17800 MB (estimate) | 14400 MB (estimate) |
 
-21532 MB resident at every size. Tiled, the peak barely moves with the image,
-because the tile sets the decode's transient and what is left is the
-transformer. 1024 is the default size: half the seconds of native for an image
-that still renders legible text, and the entry's `peakBytes` is measured there.
+10800 MB resident (estimate): 93% of the measured `builtBytes`, which is the
+ratio both variants packed on a Mac show between what the build writes and what
+the bench reads live (klein 4-bit 4941 of 5366 MB, Z-Image 4-bit 6707 of 7123).
 
-**Owed a rerun.** Every resident figure above was taken while the stream ran in
-float32 by accident (float32 noise, uncast float32 scales, a stream handing back
-raw nodes); the model runs in bfloat16 since the audit. The autoencoder's
-encoder (107.2 MB of the build's 253.8 MB VAE) has been loaded since and the
-figures were not adjusted by arithmetic.
-
-Streamed (`--stream`, depth 2, tiled at 64):
+### Streamed
 
 | Mac | Size | Peak | Live between runs | s/step | Read per step | Disk rate |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| halcyon | 1024 | 10243 MB | 1409 MB | not recorded | 16.15 GB | |
-| bender | 1024 | 7954 MB | | 29.7 (123 s a picture) | | |
-| bender | 512 | 5447 MB | | 7.1 | | 2.3 GB/s, read-bound |
+| TO MEASURE | 1024 | 7500 MB (estimate) | 2600 MB (estimate) | TO MEASURE | TO MEASURE | TO MEASURE |
 
-- The halcyon streamed run was against 30473 MB resident in the same session,
-  and its image was byte for byte the resident one (`cmp` on the PNGs). Its
-  step time was not recorded: the machine was busy and the resident run itself
-  came in at six times the catalog's figure. An idle rerun is owed.
-- On bender swap did not move across either run. `dd` reads that SSD at
-  1.6 GB/s in one stream; MLX's four-thread reader does better.
+- `residentBytes` — the run's `activeMemoryMB` at the entry's own
+  `defaultSize`.
+- `peakBytes` — `peakMemoryMB`, untiled.
+- `tiledPeakBytes` — the same under `ZEPHRA_VAE_TILE=64`. **This is the one to
+  read carefully.** The estimate is rounded *up* deliberately: 14.4 GB is over
+  a 16 GB Mac's 13.74 GB fallback budget and over bender's measured 12.71 GB
+  working set, so such a Mac streams this model rather than holding it. An
+  estimate carrying a gigabyte of uncertainty must not be the thing that puts
+  10.8 GB of weights resident on the smallest Mac in the table; if the reading
+  comes in under that budget, moving the figure is a decision made with the
+  reading in hand, the way `zImageTurbo4bit`'s 12.15 GB was.
+- `streamedPeakBytes` — `--stream --stream-depth 2`, tiled at 64. Both layer
+  stacks stream — the transformer's 32 blocks and the text encoder's 36 — so
+  what is left resident is the float32 autoencoder, the vision tower, the
+  embeddings, the norms and the one shared modulation table, plus the decode's
+  tile and the depth-2 window.
+- `streamedResidentBytes` — the "live between runs" of that same streamed run.
+  `ModelCatalogTests` fails a shipped streaming entry that leaves this at 0.
+- `referencePrefixBytes` — the sixth figure and the only one that is not a
+  peak. One reference picture's prefix KV cache across every layer, plus the
+  latents themselves: 2200 MB (estimate), from one 1024-pixel reference being
+  4096 prefix tokens. Near enough constant across target sizes, because a
+  reference is fitted to the same megapixel budget whatever is being made, so
+  `MemoryGuard` adds it per picture rather than scaling it, and twice where
+  guidance is over one and a negative prompt is there. Measure it with
+  `--reference IMAGE` against the same run without one.
 
 ## FLUX.2 klein 4B
 
@@ -342,10 +369,9 @@ decode of 0.5 to 8 s:
 | Model | ms per frame |
 | --- | ---: |
 | klein 4-bit | 43 |
-| Qwen-Image 4-bit | 130 |
 | Z-Image 8-bit | 192 |
 
-The last two were taken on a busy machine and are ceilings.
+The second was taken on a busy machine and is a ceiling.
 `make bench ARGS="--preview --size 1024"` is the run.
 
 ## Owed reruns, in one place
@@ -363,11 +389,9 @@ The last two were taken on a busy machine and are ceilings.
   it for the prefix cache, and replace them in `ModelCatalog+QwenImage21.swift`.
   `tiledPeakBytes` is the one to read carefully: it is rounded to the side that streams
   on a 16 GB Mac, and moving it under that budget is a decision, not a correction.**
-- Qwen-Image resident timings and peaks in bfloat16, with the VAE encoder loaded.
-- Qwen-Image streamed step time on an idle halcyon.
 - klein's edit peak and time with the reference tokens cast.
 - LTX-2.5 streamed on bender with an idle disk.
-- Preview frame cost for Qwen-Image and Z-Image on an idle Mac.
+- Preview frame cost for Z-Image and for Qwen-Image 2.1 on an idle Mac.
 
 Benchmark on an idle machine, Release only; a figure from a busy one is a
 ceiling and should say so here.

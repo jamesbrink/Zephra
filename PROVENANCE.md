@@ -2,104 +2,130 @@
 
 Zephra may ship commercially, so where each of its own model implementations
 came from is a legal question and not only a technical one. This file records
-the answers while they are still checkable. `Packages/QwenImageKit` and
+the answers while they are still checkable. `Packages/QwenImage21Kit` and
 `Packages/WanKit` are clean-room ports; `Packages/Flux2Kit` and
 `Packages/LTX2Kit` are translations with attribution. The claims are different, and each section says which it is
 making.
 
-# `Packages/QwenImageKit`
+# `Packages/QwenImage21Kit`
 
 ## The short version
 
-`Packages/QwenImageKit` is a clean-room implementation. It was written from
-Qwen-Image-2512's own published configuration files and from Apache-2.0 and
-MIT references. **No code was read from or copied out of
-`mzbac/qwen.image.swift`.**
+`Packages/QwenImage21Kit` is a clean-room implementation. It was written from
+Qwen-Image 2.1's own published configuration files and from the Apache-2.0
+`diffusers` and `transformers` references. **No code was read from or copied
+out of `mzbac/qwen.image.swift`, or out of any other Swift or MLX port of this
+model.**
+
+**This section is a summary. The kit keeps its own
+`Packages/QwenImage21Kit/PROVENANCE.md`**, which is the longer file and the
+authoritative one: it lists every source read, every source deliberately not
+read, and each of the port's two dozen deliberate departures with the
+measurement behind it. What is here is the part a reader of this file needs
+without opening that one.
 
 ## Why that mattered
 
 `mzbac/qwen.image.swift` is the obvious starting point: it is by the same
-author as the `zimage.swift` Zephra already vendors, and it already runs
-Qwen-Image-2512 on mlx-swift. It is **GPL-3.0**, and its README says so
-plainly — "Commercial usage is allowed as long as your downstream distribution
-also complies with GPLv3". Copying from it, or deriving from it, would make
-Zephra a GPLv3 work and require publishing Zephra's source. That forecloses an
-option `AGENTS.md` deliberately keeps open, so the repository was never opened.
+author as the `zimage.swift` Zephra already vendors, and it already runs a
+Qwen-Image on mlx-swift. It is **GPL-3.0**, and its README says so plainly —
+"Commercial usage is allowed as long as your downstream distribution also
+complies with GPLv3". Copying from it, or deriving from it, would make Zephra a
+GPLv3 work and require publishing Zephra's source. That forecloses an option
+`AGENTS.md` deliberately keeps open, so the repository was never opened, and
+the same rule was applied to every other port of 2.1.
+
+The **weights** are a separate question from the code, and 2.1 is the one model
+in the catalog where the two answers differ. The port is Zephra's own and is
+covered by Zephra's own license; the weights are under the Qwen RESEARCH
+LICENSE AGREEMENT, which permits research and evaluation only.
+`THIRD_PARTY_NOTICES.md` carries that license whole and is the disclosure.
 
 ## What was used instead
 
 | Reference | License | What was taken |
 |---|---|---|
-| `Qwen/Qwen-Image-2512` config files | Apache 2.0 | Every architectural constant: layer counts, head dimensions, rope axis widths, VAE channel multipliers, scheduler shift parameters. Read directly out of the model's `config.json` files rather than from prose about them. |
-| `huggingface/diffusers` | Apache 2.0 | The reference behaviour. `QwenImageTransformer2DModel`, `AutoencoderKLQwenImage`, `FlowMatchEulerDiscreteScheduler` and the pipeline's prompt handling define what this port must reproduce. |
-| `mlx-gen` (https://github.com/lpalbou/mlx-gen) | MIT | One published finding, not code: that four-bit modulation layers cost coherent structure in this architecture. It is why `QwenImageQuantizationPlan` holds them at eight bits. |
-| `Packages/ZImageKit` (vendored) | MIT | One approach, not a file: assembling a byte-level BPE tokenizer from `vocab.json` and `merges.txt` when a snapshot ships no `tokenizer.json`. Noted in `THIRD_PARTY_NOTICES.md`. The assembly itself now follows `transformers`' `Qwen2Tokenizer` rather than that copy, which carried GPT-2's pre-tokenizer and dropped the merges beginning `#`; `QwenImageTokenizer+Assembly.swift` says what it emits. |
+| `Qwen/Qwen-Image-2.1` config files | Qwen Research License (the weights; the configs were read, not redistributed) | Every architectural constant: 32 transformer blocks, 32 heads at 128, hidden 4096, `mlp_ratio` 3, `axes_dims_rope` `[16, 56, 56]`, `patch_size` 1, the autoencoder's `z_dim` 64 and spatial factor 16, the scheduler's shift parameters, the text encoder's 36 layers and `rope_theta` 5e6, the vision tower's depth 27 and its DeepStack indexes. Read out of the shipped `config.json` files rather than from prose about them. |
+| `huggingface/diffusers` at commit `6256aa7666cedd47443adc8f82da9a10e110b09c` | Apache 2.0 | The reference behaviour. `QwenImage21Pipeline`, `QwenImage21Transformer2DModel`, `AutoencoderKLQwenImage21` and `FlowMatchEulerDiscreteScheduler` define what this port must reproduce. |
+| `huggingface/transformers` 5.17.0 | Apache 2.0 | `Qwen3VLForConditionalGeneration` and the text and vision models under it, which are the text encoder. |
 
 ## How the boundary was kept honest
 
-Behaviour was pinned by comparison with `diffusers`, not by comparison with
-another Swift port. `Packages/QwenImageKit/Tools/dump_reference.py` runs the
-Python reference and writes tensors to
-`Packages/QwenImageKit/Tests/QwenImageTests/Fixtures`; the Swift suites assert
-against those. Every component has such a fixture — rope, scheduler, latent
-packing, text encoder, one MMDiT block, the whole transformer, VAE decode, VAE
-encode, and the tokenizer — so "does this match the reference" is a question
-the test suite answers rather than a claim in a commit message.
+Behaviour was pinned by comparison with `diffusers` and `transformers`, not
+with another Swift port. `Packages/QwenImage21Kit/Tools/` holds eight dumpers
+that run the Python reference and write tensors into
+`Tests/QwenImage21Tests/Fixtures`; the Swift suites assert against those.
+`WeightKeyCoverageTests` claims every published tensor against the module trees
+— the transformer's 297 and the autoencoder's 238 among them — so a key the
+port does not read is named rather than assumed.
 
-The tokenizer's fixture is `tokenizer_ids.json`: the ids the Hugging Face
-`Qwen2Tokenizer` produces for twenty-five prompts chosen for the ways an
-assembled pre-tokenizer can differ from the real one (hyphens, contractions,
-digits, runs of newlines, merges that begin with `#`, a combining accent, other
-scripts), plus the pipeline's own `prompt_template_encode` and its
-`prompt_template_encode_start_idx`, both read off `QwenImagePipeline` itself. So
-`QwenImagePromptTemplate`'s text and `dropIndex` are checked against the
-reference too, not only against each other. Until that fixture existed the
-suite compared the tokenizer only to itself, and its pre-tokenizer was GPT-2's
-rather than Qwen2's; nine of the twenty-five prompts encoded differently. The
-text-encoder fixture is dumped from a plain `Qwen2Model` rather than
-`Qwen2_5_VLForConditionalGeneration`, which is equivalent for text-only input
-because the three multimodal rotary axes coincide when no image is present; that
-reduction is why a 1-D rotary embedding in the port is correct.
+Past the per-component fixtures there is an **end-to-end parity suite**.
+`PipelineParityTests` loads the whole 33 GB release streamed, takes the
+starting noise the reference drew — an MLX key and a `torch.Generator` are
+different algorithms, so the same seed is a different picture and only shared
+noise is comparable — walks a short ladder and compares the finished latent:
+0.87% mean absolute difference against the latent's own magnitude, Pearson
+0.99996, and 0.70 of 255 mean byte difference on the decoded picture. That is
+the test that says this port makes the reference's picture rather than a
+plausible one. It is also the second place this kit departs from the
+repository's "no test loads model weights" rule, the first being five
+autoencoder suites that read the release's 1.35 GB `vae/*.safetensors`; both
+departures are stated in the kit's own file.
 
-`QwenImageVAEEncoder` and `QwenImageVAEDownsample` were written from
-`diffusers`' `QwenImageEncoder3d` and `QwenImageResample` in
-`models/autoencoders/autoencoder_kl_qwenimage.py`, and from the shipped
-`vae/config.json`, the same way the decoder was. Their fixture is
-`vae.in.pixels` / `vae.out.latent` in `vae.safetensors`, dumped by
-`dump_vae` from `vae.encode(picture).latent_dist.mode()`, and
-`VAEEncoderParityTests` asserts against it. Two behaviours of the reference are
-pinned there because both fail quietly: `quant_conv` is applied inside
-`_encode`, before the diagonal Gaussian is formed; and a downsampler's
-`time_conv` is skipped for the first chunk of a sequence, which a still image
-always is.
+## The fixture pins, which differ from the other kits'
 
-The structural differences from a port that had been derived are visible in
-the source and are the natural consequence of writing from `diffusers`:
+`diffusers` is read at a **commit** rather than a release, and `transformers`
+at **5.17.0**, where `Flux2Kit`, `LTX2Kit` and `WanKit` pin `diffusers` 0.40.0
+and `transformers` 5.16.1. 2.1 landed after 0.40.0 was cut, and Qwen3-VL does
+not exist before transformers 5.17. The divergence is deliberate, it is
+recorded in `Tests/QwenImage21Tests/Fixtures/README.md` beside the fixtures it
+explains and in that directory's `versions.json`, and it is the first thing to
+check if a later run of the dumpers produces different tensors.
 
-- The 3-D causal autoencoder is implemented in two dimensions. A single frame
-  makes the other two temporal kernel slices multiply nothing but zero
-  padding, so dropping them is exact, and it removes `Conv3d` and every 5-D
-  tensor from both halves. `QwenImageVAEWeights` slices the checkpoint
-  accordingly. The encoder's `down_blocks` is a flat, heterogeneous list
-  because the checkpoint's keys are one, while the decoder's `up_blocks` are
-  nested because its keys are; a port that had been derived from another would
-  not have both shapes side by side.
-- The transformer's module tree does not mirror the checkpoint's `Sequential`
-  numbering. MLX unflattens a numeric path segment into an array position when
-  loading parameters but into a dictionary key when replacing modules during
-  quantization, so a mirrored tree can be loaded or quantized but not both.
-  `QwenImageTransformerWeights` renames four prefixes at load instead.
-- The vision tower and `lm_head` are neither ported nor loaded — 391 of the
-  text encoder's 729 tensors — because text-to-image supplies no pixels and
-  conditions on hidden states rather than logits. `WeightKeyCoverageTests`
-  asserts that rather than leaving it assumed.
+## Deliberate departures, in short
+
+The kit's own `PROVENANCE.md` states each with its measurement. The ones that
+change what a reader of this file would otherwise assume:
+
+- **The autoencoder has no frame axis.** `AutoencoderKLQwenImage21` is a video
+  autoencoder specialised to one frame, so `QwenImage21CausalConv` subclasses
+  `nn.Conv2d` and the six `time_conv` modules are **never built**; their twelve
+  tensors are dropped at load and claimed by name in the coverage test, so the
+  count has no hole in it. The two parameter-free temporal shortcuts are *not*
+  dropped, because for a single frame they are not no-ops.
+- **Colour under a fully transparent pixel is not carried.** Measured on the
+  published autoencoder: the opaque half of a round-tripped RGBA picture comes
+  back at 38 to 49 dB a channel and the alpha at 51, while the fully
+  transparent half's colour comes back at 4 to 8. That is the model behaving
+  correctly, and it is written down because it looks exactly like a broken
+  port.
+- **The prefix cache is always on**, which is the reference's own default. The
+  reference's docstring says the flag does not reproduce a picture bit for bit
+  in reduced precision, so offering it would mean recording which setting made
+  every picture, or the same seed would mean two pictures.
+- **A reference picture is resampled by Core Graphics, not by PIL's lanczos.**
+  The fit lands on the reference's own size, pinned by `ImageFittingTests`, but
+  the kernel differs, so a conditioned picture is one resample away from what
+  `diffusers` would have made. Core Graphics also has no straight-alpha
+  context, so the draw is premultiplied and un-premultiplied afterwards.
+- **The tiled decode is a coarser approximation here** than in the other
+  families: four nearest-neighbour doublings, each followed by a 3 x 3
+  convolution, reach further than `TiledDecode`'s quarter-tile overlap covers.
+  `TiledDecodeTests` carries the curve — 12 cells is 24 dB, 8 cells is 17 — so
+  the backend's tile is chosen against measurements rather than by habit, and
+  `QwenImage21RequestMapper` floors it at 12.
+- **The text encoder's final norm and `lm_head` are neither built nor packed**,
+  because the pipeline takes a hidden state out of the layer stack and never
+  reaches a logit. The **vision tower is** built, loaded and packed, unlike the
+  tower of the model this replaced, since it is what reads a reference picture.
 
 ## If this ever needs re-checking
 
-The claim to defend is narrow: no file in `Packages/QwenImageKit` was copied
-from or derived from a GPL-licensed source. The git history of this branch
-shows the port being built component by component, each one landing with its
-`diffusers` fixture in the same commit or the one after it.
+The claim to defend is narrow: no file in `Packages/QwenImage21Kit` was copied
+from or derived from a GPL-licensed source. The branch's commit history shows
+the port being built component by component, each landing with its `diffusers`
+fixture in the same commit or the one after it. The claim about the *weights*
+is a different one and lives in `THIRD_PARTY_NOTICES.md`.
 
 # `Packages/Flux2Kit`
 
@@ -157,13 +183,13 @@ tests. Four were found and resolved in the reference's favour:
 
 ## Shared between the two ports, and what is not
 
-(`Packages/LTX2Kit` shares the same pieces of `ZephraMLX` — the packed loader,
-`LayerWeightStream`, `LatentPreview`'s pooling and byte packing, `PixelBuffer` —
-and none of the rotary machinery, whose construction differs; its own section
-above says so.)
+(`Packages/LTX2Kit`, `Packages/WanKit` and `Packages/QwenImage21Kit` share the
+same pieces of `ZephraMLX` — the packed loader, `LayerWeightStream`,
+`LatentPreview`'s pooling and byte packing, `PixelBuffer` — and none of the
+rotary machinery, whose construction differs; their own sections say so.)
 
-Both ports are written against `diffusers`, so where the reference does the
-same thing for both models the Swift is one copy in `ZephraMLX`
+Every kit here is written against `diffusers`, so where the reference does the
+same thing for two models the Swift is one copy in `ZephraMLX`
 (`Packages/ZephraMLXKit`), and the fixtures of each kit pin it through that
 copy: `RotaryFrequencies` and its `rotate`, the layer norm (now
 `MLXFast.layerNorm` with nothing learned, in both), the packed-weight loader,
@@ -171,29 +197,26 @@ the manifest reader, and `PixelBuffer`'s way out to bytes, which rounds as
 `(image * 255).round()` does. Four things stay two copies on purpose, because
 the references differ:
 
-- **The final norm.** `AdaLayerNormContinuous` chunks scale then shift in
-  both, but klein's `norm_out.linear` is bias-free and Qwen-Image's has a bias.
-  Two nine-line classes, one per kit, rather than a `bias:` knob.
-- **The schedule.** Both walk the same Euler step, `sample + v * (σ_next − σ)`,
-  pinned by each kit's `SchedulerTests`. What bends the ladder is not the
-  same: klein uses the pipeline's `compute_empirical_mu` (`EmpiricalShift`),
-  deliberately not the scheduler config's `base_shift` and `max_shift`, and
-  Qwen-Image uses those very fields (`DynamicShift`) plus a static `shift`
-  branch klein's config never takes. The two `FlowMatchEulerScheduler`s stay
-  in their kits.
+- **The final norm.** `AdaLayerNormContinuous` chunks scale then shift, and
+  klein's `norm_out.linear` is bias-free. It stays a nine-line class in the kit
+  rather than a `bias:` knob in the shared code, because the reference makes
+  that choice per model.
+- **The schedule.** Every kit walks the same Euler step,
+  `sample + v * (σ_next − σ)`, pinned by its own `SchedulerTests`. What bends
+  the ladder is not the same: klein uses the pipeline's `compute_empirical_mu`
+  (`EmpiricalShift`), deliberately not the scheduler config's `base_shift` and
+  `max_shift`, while `QwenImage21Schedule` uses those very fields with the
+  release's exponential `time_shift_type` and its `shift_terminal` stretch. The
+  `FlowMatchEulerScheduler`s stay in their kits.
 - **The rotary compute dtype.** klein's reference rotates in float32 whatever
-  the stream is; Qwen-Image's rotates in the stream's own dtype. The shared
-  `rotate(_:computeDType:)` takes that as its one argument, `.float32` from
-  klein and `x.dtype` from Qwen-Image, so the shared function is the record of
-  the difference rather than a place it could be lost.
-- **`ReferenceLatents`.** Where an edit enters the ladder and what it enters
-  with, in Qwen-Image's kit and in the vendored `ZImageKit`; two copies because
-  one lives inside vendored code re-synced against upstream, and the two
-  schedules are typed differently. `AGENTS.md`, "Starting from a picture".
+  the stream is. The shared `rotate(_:computeDType:)` takes that as its one
+  argument, `.float32` from klein, so the shared function is the record of the
+  difference rather than a place it could be lost; `QwenImage21Rope` is its own
+  file entirely, since 2.1 rotates interleaved pairs rather than halves.
 
 ## If this ever needs re-checking
 
-The claim to defend is narrower than the Qwen-Image one: every file in
+The claim to defend is narrower than the Qwen-Image 2.1 one: every file in
 `Packages/Flux2Kit` was written by Zephra from MIT- or Apache-licensed
 sources, each credited in `THIRD_PARTY_NOTICES.md`, and nothing in it derives
 from a GPL-licensed or unlicensed source. The git history shows each component
@@ -268,7 +291,7 @@ carries the pack's `LICENSE.md`.
 - **The rotary frequency ladder is Double on the CPU** (`frequencies_precision:
   float64` in the pack's config); the outer product with positions is float32,
   as in the reference. Nothing is shared with `ZephraMLX.RotaryFrequencies`,
-  whose construction is the geometric ladder klein and Qwen-Image use.
+  whose construction is the geometric ladder klein uses.
 - **The aggregate projection runs float32** with float32 scales left uncast:
   188160 products summed in bfloat16 lose the prompt (the Swift port's finding).
   Every other packed layer's scales are cast to the stream's dtype at load.
@@ -331,8 +354,8 @@ The git history shows each component landing with its fixture, and
 
 ## The short version
 
-`Packages/WanKit` is a clean-room implementation in the sense `Packages/QwenImageKit`
-is: written from the release's own configuration files and from the Apache-2.0
+`Packages/WanKit` is a clean-room implementation in the sense
+`Packages/QwenImage21Kit` is: written from the release's own configuration files and from the Apache-2.0
 reference implementations in `huggingface/diffusers` (the Wan transformer, its
 rotary embedding, the Wan autoencoder, the image-to-video pipeline's first-frame
 conditioning) and `huggingface/transformers` (the UMT5 encoder), with every
