@@ -16,16 +16,6 @@ public enum QuantizationError: Error, LocalizedError, Equatable {
     case nothingPacked
     /// A packed tensor was handed to the shard writer and no shard came back holding it.
     case unwrittenTensor(String)
-    /// An adapter file holds one half of a low-rank update and not the other.
-    case incompleteAdapterLayer(String)
-    /// An adapter's update is not the shape of the weight it claims to modify.
-    case adapterShapeMismatch(String, adapter: [Int], weight: [Int])
-    /// An adapter names weights the component being packed does not have, so the distillation
-    /// it encodes would be silently half-applied.
-    case unmatchedAdapterLayers(component: String, keys: [String])
-    /// An adapter file holds no tensor this reader takes for a factor, so it would merge
-    /// nothing and hand back the base model as if it had been distilled.
-    case adapterNamesNothing(URL)
     /// The build would write into the snapshot it reads, or around it, and the packer empties
     /// what it writes to.
     case destinationOverlapsSource(source: URL, destination: URL)
@@ -49,21 +39,6 @@ public enum QuantizationError: Error, LocalizedError, Equatable {
             "\(key) was packed but landed in no shard; the build cannot be loaded."
         case .nothingPacked:
             "The quantization plan packed no layers, so the result would not load."
-        case .incompleteAdapterLayer(let key):
-            "The adapter has only one of the two factors for \(key), so it cannot be merged."
-        case .adapterShapeMismatch(let key, let adapter, let weight):
-            "The adapter's update for \(key) is \(adapter) but the weight is \(weight)."
-        case .unmatchedAdapterLayers(let component, let keys):
-            """
-            The adapter names \(keys.count) weights \(component) has not got, such as \
-            \(keys.prefix(3).joined(separator: ", ")). Merging it would apply part of the \
-            distillation and not the rest.
-            """
-        case .adapterNamesNothing(let url):
-            """
-            No tensor in \(url.lastPathComponent) is a LoRA factor this reads, so the adapter \
-            would merge nothing; kohya `lora_unet_` exports are not supported.
-            """
         case .destinationOverlapsSource(let source, let destination):
             """
             The build would be written to \(destination.path(percentEncoded: false)), which is \

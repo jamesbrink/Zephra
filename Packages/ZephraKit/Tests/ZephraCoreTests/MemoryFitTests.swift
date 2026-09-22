@@ -27,8 +27,7 @@ struct MemoryFitTests {
             source: .localDirectory(URL(filePath: "/tmp/test")), quantization: .int4,
             downloadBytes: 0, residentBytes: 1, peakBytes: peak, tiledPeakBytes: tiled,
             streamedPeakBytes: streamed, maxPromptTokens: 512,
-            capabilities: ModelCatalog.zImageTurbo4bit.capabilities, builtBytes: 0,
-            adapters: [])
+            capabilities: ModelCatalog.zImageTurbo4bit.capabilities, builtBytes: 0)
     }
 
     @Test("the budget is what the GPU may keep, and the fallback is four fifths of RAM")

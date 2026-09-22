@@ -20,19 +20,6 @@ do {
         throw QuantizeUsageError.precisionDisagreesWithName(
             bits: options.bits, directory: destination.lastPathComponent)
     }
-    // Likewise a distilled family's directory must not receive the undistilled model.
-    if options.noLora, !options.adapters.isEmpty {
-        throw QuantizeUsageError.adapterContradiction
-    }
-    if family.requiresAdapter, options.adapters.isEmpty {
-        guard options.noLora else {
-            throw QuantizeUsageError.adapterRequired(family: family.rawValue)
-        }
-        if options.output == nil || destination.lastPathComponent == family.defaultOutputName {
-            throw QuantizeUsageError.undistilledUnderCatalogName(
-                directory: family.defaultOutputName)
-        }
-    }
 
     let plan = try family.plan(
         transformer: try QuantizationPrecision(
@@ -40,8 +27,7 @@ do {
         textEncoder: try QuantizationPrecision(
             bits: options.textEncoderBits ?? options.bits,
             groupSize: options.textEncoderGroupSize ?? options.groupSize
-        ),
-        adapters: options.adapters
+        )
     )
     // A build named for a catalog entry is checked for space the way the app's own is, and is
     // stamped with the entry's provenance so the app accepts it as its own; any other

@@ -43,42 +43,26 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
         }
     }
 
-    /// Whether the catalog's build of this family is the release with an adapter merged in.
-    ///
-    /// No family in the catalog is built that way any more; the property is kept for one
-    /// commit so `ZephraQuantize`'s guards compile unchanged, and goes with the rest of the
-    /// adapter seam.
-    var requiresAdapter: Bool { false }
-
     /// This family's packing plan at the requested precisions.
     ///
     /// FLUX.2 klein holds its three shared modulation linears whole and omits the text encoder
     /// layers past the last one the transformer reads.
     ///
-    /// LTX-2.5 omits its audio stream and holds its two embeddings at eight bits; it merges no
-    /// adapter, so `adapters` is refused rather than silently dropped.
+    /// LTX-2.5 omits its audio stream and holds its two embeddings at eight bits.
     ///
-    /// Wan 2.2 holds its conditioning and UMT5's token table at eight bits, and likewise merges
-    /// no adapter: FastWan's distillation is in the weights already.
-    ///
-    /// `adapters` are merged into whichever component the family adapts, which for every family
-    /// here is the diffusion transformer.
+    /// Wan 2.2 holds its conditioning and UMT5's token table at eight bits.
     func plan(
         transformer: QuantizationPrecision,
-        textEncoder: QuantizationPrecision,
-        adapters: [URL]
+        textEncoder: QuantizationPrecision
     ) throws -> QuantizationPlan {
         switch self {
         case .zImage:
             return ZImageQuantizationPlan.plan(
-                transformer: transformer, textEncoder: textEncoder, adapters: adapters)
+                transformer: transformer, textEncoder: textEncoder)
         case .flux2:
             return Flux2QuantizationPlan.plan(
-                transformer: transformer, textEncoder: textEncoder, adapters: adapters)
+                transformer: transformer, textEncoder: textEncoder)
         case .ltx2, .ltx2Audio:
-            if !adapters.isEmpty {
-                throw QuantizeUsageError.adapterNotRead(family: rawValue)
-            }
             return LTX2QuantizationPlan.plan(
                 transformer: transformer,
                 textEncoder: textEncoder,
@@ -88,9 +72,6 @@ enum QuantizeFamily: String, CaseIterable, Sendable {
                 audio: self == .ltx2Audio
             )
         case .wan:
-            if !adapters.isEmpty {
-                throw QuantizeUsageError.adapterNotRead(family: rawValue)
-            }
             return WanQuantizationPlan.plan(
                 transformer: transformer,
                 textEncoder: textEncoder,

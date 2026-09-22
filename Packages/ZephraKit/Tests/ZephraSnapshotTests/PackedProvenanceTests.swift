@@ -42,6 +42,20 @@ struct PackedProvenanceTests {
         #expect(PackedProvenance.matches(new, in: directory))
     }
 
+    /// The stamp is what a mirror's `index.json` repeats, and `fetchPrebuilt` takes a
+    /// published variant only where the two match word for word. So the identity of a shipped
+    /// entry is a wire format: this pins klein 4-bit's exactly, and any change to it is a
+    /// change that invalidates every variant already in the bucket.
+    @Test("a shipped entry's identity is the words the mirror index already carries")
+    func identityIsFrozenForShippedEntries() {
+        #expect(
+            PackedProvenance.identity(ModelCatalog.flux2Klein4bit) == [
+                "flux2-klein-4b-4bit", "black-forest-labs/FLUX.2-klein-4B", "int4", "main",
+                "model_index.json", "scheduler/*", "text_encoder/*", "tokenizer/*",
+                "transformer/*", "vae/*",
+            ])
+    }
+
     @Test("the order the patterns are written in is not part of the identity")
     func patternsAreComparedSorted() throws {
         let scratch = Scratch("PackedProvenanceOrder")

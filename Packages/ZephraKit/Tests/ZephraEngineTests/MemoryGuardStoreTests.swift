@@ -36,7 +36,7 @@ struct MemoryGuardStoreTests {
         source: ModelCatalog.default.source, quantization: .int4, downloadBytes: 0,
         residentBytes: 60_000_000_000, peakBytes: 90_000_000_000,
         tiledPeakBytes: 80_000_000_000, streamedPeakBytes: 0, maxPromptTokens: 512,
-        capabilities: ModelCatalog.default.capabilities, builtBytes: 0, adapters: [])
+        capabilities: ModelCatalog.default.capabilities, builtBytes: 0)
 
     static func starved() -> MachineMemory {
         MachineMemory(physicalBytes: 16 << 30, availableBytes: 400_000_000)

@@ -29,8 +29,7 @@ public enum ZImageQuantizationPlan {
     /// first thing to try if a four-bit build stops following prompts.
     public static func plan(
         transformer: QuantizationPrecision,
-        textEncoder: QuantizationPrecision,
-        adapters: [URL] = []
+        textEncoder: QuantizationPrecision
     ) -> QuantizationPlan {
         let exclusions = WeightPrecisionRule.normsAndEmbeddings + dictionaryModules
         return QuantizationPlan(
@@ -38,8 +37,7 @@ public enum ZImageQuantizationPlan {
                 QuantizedComponent(
                     directoryName: "transformer",
                     rules: exclusions,
-                    fallback: transformer,
-                    adapters: adapters
+                    fallback: transformer
                 ),
                 QuantizedComponent(
                     directoryName: "text_encoder", rules: exclusions, fallback: textEncoder),

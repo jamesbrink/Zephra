@@ -27,13 +27,6 @@ public struct QuantizedComponent: Hashable, Sendable {
     /// unpacked, which is right for a norm the model reads at full width and wrong for a
     /// component nothing ever loads. A checkpoint often carries both.
     public let omitted: [NamePattern]
-    /// Low-rank adapter files merged into these weights before they are packed.
-    ///
-    /// Merging at build time rather than at load is what lets a distilled variant ship as an
-    /// ordinary quantized snapshot: the runtime never learns an adapter existed. Every weight an
-    /// adapter names must exist in the component, or the build fails rather than applying half a
-    /// distillation.
-    public let adapters: [URL]
 
     /// Creates a component whose tensors are packed at `fallback` except where `rules` say
     /// otherwise.
@@ -43,8 +36,7 @@ public struct QuantizedComponent: Hashable, Sendable {
         sourceFiles: [String] = [],
         rules: [WeightPrecisionRule] = [],
         fallback: QuantizationPrecision?,
-        omitted: [NamePattern] = [],
-        adapters: [URL] = []
+        omitted: [NamePattern] = []
     ) {
         self.directoryName = directoryName
         self.sourceDirectory = sourceDirectory
@@ -52,7 +44,6 @@ public struct QuantizedComponent: Hashable, Sendable {
         self.rules = rules
         self.fallback = fallback
         self.omitted = omitted
-        self.adapters = adapters
     }
 
     /// Where the component's shards and sidecar files are read from under `release`.

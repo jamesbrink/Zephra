@@ -265,7 +265,6 @@ struct ModelCatalogTests {
         #expect(descriptor.builtBytes == 7_130_000_000)
         #expect(descriptor.quantization == .int4)
         #expect(descriptor.fullName == "Z-Image Turbo · 4-bit")
-        #expect(descriptor.adapters.isEmpty)
         #expect(descriptor.isPublishedPrebuilt)
         #expect(descriptor.mirror == ModelCatalog.mirror)
         #expect(descriptor.transferBytes == descriptor.downloadBytes)

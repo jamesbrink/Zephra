@@ -43,16 +43,6 @@ struct ModelLocationsTests {
         ])
     }
 
-    @Test("an adapter lands in Downloads beside the release it is merged into")
-    func anAdapterIsADownloadLikeAnyOther() throws {
-        let adapter = ModelAdapter(
-            repoID: "example/Distillation", file: "4steps-fp32.safetensors", bytes: 1_000)
-        #expect(
-            scratch.adapter(adapter).path(percentEncoded: false)
-                == "/tmp/zephra-models/Downloads/example--Distillation/")
-        #expect(scratch.adapterFile(adapter).lastPathComponent == adapter.file)
-    }
-
     /// A descriptor whose weights are a directory on this Mac rather than a repository.
     private static func local(at directory: URL) -> ModelDescriptor {
         let base = ModelCatalog.zImageTurbo4bit

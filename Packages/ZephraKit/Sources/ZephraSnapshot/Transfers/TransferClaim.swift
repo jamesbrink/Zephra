@@ -14,10 +14,6 @@ struct TransferClaim: Sendable {
             parts.append(RepositoryDownload(repoID: repo, revision: revision,
                 patterns: patterns.sorted(), destination: locations.downloads(repoID: repo)))
         }
-        for adapter in model.adapters {
-            parts.append(RepositoryDownload(repoID: adapter.repoID, revision: adapter.revision,
-                patterns: [adapter.file], destination: locations.adapter(adapter)))
-        }
         // The variant's own directory is claimed too when a mirror publishes it, so two
         // requests for one model share the one fetch and nothing else writes there meanwhile.
         if let prebuilt = RepositoryDownload.prebuilt(model, in: locations) { parts.append(prebuilt) }

@@ -34,13 +34,9 @@ public enum Flux2QuantizationPlan {
         (27...35).map { NamePattern.prefix("model.layers.\($0).") } + [.prefix("model.norm.")]
 
     /// The plan for the transformer at one precision and the text encoder at another.
-    ///
-    /// `adapters` is accepted for the day a klein adapter is worth merging; the release ships
-    /// none, and the distillation is already in the weights.
     public static func plan(
         transformer: QuantizationPrecision,
-        textEncoder: QuantizationPrecision,
-        adapters: [URL] = []
+        textEncoder: QuantizationPrecision
     ) -> QuantizationPlan {
         QuantizationPlan(
             components: [
@@ -48,8 +44,7 @@ public enum Flux2QuantizationPlan {
                     directoryName: "transformer",
                     rules: WeightPrecisionRule.normsAndEmbeddings
                         + conditioningStaysWhole.map { WeightPrecisionRule($0, precision: nil) },
-                    fallback: transformer,
-                    adapters: adapters
+                    fallback: transformer
                 ),
                 QuantizedComponent(
                     directoryName: "text_encoder",
@@ -63,10 +58,10 @@ public enum Flux2QuantizationPlan {
     }
 
     /// The plan at one precision throughout.
-    public static func plan(bits: Int, groupSize: Int, adapters: [URL] = []) throws
+    public static func plan(bits: Int, groupSize: Int) throws
         -> QuantizationPlan
     {
         let precision = try QuantizationPrecision(bits: bits, groupSize: groupSize)
-        return plan(transformer: precision, textEncoder: precision, adapters: adapters)
+        return plan(transformer: precision, textEncoder: precision)
     }
 }

@@ -21,7 +21,7 @@ struct RunResidencyStepDownTests {
         source: ModelCatalog.default.source, quantization: .int4, downloadBytes: 0,
         residentBytes: 21_000_000_000, peakBytes: 30_000_000_000,
         tiledPeakBytes: 26_000_000_000, streamedPeakBytes: 0, maxPromptTokens: 512,
-        capabilities: ModelCatalog.default.capabilities, builtBytes: 0, adapters: [])
+        capabilities: ModelCatalog.default.capabilities, builtBytes: 0)
 
     /// What the allocator says it is holding once the weights are in. Small enough that a
     /// streamed run is still charged something, so "streaming also fell short" is expressible.

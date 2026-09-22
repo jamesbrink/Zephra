@@ -31,7 +31,7 @@ extension Flux2Backend {
                 return packed
             }
             let here = LocalSnapshot.flux2Release.downloadedRelease(of: descriptor, in: locations)
-            if let here, locations.missingAdapters(of: descriptor).isEmpty { return here }
+            if let here { return here }
             // Published ready-made, the variant is fetched instead of the release it is
             // packed from; nil means the mirror has not got it, and the release comes next.
             if let prebuilt = try await acquisition.fetchPrebuilt(

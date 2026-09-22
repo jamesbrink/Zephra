@@ -35,8 +35,7 @@ struct ModelChoiceFacts: View {
     }
 
     /// The catalog's own figure, for the frame or two before the disk has been read: the
-    /// packed size for a variant the mirror publishes ready-made, the release plus its
-    /// adapters otherwise.
+    /// packed size for a variant the mirror publishes ready-made, the release otherwise.
     private var estimate: String {
         let model = choice.model
         let bytes = model.isPublishedPrebuilt ? model.builtBytes : model.transferBytes

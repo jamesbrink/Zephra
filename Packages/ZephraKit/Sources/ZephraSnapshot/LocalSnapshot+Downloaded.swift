@@ -11,9 +11,7 @@ extension LocalSnapshot {
     ///
     /// The receiver says what the directory must hold, which is not the same question for every
     /// model: for one whose download is what loads, it is the loader's own list; for one packed
-    /// here, it is what the packer reads. The descriptor's adapters are a separate question,
-    /// `ModelLocations.missingAdapters(of:)`: a release in the cache with its distillation not
-    /// yet here is still a release, and only the 1.7 GB that is missing should be fetched.
+    /// here, it is what the packer reads.
     public func downloadedRelease(
         of descriptor: ModelDescriptor, in locations: ModelLocations
     ) -> URL? {

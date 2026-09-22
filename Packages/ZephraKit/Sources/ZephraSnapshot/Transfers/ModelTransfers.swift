@@ -2,7 +2,7 @@ import Foundation
 import ZephraCore
 
 /// Shared repository ownership and a bounded network lane, independent of inference.
-/// Reservations are all-or-none, so crossed release/adapter dependencies cannot deadlock.
+/// Reservations are all-or-none, so crossed repository dependencies cannot deadlock.
 public actor ModelTransfers {
     let downloader: ModelDownloader
     let limit: Int

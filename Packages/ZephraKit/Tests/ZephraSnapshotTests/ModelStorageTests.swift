@@ -47,40 +47,6 @@ struct ModelStorageTests {
         #expect(items.last?.location.hasPrefix("/") == true)
     }
 
-    /// A catalog entry with an adapter beside its release. Nothing in the catalog carries one
-    /// any more, so the two cases below build their own; they go with the adapter seam.
-    static func withAdapter() -> ModelDescriptor {
-        let base = ModelCatalog.flux2Klein4bit
-        return ModelDescriptor(
-            id: base.id, displayName: base.displayName, variantName: base.variantName,
-            backend: base.backend, source: base.source, quantization: base.quantization,
-            downloadBytes: base.downloadBytes, residentBytes: base.residentBytes,
-            peakBytes: base.peakBytes, tiledPeakBytes: base.tiledPeakBytes,
-            maxPromptTokens: base.maxPromptTokens, capabilities: base.capabilities,
-            adapters: [
-                ModelAdapter(
-                    repoID: "example/Distillation", file: "4steps-fp32.safetensors", bytes: 1_000)
-            ])
-    }
-
-    @Test("an adapter `hf download` put in the cache is listed with its model, where it is")
-    func aCachedAdapterIsListed() throws {
-        let scratch = Scratch("ModelStorage")
-        let descriptor = Self.withAdapter()
-        let adapter = try #require(descriptor.adapters.first)
-        let repository = "hub/models--" + adapter.repoID.replacingOccurrences(of: "/", with: "--")
-        try scratch.write("abc", to: repository + "/refs/main")
-        try scratch.make(repository + "/snapshots/abc/" + adapter.file)
-
-        let items = ModelStorage.items(
-            for: [descriptor], cache: scratch.url("hub"),
-            locations: ModelLocations(root: scratch.url("models")))
-        #expect(items.count == 1)
-        #expect(items.first?.name == "\(descriptor.displayName) adapter")
-        #expect(items.first?.isComplete == true)
-        #expect(items.first?.location.hasPrefix("/") == true)
-    }
-
     @Test("a model named by a directory outside every root is listed there, by its whole path")
     func aDirectoryNamedModelIsListedWhereItIs() throws {
         let scratch = Scratch("ModelStorage")
@@ -117,28 +83,6 @@ struct ModelStorageTests {
         #expect(partial.name == "Z-Image Turbo · 8-bit")
         #expect(!partial.isComplete)
         #expect(partial.location == "Downloads/mzbac--Z-Image-Turbo-8bit")
-    }
-
-    @Test("an adapter is listed with the model it serves, and says whether its file is there")
-    func anAdapterIsListedWithItsModel() throws {
-        let scratch = Scratch("ModelStorage")
-        let locations = ModelLocations(root: scratch.url("models"))
-        let descriptor = Self.withAdapter()
-        try scratch.make("models/Downloads/example--Distillation", isDirectory: true)
-
-        let items = ModelStorage.items(
-            for: [descriptor], cache: scratch.url("hub"), locations: locations)
-        let adapter = try #require(items.first)
-        #expect(items.count == 1)
-        #expect(adapter.name == "\(descriptor.displayName) adapter")
-        #expect(adapter.modelIDs == [descriptor.id])
-        #expect(adapter.location == "Downloads/example--Distillation")
-        #expect(!adapter.isComplete, "the folder is there and the one file it wants is not")
-
-        try scratch.make("models/Downloads/example--Distillation/4steps-fp32.safetensors")
-        let again = ModelStorage.items(
-            for: [descriptor], cache: scratch.url("hub"), locations: locations)
-        #expect(again.first?.isComplete == true)
     }
 
     @Test("nothing on disk lists nothing, and never a directory that does not exist")

@@ -38,7 +38,7 @@ extension ZImageBackend {
             }
             let release = LocalSnapshot.zImage(for: descriptor)
                 .downloadedRelease(of: descriptor, in: locations)
-            if release != nil, locations.missingAdapters(of: descriptor).isEmpty {
+            if release != nil {
                 return descriptor.isBuiltLocally ? .needsBuild : .available
             }
             if descriptor.isPublishedPrebuilt { return .needsDownload(bytes: descriptor.builtBytes) }
