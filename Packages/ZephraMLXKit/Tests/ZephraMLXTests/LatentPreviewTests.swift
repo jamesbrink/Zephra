@@ -45,12 +45,18 @@ struct LatentPreviewTests {
     }
 
     @Test("the bytes are four to a pixel, opaque, and hold the range the decoder produced")
-    func bytesAreRGBA8() {
+    func bytesAreRGBA8() throws {
         // One row of two pixels: -1 in every channel is black, 1 is white.
         let pixels = MLXArray([Float](arrayLiteral: -1, -1, -1, 1, 1, 1), [1, 1, 2, 3])
-        let bytes = LatentPreview.rgba8(pixels)
+        let bytes = try LatentPreview.rgba8(pixels)
 
         #expect(bytes.count == 1 * 2 * 4)
         #expect(Array(bytes) == [0, 0, 0, 255, 255, 255, 255, 255])
+    }
+
+    @Test("a four-channel frame keeps its alpha, as the finished picture does")
+    func fourChannelFrameKeepsItsAlpha() throws {
+        let pixels = MLXArray([Float](arrayLiteral: 1, 1, 1, -1), [1, 1, 1, 4])
+        #expect(try Array(LatentPreview.rgba8(pixels)) == [255, 255, 255, 0])
     }
 }

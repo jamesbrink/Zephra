@@ -13,7 +13,8 @@ public struct QwenImageLatentPreview: Sendable {
     public let width: Int
     /// Pixels down.
     public let height: Int
-    /// `width * height * 4` bytes, RGBA8, row-major, opaque.
+    /// `width * height * 4` bytes, RGBA8, row-major, straight alpha; 255 everywhere for a
+    /// model that makes no transparency.
     public let pixels: Data
 
     /// Decodes one estimate of the finished latent.
@@ -30,13 +31,14 @@ public struct QwenImageLatentPreview: Sendable {
         latentHeight: Int,
         latentWidth: Int,
         autoencoder: QwenImageAutoencoder
-    ) -> QwenImageLatentPreview {
+    ) throws -> QwenImageLatentPreview {
         let latents = QwenImageLatentPacking.unpack(
             tokens, height: latentHeight, width: latentWidth)
         let factor = LatentPreview.poolingFactor(height: latentHeight, width: latentWidth)
         let image = autoencoder.decodeUntiled(LatentPreview.pooled(latents, by: factor))
         MLX.eval(image)
         return QwenImageLatentPreview(
-            width: image.dim(2), height: image.dim(1), pixels: LatentPreview.rgba8(image))
+            width: image.dim(2), height: image.dim(1),
+            pixels: try LatentPreview.rgba8(image))
     }
 }

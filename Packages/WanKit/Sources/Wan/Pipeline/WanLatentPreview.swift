@@ -17,7 +17,8 @@ public struct WanLatentPreview: Sendable {
 
     public let width: Int
     public let height: Int
-    /// RGBA8, row-major, opaque.
+    /// RGBA8, row-major, straight alpha; 255 everywhere for a model that makes no
+    /// transparency, which every video model is.
     public let pixels: Data
 
     /// Decodes one frame of `latent`, `[1, channels, frames, height, width]` in the loop's
@@ -29,7 +30,7 @@ public struct WanLatentPreview: Sendable {
     static func make(
         latent: MLXArray, decoder: WanVideoAutoencoder, normalization: WanLatentNormalization,
         frame: Int = 0
-    ) -> WanLatentPreview {
+    ) throws -> WanLatentPreview {
         let one = latent[0..., 0..., frame..<(frame + 1)]  // [1, channels, 1, height, width]
         let pooled = LatentPreview.pooled(
             one[0..., 0..., 0], by: poolingFactor(height: one.dim(3), width: one.dim(4)))
@@ -37,7 +38,8 @@ public struct WanLatentPreview: Sendable {
             normalization.denormalize(pooled.expandedDimensions(axis: 2)).asType(decoder.dtype))
         let picture = video[0..., 0].asType(.float32)  // [1, h, w, 3]
         return WanLatentPreview(
-            width: picture.dim(2), height: picture.dim(1), pixels: LatentPreview.rgba8(picture))
+            width: picture.dim(2), height: picture.dim(1),
+            pixels: try LatentPreview.rgba8(picture))
     }
 
     /// How much to pool a latent of this size by, so its long edge comes in under `cellLimit`;

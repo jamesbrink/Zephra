@@ -34,7 +34,7 @@ public final class QwenImagePipeline {
     /// autoencoder: a host that shows frames only every so often never pays for the ones it
     /// would have thrown away. How often that is belongs to the host, not to this package.
     public typealias PreviewHandler = (
-        _ step: Int, _ totalSteps: Int, _ frame: () -> QwenImageLatentPreview
+        _ step: Int, _ totalSteps: Int, _ frame: () throws -> QwenImageLatentPreview
     ) -> Void
 
     /// Generates one image and returns PNG bytes.

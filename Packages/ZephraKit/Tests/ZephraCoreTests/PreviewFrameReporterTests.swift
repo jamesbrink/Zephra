@@ -40,4 +40,16 @@ struct PreviewFrameReporterTests {
         #expect(preview.pixels == Frame().pixels)
         #expect(preview.isWellFormed)
     }
+
+    @Test("a frame that cannot be packed is dropped rather than failing the run")
+    func aFrameThatThrowsIsDropped() throws {
+        struct NotAFrame: Error {}
+        var events: [GenerationProgressEvent] = []
+        let report: PreviewFrameReporter.Handler<Frame> = try #require(
+            PreviewFrameReporter.handler(interval: .seconds(60)) { events.append($0) })
+
+        report(0, 4) { throw NotAFrame() }
+
+        #expect(events.isEmpty)
+    }
 }

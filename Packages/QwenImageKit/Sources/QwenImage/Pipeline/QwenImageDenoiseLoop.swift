@@ -86,7 +86,7 @@ enum QwenImageDenoiseLoop {
                 let prediction = prediction
                 let sigmaNext = Float(scheduler.sigmas[index + 1])
                 onPreview(index, sigmas.count) {
-                    QwenImageLatentPreview.make(
+                    try QwenImageLatentPreview.make(
                         tokens: target - prediction * sigmaNext,
                         latentHeight: latentSize.height,
                         latentWidth: latentSize.width, autoencoder: autoencoder)

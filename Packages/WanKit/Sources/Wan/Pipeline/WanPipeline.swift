@@ -35,7 +35,7 @@ public final class WanPipeline {
     /// preview frame. A closure rather than a frame so a host that throttles never pays for a
     /// frame it drops.
     public typealias PreviewHandler = (
-        _ step: Int, _ totalSteps: Int, _ frame: () -> WanLatentPreview
+        _ step: Int, _ totalSteps: Int, _ frame: () throws -> WanLatentPreview
     ) -> Void
 
     /// Makes the clip `request` asks for.

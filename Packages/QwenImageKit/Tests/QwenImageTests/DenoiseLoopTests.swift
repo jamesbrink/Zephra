@@ -58,16 +58,16 @@ struct DenoiseLoopTests {
         let autoencoder = try LatentPreviewTests.autoencoder()
         var frames: [Int: QwenImageLatentPreview] = [:]
         _ = try Self.run(Stub(k: 0.5), autoencoder: autoencoder, onPreview: { step, _, frame in
-            frames[step] = frame()
+            frames[step] = try? frame()
         })
         for step in 0..<3 {
             let before = Self.expected(from: Self.noise(), k: 0.5, entering: 0, steps: step)
             let after = Self.expected(from: Self.noise(), k: 0.5, entering: 0, steps: step + 1)
             let estimate = after - (before * 0.5) * Float(Self.scheduler.sigmas[step + 1])
-            let expected = QwenImageLatentPreview.make(
+            let expected = try QwenImageLatentPreview.make(
                 tokens: estimate, latentHeight: 8, latentWidth: 8, autoencoder: autoencoder)
             #expect(frames[step]?.pixels == expected.pixels, "step \(step)")
-            let latentItself = QwenImageLatentPreview.make(
+            let latentItself = try QwenImageLatentPreview.make(
                 tokens: after, latentHeight: 8, latentWidth: 8, autoencoder: autoencoder)
             #expect(frames[step]?.pixels != latentItself.pixels, "step \(step) decoded the latent")
         }

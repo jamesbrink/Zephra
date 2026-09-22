@@ -41,7 +41,7 @@ struct LatentPreviewTests {
                 latentHeight: latentHeight, latentWidth: latentWidth), 16],
             type: Float.self)
 
-        let frame = QwenImageLatentPreview.make(
+        let frame = try QwenImageLatentPreview.make(
             tokens: tokens, latentHeight: latentHeight, latentWidth: latentWidth,
             autoencoder: model)
 
@@ -64,7 +64,7 @@ struct LatentPreviewTests {
             [1, QwenImageLatentPacking.tokenCount(latentHeight: 16, latentWidth: 16), 16],
             type: Float.self)
 
-        let frame = QwenImageLatentPreview.make(
+        let frame = try QwenImageLatentPreview.make(
             tokens: tokens, latentHeight: 16, latentWidth: 16, autoencoder: model)
 
         let bytes = Array(frame.pixels)

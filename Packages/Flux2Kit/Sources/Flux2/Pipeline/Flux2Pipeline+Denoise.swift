@@ -85,7 +85,7 @@ extension Flux2Pipeline {
                 let sigmaNext = Float(scheduler.sigmas[index + 1])
                 let autoencoder = model.autoencoder
                 onPreview(index, request.steps) {
-                    Flux2LatentPreview.make(
+                    try Flux2LatentPreview.make(
                         tokens: target - velocity * sigmaNext,
                         packedHeight: packedHeight, packedWidth: packedWidth,
                         autoencoder: autoencoder)

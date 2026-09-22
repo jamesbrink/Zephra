@@ -16,7 +16,8 @@ public struct GenerationPreview: Sendable {
     public let width: Int
     /// Pixels down.
     public let height: Int
-    /// `width * height * 4` bytes, RGBA8, row-major, opaque.
+    /// `width * height * 4` bytes, RGBA8, row-major, **straight alpha** and never
+    /// premultiplied; 255 everywhere for every model that does not make transparency.
     public let pixels: Data
     /// What this frame cost to make: the pooled decode, measured by whoever ran it.
     ///
