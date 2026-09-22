@@ -15,6 +15,17 @@ extension GenerationRecord {
     /// quietly becoming a stronger one. The origin comes back beside it, so a variation of an
     /// edit still says which library picture it started from.
     public func settings(referenceImage: Data? = nil) -> GenerationSettings {
+        // An origin names a picture's source; without the picture there is nothing it is of,
+        // which is what building the one picture from both fields together gives for free.
+        settings(referenceImages: referenceImage.map {
+            [ReferencePicture(data: $0, origin: referenceOrigin)]
+        } ?? [])
+    }
+
+    /// The same, for a caller holding every picture the record's numbered chunks carried
+    /// (`GenerationRecord.references(in:)`), which is what a variation of a several-picture edit
+    /// repeats.
+    public func settings(referenceImages: [ReferencePicture]) -> GenerationSettings {
         GenerationSettings(
             prompt: prompt,
             negativePrompt: negativePrompt,
@@ -22,10 +33,8 @@ extension GenerationRecord {
             steps: steps,
             guidance: guidance,
             seed: seed,
-            referenceImage: referenceImage,
+            referenceImages: referenceImages,
             referenceStrength: referenceStrength ?? 1,
-            // An origin names the picture's source; without the picture there is nothing it is of.
-            referenceOrigin: referenceImage == nil ? nil : referenceOrigin,
             frames: frameCount ?? 1
         )
     }

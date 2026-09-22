@@ -128,7 +128,7 @@ struct GenerationRecordTests {
             size: ImageSize(width: 4096, height: 4096), duration: .seconds(1.5))
 
         let data = try GenerationRecord.embedded(
-            record, in: MockBackend.pngData, prompt: record.prompt, referenceText: nil)
+            record, in: MockBackend.pngData, prompt: record.prompt, referenceTexts: [])
         let restored = try #require(GenerationRecord.read(from: data))
 
         #expect(restored.upscaledFrom == "zephra-20260903-101500-s99.png")

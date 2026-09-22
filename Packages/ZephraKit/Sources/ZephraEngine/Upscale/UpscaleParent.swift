@@ -12,8 +12,9 @@ struct UpscaleParent: Sendable {
     let pngData: Data
     /// What made it, or nil for an imported photograph or a PNG some other tool wrote.
     let record: GenerationRecord?
-    /// Its `zephra:reference` chunk, verbatim, or nil when it carries none.
-    let referenceText: String?
+    /// Its numbered `zephra:reference` chunks, verbatim and in order, empty when it carries
+    /// none. Every one of them, so an upscale of a several-picture edit keeps every picture.
+    let referenceTexts: [String]
 
     /// The file's name, which is what the result's record records it by.
     var fileName: String { url.lastPathComponent }
@@ -29,7 +30,7 @@ struct UpscaleParent: Sendable {
                 url: url,
                 pngData: data,
                 record: GenerationRecord.decode(from: text),
-                referenceText: text[GenerationRecord.referenceKeyword])
+                referenceTexts: GenerationRecord.referenceTexts(in: text))
         }.value
     }
 }
