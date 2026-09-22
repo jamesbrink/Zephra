@@ -88,9 +88,15 @@ replaced with a download, which is the alternative the plan costed and deliberat
   swaps back on the way out. That is an artifact of the tool, not of the model: the channel
   order the network was trained on is whatever `cv2.imread` produced consistently, and the two
   swaps cancel. This port reads and writes RGB and never swaps.
-- **No alpha.** The reference tool has an RGBA path that upscales the alpha channel separately.
-  Zephra's library is opaque by construction, so alpha is dropped at `UpscalePixelBuffer` and
-  the output is written opaque. `ROADMAP.md` has carrying it through.
+- **Alpha, the reference tool's way.** The reference tool has an RGBA path that upscales the
+  alpha channel separately, and this port does the same: `UpscalePixelBuffer.pixels` splits a
+  transparent picture into its straight colour and its alpha, `RealESRGANUpscaler` runs the
+  colour through the network as itself and the alpha through as a grey triplet whose three
+  outputs are meaned back into one plane, and the result is recombined as straight RGBA. The
+  network never learned a fourth channel, but it did learn to enlarge a grey picture, and an
+  alpha plane is one. A picture with no alpha channel runs one lane and is byte for byte what
+  it always was; its matte is white now rather than the black an uncleared buffer gave, which
+  it never sees.
 - **2x is 4x then an exact 2x2 box mean.** There is no 2x checkpoint in this family worth
   carrying beside the 4x one, and a box mean over a whole number of pixels is the one downsample
   with no filter design to defend. It means 2x costs what 4x costs plus the mean, which the

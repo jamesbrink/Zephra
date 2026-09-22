@@ -208,6 +208,34 @@ struct ImageFactsTests {
         #expect(ImageFacts(plain).referenceOrigin == nil)
     }
 
+    @Test("transparency is read off the file, and off the bytes for a picture not yet saved")
+    func transparencyComesFromTheHeader() {
+        let opaque = LibraryItem(
+            url: URL(filePath: "/Zephra/solid.png"), collection: .generated,
+            provenance: .generated(Self.record()), fileSize: 4096, contentModifiedAt: .now,
+            hasAlpha: false)
+        let clear = LibraryItem(
+            url: URL(filePath: "/Zephra/clear.png"), collection: .generated,
+            provenance: .generated(Self.record()), fileSize: 4096, contentModifiedAt: .now,
+            hasAlpha: true)
+
+        #expect(!ImageFacts(opaque).isTransparent)
+        #expect(ImageFacts(clear).isTransparent)
+
+        // The fixture every backend test writes is an RGBA PNG; a picture with no bytes at all
+        // has no header to read and says no rather than throwing.
+        let made = GeneratedImage(
+            pngData: MockBackend.pngData,
+            settings: GenerationSettings(
+                prompt: "a lighthouse", size: ImageSize(width: 1, height: 1), steps: 9,
+                guidance: 3, seed: 42),
+            modelID: ModelCatalog.default.id, duration: .seconds(3))
+        #expect(ImageFacts(made).isTransparent)
+        #expect(!ImageFacts(GeneratedImage(
+            pngData: Data(), settings: made.settings, modelID: made.modelID,
+            duration: .seconds(3))).isTransparent)
+    }
+
     /// A plain generated record, for a test that then says what is different about it.
     private static func record() -> GenerationRecord {
         GenerationRecord(

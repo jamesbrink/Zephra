@@ -28,11 +28,30 @@ as an index, and it is Foundation only, so `make test` covers all of it.
   session that made it: the canvas sidebar's timeline groups by it after a
   relaunch, and falls back to adjacency for files written before the field
   existed.
-- `PNGTextChunks+Header` reads a chunk without reading the file: 64 KiB, stop at
-  the first IDAT, grow only if the chunks have not been seen yet. A grid of two
-  thousand images is two thousand header reads, not two thousand full decodes.
+- `PNGHeader` reads a file's header in one seeking walk and answers three
+  questions from it: its text, its size, and whether its pixels carry alpha. A
+  chunk's body is read when it is under 64 KiB and **seeked past** otherwise,
+  and the walk stops at the first IDAT. That replaced a prefix-growing read of
+  64 KiB, then 256 KiB, then a megabyte, which a picture carrying a 1024-pixel
+  reference defeated at all three sizes — a reference chunk is about 1.4 MB of
+  base64 — so every edit in the library was falling back to `Data(contentsOf:)`,
+  the whole file, on every scan that re-read it. A grid of two thousand images
+  is two thousand small reads, not two thousand full decodes and not two
+  thousand whole files. `PNGTextChunks.read(fromHeaderOf:)` is that walk's text
+  under its old signature, so no caller moved.
   `PNGTextChunks+Replacing` writes one back by splicing before IDAT and
   dropping the same keyword, so repeated writes do not grow the file.
+- **Transparency comes from the file, not from a record.** `PNGHeader.hasAlpha`
+  is the IHDR colour type — 4 or 6 — or the presence of a `tRNS` chunk, which is
+  how a palette picture somebody imported carries it. The scan sets it on
+  `LibraryItem.hasAlpha` beside the provenance, in the same read, and
+  `ImageFacts.isTransparent` is the inspector's one "Transparent" row, drawn
+  only when it is true. A `GenerationRecord` flag was considered and rejected:
+  it would be wrong for an imported file, wrong for everything written before
+  the field existed, and a second place to keep true. What is *drawn* asks the
+  decoded picture instead — `CGImage.hasTransparency`, free, already in hand
+  wherever a bitmap is — and `DrawnPicture` is what carries that answer out of
+  both Mac caches so no view decodes anything in `body`.
 - `LibraryScan` fingerprints the directory from one `contentsOfDirectory` and
   re-reads only the paths whose (mtime, size) moved. `LibraryFolderWatch` is a
   `DispatchSource` on the directory, debounced, and re-opens the fd when the
