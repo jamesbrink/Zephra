@@ -904,34 +904,3 @@ deduplication, cross-host versions of source-local edit operations, and
 unattended dispatch while the phone is in the background. These require their
 own ownership, resource and recovery policies; pairing multiple Macs does not
 imply them.
-
-## Qwen-Image 2.1's pipeline: left out on purpose
-
-Four things `QwenImage21Pipeline` (`Packages/QwenImage21Kit`) could do and does not.
-
-**The prefix cache has no switch.** The reference's `use_kv_cache` defaults to true and its own
-docstring says toggling it does not reproduce a picture bit for bit in reduced precision: a
-cached step attends over a different sequence layout from the prefill, the two tile differently
-and land on different rounding, and 32 blocks over forty steps turn one unit in the last place
-into a visibly different sample. Exposing the flag would mean recording which setting made
-every picture, or the same seed would mean two pictures. So every run caches.
-
-**A reference picture is resampled by Core Graphics, not by PIL's lanczos.** The fit lands on
-the same size — `QwenImage21ImageFitting` is the reference's own arithmetic, pinned — but the
-kernel is a different one, so a picture conditioned on a reference is a resample away from what
-`diffusers` would have made. Writing a lanczos resampler in the kit whose only job is to
-disagree with Core Graphics' is worse than saying so. `PROVENANCE.md` states it beside the
-premultiplied-draw consequence.
-
-**Classifier-free guidance is implemented and the catalog entry will not offer it.** 2.1 is
-meant to be sampled without guidance — `true_cfg_scale` defaults to 1 — and a second forward
-doubles both the time and the prefix cache, which at half a megabyte a prompt token is the
-larger cost. `QwenImage21Request.guidance` is there because the reference has it and because a
-bench may want it; the entry declares `guidanceBounds: 0...0`, as Qwen-Image 2512's does.
-
-**The parity suite runs one size and one prompt.** 256 square, two steps, no reference picture:
-enough to catch anything that is the same at every size, which is the template, the drop index,
-the joint layout, the rotary, the cache, the schedule, the Euler step and the autoencoder. A
-reference-conditioned parity fixture would pin the vision tower and the condition latents
-through the whole loop as well, and it is the next one worth having — it needs a committed
-picture and a second reference run.
