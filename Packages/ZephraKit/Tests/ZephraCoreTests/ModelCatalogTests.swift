@@ -56,6 +56,12 @@ struct ModelCatalogTests {
         // `defaultPrefersAResidentFitOverAStreamedOne` — but it is no longer greyed out.
         #expect(fitting.contains(ModelCatalog.zImageTurbo8bit))
         #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo8bit, physicalMemory: memory) == .fitsStreamed)
+        // Qwen-Image 2.1 is offered here too, and only streamed: its estimated tiled peak is
+        // 13.9 GB against this Mac's 13.7 GB, deliberately rounded to the side that streams.
+        #expect(
+            ModelCatalog.fit(ModelCatalog.qwenImage21_4bit, physicalMemory: memory)
+                == .fitsStreamed)
+        #expect(ModelCatalog.default(fitting: memory) == ModelCatalog.flux2Klein4bit)
     }
 
     @Test("a 32 GB Mac runs everything, and the one entry it cannot hold streams")
@@ -108,10 +114,11 @@ struct ModelCatalogTests {
         #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo4bit, physicalMemory: memory) == .fits)
         // 23.5 GB untiled is over the 19.3 GB budget; 17.7 GB tiled is under it.
         #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo8bit, physicalMemory: memory) == .fitsTiled)
-        // Both Z-Image variants, both klein variants, Wan 2.2 tiled (12.4 GB under the
-        // 19.3 GB budget), and both LTX-2.5 entries streamed: the measured 21.8 GB peak and
-        // the audio entry's larger one are over it.
-        #expect(ModelCatalog.fitting(physicalMemory: memory).count == 7)
+        // Both Z-Image variants, both klein variants, Qwen-Image 2.1 outright (17.3 GB under
+        // the 19.3 GB budget), Wan 2.2 tiled (12.4 GB), and both LTX-2.5 entries streamed: the
+        // measured 21.8 GB peak and the audio entry's larger one are over it.
+        #expect(ModelCatalog.fitting(physicalMemory: memory).count == 8)
+        #expect(ModelCatalog.fit(ModelCatalog.qwenImage21_4bit, physicalMemory: memory) == .fits)
         #expect(ModelCatalog.fit(ModelCatalog.ltx2DistilledAudio4bit, physicalMemory: memory) == .fitsStreamed)
         #expect(ModelCatalog.fit(ModelCatalog.wan22TI2V5B4bit, physicalMemory: memory) == .fits)
     }
@@ -149,6 +156,7 @@ struct ModelCatalogTests {
                 ModelCatalog.flux2Klein4bit,
                 ModelCatalog.flux2Klein8bit,
                 ModelCatalog.zImageTurbo4bit,
+                ModelCatalog.qwenImage21_4bit,
                 ModelCatalog.wan22TI2V5B4bit,
                 ModelCatalog.ltx2Distilled4bit,
                 ModelCatalog.ltx2DistilledAudio4bit,
@@ -273,6 +281,60 @@ struct ModelCatalogTests {
             settings.frames = frames
             #expect(descriptor.capabilities.clamp(settings).frames == frames)
         }
+    }
+
+    @Test("the Qwen-Image 2.1 entry reads up to ten pictures, keeps their alpha, and is not distilled")
+    func qwenImage21ReadsSeveralPictures() {
+        let descriptor = ModelCatalog.qwenImage21_4bit
+        #expect(descriptor.backend == .qwenImage21)
+        #expect(descriptor.isBuiltLocally && descriptor.isPublishedPrebuilt)
+        #expect(descriptor.quantization == .int4)
+        #expect(descriptor.fullName == "Qwen-Image 2.1 · 4-bit")
+        #expect(descriptor.maxPromptTokens == 512)
+        let capabilities = descriptor.capabilities
+        #expect(!capabilities.producesVideo)
+        #expect(capabilities.sizeAlignment == 32)
+        #expect(capabilities.sizeBounds == 512...2752)
+        #expect(capabilities.defaultSize == ImageSize(width: 1024, height: 1024))
+        // The only entry that is not a distilled checkpoint: both controls are real, and the
+        // negative prompt goes with the guidance.
+        #expect(capabilities.stepBounds == 8...50 && capabilities.defaultSteps == 40)
+        #expect(capabilities.guidanceBounds == 1...8 && capabilities.defaultGuidance == 1)
+        #expect(capabilities.adjustsSteps && capabilities.adjustsGuidance)
+        #expect(capabilities.supportsNegativePrompt && capabilities.supportsSeed)
+        // Several pictures, their transparency read rather than matted, and no strength: it
+        // conditions on them and still walks the whole schedule from noise.
+        #expect(capabilities.supportsReferenceImage)
+        #expect(capabilities.referenceImageCount == 1...ReferenceLimits.maximumPictures)
+        #expect(capabilities.acceptsSeveralReferences)
+        #expect(capabilities.readsTransparentReferences)
+        #expect(!capabilities.adjustsReferenceStrength)
+        // And it is the only entry that reads transparency, which is what the note under the
+        // reference strip is drawn from.
+        #expect(
+            ModelCatalog.all.filter(\.capabilities.readsTransparentReferences) == [descriptor])
+        guard case .huggingFace(let repoID, _, let patterns) = descriptor.source else {
+            Issue.record("Qwen-Image 2.1 downloads from the hub")
+            return
+        }
+        #expect(repoID == "Qwen/Qwen-Image-2.1")
+        #expect(patterns.contains("transformer/*") && patterns.contains("text_encoder/*"))
+        // The tokenizer is published under `processor/`, not a `tokenizer/` of its own, and the
+        // non-commercial license travels with the weights.
+        #expect(patterns.contains("processor/*") && !patterns.contains("tokenizer/*"))
+        #expect(patterns.contains("LICENSE"))
+        #expect(!patterns.contains("*") && !patterns.contains("README.md"))
+    }
+
+    @Test("Qwen-Image 2.1 is the one entry that charges for the pictures it reads")
+    func onlyQwenImage21ChargesForAReference() {
+        // Every other family encodes a reference into the latent it is already charged for;
+        // 2.1 holds it as a prefix cache across every layer, which the scaled transient cannot
+        // express. `MemoryGuardScalingTests` is where the arithmetic is pinned.
+        #expect(ModelCatalog.qwenImage21_4bit.referencePrefixBytes > 0)
+        #expect(
+            ModelCatalog.all.filter { $0.referencePrefixBytes > 0 }
+                == [ModelCatalog.qwenImage21_4bit])
     }
 
     @Test("the 4-bit Z-Image variant is packed here from the bf16 release, not from nothing")

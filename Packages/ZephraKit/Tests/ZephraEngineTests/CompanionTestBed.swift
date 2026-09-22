@@ -20,8 +20,12 @@ final class CompanionTestBed {
     let index: LibraryIndex
     let host: CompanionHost
 
-    init(hostName: String = "A Test Mac", receipts: GenerationReceipts? = nil) {
-        store = engine.store()
+    init(
+        hostName: String = "A Test Mac",
+        descriptor: ModelDescriptor = ModelCatalog.default,
+        receipts: GenerationReceipts? = nil
+    ) {
+        store = engine.store(descriptor: descriptor)
         index = engine.index()
         host = CompanionHost(
             store: store, index: index, thumbnails: thumbnails, identity: identity,

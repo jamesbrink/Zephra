@@ -1668,6 +1668,15 @@ streaming entry that leaves `streamedResidentBytes` at 0 is charged its whole
 streamed peak, which refuses too much rather than too little;
 `ModelCatalogTests` fails a shipped entry that does it.
 
+A sixth figure is **not** a peak and is not scaled: `referencePrefixBytes` is
+what one reference picture adds to a run, measured with one reference at the
+entry's own default size against the same run without one. `MemoryGuard`
+multiplies the transient by pixels times frames and then **adds** this per
+picture, twice where guidance is over one and a negative prompt is there, since
+classifier-free guidance's second forward keeps a prefix cache of its own. It is
+0 for every family that encodes a reference into the latent it is already
+charged for, which is all of them but Qwen-Image 2.1.
+
 **A new backend family** — four things in the app, then the tooling:
 
 1. A `static let` on `BackendID` (a string-backed struct, so a persisted
@@ -1800,8 +1809,8 @@ there is room, replace where there is not — stays written once, in
 well: the store's `referenceNote` when it took fewer than it was offered, and
 `ReferenceMatteNote` — the pictures' own PNG headers read off the main actor —
 when one carries alpha and the model does not declare
-`readsTransparentReferences`, which every entry in the catalog leaves false
-today. A model that reads one draws exactly the well it always drew.
+`readsTransparentReferences`, which every entry but Qwen-Image 2.1 leaves
+false. A model that reads one draws exactly the well it always drew.
 
 Full detail: `docs/adding-a-model.md`.
 

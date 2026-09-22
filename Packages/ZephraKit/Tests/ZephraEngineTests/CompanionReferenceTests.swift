@@ -51,6 +51,39 @@ struct CompanionReferenceTests {
         await bed.shutdown()
     }
 
+    @Test("three pictures reach a model that reads several, in the order the phone sent them")
+    func severalPicturesLandInOrder() async throws {
+        // The one end-to-end check that the blobs a phone sends become `referenceImages` and
+        // keep their order: the suite's other cases read the *refusal* a one-picture model
+        // gives, which says the pictures were held but not what the backend was handed.
+        let model = ModelCatalog.qwenImage21_4bit
+        let bed = CompanionTestBed(descriptor: model)
+        let phone = try await Self.phone(bed)
+
+        let pictures = (1...3).map { Self.picture(UInt8($0), bytes: 32 * $0) }
+        var ids: [UUID] = []
+        for picture in pictures { ids.append(try await phone.sendPicture(picture)) }
+        var settings = GenerationSettings.defaults(for: model)
+        settings.prompt = "three pictures and a model that reads ten"
+        settings.steps = 2
+        settings.size = ImageSize(width: 512, height: 512)
+        var request = GenerationRequest(modelID: model.id, count: 1, settings: settings)
+        request.referenceBlobIDs = ids
+
+        guard case .queued = try await phone.request(.enqueue(request)) else {
+            Issue.record("a three-picture request to a model that reads ten was refused")
+            await bed.shutdown()
+            return
+        }
+        try await bed.waitUntil {
+            bed.engine.control.settings.lastSettings?.referenceImages.count == 3
+        }
+        #expect(
+            bed.engine.control.settings.lastSettings?.referenceImages.map(\.data) == pictures,
+            "the order is the model's reading order and nothing may reshuffle it")
+        await bed.shutdown()
+    }
+
     @Test("an eleventh picture drops the oldest, which the request then cannot name")
     func theOldestIsDropped() async throws {
         let bed = CompanionTestBed()

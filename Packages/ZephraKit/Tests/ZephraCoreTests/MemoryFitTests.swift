@@ -60,6 +60,12 @@ struct MemoryFitTests {
         // And with room to spare: the measured tiled peak clears this Mac's working set by
         // more than half a gigabyte, which is the margin the catalog's comment quotes.
         #expect(Self.sixteenDefault.bytes - Double(turbo.tiledPeakBytes) > 500_000_000)
+        // Qwen-Image 2.1 is the case the raise is really for: 13.9 GB tiled is over this Mac's
+        // 12.7 GB default working set, so it streams, and under the raised 17.2 GB, so it
+        // tiles. Its 17.3 GB untiled peak stays out of reach either way.
+        let qwen = ModelCatalog.qwenImage21_4bit
+        #expect(MemoryFit(descriptor: qwen, budget: Self.sixteenDefault) == .fitsStreamed)
+        #expect(MemoryFit(descriptor: qwen, budget: Self.sixteenRaised) == .fitsTiled)
     }
 
     @Test("a tight verdict names the working set that would clear it")
