@@ -49,6 +49,56 @@ answer matches the hooked reference and that it is far from the unhooked one;
 release, since `tie_word_embeddings` is false and a pack has to exclude `lm_head` explicitly
 rather than assume it away.
 
+### The vision tower's rotary theta is written down here
+
+`vision_config` in `text_encoder/config.json` states no `rope_theta` and no `rope_parameters`,
+so transformers supplies its own default, and the inverse frequencies it computes live in a
+`persistent=False` buffer that is therefore in none of the 750 published tensors. The number is
+**10,000** — not the decoder's five million — and `Qwen3VLVisionRotary.theta` is its only
+written-down form in this repository. `Tools/dump_vision.py` dumps `rope.real.theta` and
+`rope.real.invFreq` from `Qwen3VLVisionRotaryEmbedding` against the release's own vision config,
+and `VisionPositionTests` pins the constant against them.
+
+### The prompt is capped at 512 tokens
+
+The reference pipeline caps nothing: `model_max_length` is 262,144 and `encode_prompt` takes
+whatever the tokenizer produces. `QwenImage21Tokenizer.encode(_:limit:referenceCount:)` keeps
+`dropIndex + 512`, because every prompt token is about half a megabyte of prefix key-value
+cache across the 32 transformer blocks and is paid for the whole run. The truncation keeps the
+front, which is where somebody says what they want, and a prompt long enough to be cut loses
+the template's own five-token tail rather than having it spliced back on, which would make the
+ids for a long prompt something the reference never produces for any input.
+
+### The tower's own `smart_resize` is required to be a no-op
+
+The pipeline fits every reference picture to `calculate_dimensions(1024², ratio)` — a multiple
+of 32 — before either the tower's copy or the autoencoder's is made, and 32 is exactly
+`patch_size * merge_size`, so the tower's own `smart_resize` never moves one.
+`Qwen3VLImagePreprocessing.fitted(...)` is that arithmetic, pinned against the reference for six
+shapes at the published bounds, and `patches(of:processor:)` **throws**
+`Qwen3VLEncodingError.sizeNotFitted` for a picture it would not be a no-op for rather than
+resampling it. The alternative is a second bicubic resampler in this kit whose only job is to
+disagree with the pipeline's lanczos one.
+
+### The alpha is flattened over white with a rounded float blend
+
+`_get_qwen_prompt_embeds` composites a reference's alpha over white with PIL's `paste` and an
+alpha mask, which is integer arithmetic (`MULDIV255`).
+`Qwen3VLImagePreprocessing.compositedOverWhite` is a rounded float lerp instead, which agrees
+with PIL byte for byte on eight-bit inputs; `ImagePreprocessingTests` checks it against the
+reference's own output at tolerance zero. Only the tower's copy is flattened — the autoencoder
+keeps all four channels.
+
+### DeepStack's injection layers are a list index, not a configured depth
+
+The tower taps blocks 8, 16 and 24 (`deepstack_visual_indexes`) and the decoder adds those
+three outputs after layers **0, 1 and 2**, because the reference's condition is
+`layer_idx in range(len(deepstack_visual_embeds))`. The two sets of numbers are unrelated, and
+the doll's-house fixture taps tower blocks 1, 2 and 3 precisely so that a port which confused
+them fails. `Qwen3VLLanguageModel` counts the layer inside the weight stream's closure for the
+same reason klein's encoder counts its taps there: `LayerWeightStream.run` hands back the layer
+and not its index.
+
 ### The encoder answers one prompt at a time, so the padding mask is nothing
 
 Tokenisation is left-padded as the checkpoint was trained; the valid slice is then extracted

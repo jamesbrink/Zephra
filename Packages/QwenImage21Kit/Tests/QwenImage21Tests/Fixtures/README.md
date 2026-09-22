@@ -36,6 +36,7 @@ directory in the same commit, and saying so in the commit message.
 | `scheduler.safetensors` | `dump_scheduler.py` | `ScheduleTests` |
 | `tokenizer_ids.json` | `dump_tokenizer.py` | `TokenizerTests` |
 | `text_encoder.safetensors` | `dump_text_encoder.py` | `Qwen3VLLanguageModelTests`, `Qwen3VLRotaryTests` |
+| `vision.safetensors` | `dump_vision.py` | `VisionTowerTests`, `VisionPositionTests`, `DeepStackTests`, `ImagePreprocessingTests`, `PromptEncoderTests` |
 | `versions.json` | every dumper | nothing; it is the record |
 
 `scheduler.safetensors` holds seven ladders as `steps<N>.tokens<M>.{sigmas,timesteps,mu}`. Two
@@ -62,7 +63,16 @@ it so a Swift suite can show the two differ. It also holds the interleaved MRoPE
 three-axis run with a picture in it. The published tables cost no weights at all — the rotary
 is decided by a configuration — and they are what say which half-dim reads which axis.
 
-The four dumpers that write nothing yet — `dump_rope.py`, `dump_transformer.py`,
-`dump_vision.py`, `dump_vae.py` — landed with the kit's skeleton so the
-seven live in one place. Each states in its docstring what it pins and which suite will read it;
-their doll's-house widths are settled by the step that adds that suite.
+`vision.safetensors` holds the doll's-house tower (four blocks, three DeepStack taps), the
+whole doll's-house `Qwen3VLModel` over one picture under the same hook (so the slots, the
+three-axis positions and the DeepStack injections are all in one hidden state), the tower's
+inverse frequencies and theta at both widths, the position table's interpolation taps and the
+tower rotary's tables for three grids, `smart_resize` at the **published** bounds for six
+shapes, the processor's own block-major patch tensor, and PIL's alpha-over-white blend. The
+theta is the point of the rope entries: it is in no shipped config and in none of the 750
+published tensors, and 10,000 is what transformers supplies.
+
+The three dumpers that write nothing yet — `dump_rope.py`, `dump_transformer.py`,
+`dump_vae.py` — landed with the kit's skeleton so the seven live in one place. Each states in
+its docstring what it pins and which suite will read it; their doll's-house widths are settled
+by the step that adds that suite.
