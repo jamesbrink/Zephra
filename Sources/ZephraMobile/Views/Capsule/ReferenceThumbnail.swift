@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import ZephraStyle
 
 /// The picture in the well, decoded off the main actor.
 ///
@@ -11,7 +12,7 @@ struct ReferenceThumbnail: View {
     @State private var picture: UIImage?
 
     var body: some View {
-        Color.clear
+        ground
             .overlay {
                 if let picture {
                     Image(uiImage: picture)
@@ -22,5 +23,16 @@ struct ReferenceThumbnail: View {
             .clipped()
             .task(id: data) { picture = await DecodedPicture.from(data) }
             .accessibilityLabel("The picture this run starts from")
+    }
+
+    /// The checkerboard behind a picture that carries transparency, and nothing behind one
+    /// that does not, which is what the well has always drawn.
+    @ViewBuilder
+    private var ground: some View {
+        if picture?.cgImage?.hasTransparency == true {
+            TransparencyGround()
+        } else {
+            Color.clear
+        }
     }
 }

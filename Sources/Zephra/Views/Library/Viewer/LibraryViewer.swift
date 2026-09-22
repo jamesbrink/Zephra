@@ -58,6 +58,10 @@ struct LibraryViewer: View {
                 .resizable()
                 .interpolation(.medium)
                 .aspectRatio(contentMode: .fit)
+                // Behind the picture's own rectangle rather than behind the pane: `aspectRatio`
+                // sizes this view to the fitted picture, so the letterbox stays the canvas's
+                // colour and the checkerboard is exactly as big as the picture.
+                .background { if item.hasAlpha { TransparencyGround() } }
                 .accessibilityLabel(item.prompt.isEmpty ? item.fileName : item.prompt)
         } else {
             ViewerPlaceholder(item: item)

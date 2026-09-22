@@ -13,15 +13,14 @@ struct LibraryThumbnail: View {
     let item: LibraryItem
 
     @Environment(\.libraryThumbnails) private var thumbnails
-    @State private var image: NSImage?
+    @State private var picture: DrawnPicture?
 
     var body: some View {
-        Rectangle()
-            .fill(.quaternary)
+        ground
             .aspectRatio(1, contentMode: .fit)
             .overlay {
-                if let image {
-                    Image(nsImage: image)
+                if let picture {
+                    Image(nsImage: picture.image)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                 }
@@ -33,16 +32,28 @@ struct LibraryThumbnail: View {
             .task(id: ThumbnailRequest(item, thumbnails?.size)) { await load() }
     }
 
+    /// The checkerboard under a picture that carries transparency, and otherwise the fill
+    /// every cell has always had. The decoded thumbnail is what answers, until it is here:
+    /// the file's own header does, so a cell is never checkered and then not.
+    @ViewBuilder
+    private var ground: some View {
+        if picture?.hasAlpha ?? item.hasAlpha {
+            TransparencyGround()
+        } else {
+            Rectangle().fill(.quaternary)
+        }
+    }
+
     /// Asks the cache, drawing whatever it already holds on the first frame so a picture that
     /// has been seen before does not flash.
     private func load() async {
         guard let thumbnails else { return }
         if let hit = thumbnails.cache.cached(item, size: thumbnails.size) {
-            image = hit
+            picture = hit
             return
         }
         guard let loaded = await thumbnails.cache.load(item, size: thumbnails.size) else { return }
-        image = loaded
+        picture = loaded
     }
 }
 

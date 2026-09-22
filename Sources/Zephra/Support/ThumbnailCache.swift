@@ -20,7 +20,7 @@ final class ThumbnailCache {
     /// Roughly ninety-six megabytes, which is about three hundred of the largest bucket.
     private static let memoryLimit = 96 * 1024 * 1024
 
-    private let memory = NSCache<NSString, NSImage>()
+    private let memory = NSCache<NSString, DrawnPicture>()
     /// The baked files behind this cache. Not private, because the companion link asks the same
     /// folder for the same thumbnails: two folders over one directory would be two gates and
     /// twice the concurrent decodes for the same files.
@@ -37,7 +37,7 @@ final class ThumbnailCache {
 
     /// The thumbnail already in memory, or nil. Cheap enough to call from `body`, which is what
     /// lets a cell that has one draw it on the first frame rather than after a flash of nothing.
-    func cached(_ item: LibraryItem, size: ThumbnailSize) -> NSImage? {
+    func cached(_ item: LibraryItem, size: ThumbnailSize) -> DrawnPicture? {
         memory.object(forKey: ThumbnailKey(item, size: size).cacheKey)
     }
 
@@ -48,7 +48,7 @@ final class ThumbnailCache {
     /// anybody, and the next cell to ask will want the whole one. What cancellation does mean
     /// is that this caller stops caring: the pixels are put in memory either way and nil comes
     /// back, so a stale image is never handed to a view that has moved on.
-    func load(_ item: LibraryItem, size: ThumbnailSize) async -> NSImage? {
+    func load(_ item: LibraryItem, size: ThumbnailSize) async -> DrawnPicture? {
         let key = ThumbnailKey(item, size: size)
         if let hit = memory.object(forKey: key.cacheKey) { return hit }
         let task = inFlight[key] ?? detachedBake(key, of: item.url, pixels: size.pixels)
@@ -98,9 +98,9 @@ final class ThumbnailCache {
     /// representation: SwiftUI then draws it at its natural size on a Retina screen without
     /// scaling anything.
     @discardableResult
-    private func store(_ image: CGImage, for key: ThumbnailKey) -> NSImage {
+    private func store(_ image: CGImage, for key: ThumbnailKey) -> DrawnPicture {
         let points = CGSize(width: CGFloat(image.width) / 2, height: CGFloat(image.height) / 2)
-        let made = NSImage(cgImage: image, size: points)
+        let made = DrawnPicture(image, points: points)
         memory.setObject(made, forKey: key.cacheKey, cost: image.width * image.height * 4)
         return made
     }

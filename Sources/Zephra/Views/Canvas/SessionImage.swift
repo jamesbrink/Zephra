@@ -20,12 +20,11 @@ struct SessionImage: View {
     @State private var loaded: Loaded?
 
     var body: some View {
-        Rectangle()
-            .fill(.quaternary)
+        ground
             .aspectRatio(request.aspect, contentMode: .fit)
             .overlay {
                 if let picture {
-                    Image(nsImage: picture)
+                    Image(nsImage: picture.image)
                         .resizable()
                         .interpolation(.high)
                         .aspectRatio(contentMode: .fill)
@@ -37,27 +36,39 @@ struct SessionImage: View {
             .task(id: request.key) { await load() }
     }
 
+    /// What sits under the picture: the checkerboard for one that carries transparency, and
+    /// otherwise the fill this has always had. Only the picture's own rectangle, since the
+    /// aspect ratio is applied to this and the picture is laid over it.
+    @ViewBuilder
+    private var ground: some View {
+        if picture?.hasAlpha == true {
+            TransparencyGround()
+        } else {
+            Rectangle().fill(.quaternary)
+        }
+    }
+
     /// What is on screen: what this request loaded, else whatever the cache already holds for
     /// it, so a picture seen before is on its first frame.
-    private var picture: NSImage? {
-        if let loaded, loaded.key == request.key { return loaded.image }
+    private var picture: DrawnPicture? {
+        if let loaded, loaded.key == request.key { return loaded.picture }
         return cache.cached(request.image, request.kind)
     }
 
     private func load() async {
         if let hit = cache.cached(request.image, request.kind) {
-            loaded = Loaded(key: request.key, image: hit)
+            loaded = Loaded(key: request.key, picture: hit)
             return
         }
         loaded = nil
-        guard let image = await cache.load(request.image, request.kind) else { return }
-        loaded = Loaded(key: request.key, image: image)
+        guard let picture = await cache.load(request.image, request.kind) else { return }
+        loaded = Loaded(key: request.key, picture: picture)
     }
 
     /// Pixels and the request they answer.
     private struct Loaded {
         let key: ImageCache.Request.Key
-        let image: NSImage
+        let picture: DrawnPicture
     }
 }
 
