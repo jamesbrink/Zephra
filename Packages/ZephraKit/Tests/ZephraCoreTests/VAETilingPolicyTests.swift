@@ -34,8 +34,8 @@ struct VAETilingPolicyTests {
                 Double(model.peakBytes) > budget ? VAETilingPolicy.latentTileEdge : nil
             #expect(policy.tileSize(for: model) == expected, Comment(rawValue: model.id))
         }
-        // Both Z-Image variants and Qwen-Image page untiled on a 16 GB Mac; klein 4-bit is the
-        // first entry that does not, which is the point of it.
+        // Both Z-Image variants page untiled on a 16 GB Mac; klein 4-bit is the first entry
+        // that does not, which is the point of it.
         #expect(policy.tileSize(for: ModelCatalog.zImageTurbo4bit) == VAETilingPolicy.latentTileEdge)
         #expect(policy.tileSize(for: ModelCatalog.flux2Klein4bit) == nil)
     }

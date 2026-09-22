@@ -16,8 +16,8 @@ struct SizeChoiceTests {
         #expect(groups.last?.choices.first?.size == ImageSize(width: 768, height: 512))
         let marked = groups.flatMap(\.choices).filter(\.matchesPicture)
         #expect(marked.isEmpty)
-        let qwen = SizeChoice.grouped(ModelCatalog.qwenImage2512_4bit.capabilities, picture: nil)
-        #expect(qwen.map(\.tier) == [.faster, .standard, .larger])
+        let klein = SizeChoice.grouped(ModelCatalog.flux2Klein4bit.capabilities, picture: nil)
+        #expect(klein.map(\.tier) == [.faster, .standard, .larger])
     }
 
     @Test("with a picture in the well each tier leads with the picture's shape at that tier's cost")

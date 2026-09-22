@@ -8,10 +8,10 @@ import ZephraMLX
 struct PackedSnapshotErrorTests {
     @Test("a malformed manifest names its path and the decoder's reason")
     func malformedManifestNamesThePath() {
-        let url = URL(filePath: "/models/qwen-image-2512-4bit/quantization.json")
+        let url = URL(filePath: "/models/flux2-klein-4b-4bit/quantization.json")
         let description = PackedSnapshotError.malformedManifest(url, reason: "not JSON")
             .errorDescription ?? ""
-        #expect(description.contains("/models/qwen-image-2512-4bit/quantization.json"))
+        #expect(description.contains("/models/flux2-klein-4b-4bit/quantization.json"))
         #expect(description.contains("not JSON"))
         #expect(description.contains("build it again"))
     }

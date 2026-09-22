@@ -1,7 +1,6 @@
 import SwiftUI
 import ZephraBackendFlux2
 import ZephraBackendLTX2
-import ZephraBackendQwenImage
 import ZephraBackendWan
 import ZephraBackendZImage
 import ZephraCore
@@ -69,7 +68,6 @@ struct ZephraApp: App {
     /// here because this is the only file allowed to name a backend.
     private static let runtime = CombinedInferenceRuntime([
         ZImageBackendFactory.runtime,
-        QwenImageBackendFactory.runtime,
         Flux2BackendFactory.runtime,
         LTX2BackendFactory.runtime,
         WanBackendFactory.runtime,
@@ -280,7 +278,6 @@ struct ZephraApp: App {
         runtime.setVAETileSize(environment.vaeTile)
         var registry = BackendRegistry()
         registry.register(.zImage, ZImageBackendFactory.make(environment))
-        registry.register(.qwenImage, QwenImageBackendFactory.make(environment))
         registry.register(.flux2, Flux2BackendFactory.make(environment))
         registry.register(.ltx2, LTX2BackendFactory.make(environment))
         registry.register(.wan, WanBackendFactory.make(environment))

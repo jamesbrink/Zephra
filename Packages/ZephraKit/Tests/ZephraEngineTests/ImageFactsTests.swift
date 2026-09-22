@@ -60,12 +60,12 @@ struct ImageFactsTests {
             settings: GenerationSettings(
                 prompt: "a harbour", size: ImageSize(width: 1328, height: 1328), steps: 4,
                 guidance: 0, seed: 42),
-            modelID: "qwen-image-2512-4bit",
+            modelID: "flux2-klein-4b-4bit",
             duration: .seconds(66.7)
         )
-        let facts = ImageFacts(image, modelName: "Qwen-Image")
+        let facts = ImageFacts(image, modelName: "FLUX.2 klein 4B")
 
-        #expect(facts.model == "Qwen-Image")
+        #expect(facts.model == "FLUX.2 klein 4B")
         #expect(facts.size == "1328 \u{00D7} 1328")
         #expect(facts.steps == "4")
         // The label is the seed's leading eight hex digits, so a small seed reads as zeroes.

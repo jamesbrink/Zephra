@@ -57,7 +57,7 @@ struct GenerationSettingsTests {
     func scheduleKeepsTheReference() {
         var settings = GenerationSettings.defaults(for: descriptor)
         settings.referenceImage = Data([9, 9])
-        let moved = settings.onSchedule(of: ModelCatalog.qwenImage2512_4bit)
+        let moved = settings.onSchedule(of: ModelCatalog.zImageTurbo4bit)
         #expect(moved.referenceImage == settings.referenceImage)
         #expect(moved.size == settings.size)
     }

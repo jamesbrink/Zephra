@@ -58,7 +58,7 @@ struct ModelCatalogTests {
         #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo8bit, physicalMemory: memory) == .fitsStreamed)
     }
 
-    @Test("a 32 GB Mac runs everything, but only Qwen-Image needs the tiled decode to do it")
+    @Test("a 32 GB Mac runs everything, and the one entry it cannot hold streams")
     func thirtyTwoGigabytesFitsEverythingSomehow() {
         let memory = Self.gigabytes(32)
         #expect(ModelCatalog.fitting(physicalMemory: memory) == ModelCatalog.all)
@@ -68,35 +68,38 @@ struct ModelCatalogTests {
         ] {
             #expect(ModelCatalog.fit(model, physicalMemory: memory) == .fits)
         }
-        // 30.4 GB untiled is over the 27.5 GB budget; 26.1 GB tiled is under it. A 20-billion
-        // parameter model was always going to be the one that needs the lever, which is why
-        // this assertion is per model and not a loop over the catalog.
+        // 28.7 GB is over the 27.5 GB budget, and LTX-2.5's decoder has no tiled path, so its
+        // tiled figure is that same 28.7 and the only lever left is the stream. The assertion
+        // is per model rather than a loop over the catalog because it is about that one entry.
         #expect(
-            ModelCatalog.fit(ModelCatalog.qwenImage2512_4bit, physicalMemory: memory)
-                == .fitsTiled)
-        #expect(!ModelCatalog.fitsComfortably(ModelCatalog.qwenImage2512_4bit, physicalMemory: memory))
+            ModelCatalog.fit(ModelCatalog.ltx2DistilledAudio4bit, physicalMemory: memory)
+                == .fitsStreamed)
+        #expect(
+            !ModelCatalog.fitsComfortably(
+                ModelCatalog.ltx2DistilledAudio4bit, physicalMemory: memory))
     }
 
-    @Test("Qwen-Image decodes exactly on a 36 GB Mac, streams on a 24 GB one, and not on 8")
-    func qwenImageNeedsALargeMac() {
-        // 30.9 GB of budget against a 30.4 GB peak: 36 GB is the smallest Mac sold that runs
-        // this model with the exact decode, and it is a close thing.
-        #expect(ModelCatalog.fit(ModelCatalog.qwenImage2512_4bit, physicalMemory: Self.gigabytes(36)) == .fits)
-        #expect(ModelCatalog.fit(ModelCatalog.qwenImage2512_4bit, physicalMemory: Self.gigabytes(48)) == .fits)
-        // A 24 GB Mac cannot hold the model tiled (26.1 GB) and can hold it streamed
-        // (10.2 GB); so can a 16 GB one.
-        #expect(ModelCatalog.fit(ModelCatalog.qwenImage2512_4bit, physicalMemory: Self.gigabytes(24)) == .fitsStreamed)
-        #expect(ModelCatalog.fit(ModelCatalog.qwenImage2512_4bit, physicalMemory: Self.gigabytes(16)) == .fitsStreamed)
-        let fit = ModelCatalog.fit(ModelCatalog.qwenImage2512_4bit, physicalMemory: Self.gigabytes(8))
+    @Test("LTX-2.5 with sound decodes on a 36 GB Mac, streams on a 24 GB one, and not on 8")
+    func ltx2WithSoundNeedsALargeMac() {
+        // 30.9 GB of budget against a 28.7 GB peak: 36 GB is the smallest Mac sold that runs
+        // the entry with sound with the whole decode in memory.
+        let model = ModelCatalog.ltx2DistilledAudio4bit
+        #expect(ModelCatalog.fit(model, physicalMemory: Self.gigabytes(36)) == .fits)
+        #expect(ModelCatalog.fit(model, physicalMemory: Self.gigabytes(48)) == .fits)
+        // A 24 GB Mac cannot hold it tiled (28.7 GB, the decoder having no tiled path) and can
+        // hold it streamed (12.1 GB); so can a 16 GB one.
+        #expect(ModelCatalog.fit(model, physicalMemory: Self.gigabytes(24)) == .fitsStreamed)
+        #expect(ModelCatalog.fit(model, physicalMemory: Self.gigabytes(16)) == .fitsStreamed)
+        let fit = ModelCatalog.fit(model, physicalMemory: Self.gigabytes(8))
         guard case .tight(let needed) = fit else {
-            Issue.record("expected Qwen-Image not to fit on an 8 GB Mac even streamed")
+            Issue.record("expected LTX-2.5 with sound not to fit on an 8 GB Mac even streamed")
             return
         }
-        // The streamed peak, which is the leanest way this family runs: naming the 26.1 GB
-        // tiled figure would tell an 8 GB Mac to find memory for a load Zephra would never ask
-        // of it, since Automatic streams anything that does not fit resident.
-        #expect(needed == ModelCatalog.qwenImage2512_4bit.streamedPeakBytes)
-        #expect(needed == 10_250_000_000)
+        // The streamed peak, which is the leanest way this family runs: naming the 28.7 GB
+        // figure would tell an 8 GB Mac to find memory for a load Zephra would never ask of
+        // it, since Automatic streams anything that does not fit resident.
+        #expect(needed == model.streamedPeakBytes)
+        #expect(needed == 12_080_000_000)
     }
 
     @Test("a 24 GB Mac runs the 4-bit model exactly and the 8-bit one only tiled")
@@ -105,13 +108,12 @@ struct ModelCatalogTests {
         #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo4bit, physicalMemory: memory) == .fits)
         // 23.5 GB untiled is over the 19.3 GB budget; 17.7 GB tiled is under it.
         #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo8bit, physicalMemory: memory) == .fitsTiled)
-        // Both Z-Image variants, both klein variants, Qwen-Image streamed, Wan 2.2 tiled
-        // (12.4 GB under the 19.3 GB budget), and both LTX-2.5 entries streamed: the
-        // measured 21.8 GB peak and the audio entry's larger one are over it.
-        #expect(ModelCatalog.fitting(physicalMemory: memory).count == 8)
+        // Both Z-Image variants, both klein variants, Wan 2.2 tiled (12.4 GB under the
+        // 19.3 GB budget), and both LTX-2.5 entries streamed: the measured 21.8 GB peak and
+        // the audio entry's larger one are over it.
+        #expect(ModelCatalog.fitting(physicalMemory: memory).count == 7)
         #expect(ModelCatalog.fit(ModelCatalog.ltx2DistilledAudio4bit, physicalMemory: memory) == .fitsStreamed)
         #expect(ModelCatalog.fit(ModelCatalog.wan22TI2V5B4bit, physicalMemory: memory) == .fits)
-        #expect(ModelCatalog.fit(ModelCatalog.qwenImage2512_4bit, physicalMemory: memory) == .fitsStreamed)
     }
 
     @Test("a Mac too small for a model is told how much memory it would take")
@@ -147,7 +149,6 @@ struct ModelCatalogTests {
                 ModelCatalog.flux2Klein4bit,
                 ModelCatalog.flux2Klein8bit,
                 ModelCatalog.zImageTurbo4bit,
-                ModelCatalog.qwenImage2512_4bit,
                 ModelCatalog.wan22TI2V5B4bit,
                 ModelCatalog.ltx2Distilled4bit,
                 ModelCatalog.ltx2DistilledAudio4bit,
@@ -256,39 +257,6 @@ struct ModelCatalogTests {
         }
     }
 
-    @Test("the Qwen-Image entry downloads a release and an adapter, and builds from both")
-    func qwenImageIsBuiltFromAReleaseAndAnAdapter() throws {
-        let descriptor = ModelCatalog.qwenImage2512_4bit
-        #expect(descriptor.backend == .qwenImage)
-        #expect(descriptor.source.requiresDownload)
-        #expect(descriptor.isBuiltLocally)
-        #expect(descriptor.downloadBytes == 57_700_000_000)
-        #expect(descriptor.builtBytes == 21_600_000_000)
-        #expect(descriptor.fullName == "Qwen-Image 2512 · 4-bit")
-        guard case .huggingFace(let repoID, _, let patterns) = descriptor.source else {
-            Issue.record("Qwen-Image downloads from the hub")
-            return
-        }
-        #expect(repoID == "Qwen/Qwen-Image-2512")
-        #expect(patterns.contains("transformer/*") && patterns.contains("tokenizer/*"))
-        #expect(!patterns.contains("*"), "the README and .gitattributes are left out by omission")
-        // The four-step distillation ships apart from the weights it distils, so choosing this
-        // model costs both, and the picker's figure has to say so.
-        #expect(descriptor.adapters.count == 1)
-        let adapter = try #require(descriptor.adapters.first)
-        #expect(adapter.repoID == "lightx2v/Qwen-Image-2512-Lightning")
-        #expect(adapter.file == "Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors")
-        #expect(descriptor.transferBytes == 57_700_000_000 + 1_698_951_104)
-        // The adapter was distilled without classifier-free guidance, and it is merged into
-        // these weights, so a guidance slider or a negative prompt would be a control nothing
-        // answers to.
-        #expect(descriptor.capabilities.defaultSteps == 4)
-        #expect(descriptor.capabilities.guidanceBounds == 0...0)
-        #expect(!descriptor.capabilities.supportsNegativePrompt)
-        // The reference pipeline's max_sequence_length, which the request mapper passes on.
-        #expect(descriptor.maxPromptTokens == 512)
-    }
-
     @Test("the 4-bit Z-Image variant is packed here from the bf16 release, not from nothing")
     func fourBitIsBuiltFromTheRelease() {
         let descriptor = ModelCatalog.zImageTurbo4bit
@@ -384,10 +352,11 @@ struct ModelCatalogTests {
 
     @Test("a family that streams is judged on its streamed peak, which is the smaller one")
     func leanestPeakTakesTheStreamedFigureWhenThereIsOne() {
-        // Qwen-Image tiles to 26.1 GB and streams in 10.3; LTX-2.5 tiles to 23.4 and streams
-        // in 10.0. Reading the tiled figure alone would rank both as heavier than they are.
-        #expect(ModelCatalog.qwenImage2512_4bit.leanestPeakBytes
-            == ModelCatalog.qwenImage2512_4bit.streamedPeakBytes)
+        // Z-Image 8-bit tiles to 17.9 GB and streams in 6.4; LTX-2.5 tiles to 23.4 and
+        // streams in 10.0. Reading the tiled figure alone would rank both as heavier than
+        // they are.
+        #expect(ModelCatalog.zImageTurbo8bit.leanestPeakBytes
+            == ModelCatalog.zImageTurbo8bit.streamedPeakBytes)
         #expect(ModelCatalog.ltx2Distilled4bit.leanestPeakBytes
             == ModelCatalog.ltx2Distilled4bit.streamedPeakBytes)
         // klein streams too since 2026-09-13, so its 4.06 GB streamed figure is the answer

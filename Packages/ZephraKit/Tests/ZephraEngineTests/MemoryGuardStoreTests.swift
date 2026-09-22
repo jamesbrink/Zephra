@@ -10,7 +10,7 @@ struct MemoryGuardStoreTests {
     /// A 16 GB Mac's working set, which no catalog model is held whole in.
     static let small = MemoryBudget(physicalMemory: 16 << 30, gpuWorkingSet: 12_124 << 20)
 
-    /// A budget the catalog straddles: klein 4-bit runs tiled, Z-Image 8-bit and Qwen-Image
+    /// A budget the catalog straddles: klein 4-bit runs tiled, Z-Image 8-bit and LTX-2.5
     /// stream, and LTX-2.5 with sound is over even its streamed figure, so it is a model this
     /// Mac cannot hold and the one every "cannot hold" case below is about. Z-Image 8-bit is
     /// what `bootstrap` therefore keeps here, streamed, since its 6.42 GB streamed peak was
@@ -148,15 +148,15 @@ struct MemoryGuardStoreTests {
         let bed = EngineTestBed()
         bed.memoryBudget = Self.straddling
         let store = bed.store(descriptor: ModelCatalog.flux2Klein4bit)
-        var settings = GenerationSettings.defaults(for: ModelCatalog.qwenImage2512_4bit)
+        var settings = GenerationSettings.defaults(for: ModelCatalog.zImageTurbo8bit)
         settings.prompt = "from another Mac"
 
         // A picture from a model this Mac can hold chooses that model, as it always has.
         store.select(
             GeneratedImage(
-                pngData: Data(), settings: settings, modelID: ModelCatalog.qwenImage2512_4bit.id,
+                pngData: Data(), settings: settings, modelID: ModelCatalog.zImageTurbo8bit.id,
                 duration: .seconds(1)))
-        #expect(store.descriptor.id == ModelCatalog.qwenImage2512_4bit.id)
+        #expect(store.descriptor.id == ModelCatalog.zImageTurbo8bit.id)
 
         // One from a model it cannot hold is still shown, and its settings are still taken —
         // on the current model's schedule, exactly as a picture from a dropped model is.
@@ -164,7 +164,7 @@ struct MemoryGuardStoreTests {
             GeneratedImage(
                 pngData: Data(), settings: settings, modelID: Self.tooLarge.id,
                 duration: .seconds(1)))
-        #expect(store.descriptor.id == ModelCatalog.qwenImage2512_4bit.id)
+        #expect(store.descriptor.id == ModelCatalog.zImageTurbo8bit.id)
         #expect(store.current != nil)
         #expect(store.settings.prompt == "from another Mac")
     }

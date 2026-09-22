@@ -41,7 +41,7 @@ struct ModelSwitchingTests {
         id: "test-other-family",
         displayName: "Test Model",
         variantName: "other family",
-        backend: .qwenImage,
+        backend: .flux2,
         source: .huggingFace(repoID: "example/other", revision: "main", filePatterns: ["*"]),
         quantization: .int4,
         downloadBytes: 4_000_000_000,

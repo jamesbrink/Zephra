@@ -50,8 +50,6 @@ packages:
     path: Packages/ZephraMLXKit
   ZephraBackendZImage:
     path: Packages/ZephraBackendZImage
-  ZephraBackendQwenImage:
-    path: Packages/ZephraBackendQwenImage
   ZephraBackendFlux2:
     path: Packages/ZephraBackendFlux2
   ZephraBackendLTX2:
@@ -66,8 +64,6 @@ packages:
     path: Packages/LTX2Kit
   WanKit:
     path: Packages/WanKit
-  QwenImageKit:
-    path: Packages/QwenImageKit
   ZImageKit:
     path: Packages/ZImageKit
   # The wire the Mac and the phone share; `ZephraMobile` links it.
@@ -106,8 +102,6 @@ targets:
         product: ZephraMedia
       - package: ZephraBackendZImage
         product: ZephraBackendZImage
-      - package: ZephraBackendQwenImage
-        product: ZephraBackendQwenImage
       - package: ZephraBackendFlux2
         product: ZephraBackendFlux2
       - package: ZephraBackendLTX2
@@ -268,8 +262,6 @@ targets:
         product: ZephraMedia
       - package: ZephraBackendZImage
         product: ZephraBackendZImage
-      - package: ZephraBackendQwenImage
-        product: ZephraBackendQwenImage
       - package: ZephraBackendFlux2
         product: ZephraBackendFlux2
       - package: ZephraBackendLTX2
@@ -296,8 +288,6 @@ targets:
         product: ZephraQuantization
       - package: ZephraBackendZImage
         product: ZephraBackendZImage
-      - package: ZephraBackendQwenImage
-        product: ZephraBackendQwenImage
       - package: ZephraBackendFlux2
         product: ZephraBackendFlux2
       - package: ZephraBackendLTX2

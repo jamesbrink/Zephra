@@ -47,10 +47,26 @@ struct ModelStorageTests {
         #expect(items.last?.location.hasPrefix("/") == true)
     }
 
+    /// A catalog entry with an adapter beside its release. Nothing in the catalog carries one
+    /// any more, so the two cases below build their own; they go with the adapter seam.
+    static func withAdapter() -> ModelDescriptor {
+        let base = ModelCatalog.flux2Klein4bit
+        return ModelDescriptor(
+            id: base.id, displayName: base.displayName, variantName: base.variantName,
+            backend: base.backend, source: base.source, quantization: base.quantization,
+            downloadBytes: base.downloadBytes, residentBytes: base.residentBytes,
+            peakBytes: base.peakBytes, tiledPeakBytes: base.tiledPeakBytes,
+            maxPromptTokens: base.maxPromptTokens, capabilities: base.capabilities,
+            adapters: [
+                ModelAdapter(
+                    repoID: "example/Distillation", file: "4steps-fp32.safetensors", bytes: 1_000)
+            ])
+    }
+
     @Test("an adapter `hf download` put in the cache is listed with its model, where it is")
     func aCachedAdapterIsListed() throws {
         let scratch = Scratch("ModelStorage")
-        let descriptor = ModelCatalog.qwenImage2512_4bit
+        let descriptor = Self.withAdapter()
         let adapter = try #require(descriptor.adapters.first)
         let repository = "hub/models--" + adapter.repoID.replacingOccurrences(of: "/", with: "--")
         try scratch.write("abc", to: repository + "/refs/main")
@@ -107,24 +123,21 @@ struct ModelStorageTests {
     func anAdapterIsListedWithItsModel() throws {
         let scratch = Scratch("ModelStorage")
         let locations = ModelLocations(root: scratch.url("models"))
-        try scratch.make("models/Downloads/lightx2v--Qwen-Image-2512-Lightning", isDirectory: true)
+        let descriptor = Self.withAdapter()
+        try scratch.make("models/Downloads/example--Distillation", isDirectory: true)
 
         let items = ModelStorage.items(
-            for: [ModelCatalog.qwenImage2512_4bit], cache: scratch.url("hub"),
-            locations: locations)
+            for: [descriptor], cache: scratch.url("hub"), locations: locations)
         let adapter = try #require(items.first)
         #expect(items.count == 1)
-        #expect(adapter.name == "Qwen-Image 2512 adapter")
-        #expect(adapter.modelIDs == ["qwen-image-2512-4bit"])
-        #expect(adapter.location == "Downloads/lightx2v--Qwen-Image-2512-Lightning")
+        #expect(adapter.name == "\(descriptor.displayName) adapter")
+        #expect(adapter.modelIDs == [descriptor.id])
+        #expect(adapter.location == "Downloads/example--Distillation")
         #expect(!adapter.isComplete, "the folder is there and the one file it wants is not")
 
-        try scratch.make(
-            "models/Downloads/lightx2v--Qwen-Image-2512-Lightning/Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors"
-        )
+        try scratch.make("models/Downloads/example--Distillation/4steps-fp32.safetensors")
         let again = ModelStorage.items(
-            for: [ModelCatalog.qwenImage2512_4bit], cache: scratch.url("hub"),
-            locations: locations)
+            for: [descriptor], cache: scratch.url("hub"), locations: locations)
         #expect(again.first?.isComplete == true)
     }
 

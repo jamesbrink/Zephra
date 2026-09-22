@@ -145,8 +145,8 @@ public enum ModelCatalog {
     /// first and says nothing about which model is cheapest to read off a disk. So a later
     /// entry may be added here on its merits as a listing.
     public static let all: [ModelDescriptor] = [
-        zImageTurbo8bit, flux2Klein4bit, flux2Klein8bit, zImageTurbo4bit, qwenImage2512_4bit,
-        wan22TI2V5B4bit, ltx2Distilled4bit, ltx2DistilledAudio4bit,
+        zImageTurbo8bit, flux2Klein4bit, flux2Klein8bit, zImageTurbo4bit, wan22TI2V5B4bit,
+        ltx2Distilled4bit, ltx2DistilledAudio4bit,
     ]
 
     /// The model selected on first launch when nothing is known about the machine.
