@@ -30,10 +30,10 @@ struct CanvasScreen: View {
         }
     }
 
-    /// Puts one picture in the well, fitted to whatever model the next press names.
-    private func fill(_ picture: ReferencePicture, origin: String) -> Bool {
+    /// Puts the pictures in the well, fitted to whatever model the next press names, by D7's
+    /// one rule: they are added where there is room and replace the strip where there is not.
+    private func fill(_ pictures: [ReferencePicture]) -> Bool {
         guard let model = dispatch.models.first(where: { $0.id == draft.modelID }) else { return false }
-        draft.adopt(picture, origin: origin, fitting: model.capabilities.capabilities)
-        return true
+        return draft.useAsReferences(pictures, fitting: model.capabilities.capabilities)
     }
 }

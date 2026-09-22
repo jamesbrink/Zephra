@@ -25,9 +25,8 @@ struct ReferenceResolutionTests {
         let seed = draft.settings.seed
         intent.use(entries[0].id)
         #expect(!intent.canGenerate)
-        await ReferenceAdoption.take(intent, from: catalog) { picture, origin in
-            draft.adopt(picture, origin: origin, fitting: ReferenceIntentTests.Bed.pictureCapabilities.capabilities)
-            return true
+        await ReferenceAdoption.take(intent, from: catalog) { pictures in
+            draft.useAsReferences(pictures, fitting: ReferenceIntentTests.Bed.pictureCapabilities.capabilities)
         }
         #expect(intent.canGenerate)
         #expect(draft.referenceSize == ImageSize(width: 64, height: 32))
@@ -42,7 +41,7 @@ struct ReferenceResolutionTests {
         // B's same filename is not a fallback for an unavailable source from A.
         await catalog.fileStore.remove(prefix: ids[0].rawValue + "-")
         intent.use(entries[0].id)
-        await ReferenceAdoption.take(intent, from: catalog) { _, _ in Issue.record("An unavailable source was substituted"); return false }
+        await ReferenceAdoption.take(intent, from: catalog) { _ in Issue.record("An unavailable source was substituted"); return false }
         #expect(!intent.canGenerate)
         #expect(intent.note != nil)
         #expect(draft.reference == bytes)
@@ -61,7 +60,7 @@ struct ReferenceResolutionTests {
             for await _ in gate {}
             await ReferenceAdoption.resolve(intent, revision: revision, load: {
                 loaded = true
-                return Data()
+                return [ReferencePicture(data: Data([1]))]
             }, fill: { _ in Issue.record("A cleared photo was adopted"); return true })
         }
         intent.clear()
@@ -77,7 +76,7 @@ struct ReferenceResolutionTests {
         intent.use("second")
         intent.resolved(first, success: true)
         #expect(!intent.canGenerate && intent.isResolving)
-        #expect(intent.fileName == "second")
+        #expect(intent.fileNames == ["second"])
         let second = intent.revision
         intent.clear()
         intent.resolved(second, success: false)

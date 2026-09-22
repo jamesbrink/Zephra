@@ -11,6 +11,11 @@ import SwiftUI
 /// "start from this one" is asking to be taken to where a run is started. The intent survives
 /// the move either way, which is what it is an object for.
 ///
+/// What it does at the far end is D7's one rule, and the draft is where that rule lives: the
+/// picture is added where there is room and replaces the whole strip where there is not. The
+/// word on the button is `UseAsReferenceLabel`'s, which reads the same answer, so a button that
+/// says "Add" cannot be a press that replaces.
+///
 /// Offered whether or not the Mac is in reach: it changes nothing until Generate is pressed,
 /// and pressing that is the capsule's gate to keep.
 struct UseAsReferenceButton: View {
@@ -21,9 +26,11 @@ struct UseAsReferenceButton: View {
     @Environment(MobileSelection.self) private var selection
 
     var body: some View {
-        Button("Use as Reference", systemImage: "photo.badge.plus") {
+        Button {
             reference.use(entry.id)
             selection.tab = .canvas
+        } label: {
+            UseAsReferenceLabel()
         }
     }
 }

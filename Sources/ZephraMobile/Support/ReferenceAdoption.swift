@@ -1,6 +1,6 @@
 import Foundation
-import ZephraLinkProtocol
 import ZephraCore
+import ZephraLinkProtocol
 
 /// The one door every picture enters the reference well through.
 ///
@@ -9,39 +9,63 @@ import ZephraCore
 /// as the same bytes with the same rules applied. It holds no state — the draft does — and it
 /// encodes off the main actor, since a photo out of a phone's camera is twelve megapixels and
 /// resizing one on the main actor is a frozen capsule somebody is watching.
+///
+/// A door that hands over several pictures is **one** read and **one** landing, under one
+/// revision. Five reads under five revisions would land only the last, which is the failure the
+/// revision exists to prevent; and one landing is what lets the draft decide once whether there
+/// is room for what it was offered.
 enum ReferenceAdoption {
-    /// Takes the library's "start from this one" — a file name and nothing else — and hands the
-    /// bytes behind it to `fill`.
+    /// Takes the library's "start from these" — file names and nothing else — and hands the
+    /// pictures behind them to `fill`, in the order they were named.
     ///
-    /// The picture comes through `LibraryCatalog`, so it crosses the link once for both
-    /// surfaces: the one the library already has on disk is the one the well gets, and the one
-    /// the well fetches is the one the library draws next. The name goes on as the origin,
-    /// which is `GenerationSettings.referenceOrigin` — the provenance the Mac records beside
-    /// the run.
+    /// Each picture comes through `LibraryCatalog`, so it crosses the link once for both
+    /// surfaces and one budget sees every one of them: the pictures the library already has on
+    /// disk are the ones the well gets, and the ones the well fetches are the ones the library
+    /// draws next. Each name goes on as that picture's `origin`, which is the provenance the
+    /// Mac records beside the run.
     ///
     /// The request is taken before anything is fetched, so a slow link cannot leave it to be
-    /// acted on twice; a failed fetch leaves the old picture visible but blocks Generate until the
-    /// request is resolved or explicitly cleared.
+    /// acted on twice; a failed fetch leaves the old pictures visible but blocks Generate until
+    /// the request is resolved or explicitly cleared.
     static func take(
         _ intent: ReferenceIntent, from catalog: LibraryCatalog,
-        fill: (ReferencePicture, String) -> Bool
+        fill: ([ReferencePicture]) -> Bool
     ) async {
-        guard let name = intent.take() else { return }
+        let names = intent.take()
+        guard !names.isEmpty else { return }
         let revision = intent.revision
-        await resolve(intent, revision: revision,
-            load: { await catalog.picture(named: name, priority: .reference) },
-            fill: { fill($0, name) })
+        await resolve(intent, revision: revision, load: {
+            var pictures: [ReferencePicture] = []
+            for name in names {
+                guard let data = await catalog.picture(named: name, priority: .reference),
+                    var picture = await encoded(data)
+                else { continue }
+                picture.origin = name
+                pictures.append(picture)
+            }
+            return pictures
+        }, fill: fill)
     }
 
-    static func resolve(_ intent: ReferenceIntent, revision: UUID,
-                        load: () async -> Data?, fill: (ReferencePicture) -> Bool) async {
+    /// Runs one read under one revision and lands what it returns, unless a newer choice was
+    /// made while it ran. Nothing read at all is a failure somebody is told about; anything read
+    /// is offered to the draft, which answers whether it took it.
+    static func resolve(
+        _ intent: ReferenceIntent, revision: UUID,
+        load: () async -> [ReferencePicture], fill: ([ReferencePicture]) -> Bool
+    ) async {
         guard revision == intent.revision else { return }
-        guard let data = await load(),
-              let picture = await Task.detached(operation: { ReferenceImageEncoder.picture(from: data) }).value else {
+        let pictures = await load()
+        guard !pictures.isEmpty else {
             intent.resolved(revision, success: false)
             return
         }
         guard revision == intent.revision else { return }
-        intent.resolved(revision, success: fill(picture))
+        intent.resolved(revision, success: fill(pictures))
+    }
+
+    /// One picture's bytes as a reference, resized off the main actor.
+    static func encoded(_ data: Data) async -> ReferencePicture? {
+        await Task.detached(operation: { ReferenceImageEncoder.picture(from: data) }).value
     }
 }

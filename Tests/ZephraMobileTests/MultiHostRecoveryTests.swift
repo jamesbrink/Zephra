@@ -42,8 +42,8 @@ struct MultiHostRecoveryTests {
         let source = try #require(catalog.entries.first { $0.hostID == a.preference.id })
         let intent = ReferenceIntent(), draft = PromptDraft()
         intent.use(source.id)
-        await ReferenceAdoption.take(intent, from: catalog) { picture, origin in
-            draft.adopt(picture, origin: origin, fitting: ReferenceIntentTests.Bed.pictureCapabilities.capabilities)
+        await ReferenceAdoption.take(intent, from: catalog) { pictures in
+            draft.useAsReferences(pictures, fitting: ReferenceIntentTests.Bed.pictureCapabilities.capabilities)
             return true
         }
         #expect(intent.canGenerate)

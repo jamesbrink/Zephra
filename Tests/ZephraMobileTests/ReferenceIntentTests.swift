@@ -26,7 +26,7 @@ struct ReferenceIntentTests {
 
         #expect(bed.draft.reference != nil, "the well is filled")
         #expect(bed.draft.referenceOrigin == bed.name)
-        #expect(bed.intent.fileName == nil, "and the request is spent")
+        #expect(bed.intent.fileNames.isEmpty, "and the request is spent")
     }
 
     @Test("The picture comes out of the cache, over a client whose blobs never answer")
@@ -110,9 +110,8 @@ struct ReferenceIntentTests {
         /// What the canvas does when the intent changes: `ReferenceIntentReader` is three lines
         /// of SwiftUI over exactly this.
         func take() async {
-            await ReferenceAdoption.take(intent, from: catalog) { picture, origin in
-                draft.adopt(picture, origin: origin, fitting: capabilities.capabilities)
-                return true
+            await ReferenceAdoption.take(intent, from: catalog) { pictures in
+                draft.useAsReferences(pictures, fitting: capabilities.capabilities)
             }
         }
 
