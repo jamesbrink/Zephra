@@ -42,43 +42,39 @@ extension ModelCatalog {
         // 1,350,991,591, processor 15,884,996, scheduler 485, LICENSE 7,831 and the index —
         // 33,131,609,424 in all, carried rounded **up** as a transfer estimate is.
         downloadBytes: 33_140_000_000,
-        // ESTIMATE, 2026-09-22, to be measured with `make bench` at 1024 pixels, forty steps,
-        // three runs on an idle Mac; `BENCHMARKS.md` carries it under "Owed reruns" until then.
-        // Arithmetic rather than a reading: 93% of the measured `builtBytes` below, which is
-        // the ratio both variants packed on a Mac show between what the build writes and what
-        // the bench reads live (klein 4-bit 4941 of 5366 MB, Z-Image 4-bit 6707 of 7123) —
-        // the packer writes its scales float32 and the load casts them down.
-        residentBytes: 10_800_000_000,
-        // ESTIMATE, 2026-09-22, to be measured with `make bench`. The resident figure plus an
-        // untiled decode's transient at 1024, taken from the ratio the two measured 16-channel
-        // families show between their untiled and tiled decodes.
-        peakBytes: 17_800_000_000,
-        // ESTIMATE, 2026-09-22, to be measured with `make bench` under `ZEPHRA_VAE_TILE=64`.
-        //
-        // Rounded **up** deliberately, and the one figure here where the rounding is a decision
-        // rather than a habit: 14.4 GB is over a 16 GB Mac's 13.74 GB fallback budget and over
-        // bender's measured 12.71 GB working set, so such a Mac streams this model rather than
-        // holding it. An estimate carrying a gigabyte of uncertainty must not be the thing that
-        // puts 10.8 GB of weights resident on the smallest Mac in the table; if the measurement
-        // comes in under the budget, that is a change to make deliberately with a reading in
-        // hand, the way `zImageTurbo4bit`'s 12.15 GB was.
-        tiledPeakBytes: 14_400_000_000,
-        // ESTIMATE, 2026-09-22, to be measured with `make bench --stream --stream-depth 2`.
-        // The 32 transformer blocks and the 36 language-model layers stream, so what is left is
-        // the float32 autoencoder, the vision tower (resident, run once a picture), the
-        // embeddings, the norms and the modulation table, plus the decode's tile and the
-        // depth-2 window.
-        streamedPeakBytes: 7_500_000_000,
-        // ESTIMATE, 2026-09-22, the live figure of that same streamed run, to be measured
-        // beside the peak. The two go together: `MemoryGuard` subtracts this from the streamed
-        // peak, and `residentBytes` cannot stand in for it.
-        streamedResidentBytes: 2_600_000_000,
-        // ESTIMATE, 2026-09-22, to be measured with `make bench --reference IMAGE` against the
-        // same run without one. One 1024-pixel reference is 4096 prefix tokens held across
-        // every layer's key and value cache, plus the latents themselves; near enough constant
-        // across target sizes, because a reference is fitted to the same megapixel budget
-        // whatever is being made. `MemoryGuard` adds it per picture, twice under guidance.
-        referencePrefixBytes: 2_200_000_000,
+        // Measured on halcyon (M4 Max, 48 GB, 40.2 GB working set) on 2026-09-22 with
+        // `make bench` at 1024 pixels, forty steps, one run, the machine otherwise idle but
+        // shared for timing; the memory figures are stable across runs. 10,585 MB live after
+        // a generation at any size: the packed weights plus the float32 autoencoder, which is
+        // the whole of it. Held figures round down.
+        residentBytes: 10_580_000_000,
+        // Measured, same run: 20,069 MB untiled at 1024. The transient over the weights is the
+        // float32 decode's: MLX runs the decoder's 3 x 3 convolutions as Winograd and the
+        // 1024-pixel upsampler stage alone holds about 8 GB of scratch. The transformer's own
+        // step adds 3.3 GB at the first step and 1.4 GB on a cached one. Peaks round up.
+        peakBytes: 20_070_000_000,
+        // Measured, same machine and seed, under `ZEPHRA_VAE_TILE=64` (32 latent cells after
+        // the mapper halves it): 14,073 MB, set by the transformer's first step rather than
+        // the decode. Over a 16 GB Mac's 13.74 GB fallback budget and over bender's 12.71 GB
+        // working set, so such a Mac streams this model rather than holding it.
+        tiledPeakBytes: 14_080_000_000,
+        // Measured, `--stream --stream-depth 2` under tile 64: 6,306 MB peak and 4.36 GB read
+        // per step. The 32 transformer blocks and the 36 language-model layers stream; what
+        // is left resident is the float32 autoencoder, the vision tower, the embeddings, the
+        // norms and the modulation table, plus the decode's tile and the depth-2 window.
+        streamedPeakBytes: 6_310_000_000,
+        // Measured, the live figure of that same streamed run: 2,752 MB between runs. The two
+        // go together: `MemoryGuard` subtracts this from the streamed peak, and
+        // `residentBytes` cannot stand in for it.
+        streamedResidentBytes: 2_750_000_000,
+        // Measured with `--reference` over a 1024-pixel picture against the same run without
+        // one, tiled so the decode does not hide it: 16,459 against 14,073 MB, +2.39 GB over
+        // the run and +2.57 GB at the first step, where the prefill holds the cache it is
+        // filling beside the prefix tokens' own activations. The cache itself is the
+        // arithmetic 4096 tokens x 32 layers x K and V x 4096 x 2 bytes = 2.15 GB. Carried as
+        // the first step's figure, rounded up; `MemoryGuard` adds it per picture, twice under
+        // guidance.
+        referencePrefixBytes: 2_600_000_000,
         // The pipeline pads every prompt to 512 tokens and conditions on all of them.
         maxPromptTokens: 512,
         capabilities: qwenImage21Capabilities,

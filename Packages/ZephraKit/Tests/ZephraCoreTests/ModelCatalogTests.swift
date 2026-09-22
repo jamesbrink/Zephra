@@ -20,17 +20,18 @@ struct ModelCatalogTests {
         }
     }
 
-    @Test("an 8 GB Mac runs the two families that stream leanest, and opens on the leanest of them")
+    @Test("an 8 GB Mac runs the three families that stream leanest, and opens on the leanest of them")
     func eightGigabytesRunsWhatStreamsLeanest() {
-        // 6.9 GB of fallback working set: klein streams in 4.06 GB and Z-Image in 6.42 GB, so
-        // both variants of both families are offered — the Mac reads the weights off the disk
-        // on every step. Every other family's streamed peak is over 9.7 GB.
+        // 6.9 GB of fallback working set: klein streams in 4.06 GB, Qwen-Image 2.1 in 6.31 GB
+        // and Z-Image in 6.42 GB, so every picture model is offered — the Mac reads the weights
+        // off the disk on every step. Every clip family's streamed peak is over 9.7 GB.
         let memory = Self.gigabytes(8)
         let fitting = ModelCatalog.fitting(physicalMemory: memory)
         #expect(
             fitting == [
                 ModelCatalog.zImageTurbo8bit, ModelCatalog.flux2Klein4bit,
                 ModelCatalog.flux2Klein8bit, ModelCatalog.zImageTurbo4bit,
+                ModelCatalog.qwenImage21_4bit,
             ])
         for model in fitting {
             #expect(ModelCatalog.fit(model, physicalMemory: memory) == .fitsStreamed, "\(model.id)")

@@ -131,55 +131,71 @@ as a figure the free-space check is made against. The arithmetic estimate it
 replaced said 9.95 GB, 16% under, because the packer writes every scale and
 bias float32 where the published four-bit repacks do not.
 
-**Every memory figure below is an ESTIMATE dated 2026-09-22, not a reading.**
-They are arithmetic from the packed sizes and from the ratios the measured
-families show, and the catalog entry says so at each one. `make bench` at 1024
-pixels, forty steps, three runs on an idle Mac replaces them, with a
-`--reference` run beside it for the prefix cache; this file and
-`ModelCatalog+QwenImage21.swift` change in the same commit.
+Every memory figure below is a reading from `make bench` on halcyon (M4 Max,
+48 GB, 40.2 GB working set) on 2026-09-22, forty steps, one run each, one
+heavy process on the machine at a time. The timings are inflated: the same Mac
+made 1024 steps at 5.3 to 6.1 s in shorter runs earlier that day, so treat
+every seconds column as an upper bound until an idle rerun ("Owed reruns").
 
 ### Resident
 
 | Size | Seconds | s/step | Peak | Tiled peak |
 | ---: | ---: | ---: | ---: | ---: |
-| 1024 (default) | TO MEASURE | TO MEASURE | 17800 MB (estimate) | 14400 MB (estimate) |
+| 768 | 164 | 4.09 | 17123 MB | |
+| 1024 (default) | 326 | 8.16 | 20069 MB | 14073 MB |
+| 2048 | 1681 | 42.02 | | 21751 MB |
 
-10800 MB resident (estimate): 93% of the measured `builtBytes`, which is the
-ratio both variants packed on a Mac show between what the build writes and what
-the bench reads live (klein 4-bit 4941 of 5366 MB, Z-Image 4-bit 6707 of 7123).
+10585 MB resident, the same at every size: the packed weights plus the float32
+autoencoder are the whole of it. Load 2.7 s from the packed variant.
+
+The untiled transient is the **decode's**, not the transformer's. A step adds
+3.3 GB at the first step (the prefill) and 1.4 GB on a cached one; the float32
+decoder added 15.1 GB before it was made to evaluate a stage at a time, and
+9.5 GB after — MLX runs the decoder's 3 x 3 convolutions as Winograd, and the
+1024-pixel upsampler stage alone holds about 8 GB of scratch. Tiled at 64 (32
+latent cells after the mapper halves it) the decode never sets the peak, so the
+tiled peak is the transformer's first step. 2048 untiled was not run: it would
+have exceeded this Mac.
 
 ### Streamed
 
 | Mac | Size | Peak | Live between runs | s/step | Read per step | Disk rate |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| TO MEASURE | 1024 | 7500 MB (estimate) | 2600 MB (estimate) | TO MEASURE | TO MEASURE | TO MEASURE |
+| halcyon | 1024 | 6306 MB | 2752 MB | 7.42 | 4.36 GB | (owed) |
 
-- `residentBytes` — the run's `activeMemoryMB` at the entry's own
-  `defaultSize`.
-- `peakBytes` — `peakMemoryMB`, untiled.
-- `tiledPeakBytes` — the same under `ZEPHRA_VAE_TILE=64`. **This is the one to
-  read carefully.** The estimate is rounded *up* deliberately: 14.4 GB is over
-  a 16 GB Mac's 13.74 GB fallback budget and over bender's measured 12.71 GB
-  working set, so such a Mac streams this model rather than holding it. An
-  estimate carrying a gigabyte of uncertainty must not be the thing that puts
-  10.8 GB of weights resident on the smallest Mac in the table; if the reading
-  comes in under that budget, moving the figure is a decision made with the
-  reading in hand, the way `zImageTurbo4bit`'s 12.15 GB was.
-- `streamedPeakBytes` — `--stream --stream-depth 2`, tiled at 64. Both layer
-  stacks stream — the transformer's 32 blocks and the text encoder's 36 — so
-  what is left resident is the float32 autoencoder, the vision tower, the
-  embeddings, the norms and the one shared modulation table, plus the decode's
-  tile and the depth-2 window.
-- `streamedResidentBytes` — the "live between runs" of that same streamed run.
-  `ModelCatalogTests` fails a shipped streaming entry that leaves this at 0.
-- `referencePrefixBytes` — the sixth figure and the only one that is not a
-  peak. One reference picture's prefix KV cache across every layer, plus the
-  latents themselves: 2200 MB (estimate), from one 1024-pixel reference being
-  4096 prefix tokens. Near enough constant across target sizes, because a
-  reference is fitted to the same megapixel budget whatever is being made, so
-  `MemoryGuard` adds it per picture rather than scaling it, and twice where
-  guidance is over one and a negative prompt is there. Measure it with
-  `--reference IMAGE` against the same run without one.
+Depth 2, tile 64. Both layer stacks stream — the transformer's 32 blocks and
+the text encoder's 36 — so what is left resident is the float32 autoencoder,
+the vision tower, the embeddings, the norms and the one shared modulation
+table, plus the decode's tile and the depth-2 window. Load 1.0 s.
+
+### One reference picture
+
+| Run | Peak | s/step |
+| --- | ---: | ---: |
+| 1024, untiled | 21799 MB | 8.53 |
+| 1024, tiled at 64 | 16459 MB | 9.03 |
+
+Against the same runs without a picture that is +1.7 GB untiled (hidden under
+the decode, with allocator noise in it) and **+2.39 GB tiled** over the run,
++2.57 GB at the first step, where the prefill holds the cache it is filling
+beside the prefix tokens' own activations. The cache itself is the arithmetic
+4096 tokens x 32 layers x K and V x 4096 x 2 bytes = 2.15 GB. The catalog
+carries the first step's figure, rounded up: `referencePrefixBytes: 2_600_000_000`,
+added per picture and twice under guidance.
+
+### Preview
+
+39 frames over a forty-step 1024 run at **0.136 s** a frame, against 2.28 s
+before the preview was pooled to 16 latent cells (256 pixels; the shared
+`LatentPreview.cellLimit` of 32 assumes an 8-pixel cell and this autoencoder's
+is 16). The peak did not move.
+
+- `residentBytes` 10_580_000_000, `peakBytes` 20_070_000_000, `tiledPeakBytes`
+  14_080_000_000, `streamedPeakBytes` 6_310_000_000, `streamedResidentBytes`
+  2_750_000_000, `referencePrefixBytes` 2_600_000_000: peaks rounded up, held
+  figures down, all decimal MB. The tiled peak is over a 16 GB Mac's 13.74 GB
+  fallback budget and over bender's 12.71 GB working set, so such a Mac streams
+  this model; a 24 GB Mac holds it tiled.
 
 ## FLUX.2 klein 4B
 
@@ -382,13 +398,10 @@ The second was taken on a busy machine and is a ceiling.
   has been re-measured under the new pin either; klein 4-bit and Z-Image
   8-bit on halcyon are owed the first rerun, since they are the two entries
   this file's own numbers lean on most.**
-- **Qwen-Image 2.1's whole memory row: `residentBytes`, `peakBytes`, `tiledPeakBytes`,
-  `streamedPeakBytes`, `streamedResidentBytes` and `referencePrefixBytes` are estimates
-  dated 2026-09-22, arithmetic from the packed sizes rather than readings. Measure at
-  1024 pixels, forty steps, three runs on an idle Mac, with a `--reference` run beside
-  it for the prefix cache, and replace them in `ModelCatalog+QwenImage21.swift`.
-  `tiledPeakBytes` is the one to read carefully: it is rounded to the side that streams
-  on a 16 GB Mac, and moving it under that budget is a decision, not a correction.**
+- Qwen-Image 2.1's timings, every seconds column: taken on halcyon with one
+  other heavy process at a time, and 8 s a step at 1024 against 5 to 6 s in
+  shorter runs the same day. The memory figures stand; the timings and the
+  streamed disk rate are owed an idle rerun.
 - klein's edit peak and time with the reference tokens cast.
 - LTX-2.5 streamed on bender with an idle disk.
 - Preview frame cost for Z-Image and for Qwen-Image 2.1 on an idle Mac.
