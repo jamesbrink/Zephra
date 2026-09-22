@@ -37,7 +37,7 @@ struct GenerateButton: View {
         if MobileSettings.flag(MobileSettings.randomizeSeedEachRun) { draft.randomizeSeed() }
         let request = GenerationRequest(modelID: draft.modelID, count: draft.count, settings: draft.settings)
         let reference = draft.reference
-        let generation = StrictGeneration(request: request, input: reference.map { GenerationInput(data: $0, originHost: draft.settings.referenceOrigin.flatMap { dispatch.hosts.catalog.entry(named: $0)?.hostID }, dimensions: draft.referenceSize) })
+        let generation = StrictGeneration(request: request, input: reference.map { GenerationInput(data: $0, originHost: draft.referenceOrigin.flatMap { dispatch.hosts.catalog.entry(named: $0)?.hostID }, dimensions: draft.referenceSize) })
         Task { await dispatch.send(generation, reference: reference) }
     }
 }

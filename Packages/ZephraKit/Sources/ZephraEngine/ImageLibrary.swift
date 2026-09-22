@@ -58,16 +58,16 @@ public struct ImageLibrary: Sendable {
     ///
     /// The second way into the library, for a picture Zephra produced from another picture
     /// rather than from a prompt: the record is derived rather than read off a `GeneratedImage`,
-    /// and `referenceText` is the parent's `zephra:reference` chunk passed through verbatim, so
-    /// the count in the record still matches what the chunk carries.
+    /// and `referenceTexts` are the parent's numbered `zephra:reference` chunks passed through
+    /// verbatim, so the counts in the record still match what the chunks carry.
     @discardableResult
     public func write(
-        _ data: Data, record: GenerationRecord, named name: String, referenceText: String?
+        _ data: Data, record: GenerationRecord, named name: String, referenceTexts: [String]
     ) throws -> URL {
         try ImageDirectoryAccess.prepareForWrite(root)
         let url = availableURL(named: name)
         let annotated = (try? GenerationRecord.embedded(
-            record, in: data, prompt: record.prompt, referenceText: referenceText)) ?? data
+            record, in: data, prompt: record.prompt, referenceTexts: referenceTexts)) ?? data
         try annotated.write(to: url, options: .atomic)
         return url
     }

@@ -13,8 +13,12 @@ import ZephraCore
 public struct GenerationRecord: Hashable, Sendable, Codable {
     /// The PNG text keyword the JSON is filed under.
     public static let keyword = "zephra:generation"
-    /// The keyword the reference image is filed under, when the image was edited from one:
-    /// the reference's own PNG bytes, base64, in a chunk of their own beside the record.
+    /// The keyword the first reference image is filed under, when the image was edited from
+    /// one: the reference's own PNG bytes, base64, in a chunk of their own beside the record.
+    ///
+    /// Pictures past the first are filed under this keyword suffixed with their 1-based
+    /// position (`referenceKeyword(at:)`), so there is no `.1` to be confused with this one and
+    /// every build that came before reads picture 1 exactly as it always did.
     public static let referenceKeyword = "zephra:reference"
     /// The shape written today. A file claiming a higher version is left alone rather than
     /// guessed at, so an older build never misreads a newer one's record.
@@ -63,6 +67,19 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
     /// that survives being moved to another Mac cannot hold absolute paths. Optional, so an
     /// older build reads a newer file as it always did and the version stays 1.
     public var referenceOrigin: String?
+    /// How many bytes of PNG each reference picture was, the first included, on a generation
+    /// that read more than one.
+    ///
+    /// Self-describing on purpose: the count of this list is how many numbered chunks the file
+    /// carries, and each number is the length check for its own chunk, the way `referenceBytes`
+    /// is for the first. Nil on a file written with one picture or none, where `referenceBytes`
+    /// says everything there is to say. Optional, so an older build reads a newer file as it
+    /// always did and the version stays 1.
+    public var referenceByteCounts: [Int]?
+    /// Where each of those pictures came from, positionally, nil for one that came from a file
+    /// chooser or a drop. The first is `referenceOrigin` again, so the list is readable on its
+    /// own. Optional, for the reason its neighbour is.
+    public var referenceOrigins: [String?]?
     /// Which press of Generate produced the image, when it was one of several seeds, and nil
     /// otherwise.
     ///
@@ -110,11 +127,14 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
         modelID = image.modelID
         createdAt = image.createdAt
         durationSeconds = image.duration.seconds
-        referenceBytes = image.settings.referenceImage?.count
-        referenceStrength = image.settings.referenceImage == nil
-            ? nil : image.settings.referenceStrength
-        referenceOrigin = image.settings.referenceImage == nil
-            ? nil : image.settings.referenceOrigin
+        let pictures = image.settings.referenceImages.filter(\.hasPixels)
+        referenceBytes = pictures.first?.data.count
+        referenceStrength = pictures.isEmpty ? nil : image.settings.referenceStrength
+        referenceOrigin = pictures.first?.origin
+        // The two lists are written only where they say something the two scalars do not, so a
+        // one-picture edit's record is byte for byte the record it has always been.
+        referenceByteCounts = pictures.count > 1 ? pictures.map(\.data.count) : nil
+        referenceOrigins = pictures.count > 1 ? pictures.map(\.origin) : nil
         batchID = image.batchID
         upscaledFrom = nil
         upscaleFactor = nil
@@ -127,23 +147,4 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
 
     /// Whether the picture is a clip's first frame.
     public var isVideo: Bool { (frameCount ?? 1) > 1 }
-
-    /// The image this record describes, given the bytes it was read from and where they live.
-    ///
-    /// The identity is new every time: it is this session's handle on the file, not something
-    /// the file carries. The model id is whatever produced the image, which need not be the
-    /// model loaded now — selecting the image adopts its settings and leaves the model alone.
-    public func image(
-        pngData: Data, fileURL: URL?, referenceImage: Data? = nil
-    ) -> GeneratedImage {
-        GeneratedImage(
-            pngData: pngData,
-            settings: settings(referenceImage: referenceImage),
-            modelID: modelID,
-            createdAt: createdAt,
-            duration: .seconds(durationSeconds),
-            fileURL: fileURL,
-            batchID: batchID
-        )
-    }
 }

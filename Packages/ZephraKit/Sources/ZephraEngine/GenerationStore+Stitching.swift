@@ -41,8 +41,9 @@ extension GenerationStore {
     /// one would keep it.
     static func bare(poster: Data) throws -> Data {
         try PNGTextChunks.removing(
-            [GenerationRecord.keyword, GenerationRecord.referenceKeyword, LibraryAnnotation.keyword,
-             "Software", "Description"],
+            Set(
+                [GenerationRecord.keyword] + GenerationRecord.allReferenceKeywords
+                    + [LibraryAnnotation.keyword, "Software", "Description"]),
             from: poster)
     }
 
@@ -53,8 +54,7 @@ extension GenerationStore {
         guard let continuation = settings.continuation else { return settings }
         var copy = settings
         copy.continuation = continuation.withoutPixels()
-        copy.referenceImage = nil
-        copy.referenceOrigin = nil
+        copy.referenceImages = []
         return copy
     }
 }

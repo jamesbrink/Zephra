@@ -25,20 +25,35 @@ public struct GenerationRequest: Hashable, Sendable {
     public var modelID: String
     /// How many seeds to queue, clamped to `countBounds`.
     public var count: Int
-    /// Everything else the user chose. Its `referenceImage` is always nil here.
+    /// Everything else the user chose. Its pictures are always without their bytes here.
     public private(set) var settings: GenerationSettings
-    /// The blob already sent that holds the reference picture, or nil for a run from nothing.
-    public var referenceBlobID: UUID?
+    /// The blobs already sent that hold the reference pictures, in the order the model reads
+    /// them, and empty for a run from nothing.
+    ///
+    /// One blob each rather than one blob holding all of them: a blob is announced and sent on
+    /// its own, and a phone that sends five pictures and then asks for a generation is five
+    /// transfers the Mac can evict independently.
+    public var referenceBlobIDs: [UUID]
 
-    /// Creates a request, dropping any picture the settings carry and clamping the count.
+    /// The first of those blobs, which is what a Mac reading one picture asks for. Setting it
+    /// replaces the whole list, as `GenerationSettings.referenceImage` does.
+    public var referenceBlobID: UUID? {
+        get { referenceBlobIDs.first }
+        set { referenceBlobIDs = newValue.map { [$0] } ?? [] }
+    }
+
+    /// Creates a request, dropping any picture's bytes from the settings and clamping the count.
     public init(
         modelID: String, count: Int, settings: GenerationSettings, referenceBlobID: UUID? = nil,
-        requestID: UUID = UUID()
+        referenceBlobIDs: [UUID] = [], requestID: UUID = UUID()
     ) {
         self.requestID = requestID
         self.modelID = modelID
         self.count = min(max(count, Self.countBounds.lowerBound), Self.countBounds.upperBound)
         self.settings = settings.withoutPixels()
-        self.referenceBlobID = referenceBlobID
+        // The list where there is one, and otherwise the single id an older build sends: passing
+        // both is a programmer error, and the list is what wins.
+        self.referenceBlobIDs = referenceBlobIDs.isEmpty
+            ? (referenceBlobID.map { [$0] } ?? []) : referenceBlobIDs
     }
 }

@@ -27,6 +27,11 @@ final class PromptDraft {
     /// The shape of the picture in the well, which the Size menu offers at every tier's cost.
     /// It moves with the picture and is nil whenever the well is empty.
     private(set) var referenceSize: ImageSize?
+    /// The library file name the picture in the well came out of, when it came from the Mac's
+    /// library. Held here beside the bytes rather than in `settings`, because a
+    /// `GenerationSettings` carries an origin only as a fact about a picture it is holding, and
+    /// the well's picture is held here until the press composes the request.
+    private(set) var referenceOrigin: String?
 
     /// Whether a snapshot has already seeded this draft. The first one is the Mac saying which
     /// model is in force and what it defaults to; every one after it would overwrite a prompt
@@ -94,7 +99,9 @@ final class PromptDraft {
     /// bounded and snapped the way the chain will make it.
     func request(clampedBy summary: CapabilitiesSummary) -> GenerationRequest {
         var chosen = settings
-        chosen.referenceImage = reference
+        chosen.referenceImages = reference.map {
+            [ReferencePicture(data: $0, origin: referenceOrigin, size: referenceSize)]
+        } ?? []
         let capabilities = summary.capabilities
         var clamped = capabilities.clamp(chosen)
         clamped.frames = ChainPlan.frames(chosen.frames, capabilities: capabilities)
@@ -115,10 +122,9 @@ final class PromptDraft {
     ) {
         reference = picture.data
         referenceSize = picture.size
-        settings.referenceOrigin = origin
-        guard capabilities.producesVideo,
-            let shape = capabilities.size(
-                matchingAspectOf: picture.size, budget: settings.size.pixelCount)
+        referenceOrigin = origin
+        guard capabilities.producesVideo, let size = picture.size,
+            let shape = capabilities.size(matchingAspectOf: size, budget: settings.size.pixelCount)
         else { return }
         settings.size = shape
     }
@@ -128,7 +134,8 @@ final class PromptDraft {
     func clearReference() {
         reference = nil
         referenceSize = nil
-        settings.referenceOrigin = nil
+        referenceOrigin = nil
+        settings.referenceImages = []
     }
 
     /// A fresh seed, which is what the shuffle asks for.

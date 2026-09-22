@@ -51,8 +51,7 @@ extension GenerationStore {
             var next = job.settings
             next.frames = progress.segments[segment.index + 1]
             next.seed = next.seed &+ 1
-            next.referenceImage = nil
-            next.referenceOrigin = nil
+            next.referenceImages = []
             next.continuation = ClipContinuation(frames: tail, origin: nil, sourceFrameCount: clip.frameCount)
             queue.insert(
                 QueuedGeneration(

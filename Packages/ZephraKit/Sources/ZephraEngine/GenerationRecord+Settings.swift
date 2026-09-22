@@ -15,6 +15,17 @@ extension GenerationRecord {
     /// quietly becoming a stronger one. The origin comes back beside it, so a variation of an
     /// edit still says which library picture it started from.
     public func settings(referenceImage: Data? = nil) -> GenerationSettings {
+        // An origin names a picture's source; without the picture there is nothing it is of,
+        // which is what building the one picture from both fields together gives for free.
+        settings(referenceImages: referenceImage.map {
+            [ReferencePicture(data: $0, origin: referenceOrigin)]
+        } ?? [])
+    }
+
+    /// The same, for a caller holding every picture the record's numbered chunks carried
+    /// (`GenerationRecord.references(in:)`), which is what a variation of a several-picture edit
+    /// repeats.
+    public func settings(referenceImages: [ReferencePicture]) -> GenerationSettings {
         GenerationSettings(
             prompt: prompt,
             negativePrompt: negativePrompt,
@@ -22,11 +33,39 @@ extension GenerationRecord {
             steps: steps,
             guidance: guidance,
             seed: seed,
-            referenceImage: referenceImage,
+            referenceImages: referenceImages,
             referenceStrength: referenceStrength ?? 1,
-            // An origin names the picture's source; without the picture there is nothing it is of.
-            referenceOrigin: referenceImage == nil ? nil : referenceOrigin,
             frames: frameCount ?? 1
+        )
+    }
+
+    /// The image this record describes, given the bytes it was read from and where they live.
+    ///
+    /// The identity is new every time: it is this session's handle on the file, not something
+    /// the file carries. The model id is whatever produced the image, which need not be the
+    /// model loaded now — selecting the image adopts its settings and leaves the model alone.
+    public func image(
+        pngData: Data, fileURL: URL?, referenceImage: Data? = nil
+    ) -> GeneratedImage {
+        image(
+            pngData: pngData, fileURL: fileURL,
+            referenceImages: referenceImage.map {
+                [ReferencePicture(data: $0, origin: referenceOrigin)]
+            } ?? [])
+    }
+
+    /// The same, for a caller holding every picture the file's numbered chunks carried.
+    public func image(
+        pngData: Data, fileURL: URL?, referenceImages: [ReferencePicture]
+    ) -> GeneratedImage {
+        GeneratedImage(
+            pngData: pngData,
+            settings: settings(referenceImages: referenceImages),
+            modelID: modelID,
+            createdAt: createdAt,
+            duration: .seconds(durationSeconds),
+            fileURL: fileURL,
+            batchID: batchID
         )
     }
 }

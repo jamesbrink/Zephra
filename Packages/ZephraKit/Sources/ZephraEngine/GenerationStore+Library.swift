@@ -75,7 +75,7 @@ extension GenerationStore {
         guard canQueueVariation(of: item), let record = item.provenance.record else { return }
         let known = ModelCatalog.descriptor(id: record.modelID)
         let model = known ?? descriptor
-        var request = record.settings(referenceImage: item.referenceImage).withRandomSeed()
+        var request = record.settings(referenceImages: item.referenceImages).withRandomSeed()
         if known == nil { request = request.onSchedule(of: model) }
         request = model.capabilities.clamp(request)
         // A variation is a request for an image, the same as pressing Generate, so the canvas
@@ -105,7 +105,7 @@ extension GenerationStore {
             else { return nil }
             return record.image(
                 pngData: data, fileURL: item.url,
-                referenceImage: GenerationRecord.reference(in: data))
+                referenceImages: GenerationRecord.references(in: data))
         }.value
     }
 }

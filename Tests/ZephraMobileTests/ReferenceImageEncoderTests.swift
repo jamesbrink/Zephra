@@ -23,8 +23,9 @@ struct ReferenceImageEncoderTests {
     func aLargePictureIsScaledDown() throws {
         let picture = try #require(
             ReferenceImageEncoder.picture(from: image(width: 3000, height: 2000)))
-        #expect(max(picture.size.width, picture.size.height) <= 1024)
-        #expect(picture.size.width > picture.size.height)
+        let size = try #require(picture.size, "the encoder measures what it wrote")
+        #expect(max(size.width, size.height) <= 1024)
+        #expect(size.width > size.height)
     }
 
     @Test("What comes back is a PNG")
@@ -39,8 +40,9 @@ struct ReferenceImageEncoderTests {
         let picture = try #require(
             ReferenceImageEncoder.picture(from: image(width: 1200, height: 1600)))
         let decoded = try #require(UIImage(data: picture.data))
-        #expect(Int(decoded.size.width) == picture.size.width)
-        #expect(Int(decoded.size.height) == picture.size.height)
+        let size = try #require(picture.size)
+        #expect(Int(decoded.size.width) == size.width)
+        #expect(Int(decoded.size.height) == size.height)
     }
 
     @Test("Bytes that are not a picture come back as nothing")

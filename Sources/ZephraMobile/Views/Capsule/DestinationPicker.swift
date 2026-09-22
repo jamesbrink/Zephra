@@ -34,7 +34,7 @@ struct DestinationPicker: View {
             while !Task.isCancelled {
                 await dispatch.refresh(StrictGeneration(request: GenerationRequest(
                     modelID: draft.modelID, count: draft.count, settings: draft.settings),
-                    input: draft.reference.map { GenerationInput(data: $0, originHost: draft.settings.referenceOrigin.flatMap { dispatch.hosts.catalog.entry(named: $0)?.hostID }, dimensions: draft.referenceSize) }))
+                    input: draft.reference.map { GenerationInput(data: $0, originHost: draft.referenceOrigin.flatMap { dispatch.hosts.catalog.entry(named: $0)?.hostID }, dimensions: draft.referenceSize) }))
                 
                 try? await Task.sleep(for: .seconds(3))
             }

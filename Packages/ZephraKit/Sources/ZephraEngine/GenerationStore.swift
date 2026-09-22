@@ -65,6 +65,10 @@ public final class GenerationStore {
     /// picture can key its work on the choice rather than compare the bytes.
     public internal(set) var referenceChoice = 0
     var referenceRead: Task<Void, Never>?
+    /// Why the last picture offered to the well was not taken, for the interface to show, and
+    /// nil whenever the last change was taken. Set and cleared in
+    /// `GenerationStore+ReferenceStrip`, which is the only thing that refuses a picture.
+    public internal(set) var referenceNote: String?
     /// True while the engine is between queued generations, swapping to the model the next one
     /// needs. The queue accepts more work throughout.
     public internal(set) var isSwitchingForQueue = false

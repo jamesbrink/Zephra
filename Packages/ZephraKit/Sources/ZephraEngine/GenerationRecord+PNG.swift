@@ -16,19 +16,22 @@ extension GenerationRecord {
     public static func embedded(in image: GeneratedImage) throws -> Data {
         try embedded(
             GenerationRecord(image), in: image.pngData, prompt: image.settings.prompt,
-            referenceText: image.settings.referenceImage?.base64EncodedString())
+            referenceTexts: image.settings.referenceImages
+                .filter(\.hasPixels)
+                .map { $0.data.base64EncodedString() })
     }
 
     /// `pngData` with `record` and its companions inside it, for a caller that has the record
     /// rather than a `GeneratedImage`: an upscale, whose record is derived from its parent's.
     ///
-    /// `referenceText` is the base64 the `zephra:reference` chunk holds, passed through
-    /// untouched. An upscale hands over the parent's own text verbatim rather than decoding and
-    /// re-encoding it, so `referenceBytes` still counts what the chunk actually carries.
+    /// `referenceTexts` are the base64 strings the numbered `zephra:reference` chunks hold, in
+    /// order, passed through untouched. An upscale hands over the parent's own texts verbatim
+    /// rather than decoding and re-encoding them, so the record's counts still match what the
+    /// chunks actually carry.
     ///
     /// The one place the chunk list is spelled out, so the two callers cannot drift apart.
     public static func embedded(
-        _ record: GenerationRecord, in pngData: Data, prompt: String, referenceText: String?
+        _ record: GenerationRecord, in pngData: Data, prompt: String, referenceTexts: [String]
     ) throws -> Data {
         let existing = try PNGTextChunks.read(from: pngData)
         guard existing[keyword] == nil else { return pngData }
@@ -40,8 +43,8 @@ extension GenerationRecord {
         if !described.isEmpty {
             entries.append((keyword: "Description", text: described))
         }
-        if let referenceText {
-            entries.append((keyword: referenceKeyword, text: referenceText))
+        for (index, text) in referenceTexts.prefix(ReferenceLimits.maximumPictures).enumerated() {
+            entries.append((keyword: referenceKeyword(at: index), text: text))
         }
         return try PNGTextChunks.inserting(entries, into: pngData)
     }
@@ -64,17 +67,14 @@ extension GenerationRecord {
         return record
     }
 
-    /// The reference image filed beside the record in `data`, or nil when the file carries
-    /// none, the chunk does not decode, or its length disagrees with the record: a chunk some
-    /// other tool rewrote is dropped rather than trusted.
+    /// The first reference image filed beside the record in `data`, or nil when the file
+    /// carries none, the chunk does not decode, or its length disagrees with the record: a
+    /// chunk some other tool rewrote is dropped rather than trusted.
+    ///
+    /// The one picture most of the app reads, over `references(in:)`, which is every one of
+    /// them in the order the model read them.
     public static func reference(in data: Data) -> Data? {
-        guard let record = read(from: data), let expected = record.referenceBytes,
-              let text = try? PNGTextChunks.read(from: data),
-              let encoded = text[referenceKeyword],
-              let reference = Data(base64Encoded: encoded),
-              reference.count == expected
-        else { return nil }
-        return reference
+        references(in: data).first?.data
     }
 
     /// The JSON one record is stored as: sorted keys and ISO 8601 dates, so a file written

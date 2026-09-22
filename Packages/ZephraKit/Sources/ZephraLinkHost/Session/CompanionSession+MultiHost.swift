@@ -57,15 +57,8 @@ extension CompanionSession {
         let assessment = try offer(strict, on: host)
         if let refusal = assessment.refusal { throw LinkError(code: .refused, reason: refusal) }
         var settings = request.settings
-        if let input = strict.input {
-            guard let id = request.referenceBlobID, let data = blobs[id], input.matches(data) else {
-                throw LinkError(code: .badRequest, reason: "The reference does not match this request.")
-            }
-            settings.referenceImage = data
-            blobs[id] = nil
-        } else if request.referenceBlobID != nil {
-            throw LinkError(code: .badRequest, reason: "This request has unexpected reference data.")
-        }
+        settings.referenceImages = try takeReferences(
+            named: request.referenceBlobIDs, matching: strict.inputs, for: settings)
         let model = try Self.model(request.modelID)
         if let refusal = host.store.strictRefusal(for: model, settings: settings, count: request.count) {
             throw LinkError(code: .refused, reason: refusal)

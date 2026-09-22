@@ -59,13 +59,13 @@ extension GenerationStore {
     ) {
         let library = library
         let name = "\(parent.url.deletingPathExtension().lastPathComponent)-x\(factor).png"
-        let referenceText = parent.referenceText
+        let referenceTexts = parent.referenceTexts
         let previous = saveTask
         saveTask = Task.detached(priority: .utility) {
             await previous?.value
             do {
                 let url = try library.write(
-                    data, record: record, named: name, referenceText: referenceText)
+                    data, record: record, named: name, referenceTexts: referenceTexts)
                 await MainActor.run { self.attach(url, to: imageID) }
             } catch {
                 let failure = SaveFailure(imageID: imageID, reason: error.readableMessage)

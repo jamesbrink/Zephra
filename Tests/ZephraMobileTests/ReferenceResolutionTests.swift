@@ -31,11 +31,11 @@ struct ReferenceResolutionTests {
         }
         #expect(intent.canGenerate)
         #expect(draft.referenceSize == ImageSize(width: 64, height: 32))
-        #expect(draft.settings.referenceOrigin == entries[0].id)
+        #expect(draft.referenceOrigin == entries[0].id)
         #expect(draft.settings.seed == seed)
         let bytes = try #require(draft.reference)
         let input = GenerationInput(data: bytes,
-            originHost: catalog.entry(named: try #require(draft.settings.referenceOrigin))?.hostID,
+            originHost: catalog.entry(named: try #require(draft.referenceOrigin))?.hostID,
             dimensions: draft.referenceSize)
         #expect(input.originHost == ids[0])
         #expect(input.matches(bytes))
