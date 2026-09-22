@@ -38,6 +38,12 @@ public struct ImageFacts: Hashable, Sendable {
     /// The library file the reference picture came out of, or nil when it came from a file
     /// chooser, a drop, or nowhere at all.
     public let referenceOrigin: String?
+    /// Whether the picture carries transparency, read from the file's own header rather than
+    /// from anything in the record: an imported picture and one Zephra made answer the same
+    /// way, and a record written before there was a model that makes transparency would not.
+    /// The inspector draws the line only when it is true, the rule `referenceStrength`
+    /// already follows — a row saying "No" says nothing.
+    public let isTransparent: Bool
 
     /// The facts about a library image. `modelName` is the catalog's name for it, when there is
     /// one; without it the identifier written into the file is shown, which is the honest answer
@@ -66,6 +72,7 @@ public struct ImageFacts: Hashable, Sendable {
         referenceStrengthValue = Self.reportable(item.provenance.record?.referenceStrength)
         referenceStrength = referenceStrengthValue.map(Self.strengthLabel)
         referenceOrigin = item.provenance.record?.referenceOrigin
+        isTransparent = item.hasAlpha
     }
 
     /// The facts about an image in memory, which may not have reached the disk yet.
@@ -88,6 +95,9 @@ public struct ImageFacts: Hashable, Sendable {
             ? nil : Self.reportable(settings.referenceStrength)
         referenceStrength = referenceStrengthValue.map(Self.strengthLabel)
         referenceOrigin = settings.referenceImage == nil ? nil : settings.referenceOrigin
+        // A picture in memory has no file to ask, so its own bytes answer: the same walk the
+        // scan makes, over the header of the PNG the backend handed back.
+        isTransparent = (try? PNGHeader.read(from: image.pngData).hasAlpha) ?? false
     }
 
     /// A strength worth showing: not one that was never recorded, and not the 1 that means the

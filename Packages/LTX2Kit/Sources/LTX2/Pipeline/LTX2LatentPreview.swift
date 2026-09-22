@@ -19,7 +19,8 @@ public struct LTX2LatentPreview: Sendable {
 
     public let width: Int
     public let height: Int
-    /// RGBA8, row-major, opaque.
+    /// RGBA8, row-major, straight alpha; 255 everywhere for a model that makes no
+    /// transparency, which every video model is.
     public let pixels: Data
 
     /// Decodes one frame of `latent`, `[1, channels, frames, height, width]` in the loop's
@@ -30,13 +31,14 @@ public struct LTX2LatentPreview: Sendable {
     /// every step, and would say nothing about how the clip is coming along.
     public static func make(
         latent: MLXArray, decoder: LTX2VideoDecoder, frame: Int = 0
-    ) -> LTX2LatentPreview {
+    ) throws -> LTX2LatentPreview {
         let one = latent[0..., 0..., frame]  // [1, channels, height, width]
         let pooled = LatentPreview.pooled(one, by: poolingFactor(height: one.dim(2), width: one.dim(3)))
         let video = decoder.decode(pooled.expandedDimensions(axis: 2))  // [1, 1, h, w, 3]
         let picture = video[0..., 0].asType(.float32)  // [1, h, w, 3]
         return LTX2LatentPreview(
-            width: picture.dim(2), height: picture.dim(1), pixels: LatentPreview.rgba8(picture))
+            width: picture.dim(2), height: picture.dim(1),
+            pixels: try LatentPreview.rgba8(picture))
     }
 
     /// How much to pool a latent of this size by, so its long edge comes in under `cellLimit`;

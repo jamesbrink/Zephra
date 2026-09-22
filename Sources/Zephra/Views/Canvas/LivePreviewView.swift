@@ -23,15 +23,14 @@ struct LivePreviewView: View {
     /// The size the run is making, which is the shape of the ground the frames sit on.
     let size: ImageSize
 
-    @State private var frame: CGImage?
+    @State private var frame: Frame?
 
     var body: some View {
-        Rectangle()
-            .fill(Color.canvasBackground)
+        ground
             .aspectRatio(size.aspectRatio, contentMode: .fit)
             .overlay {
                 if let frame {
-                    Image(decorative: frame, scale: 1)
+                    Image(decorative: frame.image, scale: 1)
                         .resizable()
                         .interpolation(.medium)
                         .aspectRatio(contentMode: .fill)
@@ -42,9 +41,30 @@ struct LivePreviewView: View {
             // puts them down. `initial` because the first frame may already be in hand when
             // this view appears, which is what happens on every frozen screenshot build.
             .onChange(of: preview?.pixels, initial: true) { _, _ in
-                frame = preview?.makeImage()
+                frame = preview.flatMap { made in
+                    made.makeImage().map { Frame(image: $0, hasAlpha: made.hasTransparency) }
+                }
             }
             .accessibilityLabel("The image being generated")
+    }
+
+    /// The checkerboard under a frame that is carrying transparency, and otherwise the
+    /// canvas's own ground. A frame says for itself: there is no file to ask and no picture
+    /// yet, and a model that makes transparency shows it from its first frame.
+    @ViewBuilder
+    private var ground: some View {
+        if frame?.hasAlpha == true {
+            TransparencyGround()
+        } else {
+            Rectangle().fill(Color.canvasBackground)
+        }
+    }
+
+    /// One frame's pixels and what they said about their own alpha, read once where the image
+    /// is built rather than on every pass of `body`.
+    private struct Frame {
+        let image: CGImage
+        let hasAlpha: Bool
     }
 }
 

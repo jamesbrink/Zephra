@@ -30,6 +30,11 @@ struct ItemPicture: View {
                     .resizable()
                     .interpolation(.high)
                     .aspectRatio(contentMode: .fit)
+                    // Behind the fitted picture and nothing else: `aspectRatio` sizes this view
+                    // to the picture, so the checkerboard is exactly as big as what is on it.
+                    .background {
+                        if picture.cgImage?.hasTransparency == true { TransparencyGround() }
+                    }
                     .clipShape(
                         RoundedRectangle(
                             cornerRadius: ZephraChrome.cardRadius, style: .continuous))

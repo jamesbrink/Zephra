@@ -22,6 +22,9 @@ struct LivePreviewView: View {
     @State private var picture: UIImage?
 
     var body: some View {
+        // A frame crosses the link as JPEG, which cannot carry alpha: the Mac composites a
+        // transparent frame over `Checkerboard` before it encodes, so what arrives is already
+        // checkered and the ground here stays the canvas's own.
         Rectangle()
             .fill(Color.canvasBackground)
             .aspectRatio(aspect, contentMode: .fit)

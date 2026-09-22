@@ -961,9 +961,22 @@ so `make test` covers all of it.
   and is skipped. It carries the `batchID` of the press of Generate, so runs
   survive a relaunch. `zephra:library` is `LibraryAnnotation`: favourite, tags,
   albums. Anything mutable goes in the second chunk.
-- `PNGTextChunks+Header` reads a chunk without reading the file (64 KiB, stop
-  at the first IDAT); `PNGTextChunks+Replacing` splices one back before IDAT,
-  dropping the same keyword, so repeated writes do not grow the file.
+- `PNGHeader` reads a file's text, its size and whether its pixels carry alpha
+  in one seeking walk: each chunk's body is read when it is under 64 KiB and
+  **seeked past** otherwise, stopping at the first IDAT, so a picture carrying a
+  1024-pixel reference costs a few small reads rather than the whole file.
+  `PNGTextChunks.read(fromHeaderOf:)` is that walk's text and keeps its
+  signature; `PNGTextChunks+Replacing` splices one back before IDAT, dropping
+  the same keyword, so repeated writes do not grow the file.
+- **Transparency is the file's own answer, never a record field.**
+  `PNGHeader.hasAlpha` is the IHDR colour type (4 or 6) or a `tRNS` chunk, which
+  catches a palette picture somebody imported; the scan puts it on
+  `LibraryItem.hasAlpha` and `ImageFacts` draws one "Transparent" row from it,
+  only when true. A record flag would be wrong for an imported file and wrong
+  for everything written before it existed. Two readers, one rule: **what is
+  drawn** asks the decoded picture (`CGImage.hasTransparency`, free, already in
+  hand in both caches, carried on `DrawnPicture`), and **what is said** asks the
+  header, because it may not decode a picture to answer.
 - `LibraryScan` fingerprints the directory from one `contentsOfDirectory` and
   re-reads only paths whose (mtime, size) moved. `LibraryFolderWatch` is a
   debounced `DispatchSource` that re-opens its fd when the folder is renamed
@@ -1030,8 +1043,12 @@ Six directories, by what a file is rather than what screen it is on:
   themselves live in `Packages/ZephraStyle`, since the iOS companion is drawn
   from the same numbers: `ZephraChrome` holds every radius, hairline and
   height, `ZephraChrome+Washes` every colour laid over things, `Color+Palette`
-  the colour sets, and `Chip`, `ModelDot`, `UpscaleBadge` and `VideoBadge` are
-  nothing but those. A view reaching for a literal radius or a raw colour
+  the colour sets, and `Chip`, `ModelDot`, `UpscaleBadge`, `VideoBadge` and
+  `TransparencyGround` are nothing but those. The ground is `Checkerboard`'s
+  rule (`ZephraCore`: an eight-point cell, two greys, the parity) drawn as a
+  static `Canvas`, and it goes **only behind a picture that has alpha** — a
+  checkerboard under every opaque picture would be a change to every model that
+  came before this one. A view reaching for a literal radius or a raw colour
   belongs in the package instead; what stays here is AppKit-bound or app-bound.
   Safelight amber means "only while the model works" and appears nowhere else.
   Radii step down by what a thing is: 16 capsule, 10 reference well, 8 card or
@@ -1856,6 +1873,13 @@ Each backend package decodes bytes to a `CGImage` in its own
 `ReferenceImageDecoding`, duplicated because no backend may import another;
 kits are handed decoded images and never touch the filesystem.
 
+**A transparent reference is matted over white.** Every context a reference is
+drawn into — `QwenPixelBuffer`, `Flux2PixelBuffer`, `CoveringPicture` and
+`UpscalePixelBuffer`'s opaque door — is cleared to white before the draw. Black
+was what an uncleared bitmap happened to give rather than a decision, and
+transparent pictures were not producible inside Zephra before there was a model
+that makes them, so the default had to be chosen rather than inherited.
+
 ## Upscaling
 
 Upscale 2x / 4x is Real-ESRGAN's compact network (`realesr-general-x4v3`,
@@ -1877,8 +1901,13 @@ BSD-3-Clause), the seam a later post-process should copy:
 - Weights are a bundled package resource converted by
   `Tools/convert_weights.py`; `PROVENANCE.md` records the checksum. 2x is the
   4x pass followed by an exact 2x2 box mean. The picture runs through
-  `TiledDecode` in 512-pixel input tiles. Alpha is dropped. Written from
-  `srvgg_arch.py`, never from `xocialize/realesrgan-mlx`, which has no license.
+  `TiledDecode` in 512-pixel input tiles. Written from `srvgg_arch.py`, never
+  from `xocialize/realesrgan-mlx`, which has no license.
+- **Transparency is carried.** A picture with an alpha channel runs through
+  twice: its straight colour as itself, its alpha as a grey triplet whose three
+  outputs are meaned into the new alpha, recombined as straight RGBA and written
+  as an RGBA PNG. Twice the tiles, and the progress counts both lanes. A picture
+  with no alpha channel runs one lane and is byte for byte what it always was.
 
 What the upscaler leaves out is in `ROADMAP.md`.
 

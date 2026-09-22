@@ -11,6 +11,7 @@ public protocol PreviewFrame {
     var width: Int { get }
     /// Pixels down.
     var height: Int { get }
-    /// `width * height * 4` bytes, RGBA8, row-major, opaque.
+    /// `width * height * 4` bytes, RGBA8, row-major, straight alpha; 255 everywhere for a
+    /// model that makes no transparency.
     var pixels: Data { get }
 }

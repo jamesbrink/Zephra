@@ -46,15 +46,16 @@ struct PixelBufferTests {
         }
     }
 
-    @Test("the trim is a centre crop, never a black bar down one edge")
+    @Test("the trim is a centre crop, never a bar of the matte down one edge")
     func cropNotLetterbox() throws {
         let png = try Self.solidPNG(width: 1000, height: 600, red: 0.8)
         let pixels = try Flux2PixelBuffer.pixels(from: png, alignment: 16)
         #expect(pixels.shape == [1, 3, 592, 992])
-        // A letterboxed edge would sit at -1; a solid picture has one value everywhere.
+        // A letterboxed edge would sit at the matte, which is white and encodes as 1; a
+        // solid picture covering the frame has one value everywhere.
         let spread = (MLX.max(pixels[0, 0]) - MLX.min(pixels[0, 0])).item(Float.self)
         #expect(spread < 2.0 / 255)
-        #expect(MLX.min(pixels[0, 0]).item(Float.self) > 0.5)
+        #expect(MLX.max(pixels[0, 0]).item(Float.self) < 0.9, "no white bar")
     }
 
     @Test("bytes that are not a picture are refused, not decoded into something")

@@ -10,14 +10,10 @@ import ZephraCore
 public enum PNGImageSize {
     /// The size `data` declares, or nil when it is not a PNG, stops before its header, or
     /// claims an edge of zero.
+    ///
+    /// `PNGHeader`'s walk, which reads the same `IHDR` for its size, its colour type and the
+    /// text beside it: one reader of the format, so a file cannot be two sizes.
     public static func read(from data: Data) -> ImageSize? {
-        let bytes = Array(data)
-        guard let header = try? PNGTextChunks.spans(in: bytes).first(where: { $0.type == "IHDR" }),
-              header.body.count >= 8
-        else { return nil }
-        let width = Int(PNGTextChunks.be32(bytes, at: header.body.lowerBound))
-        let height = Int(PNGTextChunks.be32(bytes, at: header.body.lowerBound + 4))
-        guard width > 0, height > 0 else { return nil }
-        return ImageSize(width: width, height: height)
+        try? PNGHeader.read(from: data).size
     }
 }

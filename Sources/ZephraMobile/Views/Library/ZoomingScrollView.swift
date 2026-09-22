@@ -1,4 +1,5 @@
 import UIKit
+import ZephraStyle
 
 /// One picture in a scroll view that zooms, which is how Photos is built and why.
 ///
@@ -60,11 +61,19 @@ final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate {
 
     /// The picture. Replacing it with one of the same shape keeps the zoom, which is what the
     /// viewer does as a thumbnail sharpens into the file; a different shape is fitted afresh.
+    ///
+    /// A picture that carries transparency is given the checkerboard as its own background,
+    /// which is the image view's rather than the scroll view's: that view is the picture's
+    /// fitted rectangle and zooms with it, so the ground is exactly as big as the picture at
+    /// every zoom.
     var image: UIImage? {
         get { imageView.image }
         set {
             let refit = imageView.image.map { aspect(of: $0) != newValue.map(aspect(of:)) } ?? true
             imageView.image = newValue
+            imageView.backgroundColor = newValue?.cgImage?.hasTransparency == true
+                ? TransparencyPattern.color()
+                : .clear
             if refit { fittedBounds = .zero }
             setNeedsLayout()
         }

@@ -167,6 +167,17 @@ Each backend package decodes the bytes to a `CGImage` in its own
 package may import another. Backends decode; the kits are handed decoded images
 and never touch the filesystem.
 
+**A transparent reference is matted over white.** Every bitmap a reference is
+drawn into — `QwenPixelBuffer`, `Flux2PixelBuffer`, `CoveringPicture`, and
+`UpscalePixelBuffer` for a picture with no alpha channel — is cleared to white
+before the draw. It used to be black, and that was never a decision: a fresh
+`CGContext` buffer is zeroed, `noneSkipLast` reads the zeroes as black, and a
+transparent picture drawn into it lost its clear regions to it. Transparent
+pictures were not producible inside Zephra before this change, so the default had
+to be chosen rather than inherited, and white is what a person expects and what
+Qwen-Image-2.1's own pipeline prescribes for its reference tower. Each site says
+so in a comment beside the fill.
+
 
 ## Upscaling
 
@@ -200,8 +211,20 @@ later post-process should copy:
   2x is the 4x pass followed by an exact 2x2 box mean; the network is 4x only.
   The picture runs through `TiledDecode` in 512-pixel input tiles at scale 4;
   a 1024 input measured 2466 MB peak and 3.75 s at 4x on an M4 Max, and 2x
-  costs the same peak because the 4x join sets it. Alpha is dropped; library
-  PNGs are opaque. The port is written from `srvgg_arch.py` and never from
-  `xocialize/realesrgan-mlx`, which has no license.
+  costs the same peak because the 4x join sets it. The port is written from
+  `srvgg_arch.py` and never from `xocialize/realesrgan-mlx`, which has no
+  license.
+- **Transparency goes through, in two lanes.** A picture with an alpha channel
+  is split by `UpscalePixelBuffer.pixels` into its straight colour — the
+  premultiplication a bitmap context imposes divided back out, a wholly clear
+  pixel taking white — and its alpha plane. The colour runs through the network
+  as itself; the alpha runs through as a grey triplet, the same plane in all
+  three channels, and the mean of the three outputs is the new alpha. The
+  network never learned a fourth channel, but it did learn to enlarge a grey
+  picture, and an alpha plane is one: its edges are the picture's edges and want
+  the same treatment. The two are recombined as straight RGBA and written as an
+  RGBA PNG. That is twice the tiles, and the progress counts both lanes. A
+  picture with no alpha channel runs one lane and comes back exactly as it
+  always did.
 
 Everything the upscaler leaves out on purpose is listed in `ROADMAP.md`.

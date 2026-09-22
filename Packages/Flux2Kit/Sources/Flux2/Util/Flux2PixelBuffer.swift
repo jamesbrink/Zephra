@@ -37,6 +37,12 @@ public enum Flux2PixelBuffer {
                     space: CGColorSpaceCreateDeviceRGB(),
                     bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)
             else { return false }
+            // Cleared to **white**, not to the zeroes a fresh bitmap holds: a reference
+            // picture may carry transparency now, and a matte decides what its clear pixels
+            // encode as. Black was what an uncleared buffer happened to give; white is what
+            // a person expects and what the 2.1 pipeline prescribes for its own references.
+            context.setFillColor(gray: 1, alpha: 1)
+            context.fill(CGRect(x: 0, y: 0, width: width, height: height))
             context.interpolationQuality = .high
             // Scale so the picture covers the fitted size and centre it: the trim to a
             // multiple of sixteen comes off both edges equally, and the overflow is clipped by

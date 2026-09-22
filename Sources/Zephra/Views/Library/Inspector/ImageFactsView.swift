@@ -42,6 +42,10 @@ struct ImageFactsView: View {
             if let continued = facts.continued {
                 FactsRow("Continues", continued)
             }
+            // Only when it is true: a row reading "No" is a row about every picture ever made.
+            if facts.isTransparent {
+                FactsRow("Transparent", "Yes")
+            }
         }
     }
 }

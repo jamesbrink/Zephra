@@ -36,7 +36,7 @@ public final class Flux2Pipeline {
     /// the autoencoder: a host that shows frames only every so often never pays for the ones it
     /// would have thrown away. How often that is belongs to the host, not to this package.
     public typealias PreviewHandler = (
-        _ step: Int, _ totalSteps: Int, _ frame: () -> Flux2LatentPreview
+        _ step: Int, _ totalSteps: Int, _ frame: () throws -> Flux2LatentPreview
     ) -> Void
 
     public func generate(

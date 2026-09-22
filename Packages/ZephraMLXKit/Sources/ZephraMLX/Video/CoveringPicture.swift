@@ -9,8 +9,9 @@ import MLX
 ///
 /// The picture is scaled to **cover** the frame and cropped to the middle, not stretched and not
 /// letterboxed. Letterboxing is what the smaller of the two ratios would do, and the bars it
-/// leaves are not neutral: they encode as a stripe at -1 down two edges, which a model holds as
-/// faithfully as it holds the picture and then continues into every frame after it. Stretching
+/// leaves are not neutral: they encode as a stripe at one end of the range down two edges,
+/// which a model holds as faithfully as it holds the picture and then continues into every
+/// frame after it. Stretching
 /// keeps every pixel but hands the model a first frame whose proportions the rest of the clip
 /// has no reason to keep. Covering loses the edges of one axis, which is what a person choosing
 /// a picture for a clip of another shape expects.
@@ -32,6 +33,12 @@ public enum CoveringPicture {
                     space: CGColorSpaceCreateDeviceRGB(),
                     bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)
             else { return false }
+            // Cleared to **white**, not to the zeroes a fresh bitmap holds: a reference
+            // picture may carry transparency now, and a matte decides what its clear pixels
+            // encode as. Black was what an uncleared buffer happened to give; white is what
+            // a person expects and what the 2.1 pipeline prescribes for its own references.
+            context.setFillColor(gray: 1, alpha: 1)
+            context.fill(CGRect(x: 0, y: 0, width: width, height: height))
             // Plain bilinear, not `.high`'s anti-aliased downsample: diffusers' LTX condition
             // pipeline deliberately skips `VideoProcessor.preprocess_video`, whose PIL resize
             // applies an anti-aliasing pre-filter, and reproduces the original code's plain

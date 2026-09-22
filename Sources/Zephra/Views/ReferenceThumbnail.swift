@@ -13,14 +13,13 @@ import ZephraStyle
 struct ReferenceThumbnail: View {
     @Environment(GenerationStore.self) private var store
     @Environment(ImageCache.self) private var cache
-    @State private var bitmap: NSImage?
+    @State private var bitmap: DrawnPicture?
 
     var body: some View {
-        Rectangle()
-            .fill(.quaternary)
+        ground
             .overlay {
                 if let bitmap {
-                    Image(nsImage: bitmap)
+                    Image(nsImage: bitmap.image)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                 }
@@ -30,6 +29,18 @@ struct ReferenceThumbnail: View {
                 guard let png = store.settings.referenceImage else { return }
                 bitmap = await cache.referenceThumbnail(png)
             }
+    }
+
+    /// The checkerboard behind a reference that carries transparency, and otherwise the well's
+    /// own fill. A transparent reference is one this Mac can now make, so the well has to be
+    /// able to say so.
+    @ViewBuilder
+    private var ground: some View {
+        if bitmap?.hasAlpha == true {
+            TransparencyGround()
+        } else {
+            Rectangle().fill(.quaternary)
+        }
     }
 }
 

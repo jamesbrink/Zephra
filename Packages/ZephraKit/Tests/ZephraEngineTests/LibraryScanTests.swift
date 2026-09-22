@@ -27,6 +27,25 @@ struct LibraryScanTests {
         #expect(source.prompt == "")
     }
 
+    @Test("the scan reads transparency off each file's own header")
+    func transparencyComesFromTheFile() throws {
+        let bed = EngineTestBed()
+        let library = bed.library
+        let url = try library.write(LibraryAnnotationTests.image(seed: 7, prompt: "a window"))
+        // The same record over opaque pixels: the record says nothing about alpha, so the
+        // two items differ only in what their own headers declare.
+        let text = try PNGTextChunks.read(from: try Data(contentsOf: url))
+        let record = try #require(text[GenerationRecord.keyword])
+        let opaque = try PNGTextChunks.inserting(
+            [(keyword: GenerationRecord.keyword, text: record)], into: MockUpscaler.pngData)
+        try opaque.write(to: bed.directory.appending(path: "opaque.png"))
+
+        let items = LibraryScan(library: library).rescan()
+
+        #expect(items.first { $0.fileName == url.lastPathComponent }?.hasAlpha == true)
+        #expect(items.first { $0.fileName == "opaque.png" }?.hasAlpha == false)
+    }
+
     @Test("a file whose date and size have not moved is taken from what is already known")
     func unchangedFilesAreNotReread() throws {
         let bed = EngineTestBed()

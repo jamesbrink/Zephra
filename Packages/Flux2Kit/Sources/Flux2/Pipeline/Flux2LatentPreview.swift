@@ -13,7 +13,8 @@ public struct Flux2LatentPreview: Sendable {
     public let width: Int
     /// Pixels down.
     public let height: Int
-    /// `width * height * 4` bytes, RGBA8, row-major, opaque.
+    /// `width * height * 4` bytes, RGBA8, row-major, straight alpha; 255 everywhere for a
+    /// model that makes no transparency.
     public let pixels: Data
 
     /// Decodes one estimate of the finished latent.
@@ -30,7 +31,7 @@ public struct Flux2LatentPreview: Sendable {
         packedHeight: Int,
         packedWidth: Int,
         autoencoder: Flux2Autoencoder
-    ) -> Flux2LatentPreview {
+    ) throws -> Flux2LatentPreview {
         let latents = autoencoder.unpacked(
             Flux2LatentPacking.grid(tokens, height: packedHeight, width: packedWidth))
         let factor = LatentPreview.poolingFactor(
@@ -38,6 +39,7 @@ public struct Flux2LatentPreview: Sendable {
         let image = autoencoder.decodeUntiled(LatentPreview.pooled(latents, by: factor))
         MLX.eval(image)
         return Flux2LatentPreview(
-            width: image.dim(2), height: image.dim(1), pixels: LatentPreview.rgba8(image))
+            width: image.dim(2), height: image.dim(1),
+            pixels: try LatentPreview.rgba8(image))
     }
 }
