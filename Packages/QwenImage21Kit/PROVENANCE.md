@@ -144,7 +144,8 @@ scratch was alive at once. `QwenImage21VAEDecoder` now evaluates after each stag
 `QwenImage21ResidualUpBlock` after its residual blocks and after its upsampler, and the
 same decode peaks 9.5 GB over the weights (25.7 GB to 20.1 GB in all). What is left is that
 one upsampler convolution, and the tiled decode is what bounds it: at the backend's 32-cell
-tile the decode peaks about 5.2 GB over the weights. The encoder is left as it was, since a
+tile a whole forty-step run peaks 14.1 GB, within 0.2 GB of the transformer's first step, so
+the decode no longer sets the figure at all. The encoder is left as it was, since a
 reference picture's encode (4.9 GB over the weights at 1024) sits under the first step that
 reads it.
 
@@ -155,7 +156,7 @@ pixels, which is a 256-pixel frame, the size `GenerationPreview` is drawn at. Th
 autoencoder's cell is sixteen pixels, so the shared limit made 512-pixel frames through a
 float32 decoder: four times the pixels anybody sees, and 2.3 seconds a frame at 1024 square
 on a busy GPU. `QwenImage21LatentPreview.cellLimit` is 16, the same 256 pixels, and a frame
-costs 0.11 seconds against a step of about 5.8 -- under two percent -- so the family keeps
+costs 0.14 seconds against a step of about 8 -- under two percent -- so the family keeps
 the shared `PreviewThrottle` interval rather than a longer one of its own. The preview
 decoder stays float32: at that cost there is nothing a bfloat16 copy of it would buy.
 
