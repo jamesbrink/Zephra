@@ -16,6 +16,9 @@ public enum QwenImage21TransformerError: Error, LocalizedError, Equatable {
     case blockIsNotWholeSlots(tokens: Int)
     /// A prompt mask of a different length from the text positions it is lifted onto.
     case promptMaskIsTheWrongLength(mask: Int, textPositions: Int)
+    /// The encoder handed over a different number of tokens from the one the layout was built
+    /// against, so the joint sequence would read text out of the latents.
+    case textDoesNotMatchLayout(text: Int, expected: Int)
     /// A cached step ran against a layer whose prefix was never extracted.
     case cacheWasNotExtracted
     /// A cache was handed to a model whose configuration says the prefix is not step-independent.
@@ -31,6 +34,8 @@ public enum QwenImage21TransformerError: Error, LocalizedError, Equatable {
             "A block of \(tokens) latent tokens is not a whole number of the four-token slots the encoder reserved."
         case .promptMaskIsTheWrongLength(let mask, let textPositions):
             "A prompt mask of \(mask) entries cannot be lifted onto \(textPositions) text positions."
+        case .textDoesNotMatchLayout(let text, let expected):
+            "The encoder handed over \(text) tokens where the joint layout expects \(expected)."
         case .cacheWasNotExtracted:
             "A step read a prefix cache that the first step never filled."
         case .cacheRequiresCausalCondition:
