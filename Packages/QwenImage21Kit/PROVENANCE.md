@@ -34,3 +34,26 @@ one departure.
 `diffusers` comes from a git commit rather than a release, and `transformers` is 5.17.0, where
 the other three kits pin 0.40.0 and 5.16.1. 2.1 landed after 0.40.0 was cut and Qwen3-VL needs
 5.17. `Tests/QwenImage21Tests/Fixtures/README.md` states it beside the fixtures it explains.
+
+### The text encoder's final norm is not built
+
+The conditioning the transformer reads is the output of decoder layer 35 **before**
+`model.language_model.norm`. The reference pipeline reaches that by registering a forward hook
+on the norm that hands back its own input, because from transformers 5.0 `hidden_states[-1]`
+is otherwise the normalised state. This port implements the hook as "the norm does not exist":
+`Qwen3VLLanguageModel` builds `embed_tokens` and 36 layers and stops, and
+`Qwen3VLTextWeights.omitted` names `model.language_model.norm.weight` and `lm_head.weight` as
+the two published tensors it never loads. `Qwen3VLLanguageModelTests` checks both that the
+answer matches the hooked reference and that it is far from the unhooked one;
+`WeightKeyCoverageTests+TextEncoder` checks that both omitted tensors really are in the
+release, since `tie_word_embeddings` is false and a pack has to exclude `lm_head` explicitly
+rather than assume it away.
+
+### The encoder answers one prompt at a time, so the padding mask is nothing
+
+Tokenisation is left-padded as the checkpoint was trained; the valid slice is then extracted
+per row and the *embeddings* are right-padded for the transformer (spec C.4). At batch one
+there is nothing padded, so `Qwen3VLAttentionMask` is the causal triangle and nothing else, and
+`encode_prompt`'s own `if prompt_embeds_mask.all(): prompt_embeds_mask = None` means the
+transformer is handed no mask either. A batched encoder would need the left-padding term, and
+`Qwen3VLAttentionMask` is the one file that would grow it.

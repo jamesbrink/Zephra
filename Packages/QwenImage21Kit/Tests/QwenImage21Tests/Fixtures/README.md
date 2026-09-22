@@ -35,6 +35,7 @@ directory in the same commit, and saying so in the commit message.
 | --- | --- | --- |
 | `scheduler.safetensors` | `dump_scheduler.py` | `ScheduleTests` |
 | `tokenizer_ids.json` | `dump_tokenizer.py` | `TokenizerTests` |
+| `text_encoder.safetensors` | `dump_text_encoder.py` | `Qwen3VLLanguageModelTests`, `Qwen3VLRotaryTests` |
 | `versions.json` | every dumper | nothing; it is the record |
 
 `scheduler.safetensors` holds seven ladders as `steps<N>.tokens<M>.{sigmas,timesteps,mu}`. Two
@@ -52,7 +53,16 @@ the transformer sees anything, and a count one out shifts every conditioning vec
 `TokenizerTests` asserts the constant against the real tokenizer's own count rather than
 trusting it.
 
-The five dumpers that write nothing yet — `dump_rope.py`, `dump_transformer.py`,
-`dump_text_encoder.py`, `dump_vision.py`, `dump_vae.py` — landed with the kit's skeleton so the
+`text_encoder.safetensors` holds a four-layer, 32-wide Qwen3-VL decoder — its weights, a fixed
+token run and the hidden state at the last layer **before** the stack's final norm, dumped
+under the same forward hook the pipeline installs, with the unhooked (normalised) answer beside
+it so a Swift suite can show the two differ. It also holds the interleaved MRoPE tables at
+**both** widths: the doll's `head_dim` 8 over section `[2, 1, 1]`, and the published
+`head_dim` 128 over `[24, 20, 20]`, each over a text-only run of positions and over a
+three-axis run with a picture in it. The published tables cost no weights at all — the rotary
+is decided by a configuration — and they are what say which half-dim reads which axis.
+
+The four dumpers that write nothing yet — `dump_rope.py`, `dump_transformer.py`,
+`dump_vision.py`, `dump_vae.py` — landed with the kit's skeleton so the
 seven live in one place. Each states in its docstring what it pins and which suite will read it;
 their doll's-house widths are settled by the step that adds that suite.
