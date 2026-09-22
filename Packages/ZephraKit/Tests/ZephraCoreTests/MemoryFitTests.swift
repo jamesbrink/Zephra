@@ -21,12 +21,14 @@ struct MemoryFitTests {
         physicalMemory: gigabytes(16), gpuWorkingSet: megabytes(16384), wiredLimitMB: 16384)
 
     /// A descriptor with the given peaks and nothing else worth reading.
-    static func model(peak: Int64, tiled: Int64, streamed: Int64 = 0) -> ModelDescriptor {
+    static func model(
+        peak: Int64, tiled: Int64, streamed: Int64 = 0, prefix: Int64 = 0
+    ) -> ModelDescriptor {
         ModelDescriptor(
             id: "test", displayName: "Test", variantName: nil, backend: .zImage,
             source: .localDirectory(URL(filePath: "/tmp/test")), quantization: .int4,
             downloadBytes: 0, residentBytes: 1, peakBytes: peak, tiledPeakBytes: tiled,
-            streamedPeakBytes: streamed, maxPromptTokens: 512,
+            streamedPeakBytes: streamed, referencePrefixBytes: prefix, maxPromptTokens: 512,
             capabilities: ModelCatalog.zImageTurbo4bit.capabilities, builtBytes: 0)
     }
 

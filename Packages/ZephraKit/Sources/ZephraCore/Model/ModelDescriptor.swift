@@ -44,6 +44,19 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
     /// reading `residentBytes` there would floor that at zero and charge a streamed run
     /// nothing at all, which is the refusal the guard exists to make.
     public let streamedResidentBytes: Int64
+    /// What one reference picture adds to a run's peak, on top of the measured figures: the
+    /// prefix KV cache its latents occupy across every layer, plus the latents themselves.
+    ///
+    /// Measured with one reference at the entry's own default size; near enough constant across
+    /// target sizes, because a reference is fitted to the same megapixel budget whatever is
+    /// being made. That is why it is added rather than scaled: `MemoryGuard`'s scaling is
+    /// multiplicative over pixels and frames, and a cost that does not follow the picture being
+    /// made cannot be expressed that way.
+    ///
+    /// Zero for a family whose references cost nothing extra, which is every family that starts
+    /// from a noised copy of the picture or holds it as a first frame: those encode it into the
+    /// latent already being charged for.
+    public let referencePrefixBytes: Int64
     /// The longest prompt, in tokens, the text encoder is configured for.
     public let maxPromptTokens: Int
     /// The settings this model will accept.
@@ -79,6 +92,7 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
         tiledPeakBytes: Int64,
         streamedPeakBytes: Int64 = 0,
         streamedResidentBytes: Int64 = 0,
+        referencePrefixBytes: Int64 = 0,
         maxPromptTokens: Int,
         capabilities: ModelCapabilities,
         builtBytes: Int64 = 0,
@@ -96,6 +110,7 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
         self.tiledPeakBytes = tiledPeakBytes
         self.streamedPeakBytes = streamedPeakBytes
         self.streamedResidentBytes = streamedResidentBytes
+        self.referencePrefixBytes = referencePrefixBytes
         self.maxPromptTokens = maxPromptTokens
         self.capabilities = capabilities
         self.builtBytes = builtBytes

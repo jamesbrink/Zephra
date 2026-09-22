@@ -31,6 +31,9 @@ extension MemoryGuard {
     ///
     /// The scaling is linear, which is honest at the default size and optimistic a long way
     /// from it; `ROADMAP.md` carries that until a second size is measured per family.
+    ///
+    /// A reference picture's prefix cache is added afterwards rather than scaled, for the reason
+    /// written on `referenceBytes(of:settings:)`.
     func transientBytes(
         of descriptor: ModelDescriptor,
         residency: WeightResidency,
@@ -48,7 +51,31 @@ extension MemoryGuard {
                 descriptor.residentBytes
             }
         let transient = max(0, peak - held)
-        return Int64((Double(transient) * requestScale(of: descriptor, settings: settings)).rounded())
+        let scaled = Int64(
+            (Double(transient) * requestScale(of: descriptor, settings: settings)).rounded())
+        return scaled + referenceBytes(of: descriptor, settings: settings)
+    }
+
+    /// What this request's reference pictures add on top of the scaled transient.
+    ///
+    /// Additive, not scaled: a reference is fitted to the same megapixel budget whatever size is
+    /// being made, so its prefix cache costs the same on a 768 picture as on a 2048 one, and the
+    /// multiplicative scaling above cannot say that. Zero for every family whose references cost
+    /// nothing beyond the latent they are encoded into, which is all of them but the one that
+    /// conditions on a prefix.
+    ///
+    /// Classifier-free guidance runs a second forward with a prefix cache of its own, so only
+    /// the cache doubles: the two forwards are sequential, and their activations share one peak.
+    /// The condition is the one `GenerationSettings` is read by everywhere else — guidance over
+    /// one and a negative prompt that is actually there — since a backend runs the second pass
+    /// on exactly that.
+    private func referenceBytes(
+        of descriptor: ModelDescriptor, settings: GenerationSettings
+    ) -> Int64 {
+        guard descriptor.referencePrefixBytes > 0 else { return 0 }
+        let passes: Int64 =
+            settings.guidance > 1 && !(settings.negativePrompt ?? "").isEmpty ? 2 : 1
+        return Int64(settings.referenceImages.count) * descriptor.referencePrefixBytes * passes
     }
 
     /// How much bigger this request is than the one the family's peak was measured at: pixels
