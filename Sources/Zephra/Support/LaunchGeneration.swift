@@ -1,5 +1,10 @@
 import Foundation
+import os
+import ZephraCore
 import ZephraEngine
+
+/// What the launch hooks say they did, for `make logs`.
+private nonisolated let hookLogger = Logger(subsystem: "io.zephra", category: "launch")
 
 /// `ZEPHRA_GENERATE_ON_LAUNCH=<prompt>` presses Generate once the model is ready.
 ///
@@ -12,11 +17,12 @@ import ZephraEngine
 /// same reason — a shipped, signed Zephra has no business starting a generation, unattended,
 /// because a stray environment variable happened to be set.
 ///
-/// `ZEPHRA_REFERENCE_ON_LAUNCH=<path to a picture>` puts that picture in the well first,
-/// through the same door a drop takes (`GenerationStore.adoptReference`, so the read happens
-/// off the main actor and the 1024-pixel cap applies), and Generate waits for it to land the
-/// way it waits for any picture on its way in. With a video model chosen that is an
-/// image-to-video run from a shell. Read alone it does nothing: a picture with no prompt is
+/// `ZEPHRA_REFERENCE_ON_LAUNCH=<path>[:<path>…]` puts those pictures in the well first,
+/// through the same door a drop takes (`ReferenceAdoption`, so the read happens off the main
+/// actor and the 1024-pixel cap applies), and Generate waits for them to land the way it waits
+/// for any picture on its way in. Colon-separated, and `make logs` says how many landed — the
+/// store takes as many as the model reads and notes the rest. With a video model chosen that is
+/// an image-to-video run from a shell. Read alone it does nothing: a picture with no prompt is
 /// not a request.
 enum LaunchGeneration {
     static let variable = "ZEPHRA_GENERATE_ON_LAUNCH"
@@ -30,11 +36,25 @@ enum LaunchGeneration {
         return value
     }
 
-    /// The reference path named in `environment`, or nil when the variable is absent or empty.
-    /// Pure, for the same reason `resolvedPrompt(from:)` is.
+    /// The reference paths named in `environment`, in order, or nothing when the variable is
+    /// absent or empty. Pure, for the same reason `resolvedPrompt(from:)` is.
+    ///
+    /// Colon-separated, because a model may read several pictures and a colon is the one
+    /// character a Finder name cannot hold — the separator `PATH` has used for fifty years, and
+    /// the only one that cannot be part of a path it is separating. Empty segments are dropped,
+    /// so a trailing colon is not a picture, and the list is trimmed to what the limits carry.
+    static func resolvedReferences(from environment: [String: String]) -> [URL] {
+        guard let value = environment[referenceVariable], !value.isEmpty else { return [] }
+        return value.split(separator: ":", omittingEmptySubsequences: true)
+            .map { URL(filePath: String($0)) }
+            .prefix(ReferenceLimits.maximumPictures)
+            .map { $0 }
+    }
+
+    /// The first of them, which is what a one-picture model reads and what the hook has always
+    /// meant.
     static func resolvedReference(from environment: [String: String]) -> URL? {
-        guard let value = environment[referenceVariable], !value.isEmpty else { return nil }
-        return URL(filePath: value)
+        resolvedReferences(from: environment).first
     }
 
     /// The prompt to generate on launch, or nil when the hook is not set. `#if DEBUG` here,
@@ -49,11 +69,11 @@ enum LaunchGeneration {
         #endif
     }
 
-    /// The picture to put in the well before generating, or nil when the hook is not set. This
-    /// needs no `#if DEBUG` of its own: `run(on:)` reads it only after `prompt`, which is
+    /// The pictures to put in the well before generating, or nothing when the hook is not set.
+    /// This needs no `#if DEBUG` of its own: `run(on:)` reads it only after `prompt`, which is
     /// already nil in Release, so it is never asked.
-    static var reference: URL? {
-        resolvedReference(from: ProcessInfo.processInfo.environment)
+    static var references: [URL] {
+        resolvedReferences(from: ProcessInfo.processInfo.environment)
     }
 
     /// Waits for the bootstrap to leave the model ready, puts the picture in if there is one,
@@ -73,11 +93,13 @@ enum LaunchGeneration {
             if case .failed = store.state { return }
             try? await Task.sleep(for: .milliseconds(250))
         }
-        if let reference {
-            store.adoptReference(origin: nil) { ReferenceImageEncoder.pngData(contentsOf: reference) }
+        let references = references
+        if !references.isEmpty {
+            ReferenceAdoption.adopt(urls: references, into: store)
             while store.isAdoptingReference {
                 try? await Task.sleep(for: .milliseconds(50))
             }
+            hookLogger.info("launch hook put \(store.settings.referenceImages.count) reference picture(s) in the well")
         }
         store.settings.prompt = prompt
         store.generateFromInterface(count: 1)

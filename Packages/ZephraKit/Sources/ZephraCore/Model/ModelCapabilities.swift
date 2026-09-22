@@ -29,6 +29,14 @@ public struct ModelCapabilities: Hashable, Sendable {
     /// picture at all" and this answers "how many, when it reads any". Never more than
     /// `ReferenceLimits.maximumPictures`, which is what the PNG record and the link can carry.
     public let referenceImageCount: ClosedRange<Int>
+    /// Whether the model reads a picture's transparency, rather than having it composited over
+    /// white before it is encoded.
+    ///
+    /// False everywhere but on a family whose vision tower takes four channels: every other
+    /// reference path draws the picture into an opaque bitmap, so a transparent PNG arrives at
+    /// the model over white. The interface says so rather than letting a person wonder where
+    /// the cut-out went (`ReferenceRole.whiteMatteNote(modelName:)`).
+    public let readsTransparentReferences: Bool
     /// How far from that picture a generation may start, on models that begin from a noised
     /// copy of it.
     ///
@@ -82,6 +90,7 @@ public struct ModelCapabilities: Hashable, Sendable {
         supportsSeed: Bool,
         supportsReferenceImage: Bool = false,
         referenceImageCount: ClosedRange<Int> = 1...1,
+        readsTransparentReferences: Bool = false,
         referenceStrengthBounds: ClosedRange<Double> = 1...1,
         defaultReferenceStrength: Double = 1,
         frameBounds: ClosedRange<Int> = 1...1,
@@ -104,6 +113,7 @@ public struct ModelCapabilities: Hashable, Sendable {
         self.supportsSeed = supportsSeed
         self.supportsReferenceImage = supportsReferenceImage
         self.referenceImageCount = referenceImageCount
+        self.readsTransparentReferences = readsTransparentReferences
         self.referenceStrengthBounds = referenceStrengthBounds
         self.defaultReferenceStrength = defaultReferenceStrength
         self.frameBounds = frameBounds
