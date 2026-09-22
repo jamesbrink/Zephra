@@ -11,6 +11,14 @@ extension Color {
     /// Safelight amber, the one accent. Only ever shown while the model is working.
     public nonisolated static let safelight = Color("Safelight", bundle: .module)
 
+    /// The lighter square of `TransparencyGround`'s checkerboard: paper in the light
+    /// appearance, and in the dark one a grey a shade above the ground rather than the light
+    /// pair inverted — the checkerboard is a surface a picture sits on, not a light behind it.
+    public nonisolated static let transparencyLight = Color("TransparencyLight", bundle: .module)
+
+    /// Its darker square.
+    public nonisolated static let transparencyDark = Color("TransparencyDark", bundle: .module)
+
     /// The four muted colours a model's dot can take.
     ///
     /// They identify a model; they never mean anything, and none of them is safelight amber,
