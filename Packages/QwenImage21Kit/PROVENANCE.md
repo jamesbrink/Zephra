@@ -293,3 +293,60 @@ picture's mean byte difference is **0.70 on a range of 255**. Both ends run bflo
 activations over the same weights, so what is left is rounding compounded through 32 blocks and
 two steps rather than a difference in the arithmetic. The suite's bounds are two per cent and
 two bytes -- a bit over twice each measurement -- and the whole run takes 35 seconds streamed.
+
+### The reference-conditioned parity fixture is committed at the fitted size
+
+`PipelineReferenceParityTests` is the same suite over the other path: one condition picture,
+which the model reads twice -- through the vision tower as context and through the autoencoder
+as latent tokens prepended to the noise -- from one resize. It is the half `PipelineParityTests`
+cannot reach, because a port that showed the tower a picture the autoencoder never saw, or laid
+the condition tokens out in the wrong place, would still make a plausible picture from the
+prompt alone.
+
+The departure above -- Core Graphics' resample against PIL's lanczos -- is exactly what would
+have made that measurement meaningless, so the fixture avoids it rather than absorbing it into
+a wider bound. `pipeline_reference.png` is committed at **1024 square**, which is what
+`calculate_dimensions(1024`squared`, 1)` answers for a square picture at the default
+`output_resolution`, so neither side resamples anything: PIL's `Image.resize` returns a copy
+when the size already matches, and a Core Graphics draw into a bitmap of the picture's own size
+is a copy too. `Tools/dump_pipeline_reference.py` refuses to write the fixture at any other
+size, and the suite's first expectation is that this kit's own fit of those bytes is the very
+array the reference read, to the byte. A failure there is a decoder or a colour space; a
+failure after it is the port.
+
+The picture's transparent third carries **zero colour**, so the premultiplied round trip
+measured above is lossless on it. That is deliberate: the one departure this fixture could not
+measure honestly is the one it is built not to measure.
+
+**The suite is `.disabled` and the fixture is why.** Written against the release on halcyon on
+2026-09-22, the port does **not** reproduce the reference on this path, and the numbers say so
+clearly enough to be worth writing down rather than widening a bound around:
+
+| measured | port against reference |
+| --- | --- |
+| the fitted picture the two halves read | **identical, to the byte** |
+| the joint layout (`img_shapes`, encoder tokens, pad mask, prefix) | **identical** -- 1046 encoder tokens, 4352 image tokens, shapes `(1,64,64)` and `(1,16,16)` |
+| the vision-language embedding, text positions before and after the picture | 3.6 and 3.2 per cent relative, which is this run's bfloat16 floor |
+| the vision-language embedding, the picture's own 1024 tokens | **23.5 per cent relative** |
+| the condition latents (`[1, 4096, 64]`, normalised) | **76 per cent relative**, Pearson 0.77, evenly across the picture |
+| the finished latent | 99.6 per cent relative, Pearson 0.57 |
+| the decoded picture | mean byte difference **101 on a range of 255** |
+
+So the fixture is sound and two independent parts of the reference-conditioned path are not:
+the vision tower's own tokens, and the autoencoder's encode of the condition picture. Both are
+uniform rather than positional -- nothing is transposed or mis-ordered -- and both show only at
+the size a real reference picture lands on, 1024 square, which is a 64 by 64 patch grid and a
+64 by 64 latent grid. What is pinned today is smaller: `dump_vision.py` dumps the published
+tower's interpolation and rotary tables at 6 by 8 and 32 by 32, and `dump_vae.py` encodes a
+64 by 64 picture. Whatever is wrong is above both.
+
+One candidate for the condition half is this kit's own **float32 autoencoder**, stated above:
+the reference pipeline runs its VAE in bfloat16 with the rest of itself, and the normalisation
+by `latents_std` that follows can amplify what that costs. If that turns out to be the whole of
+the 76 per cent then this dumper should run the reference's condition encode in float32 to
+match, and that is a change to the fixture rather than to the port. It does not explain the
+vision tokens, which are bfloat16 on both sides.
+
+`ROADMAP.md` carries this as work owed. The suite is `.disabled` rather than left red because a
+red test that everyone learns to skip past is worse than a written-down one; enabling it is
+deleting that one trait.

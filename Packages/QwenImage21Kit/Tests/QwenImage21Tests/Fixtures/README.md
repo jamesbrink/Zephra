@@ -46,6 +46,7 @@ directory in the same commit, and saying so in the commit message.
 | `text_encoder.safetensors` | `dump_text_encoder.py` | `Qwen3VLLanguageModelTests`, `Qwen3VLRotaryTests` |
 | `vision.safetensors` | `dump_vision.py` | `VisionTowerTests`, `VisionPositionTests`, `DeepStackTests`, `ImagePreprocessingTests`, `PromptEncoderTests` |
 | `pipeline.safetensors`, `pipeline.json` | `dump_pipeline.py` | `PipelineParityTests` |
+| `pipeline_reference.safetensors`, `.json`, `.png` | `dump_pipeline_reference.py` | `PipelineReferenceParityTests` |
 | `versions.json` | every dumper | nothing; it is the record |
 
 `pipeline.safetensors` is the whole reference pipeline run end to end, and it is the only
@@ -59,6 +60,30 @@ The noise is in the file because `MLXRandom` is not a `torch.Generator`: the sam
 different draw, so the Swift run is handed the reference's own noise through
 `QwenImage21Request.noise` and the two loops walk one ladder from one place. Without that there
 is no tolerance on a picture that means anything. `PROVENANCE.md` states it.
+
+`pipeline_reference.safetensors` is the same run with a condition picture in it, which is the
+half of 2.1 the first fixture cannot reach: the picture goes through the vision tower as
+context *and* through the autoencoder as latent tokens prepended to the noise, and a port that
+showed the tower a picture the autoencoder never saw would still make a plausible picture from
+the prompt alone. Beside `noise`, `latents` and `pixels` it carries `condition`, the fitted
+RGBA the model actually read, so a Swift run shows its own decode of the committed PNG is those
+very bytes before it blames the port for a latent that moved.
+
+`pipeline_reference.png` (37 KB) is that picture, committed at **1024 square, which is the size
+the pipeline would have resized it to** — `calculate_dimensions(1024², 1)`. That is the whole
+reason for its size: the reference resizes a condition image with PIL's lanczos and
+`QwenImage21ReferencePicture` fits it through Core Graphics at `.high`, and those are different
+kernels, so a picture committed at any other size would put the two runs a resample apart
+before the model saw anything. At the fitted size both are identities — PIL's `resize` returns
+a copy when the size already matches, and a Core Graphics draw into a bitmap of the picture's
+own size is a copy too — and the dumper refuses to write the fixture if that stops being true.
+The picture is a gradient with a seeded 32-pixel block overlay (a pure gradient is separable in
+both axes, so a port that transposed it would reproduce it exactly) and a hard alpha edge two
+thirds across. The colour under the transparent third is **zero** on purpose: Core Graphics has
+no straight-alpha context, so the Swift fit draws premultiplied and un-premultiplies, which
+loses the colour beneath a fully transparent pixel, and a picture that has none there round
+trips exactly. That is the one departure this fixture deliberately does not measure, because it
+could not measure it honestly.
 
 `scheduler.safetensors` holds seven ladders as `steps<N>.tokens<M>.{sigmas,timesteps,mu}`. Two
 of the seven are the pipeline's own defaults — 40 steps at 1024 square (4096 latent tokens) and
