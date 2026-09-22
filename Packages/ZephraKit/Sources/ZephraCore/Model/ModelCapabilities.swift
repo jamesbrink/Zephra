@@ -22,6 +22,13 @@ public struct ModelCapabilities: Hashable, Sendable {
     public let supportsSeed: Bool
     /// Whether a picture can be handed in to be edited rather than started from noise.
     public let supportsReferenceImage: Bool
+    /// How many pictures the model reads, on a model that reads any.
+    ///
+    /// A single point at 1 means one, by the convention `guidanceBounds: 0...0` and
+    /// `frameBounds: 1...1` already set; `supportsReferenceImage` stays the gate for "any
+    /// picture at all" and this answers "how many, when it reads any". Never more than
+    /// `ReferenceLimits.maximumPictures`, which is what the PNG record and the link can carry.
+    public let referenceImageCount: ClosedRange<Int>
     /// How far from that picture a generation may start, on models that begin from a noised
     /// copy of it.
     ///
@@ -74,6 +81,7 @@ public struct ModelCapabilities: Hashable, Sendable {
         supportsNegativePrompt: Bool,
         supportsSeed: Bool,
         supportsReferenceImage: Bool = false,
+        referenceImageCount: ClosedRange<Int> = 1...1,
         referenceStrengthBounds: ClosedRange<Double> = 1...1,
         defaultReferenceStrength: Double = 1,
         frameBounds: ClosedRange<Int> = 1...1,
@@ -95,6 +103,7 @@ public struct ModelCapabilities: Hashable, Sendable {
         self.supportsNegativePrompt = supportsNegativePrompt
         self.supportsSeed = supportsSeed
         self.supportsReferenceImage = supportsReferenceImage
+        self.referenceImageCount = referenceImageCount
         self.referenceStrengthBounds = referenceStrengthBounds
         self.defaultReferenceStrength = defaultReferenceStrength
         self.frameBounds = frameBounds
@@ -114,6 +123,12 @@ public struct ModelCapabilities: Hashable, Sendable {
     /// Whether the step count is a choice on this model, by the same rule: a checkpoint
     /// distilled to a fixed ladder of sigmas, as LTX-2.5's is, declares one legal count.
     public var adjustsSteps: Bool { stepBounds.lowerBound < stepBounds.upperBound }
+
+    /// Whether this model reads more than one picture, which is what a view reads to decide
+    /// between a single well and a strip of them.
+    public var acceptsSeveralReferences: Bool {
+        supportsReferenceImage && referenceImageCount.upperBound > 1
+    }
 
     /// Whether the reference strength is a choice on this model, by the same rule.
     public var adjustsReferenceStrength: Bool {

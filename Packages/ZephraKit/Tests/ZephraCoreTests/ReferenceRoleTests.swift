@@ -46,6 +46,24 @@ struct ReferenceRoleTests {
         #expect(Set(roles.map(\.inspectorRowLabel)).count == 4)
     }
 
+    @Test("only the reference role pluralises, and its plurals are its own")
+    func pluralsAreDistinct() {
+        let role = ReferenceRole.reference
+        #expect(role.wellCaption(count: 1) == role.wellCaption)
+        #expect(role.wellCaption(count: 3) == "References")
+        #expect(role.emptyWellHelp(upTo: 3) != role.emptyWellHelp)
+        #expect(role.filledWellAccessibilityLabel(count: 3) != role.filledWellAccessibilityLabel)
+        #expect(role.openPanelMessage(upTo: 3) != role.openPanelMessage)
+        #expect(role.inspectorRowLabel(count: 3) == "Edited from 3 pictures")
+
+        // A clip has one first frame however many the count says.
+        for other: ReferenceRole in [.firstFrame, .continues, .startFrom] {
+            #expect(other.wellCaption(count: 3) == other.wellCaption)
+            #expect(other.emptyWellHelp(upTo: 3) == other.emptyWellHelp)
+            #expect(other.inspectorRowLabel(count: 3) == other.inspectorRowLabel)
+        }
+    }
+
     @Test("while the capsule carries a continuation, a clip model's picture is the clip's end")
     func continuingIsItsOwnRole() {
         let capabilities = ModelCatalog.ltx2Distilled4bit.capabilities

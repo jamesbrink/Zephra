@@ -19,6 +19,7 @@ extension CapabilitiesSummary {
         supportsNegativePrompt = capabilities.supportsNegativePrompt
         supportsSeed = capabilities.supportsSeed
         supportsReferenceImage = capabilities.supportsReferenceImage
+        referenceImageCount = capabilities.referenceImageCount
         referenceStrengthBounds = capabilities.referenceStrengthBounds
         defaultReferenceStrength = capabilities.defaultReferenceStrength
         frameBounds = capabilities.frameBounds
@@ -44,6 +45,7 @@ extension CapabilitiesSummary {
             supportsNegativePrompt: supportsNegativePrompt,
             supportsSeed: supportsSeed,
             supportsReferenceImage: supportsReferenceImage,
+            referenceImageCount: referenceImageCount,
             referenceStrengthBounds: referenceStrengthBounds,
             defaultReferenceStrength: defaultReferenceStrength,
             frameBounds: frameBounds,

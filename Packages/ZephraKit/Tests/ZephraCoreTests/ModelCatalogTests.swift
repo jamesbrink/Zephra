@@ -157,6 +157,24 @@ struct ModelCatalogTests {
         )
     }
 
+    @Test("every entry reads at least one picture, never more than the link can carry")
+    func referenceCountsAreSane() {
+        for descriptor in ModelCatalog.all {
+            let capabilities = descriptor.capabilities
+            #expect(
+                capabilities.referenceImageCount.lowerBound == 1,
+                "\(descriptor.id): a count starts at one, and supportsReferenceImage says whether it reads any")
+            #expect(
+                capabilities.referenceImageCount.upperBound <= ReferenceLimits.maximumPictures,
+                "\(descriptor.id): the PNG record files no more numbered chunks than that")
+            if capabilities.acceptsSeveralReferences {
+                #expect(
+                    capabilities.referenceStrengthBounds == 1...1,
+                    "\(descriptor.id): several pictures and a share of the schedule are two different things, and no family does both")
+            }
+        }
+    }
+
     @Test("the klein entries are built here from one shared download, and one of them edits")
     func kleinIsBuiltFromItsOwnDownload() {
         for descriptor in [ModelCatalog.flux2Klein4bit, ModelCatalog.flux2Klein8bit] {
