@@ -3,23 +3,20 @@ import ZephraCore
 import ZephraEngine
 import ZephraStyle
 
-/// The picture or pictures a generation edits, on models that read any: a thumbnail at the
-/// trailing edge of the prompt, a place to drop files or library pictures, and a way to clear
-/// them. Shown only for models that take a reference, so nothing offers a well that would do
-/// nothing.
+/// The picture or pictures a generation edits, on models that read any: at the trailing edge of
+/// the prompt, a place to drop files or library pictures, and a way to clear them. Shown only
+/// for models that take a reference, so nothing offers a well that would do nothing.
 ///
 /// Sized to the prompt band rather than to its own icon, so its right edge lines up with the
 /// Generate button below it and the two read as one column.
 ///
-/// A model that reads one picture draws exactly what it always drew: empty, a labelled button
-/// opens the picker with library and local-file choices; filled, the same two choices move into
-/// a context menu alongside Clear, since the thumbnail's own click already does nothing worth
-/// taking. A model that reads several draws `ReferenceStrip` instead, which is that same shape
-/// repeated with a `+` on the end.
+/// What is decided here is the shape and the doors, and nothing else: a model that reads several
+/// pictures draws `ReferenceStrip`, a model that reads one draws `ReferenceSingleWell` — which is
+/// byte for byte the well every model before this one had — and `ReferenceNotes` puts under
+/// either one whatever the store or the pictures' own headers have to say.
 ///
 /// The three drop destinations take **every** item dropped rather than the first, through one
-/// `adoptReferences` claim: a drop of five files is one choice and has to land as one, where
-/// five claims would land only the last.
+/// `adoptReferences` claim: a drop of five files is one choice and has to land as one.
 struct ReferenceImageWell: View {
     @Environment(GenerationStore.self) private var store
     /// Where the window is looking, which owns whether this picker is up: it and the model
@@ -29,8 +26,6 @@ struct ReferenceImageWell: View {
     /// Which of the three drop destinations has a drop over it; the well is targeted while any
     /// does, so an exit from one arriving after an enter from another cannot turn the accent off.
     @State private var targeted: Set<Int> = []
-
-    private var isTargeted: Bool { !targeted.isEmpty }
 
     var body: some View {
         @Bindable var workspace = workspace
@@ -43,7 +38,7 @@ struct ReferenceImageWell: View {
                     return true
                 } isTargeted: { if $0 { targeted.insert(1) } else { targeted.remove(1) } }
                 // Each drop is a choice made as it is accepted and read off the main actor:
-                // `adoptReferences` takes the ticket now and decodes in a detached task, so a
+                // the claim is taken now and the bytes are decoded in a detached task, so a
                 // large photo never stalls the drop and a later choice still wins. A file
                 // macOS cannot read leaves whatever was there alone.
                 .dropDestination(for: URL.self) { urls, _ in
@@ -64,6 +59,15 @@ struct ReferenceImageWell: View {
         }
     }
 
+    @ViewBuilder
+    private var well: some View {
+        if ReferenceStripLayout.drawsStrip(capabilities: store.descriptor.capabilities) {
+            ReferenceStrip()
+        } else {
+            ReferenceSingleWell(isTargeted: !targeted.isEmpty)
+        }
+    }
+
     /// How many pictures the picker's Use button may hand over at once: what the model would
     /// read in all, not what is left, since the picker's selection is made before anything is
     /// taken out and the store trims what will not fit and says so.
@@ -71,85 +75,6 @@ struct ReferenceImageWell: View {
         min(
             store.descriptor.capabilities.referenceImageCount.upperBound,
             ReferenceLimits.maximumPictures)
-    }
-
-    @ViewBuilder
-    private var well: some View {
-        if ReferenceStripLayout.drawsStrip(capabilities: store.descriptor.capabilities) {
-            ReferenceStrip()
-        } else if store.settings.referenceImage != nil {
-            filled
-        } else {
-            empty
-        }
-    }
-
-    /// The picture itself is `ReferenceThumbnail`, which decodes it off the main actor and
-    /// holds the square until it lands; this only frames it and hangs the controls on it.
-    ///
-    /// A replacement drop is legal here too, so the filled state answers `isTargeted` with the
-    /// same accent stroke the empty well does — the well's shape is one thing wearing two
-    /// pictures, not two different targets.
-    private var filled: some View {
-        ReferenceThumbnail()
-            .frame(width: 64, height: 64)
-            .clipShape(RoundedRectangle(cornerRadius: ZephraChrome.wellRadius, style: .continuous))
-            .overlay {
-                if isTargeted {
-                    RoundedRectangle(cornerRadius: ZephraChrome.wellRadius, style: .continuous)
-                        .strokeBorder(Color.accentColor, lineWidth: 1)
-                        .allowsHitTesting(false)
-                }
-            }
-            .overlay(alignment: .topTrailing) {
-                Button {
-                    ReferenceAdoption.use(nil, into: store)
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .symbolRenderingMode(.palette)
-                        .foregroundStyle(ZephraChrome.badgeForeground, ZephraChrome.badgeBackdrop)
-                }
-                .buttonStyle(.plain)
-                .offset(x: 5, y: -5)
-                .help("Clear the reference image")
-            }
-            .contextMenu {
-                Button("From Library…") { workspace.showsReferencePicker = true }
-                Button("Choose File…") { chooseFile() }
-                Divider()
-                Button("Clear") { ReferenceAdoption.use(nil, into: store) }
-            }
-            .accessibilityLabel(role.filledWellAccessibilityLabel)
-    }
-
-    private var empty: some View {
-        Button {
-            workspace.showsReferencePicker = true
-        } label: {
-            ReferencePlaceholder(title: role.wellCaption, isTargeted: isTargeted)
-        }
-        .buttonStyle(.plain)
-        .contextMenu {
-            Button("From Library…") { workspace.showsReferencePicker = true }
-            Button("Choose File…") { chooseFile() }
-        }
-        .help(role.emptyWellHelp)
-        .accessibilityLabel(role.emptyWellHelp)
-    }
-
-    private var role: ReferenceRole {
-        ReferenceRole(
-            capabilities: store.descriptor.capabilities,
-            continuing: store.settings.continuation != nil)
-    }
-
-    private func chooseFile() {
-        Task {
-            guard let url = await ReferenceImagePicker.choose(role: role, upTo: 1).first else {
-                return
-            }
-            store.adoptReference { ReferenceImageEncoder.pngData(contentsOf: url) }
-        }
     }
 }
 
@@ -173,5 +98,5 @@ struct ReferenceImageWell: View {
         .environment(GenerationStore.preview(
             state: .ready,
             image: PreviewImages.sample(reference: PreviewImages.referencePNG()),
-            descriptor: PreviewModel.editing))
+            descriptor: PreviewModel.video))
 }
