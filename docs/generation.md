@@ -679,7 +679,7 @@ Where a frame comes from: each kit has a `<Family>LatentPreview` that takes a
 latent in its loop's own packed space, unpacks it, pools it so its long edge is at
 most 32 cells (8 for LTX-2.5, whose cell is 32 pixels), and decodes that through the family's own autoencoder with the
 tiling skipped — `LatentPreview` in `ZephraMLX` holds the pooling and the byte
-packing for Qwen-Image and klein, and the vendored `ZImageKit` keeps its own copy
+packing for every kit that takes `ZephraMLX`, and the vendored `ZImageKit` keeps its own copy
 for the same reason it keeps its own `VAETiledDecode`. Each loop calls an optional
 `onPreview` **after** the step's `MLX.eval`, never on the last step, handing over
 the step index and a *closure* that makes the frame rather than a frame: the

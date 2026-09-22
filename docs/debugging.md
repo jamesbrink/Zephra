@@ -228,14 +228,15 @@ the same override the store runs under without a second read of the process envi
   comparable with the figures already recorded here. `ZEPHRA_PREVIEW_INTERVAL_MS` is the switch
   underneath: milliseconds between frames, and 0 switches them off, which is what the benchmark
   does to its own `InferenceEnvironment` without the flag. Measured at 1024 pixels on an M4 Max, mean over the frames of one run: 43 ms for klein
-  4-bit, 130 ms for Qwen-Image 4-bit, 192 ms for Z-Image 8-bit, against 0.5 to 8 s for the same
-  models' full decodes (`BENCHMARKS.md`; the last two were taken on a busy machine).
+  4-bit and 192 ms for Z-Image 8-bit, against 0.5 to 8 s for the same models' full decodes
+  (`BENCHMARKS.md`; the second was taken on a busy machine). Qwen-Image 2.1's frame cost is
+  owed a reading like the rest of its row.
 - `make bench ARGS="--model ltx-2.5-distilled-4bit --size 768x512 --frames 49"` measures a
   clip: `--size` takes `WxH` as well as one number, `--frames` is rounded down to the model's
   ladder and ignored by a picture model, and the clip is written to `--out` with its extension
   changed to `.mp4` and its first frame as a PNG beside it (`BenchRunner+Output`). The report
-  carries the frame count; `--stream` works as for Qwen-Image, and `--micro` still refuses
-  every family but Z-Image.
+  carries the frame count; `--stream` works as it does for every other family, and `--micro`
+  still refuses every family but Z-Image.
 - `ZEPHRA_PROFILE_STEP=1` prints per-phase timings (text encode, per-step graph build, per-step
   eval, VAE decode, and Z-Image's preview decode) and MLX's active and peak allocation to stderr.
 - Precision and padding switches, for bisecting a suspected regression without a rebuild:
@@ -263,9 +264,9 @@ the same override the store runs under without a second read of the process envi
   chosen mid-run therefore never changes the running run's decode.
 - `ZEPHRA_WEIGHT_RESIDENCY=streamed|resident` overrides the Performance tab's streaming
   preference for one launch, and `ZEPHRA_STREAM_DEPTH=N` says how many blocks a streamed load
-  reads ahead (2 unless set; the backend hands it to `QwenImageStreaming(depth:)` or
+  reads ahead (2 unless set; the backend hands it to `QwenImage21Streaming(depth:)` or
   `LTX2Streaming(depth:)` at load).
-  `make bench ARGS="--model qwen-image-2512-4bit --stream"` is the same with the report saying
+  `make bench ARGS="--model qwen-image-2.1-4bit --stream"` is the same with the report saying
   what one step read and how fast; `--stream-depth N` sweeps the window. Every family takes
   it — `ZImageStreaming`, `Flux2Streaming` and `WanStreaming` beside those two — and a family
   with no measured streamed figure would load resident whatever either says, which nothing in

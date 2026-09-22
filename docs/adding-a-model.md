@@ -5,7 +5,7 @@ The long form of the matching section of `AGENTS.md`: the rules there, the reaso
 ## Adding a model or a backend
 
 This is the seam priority 2 exists for. Both cases are additive: no view and
-nothing in `ZephraEngine` has to learn the model's name. (Adding Qwen-Image did
+nothing in `ZephraEngine` has to learn the model's name. (Adding Qwen-Image 2.1 did
 touch both, once each, for behaviour that turned out to be family-generic: a
 cross-family switch takes the new family's schedule, and the tiling caption
 reads the model's own peak.)
@@ -231,34 +231,41 @@ wrong. `BuildTally` in `ZephraCore` turns the packer's log lines into a bar
 weighted by what each component holds, so a family supplies a dictionary of
 gigabytes and nothing else. And `LocalSnapshot.downloadedRelease(of:in:)` in
 `ZephraSnapshot` is the "is the download here" question: the app's own folder,
-then the hub cache, with the descriptor's adapters counted. A family's own
-`<Family>SnapshotBuild` is then the plan, the weights, and nothing else.
+then the hub cache. A family's own `<Family>SnapshotBuild` is then the plan,
+the weights, and nothing else. A plan may also carry a **`notice`**, which
+`SnapshotAncillaryFiles` writes as `NOTICE` beside the packed weights — last,
+so it beats anything the release shipped — for a model whose license asks for
+one. The release's own `LICENSE` needs no rule: a top-level file that is neither
+`quantization.json` nor a `.safetensors` is copied with the rest, so a variant
+travels under the terms its weights arrived under.
 
-**A model whose build needs more than the release** is the fourth case, and
-Qwen-Image is the one that has it. `ModelDescriptor.adapters` is a list of
-`ModelAdapter` — a repository, a revision, one file name, and its size — fetched
-into `locations.adapter(_:)` (`Downloads/<org>--<repo>`, beside the releases) by
-the same `ModelDownloader.fetch` call, in one transfer with one progress bar,
-because `ModelDownloader.download` takes a list of `RepositoryDownload`s and
-lists and tallies them together. `transferBytes` is the release plus the
-adapters, what a Mac with nothing cached is told; a release already here — in
-the models folder or the hub cache — is never fetched again for want of its
-adapter, so availability charges only what `ModelLocations.bytesToFetch` says
-is still missing, and `fetch` moves only that. An adapter counts as here under
-any root the folder has been or in the hub cache, where `hf download` puts it
-(`ModelLocations+Adapters` in `ZephraSnapshot`, since `ZephraCore` knows no
-cache), so one fetched by hand beside its release is not fetched twice. The
-adapter is a build input, not a runtime one: `QwenImageBackend.build` hands
-`locations.adapterFileOnDisk(_:)` to the plan, the packer merges the low-rank update as it goes, and nothing downstream
-ever sees an adapter.
+**No model's build needs more than its release.** There was a fourth case once,
+where a descriptor listed `ModelAdapter`s fetched into `locations.adapter(_:)`
+by the same `fetch` call and merged into the transformer as the packer went.
+Qwen-Image-2512 was its only user, and the seam went with it when Qwen-Image 2.1
+replaced that entry: 2.1's release is the model that runs. `transferBytes` is
+now the release and nothing else, and `ModelLocations.bytesToFetch` charges what
+is missing of it. A family that needs a second repository again is a seam to
+write back, and the shape above is where to start.
 
-**A model that edits** reads `GenerationSettings.referenceImage`, PNG bytes the
-interface caps at 1024 pixels an edge before they land there.
-`ModelCapabilities.supportsReferenceImage` is the gate: `clamp` drops the
-picture for any model without it, and the well beside the prompt shows only for
-a model that has it. The picture is persisted in a second PNG chunk beside the
-record and comes back when the image is selected. Every model the catalog ships
-reads one, in one of the three ways the next section describes.
+**A model that edits** reads `GenerationSettings.referenceImages`, each PNG
+bytes the interface caps at 1024 pixels an edge before they land there, and the
+whole strip capped by `ReferenceLimits` at ten pictures and 24 MiB.
+`referenceImage` and `referenceOrigin` remain as computed aliases over the first
+of that list, permanently, so a backend written before several pictures existed
+needs no change. `ModelCapabilities.supportsReferenceImage` is the gate:
+`clamp` drops every picture for a model without it, and the well beside the
+prompt shows only for a model that has it.
+**How many** is `ModelCapabilities.referenceImageCount`, `1...1` unless a
+descriptor says otherwise, and `acceptsSeveralReferences` is the computed answer
+the well branches on to draw a strip instead. Two more capability flags travel
+with it: `readsTransparentReferences`, true only for a model whose encoder takes
+four channels, which is what keeps `ReferenceMatteNote` quiet; and
+`referenceStrengthBounds`, whose degenerate `1...1` says there is no partway
+point to enter at. The pictures are persisted in numbered PNG chunks beside the
+record — `zephra:reference`, then `zephra:reference.2` through `.10` — and come
+back when the image is selected. Every model the catalog ships reads at least
+one, in one of the four ways the next section describes.
 
 The well offers three doors to a picture, and `ReferenceAdoption` in
 `Sources/Zephra/Support/` is the one place all three read the file through: a

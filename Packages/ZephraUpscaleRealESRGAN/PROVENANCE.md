@@ -1,8 +1,8 @@
 # Provenance of `Packages/ZephraUpscaleRealESRGAN`
 
 Zephra may ship commercially, so where this port came from is a legal question and not only a
-technical one. The root `PROVENANCE.md` makes the same record for `Packages/QwenImageKit` and
-`Packages/Flux2Kit`; this file is the upscaler's, because the upscaler is the first thing in the
+technical one. The root `PROVENANCE.md` makes the same record for `Packages/QwenImage21Kit`
+and `Packages/Flux2Kit`; this file is the upscaler's, because the upscaler is the first thing in the
 repository that ships somebody else's **trained weights** inside the app rather than downloading
 them, and that is a different claim from shipping a translation of their code.
 

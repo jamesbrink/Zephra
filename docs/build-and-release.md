@@ -190,12 +190,12 @@ Makefile targets:
   plus the audio autoencoder and the vocoder the entry with sound needs
   too, from the ungated `mlx-community/ltx-2.5-mlx`
   pack into `LTX2_MODELS` (external storage by default), as the app names it.
-- `make prefetch-qwen` — download Qwen-Image-2512 and its four-step Lightning
-  adapter into `QWEN_MODELS` (external storage by default; 57.7 GB does not
-  belong on a boot volume, and this release is a build source rather than
-  something the app loads). Name the adapter file explicitly: the repository
-  also ships whole merged checkpoints of twenty gigabytes each, and pulling it
-  whole costs 101 GB.
+- `make prefetch-qwen21` — download Qwen-Image 2.1 into `QWEN21_MODELS`
+  (under `EXTERNAL_MODELS` by default; 33 GB does not belong on a boot volume,
+  and this release is a build source rather than something the app loads). One
+  call, because there is no adapter. The `--include` list is the catalog
+  entry's own file patterns, `LICENSE` among them, so what lands is what the
+  packer reads and what the variant must carry.
 - `make quantize` — the build the app does on first load, by hand: download the
   bf16 release into the app's own folder and pack the 4-bit variant into
   `~/Library/Application Support/Zephra/Models/z-image-turbo-4bit`. `BITS`,
@@ -211,16 +211,15 @@ Makefile targets:
   output is named for a catalog entry, checks the volume for that entry's
   `builtBytes` first and stamps the result with the `.zephra-packed-source` the
   app checks, so a build by hand is one the app accepts as its own.
-- `make quantize-qwen` — likewise for Qwen-Image, from `QWEN_SOURCE` with
-  `QWEN_LORA` merged into its transformer, into
-  `~/Library/Application Support/Zephra/Models/qwen-image-2512-4bit`
-  (`QWEN_OUT` overrides). About a minute with the source local. The app fetches
-  the same two things itself and does the same build; this is for keeping the
-  57.7 GB source off the boot volume. The adapter is required: with `QWEN_LORA`
-  empty the tool exits with the reason rather than building the undistilled
-  model under the distilled name (see "The Lightning adapter is not optional" in `docs/model-weights.md`),
-  and `ARGS=--no-lora` with a `QWEN_OUT` other than the catalog's is the way to
-  build one on purpose.
+- `make quantize-qwen21` — likewise for Qwen-Image 2.1, from `QWEN21_MODELS`
+  into `~/Library/Application Support/Zephra/Models/qwen-image-2.1-4bit`
+  (`QWEN21_OUT` overrides). 43 seconds with the source local, writing
+  11,564,552,844 bytes over 568 packed layers. There is no `--lora` and no
+  adapter; what the build does carry beside the weights is the release's own
+  `LICENSE`, copied with the other top-level files, and the `NOTICE` the plan's
+  own `notice` string writes, which is what the Qwen Research License asks of
+  anyone redistributing a derivative. The app fetches and builds the same thing
+  itself; this target is for keeping the 33 GB source off the boot volume.
 - `make quantize-flux2` — the build the app does on first load, by hand: pack
   the klein release from the app's own folder (or `FLUX2_SOURCE`) into
   `~/Library/Application Support/Zephra/Models/flux2-klein-4b-4bit`
@@ -242,7 +241,7 @@ Makefile targets:
   laid out for a bucket: `MIRROR_DIR/<catalog id>/`, each exactly what
   `locations.built(descriptor)` holds on a Mac, provenance stamp included, plus an
   `index.json` (`scripts/mirror-index.swift`) listing every file's path, size and
-  SHA-256 and the stamp's contents. `mirror-z-image`, `mirror-qwen`,
+  SHA-256 and the stamp's contents. `mirror-z-image`, `mirror-qwen21`,
   `mirror-flux2-4bit`, `mirror-flux2-8bit`, `mirror-ltx2`, `mirror-ltx2-audio`
   and `mirror-wan` are the seven variants alone, each
   skipped when its stamp is already there unless `FORCE=1`; `mirror-index` rewrites the
@@ -253,13 +252,18 @@ Makefile targets:
   and its CloudFront host, `zephra-assets.urandom.io`, are Terraform-managed in the
   `urandom.io` repository's `modules/zephra`; the repository's Actions variables
   `AWS_ROLE_ARN`, `AWS_REGION`, `ZEPHRA_ASSETS_BUCKET` and `ZEPHRA_ASSETS_HOST` name them. The default `MIRROR_DIR` is
-  `ZephraMirror` beside the Qwen source on the external volume, since the seven variants
-  (z-image-turbo-4bit 7.1 GB, qwen-image-2512-4bit 21.6 GB, flux2-klein-4b-4bit
+  `ZephraMirror` under `EXTERNAL_MODELS`, since the seven variants
+  (z-image-turbo-4bit 7.1 GB, qwen-image-2.1-4bit 11.57 GB, flux2-klein-4b-4bit
   5.4 GB, flux2-klein-4b-8bit 8.6 GB, ltx-2.5-distilled-4bit 20.84 GB,
   ltx-2.5-distilled-audio-4bit 25.83 GB, wan-2.2-ti2v-5b-4bit 10.09 GB, each
-  `builtBytes` from `BENCHMARKS.md`) are about 99.5 GB. The releases are read
+  `builtBytes` from `BENCHMARKS.md`) are about 89.4 GB. The releases are read
   from where the quantize targets read them, so set
-  `MODELS_DIR` and `QWEN_MODELS` the same way. This is the supply side of the mirror
+  `MODELS_DIR` and `QWEN21_MODELS` the same way. **What a mirrored variant
+  carries travels with it**: `LICENSE` and `NOTICE` are ordinary non-hidden
+  files at a variant's root, so `mirror-index` gives each one a size and a
+  SHA-256 and `fetchPrebuilt` delivers both to everyone who takes the mirror
+  path. That is what makes publishing Qwen-Image 2.1's packed variant a
+  redistribution under its own terms rather than a bare copy of weights. This is the supply side of the mirror
   the app reads through `fetchPrebuilt` (see "A built variant that is published
   ready-made" in `docs/adding-a-model.md`).
 - `make lint-layers` — enforce the layering rules in `docs/architecture.md`.
@@ -766,10 +770,10 @@ the snapshot, not whichever is listed first"); match that when adding one.
   the piece `ZephraEngineTests/DeviceFaultTests` (`make test`, over
   `MockBackend` and a stand-in `MockInferenceRuntime`) cannot reach without
   Metal.
-- `QwenImageKit`'s, `Flux2Kit`'s and `LTX2Kit`'s suites check the ports against
-  tensors dumped from `diffusers` (and, for Gemma 4, `transformers`) by each
-  kit's `Tools/dump_reference.py`, whose inline metadata pins the reference
-  stack's versions and which writes `Fixtures/versions.json` with what a run
+- `QwenImage21Kit`'s, `Flux2Kit`'s, `LTX2Kit`'s and `WanKit`'s suites check the
+  ports against tensors dumped from `diffusers` (and, for Gemma 4 and Qwen3-VL,
+  `transformers`) by each kit's `Tools/`, whose inline metadata pins the
+  reference stack's versions and which writes `Fixtures/versions.json` with what a run
   actually used; `LTX2Kit`'s entry point imports one sibling module per
   component (`dump_text_encoder.py`, `dump_transformer.py`, `dump_vae.py`), any
   of which `--only` regenerates alone, and its tokenizer fixture is ids from the
@@ -782,19 +786,34 @@ the snapshot, not whichever is listed first"); match that when adding one.
   the real release's safetensors headers and checks every published tensor
   against the module trees; `LTX2Kit`'s pins the 1362 video-lane transformer
   keys, the connector's video side, all 666 Gemma keys and the video encoder's 86.
+  `QwenImage21Kit` pins a `diffusers` **commit** and `transformers` 5.17.0 where
+  the others pin 0.40.0 and 5.16.1, because 2.1 landed after 0.40.0 was cut and
+  Qwen3-VL does not exist before 5.17; the divergence is stated in its fixture
+  README and in `PROVENANCE.md`, and it is the first thing to check if a later
+  run of the dumpers produces different tensors. That package must also run with
+  `-parallel-testing-enabled NO`, which `make test-mlx` already passes every MLX
+  package: beside its heavy `PipelineParityTests`, `TiledDecodeTests` fails in
+  parallel and passes alone.
 
-No test loads model weights. The `ZephraKit` suites never touch Metal; the MLX
-packages' suites run doll's-house tensors through it, and a few of `QwenImageKit`'s,
+Almost no test loads model weights, and `QwenImage21Kit` is the one package that
+breaks the rule twice on purpose, which its `PROVENANCE.md` states: five
+autoencoder suites read the release's 1.35 GB `vae/*.safetensors`, and
+`PipelineParityTests` loads the whole 33 GB release streamed and runs two steps
+end to end against what `diffusers` made from the same noise — 35 seconds, and
+the one test that says the port makes the reference's picture rather than a
+plausible one. Everything else runs on a Mac with no release at all. The
+`ZephraKit` suites never touch Metal; the MLX
+packages' suites run doll's-house tensors through it, and a few of `QwenImage21Kit`'s,
 `Flux2Kit`'s and `LTX2Kit`'s read a real snapshot's config, tokenizer, and safetensors
 header files (`LTX2Kit`'s tokenizer suite is the one gated on a real snapshot, and
 accepts the pack's `gemma4-12b-ltx-v1/` or the built `text_encoder/`). `SnapshotUnderTest` in `ZephraTestSupport` is where they look, in order:
-`QWEN_IMAGE_SNAPSHOT`, `FLUX2_KLEIN_SNAPSHOT` or `LTX2_SNAPSHOT` when set; the app's own models
+`QWEN_IMAGE_21_SNAPSHOT`, `FLUX2_KLEIN_SNAPSHOT` or `LTX2_SNAPSHOT` when set; the app's own models
 folder, where a variant packed on this Mac (`<models>/<descriptor id>`) carries
 the configs and tokenizer and the download (`Downloads/<org>--<repo>`) is the
 release itself; then the hub cache when it holds exactly one snapshot. A test
 that reads the release's shard headers gates on `hasRelease` and takes
 `release`, which skips the packed variants. Under `xcodebuild test` the variable
-has to be spelled `TEST_RUNNER_QWEN_IMAGE_SNAPSHOT`: only `TEST_RUNNER_`-prefixed
+has to be spelled `TEST_RUNNER_QWEN_IMAGE_21_SNAPSHOT`: only `TEST_RUNNER_`-prefixed
 variables reach the test process. The engine tests drive `MockBackend`
 through `MockBackendControl`, a lock-protected dial a `@Sendable` factory can
 close over — it fails a load, delays one so cancellation lands mid-flight,

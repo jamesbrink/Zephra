@@ -42,9 +42,17 @@ and a Delete that permanently removes its files after confirmation.
 hub cache), since only a partial in the app's own folder resumes when its model
 is chosen; `ModelInventory` in `ZephraEngine` is what the tab observes. A
 release two variants pack from is one row naming both, a download stopped
-part-way is a row saying so, an adapter is a row of its own named for the model
-it serves ("Qwen-Image 2512 adapter"), and a directory the loaded model is using
-cannot be deleted from under it. Changing the folder offers Move Models, Keep in
+part-way is a row saying so, and a directory the loaded model is using cannot be
+deleted from under it. Past everything the catalog claims,
+`ModelStorage+Retired` sweeps every root once more and lists what is left over:
+a `Downloads/<org>--<repo>` no entry names, or a variant directory carrying one
+of `.zephra-packed-source`, `quantization.json` or `model_index.json`. Those are
+**"No longer in the catalog"** rows — deletable, never loadable — and the sweep
+is careful about what it claims, skipping `.partial` directories, symbolic
+links, and any folder with none of those markers, which is somebody's own. A Mac
+that held a model Zephra has since dropped sees it there rather than nowhere,
+which is the difference between tens of gigabytes a person can free and tens of
+gigabytes they have to find. Changing the folder offers Move Models, Keep in
 Place, or Cancel. Keep retains previous roots as read-only fallbacks. Move
 unloads the model, copies catalog-owned downloads and builds into staging,
 verifies bytes, then publishes them before removing originals. A collision
@@ -99,68 +107,141 @@ Three things about the Z-Image plan are load-bearing and easy to break:
   is where a load is read in now — last of all, after the streams are attached,
   and told what is streamed.
 
-### Qwen-Image-2512: `qwen-image-2512-4bit`
+### Qwen-Image 2.1: `qwen-image-2.1-4bit`
 
-**Qwen-Image-2512** (`Qwen/Qwen-Image-2512`, Apache 2.0) is a 60-layer
-dual-stream MMDiT of about 20B parameters, conditioned on Qwen2.5-VL-7B and
-decoded by a 3-D causal VAE. It is packed on the user's own Mac because the
-release is 57.7 GB of bf16 and the four-step distillation ships separately as an
-adapter, so the local build is where the two are put together; 21.6 GB on disk.
-The app fetches both and packs them on first load; `make quantize-qwen` is the
-same build by hand. 1024 is the default size: half the seconds of the native
-1328 for an image that still renders legible text, and the entry's `peakBytes`
-is measured there.
+**Qwen-Image 2.1** (`Qwen/Qwen-Image-2.1`) is a 7.1-billion-parameter
+single-stream rectified-flow transformer, conditioned on Qwen3-VL and decoded by
+a four-channel autoencoder. It replaced Qwen-Image-2512 wholesale in 2026-09:
+not a weights swap but three new ports, because nothing above survived the
+change of architecture.
 
-Choosing it costs 59.4 GB of download — the release and the 1.7 GB adapter,
-which is what `ModelDescriptor.transferBytes` adds up and what the picker states
-on a Mac that has neither; one that has the release is told the adapter's 1.7 GB
-alone — and then a build. The adapter is a `ModelAdapter` on the descriptor
-rather than a second catalog entry: it is one named file in a repository of its
-own (that repository also ships whole merged checkpoints of twenty gigabytes
-each, so it is never taken by pattern), it is not optional, and nothing
-downstream of the packer ever sees one.
+**The license is the first fact about it.** The release ships a `LICENSE`, and
+it is the **Qwen RESEARCH LICENSE AGREEMENT**, which grants use "FOR
+NON-COMMERCIAL PURPOSES ONLY" and defines non-commercial as "research or
+evaluation purposes only". Every earlier Qwen-Image release — 1.0, Edit and
+2512 — was Apache-2.0; this one is not, and nothing else in the catalog is
+under a research license. Three consequences run through the code. The
+`LICENSE` is in the entry's file patterns, so a download fetches it and
+`SnapshotAncillaryFiles` copies it into the packed variant. The packer writes a
+`NOTICE` beside it, from `QwenImage21QuantizationPlan.notice`, carrying the
+attribution section 3(c) requires word for word; it is written last, so it beats
+anything the release shipped. And `ModelPortrait`'s one line of copy says
+non-commercial on the chooser card and in the model browser, which is the only
+place a person sees the restriction before choosing to fetch 33 GB.
+`THIRD_PARTY_NOTICES.md` carries the whole text and is what the Acknowledgments
+window shows.
 
-The full-precision source is too large for the boot volume here, so a copy of
-it lives at `/Volumes/ExternalStorage/Models/Qwen-Image-2512` with the adapter
-beside it in `Qwen-Image-2512-Lightning/`. Point `QWEN_SOURCE` and `QWEN_LORA`
-there for `make quantize-qwen`, and `QWEN_IMAGE_SNAPSHOT` there for any test
-that wants real weights. Point `MODELS_DIR` at that volume instead and the app's
-own download lands there and this copy is unnecessary.
+Choosing it costs **33.1 GB** of download and then a build. There is no adapter:
+2.1's release is the model that runs. That is why the whole
+`ModelDescriptor.adapters` seam — `ModelLocations.adapter(_:)`, the adapter rows
+in Settings > Models, `LoRAAdapter` and the packer's merge — went with the entry
+that replaced, which was its only user. `make prefetch-qwen21` is one call for
+the same reason, and `make quantize-qwen21` takes no `--lora`.
 
-**The Lightning adapter is not optional.** The base model wants fifty steps and
-real classifier-free guidance, which is two forward passes through twenty
-billion parameters per step. `lightx2v/Qwen-Image-2512-Lightning` (Apache 2.0)
-distils that to four steps and no guidance, and the build — the app's own, or
-`make quantize-qwen` — merges it into the transformer as it packs, so the
-runtime never sees an adapter. Run the same seed and prompt against a build
-without it and the difference is not subtle: soft, hazy, mesh-textured surfaces
-against sharp ones. That is also why the catalog entry reads
-`guidanceBounds: 0...0` and `supportsNegativePrompt: false` — the merged weights
-were distilled without either. An entry built from the undistilled release
-would be the opposite, which is what `ModelCapabilities` being per-descriptor
-is for.
+The full-precision source is too large for the boot volume here, so a copy lives
+at `$(EXTERNAL_MODELS)/Qwen-Image-2.1`. `QWEN21_MODELS` points `make
+quantize-qwen21` at it, and `QWEN_IMAGE_21_SNAPSHOT` —
+`TEST_RUNNER_QWEN_IMAGE_21_SNAPSHOT` under `xcodebuild` — points the kit's
+release-reading suites there. Point `MODELS_DIR` at that volume instead and the
+app's own download lands there and this copy is unnecessary.
 
-The plan holds the modulation layers at eight bits while the rest goes to four.
-They are 6.8 of the transformer's 20.4 billion parameters and they decide how
-strongly every other layer responds; published four-bit builds that pack them
-with everything else lose coherent structure. It costs about 3.4 GB on disk.
+#### The architecture, and what is new about it
 
-Text-to-image never runs Qwen2.5-VL's vision tower: the pipeline supplies token
-ids and an attention mask and no pixels. So the ViT is not ported and its
-weights are not loaded, along with `lm_head` — together 391 of the checkpoint's
-729 text-encoder tensors. `WeightKeyCoverageTests` asserts that rather than
-leaving it to be assumed. The autoencoder's *own* encoder is ported and loaded,
-because starting from a noised copy of a picture needs it. It is half a percent
-of the model, so it is built unconditionally rather than lazily: a nil module
-rebuilt on demand would have to keep the shard mapped for the pipeline's whole
-life to have anything to fill itself from.
+- **One shared modulation table.** All 32 blocks read one 16384 x 4096 table
+  rather than holding one each. The plan keeps it whole: it is 134 MB at
+  bfloat16, so packing it saves almost nothing, and four-bit builds of the
+  equivalent table in the previous architecture lost coherent structure. Held
+  whole beside it: `img_in` (4096 x 64, the latent's only door in), `proj_out`
+  (its only door out), the timestep embedder, `norm_out` and every norm.
+  `txt_in` goes at eight bits in a four-bit build, since every text token passes
+  through it once.
+- **`patch_size` is 1**, so one transformer token is one latent cell and nothing
+  is patchified anywhere, and there are **no biases** in the transformer at all.
+- **Attention is block-causal** and is never materialised as a mask:
+  `QwenImage21AttentionSegments` answers `q >= kv or same image block`, and
+  `QwenImage21AttentionPlan` executes it as ordinary SDPA passes — two a layer
+  on the first step, one after it.
+- **The prefix KV cache is always on**, which is the reference's own default.
+  One `QwenImage21KVLayerCache` a layer, head-major, committed once. It is about
+  half a megabyte a prefix token, so a 1024-pixel reference is about two
+  gigabytes and classifier-free guidance holds two caches. There is no switch:
+  the reference's own docstring says the flag does not reproduce a picture bit
+  for bit in reduced precision, so exposing it would mean recording which
+  setting made every picture, or one seed would mean two pictures.
+- **64 channels in and out**, matching the autoencoder's `z_dim` — four times
+  the previous latent width. The autoencoder is a video autoencoder specialised
+  to one frame, so the kit implements it as 2-D convolutions in 3-D-shaped
+  stored kernels and never builds the six `time_conv` modules, whose twelve
+  tensors it drops at load and claims by name in the coverage test. Its spatial
+  factor is 16, so `QwenImage21RequestMapper` halves the engine's VAE tile on
+  the way in as Wan does, flooring it at 12 cells because a tile of 8 measured
+  17 dB against the untiled decode.
+- **It carries alpha.** Four channels in and four out: the decode, `PixelBuffer`
+  and the PNG path all carry it, a reference picture reaches the autoencoder
+  with its alpha intact, and the entry declares
+  `readsTransparentReferences: true` — the only one that does. Colour under a
+  fully transparent pixel is *not* carried, measured at 4 to 8 dB against 38 to
+  49 for the visible half; that is the model spending latent capacity correctly,
+  and the kit's `PROVENANCE.md` writes it down because it looks like a broken
+  port otherwise.
+
+#### The text encoder, and the tower that is not skipped
+
+Qwen3-VL, through a unified `Qwen3VLProcessor` rather than a tokenizer plus a
+`Qwen2Tokenizer` pair. The language model is 36 layers, hidden 4096, GQA 32/8 at
+head dim 128, `rope_theta` 5e6, interleaved MRoPE that collapses to one
+dimension for text. `context_in_dim` is 4096.
+
+**The vision tower is built, loaded and packed**, which is the opposite of the
+model this replaced. 27 blocks, hidden 1152, three DeepStack taps at blocks 8,
+16 and 24 injected after the language model's first three layers. It is what
+reads a reference picture, so text-to-image alone would not need it but editing
+does, and it is the one stack that never streams. What *is* left out is
+`lm_head` — 1.25 GB of vocabulary projection — and the decoder's final norm,
+because the pipeline takes a hidden state out of the layer stack and never
+reaches a logit. `WeightKeyCoverageTests` asserts all of that rather than
+leaving it assumed.
+
+The release publishes a real `tokenizer.json`, under `processor/`, so
+swift-transformers reads it directly and the assembled byte-level BPE the
+previous port had to build from `vocab.json` and `merges.txt` is gone with it.
+
+#### Steps, guidance and sizes
+
+Forty steps on a flow-match Euler ladder with dynamic shift and the release's
+exponential `time_shift_type`; `stepBounds` is 8...50. This is **not** a
+distilled checkpoint, so unlike every other entry in the catalog both guidance
+and a negative prompt are real: `guidanceBounds` 1...8, default 1, with the
+negative prompt read wherever guidance is over one. One is the default because
+the release's own card samples it that way, and because it is the value at which
+the second forward pass — and its share of the prefix cache — is not paid.
+
+Sizes are multiples of 32, a 2 x 2 patch over a 16-pixel cell, bounds
+512...2752, default 1024 square, with the card's 2K set among the presets. 1344
+rather than 1328: 1328 is not a multiple of 32 and was only ever legal on a
+family aligned to 16.
+
+#### What is owed
+
+Both layer stacks stream under `WeightResidency.streamed` — the transformer's 32
+blocks and the language model's 36 layers — and the tower, the autoencoder, the
+embeddings, the norms and the shared modulation table stay resident.
+
+Two figures are measured: the release is 33,131,609,424 bytes as the entry's
+file patterns fetch it, and the build writes 11,564,552,844. **Every memory
+figure is an estimate**, dated 2026-09-22, and the catalog entry says so at each
+one. `BENCHMARKS.md` carries the run that replaces them and why
+`tiledPeakBytes` is the one to read carefully: it is rounded to the side that
+streams on a 16 GB Mac, and moving it under that budget is a decision made with
+a reading in hand rather than a correction.
 
 ### Streaming the weights
 
 A Mac whose GPU cannot hold a model still runs it, by reading the model from the
 disk on every step instead of holding it. Every family in the catalog does this
-now — Qwen-Image and LTX-2.5 first, then Wan, and Z-Image and klein as of
-2026-09-13 — so every entry carries a measured `streamedPeakBytes` and no model
+now — LTX-2.5 first, then Wan, then Z-Image and klein as of 2026-09-13, and
+Qwen-Image 2.1 from its first commit — so every entry carries a
+`streamedPeakBytes` and no model
 is ever loaded resident and left to page. The mechanism is
 `LayerWeightStream` in `ZephraMLX`, and its shape is set by how MLX loads:
 `MLX.loadArrays` parses a shard's header and hands back arrays that are read
@@ -182,12 +263,15 @@ Three of the loop's choices are load-bearing and easy to undo:
 - The cast back is what lets a load-time cast survive streaming. The packer's
   scales are float32 on disk and MLX's quantized matmul takes its output dtype
   from them, so a stream that handed back the raw node would widen every block
-  after the first to float32 from the second step on. `QwenImagePipeline.loadModel`
-  casts the text encoder's and the transformer's float32 parameters to
-  `QwenImageTransformerPrecision.activation` (bfloat16, or float32 under
-  `ZEPHRA_DIT_DTYPE=f32`) *before* attaching either stream, `generate` casts the
-  noise and the conditioning to it, and the transformer casts its text to the
-  latents' dtype at entry; the autoencoder stays float32 on purpose.
+  after the first to float32 from the second step on. Every kit's `+Loading`
+  does the four steps in the one order that works — fill the module tree, cast
+  its float32 parameters to the activation dtype, attach the streams, and only
+  then evaluate what is left resident — because evaluating a stack before its
+  stream is attached reads the whole model in.
+  `QwenImage21Pipeline+Loading` is the current example, casting to
+  `QwenImage21ActivationPrecision`'s answer (bfloat16, or float32 on an
+  M5-class GPU, or whatever `ZEPHRA_DIT_DTYPE` says); the autoencoders stay
+  float32 on purpose.
 - Outputs are committed per layer at all because an unevaluated graph holds
   every layer's weights as inputs, so one eval per step would read most of the
   model before any of it ran.
@@ -197,8 +281,9 @@ Three of the loop's choices are load-bearing and easy to undo:
   before MLX's own task limit stopped it. Waiting on the layer before rather
   than the one just committed leaves the GPU a layer of work in hand.
 
-The five families differ only in which stacks are handed to a stream. Qwen-Image
-is described below. LTX-2.5 and Wan stream both of their stacks. Z-Image streams
+The five families differ only in which stacks are handed to a stream.
+Qwen-Image 2.1 is described below. LTX-2.5 and Wan stream both of their stacks.
+Z-Image streams
 the transformer's three (`layers`, `noise_refiner`, `context_refiner`) and the
 text encoder's 36 layers; klein streams its five dual-stream blocks, its twenty
 single-stream ones and the encoder's 27 layers. Two things are worth knowing
@@ -213,13 +298,16 @@ the layer and not its index and a tap read off the wrong layer is the one thing
 about this stack that a plausible picture of the wrong prompt would not give
 away.
 
-In Qwen-Image the transformer's sixty blocks and the text encoder's
-twenty-eight layers stream; the embeddings, the input and output projections,
-the norms and the whole autoencoder stay resident, which is what
-`QwenImageResidentParameters` evaluates at load. `QwenImagePipeline.loadModel`
-takes a `QwenImageStreaming` (depth, two by default: three layers held at once)
-and attaches a stream to each stack after the loader has filled it and before
-anything evaluates it. A streamed step is one read of the transformer, so a
+In Qwen-Image 2.1 the transformer's 32 blocks and the language model's 36
+layers stream; the embeddings, the input and output projections, the norms, the
+one shared modulation table, the **whole vision tower** and the whole
+autoencoder stay resident, which is what `QwenImage21ResidentParameters`
+evaluates at load. `QwenImage21Pipeline+Loading` takes a
+`QwenImage21Streaming` (depth, two by default: three layers held at once) and
+attaches a stream to each stack after the loader has filled it and before
+anything evaluates it. The tower never streams because it runs once per
+reference picture rather than once per step, and because a reference edit is
+exactly the run that can least afford a second read of it. A streamed step is one read of the transformer, so a
 `Task.checkCancellation()` sits between blocks and Stop is answered inside a
 step. Every block's tensors have identical shapes, so MLX's buffer cache hands
 block i's freed buffers to block i+2's reads; the bench reports `cacheMemoryMB`
@@ -519,7 +607,7 @@ tokenizer emits no BOS, so the encoder prepends id 2 itself, truncates keeping
 the front, and left-pads to 1024 with id 0.
 
 Both 48-layer stacks stream through `LayerWeightStream` under
-`WeightResidency.streamed`, as Qwen-Image's do; the token table, the projection,
+`WeightResidency.streamed`, as every other family's do; the token table, the projection,
 the connector, the conditioning heads, the decoder and the encoder stay resident
 (convolutions never stream). The transformer evaluates every eight blocks when
 resident (`blocksPerEval`), because forty-eight blocks of a 22B model in one
@@ -625,18 +713,23 @@ MLX *can* pack a tensor; `QuantizedComponent.precision(for:)` answers whether we
 *want* it packed, and it is asked first, because the group size it names is what
 divisibility is tested against.
 
-An adapter naming weights the component has not got stops the build. That is
-the one check worth keeping: an adapter written against a different port of the
-same model matches nothing, merges nothing, and hands back the base model — a
-failure that looks exactly like a build that worked. Its narrower twin is caught
-at the file: an adapter whose tensors follow no naming `LoRAAdapter` reads —
-kohya's `lora_unet_` exports, or any spelling it does not know — stops the build
-with `adapterNamesNothing` before a weight is read, rather than parsing to an
-adapter of nothing and "merging 0 adapted weights". And `ZephraQuantize`
-refuses to build Qwen-Image without `--lora` at all
-(`QuantizeFamily.requiresAdapter`): the undistilled build loads under the
-distilled name and runs, and every picture is soft and hazy. `--no-lora` builds
-it on purpose, and then `--out` must name a directory other than the catalog's.
+**No plan merges an adapter any more.** `LoRAAdapter`, the packer's merge step
+and `ZephraQuantize`'s `--lora`, `--no-lora` and `requiresAdapter` went with
+Qwen-Image-2512, their only user, when 2.1 replaced it: 2.1's release is the
+model that runs. The check that went with them was worth having and is worth
+writing back if a family ever needs one again — an adapter written against a
+different port of the same model matches nothing, merges nothing and hands back
+the base model, which is a failure that looks exactly like a build that worked.
+The six surviving variants' provenance stamps are byte-identical without the
+seam, so the mirror needed no re-pack.
+
+What a plan may carry instead is a **`notice`**: a string
+`SnapshotAncillaryFiles` writes as `NOTICE` beside the packed weights, last, so
+it beats anything the release shipped. The release's own `LICENSE` needs no rule
+at all, since a top-level file that is neither `quantization.json` nor a
+`.safetensors` is copied across with the rest. Together they are what makes a
+build by hand of Qwen-Image 2.1 — the app's, `make quantize-qwen21`'s or the
+mirror's — as redistributable as the weights it came from, and no more.
 
 Weights stream one tensor at a time out of the source shard — MLX reads each
 lazily, on first evaluation, so only the tensor being packed is resident — and

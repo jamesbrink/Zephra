@@ -164,10 +164,44 @@ and the row are one answer.
 clamps what arrives through the same `clamp` a local press of Generate goes
 through. The one thing stripped is the pixels, on the way in and on the way out
 (`GenerationSettings.withoutPixels`, the protocol's one rule for a settings
-value on the wire): `referenceImage` goes, since a picture crosses as a blob and
-is named by `referenceBlobID`, and a `continuation` keeps its origin and its
+value on the wire): every `ReferencePicture` in `referenceImages` is emptied
+rather than removed, since a picture crosses as a blob of its own and the
+request names them in order in `referenceBlobIDs` — what a picture was *of*,
+its origin and its size, is provenance rather than pixels, and keeping it is
+what lets a Mac refuse a request naming more pictures than its model reads
+before a byte is put back. A `continuation` likewise keeps its origin and its
 count but not its frames, which the Mac's `clamp` then drops as a continuation
 with nothing to hold.
+
+`referenceBlobIDs` is read with `decodeIfPresent` and an empty default, and
+`referenceBlobID` — the single id an older build sent — stays as a computed
+first-of. The encoder writes the single key **always** and the list **only when
+there is more than one picture**, so a one-picture request is byte for byte what
+it was before several were possible, which is what keeps
+`StrictGeneration.digest()` naming the same work as the receipts already
+written. Passing both to the initializer is a programmer error and the list
+wins.
+
+`CompanionSession+References` is the one place the bytes go back in, for the
+plain `enqueue` and for the strict multi-host `submit` alike, and **order is the
+whole of it**: the blobs are taken in the order the request names them, each
+re-married by position to the provenance the strip was stripped of, and a
+missing one is refused by position — "Picture N for that request never
+arrived." — rather than quietly leaving a short strip. The strict path matches
+every picture before it consumes any, so a refusal leaves the phone's transfers
+where they were. Past the count, `remoteAdmission` answers `badRequest` with the
+model's own sentence: "<Model> reads one reference picture." or "<Model> reads
+at most N reference pictures.", and `ReferenceLimits.maximumPictures` above them
+both with "A generation may read at most 10 pictures." All three are
+`badRequest` and not `busy`, because a model that reads one picture will not
+come to read four in a moment.
+
+The Mac's hold on unclaimed blobs is **two** numbers, because a count is not a
+budget when each blob may be 16 MiB: `CompanionSession.blobLimit` is
+`ReferenceLimits.maximumPictures + 2`, a full strip plus a little slack, and
+`blobByteLimit` is 48 MiB, evicting oldest first on whichever bound is crossed.
+The phone's `LinkClient.blobLimit` of 4 is a different number for a different
+thing — transfers nobody asked for.
 
 `QueuedEntry`, the row `snapshot.queue` and `snapshot.running` are made of,
 carries the run's whole `settings` through the same strip beside `id`,

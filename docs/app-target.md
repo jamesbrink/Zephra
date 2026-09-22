@@ -347,8 +347,10 @@ Six directories, by what a file is rather than what screen it is on:
   chosen in the picker — and hand `ImageFactsView` a `ReferenceFactsRow.Source`
   naming either a `LibraryItem` or bytes already in memory; `ImageFactsView`
   itself stays at two stored properties, facts and that optional source. The
-  thumbnail is never read on the main actor: `LibraryItem.referenceImage` is
-  a synchronous whole-file read, so `ReferenceFactsRow` runs it inside a
+  thumbnail is never read on the main actor: `LibraryItem.referenceImages` is
+  a synchronous whole-file read (and `referenceImage` beside it is the first of
+  them, the alias every reader written before several pictures existed still
+  takes), so `ReferenceFactsRow` runs it inside a
   detached task started from `.task(id:)` and hands the bytes to
   `ImageCache.referenceThumbnail(_:)` for the decode, the same door
   `ReferenceThumbnail` uses for the well; a session's own picture already has
@@ -688,7 +690,7 @@ Six directories, by what a file is rather than what screen it is on:
   words. Still on purpose, and `make lint-layers` keeps it so: **nothing in the
   app target may run a repeating animation**, because while the model works the
   GPU is the model's. A breathing opacity animation there, sixty composited
-  frames a second over a streamed Qwen-Image step, took a 16 GB M4 mini's GPU
+  frames a second over a streamed transformer step, took a 16 GB M4 mini's GPU
   down every time — a GPU restart the driver blamed on whichever command buffer
   was in flight, which MLX turned into an uncaught C++ exception on Metal's
   completion queue — no Swift `catch` reached it before mlx-swift 0.32.2 and

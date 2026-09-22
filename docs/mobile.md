@@ -282,8 +282,12 @@ is making, and the capsule that asks it for more.
 `Support/PromptDraft.swift` is `@MainActor @Observable`, built once by the
 composition root beside the client and injected with it. It holds
 `GenerationSettings` — the Mac's own type — the model the next press names, the
-reference picture as PNG bytes and the shape they came out at, and how many
-seeds one press is worth.
+reference pictures and how many seeds one press is worth. The pictures are
+`references`, a `[ReferencePicture]` held **outside** `settings`: a
+`GenerationSettings` carries a picture only as part of a request, and the well
+holds one until a press composes that request. `setReferences(_:note:)` is the
+single writer, and `reference` is the first picture's bytes, for the doors
+written before there were several.
 
 It is the one object on the phone that holds something the Mac did not say, and
 that is exactly the line: a draft is a request being composed, never a fact
@@ -313,7 +317,16 @@ about the Mac. The facts stay on `LinkClient`.
   rewrites while the controls go on showing what was asked for. The picture is
   put back into the settings just long enough to be clamped, since `clamp` is
   what drops it for a model that reads none; `GenerationRequest` strips the
-  bytes on the way out, because a picture crosses as a blob. The clip's length
+  bytes on the way out, because each picture crosses as a blob of its own and
+  the request names them in order in `referenceBlobIDs`. **A Mac that never
+  mentioned the count gets one picture.** `PromptDraft+Sending`'s
+  `references(allowedBy:)` takes
+  `prefix(min(referenceImageCount.upperBound, ReferenceLimits.maximumPictures))`
+  and then the 24 MiB budget, and an older Mac's `CapabilitiesSummary` decodes
+  that count as `1...1`, so what goes is the first picture and no others: the
+  Mac would refuse the rest, and the phone would have paid for them over a relay
+  before hearing so. `reference(allowedBy:)` is the older single-picture door
+  over the same answer. The clip's length
   is the one thing put back after the clamp: `clamp` bounds it at one pass on
   purpose, since no backend runs more, and a longer clip is a chain the Mac
   plans from the length it is handed (`GenerationStore.enqueue` calls
@@ -500,11 +513,28 @@ the Mac once crashed on a model switch.
   `PhotosPicker` for the camera roll, `ReferencePickerSheet` for the Mac's own
   library, and the library tab's own "Use as Reference". All three end at
   `ReferenceAdoption`, which encodes off the main actor with
-  `ReferenceImageEncoder` — ImageIO, PNG, 1024 pixels an edge. The two that name
-  a picture already on the Mac go through `ReferenceIntent` and take the same
+  `ReferenceImageEncoder` — ImageIO, PNG, 1024 pixels an edge — and each may
+  bring several where the destination Mac's model reads several. The two that
+  name a picture already on the Mac go through `ReferenceIntent`, which carries
+  a list of names for the same reason, and take the same
   path; the picker draws `LibraryCatalog`'s entries rather than a library of its
   own, so it shows what the Library tab shows, works with no Mac in reach, and
   shares every thumbnail with the grid.
+- **Where the model reads several the well is a strip**
+  (`Views/Capsule/ReferenceStrip.swift`), drawn when
+  `ModelCapabilities.acceptsSeveralReferences` is true. It is **two** tiles wide
+  before it scrolls, against the Mac's four, because a phone's capsule has not
+  the width for more; the reorder drag carries the index as a plain `String`
+  rather than a UTI of its own, since nothing else on this end drags a picture,
+  and a drop that is not a valid position moves nothing rather than guessing.
+  `PromptDraft+ReferenceStrip` is the phone's half of the store's API — append,
+  remove, reorder, clear, and D7's rule that Use as Reference appends where
+  there is room and replaces the whole strip where there is not — and
+  `UseAsReferenceLabel` reads that same answer, so it says **"Add to
+  References"** where there is room and **"Use as Reference"** where there is
+  not, and the label and the press cannot come to differ. The refusal sentences
+  are the Mac's own words: "This model has no room for another reference
+  picture." and "Only N of M pictures fit as references."
 - `ModelMenu` and `ModelPickerSheet` say what the destination Mac has **loaded**,
   which since on-demand loading is a different fact from what it has **chosen**.
   `ModelLoadWord` (`Support/`, pure) is the only place the phone says either:
