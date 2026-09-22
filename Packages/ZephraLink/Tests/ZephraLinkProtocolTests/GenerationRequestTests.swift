@@ -61,6 +61,41 @@ struct GenerationRequestTests {
         #expect(first.requestID != second.requestID, "two presses, since neither says otherwise")
     }
 
+    @Test("Three pictures cross as three blobs, named in the order the model reads them")
+    func severalBlobsCross() throws {
+        let blobs = [UUID(), UUID(), UUID()]
+        let request = GenerationRequest(
+            modelID: "z-image-turbo-4bit", count: 1, settings: Self.withPicture,
+            referenceBlobIDs: blobs)
+        let read = try LinkFixtures.roundTrip(request)
+        #expect(read.referenceBlobIDs == blobs)
+        #expect(read.referenceBlobID == blobs[0], "the first is what a one-picture Mac reads")
+    }
+
+    @Test("An older build's single blob id decodes as a one-element list")
+    func anOlderBuildsSingleIDIsOnePicture() throws {
+        let blob = UUID()
+        let older = """
+            {"count":1,"modelID":"z-image-turbo-4bit","referenceBlobID":"\(blob.uuidString)",\
+            "settings":{"guidance":0,"prompt":"x","seed":1,"size":{"height":64,"width":64},\
+            "steps":1,"frames":1,"referenceStrength":1}}
+            """
+        let request = try LinkJSON.decode(GenerationRequest.self, from: Data(older.utf8))
+        #expect(request.referenceBlobIDs == [blob])
+    }
+
+    @Test("A one-picture request encodes the bytes it always did")
+    func onePictureIsByteIdentical() throws {
+        let blob = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!
+        let id = UUID(uuidString: "66666666-7777-8888-9999-000000000000")!
+        let request = GenerationRequest(
+            modelID: "z-image-turbo-4bit", count: 1, settings: LinkFixtures.settings,
+            referenceBlobID: blob, requestID: id)
+        let json = String(decoding: try LinkJSON.encode(request), as: UTF8.self)
+        #expect(!json.contains("referenceBlobIDs"), "no new key on a one-picture request")
+        #expect(json.contains("\"referenceBlobID\":\"\(blob.uuidString)\""))
+    }
+
     @Test("A count outside the bounds is clamped rather than refused", arguments: [
         (0, 1), (1, 1), (8, 8), (99, 8), (-3, 1),
     ])
