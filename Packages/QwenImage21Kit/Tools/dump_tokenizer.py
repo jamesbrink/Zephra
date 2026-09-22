@@ -114,8 +114,10 @@ def dump(out: pathlib.Path) -> None:
         "prompts": [
             {"text": prompt, "ids": tokenizer.encode(prompt)} for prompt in PROMPTS
         ],
+        # The pipeline's own rule first: `prompt = [" " if not p else p for p in prompt]`, since
+        # Qwen has no bos token and an empty string leaves the encoder nothing to read.
         "wrapped": [
-            {"text": prompt, "ids": tokenizer.encode(TEMPLATE_T2I.replace("{}", prompt))}
+            {"text": prompt, "ids": tokenizer.encode(TEMPLATE_T2I.replace("{}", prompt or " "))}
             for prompt in PROMPTS[:5]
         ],
         "specialIDs": {
