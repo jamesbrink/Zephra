@@ -1,0 +1,14 @@
+{
+  "prompt": "keep the shapes and make the light warmer",
+  "height": 256,
+  "width": 256,
+  "steps": 2,
+  "seed": 11,
+  "conditionWidth": 1024,
+  "conditionHeight": 1024,
+  "outputResolution": 1024,
+  "pictureSeed": 42,
+  "device": "mps",
+  "dtype": "bfloat16",
+  "torchvision": "0.29.0"
+}

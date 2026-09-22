@@ -29,4 +29,11 @@ public struct BackendID: Hashable, Sendable, RawRepresentable, ExpressibleByStri
 
     /// The Wan 2.2 family of text- and image-to-video models.
     public static let wan = BackendID("wan")
+
+    /// The Qwen-Image 2.1 family of text-to-image and reference-conditioned models.
+    ///
+    /// Spelled with the dot, because the family's own name has one and the string is what a
+    /// persisted descriptor carries: `qwen-image` without it would read as the 2512 family
+    /// this one replaced, whose backend and kit are gone.
+    public static let qwenImage21 = BackendID("qwen-image-2.1")
 }

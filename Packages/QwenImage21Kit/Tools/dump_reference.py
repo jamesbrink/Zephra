@@ -40,6 +40,7 @@ import torch
 # be regenerated alone with --only and its dumper read next to its Swift test.
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import dump_pipeline  # noqa: E402
+import dump_pipeline_reference  # noqa: E402
 import dump_rope  # noqa: E402
 import dump_scheduler  # noqa: E402
 import dump_text_encoder  # noqa: E402
@@ -93,8 +94,10 @@ def main() -> None:
         "text_encoder": dump_text_encoder.dump,
         "vision": dump_vision.dump,
         "vae": dump_vae.dump,
-        # Last, and the only one that loads the release whole: the pipeline end to end.
+        # Last, and the only two that load the release whole: the pipeline end to end, without
+        # a condition picture and then with one.
         "pipeline": dump_pipeline.dump,
+        "pipeline_reference": dump_pipeline_reference.dump,
     }
     for name, dumper in dumpers.items():
         if arguments.only and name not in arguments.only:
