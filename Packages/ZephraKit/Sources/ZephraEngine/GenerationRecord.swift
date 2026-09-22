@@ -147,34 +147,4 @@ public struct GenerationRecord: Hashable, Sendable, Codable {
 
     /// Whether the picture is a clip's first frame.
     public var isVideo: Bool { (frameCount ?? 1) > 1 }
-
-    /// The image this record describes, given the bytes it was read from and where they live.
-    ///
-    /// The identity is new every time: it is this session's handle on the file, not something
-    /// the file carries. The model id is whatever produced the image, which need not be the
-    /// model loaded now — selecting the image adopts its settings and leaves the model alone.
-    public func image(
-        pngData: Data, fileURL: URL?, referenceImage: Data? = nil
-    ) -> GeneratedImage {
-        image(
-            pngData: pngData, fileURL: fileURL,
-            referenceImages: referenceImage.map {
-                [ReferencePicture(data: $0, origin: referenceOrigin)]
-            } ?? [])
-    }
-
-    /// The same, for a caller holding every picture the file's numbered chunks carried.
-    public func image(
-        pngData: Data, fileURL: URL?, referenceImages: [ReferencePicture]
-    ) -> GeneratedImage {
-        GeneratedImage(
-            pngData: pngData,
-            settings: settings(referenceImages: referenceImages),
-            modelID: modelID,
-            createdAt: createdAt,
-            duration: .seconds(durationSeconds),
-            fileURL: fileURL,
-            batchID: batchID
-        )
-    }
 }
