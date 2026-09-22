@@ -43,6 +43,8 @@ directory in the same commit, and saying so in the commit message.
 | `transformer_model.safetensors` | `dump_transformer.py` | `TransformerParityTests`, `KVCacheTests` |
 | `vae.safetensors` | `dump_vae.py` | the autoencoder suites, on any Mac |
 | `vae_real.safetensors` | `dump_vae.py` | the autoencoder suites, with a release |
+| `text_encoder.safetensors` | `dump_text_encoder.py` | `Qwen3VLLanguageModelTests`, `Qwen3VLRotaryTests` |
+| `vision.safetensors` | `dump_vision.py` | `VisionTowerTests`, `VisionPositionTests`, `DeepStackTests`, `ImagePreprocessingTests`, `PromptEncoderTests` |
 | `versions.json` | every dumper | nothing; it is the record |
 
 `scheduler.safetensors` holds seven ladders as `steps<N>.tokens<M>.{sigmas,timesteps,mu}`. Two
@@ -67,12 +69,6 @@ mask. `transformer_block.safetensors` and `transformer_model.safetensors` each c
 group beside their prefill: the same step run from a prefix cache and run fresh over the whole
 sequence, which is what `KVCacheTests` compares.
 
-The dumpers that write nothing yet — `dump_text_encoder.py` and `dump_vision.py` —
-landed with the kit's skeleton so the seven live in one place. Each states in its docstring what
-it pins and which suite will read it; their doll's-house widths are settled by the step that
-adds that suite.
-## The autoencoder's two files
-
 `dump_vae.py` writes both, because they answer two different questions.
 
 `vae.safetensors` (511 KB) is a **doll's house**: a configuration small enough to commit its
@@ -95,4 +91,21 @@ the release's 1.35 GB of weights; `PROVENANCE.md` states that departure.
 Both pictures carry a **hard alpha edge** down the middle rather than only noise. Noise alone
 would not say whether the fourth channel is carried or quietly replaced with an opaque one: an
 autoencoder that dropped alpha would still return something noise-shaped.
+`text_encoder.safetensors` holds a four-layer, 32-wide Qwen3-VL decoder — its weights, a fixed
+token run and the hidden state at the last layer **before** the stack's final norm, dumped
+under the same forward hook the pipeline installs, with the unhooked (normalised) answer beside
+it so a Swift suite can show the two differ. It also holds the interleaved MRoPE tables at
+**both** widths: the doll's `head_dim` 8 over section `[2, 1, 1]`, and the published
+`head_dim` 128 over `[24, 20, 20]`, each over a text-only run of positions and over a
+three-axis run with a picture in it. The published tables cost no weights at all — the rotary
+is decided by a configuration — and they are what say which half-dim reads which axis.
+
+`vision.safetensors` holds the doll's-house tower (four blocks, three DeepStack taps), the
+whole doll's-house `Qwen3VLModel` over one picture under the same hook (so the slots, the
+three-axis positions and the DeepStack injections are all in one hidden state), the tower's
+inverse frequencies and theta at both widths, the position table's interpolation taps and the
+tower rotary's tables for three grids, `smart_resize` at the **published** bounds for six
+shapes, the processor's own block-major patch tensor, and PIL's alpha-over-white blend. The
+theta is the point of the rope entries: it is in no shipped config and in none of the 750
+published tensors, and 10,000 is what transformers supplies.
 
