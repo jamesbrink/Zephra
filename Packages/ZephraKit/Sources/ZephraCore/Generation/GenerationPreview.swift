@@ -39,4 +39,23 @@ public struct GenerationPreview: Sendable {
     public var isWellFormed: Bool {
         width > 0 && height > 0 && pixels.count == width * height * 4
     }
+
+    /// Whether any pixel is less than opaque, which decides the ground drawn under the frame
+    /// and whether the JPEG a phone is sent has to be composited first.
+    ///
+    /// The bytes themselves, because a frame has no file and no descriptor with it: one pass
+    /// over every fourth byte of at most 256 pixels an edge, which is 65,536 comparisons for
+    /// the largest frame the engine sends. It is read once per frame, beside the image that
+    /// frame is made into, and never inside a `body`.
+    public var hasTransparency: Bool {
+        guard isWellFormed else { return false }
+        return pixels.withUnsafeBytes { buffer in
+            var index = 3
+            while index < buffer.count {
+                if buffer[index] != 255 { return true }
+                index += 4
+            }
+            return false
+        }
+    }
 }

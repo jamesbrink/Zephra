@@ -1,7 +1,10 @@
 import CoreGraphics
 import Foundation
+import ImageIO
 import Synchronization
 import Testing
+import UniformTypeIdentifiers
+import ZephraStyle
 import ZephraTestSupport
 
 @testable import Zephra
@@ -25,6 +28,35 @@ struct ThumbnailFolderTests {
         var peak: Int { counts.withLock { $0.peak } }
     }
 
+    /// The key the folder files one file's thumbnail under.
+    private static func key(for url: URL) throws -> ThumbnailKey {
+        let facts = try url.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey])
+        return ThumbnailKey(
+            path: url.standardizedFileURL.path(percentEncoded: false),
+            modifiedAt: try #require(facts.contentModificationDate),
+            fileSize: Int64(facts.fileSize ?? 0), pixels: 16)
+    }
+
+    /// A 16 by 16 PNG that is entirely clear, which is the case HEIC has to carry.
+    private static func transparentPNG() throws -> Data {
+        let edge = 16
+        var bytes = [UInt8]()
+        for _ in 0..<(edge * edge) { bytes.append(contentsOf: [200, 40, 90, 0]) }
+        let provider = try #require(CGDataProvider(data: Data(bytes) as CFData))
+        let image = try #require(
+            CGImage(
+                width: edge, height: edge, bitsPerComponent: 8, bitsPerPixel: 32,
+                bytesPerRow: edge * 4, space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue),
+                provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent))
+        let output = NSMutableData()
+        let destination = try #require(
+            CGImageDestinationCreateWithData(output, UTType.png.identifier as CFString, 1, nil))
+        CGImageDestinationAddImage(destination, image, nil)
+        #expect(CGImageDestinationFinalize(destination))
+        return output as Data
+    }
+
     /// A one-pixel picture, so a bake has something to hand back.
     private nonisolated static func pixel() -> CGImage? {
         let space = CGColorSpaceCreateDeviceRGB()
@@ -32,6 +64,22 @@ struct ThumbnailFolderTests {
             data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4, space: space,
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
         return context?.makeImage()
+    }
+
+    @Test("a HEIC bake keeps a transparent picture's alpha, so the cache needs no branch")
+    func heicKeepsAlpha() async throws {
+        let scratch = Scratch()
+        let url = try scratch.make("clear.png")
+        try Self.transparentPNG().write(to: url)
+        let folder = ThumbnailFolder(directory: scratch.url("thumbs"))
+
+        // Baked, written as HEIC, and then read back off the disk by the same folder: the
+        // second call is the one that proves the file kept what the bake had.
+        let key = try Self.key(for: url)
+        _ = await folder.image(for: key, of: url, pixels: 16)
+        let read = try #require(await folder.image(for: key, of: url, pixels: 16))
+
+        #expect(read.hasTransparency, "HEIC carries the alpha channel; nothing has to become PNG")
     }
 
     @Test("no more than four bakes run at once, and every request is answered")

@@ -14,6 +14,12 @@ import ZephraLinkHost
 /// JPEG rather than the folder's own HEIC, which is what it writes to disk: a phone decodes
 /// either, but JPEG is what `BlobStart` names and what every other picture on the link is, and
 /// one mime for one kind of payload is one fewer thing for both ends to agree about.
+///
+/// JPEG has no alpha channel, so a thumbnail of a transparent picture is laid over
+/// `Checkerboard` here before it is encoded, deliberately, rather than flattened against
+/// whatever Image I/O picks. The phone's grid cell then reads as transparent with no protocol
+/// change and no second idea of what transparency looks like: the squares baked into the
+/// picture are the squares both apps draw live.
 struct CompanionThumbnails: ThumbnailSupply {
     /// How compressed a thumbnail crosses at. Higher than a preview frame's, because this is a
     /// picture somebody is looking at rather than a glimpse of a run in flight.
@@ -40,12 +46,16 @@ struct CompanionThumbnails: ThumbnailSupply {
     }
 
     /// One `CGImage` as JPEG bytes, off the main actor like every other decode in the app.
+    ///
+    /// An opaque thumbnail is encoded as it stands; one that carries alpha goes over the
+    /// checkerboard first.
     private nonisolated static func encode(_ image: CGImage) -> Data? {
+        guard let flattened = CheckerboardComposite.flattened(image) else { return nil }
         let bytes = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(
             bytes, UTType.jpeg.identifier as CFString, 1, nil
         ) else { return nil }
-        CGImageDestinationAddImage(destination, image, [
+        CGImageDestinationAddImage(destination, flattened, [
             kCGImageDestinationLossyCompressionQuality: quality,
         ] as CFDictionary)
         guard CGImageDestinationFinalize(destination) else { return nil }

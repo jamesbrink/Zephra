@@ -36,23 +36,4 @@ extension GenerationPreview {
             intent: .defaultIntent
         )
     }
-
-    /// Whether any pixel of the frame is less than opaque, which is what decides the ground
-    /// drawn under it.
-    ///
-    /// The bytes themselves rather than a flag from the model, because a preview frame has no
-    /// file and no descriptor with it. One pass over every fourth byte of at most 256 pixels
-    /// an edge, which is 65,536 comparisons for the largest frame the engine sends, made once
-    /// per frame beside the image it is made with and never inside `body`.
-    var hasTransparency: Bool {
-        guard isWellFormed else { return false }
-        return pixels.withUnsafeBytes { buffer in
-            var index = 3
-            while index < buffer.count {
-                if buffer[index] != 255 { return true }
-                index += 4
-            }
-            return false
-        }
-    }
 }
