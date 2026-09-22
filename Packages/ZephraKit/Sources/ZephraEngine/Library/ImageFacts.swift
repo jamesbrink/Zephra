@@ -35,9 +35,15 @@ public struct ImageFacts: Hashable, Sendable {
     /// which reads as a phrase rather than as a number. `length` says which kind of picture
     /// this is, so the caller has both halves of that question.
     public let referenceStrengthValue: Double?
-    /// The library file the reference picture came out of, or nil when it came from a file
-    /// chooser, a drop, or nowhere at all.
+    /// The library file the first reference picture came out of, or nil when it came from a
+    /// file chooser, a drop, or nowhere at all.
     public let referenceOrigin: String?
+    /// Where each of the pictures came from, positionally, nil for one that came from a file
+    /// chooser or a drop. Empty where there was no picture; one entry where there was one, so
+    /// a single-picture inspector may read either this or `referenceOrigin`.
+    public let referenceOrigins: [String?]
+    /// How many pictures the generation read, which is what an inspector counts its rows by.
+    public let referenceCount: Int
     /// Whether the picture carries transparency, read from the file's own header rather than
     /// from anything in the record: an imported picture and one Zephra made answer the same
     /// way, and a record written before there was a model that makes transparency would not.
@@ -72,6 +78,13 @@ public struct ImageFacts: Hashable, Sendable {
         referenceStrengthValue = Self.reportable(item.provenance.record?.referenceStrength)
         referenceStrength = referenceStrengthValue.map(Self.strengthLabel)
         referenceOrigin = item.provenance.record?.referenceOrigin
+        // The record's own lists where it has them, and the two scalars where it has not: a
+        // file written with one picture says everything it has to say in those.
+        let record = item.provenance.record
+        referenceOrigins = record?.referenceOrigins
+            ?? (record?.referenceBytes == nil ? [] : [record?.referenceOrigin])
+        referenceCount = record?.referenceByteCounts?.count
+            ?? (record?.referenceBytes == nil ? 0 : 1)
         isTransparent = item.hasAlpha
     }
 
@@ -94,7 +107,10 @@ public struct ImageFacts: Hashable, Sendable {
         referenceStrengthValue = settings.referenceImage == nil
             ? nil : Self.reportable(settings.referenceStrength)
         referenceStrength = referenceStrengthValue.map(Self.strengthLabel)
-        referenceOrigin = settings.referenceImage == nil ? nil : settings.referenceOrigin
+        let pictures = settings.referenceImages.filter(\.hasPixels)
+        referenceOrigin = pictures.first?.origin
+        referenceOrigins = pictures.map(\.origin)
+        referenceCount = pictures.count
         // A picture in memory has no file to ask, so its own bytes answer: the same walk the
         // scan makes, over the header of the PNG the backend handed back.
         isTransparent = (try? PNGHeader.read(from: image.pngData).hasAlpha) ?? false

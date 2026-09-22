@@ -54,8 +54,7 @@ extension GenerationStore {
         guard let continuation = settings.continuation else { return settings }
         var copy = settings
         copy.continuation = continuation.withoutPixels()
-        copy.referenceImage = nil
-        copy.referenceOrigin = nil
+        copy.referenceImages = []
         return copy
     }
 }
