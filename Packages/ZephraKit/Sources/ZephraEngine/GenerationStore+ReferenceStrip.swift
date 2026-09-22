@@ -43,6 +43,11 @@ extension GenerationStore {
         take(pictures, previousFirst: settings.referenceImages.first)
     }
 
+    /// Adds one picture to the end of the strip, which is what a slot's own door hands over.
+    public func appendReference(_ picture: ReferencePicture) {
+        appendReferences([picture])
+    }
+
     /// Empties the well, which takes the strength and the clip's tail with it.
     public func clearReferences() {
         let previous = settings.referenceImages.first
