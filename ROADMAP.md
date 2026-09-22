@@ -26,8 +26,6 @@ so. See "Build & run" in AGENTS.md and the CI section of
 - **Its six memory figures**, which are estimates. `BENCHMARKS.md`'s "Owed reruns"
   carries the run that replaces them and why `tiledPeakBytes` is the one to read
   carefully.
-- **`builtBytes`**, an estimate from the release's own arithmetic until
-  `make quantize-qwen21` has written the variant once and `du` has been read.
 
 ## Next steps, in order
 

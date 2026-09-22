@@ -44,24 +44,25 @@ extension ModelCatalog {
         downloadBytes: 33_140_000_000,
         // ESTIMATE, 2026-09-22, to be measured with `make bench` at 1024 pixels, forty steps,
         // three runs on an idle Mac; `BENCHMARKS.md` carries it under "Owed reruns" until then.
-        // Arithmetic rather than a reading: the packed weights (about 9.95 GB, see `builtBytes`)
-        // plus the float32 autoencoder's own working set and the tokenizer, which is what every
-        // other family's live figure comes out as.
-        residentBytes: 10_300_000_000,
+        // Arithmetic rather than a reading: 93% of the measured `builtBytes` below, which is
+        // the ratio both variants packed on a Mac show between what the build writes and what
+        // the bench reads live (klein 4-bit 4941 of 5366 MB, Z-Image 4-bit 6707 of 7123) —
+        // the packer writes its scales float32 and the load casts them down.
+        residentBytes: 10_800_000_000,
         // ESTIMATE, 2026-09-22, to be measured with `make bench`. The resident figure plus an
         // untiled decode's transient at 1024, taken from the ratio the two measured 16-channel
         // families show between their untiled and tiled decodes.
-        peakBytes: 17_300_000_000,
+        peakBytes: 17_800_000_000,
         // ESTIMATE, 2026-09-22, to be measured with `make bench` under `ZEPHRA_VAE_TILE=64`.
         //
         // Rounded **up** deliberately, and the one figure here where the rounding is a decision
-        // rather than a habit: 13.9 GB is over a 16 GB Mac's 13.74 GB fallback budget and over
+        // rather than a habit: 14.4 GB is over a 16 GB Mac's 13.74 GB fallback budget and over
         // bender's measured 12.71 GB working set, so such a Mac streams this model rather than
         // holding it. An estimate carrying a gigabyte of uncertainty must not be the thing that
-        // puts 10.3 GB of weights resident on the smallest Mac in the table; if the measurement
+        // puts 10.8 GB of weights resident on the smallest Mac in the table; if the measurement
         // comes in under the budget, that is a change to make deliberately with a reading in
         // hand, the way `zImageTurbo4bit`'s 12.15 GB was.
-        tiledPeakBytes: 13_900_000_000,
+        tiledPeakBytes: 14_400_000_000,
         // ESTIMATE, 2026-09-22, to be measured with `make bench --stream --stream-depth 2`.
         // Both 60-block stacks stream, so what is left is the float32 autoencoder, the
         // embeddings, the norms and the modulation table, plus the decode's tile and the
@@ -80,12 +81,13 @@ extension ModelCatalog {
         // The pipeline pads every prompt to 512 tokens and conditions on all of them.
         maxPromptTokens: 512,
         capabilities: qwenImage21Capabilities,
-        // ESTIMATE, 2026-09-22, to be replaced with the size `make quantize-qwen21` writes.
-        // Arithmetic from the release: transformer 4.00 GB at four bits (which
-        // `mlx-community/Qwen-Image-2.1-MLX-4bit` publishes as 4,002,275,328 bytes exactly),
-        // the text encoder 4.26 GB, its vision tower 0.33 GB, the autoencoder's 1.35 GB copied
-        // whole, and the processor.
-        builtBytes: 9_950_000_000,
+        // Measured: 11,564,552,844 bytes written by `make quantize-qwen21` on halcyon on
+        // 2026-09-22 at four bits, group 64, in 43 seconds — 568 packed layers plus the
+        // float32 autoencoder, the processor and the scheduler copied whole. Carried rounded
+        // **up**, as a figure the free-space check is made against. The arithmetic estimate
+        // this replaces said 9.95 GB, 16% under: the packer writes every scale and bias
+        // float32, which the published four-bit repacks do not.
+        builtBytes: 11_570_000_000,
         mirror: mirror
     )
 

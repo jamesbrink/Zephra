@@ -57,7 +57,7 @@ struct ModelCatalogTests {
         #expect(fitting.contains(ModelCatalog.zImageTurbo8bit))
         #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo8bit, physicalMemory: memory) == .fitsStreamed)
         // Qwen-Image 2.1 is offered here too, and only streamed: its estimated tiled peak is
-        // 13.9 GB against this Mac's 13.7 GB, deliberately rounded to the side that streams.
+        // 14.4 GB against this Mac's 13.7 GB, deliberately rounded to the side that streams.
         #expect(
             ModelCatalog.fit(ModelCatalog.qwenImage21_4bit, physicalMemory: memory)
                 == .fitsStreamed)
@@ -114,7 +114,7 @@ struct ModelCatalogTests {
         #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo4bit, physicalMemory: memory) == .fits)
         // 23.5 GB untiled is over the 19.3 GB budget; 17.7 GB tiled is under it.
         #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo8bit, physicalMemory: memory) == .fitsTiled)
-        // Both Z-Image variants, both klein variants, Qwen-Image 2.1 outright (17.3 GB under
+        // Both Z-Image variants, both klein variants, Qwen-Image 2.1 outright (17.8 GB under
         // the 19.3 GB budget), Wan 2.2 tiled (12.4 GB), and both LTX-2.5 entries streamed: the
         // measured 21.8 GB peak and the audio entry's larger one are over it.
         #expect(ModelCatalog.fitting(physicalMemory: memory).count == 8)
