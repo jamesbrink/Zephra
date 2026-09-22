@@ -35,10 +35,23 @@ struct ReferenceStrip: View {
             .padding(.vertical, 2)
         }
         .scrollIndicators(.hidden)
-        .frame(height: 78)
+        .frame(width: width, height: 78)
         .accessibilityLabel(
             ReferenceRole(capabilities: capabilities.capabilities)
                 .filledWellAccessibilityLabel(count: draft.references.count))
+    }
+
+    /// Two tiles wide, and the rest scrolls.
+    ///
+    /// A width of its own, because a scroll view beside the prompt editor takes whatever the
+    /// row offers it and lands on a fraction of a tile, which reads as a drawing fault rather
+    /// than as "there is more". Two is also what leaves the editor its half of the capsule on
+    /// a phone; the doors under the strip are the other way to add a picture.
+    private var width: CGFloat {
+        let tiles = min(
+            draft.references.count
+                + (draft.referenceRoom(for: capabilities.capabilities) > 0 ? 1 : 0), 2)
+        return CGFloat(max(tiles, 1)) * 72 + (tiles > 1 ? 8 : 0)
     }
 
     /// Puts the dragged tile in `index`'s place. A drop of anything that is not one of this

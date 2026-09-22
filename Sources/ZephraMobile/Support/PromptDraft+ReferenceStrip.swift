@@ -1,6 +1,5 @@
 import Foundation
 import ZephraCore
-import ZephraLinkProtocol
 
 /// The well as a strip: several pictures, in the order the model reads them.
 ///
@@ -16,24 +15,6 @@ extension PromptDraft {
         guard capabilities.supportsReferenceImage else { return 0 }
         let most = min(capabilities.referenceImageCount.upperBound, ReferenceLimits.maximumPictures)
         return max(0, most - references.count)
-    }
-
-    /// The pictures to send beside a request, as the Mac being spoken to would read them.
-    ///
-    /// An older Mac's summary defaults to `1...1`, so a phone talking to one sends its **first**
-    /// picture and no others: the Mac would refuse the rest and the phone would have paid for
-    /// them over a relay first.
-    func references(allowedBy summary: CapabilitiesSummary) -> [ReferencePicture] {
-        let capabilities = summary.capabilities
-        guard capabilities.supportsReferenceImage else { return [] }
-        let room = min(capabilities.referenceImageCount.upperBound, ReferenceLimits.maximumPictures)
-        return ReferenceLimits.withinBudget(Array(references.filter(\.hasPixels).prefix(room)))
-    }
-
-    /// The first picture's bytes, or nil where the model would not read one. The older door,
-    /// kept because a single-picture caller means exactly this.
-    func reference(allowedBy summary: CapabilitiesSummary) -> Data? {
-        references(allowedBy: summary).first?.data
     }
 
     /// Adds pictures to the end of the strip, as far as the model and the budget allow.
