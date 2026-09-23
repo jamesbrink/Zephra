@@ -42,6 +42,8 @@ final class UpdateChecker {
 
     @ObservationIgnored let environment: UpdateEnvironment
     @ObservationIgnored private var loop: Task<Void, Never>?
+    /// Which loop `loop` is, so a loop cancelled for a fresh one does not clear its successor.
+    @ObservationIgnored private var loopGeneration = 0
     @ObservationIgnored private var notifiedBuild: String?
     @ObservationIgnored let log = Logger(subsystem: "io.zephra", category: "update")
 
@@ -79,15 +81,24 @@ final class UpdateChecker {
         startChecking()
     }
 
-    /// Begins the timer, unless the preference is off or one is running already. Settings'
-    /// toggle calls this when it is switched on, so checking resumes without a relaunch; it
-    /// leaves the previous install's leftovers alone, which `start()` sweeps once a launch.
+    /// Begins the timer, unless the preference is off. Settings' toggle calls this when it is
+    /// switched on, so checking resumes without a relaunch; it leaves the previous install's
+    /// leftovers alone, which `start()` sweeps once a launch.
+    ///
+    /// A loop already running is replaced rather than kept, unless it is checking this moment:
+    /// switched off and on again, the old loop may be asleep for up to six hours, and the
+    /// toggle promises a check within `launchDelay`. One loop only, ever — the old one is
+    /// cancelled before the new one starts, and its end clears `loop` only while it is still
+    /// the one held there.
     func startChecking() {
         guard InterfacePreview.requestedState == nil,
             UpdateEligibility.current(environment).canInstall
         else { return }
         guard AppSettings.flag(AppSettings.checksForUpdates) else { return }
-        guard loop == nil else { return }
+        if loop != nil, case .checking = phase { return }
+        loop?.cancel()
+        loopGeneration += 1
+        let generation = loopGeneration
         loop = Task { [weak self] in
             try? await Task.sleep(for: Self.launchDelay)
             while !Task.isCancelled {
@@ -99,7 +110,7 @@ final class UpdateChecker {
             }
             // Cleared so a later `start()` can begin again, which is what switching the
             // preference back on and relaunching-free recovery both want.
-            self?.stopLoop()
+            self?.stopLoop(generation)
         }
     }
 
@@ -152,8 +163,9 @@ final class UpdateChecker {
         BackgroundNotices.post(.updateAvailable(version: release.version, build: release.build))
     }
 
-    /// Forgets the timer, so `start()` may begin one again.
-    private func stopLoop() {
+    /// Forgets the timer, so `start()` may begin one again — unless another has taken its place.
+    private func stopLoop(_ generation: Int) {
+        guard generation == loopGeneration else { return }
         loop = nil
     }
 
