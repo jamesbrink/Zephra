@@ -46,7 +46,10 @@ part-way is a row saying so, and a directory the loaded model is using cannot be
 deleted from under it. Past everything the catalog claims,
 `ModelStorage+Retired` sweeps every root once more and lists what is left over:
 a `Downloads/<org>--<repo>` no entry names, or a variant directory carrying one
-of `.zephra-packed-source`, `quantization.json` or `model_index.json`. Those are
+of Zephra's own stamps, `.zephra-packed-source` or `quantization.json`, which only
+the packer writes. `model_index.json` is not a marker: every diffusers release
+carries one, and a release somebody downloaded by hand into the models folder was
+offered for deletion as a model Zephra once held. Those are
 **"No longer in the catalog"** rows — deletable, never loadable — and the sweep
 is careful about what it claims, skipping `.partial` directories, symbolic
 links, and any folder with none of those markers, which is somebody's own. A Mac

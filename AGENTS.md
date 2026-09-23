@@ -2431,9 +2431,11 @@ each family.
   a row of its own, and a directory the loaded model is using cannot be
   deleted. Past those, `ModelStorage+Retired` sweeps every root for directories
   no catalog entry claims — a `Downloads/<org>--<repo>` or a variant carrying
-  one of `.zephra-packed-source`, `quantization.json` or `model_index.json`,
+  one of Zephra's own stamps, `.zephra-packed-source` or `quantization.json`,
   never a `.partial`, never a symbolic link and never an unmarked folder, which
-  is somebody's own — and lists them as **"No longer in the catalog"**:
+  is somebody's own; `model_index.json` is no marker, since every diffusers
+  release carries one and a release downloaded by hand into the models folder
+  is somebody's own too — and lists them as **"No longer in the catalog"**:
   deletable, never loadable. That is what a Mac that held Qwen-Image-2512 sees
   of it now. Changing the folder offers Move Models, Keep in Place, or
   Cancel: Keep retains previous roots as read-only fallbacks; Move unloads,
