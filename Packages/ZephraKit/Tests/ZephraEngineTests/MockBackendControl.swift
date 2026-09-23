@@ -52,6 +52,8 @@ final class MockBackendControl: Sendable {
         var availabilityChecks = 0
         /// How many times `generate` was called, warm-up included.
         var generations = 0
+        /// `PreviewCadence.current` as each `generate` saw it, warm-up included, in order.
+        var cadences: [PreviewCadence] = []
         /// How many denoising steps have been reported since the last reset.
         var stepsEmitted = 0
         /// Whether every denoising step carries a preview frame. The real backends throttle

@@ -42,7 +42,8 @@ extension GenerationStore {
         let pump = EngineEventPump { [weak self] event in self?.applyGenerationEvent(event) }
         do {
             let segment = try await pump.run { sink in
-                try await inference.generate(job.settings, tile: vaeTile(for: job.model), events: sink)
+                try await inference.generate(
+                    job.settings, tile: vaeTile(for: job.model), preview: previewCadence, events: sink)
             }
             let execution = clock.now - started
             // Stop pressed during the decode: the backend never looked, and the bytes are not

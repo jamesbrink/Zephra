@@ -93,6 +93,10 @@ public final class GenerationStore {
     /// Whether a load ends with a throwaway generation that pays the kernel-compilation cost
     /// up front; the app sets it from the user's preference before it calls `bootstrap()`.
     public var warmsUpAfterLoad = true
+    /// How often a run shows a frame of the picture it is making; the app sets it from the
+    /// Live preview preference. Read as each run starts, so a change applies to the next run.
+    /// A warm-up shows none whatever this says.
+    public var previewCadence: PreviewCadence = .balanced
     /// When weights are read in: at launch and on every pick, or only when asked for.
     public var loadingMode: ModelLoadingMode = .automatic
     /// How long the weights may sit idle before they are given back; the app sets it.

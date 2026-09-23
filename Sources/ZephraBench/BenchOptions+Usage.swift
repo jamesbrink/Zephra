@@ -1,7 +1,7 @@
 extension BenchOptions {
     static let usage = """
         usage: ZephraBench [--model ID] [--models DIR] [--size N|WxH] [--steps N] [--frames N] [--runs N] \
-        [--prompt TEXT] [--out PATH] [--json] [--micro] [--preview] \
+        [--prompt TEXT] [--out PATH] [--json] [--micro] [--preview [every]] \
         [--backend NAME --snapshot DIR] [--reference IMAGE --strength S] \
         [--extend CLIP.mp4 [--context N]] [--stream [--stream-depth N]]
 
@@ -42,7 +42,9 @@ extension BenchOptions {
         reports what they cost: how many were made and the mean milliseconds one took. The
         last frame is written beside --out as <stem>.preview.png, because a frame unpacked on
         the wrong axis is noise of exactly the right size. Frames are off without this flag,
-        so a step time measured without it is the model's own.
+        so a step time measured without it is the model's own. --preview alone paces frames
+        as the app's Balanced setting does; --preview every makes one after every step but
+        the last, as Every step does, which is what that setting costs.
         --micro times the DiT's individual MLX kernels at --size worth of tokens and
         exits, without loading any weights; it follows --model, and only Z-Image has one,
         so any other family is refused rather than timed under the wrong name.

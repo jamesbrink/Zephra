@@ -91,7 +91,10 @@ extension InferenceActor {
         )
         try Task.checkCancellation()
         _ = try await catchingDeviceErrors {
-            try await live.generate(settings) { _ in }
+            // No frames: nobody is watching a throwaway grey square, and each is a decode.
+            try await PreviewCadence.$current.withValue(.off) {
+                try await live.generate(settings) { _ in }
+            }
         }
         try Task.checkCancellation()
     }

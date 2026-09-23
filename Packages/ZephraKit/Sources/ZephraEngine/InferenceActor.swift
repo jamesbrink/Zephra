@@ -64,18 +64,23 @@ actor InferenceActor {
 
     /// Produces the finished media, timing the denoising loop so the interface can show a countdown even
     /// when the backend reports no pace of its own. `tile` is the VAE tile this run decodes
-    /// at, set here, on this queue, so the run's own model is what it applies to.
-    func generate(_ settings: GenerationSettings, tile: Int?, events: EngineEventSink) async throws
-        -> GeneratedMedia
-    {
+    /// at, set here, on this queue, so the run's own model is what it applies to. `preview` is
+    /// how often the run shows a frame, handed to the backend as `PreviewCadence.current` for
+    /// the length of its `generate`, which is where every family builds its preview hook.
+    func generate(
+        _ settings: GenerationSettings, tile: Int?, preview: PreviewCadence = .balanced,
+        events: EngineEventSink
+    ) async throws -> GeneratedMedia {
         guard let backend else {
             throw BackendError.loadFailed("The model has not been loaded yet.")
         }
         runtime?.setVAETileSize(tile)
         var timer = StepTimer()
         let media = try await catchingDeviceErrors {
-            try await backend.generate(settings) { event in
-                events.send(.progress(timer.annotated(event)))
+            try await PreviewCadence.$current.withValue(preview) {
+                try await backend.generate(settings) { event in
+                    events.send(.progress(timer.annotated(event)))
+                }
             }
         }
         // A backend looks for a cancel between steps and not after the decode; a stop that

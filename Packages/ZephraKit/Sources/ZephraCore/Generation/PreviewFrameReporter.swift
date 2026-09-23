@@ -14,15 +14,22 @@ public enum PreviewFrameReporter {
         _ step: Int, _ total: Int, _ frame: () throws -> Frame
     ) -> Void
 
-    /// A hook throttled to `interval`, or nil when `interval` is nil, which is how frames are
-    /// switched off: a pipeline handed no hook skips the check entirely rather than asking an
-    /// always-refusing throttle at every step.
+    /// A hook paced by `cadence`, or nil when frames are off, which a pipeline handed no hook
+    /// skips entirely rather than asking an always-refusing throttle at every step.
+    ///
+    /// Frames are off when `interval` is nil — `ZEPHRA_PREVIEW_INTERVAL_MS=0`, which beats every
+    /// cadence, since it is a launch's own override — or when the cadence is `.off`. Balanced is
+    /// the throttle at `interval`; Every step lets every ask through and never holds for cost.
+    /// `cadence` defaults to the run's task-local, read here, in the backend's `generate`, on
+    /// the task `InferenceActor` set it on.
     public static func handler<Frame: PreviewFrame>(
         interval: Duration?,
+        cadence: PreviewCadence = PreviewCadence.current,
         onProgress: @escaping (GenerationProgressEvent) -> Void
     ) -> Handler<Frame>? {
-        guard let interval else { return nil }
-        var throttle = PreviewThrottle(interval: interval)
+        guard let interval, cadence != .off else { return nil }
+        var throttle =
+            cadence == .everyStep ? PreviewThrottle.everyStep : PreviewThrottle(interval: interval)
         return { step, total, frame in
             guard throttle.shouldMakeFrame() else { return }
             let started = ContinuousClock.now

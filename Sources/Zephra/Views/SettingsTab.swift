@@ -62,8 +62,8 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     /// Measured from the tabs as built: General is the appearance picker, the images folder
     /// row, the seed toggle, the seed spelling picker with its caption and the two-line
     /// notification toggle, and the update toggle, with a heading each; Performance is the
-    /// loading section, the warm-up toggle, the four-row GPU memory group, the tiling picker
-    /// and the live readout; Models scrolls, so its height is what the longest Settings pane on the Mac
+    /// loading section, the warm-up toggle, the four-row GPU memory group, the tiling picker,
+    /// the live preview picker and the live readout; Models scrolls, so its height is what the longest Settings pane on the Mac
     /// usually takes, which is what the window was before; Companion is the two toggles, the
     /// code and the list of paired devices, with room for the code at the size a phone's camera
     /// reads across a desk.
@@ -79,10 +79,15 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     /// reading its 820 had before the section arrived: down to Cached, with the rest scrolled
     /// to. The readout is deliberately still last, so what goes below the sill is the tail of
     /// one live figure rather than a setting nobody would find.
+    ///
+    /// The Live preview section, above the readout, measured 132 points in a `make screenshot
+    /// WINDOW=Performance` of a frozen `settings` build (2026-09-23), so the tab asks for 1142:
+    /// the same reading as before on a display that has the room, and on any display that has
+    /// not, `SettingsWindowFit` clamps it exactly as it clamped 1010.
     var openingHeight: CGFloat {
         switch self {
         case .general: 560
-        case .performance: 1010
+        case .performance: 1142
         case .models: 620
         case .companion: 600
         }

@@ -52,4 +52,39 @@ struct PreviewFrameReporterTests {
 
         #expect(events.isEmpty)
     }
+
+    @Test("every step makes a frame on every call, however soon after the last")
+    func everyStepMakesEveryFrame() throws {
+        var events: [GenerationProgressEvent] = []
+        let report: PreviewFrameReporter.Handler<Frame> = try #require(
+            PreviewFrameReporter.handler(interval: .seconds(60), cadence: .everyStep) {
+                events.append($0)
+            })
+        for step in 0..<5 { report(step, 6) { Frame() } }
+        #expect(events.count == 5)
+    }
+
+    @Test("off makes no handler at all")
+    func offMakesNoHandler() {
+        let handler: PreviewFrameReporter.Handler<Frame>? = PreviewFrameReporter.handler(
+            interval: .seconds(1), cadence: .off, onProgress: { _ in })
+        #expect(handler == nil)
+    }
+
+    @Test("a launch that switched frames off beats every step")
+    func noIntervalBeatsEveryStep() {
+        let handler: PreviewFrameReporter.Handler<Frame>? = PreviewFrameReporter.handler(
+            interval: nil, cadence: .everyStep, onProgress: { _ in })
+        #expect(handler == nil)
+    }
+
+    @Test("the cadence is read from the task the backend runs on")
+    func theCadenceIsTheTaskLocal() {
+        #expect(PreviewCadence.current == .balanced)
+        PreviewCadence.$current.withValue(.off) {
+            let handler: PreviewFrameReporter.Handler<Frame>? = PreviewFrameReporter.handler(
+                interval: .seconds(1), onProgress: { _ in })
+            #expect(handler == nil)
+        }
+    }
 }

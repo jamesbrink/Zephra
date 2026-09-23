@@ -54,4 +54,17 @@ struct PreviewThrottleTests {
         let asks = [500, 750].map { throttle.shouldMakeFrame(at: start + .milliseconds($0)) }
         #expect(asks == [false, true])
     }
+
+    @Test("every step says yes to every ask, and a dear frame holds nothing back")
+    func everyStepAlwaysSaysYes() {
+        let start = ContinuousClock.Instant.now
+        var throttle = PreviewThrottle.everyStep
+        var asks: [Bool] = []
+        for tick in 0..<4 {
+            let now = start + .milliseconds(tick)
+            asks.append(throttle.shouldMakeFrame(at: now))
+            throttle.madeFrame(costing: .seconds(2), at: now)
+        }
+        #expect(asks == [true, true, true, true])
+    }
 }

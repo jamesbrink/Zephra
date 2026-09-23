@@ -32,13 +32,27 @@ public struct PreviewThrottle: Sendable {
 
     /// The shortest gap between two frames.
     public let interval: Duration
+    /// Whether a frame's own cost holds the next one back. False only for `everyStep`.
+    private let holdsForCost: Bool
 
     private var lastFrame: ContinuousClock.Instant?
     private var earliestNext: ContinuousClock.Instant?
 
     /// Creates a throttle that has not let a frame through yet, so the first ask succeeds.
     public init(interval: Duration = Self.defaultInterval) {
+        self.init(interval: interval, holdsForCost: true)
+    }
+
+    private init(interval: Duration, holdsForCost: Bool) {
         self.interval = interval
+        self.holdsForCost = holdsForCost
+    }
+
+    /// A throttle that says yes to every ask: no interval and no cost share. What
+    /// `PreviewCadence.everyStep` asks for, knowing a frame after every step slows the run by
+    /// that frame's cost each step.
+    public static var everyStep: PreviewThrottle {
+        PreviewThrottle(interval: .zero, holdsForCost: false)
     }
 
     /// Whether a frame may be made now, recording that it was when the answer is yes.
@@ -59,6 +73,7 @@ public struct PreviewThrottle: Sendable {
     public mutating func madeFrame(
         costing duration: Duration, at instant: ContinuousClock.Instant = .now
     ) {
+        guard holdsForCost else { return }
         earliestNext = instant + duration * Self.costShare
     }
 }

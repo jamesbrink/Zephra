@@ -4,6 +4,18 @@ import ZephraCore
 /// The policies built from stored preferences, for the composition root and the Performance
 /// tab, which have to answer the same question the pickers do outside a view.
 extension AppSettings {
+    /// How often a run shows a frame of the picture it is making, as a `PreviewCadence` raw
+    /// value. Balanced, what every run did before there was a choice.
+    static let livePreview = "livePreview"
+    static let initialLivePreview = PreviewCadence.balanced
+
+    /// The stored cadence, for the composition root. An unrecognised value reads as the
+    /// default rather than as off: frames going away is a choice somebody has to make.
+    static func previewCadence() -> PreviewCadence {
+        store.string(forKey: livePreview).flatMap(PreviewCadence.init(rawValue:))
+            ?? initialLivePreview
+    }
+
     /// How the stored preference and this machine's memory budget decide the VAE tile, for
     /// the composition root, which has to answer the question outside a picker.
     static func tilingPolicy(budget: MemoryBudget) -> VAETilingPolicy {
