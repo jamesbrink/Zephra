@@ -7,7 +7,7 @@ let options = BenchOptions.parse(CommandLine.arguments)
 // Every ZEPHRA_* switch, read here and nowhere else; the flags below override a field each.
 var environment = InferenceEnvironment.read(ProcessInfo.processInfo.environment)
 // A benchmark measures the model, unless it was asked to measure the frames too.
-environment.previewInterval = options.preview ? PreviewThrottle.defaultInterval : nil
+environment.previewInterval = options.preview != .off ? PreviewThrottle.defaultInterval : nil
 if let depth = options.streamDepth { environment.streamDepth = depth }
 
 // The bench has no canvas to put a sentence on, but it has a `catch` below and a log: with no

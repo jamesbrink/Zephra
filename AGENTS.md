@@ -615,8 +615,9 @@ Metal:
   availability, preview, tiling, reference, library, following the run,
   upscaling, interaction, downloads, the two folder changes, residency, the
   memory guard (`+MemoryGuard`), the two load controls (`+LoadControls`), the
-  four ways a run ends (`+RunEnding`), the idle clock (`+IdleUnload`) and the
-  run-time step-down to streaming (`+RunResidency`).
+  four ways a run ends (`+RunEnding`), the idle clock (`+IdleUnload`), the
+  run-time step-down to streaming (`+RunResidency`) and the one rerun a victim
+  fault earns (`+FaultRerun`).
   **Add a new concern as another extension file**, never as more lines in
   `GenerationStore.swift`.
 - `InferenceActor` is the only place backend code runs. It overrides
@@ -744,8 +745,20 @@ that is not a command-buffer failure at all) is the whole of that reading, and
 the bit that matters is `.lost` —
 `kIOGPUCommandBufferCallbackErrorSubmissionsIgnored`, code 4 — against
 everything else. A victim (code 5) is somebody else's fault recovered around
-this process and is one lost run: the weights stay up, **Try Again works**,
-nothing below changes. An ignored submission is the driver refusing this
+this process and is one lost run: the weights stay up and nothing below
+changes. **The engine presses Try Again for it, once**: the boundary throws
+`BackendError.deviceVictim` for a code 5 (`MLXInferenceRuntime.failure` reads
+the kind after the lost-GPU latch, so a victim over a refusing client is still
+`.deviceLost`), and `GenerationStore+FaultRerun` puts the job back at the head
+of the queue with `QueuedGeneration.rerunAfterFault` set — same seed, settings
+and batch, so the picture is the one that would have come out and a phone sees
+the same run go on — logs "the GPU discarded this run as the victim of another
+process's fault (…); running it again" at error, clears the frame and drains.
+Only while the run is still `.generating` (a Stop beside the fault wins) and
+`acceptsWork` holds. A second victim on the same job fails with the same
+sentence as any lost run, so a Mac reset under it twice in a row says so
+rather than loops; every other kind is `.deviceFailed` and never reruns.
+`VictimFaultRerunTests` and `ZephraMLXTests/DeviceFaultFailureTests` pin it. An ignored submission is the driver refusing this
 client's command buffers because it holds the process responsible for earlier
 faults, and it is **permanent for the life of the process**: on a 16 GB mini on
 2026-09-15 every Try Again, an unload and a reload, and a switch to another
@@ -973,7 +986,18 @@ last step, handing a closure rather than a frame; the backend's
 `PreviewThrottle` drops frames unpaid, on two clocks: 0.75 s between frames,
 and ten times the last frame's own cost, so a family whose frame is the
 picture's whole decode pays about a tenth of the run for them and not a
-fifth. `onProgress` stays before the
+fifth. **How often is a setting**: `PreviewCadence` (`ZephraCore`) is Off,
+Balanced (the throttle above, and the default) or Every step
+(`PreviewThrottle.everyStep`, no interval and no cost share — on Qwen-Image
+2.1 about a second a step). It is a per-run **task-local**, never a backend
+argument: `InferenceActor.generate(_:tile:preview:events:)` sets
+`PreviewCadence.$current` around the backend's `generate`, where every family
+already builds its hook with `PreviewFrameReporter.handler`, so no backend,
+factory or protocol signature knows it. The store's `previewCadence` is set
+from `AppSettings.livePreview` once, in `ZephraApp`, the way the load
+preferences are; a warm-up always runs `.off`; `ZEPHRA_PREVIEW_INTERVAL_MS=0`
+beats every cadence. The phone needs nothing: the host caps what it sends at
+ten a second either way. `onProgress` stays before the
 step, and `BenchStepClock` and `StepTimer` ignore updates carrying a frame. What
 a loop passes is the estimate of the **finished** latent, `x - sigma * v`, not
 the latent it holds — the raw latent decodes to mush on a bent schedule.
@@ -1188,6 +1212,9 @@ Rules in `Support/`:
   assignments in `GenerationStore+Interface` are gone and no door re-reads any
   of the three. `AppSettings+Policies.loadingMode()` and `idleUnloadDelay()`
   are the two readers, and an unrecognised stored number reads as never.
+  `livePreview` (Balanced) follows the same one-writer rule into
+  `GenerationStore.previewCadence`, read through `AppSettings.previewCadence()`,
+  where an unrecognised value reads as Balanced rather than as Off.
   `AppearanceApplier` sets the
   appearance on `NSApp` so Settings, menus and alerts follow. `AppearanceMode`
   itself is `ZephraStyle`'s, not this app's: the phone reads the same enum and
@@ -1272,16 +1299,20 @@ Rules in `Views/`:
   selected selects an end of the grid (`LibraryCursor`).
 - `SettingsView` is four tabs — General, Performance, Models, Companion.
   Performance opens on `ModelLoadingSettings`, the Loading section: "Load models
-  automatically" and "Unload after idle" (Never, 5, 15, 30, 60 minutes).
-  `SettingsTab` gives the opening height, and Performance's is **1010**, not the
-  820 it was: the Loading section costs 158 points and the whole tab wants about
-  1110. **Performance no longer fits on any Mac laptop display, and the rule that
+  automatically" and "Unload after idle" (Never, 5, 15, 30, 60 minutes), and
+  `LivePreviewSettings` (Off, Balanced, Every step, with a caption saying what
+  the choice costs) sits above the "In use now" readout. General's Updates
+  section is `UpdateCheckSettings`: the toggle and the "Last checked" line.
+  `SettingsTab` gives the opening height: General's is 620, and Performance's
+  asks for **1142** — 1010 plus the Live preview section's measured 132 points —
+  where it was 820 before the Loading section cost 158 and the whole tab wanted
+  about 1110. **Performance no longer fits on any Mac laptop display, and the rule that
   it must not scroll is dead** — it was already untrue at 820, where Peak since
   launch and VAE decode were below the sill. 1010 is what a 1728 x 1010 display
   allows and gives the tab the same reading 820 gave, down to Cached. The live
   readout stays last on purpose, so what goes below the sill is the tail of one
   figure rather than a setting nobody would find.
-  **1010 is what the tab asks for, never what it takes.** The window opens, and
+  **1142 is what the tab asks for, never what it takes.** The window opens, and
   grows on a tab switch, at `min(tab height, visible frame - chrome)` through
   `SettingsWindowFit` (`Support/`), so it is never taller than the display and
   never off it — after every size change `constrainFrameRect` keeps the title
@@ -1386,6 +1417,44 @@ Rules in `Views/`:
   bar are a sheet's `.defaultAction` and `.cancelAction`. Return in the library
   belongs to `LibraryOpenCommand` alone. File > Stop Generating is
   `EngineState.stopCommandTitle`; File > Export… (⇧⌘E), never "Save as…".
+- **The canvas's still and the library viewer's picture zoom; nothing else
+  does.** `ZoomablePicture` (`Views/Zoom/`) is an `NSScrollView` with
+  `allowsMagnification` (`ZoomScrollView`), so a trackpad pinch zooms about the
+  fingers, a two-finger double tap is smart zoom and panning has momentum, as
+  Preview's does. Magnification 1 is **fit**: the document view
+  (`PictureDocumentView`) is laid out at the picture's fitted size and again on
+  every resize, and a new key — another picture on the canvas (`CanvasStill`,
+  over `ImageCache` the way `SessionImage` loads), a step or a rewrite in the
+  viewer — puts it back at fit. `ZoomScale` (`Support/`, pure) is the rest:
+  actual size is one pixel to one **point**, the floor is fit or actual size
+  where that is smaller, the ceiling eight times or actual size where that is
+  larger, and ⌘+/⌘− walk 1, 1.5, 2, 3, 4, 6, 8 with actual size among them. A
+  transparent picture draws `Checkerboard`'s squares behind itself at eight
+  points on screen at every zoom, in `TransparencyGround`'s colour sets.
+  **At fit it is not hit-tested for a click, a right click or a drag**, so the
+  SwiftUI gestures on it — the tuck, both right-click menus, the drag-out, the
+  viewer's double-click — are the ones they always were, over the picture's own
+  rectangle (`AspectFitShape`) and not the letterbox; a scroll that would move
+  nothing goes up the responder chain. Zoomed in, a click-drag pans with the
+  grab cursor and a right click still opens the menu **anywhere in the pane**,
+  since the content shape is the whole rectangle then (`PictureZoom.isZoomedIn`);
+  a click is the pan's, so the tuck, the double-click close and the drag-out
+  wait for fit. The same key over pixels of another size is fitted again without
+  losing its zoom, and a live pinch draws at low interpolation with the squares
+  left to scale until the fingers lift, then once more at full quality.
+  `ZoomablePictureClickTests` posts real events to an off-screen window through
+  the application's queue — the scroll view reads `NSApp.currentEvent`, which
+  only the event loop sets — and `ZoomablePictureTests` pins the ladder, the
+  reset and the refit. Clips, the live preview, thumbnails and the inspector
+  stay plain pictures.
+- `ZoomCommands` is View > Zoom In (⌘+), Zoom Out (⌘−), Actual Size (⌘0) and
+  Zoom to Fit (⌘9), acting on the scene's `pictureZoom` (`PictureZoom`, which
+  `ZoomablePicture` publishes while it is up and the scroll view keeps current),
+  greyed with nothing to zoom. **It owns ⌘+ and ⌘− outright**: they zoom the
+  picture while there is one and step the library's thumbnails
+  (`ThumbnailSizeSteps`) while the grid is up instead, since two items declaring
+  one chord leave which fires to AppKit — which is why `ThumbnailSizeCommands`
+  is gone rather than kept beside it.
 - `ReferenceFactsRow` and the inspectors work the role out from the *record's*
   model, never the picker's, and read the thumbnail in a detached task.
 - `CanvasSidebar` builds today's runs once from `SessionTimeline`
@@ -2314,14 +2383,27 @@ updater reads what a ship leaves behind.
   `SingleInstance.yieldToRunningCopy`. `UpdateChecker.start()` sweeps
   `Zephra.previous.app` and empties `Updates/` at the next launch.
 - `UpdateChecker` is `@MainActor @Observable`, built in `ZephraApp` and handed
-  down; never a singleton. It checks ten seconds after launch and every six
+  down; never a singleton. It checks three seconds after launch and every six
   hours, and `start()` returns at once for a frozen `ZEPHRA_PREVIEW_STATE`
   build, for a copy `UpdateEligibility` refuses, and while Settings > General's
   "Check for new versions of Zephra automatically" is off — **a preview build
   reaches no network at all**, the rule `startCompanion` follows, and
   `checkNow` refuses there too, so the menu item cannot go round it. The
   preference is re-read at every tick, so switching it off stops the checking
-  rather than only the next launch's.
+  rather than only the next launch's, and switching it back on calls
+  `startChecking()` (the timer without `start()`'s sweep of the last install),
+  so checking resumes without a relaunch. It **replaces** a loop still asleep on
+  the old six-hour schedule, so the check comes within `launchDelay`, unless a
+  check is running that moment; the old loop is cancelled first and its end
+  clears `loop` only while it is still the one held, so there are never two.
+- **A check is never silent.** Every one that finishes logs one line at info
+  (at error for a failure) — "update check: up to date at <build>", "update
+  check: found <version (build)>", "update check: failed: <reason>" — and is
+  stamped through `UpdateChecker.record(_:)` into `lastCheck` and
+  `AppSettings.lastUpdateCheck`/`lastUpdateOutcome`. Settings > General draws
+  it as "Last checked <relative Text> ago: up to date." from `UpdateCheckNote`
+  (`Update/`, pure, `UpdateCheckNoteTests`), or "Not checked yet."; a relative
+  `Text`, never a formatted string, for the Devices list's reason.
 - The banner is `RootView`'s `.safeAreaInset(edge: .top)`, a `ZephraChrome.barHeight`
   strip with a determinate `ProgressView` and no repeating animation; Update Now
   is greyed by `UpdateDecision.installBlockedReason` (downloading, building,
@@ -2561,7 +2643,7 @@ each family.
 - Both layer stacks stream under `WeightResidency.streamed`: the transformer's
   32 blocks and the language model's 36 layers.
 - **Every memory figure is measured**, on halcyon (M4 Max) on 2026-09-22:
-  10.58 GB resident, 20.09 GB peak, 14.09 GB tiled, 6.31 GB streamed peak over
+  10.58 GB resident, 21.81 GB peak, 14.09 GB tiled, 6.31 GB streamed peak over
   2.75 GB held streamed, and 2.6 GB per reference picture. `tiledPeakBytes` is
   the one to read carefully: 14.09 GB is over a 16 GB Mac's fallback budget, so
   such a Mac streams this model rather than holding it.
@@ -2595,6 +2677,13 @@ Three choices are load-bearing:
   before any of it ran.
 - Waiting on the layer before bounds the window at `depth + 2` layers: MLX
   allocates a buffer when a read is queued, not when bytes arrive.
+
+A pass that **throws** — Stop between blocks, a GPU fault — re-points every
+layer it had not yet released at the next pass's fresh nodes on its way out
+(`LayerWeightStream+Recovery`). Those layers held this pass's nodes, some
+already prefetched, and after a victim fault a discarded command buffer can
+leave a node marked evaluated over bytes that are not the weights; the engine
+reruns such a job at once, and its first step would have read them.
 
 Block stacks stream; embeddings, projections, norms and autoencoders stay
 resident. A streamed step is one read of the transformer, so
@@ -2963,8 +3052,9 @@ environment value.
   s/step and peak memory; idle machine, Release only.
   `--reference IMAGE --strength 0.6` measures the editing path and reports
   where the loop entered and how many steps ran; `--micro --size 1024` times
-  the DiT's MLX kernels without weights; `--preview` turns frames on, reports
-  their count and mean cost, and writes the last as `<stem>.preview.png`
+  the DiT's MLX kernels without weights; `--preview` turns frames on at the
+  app's Balanced cadence and `--preview every` at Every step, reports their
+  count and mean cost, and writes the last as `<stem>.preview.png`
   (`ZEPHRA_PREVIEW_INTERVAL_MS` underneath, 0 off); `--model
   ltx-2.5-distilled-4bit --size 768x512 --frames 49` measures a clip, written
   as `.mp4` with its poster beside it; `--extend CLIP --context N` holds a

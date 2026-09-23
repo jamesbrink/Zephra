@@ -21,6 +21,10 @@ public struct QueuedGeneration: Identifiable, Hashable, Sendable {
     /// clip made in one. Every pass but the last carries on into the next rather than being
     /// published; see `GenerationStore+Chaining.swift`.
     public let chain: ChainSegment?
+    /// Whether this is the second attempt at a run the GPU discarded as the victim of another
+    /// process's fault. One such rerun per job, never two: a Mac whose GPU keeps being reset
+    /// under it should say so rather than loop (`GenerationStore+FaultRerun`).
+    public private(set) var rerunAfterFault = false
 
     /// Wraps a model and its settings for the queue. Left to itself it is a run of one.
     public init(
@@ -38,5 +42,12 @@ public struct QueuedGeneration: Identifiable, Hashable, Sendable {
         self.batchID = batchID
         self.batchIndex = batchIndex
         self.chain = chain
+    }
+
+    /// The same job — same id, batch, seed and settings — marked as the one rerun it gets.
+    public func rerunningAfterFault() -> QueuedGeneration {
+        var again = self
+        again.rerunAfterFault = true
+        return again
     }
 }

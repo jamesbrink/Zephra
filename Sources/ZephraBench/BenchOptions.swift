@@ -20,9 +20,10 @@ struct BenchOptions: Sendable {
     var json = false
     /// Whether to skip the pipeline entirely and time individual MLX kernels instead.
     var micro = false
-    /// Whether the run makes preview frames, and reports what they cost. Off by default, so a
-    /// timing taken today is comparable with one taken before frames existed.
-    var preview = false
+    /// Whether the run makes preview frames, how often, and reports what they cost: `--preview`
+    /// is the app's Balanced, `--preview every` its Every step. Off by default, so a timing
+    /// taken today is comparable with one taken before frames existed.
+    var preview = PreviewCadence.off
     /// A backend to run a snapshot with directly, for a model the catalog does not carry yet.
     var backend: BackendID?
     /// The snapshot directory that backend should load.
@@ -65,7 +66,14 @@ struct BenchOptions: Sendable {
             case "--micro":
                 options.micro = true
             case "--preview":
-                options.preview = true
+                // An optional word: `every` is a frame after every step, anything else is the
+                // next flag and is left for the loop to read.
+                if index < arguments.count, arguments[index] == "every" {
+                    options.preview = .everyStep
+                    index += 1
+                } else {
+                    options.preview = .balanced
+                }
             case "--stream":
                 options.stream = true
             case "--help", "-h":

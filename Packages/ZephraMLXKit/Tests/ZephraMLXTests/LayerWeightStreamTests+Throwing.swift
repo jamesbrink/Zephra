@@ -44,6 +44,48 @@ extension LayerWeightStreamTests {
         #expect(MLX.allClose(y, expected, rtol: 0, atol: 0).item(Bool.self))
     }
 
+    @Test("a throw re-points every layer it never released, so garbage left in them is not read")
+    func throwRepointsUnreleasedLayers() throws {
+        let scratch = Scratch()
+        defer { MLXRuntime.synchronize(); withExtendedLifetime(scratch) {} }  // drain the stream's read-ahead before the folder goes
+        let (directory, weights) = try Self.writeShards(into: scratch)
+        let resident = LinearStack(count: Self.count, width: Self.width)
+        try resident.update(parameters: ModuleParameters.unflattened(weights), verify: .all)
+        let x = MLXRandom.normal([2, Self.width], key: MLXRandom.key(23))
+        let expected = resident(x)
+        MLX.eval(expected)
+
+        let streamed = try Self.lazyStack(from: directory)
+        let stream = try LayerWeightStream(
+            layers: streamed.layers, keyPrefix: "layers", index: ShardIndex(directory: directory))
+        // What a discarded command buffer can leave: nodes marked evaluated over bytes that
+        // are not the weights. The running layer, the one read ahead and one far past it.
+        let poisoned = [2, 3, 9]
+        var seen = 0
+        #expect(throws: Interrupted.self) {
+            try stream.run { layer in
+                seen += 1
+                if seen == 3 {
+                    for position in poisoned {
+                        let garbage = MLXArray.zeros(like: streamed.layers[position].weight)
+                        MLX.eval(garbage)
+                        streamed.layers[position].weight._updateInternal(garbage)
+                    }
+                    throw Interrupted()
+                }
+                return [layer(x)]
+            }
+        }
+
+        var y = x
+        try stream.run { layer in
+            y = layer(y)
+            return [y]
+        }
+        MLX.eval(y)
+        #expect(MLX.allClose(y, expected, rtol: 0, atol: 0).item(Bool.self))
+    }
+
     @Test("after a throw no more than the window is resident")
     func afterAThrowOnlyTheWindowIsResident() throws {
         let scratch = Scratch()

@@ -52,6 +52,8 @@ final class MockBackendControl: Sendable {
         var availabilityChecks = 0
         /// How many times `generate` was called, warm-up included.
         var generations = 0
+        /// `PreviewCadence.current` as each `generate` saw it, warm-up included, in order.
+        var cadences: [PreviewCadence] = []
         /// How many denoising steps have been reported since the last reset.
         var stepsEmitted = 0
         /// Whether every denoising step carries a preview frame. The real backends throttle
@@ -84,6 +86,12 @@ final class MockBackendControl: Sendable {
         var deviceFaultAtStep: Int?
         /// Whether the pretend device faults while the weights are being read.
         var deviceFaultDuringLoad = false
+        /// Whether the pretend fault is an innocent victim of another process's fault, which
+        /// the runtime reports as `.deviceVictim` rather than `.deviceFailed`.
+        var deviceFaultIsVictim = false
+        /// How many more runs `deviceFaultAtStep` fires on, counted down as it does; nil for
+        /// every run. One is "this run faults and the next does not".
+        var deviceFaultsLeft: Int?
         /// The message the pretend fault was raised with. `MockBackend` writes it and
         /// `MockInferenceRuntime` reads it, which is the pair MLX's handler and its boundary
         /// are: the error never comes back through the call, it is left somewhere and found.

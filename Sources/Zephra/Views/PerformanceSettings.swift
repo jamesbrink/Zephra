@@ -25,6 +25,7 @@ struct PerformanceSettings: View {
             Section("Image decoding") {
                 VAETilingControl()
             }
+            LivePreviewSettings()
             Section("In use now") {
                 MemoryReadout()
             }

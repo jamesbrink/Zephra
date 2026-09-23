@@ -150,7 +150,12 @@ the same override the store runs under without a second read of the process envi
   for a fault no boundary was open for) — the only trace of a GPU fault the boundary caught,
   since it never reaches a crash report. `make logs` runs under make's own `/bin/sh`, so
   nothing there shadows the `log` binary; see "Diagnosing a GPU fault by hand" below for the
-  hand-typed form, where a shell's own `log` function does shadow it.
+  hand-typed form, where a shell's own `log` function does shadow it. It is also where each
+  update check answers, three seconds after launch and every six hours: "update check: up to
+  date at <build>", "update check: found <version (build)>" or "update check: failed: …" —
+  nothing at all means the copy does not check (a development build, one outside
+  Applications, or the General toggle off), which the launch's "update: this copy does not
+  update itself" line says for the first two.
 - A locally built Zephra — every `make run`, `make build` and any other ad-hoc
   signature — keeps its companion identity and pairings in
   `~/Library/Application Support/Zephra/Companion/` (`identity` and
@@ -225,7 +230,9 @@ the same override the store runs under without a second read of the process envi
 - `make bench ARGS="--micro --size 1024"` times the DiT's individual MLX kernels at that size's
   token count without loading any weights, so a slow generation can be attributed to a primitive
   rather than guessed at.
-- `make bench ARGS="--preview --size 1024"` turns the live preview frames on for the run and
+- `make bench ARGS="--preview --size 1024"` turns the live preview frames on for the run, at
+  the app's Balanced cadence (`--preview every` is Every step, a frame after every step but the
+  last, which is what that setting costs), and
   reports how many were made and the mean milliseconds one took, and writes the last frame
   beside the image as `<stem>.preview.png` — a frame unpacked on the wrong axis is noise of
   exactly the right size, so it wants looking at and not only timing. Frames are off in the
@@ -337,8 +344,10 @@ the same override the store runs under without a second read of the process envi
 
   **Telling a lost run from a lost launch.** The `make logs` line carries IOGPU's own enum
   name, and only one of them is terminal. `…(00000005:kIOGPUCommandBufferCallbackErrorInnocentVictim)`
-  is this process paying for somebody else's reset: one run, Try Again works, nothing else
-  changes. `…(00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)` is the driver
+  is this process paying for somebody else's reset: one run, nothing else changes, and the
+  engine runs it again once by itself — the next line is "the GPU discarded this run as the
+  victim of another process's fault (…); running it again", and only a second victim on the
+  same job reaches the canvas as a failure. `…(00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)` is the driver
   refusing this process's command buffers for the rest of its life, and Zephra now says so
   in three lines rather than offering Try Again over a device that cannot answer:
 

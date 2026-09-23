@@ -113,7 +113,11 @@ final class MockBackend: ImageGenerationBackend {
         _ settings: GenerationSettings,
         onProgress: @escaping (GenerationProgressEvent) -> Void
     ) async throws -> GeneratedMedia {
-        control.update { $0.generations += 1; $0.lastSettings = settings; $0.tileAtGenerate = $0.vaeTile }
+        let cadence = PreviewCadence.current
+        control.update {
+            $0.generations += 1; $0.lastSettings = settings; $0.tileAtGenerate = $0.vaeTile
+            $0.cadences.append(cadence)
+        }
         let dials = control.settings
         if let error = dials.generateError { throw error }
         onProgress(GenerationProgressEvent(phase: .encodingText, fraction: 0))
@@ -138,7 +142,7 @@ final class MockBackend: ImageGenerationBackend {
             )
             // The real order: the runtime raises on this thread and cancels the run, and the
             // loop's own check at the top of the next step is what unwinds it.
-            if dials.deviceFaultAtStep == step { raiseDeviceFault() }
+            if dials.deviceFaultAtStep == step, takeDeviceFault() { raiseDeviceFault() }
         }
         if !dials.ignoresFinalCancellation { try Task.checkCancellation() }
         onProgress(GenerationProgressEvent(phase: .decoding, fraction: 1))
@@ -158,6 +162,17 @@ final class MockBackend: ImageGenerationBackend {
     func unload() {
         control.update { $0.unloads += 1 }
         loadedModelID = nil
+    }
+
+    /// Whether this run's fault still fires, counting one down from `deviceFaultsLeft`.
+    private func takeDeviceFault() -> Bool {
+        var fires = true
+        control.update {
+            guard let left = $0.deviceFaultsLeft else { return }
+            fires = left > 0
+            $0.deviceFaultsLeft = max(0, left - 1)
+        }
+        return fires
     }
 
     /// Leaves the message where `MockInferenceRuntime`'s boundary will find it and cancels the

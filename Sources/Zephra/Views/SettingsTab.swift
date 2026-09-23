@@ -62,15 +62,16 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     /// Measured from the tabs as built: General is the appearance picker, the images folder
     /// row, the seed toggle, the seed spelling picker with its caption and the two-line
     /// notification toggle, and the update toggle, with a heading each; Performance is the
-    /// loading section, the warm-up toggle, the four-row GPU memory group, the tiling picker
-    /// and the live readout; Models scrolls, so its height is what the longest Settings pane on the Mac
+    /// loading section, the warm-up toggle, the four-row GPU memory group, the tiling picker,
+    /// the live preview picker and the live readout; Models scrolls, so its height is what the longest Settings pane on the Mac
     /// usually takes, which is what the window was before; Companion is the two toggles, the
     /// code and the list of paired devices, with room for the code at the size a phone's camera
     /// reads across a desk.
     ///
     /// General's figure was re-measured with `make screenshot WINDOW=General` when the update
     /// section arrived: 420 and 480 both left the Updates toggle below the sill, and 560 is
-    /// where the tab shows its last row with a margin under it.
+    /// where the tab shows its last row with a margin under it. The "Last checked" line under
+    /// the toggle (2026-09-23) put itself below 560's sill, and 620 shows it with the same margin.
     ///
     /// Performance no longer fits on any display a Mac laptop has. Measured on a 1728 x 1010
     /// workstation display: the Loading section costs 158 points, and the whole tab wants about
@@ -79,10 +80,15 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     /// reading its 820 had before the section arrived: down to Cached, with the rest scrolled
     /// to. The readout is deliberately still last, so what goes below the sill is the tail of
     /// one live figure rather than a setting nobody would find.
+    ///
+    /// The Live preview section, above the readout, measured 132 points in a `make screenshot
+    /// WINDOW=Performance` of a frozen `settings` build (2026-09-23), so the tab asks for 1142:
+    /// the same reading as before on a display that has the room, and on any display that has
+    /// not, `SettingsWindowFit` clamps it exactly as it clamped 1010.
     var openingHeight: CGFloat {
         switch self {
-        case .general: 560
-        case .performance: 1010
+        case .general: 620
+        case .performance: 1142
         case .models: 620
         case .companion: 600
         }
@@ -95,7 +101,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     /// than being unable to shrink at all.
     ///
     /// 400 clears a 13-inch MacBook Air M1 (876 usable points, menu bar removed) with the
-    /// window's 88 points of chrome added back — 488 against 876. Performance stands 1010 now
+    /// window's 88 points of chrome added back — 488 against 876. Performance stands 1142 now
     /// and so opens clamped and scrolling on every Mac laptop, which is exactly what this floor
     /// exists for. This number, and never the tab's own height, is what `SettingsWindowFrame`
     /// pins `contentMinSize` at: a minimum taller than the display is one nothing can clamp,

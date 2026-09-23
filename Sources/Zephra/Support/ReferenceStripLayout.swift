@@ -12,6 +12,14 @@ struct ReferenceStripLayout: Hashable {
     static let tile: CGFloat = 64
     /// The gap between two tiles.
     static let spacing: CGFloat = 8
+    /// How far a tile's remove badge sits past the tile's top and trailing edges — the 5 points
+    /// `ReferenceTile` offsets it by, as the single well does.
+    ///
+    /// The strip is a scroll view, which clips to its bounds, and a strip framed to exactly the
+    /// tiles cut the badge in half at the top and on the right. So the strip carries this much
+    /// headroom above the tiles and past the last one, and every width below that is the strip's
+    /// own counts it once, trailing.
+    static let badgeOverhang: CGFloat = 5
     /// How many tiles are on screen at once before the strip starts scrolling.
     ///
     /// Four, because the strip sits beside the prompt in one row: ten tiles laid out flat would
@@ -39,8 +47,9 @@ struct ReferenceStripLayout: Hashable {
     /// How many tiles the row holds, the add tile included.
     var tiles: Int { max(0, pictures) + (showsAddTile ? 1 : 0) }
 
-    /// How wide the row's own content is, laid out flat.
-    var contentWidth: CGFloat { Self.width(ofTiles: tiles) }
+    /// How wide the row's own content is, laid out flat, the badge's headroom past the last tile
+    /// included.
+    var contentWidth: CGFloat { Self.stripWidth(ofTiles: tiles) }
 
     /// How many of them are on screen at once, with no measurement of the capsule's own room —
     /// the plain "at most four" answer `ReferenceStrip` starts from before its first layout
@@ -48,25 +57,28 @@ struct ReferenceStripLayout: Hashable {
     var visibleTiles: Int { visibleTiles(fitting: nil) }
 
     /// How wide the strip is in the capsule with no measurement — never more than four tiles,
-    /// whatever it holds.
-    var visibleWidth: CGFloat { Self.width(ofTiles: visibleTiles) }
+    /// whatever it holds, and the badge's headroom past the last of them.
+    var visibleWidth: CGFloat { Self.stripWidth(ofTiles: visibleTiles) }
 
     /// Whether there is anything off the end to scroll to, with no measurement.
     var scrolls: Bool { scrolls(fitting: nil) }
 
     /// How many tiles fit in `measuredWidth`, the room the capsule actually offered the strip —
     /// at least one, at most four, and never more than there are tiles to show. `nil` is "not
-    /// measured yet", which answers the same as the four-tile ceiling always has.
+    /// measured yet", which answers the same as the four-tile ceiling always has. The measured
+    /// width carries the badge's headroom, so that comes off before the tiles are counted.
     func visibleTiles(fitting measuredWidth: CGFloat?) -> Int {
         guard tiles > 0 else { return 0 }
-        let capacity = measuredWidth.map(Self.visibleTileCount(fitting:)) ?? Self.maximumVisibleTiles
+        let capacity =
+            measuredWidth.map { Self.visibleTileCount(fitting: $0 - Self.badgeOverhang) }
+            ?? Self.maximumVisibleTiles
         return min(tiles, capacity)
     }
 
-    /// The width that many tiles come to — the strip's own frame once it has snapped to whole
-    /// tiles for `measuredWidth`.
+    /// The width that many tiles come to with the badge's headroom — the strip's own frame once
+    /// it has snapped to whole tiles for `measuredWidth`.
     func visibleWidth(fitting measuredWidth: CGFloat?) -> CGFloat {
-        Self.width(ofTiles: visibleTiles(fitting: measuredWidth))
+        Self.stripWidth(ofTiles: visibleTiles(fitting: measuredWidth))
     }
 
     /// Whether there is anything off the end of `measuredWidth` to scroll to.
@@ -78,6 +90,13 @@ struct ReferenceStripLayout: Hashable {
     static func width(ofTiles count: Int) -> CGFloat {
         guard count > 0 else { return 0 }
         return CGFloat(count) * tile + CGFloat(count - 1) * spacing
+    }
+
+    /// The strip's width around `count` tiles: the tiles and their gaps, and the badge's headroom
+    /// past the last one. Nothing for no tiles, since there is no badge to make room for.
+    static func stripWidth(ofTiles count: Int) -> CGFloat {
+        guard count > 0 else { return 0 }
+        return width(ofTiles: count) + badgeOverhang
     }
 
     /// How many whole tiles fit inside `available` points, at least one and at most

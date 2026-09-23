@@ -33,12 +33,18 @@ struct MockInferenceRuntime: InferenceRuntime {
     ) async throws -> R {
         do {
             let value = try await body()
-            if let message = settle() { throw BackendError.deviceFailed(message) }
+            if let message = settle() { throw failure(message) }
             return value
         } catch {
-            if let message = settle() { throw BackendError.deviceFailed(message) }
+            if let message = settle() { throw failure(message) }
             throw error
         }
+    }
+
+    /// `MLXInferenceRuntime.failure` over the dial: the real one reads the kind out of the
+    /// driver's text, which the mock's message does not carry.
+    private func failure(_ message: String) -> BackendError {
+        control.settings.deviceFaultIsVictim ? .deviceVictim(message) : .deviceFailed(message)
     }
 
     /// Takes the fault rather than reading it, because the real boundary's box is made when it

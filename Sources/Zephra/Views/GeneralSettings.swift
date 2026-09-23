@@ -9,11 +9,11 @@ import ZephraEngine
 /// a heading saying it again read as a stutter. The seed toggle is a fact about a run, not
 /// about the images folder, so it has a section of its own, with how a seed is written under
 /// it, and the notification toggle sits with them because a run is what it announces. Updates
-/// are their own section: what they are about is the app rather than anything it makes.
+/// are their own section (`UpdateCheckSettings`): what they are about is the app rather than
+/// anything it makes.
 struct GeneralSettings: View {
     @AppStorage(AppSettings.randomizeSeedEachRun) private var randomizeSeed = AppSettings.initialRandomizeSeedEachRun
     @AppStorage(AppSettings.backgroundNotifications) private var notify = AppSettings.initialBackgroundNotifications
-    @AppStorage(AppSettings.checksForUpdates) private var checksForUpdates = AppSettings.initialChecksForUpdates
 
     var body: some View {
         Form {
@@ -28,9 +28,7 @@ struct GeneralSettings: View {
                 SeedFormatControl()
                 Toggle("Notify when an image, a download or an update is ready in the background", isOn: $notify)
             }
-            Section("Updates") {
-                Toggle("Check for new versions of Zephra automatically", isOn: $checksForUpdates)
-            }
+            UpdateCheckSettings()
         }
         .formStyle(.grouped)
     }

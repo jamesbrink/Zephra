@@ -315,6 +315,46 @@ the weights themselves are fine — and unloading would turn a several-second
 retry into the multi-minute reload every streamed family pays for a cold
 start.
 
+### A victim runs again, once, by itself
+
+On 2026-09-23 bender lost every other Qwen-Image 2.1 run to "The GPU stopped
+responding". Both failures that day were
+`kIOGPUCommandBufferCallbackErrorInnocentVictim` (code 5); at the same second
+the driver wrote a `gpuEvent-WindowServer-*.ips` with `restart_reason_desc:
+"BIF0 page fault"`, with `screensharingd` and `avconferenced` running. It was
+not a leak — every admission line before a run read the same free memory — and
+the run after each Try Again finished normally, a nine-minute one included.
+Zephra was doing what it was built to do, treating a victim as one lost run;
+what was wrong was making somebody press Try Again and Generate over weights
+that were still loaded and fine.
+
+So the victim is told apart and rerun. `MLXInferenceRuntime.failure` asks the
+process latch first — a lost GPU is `.deviceLost` whatever the message says —
+and only then reads the message with `DeviceFaultKind`: a code 5 is
+`BackendError.deviceVictim`, everything else `.deviceFailed`. Both carry the
+same sentence. `GenerationStore+FaultRerun.rerunAfterVictimFault` answers a
+`.deviceVictim` from the run's own catch: while the state is still
+`.generating` and `acceptsWork` holds, and the job has not been rerun, the job
+goes back at the head of the queue as `rerunningAfterFault()` — same id, seed,
+settings and batch, `rerunAfterFault` set — with one error line, "the GPU
+discarded this run as the victim of another process's fault (…); running it
+again", the frame cleared, and a drain. The catch runs on the task the fault
+cancelled, so it checks no cancellation; `drain` starts the rerun on a task of
+its own. A Stop pressed beside the fault has already moved the state to
+`.cancelling` and emptied the queue, and the rerun does not undo it. A second
+victim on the same job fails exactly as before, because a GPU reset under a run
+twice in a row is something to say rather than to loop on. Upscale treats a
+victim as any fault: its notice already says try again, and nothing is queued
+behind it. `VictimFaultRerunTests` (one victim lands one picture from the same
+seed and never shows `.failed`; two fail with the sentence; a non-victim never
+reruns; a Stop during the rerun keeps nothing) and
+`ZephraMLXTests/DeviceFaultFailureTests` pin it. A streamed model needs one
+thing more for the rerun to be right: the pass the fault ended had not released
+the layers after the fault, and a discarded command buffer can leave their
+nodes marked evaluated over garbage, so `LayerWeightStream.run` re-points every
+unreleased layer at fresh nodes on its way out (see "Streaming the weights" in
+`model-weights.md`).
+
 ### A GPU the driver has stopped running costs the launch
 
 The story continues. On 2026-09-15 bender was screen-shared again, and the
@@ -685,6 +725,26 @@ can end, and only then: looking away keeps it for the running card, and a press
 of Generate that queues behind the run in flight leaves it on the canvas. `StepTimer.annotated` rebuilds the event field by field, so a new field
 there has to be forwarded by name or it never reaches the canvas.
 
+How often a frame is made is the person's choice, Settings > Performance >
+Live preview: `PreviewCadence` Off, Balanced or Every step. Balanced is the two
+clocks above and what every run did before the choice existed; Every step is
+`PreviewThrottle.everyStep`, which says yes to every ask and never holds for
+cost, so each step pays its frame — about a second a step on Qwen-Image 2.1,
+whose frame is the picture's own decode, and a few hundredths on the families
+that pool the latent. Off hands the loop no hook at all. The cadence is a
+**task-local**, `PreviewCadence.current`, rather than a parameter: the five
+backends already build their hook with `PreviewFrameReporter.handler` at the top
+of `generate`, on the task `InferenceActor.generate(_:tile:preview:events:)`
+wraps in `PreviewCadence.$current.withValue`, so the handler reads it there and
+no backend, factory or `ImageGenerationBackend` signature changed. The store
+holds `previewCadence`, set in `ZephraApp` from `AppSettings.livePreview` before
+`bootstrap()` and followed with an `initial: true` `onChange`, and passes it with
+each run; a warm-up runs `.off`, since nobody watches a grey square. A launch's
+`ZEPHRA_PREVIEW_INTERVAL_MS=0` still switches frames off whatever the setting
+says. The phone needs nothing: the Mac sends it at most ten frames a second
+either way. `PreviewCadenceTests`, `PreviewFrameReporterTests` and
+`PreviewThrottleTests` pin it.
+
 Where a frame comes from: each kit has a `<Family>LatentPreview` that takes a
 latent in its loop's own packed space, unpacks it, pools it so its long edge is at
 most 32 cells (16 for Qwen-Image 2.1 and for Wan, 8 for LTX-2.5, whose cell is 32 pixels), and decodes that through the family's own autoencoder with the
@@ -699,8 +759,8 @@ a frame never splits a step: `BenchStepClock` and `StepTimer` ignore any update
 carrying a frame, because a frame is reported after its step rather than before
 the next one. A frame's decode does land inside the step it follows, and both
 leave it there on purpose. On screen the pace is what the remaining steps will
-really take, frames included; in the benchmark `--preview` is for finding out
-what turning frames on costs, and it reports the frame's own mean beside the
+really take, frames included; in the benchmark `--preview` (Balanced) and
+`--preview every` (Every step) are for finding out what turning frames on costs, and it reports the frame's own mean beside the
 step time so the two can be told apart. A family that never calls `onPreview`
 simply shows no frames.
 

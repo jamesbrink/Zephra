@@ -115,11 +115,12 @@ struct ModelCatalogTests {
         #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo4bit, physicalMemory: memory) == .fits)
         // 23.5 GB untiled is over the 19.3 GB budget; 17.7 GB tiled is under it.
         #expect(ModelCatalog.fit(ModelCatalog.zImageTurbo8bit, physicalMemory: memory) == .fitsTiled)
-        // Both Z-Image variants, both klein variants, Qwen-Image 2.1 outright (17.8 GB under
-        // the 19.3 GB budget), Wan 2.2 tiled (12.4 GB), and both LTX-2.5 entries streamed: the
-        // measured 21.8 GB peak and the audio entry's larger one are over it.
+        // Both Z-Image variants, both klein variants, Qwen-Image 2.1 tiled (its 21.81 GB untiled
+        // peak is over the 19.3 GiB budget, its 14.09 GB tiled one under it), Wan 2.2, and both
+        // LTX-2.5 entries streamed: the measured 21.8 GB peak and the audio entry's larger one
+        // are over it.
         #expect(ModelCatalog.fitting(physicalMemory: memory).count == 8)
-        #expect(ModelCatalog.fit(ModelCatalog.qwenImage21_4bit, physicalMemory: memory) == .fits)
+        #expect(ModelCatalog.fit(ModelCatalog.qwenImage21_4bit, physicalMemory: memory) == .fitsTiled)
         #expect(ModelCatalog.fit(ModelCatalog.ltx2DistilledAudio4bit, physicalMemory: memory) == .fitsStreamed)
         #expect(ModelCatalog.fit(ModelCatalog.wan22TI2V5B4bit, physicalMemory: memory) == .fits)
     }

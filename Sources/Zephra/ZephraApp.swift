@@ -62,6 +62,9 @@ struct ZephraApp: App {
     private var idleUnloadMinutes = AppSettings.initialIdleUnloadMinutes
     @AppStorage(AppSettings.warmUpOnLaunch, store: AppSettings.store)
     private var warmUpOnLaunch = AppSettings.initialWarmUpOnLaunch
+    /// The Live preview cadence, followed the way the load preferences are.
+    @AppStorage(AppSettings.livePreview, store: AppSettings.store)
+    private var livePreview = AppSettings.initialLivePreview
     /// Every `ZEPHRA_*` switch the inference path honours, read from the process environment
     /// here and nowhere else, then handed to the backends as a value.
     private static let environment = InferenceEnvironment.read(ProcessInfo.processInfo.environment)
@@ -175,6 +178,9 @@ struct ZephraApp: App {
                 .onChange(of: warmUpOnLaunch, initial: true) { _, warms in
                     store.warmsUpAfterLoad = warms
                 }
+                .onChange(of: livePreview, initial: true) { _, cadence in
+                    store.previewCadence = cadence
+                }
                 .onChange(of: companionEnabled) { _, _ in openCompanionRoads() }
                 .onChange(of: companionRelayEnabled) { _, _ in openCompanionRoads() }
                 .onChange(of: welcome.isShowing) { _, showing in
@@ -221,7 +227,7 @@ struct ZephraApp: App {
             ModelCommands(store: store, workspace: workspace, welcome: welcome)
             WorkspaceCommands(workspace: workspace, store: store)
             LibraryCommands(workspace: workspace)
-            ThumbnailSizeCommands()
+            ZoomCommands()
             AboutCommands()
             UpdateCommands(updates: updates)
             HelpCommands()
@@ -311,6 +317,7 @@ struct ZephraApp: App {
         store.loadingMode = AppSettings.loadingMode()
         store.idleUnloadDelay = AppSettings.idleUnloadDelay()
         store.warmsUpAfterLoad = AppSettings.flag(AppSettings.warmUpOnLaunch)
+        store.previewCadence = AppSettings.previewCadence()
         return store
     }
 }

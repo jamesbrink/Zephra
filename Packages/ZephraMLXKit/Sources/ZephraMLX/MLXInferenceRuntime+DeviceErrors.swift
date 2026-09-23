@@ -49,14 +49,18 @@ extension MLXInferenceRuntime {
         }
     }
 
-    /// Which failure one fault is: a run lost, or the GPU lost.
+    /// Which failure one fault is: the GPU lost, a run lost as another process's victim, or a
+    /// run lost any other way.
     ///
     /// The process latch rather than this message alone, so a code 5 arriving after the driver
     /// has already stopped running this process's buffers is still reported as the end of the
-    /// GPU: a victim is recoverable, and a victim over a refusing client is not.
-    private static func failure(_ message: String) -> BackendError {
-        DeviceFaultSink.faults.isLost
-            ? .deviceLost(message)
+    /// GPU: a victim is recoverable, and a victim over a refusing client is not. Only past that
+    /// is the message read, and only a victim is told apart, since it is the one the engine
+    /// runs again by itself.
+    static func failure(_ message: String) -> BackendError {
+        if DeviceFaultSink.faults.isLost { return .deviceLost(message) }
+        return DeviceFaultKind(message: message) == .victim
+            ? .deviceVictim(message)
             : .deviceFailed(message)
     }
 

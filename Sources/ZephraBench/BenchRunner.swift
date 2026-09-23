@@ -55,9 +55,12 @@ enum BenchRunner {
         }
 
         note("warm-up", verbose)
-        _ = try await backend.generate(
-            warmUpSettings(descriptor, prompt: options.prompt, reference: reference)
-        ) { _ in }
+        // No frames, as the app's own warm-up makes none.
+        _ = try await PreviewCadence.$current.withValue(.off) {
+            try await backend.generate(
+                warmUpSettings(descriptor, prompt: options.prompt, reference: reference)
+            ) { _ in }
+        }
 
         // The clip's tail, read as the app reads it, held at the head of every timed run.
         var continuation: ClipContinuation?
@@ -79,8 +82,11 @@ enum BenchRunner {
             note("run \(index) of \(options.runs)", verbose)
             let stepClock = BenchStepClock()
             let start = clock.now
-            media = try await backend.generate(settings) { event in
-                stepClock.record(event)
+            // The cadence the app hands a run, the way `InferenceActor` hands it.
+            media = try await PreviewCadence.$current.withValue(options.preview) {
+                try await backend.generate(settings) { event in
+                    stepClock.record(event)
+                }
             }
             runSeconds.append((clock.now - start).seconds)
             stepIntervals += stepClock.intervals
@@ -119,8 +125,8 @@ enum BenchRunner {
             loadSeconds: loadDuration.seconds,
             runSeconds: runSeconds,
             meanSecondsPerStep: mean(stepIntervals),
-            previewFrames: options.preview ? previewSeconds.count : nil,
-            meanPreviewSeconds: options.preview ? mean(previewSeconds) : nil,
+            previewFrames: options.preview != .off ? previewSeconds.count : nil,
+            meanPreviewSeconds: options.preview != .off ? mean(previewSeconds) : nil,
             previewPath: previewPath,
             // What the backend says it did, not what it was asked: a family that cannot
             // stream loads resident whatever `--stream` said.

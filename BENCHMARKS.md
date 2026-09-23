@@ -187,6 +187,11 @@ added per picture and twice under guidance.
 
 ### Preview
 
+**Every step** (the Live preview setting), 2026-09-23 at 1024, twelve steps: 11 frames of 11
+at 1.67 s each, 7.76 s a step against 6.62 with Balanced (3 frames), about 17 percent. klein
+4-bit, four steps: 3 frames of 3 at 0.09 s, 2.88 s a step.
+
+
 Re-measured on 2026-09-23, after a frame became the picture's own decode shrunk
 to 512 pixels: pooling the latent to 16 cells had made frames of 0.136 s that
 stopped changing after the first few steps. At 1024 a frame is **1.47 s**
@@ -197,7 +202,7 @@ twice each, on a GPU other apps kept 30 to 90 percent busy: 18.6 s a step off
 against 19.8 on, **about 6 percent**. The frames add 13 MB to the untiled and
 tiled peaks (20,082 and 14,086 MB) and nothing to the streamed one (6,306 MB).
 
-- `residentBytes` 10_580_000_000, `peakBytes` 20_090_000_000, `tiledPeakBytes`
+- `residentBytes` 10_580_000_000, `peakBytes` 21_810_000_000, `tiledPeakBytes`
   14_090_000_000, `streamedPeakBytes` 6_310_000_000, `streamedResidentBytes`
   2_750_000_000, `referencePrefixBytes` 2_600_000_000: peaks rounded up, held
   figures down, all decimal MB. The tiled peak is over a 16 GB Mac's 13.74 GB
