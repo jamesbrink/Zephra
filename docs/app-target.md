@@ -282,7 +282,7 @@ Six directories, by what a file is rather than what screen it is on:
   `LICENSE`, which a third About button could open once it is a bundled
   resource (`ROADMAP.md`). A keyboard shortcut has one owner, the menu bar
   (`ZephraCommands`, `ModelCommands`, `WorkspaceCommands`, `LibraryCommands`,
-  `ThumbnailSizeCommands`); a button that shows a chord shows it as text, the
+  `ZoomCommands`); a button that shows a chord shows it as text, the
   way `GenerateButton` writes ⌘⏎, and never declares it too, because a chord
   declared twice is one stray SwiftUI change from firing twice. The two
   routes call one method, `generateFromInterface`, so what can part them is
@@ -679,6 +679,55 @@ Six directories, by what a file is rather than what screen it is on:
   the grid back to it. "Open in Canvas" — the `\.openLibraryItem` action, on
   the cell's menu, the sidebar wall, and the inspector's own button — is
   unchanged; the viewer answers to the twin `\.viewLibraryItem` instead.
+
+  The viewer's picture and the canvas's still both **zoom**, through one view,
+  `Zoom/ZoomablePicture`, and nothing else does: clips, the live preview,
+  thumbnails and the inspector stay plain pictures. It is AppKit's own
+  magnification rather than a SwiftUI `MagnifyGesture` over a scaled `Image`,
+  because an `NSScrollView` with `allowsMagnification` gives what Preview gives
+  for nothing — a pinch about the fingers, a two-finger double tap as smart zoom,
+  momentum and rubber-banding — and a hand-rolled one would give none of it.
+  `ZoomScrollView` lays its document out at the picture's **fitted** size, so
+  magnification 1 is fit, the zoom survives a resize relative to fit, and a new
+  key (another picture; a step in the viewer; the same file rewritten, keyed as
+  the decode is) puts it back there. `CenteringClipView` keeps a picture smaller
+  than the pane in its middle. `PictureDocumentView` draws the picture with high
+  interpolation over `Checkerboard`'s squares when it has alpha, dividing the
+  cell by the magnification so the squares stay eight points on screen, in
+  `TransparencyGround`'s colour sets resolved for its appearance, and pans on a
+  click-drag in a tracking loop of its own with the closed hand.
+
+  The hard part was keeping the picture the picture. The canvas lays a single
+  click (the tuck), a right-click menu and a drag-out on it, the viewer a
+  double-click and its own menu and drag, and SwiftUI's gestures over a
+  representable do not see an event the `NSView` under them takes. So at fit
+  `ZoomScrollView.hitTest` answers nil for a mouse click, a right click and a
+  drag — it asks `NSApp.currentEvent` which kind of event it is being
+  hit-tested for — and the event falls to the hosting view, where SwiftUI's
+  gestures are; a pinch, a smart zoom and a scroll are still its own, and a
+  scroll at fit, which would move nothing, is handed to the next responder.
+  Zoomed in, a left click is the pan's and a right click still goes to the menu.
+  `AspectFitShape` is the content shape, so at fit those gestures answer over the
+  picture and not over the graphite letterbox either side of it, as they did when
+  the picture laid itself out at its aspect. `ZoomablePictureClickTests` proves it
+  with real events, posted through the application's queue to an off-screen
+  window rather than handed to it, since only the event loop sets
+  `currentEvent`: a click on the picture tucks, one on the letterbox does not, a
+  right click opens a menu at fit and zoomed, and a zoomed click does not tuck.
+
+  The View menu's four zoom items are `ZoomCommands` — Zoom In ⌘+, Zoom Out ⌘−,
+  Actual Size ⌘0, Zoom to Fit ⌘9 — over `PictureZoom`, the `@Observable` the
+  picture publishes as the scene's `pictureZoom` and the scroll view keeps
+  current on every bounds change, so a greyed item is the scroll view's own
+  answer. `ZoomScale` (`Support/`, pure, `ZoomScaleTests`) is the arithmetic.
+  Actual size is one pixel to a point, as Preview's is and as a dragged-out file
+  opens elsewhere; one pixel to a device pixel would make Actual Size *smaller*
+  than fit for a 1024-pixel picture on most Retina panes. The floor is fit, or
+  actual size for a picture smaller than its pane, and the ceiling eight times
+  fit, or actual size past that, so Actual Size is never a dead press. ⌘+ and ⌘−
+  were already the thumbnails' (`ThumbnailSizeCommands`, "Zoom In"/"Zoom Out"),
+  and a chord has one owner, so `ZoomCommands` took them over whole: the picture
+  while one is up, the thumbnails (`ThumbnailSizeSteps`) while the grid is.
 
   What the canvas shows while the model works is decided by one question,
   `GenerationStore.isShowingRun`. While it is following, `CanvasView` draws

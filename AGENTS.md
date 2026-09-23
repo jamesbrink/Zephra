@@ -1386,6 +1386,40 @@ Rules in `Views/`:
   bar are a sheet's `.defaultAction` and `.cancelAction`. Return in the library
   belongs to `LibraryOpenCommand` alone. File > Stop Generating is
   `EngineState.stopCommandTitle`; File > Export… (⇧⌘E), never "Save as…".
+- **The canvas's still and the library viewer's picture zoom; nothing else
+  does.** `ZoomablePicture` (`Views/Zoom/`) is an `NSScrollView` with
+  `allowsMagnification` (`ZoomScrollView`), so a trackpad pinch zooms about the
+  fingers, a two-finger double tap is smart zoom and panning has momentum, as
+  Preview's does. Magnification 1 is **fit**: the document view
+  (`PictureDocumentView`) is laid out at the picture's fitted size and again on
+  every resize, and a new key — another picture on the canvas (`CanvasStill`,
+  over `ImageCache` the way `SessionImage` loads), a step or a rewrite in the
+  viewer — puts it back at fit. `ZoomScale` (`Support/`, pure) is the rest:
+  actual size is one pixel to one **point**, the floor is fit or actual size
+  where that is smaller, the ceiling eight times or actual size where that is
+  larger, and ⌘+/⌘− walk 1, 1.5, 2, 3, 4, 6, 8 with actual size among them. A
+  transparent picture draws `Checkerboard`'s squares behind itself at eight
+  points on screen at every zoom, in `TransparencyGround`'s colour sets.
+  **At fit it is not hit-tested for a click, a right click or a drag**, so the
+  SwiftUI gestures on it — the tuck, both right-click menus, the drag-out, the
+  viewer's double-click — are the ones they always were, over the picture's own
+  rectangle (`AspectFitShape`) and not the letterbox; a scroll that would move
+  nothing goes up the responder chain. Zoomed in, a click-drag pans with the
+  grab cursor and a right click still opens the menu; a click is the pan's, so
+  the tuck, the double-click close and the drag-out wait for fit.
+  `ZoomablePictureClickTests` posts real events to an off-screen window through
+  the application's queue — the scroll view reads `NSApp.currentEvent`, which
+  only the event loop sets — and `ZoomablePictureTests` pins the ladder, the
+  reset and the refit. Clips, the live preview, thumbnails and the inspector
+  stay plain pictures.
+- `ZoomCommands` is View > Zoom In (⌘+), Zoom Out (⌘−), Actual Size (⌘0) and
+  Zoom to Fit (⌘9), acting on the scene's `pictureZoom` (`PictureZoom`, which
+  `ZoomablePicture` publishes while it is up and the scroll view keeps current),
+  greyed with nothing to zoom. **It owns ⌘+ and ⌘− outright**: they zoom the
+  picture while there is one and step the library's thumbnails
+  (`ThumbnailSizeSteps`) while the grid is up instead, since two items declaring
+  one chord leave which fires to AppKit — which is why `ThumbnailSizeCommands`
+  is gone rather than kept beside it.
 - `ReferenceFactsRow` and the inspectors work the role out from the *record's*
   model, never the picker's, and read the thumbnail in a detached task.
 - `CanvasSidebar` builds today's runs once from `SessionTimeline`

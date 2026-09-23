@@ -221,7 +221,7 @@ struct ZephraApp: App {
             ModelCommands(store: store, workspace: workspace, welcome: welcome)
             WorkspaceCommands(workspace: workspace, store: store)
             LibraryCommands(workspace: workspace)
-            ThumbnailSizeCommands()
+            ZoomCommands()
             AboutCommands()
             UpdateCommands(updates: updates)
             HelpCommands()
