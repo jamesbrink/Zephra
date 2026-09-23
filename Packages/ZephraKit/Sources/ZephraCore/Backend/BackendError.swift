@@ -15,6 +15,13 @@ public enum BackendError: Error, Sendable, Hashable, LocalizedError {
     /// driver recovered it, and this process's command buffer came back discarded. The payload
     /// is the runtime's own text, which is logged and never shown: it names a command buffer.
     case deviceFailed(String)
+    /// The same lost run, named by the driver as the innocent victim of somebody else's fault
+    /// (`kIOGPUCommandBufferCallbackErrorInnocentVictim`): another process — WindowServer, on
+    /// every one bender has recorded — faulted the GPU, and this process's buffer was thrown away
+    /// in the recovery. Nothing of ours is wrong and the weights are fine, so the engine runs the
+    /// job once more by itself (`GenerationStore+FaultRerun`); a second one fails as
+    /// `deviceFailed` does, in the same words. The payload is the runtime's own text.
+    case deviceVictim(String)
     /// The GPU is gone for the rest of this process: the driver has put this client on its
     /// ignore list and completes its command buffers without running them
     /// (`kIOGPUCommandBufferCallbackErrorSubmissionsIgnored`). Nothing in the app recovers it —
@@ -44,7 +51,7 @@ public enum BackendError: Error, Sendable, Hashable, LocalizedError {
             "Couldn't load the model. Free up some memory and try again."
         case .generationFailed:
             "The image couldn't be generated. Try again, or lower the size or step count."
-        case .deviceFailed:
+        case .deviceFailed, .deviceVictim:
             "The GPU stopped responding and this run was lost. Try again."
         case .deviceLost:
             Self.deviceLostSentence

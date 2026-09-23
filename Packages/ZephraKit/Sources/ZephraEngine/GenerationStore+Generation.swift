@@ -95,6 +95,8 @@ extension GenerationStore {
                 fail(with: .deviceLost)
                 return
             }
+            // Somebody else's fault cost this run and nothing else: it goes again, once.
+            if rerunAfterVictimFault(job, error: error) { return }
             fail(with: .backend(error))
         } catch {
             fail(with: .backend(.generationFailed(error.localizedDescription)))

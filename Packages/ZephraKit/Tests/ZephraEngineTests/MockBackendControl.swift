@@ -84,6 +84,12 @@ final class MockBackendControl: Sendable {
         var deviceFaultAtStep: Int?
         /// Whether the pretend device faults while the weights are being read.
         var deviceFaultDuringLoad = false
+        /// Whether the pretend fault is an innocent victim of another process's fault, which
+        /// the runtime reports as `.deviceVictim` rather than `.deviceFailed`.
+        var deviceFaultIsVictim = false
+        /// How many more runs `deviceFaultAtStep` fires on, counted down as it does; nil for
+        /// every run. One is "this run faults and the next does not".
+        var deviceFaultsLeft: Int?
         /// The message the pretend fault was raised with. `MockBackend` writes it and
         /// `MockInferenceRuntime` reads it, which is the pair MLX's handler and its boundary
         /// are: the error never comes back through the call, it is left somewhere and found.

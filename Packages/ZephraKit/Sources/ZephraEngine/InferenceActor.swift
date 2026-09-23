@@ -101,7 +101,7 @@ actor InferenceActor {
                     events.send(.upscale(event))
                 }
             }
-        } catch BackendError.deviceFailed {
+        } catch BackendError.deviceFailed, BackendError.deviceVictim {
             // An upscale's failures are `UpscaleError`s, which reach the person as a notice on
             // the picture; a `BackendError` here would put up the failure screen whose remedy
             // is to reload a model the upscaler never needed. The raw text is already logged.
