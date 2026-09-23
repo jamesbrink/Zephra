@@ -42,18 +42,59 @@ struct ReferenceStripLayout: Hashable {
     /// How wide the row's own content is, laid out flat.
     var contentWidth: CGFloat { Self.width(ofTiles: tiles) }
 
-    /// How many of them are on screen at once.
-    var visibleTiles: Int { min(tiles, Self.maximumVisibleTiles) }
+    /// How many of them are on screen at once, with no measurement of the capsule's own room —
+    /// the plain "at most four" answer `ReferenceStrip` starts from before its first layout
+    /// pass lands.
+    var visibleTiles: Int { visibleTiles(fitting: nil) }
 
-    /// How wide the strip is in the capsule — never more than four tiles, whatever it holds.
+    /// How wide the strip is in the capsule with no measurement — never more than four tiles,
+    /// whatever it holds.
     var visibleWidth: CGFloat { Self.width(ofTiles: visibleTiles) }
 
-    /// Whether there is anything off the end to scroll to.
-    var scrolls: Bool { tiles > Self.maximumVisibleTiles }
+    /// Whether there is anything off the end to scroll to, with no measurement.
+    var scrolls: Bool { scrolls(fitting: nil) }
+
+    /// How many tiles fit in `measuredWidth`, the room the capsule actually offered the strip —
+    /// at least one, at most four, and never more than there are tiles to show. `nil` is "not
+    /// measured yet", which answers the same as the four-tile ceiling always has.
+    func visibleTiles(fitting measuredWidth: CGFloat?) -> Int {
+        guard tiles > 0 else { return 0 }
+        let capacity = measuredWidth.map(Self.visibleTileCount(fitting:)) ?? Self.maximumVisibleTiles
+        return min(tiles, capacity)
+    }
+
+    /// The width that many tiles come to — the strip's own frame once it has snapped to whole
+    /// tiles for `measuredWidth`.
+    func visibleWidth(fitting measuredWidth: CGFloat?) -> CGFloat {
+        Self.width(ofTiles: visibleTiles(fitting: measuredWidth))
+    }
+
+    /// Whether there is anything off the end of `measuredWidth` to scroll to.
+    func scrolls(fitting measuredWidth: CGFloat?) -> Bool {
+        visibleTiles(fitting: measuredWidth) < tiles
+    }
 
     /// The width `count` tiles and the gaps between them come to.
     static func width(ofTiles count: Int) -> CGFloat {
         guard count > 0 else { return 0 }
         return CGFloat(count) * tile + CGFloat(count - 1) * spacing
+    }
+
+    /// How many whole tiles fit inside `available` points, at least one and at most
+    /// `maximumVisibleTiles`.
+    ///
+    /// This is the rule the defect was missing: the capsule offers the strip a continuous
+    /// width, not a multiple of a tile, and a strip that simply took whatever it was given
+    /// showed a tile sliced in half at the trailing edge with no sign it could be scrolled to.
+    /// Floored rather than rounded, so a width that falls short of a whole tile never shows a
+    /// fragment of it — `(available + spacing) / (tile + spacing)` is the tile count whose
+    /// tiles-and-gaps fit at or under `available`, since the strip's own width never carries a
+    /// trailing gap past its last tile. At least one: a strip with no room to spare still shows
+    /// its first tile rather than nothing, since a tile that cannot be reached is worse than one
+    /// that clips before its neighbour.
+    static func visibleTileCount(fitting available: CGFloat) -> Int {
+        guard available.isFinite, available > 0 else { return 1 }
+        let fitting = Int(floor((available + spacing) / (tile + spacing)))
+        return min(max(fitting, 1), maximumVisibleTiles)
     }
 }

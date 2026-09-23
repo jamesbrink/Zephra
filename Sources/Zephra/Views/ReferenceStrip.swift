@@ -11,14 +11,31 @@ import ZephraStyle
 /// 880-point window floor. Past four it scrolls sideways, which is the one axis a row of
 /// thumbnails can afford to grow along.
 ///
+/// The capsule's own row negotiates a continuous width, not a multiple of a tile — asked for
+/// less than four tiles' worth of room, it used to hand the strip back a fractional one, and the
+/// far tile showed sliced in half with nothing to say it scrolled. The fix leaves that
+/// negotiation exactly as it was — the outer `.frame(minWidth:maxWidth:)` below is still asked
+/// for the plain, unmeasured ceiling every render, so the row keeps deciding how much room this
+/// view gets the way it always has, live to a resize either wider or narrower. `onGeometryChange`
+/// only **watches** what that negotiation settled on (never a `GeometryReader`, which would ask
+/// for the room itself and win the fight it is only meant to be observing) and
+/// `ReferenceStripLayout.visibleTileCount(fitting:)` snaps it down to whole tiles; a `.mask`
+/// then paints over whatever is past that snapped width, so the strip's own *size* stays fully
+/// elastic (feeding the snapped value back into the frame would lock the strip at whatever it
+/// first measured and it would never grow back on a later resize) while what is *drawn* always
+/// stops on a tile's edge.
+///
 /// A `LazyHStack` inside a `ScrollView` rather than a `List`: a list would bring its own
 /// selection, its own insets and its own vertical world, and the reorder here is a drag from one
 /// tile onto another, which `ReferenceSlotReference` carries.
 struct ReferenceStrip: View {
     @Environment(GenerationStore.self) private var store
+    @State private var measuredWidth: CGFloat?
 
     var body: some View {
         let layout = layout
+        let snappedWidth = layout.visibleWidth(fitting: measuredWidth)
+        let scrolls = layout.scrolls(fitting: measuredWidth)
         ScrollView(.horizontal) {
             LazyHStack(spacing: ReferenceStripLayout.spacing) {
                 ForEach(0..<store.settings.referenceImages.count, id: \.self) { index in
@@ -30,17 +47,37 @@ struct ReferenceStrip: View {
             }
             .frame(height: ReferenceStripLayout.tile)
         }
-        // Flexible rather than fixed, and this is the whole of why the capsule survives a
-        // narrow window: at the 880-point floor with both the sidebar and the inspector open
-        // the capsule is a few hundred points wide, and a strip that demanded its four tiles
-        // there would leave the prompt a column one character wide. Asking for at most four and
-        // at least one lets the row divide what there is, and the scroll covers the rest.
         .scrollIndicators(.automatic)
-        .frame(
-            minWidth: ReferenceStripLayout.tile, maxWidth: layout.visibleWidth,
-            alignment: .trailing)
+        // Crops the far edge to a whole tile, with a static fade over its last few points
+        // while there is more to scroll to — never an animation, since nothing in the app
+        // target repeats. Leading-aligned: content rests flush with the strip's own leading
+        // edge, so the snapped width is exactly what stays visible from there.
+        .mask(alignment: .leading) { scrollMask(snappedWidth: snappedWidth, scrolls: scrolls) }
+        .frame(minWidth: ReferenceStripLayout.tile, maxWidth: layout.visibleWidth, alignment: .trailing)
         .frame(height: ReferenceStripLayout.tile)
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.width
+        } action: { newWidth in
+            if measuredWidth != newWidth { measuredWidth = newWidth }
+        }
         .accessibilityLabel(accessibilityLabel)
+    }
+
+    @ViewBuilder
+    private func scrollMask(snappedWidth: CGFloat, scrolls: Bool) -> some View {
+        HStack(spacing: 0) {
+            if scrolls {
+                Rectangle()
+                LinearGradient(
+                    colors: [.black, .black.opacity(0)], startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(width: 16)
+            } else {
+                Rectangle()
+            }
+        }
+        .frame(width: snappedWidth)
     }
 
     private var layout: ReferenceStripLayout {

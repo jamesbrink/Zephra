@@ -27,10 +27,23 @@ struct ReferenceNotes: ViewModifier {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.trailing)
                     .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: ReferenceStripLayout.width(ofTiles: 3), alignment: .trailing)
+                    .frame(maxWidth: noteWidth, alignment: .trailing)
             }
         }
         .task(id: key) { await readMatte() }
+    }
+
+    /// How wide a note may wrap: the strip's own width for a model that draws one, the single
+    /// well's one tile otherwise — never the strip's old fixed three tiles, which said nothing
+    /// true about a strip holding one picture or ten.
+    private var noteWidth: CGFloat {
+        let capabilities = store.descriptor.capabilities
+        guard ReferenceStripLayout.drawsStrip(capabilities: capabilities) else {
+            return ReferenceStripLayout.tile
+        }
+        return ReferenceStripLayout(
+            pictures: store.settings.referenceImages.count, room: store.referenceRoom
+        ).visibleWidth
     }
 
     private var notes: [String] {

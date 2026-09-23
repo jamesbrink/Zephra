@@ -93,4 +93,45 @@ struct ReferenceStripLayoutTests {
         // Four 64-point tiles with three 8-point gaps between them.
         #expect(ReferenceStripLayout.width(ofTiles: 4) == CGFloat(280))
     }
+
+    @Test("the capsule's own width snaps down to whole tiles, never a fraction of one")
+    func measuredWidthSnapsToWholeTiles() {
+        // Exactly one, two, three and four tiles' worth of room fits that many tiles.
+        #expect(ReferenceStripLayout.visibleTileCount(fitting: 64) == 1)
+        #expect(ReferenceStripLayout.visibleTileCount(fitting: 136) == 2)
+        #expect(ReferenceStripLayout.visibleTileCount(fitting: 208) == 3)
+        #expect(ReferenceStripLayout.visibleTileCount(fitting: 280) == 4)
+        // One point short of the next tile's boundary still reads as the tile before it —
+        // this is the defect itself: a fourth tile with no room for its last point never
+        // shows a sliver of itself.
+        #expect(ReferenceStripLayout.visibleTileCount(fitting: 279) == 3)
+        #expect(ReferenceStripLayout.visibleTileCount(fitting: 207) == 2)
+        // More than four tiles' worth of room still stops at the ceiling.
+        #expect(ReferenceStripLayout.visibleTileCount(fitting: 1000) == 4)
+        // Under one tile's width, or nothing measurable at all, still shows one tile.
+        #expect(ReferenceStripLayout.visibleTileCount(fitting: 40) == 1)
+        #expect(ReferenceStripLayout.visibleTileCount(fitting: 0) == 1)
+        #expect(ReferenceStripLayout.visibleTileCount(fitting: -10) == 1)
+    }
+
+    @Test("the strip never shows more tiles than it measured room for, or than it holds")
+    func fittingWidthBoundsTheVisibleTiles() {
+        let layout = ReferenceStripLayout(pictures: 3, room: 7)
+        #expect(layout.tiles == 4)
+        // Unmeasured, the four-tile ceiling still answers as it always has.
+        #expect(layout.visibleTiles(fitting: nil) == 4)
+        // Room for three tiles only, even though the strip holds four.
+        #expect(layout.visibleTiles(fitting: 220) == 3)
+        #expect(layout.visibleWidth(fitting: 220) == ReferenceStripLayout.width(ofTiles: 3))
+        #expect(layout.scrolls(fitting: 220))
+        // Room for everything the strip holds: no scroll.
+        #expect(layout.visibleTiles(fitting: 400) == 4)
+        #expect(!layout.scrolls(fitting: 400))
+        // A strip with fewer tiles than the ceiling never grows past what it holds, however
+        // much room there is.
+        let two = ReferenceStripLayout(pictures: 1, room: 7)
+        #expect(two.tiles == 2)
+        #expect(two.visibleTiles(fitting: 1000) == 2)
+        #expect(!two.scrolls(fitting: 1000))
+    }
 }
