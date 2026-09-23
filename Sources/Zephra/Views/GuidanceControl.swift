@@ -15,20 +15,31 @@ struct GuidanceControl: View {
         @Bindable var store = store
         let capabilities = store.descriptor.capabilities
         if capabilities.adjustsGuidance {
-            HStack(spacing: 10) {
-                Slider(value: $store.settings.guidance, in: capabilities.guidanceBounds, step: 0.5)
-                    .controlSize(.small)
-                    // Flexible for the same reason the steps slider is: the row must never
-                    // grow past the prompt above it.
-                    .frame(minWidth: 70, maxWidth: 110)
-                Text(store.settings.guidance, format: .number.precision(.fractionLength(1)))
-                    .font(.callout)
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-                    .frame(minWidth: 26, alignment: .leading)
+            let note = GuidanceNote.text(for: store.settings, capabilities: capabilities)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 10) {
+                    Slider(value: $store.settings.guidance, in: capabilities.guidanceBounds, step: 0.5)
+                        .controlSize(.small)
+                        // Flexible for the same reason the steps slider is: the row must never
+                        // grow past the prompt above it.
+                        .frame(minWidth: 70, maxWidth: 110)
+                    Text(store.settings.guidance, format: .number.precision(.fractionLength(1)))
+                        .font(.callout)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .frame(minWidth: 26, alignment: .leading)
+                }
+                .help("Prompt guidance")
+                .accessibilityLabel("Prompt guidance")
+                if let note {
+                    // Wraps inside the control's own width rather than widening the row.
+                    Text(note)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: 146, alignment: .leading)
+                }
             }
-            .help("Prompt guidance")
-            .accessibilityLabel("Prompt guidance")
         }
     }
 }

@@ -2535,7 +2535,10 @@ each family.
   guidance is over one. This is not a distilled checkpoint, so unlike every
   other entry both controls mean something; 1 is the default because the
   release's own card samples it that way and because it is the value at which
-  the second forward, and its share of the prefix cache, is not paid.
+  the second forward, and its share of the prefix cache, is not paid. As in
+  `diffusers`, guidance over one with the negative field empty runs no second
+  forward and changes nothing, so the Mac's guidance control says "Guidance
+  needs something to avoid." under itself then (`GuidanceNote`, `Support/`).
 - Sizes are multiples of **32** — a 2x2 patch over a 16-pixel cell — bounds
   512...2752, default 1024 square, and the presets carry the card's 2K set.
   1344 rather than 1328: 1328 is not a multiple of 32.
