@@ -78,4 +78,24 @@ struct PromptDraftSubmissionTests {
         #expect(
             SeedLockToggle.hint(randomizing: true) != SeedLockToggle.hint(randomizing: false))
     }
+
+    @Test("A destination that has not named this model still gets every picture in the well")
+    func theFallbackPathStillCarriesEveryPicture() {
+        let draft = draft(seed: 7)
+        let pictures = [
+            ReferencePicture(data: Data(repeating: 1, count: 16), origin: "a.png"),
+            ReferencePicture(data: Data(repeating: 2, count: 24), origin: "b.png"),
+        ]
+        draft.setReferences(pictures)
+        let (request, sent) = draft.nextSubmission(summary: nil, randomizingSeed: false)
+        #expect(sent.count == 2, "both pictures in the well go as blobs")
+        #expect(sent.map(\.data) == pictures.map(\.data))
+        #expect(
+            request.settings.referenceImages.count == 2,
+            "the settings the Mac reads carry the same pictures the blobs do")
+        #expect(request.settings.referenceImages.map(\.origin) == ["a.png", "b.png"])
+        #expect(
+            request.settings.referenceImages.allSatisfy { !$0.hasPixels },
+            "bytes cross as blobs, never inside the settings")
+    }
 }
