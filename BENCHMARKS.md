@@ -133,16 +133,17 @@ bias float32 where the published four-bit repacks do not.
 
 Every memory figure below is a reading from `make bench` on halcyon (M4 Max,
 48 GB, 40.2 GB working set) on 2026-09-22, forty steps, one run each, one
-heavy process on the machine at a time. The timings are inflated: the same Mac
-made 1024 steps at 5.3 to 6.1 s in shorter runs earlier that day, so treat
-every seconds column as an upper bound until an idle rerun ("Owed reruns").
+heavy process on the machine at a time. The 1024 timings in the first two
+tables are from an idle rerun the same evening; the 768, 2048, reference and
+preview timings were taken with builds running beside them and read a little
+high.
 
 ### Resident
 
 | Size | Seconds | s/step | Peak | Tiled peak |
 | ---: | ---: | ---: | ---: | ---: |
 | 768 | 164 | 4.09 | 17123 MB | |
-| 1024 (default) | 326 | 8.16 | 20069 MB | 14073 MB |
+| 1024 (default) | 269 | 6.71 | 20069 MB | 14073 MB |
 | 2048 | 1681 | 42.02 | | 21751 MB |
 
 10585 MB resident, the same at every size: the packed weights plus the float32
@@ -161,9 +162,10 @@ have exceeded this Mac.
 
 | Mac | Size | Peak | Live between runs | s/step | Read per step | Disk rate |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| halcyon | 1024 | 6306 MB | 2752 MB | 7.42 | 4.36 GB | (owed) |
+| halcyon | 1024 | 6306 MB | 2752 MB | 6.96 | 4.36 GB | 0.65 GB/s |
 
-Depth 2, tile 64. Both layer stacks stream — the transformer's 32 blocks and
+Depth 2, tile 64; untiled, the streamed peak is 12236 MB, the decode's
+transient over the 2.75 GB held. Both layer stacks stream — the transformer's 32 blocks and
 the text encoder's 36 — so what is left resident is the float32 autoencoder,
 the vision tower, the embeddings, the norms and the one shared modulation
 table, plus the decode's tile and the depth-2 window. Load 1.0 s.
@@ -398,10 +400,6 @@ The second was taken on a busy machine and is a ceiling.
   has been re-measured under the new pin either; klein 4-bit and Z-Image
   8-bit on halcyon are owed the first rerun, since they are the two entries
   this file's own numbers lean on most.**
-- Qwen-Image 2.1's timings, every seconds column: taken on halcyon with one
-  other heavy process at a time, and 8 s a step at 1024 against 5 to 6 s in
-  shorter runs the same day. The memory figures stand; the timings and the
-  streamed disk rate are owed an idle rerun.
 - klein's edit peak and time with the reference tokens cast.
 - LTX-2.5 streamed on bender with an idle disk.
 - Preview frame cost for Z-Image and for Qwen-Image 2.1 on an idle Mac.
