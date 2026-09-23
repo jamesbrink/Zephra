@@ -46,6 +46,11 @@ struct ReferenceStrip: View {
                 }
             }
             .frame(height: ReferenceStripLayout.tile)
+            // Room for each tile's remove badge, which sits past the tile's top and trailing
+            // edges: a scroll view clips to its bounds, and without this the badge was cut in
+            // half along the top and past the last tile.
+            .padding(.top, overhang)
+            .padding(.trailing, overhang)
         }
         .scrollIndicators(.automatic)
         // Crops the far edge to a whole tile, with a static fade over its last few points
@@ -53,13 +58,21 @@ struct ReferenceStrip: View {
         // target repeats. Leading-aligned: content rests flush with the strip's own leading
         // edge, so the snapped width is exactly what stays visible from there.
         .mask(alignment: .leading) { scrollMask(snappedWidth: snappedWidth, scrolls: scrolls) }
-        .frame(minWidth: ReferenceStripLayout.tile, maxWidth: layout.visibleWidth, alignment: .trailing)
-        .frame(height: ReferenceStripLayout.tile)
+        .frame(
+            minWidth: ReferenceStripLayout.tile + overhang, maxWidth: layout.visibleWidth,
+            alignment: .trailing
+        )
+        .frame(height: ReferenceStripLayout.tile + overhang)
         .onGeometryChange(for: CGFloat.self) { proxy in
             proxy.size.width
         } action: { newWidth in
             if measuredWidth != newWidth { measuredWidth = newWidth }
         }
+        // The headroom is drawn, never laid out: the capsule's row sees the tiles' own footprint,
+        // exactly as it did before there was any, and the badge overhangs it the way the single
+        // well's does.
+        .padding(.top, -overhang)
+        .padding(.trailing, -overhang)
         .accessibilityLabel(accessibilityLabel)
     }
 
@@ -79,6 +92,8 @@ struct ReferenceStrip: View {
         }
         .frame(width: snappedWidth)
     }
+
+    private var overhang: CGFloat { ReferenceStripLayout.badgeOverhang }
 
     private var layout: ReferenceStripLayout {
         ReferenceStripLayout(

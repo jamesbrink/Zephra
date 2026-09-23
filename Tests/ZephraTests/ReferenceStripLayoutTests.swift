@@ -122,7 +122,9 @@ struct ReferenceStripLayoutTests {
         #expect(layout.visibleTiles(fitting: nil) == 4)
         // Room for three tiles only, even though the strip holds four.
         #expect(layout.visibleTiles(fitting: 220) == 3)
-        #expect(layout.visibleWidth(fitting: 220) == ReferenceStripLayout.width(ofTiles: 3))
+        #expect(
+            layout.visibleWidth(fitting: 220)
+                == ReferenceStripLayout.width(ofTiles: 3) + ReferenceStripLayout.badgeOverhang)
         #expect(layout.scrolls(fitting: 220))
         // Room for everything the strip holds: no scroll.
         #expect(layout.visibleTiles(fitting: 400) == 4)
@@ -133,5 +135,29 @@ struct ReferenceStripLayoutTests {
         #expect(two.tiles == 2)
         #expect(two.visibleTiles(fitting: 1000) == 2)
         #expect(!two.scrolls(fitting: 1000))
+    }
+
+    @Test("the strip's width carries the remove badge's headroom once, past the last tile")
+    func theWidthCarriesTheBadgeOverhang() {
+        let overhang = ReferenceStripLayout.badgeOverhang
+        #expect(overhang == 5)
+        #expect(ReferenceStripLayout.stripWidth(ofTiles: 0) == 0)
+        #expect(ReferenceStripLayout.stripWidth(ofTiles: 1) == 64 + overhang)
+        #expect(ReferenceStripLayout.stripWidth(ofTiles: 4) == 280 + overhang)
+        let ten = ReferenceStripLayout(pictures: 10, room: 0)
+        #expect(ten.visibleWidth == 280 + overhang)
+        #expect(ten.contentWidth == ReferenceStripLayout.width(ofTiles: 10) + overhang)
+    }
+
+    @Test("a measured width counts its tiles after the headroom comes off")
+    func theMeasuredWidthLosesTheOverhangFirst() {
+        let ten = ReferenceStripLayout(pictures: 10, room: 0)
+        // Exactly four tiles and the headroom holds four; one point less holds three.
+        #expect(ten.visibleTiles(fitting: 285) == 4)
+        #expect(ten.visibleTiles(fitting: 284) == 3)
+        #expect(ten.visibleWidth(fitting: 284) == 208 + ReferenceStripLayout.badgeOverhang)
+        // One tile and its headroom is one tile; less still shows the first.
+        #expect(ten.visibleTiles(fitting: 69) == 1)
+        #expect(ten.visibleTiles(fitting: 20) == 1)
     }
 }
