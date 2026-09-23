@@ -35,13 +35,21 @@
       ]
     },
     {
+      "id": "qwen-guidance",
+      "title": "Adjust Qwen-Image 2.1 only when needed",
+      "paragraphs": [
+        "Qwen-Image 2.1 starts at 40 Steps and Guidance 1. Begin there with a clear description of the finished image. Guidance above 1 has an effect only when you also enter a negative prompt; that combination runs a second pass, which can use more memory and take longer.",
+        "If a result has an unwanted feature, name it in the negative prompt in plain language, such as “blurry lettering,” then raise Guidance a little and compare with the same seed. The negative prompt is ignored at Guidance 1. Proofread any generated text after the image finishes."
+      ]
+    },
+    {
       "id": "different-tasks",
       "title": "Match the wording to the task",
       "paragraphs": [],
       "items": [
         "New image: describe the finished scene.",
         "Z-Image with a starting picture: describe the finished image, then adjust Strength to control how much it changes.",
-        "Qwen-Image 2.1 with reference pictures: describe the finished image. It conditions on the pictures directly, as FLUX does, so there is no Strength setting.",
+        "Qwen-Image 2.1 with reference pictures: describe the finished image and identify which picture supplies each detail. It reads up to ten pictures in the order shown; there is no Strength setting.",
         "FLUX photo edit: name the change and the details to preserve.",
         "Video: describe what happens over time and how the camera behaves. With a first frame, focus on the movement that follows."
       ],

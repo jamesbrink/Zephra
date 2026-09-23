@@ -38,7 +38,7 @@ Approximate disk sizes for 4-bit models (prepared model / including retained sou
 
 ## What’s new and support
 
-The latest website release notes highlight LTX-2.5 video with sound, Wan 2.2 text-to-video and image animation, and weight streaming for Qwen-Image 2.1, Wan 2.2, and LTX-2.5. [Read what’s new](https://zephra.urandom.io/#whats-new).
+The latest website release notes highlight Qwen-Image 2.1, LTX-2.5 video with sound, Wan 2.2 text-to-video and image animation, and weight streaming for Qwen-Image 2.1, Wan 2.2, and LTX-2.5. [Read what’s new](https://zephra.urandom.io/#whats-new).
 
 For help or to report a problem, email [Zephra support](mailto:dev.urandom.io@gmail.com).
 

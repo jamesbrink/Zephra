@@ -165,6 +165,11 @@ export default function GettingStarted({ id }: { id: string }) {
         </p>
         <ul>
           <li>
+            <strong>Meet Qwen-Image 2.1.</strong> Create images with lettering or
+            combine up to ten reference pictures in order. Its research license
+            permits non-commercial use only.
+          </li>
+          <li>
             <strong>Video with sound.</strong> Choose LTX-2.5’s “with sound”
             variant to generate audio and video together, saved in one MP4.
           </li>

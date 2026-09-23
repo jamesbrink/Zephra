@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const read = path => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
 const chapters = read('../app/guide/chapters.json');
 const origin = 'https://zephra.urandom.io';
-let markdown = '# Zephra user guide\n\nBeginner-friendly workflows for Zephra 0.1.0. Updated September 11, 2026.\n\n';
+let markdown = '# Zephra user guide\n\nBeginner-friendly workflows for Zephra 0.1.0. Updated September 23, 2026.\n\n';
 for (const entry of chapters) {
   const chapter = read(`../app/guide/_content/${entry.slug}.json`);
   markdown += `## ${chapter.title}\n\n${chapter.description}\n\n[Read this chapter](${origin}/guide/${chapter.slug}/)\n\n`;

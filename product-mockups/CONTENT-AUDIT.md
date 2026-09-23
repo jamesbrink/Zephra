@@ -84,3 +84,15 @@ over upstream tutorials for other variants or interfaces.
   order and conditioned on directly, so there is no Strength setting. The guide's
   reference role for it is Reference, not Start from.
 - There is no adapter and no local merge step in the build any more.
+
+## Website and prompt-guide sync — 2026-09-23
+
+- The homepage release notes now name Qwen-Image 2.1 and its research-only,
+  non-commercial weights. The guide gives a two-picture prompt with roles tied
+  to strip positions, grounded in the catalog's ordered `1...10` references.
+- The prompt guide states the catalog's 40 Steps and Guidance 1 defaults and
+  explains that Qwen's pipeline uses Guidance above 1 only with a nonempty
+  negative prompt (`QwenImage21Request.usesGuidance`).
+- The Markdown guide is regenerated from chapter JSON, with its update date
+  advanced. The site README now reflects the automatic production deploy on
+  website changes pushed to `main` in `.github/workflows/deploy-website.yml`.

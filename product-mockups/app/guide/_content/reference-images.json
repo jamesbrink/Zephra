@@ -48,6 +48,15 @@
       ]
     },
     {
+      "id": "several-pictures",
+      "title": "Combine several pictures with Qwen-Image 2.1",
+      "paragraphs": [
+        "Add your pictures in the order you plan to describe them. The strip can hold up to ten; drag a thumbnail to change its position. In the prompt, refer to each picture by its position and say which details to keep. A few clearly assigned pictures are easier to reason about than a full strip with overlapping roles.",
+        "Each additional picture can raise memory use. If a run does not fit, try fewer references or Stream weights from disk in Settings → Performance. Qwen-Image 2.1 reads transparent references, so a cut-out can keep its alpha rather than being flattened first."
+      ],
+      "prompt": "Make a product photograph of the ceramic mug in picture 1 on the wooden table in picture 2. Keep the mug's shape and painted pattern. Use soft window light and leave the background uncluttered."
+    },
+    {
       "id": "again",
       "title": "Start another experiment",
       "paragraphs": [
