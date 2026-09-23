@@ -15,9 +15,9 @@ import os
 /// who presses Later gets their window back until they relaunch.
 @MainActor @Observable
 final class UpdateChecker {
-    /// How long after launch the first check runs: long enough to be behind the window, the
-    /// model survey and the first load.
-    static let launchDelay = Duration.seconds(10)
+    /// How long after launch the first check runs: behind the window and the model survey,
+    /// and soon enough that `make logs` shows the answer while somebody is still looking.
+    static let launchDelay = Duration.seconds(3)
     /// And how often after that.
     static let interval = Duration.seconds(6 * 60 * 60)
 
@@ -29,6 +29,9 @@ final class UpdateChecker {
     /// The verified disk image behind a failure that is worth showing in the Finder, so a Mac
     /// whose Applications folder cannot be written to still has something to drag.
     var imageToShow: URL?
+    /// When the last check finished and what it found, for the line under Settings' toggle.
+    /// Read from the preferences at launch and written by `record(_:)`.
+    var lastCheck: UpdateCheckNote?
 
     /// Whether the swap is happening right now — the window in which there is no `Zephra.app`
     /// where there was one. `AppLifecycle` holds Quit open on it; nothing draws it, so it is
@@ -44,6 +47,7 @@ final class UpdateChecker {
 
     init(environment: UpdateEnvironment = .current) {
         self.environment = environment
+        self.lastCheck = AppSettings.lastUpdateCheckNote()
     }
 
     /// A checker standing still in one phase, for `ZEPHRA_PREVIEW_STATE=update` and the
@@ -72,6 +76,16 @@ final class UpdateChecker {
             log.info("update: this copy does not update itself (\(String(describing: eligibility), privacy: .public))")
             return
         }
+        startChecking()
+    }
+
+    /// Begins the timer, unless the preference is off or one is running already. Settings'
+    /// toggle calls this when it is switched on, so checking resumes without a relaunch; it
+    /// leaves the previous install's leftovers alone, which `start()` sweeps once a launch.
+    func startChecking() {
+        guard InterfacePreview.requestedState == nil,
+            UpdateEligibility.current(environment).canInstall
+        else { return }
         guard AppSettings.flag(AppSettings.checksForUpdates) else { return }
         guard loop == nil else { return }
         loop = Task { [weak self] in
@@ -108,6 +122,8 @@ final class UpdateChecker {
             let latest = try await UpdateFeed(url: environment.feed).latest()
             let running = RunningBuild.number(pretending: environment.pretendBuild)
             guard latest.isNewer(than: running) else {
+                log.info("update check: up to date at \(running, privacy: .public)")
+                record(.upToDate)
                 phase = .idle
                 return manual ? .upToDate(version: AppFacts.versionLine) : nil
             }
@@ -115,7 +131,8 @@ final class UpdateChecker {
             return manual ? .available(latest) : nil
         } catch {
             let reason = (error as? UpdateFeedError)?.message ?? error.localizedDescription
-            log.error("update: the check did not finish: \(reason, privacy: .public)")
+            log.error("update check: failed: \(reason, privacy: .public)")
+            record(.failed)
             // A failure nobody asked about is not worth a banner; one behind a menu press is
             // reported in the alert and left on the banner to be tried again.
             phase = manual ? .failed(reason: reason) : .idle
@@ -125,7 +142,8 @@ final class UpdateChecker {
 
     /// Puts the release on the banner, and says so behind another app's window once per build.
     private func found(_ release: ReleaseManifest, manual: Bool) {
-        log.info("update: \(release.line, privacy: .public) is published")
+        log.info("update check: found \(release.line, privacy: .public)")
+        record(.found)
         phase = .available(release)
         // An explicit check is an explicit interest: whatever Later hid, this un-hides.
         if manual { snoozedBuild = nil }

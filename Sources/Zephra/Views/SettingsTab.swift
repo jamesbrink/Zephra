@@ -70,7 +70,8 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     ///
     /// General's figure was re-measured with `make screenshot WINDOW=General` when the update
     /// section arrived: 420 and 480 both left the Updates toggle below the sill, and 560 is
-    /// where the tab shows its last row with a margin under it.
+    /// where the tab shows its last row with a margin under it. The "Last checked" line under
+    /// the toggle (2026-09-23) put itself below 560's sill, and 620 shows it with the same margin.
     ///
     /// Performance no longer fits on any display a Mac laptop has. Measured on a 1728 x 1010
     /// workstation display: the Loading section costs 158 points, and the whole tab wants about
@@ -86,7 +87,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     /// not, `SettingsWindowFit` clamps it exactly as it clamped 1010.
     var openingHeight: CGFloat {
         switch self {
-        case .general: 560
+        case .general: 620
         case .performance: 1142
         case .models: 620
         case .companion: 600
