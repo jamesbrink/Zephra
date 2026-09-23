@@ -41,17 +41,15 @@ struct GenerateButton: View {
     /// mentioned a count, so the phone asks for what that Mac would have allowed rather than
     /// paying for pictures over a relay that the far end will refuse.
     ///
-    /// A destination that has not named this model has no capabilities to clamp by, and the
-    /// press goes as composed, which is what every press did before it was clamped at all.
+    /// A destination that has not named this model has no capabilities to clamp by, but the
+    /// well's pictures still ride along: `PromptDraft.nextSubmission` is the one path either
+    /// way, so the settings a Mac reads always carry the same pictures the blobs beside them do.
     private func generate() {
         guard referenceIntent.canGenerate else { return }
         let randomizes = MobileSettings.flag(MobileSettings.randomizeSeedEachRun)
         let summary = dispatch.models.first(where: { $0.id == draft.modelID })?.capabilities
-        if randomizes && summary == nil { draft.randomizeSeed() }
-        let request = summary.map { draft.submission(clampedBy: $0, randomizingSeed: randomizes) }
-            ?? GenerationRequest(
-                modelID: draft.modelID, count: draft.count, settings: draft.settings)
-        let pictures = summary.map { draft.references(allowedBy: $0) } ?? draft.references
+        let (request, pictures) = draft.nextSubmission(
+            summary: summary, randomizingSeed: randomizes)
         let generation = StrictGeneration(
             request: request, inputs: dispatch.inputs(for: pictures))
         Task { await dispatch.send(generation, references: pictures.map(\.data)) }
