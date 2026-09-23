@@ -2617,7 +2617,15 @@ each family.
   autoencoder is four-channel in and out: **2.1 carries alpha**, and the decode,
   `PixelBuffer` and the PNG path all carry it through. Its spatial factor is 16,
   so `QwenImage21RequestMapper` halves the engine's VAE tile on the way in the
-  way Wan does, flooring it at 12 cells because 8 measured 17 dB.
+  way Wan does, flooring it at 12 cells because 8 measured 26 dB. **Only the
+  upsampling stages are tiled**: `conv_in` and the mid block run whole first
+  (`QwenImage21VAEDecoder.head`), because the mid block's attention is one head
+  over every cell, and a tile attending to itself alone decoded as a different
+  picture from its neighbours. On a 16 GB Mac, which tiles every 1024 picture,
+  that was ghosted rectangles in the alpha along the tile grid, which pushed
+  opaque pictures under `QwenImage21Opacity`'s floor and saved them as RGBA
+  drawn over the checkerboard (2026-09-23). The attention takes its queries in
+  chunks of 4096, exactly, so a 2K preset's score matrix is bounded.
 - The text encoder is **Qwen3-VL**: a 36-layer language model (GQA 32/8, head
   dim 128, `rope_theta` 5e6, interleaved MRoPE) and a **27-block vision tower**
   with three DeepStack taps injected after the first three decoder layers. The

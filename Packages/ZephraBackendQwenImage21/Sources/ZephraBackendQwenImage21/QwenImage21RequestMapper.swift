@@ -49,7 +49,7 @@ enum QwenImage21RequestMapper {
     ///
     /// Floored at twelve cells, which is measured rather than chosen: the tiled decode's
     /// overlap approximation is coarse below about twelve, and a tile of eight came back at
-    /// 17 dB against the untiled decode. A Mac too small for a twelve-cell tile is a Mac the
+    /// 26 dB against the untiled decode. A Mac too small for a twelve-cell tile is a Mac the
     /// memory guard refuses the model on, not one this quietly gives a blurred picture to.
     static func vaeTile(from engineTile: Int?) -> Int? {
         engineTile.map { max(minimumTile, $0 * pictureCell / latentCell) }

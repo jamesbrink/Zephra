@@ -71,13 +71,16 @@ public final class QwenImage21Autoencoder: Module {
     ///
     /// With a `tile`, an edge in latent cells, the picture is decoded in overlapping tiles
     /// through `TiledDecode` and cross-faded where they meet, so the decode's peak is the
-    /// tile's and not the picture's. The 1 x 1 `post_quant_conv` runs first, whole, since it
-    /// reads no neighbour.
+    /// tile's and not the picture's. The 1 x 1 `post_quant_conv`, `conv_in` and the mid block
+    /// run first, whole, at the latent's size: the mid block attends over every cell, so only
+    /// the upsampling stages after it are tiled (`QwenImage21VAEDecoder.head`).
     public func decode(_ latent: MLXArray, tile: Int? = nil) -> MLXArray {
         let x = postQuantConv(latent.asType(dtype))
         guard let tile, tile < max(x.dim(1), x.dim(2)) else { return clipped(decoder(x)) }
-        return TiledDecode.run(x, tile: tile, scale: configuration.spatialCompression) {
-            clipped(decoder($0))
+        return TiledDecode.run(
+            decoder.head(x), tile: tile, scale: configuration.spatialCompression
+        ) {
+            clipped(decoder.tail($0))
         }
     }
 

@@ -178,7 +178,11 @@ app's own download lands there and this copy is unnecessary.
   tensors it drops at load and claims by name in the coverage test. Its spatial
   factor is 16, so `QwenImage21RequestMapper` halves the engine's VAE tile on
   the way in as Wan does, flooring it at 12 cells because a tile of 8 measured
-  17 dB against the untiled decode.
+  26 dB against the untiled decode. Only the upsampling stages are tiled:
+  `conv_in` and the mid block, whose attention is one head over every cell, run
+  whole first. A tiled attention decoded each tile as a different picture, and
+  on a 16 GB Mac that drew the tile grid into the alpha of opaque pictures,
+  which then saved as transparent (2026-09-23).
 - **It carries alpha.** Four channels in and four out: the decode, `PixelBuffer`
   and the PNG path all carry it, a reference picture reaches the autoencoder
   with its alpha intact, and the entry declares

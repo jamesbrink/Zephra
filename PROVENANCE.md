@@ -111,7 +111,10 @@ change what a reader of this file would otherwise assume:
 - **The tiled decode is a coarser approximation here** than in the other
   families: four nearest-neighbour doublings, each followed by a 3 x 3
   convolution, reach further than `TiledDecode`'s quarter-tile overlap covers.
-  `TiledDecodeTests` carries the curve — 12 cells is 24 dB, 8 cells is 17 — so
+  Only the upsampling stages are tiled; `conv_in` and the attention mid block
+  run whole first, since a tiled attention decoded each tile as a different
+  picture. `TiledDecodeTests` carries the curve — 12 cells is 38 dB, 8 cells
+  is 26 (24 and 17 while the attention was tiled too) — so
   the backend's tile is chosen against measurements rather than by habit, and
   `QwenImage21RequestMapper` floors it at 12.
 - **The text encoder's final norm and `lm_head` are neither built nor packed**,
