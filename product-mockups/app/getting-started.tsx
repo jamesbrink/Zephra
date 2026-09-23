@@ -143,7 +143,10 @@ export default function GettingStarted({ id }: { id: string }) {
             with tiled decoding, or 9.7 GB with streaming. LTX-2.5 at 768 × 512
             and 49 frames measured about 23.4 GB with resident weights, or 10.0
             GB with streaming. Its “with sound” variant measured 28.7 GB
-            resident or 12.1 GB streamed. These are measured workload figures,
+            resident or 12.1 GB streamed. Qwen-Image 2.1 at 1024 × 1024
+            measured about 20.1 GB, 14.1 GB with tiled decoding, or 6.3 GB
+            with streaming; a 16 GB Mac streams it, and a 24 GB Mac holds it
+            tiled. These are measured workload figures,
             not minimum Mac memory requirements. Leave memory for macOS and
             other apps; resolution, clip length, and settings affect usage.
           </p>

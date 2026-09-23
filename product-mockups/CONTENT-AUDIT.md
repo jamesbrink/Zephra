@@ -69,9 +69,13 @@ over upstream tutorials for other variants or interfaces.
   replaces the model the earlier entries describe. Download 33.1 GB and built copy
   11.6 GB are the measured figures; the card reads 11.6 GB prepared and 44.7 GB with
   source files.
-- Every memory and peak figure for this entry is an unmeasured estimate, so the page
-  publishes none: the Qwen line is gone from the recorded-peaks note rather than
-  carrying a stale or estimated number.
+- Every memory and peak figure for this entry is now measured (halcyon, 2026-09-22,
+  `BENCHMARKS.md`'s "Qwen-Image 2.1 4-bit" section): 10.6 GB resident, 20.1 GB peak
+  untiled, 14.1 GB tiled at 1024, 6.3 GB streamed over 2.75 GB held, 6.7 s a step
+  at 1024 for forty steps, and 2.6 GB more per reference picture. The Qwen line is
+  back in the recorded-peaks note in `app/getting-started.tsx` (20.1 / 14.1 / 6.3 GB,
+  with the 16 GB streams / 24 GB holds-tiled guidance), alongside klein's and
+  Z-Image's own tiled figures.
 - License: the Qwen Research License permits research and evaluation only. That is
   stated on the getting-started card, in the models chapter, in `public/index.md`
   and in `public/llms.txt`, since every other model here is permissive.
