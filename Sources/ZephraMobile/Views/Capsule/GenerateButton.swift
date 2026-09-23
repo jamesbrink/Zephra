@@ -17,6 +17,7 @@ struct GenerateButton: View {
             if let note = referenceIntent.note
                 ?? draft.referenceNote
                 ?? (dispatch.note == dispatch.reason ? nil : dispatch.note)
+                ?? dispatch.runNote
                 ?? dispatch.loadNote(for: draft.modelID) {
                 Text(note).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.trailing)
             }

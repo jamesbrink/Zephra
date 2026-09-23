@@ -103,6 +103,11 @@ library's "Use as Reference" moves it, and a binding threaded down through four
 surfaces to let one menu item change a tab is worse than one object in the
 environment. Nothing in it is persisted: a launch opens on the canvas, or
 wherever a frozen preview state asked for, and always with the keyboard down.
+A tab moved from inside the library viewer closes the viewer: a `TabView` keeps
+every tab alive, so the full-screen cover stayed up over the canvas "Use as
+Reference" had just moved to. `ViewerClosesWithTab` remembers the tab the viewer
+opened over and calls the environment's `dismiss` — the one Close and the pull
+call — when the tab is no longer that one.
 
 Focus is there rather than in the capsule for a reason of the same kind. The
 view that asks for the keyboard is the collapsed prompt line, and it no longer
@@ -575,6 +580,19 @@ Generate while a run is in flight rather than in its place. A thumb on its way
 down to queue a second picture lands on Generate, not on the control that throws
 away the first — and the Mac's own capsule has always behaved this way, where
 Generate mid-run queues and File > Stop Generating is somewhere else entirely.
+
+What an accepted press says under the button is **followed**, not written once.
+`RunFollowing` (`Support/`, pure) holds the run's `batchID` and reads it off
+every snapshot the Mac sends: "Queued on Halcyon" while the queue or Today holds
+it waiting, the Mac's own phase ("Denoising on Halcyon") while it is the entry
+being rendered or Today calls it running, and nothing once Today calls it
+finished, once it has been seen and is named nowhere any more (stopped or
+refused), or once the phone has watched the engine fail. Absence before it was
+ever seen is a run on its way in, since the Mac answers the press before its
+coalesced deltas name it. `GenerationDispatch+Following` is the observation loop
+over `client.snapshot`, stopped by the next press. It replaced a note set once at
+the acceptance, which said "Queued on Halcyon" through the whole render and
+after the picture was in Today.
 
 `GeneratePress` (`Support/`) is where one press has got to: `idle`, `sending`
 while the Mac is being asked, or `refused` with the Mac's own sentence. Try Again

@@ -1658,7 +1658,11 @@ US-spelling check.
   picture's cell the one source under that fixed id and every other cell no
   source at all (the system follows a source added or removed, not one whose
   id changes; `ViewerOpeningTests` pins it), and the grid scrolls the shown
-  cell into view as the viewer pages.
+  cell into view as the viewer pages. A tab moved from inside the viewer — Use
+  as Reference sends somebody to the canvas — closes it through the same
+  `dismiss` Close and the pull use (`ViewerClosesWithTab`): a `TabView` keeps
+  every tab alive, so the cover otherwise stood over the canvas it was meant to
+  reveal.
 - The Today tab is `snapshot.today` drawn in the Mac's order.
   `CombinedToday` owns one `ViewerCover` on its `NavigationStack`,
   never on `HostTodayRows`' transparent group: a cover on the group fans out to
@@ -1678,7 +1682,13 @@ US-spelling check.
   press queues behind the picture being rendered the way it does on the Mac.
   `GeneratePress` (`Support/`) is where one press has got to — Try Again's too,
   which is one round trip for the same reason — and the line under
-  the button is the Mac's refusal, what is waiting, or `ModelLoadNote`'s answer. `CountChip` shows the
+  the button is the Mac's refusal, what is waiting, or `ModelLoadNote`'s answer.
+  What is waiting is **followed**, never written once: `RunFollowing` (`Support/`,
+  pure) reads the accepted run's `batchID` off every snapshot the Mac sends —
+  queued, the Mac's own phase while it renders, nothing once Today calls it
+  finished or it has gone from the queue, the running entry and Today after
+  being seen — and `GenerationDispatch+Following` re-arms it on each change. A
+  note set at the acceptance said "Queued on <Mac>" through the whole render. `CountChip` shows the
   seeds a press is worth on the collapsed capsule when it is more than one.
 - `MobilePreview` is `InterfacePreview`'s shape for the phone:
   `ZEPHRA_PREVIEW_STATE=pairing|ready|generating|capsule|library|viewer|today|offline|failed|settings`,
