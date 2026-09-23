@@ -413,6 +413,27 @@ therefore hides the release until the next launch and no longer. The preference
 in Settings > General is the honest way to switch updates off, and it is one
 toggle that says what it does.
 
+**Why a check you cannot see was not good enough.** The launch check always ran,
+ten seconds after launch and every six hours after, and a check that found
+nothing said nothing: no banner, no alert, and no log line on success. Asked
+whether Zephra checks for updates at launch, there was no way to tell from the
+outside, and a Mac whose checks had quietly stopped would have looked exactly
+like one that was up to date. So the first check now runs three seconds after
+launch, soon enough that `make logs` shows the answer while somebody is still
+looking; every check that finishes writes one "update check:" line with its
+answer (up to date at the running build, found a build, or failed and why);
+and it is stamped in `AppSettings` (`lastUpdateCheck`, `lastUpdateOutcome`),
+so Settings > General can say "Last checked 5 minutes ago: up to date." under
+the toggle across a relaunch. That line is a relative `Text` over
+`UpdateCheckNote`, never a formatted string, for the reason the Devices list
+learned: a string is computed once and reads "5 minutes ago" for the rest of
+the launch. The same change fixed the toggle: switching it off already stopped
+the loop at its next tick, but switching it back on did nothing until a
+relaunch, since nothing asked the checker to begin again. It now calls
+`UpdateChecker.startChecking()`, the timer without `start()`'s once-a-launch
+sweep of `Zephra.previous.app` and `Updates/`, which must not run while a
+download may be writing there.
+
 **What is left out** is in `ROADMAP.md` under "Updates: left out on purpose".
 
 ## TestFlight

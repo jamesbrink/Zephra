@@ -209,7 +209,13 @@ Six directories, by what a file is rather than what screen it is on:
   screen's visible frame only when the minimum it is holding to actually fits,
   and pinning the minimum at the tab's height is what left Performance's bottom
   off a 1728 x 1080-point display.
-  Performance stands **1010** now, not the 820 it shipped at, because the
+  Performance asks for **1142** now: the Live preview section
+  (`LivePreviewSettings`, Off, Balanced or Every step with a caption saying what
+  the choice costs) sits above the readout and measured 132 points in a frozen
+  `settings` build's screenshot, on top of the 1010 before it. General asks for
+  620, since the "Last checked" line under the update toggle
+  (`UpdateCheckSettings`) put itself below 560's sill. Performance stood
+  **1010**, not the 820 it shipped at, because the
   Loading section arrived above the warm-up toggle and costs 158 points; the
   whole tab wants about 1110, which no Mac laptop display has. **The rule that
   Performance must not scroll is dead**, and it was already untrue at 820, where
@@ -220,7 +226,7 @@ Six directories, by what a file is rather than what screen it is on:
   below the sill is the tail of one figure rather than a setting nobody would
   find, and the floor of 400 is what lets the tab open clamped and scrolling on
   a laptop instead of refusing to shrink.
-  1010 is what the tab *asks* for. What it opens at, and what a tab switch
+  1142 is what the tab *asks* for. What it opens at, and what a tab switch
   grows the window to, is `SettingsWindowFit` (`Support/`, pure and tested in
   `SettingsWindowFitTests`): `min(tab height, visible frame - chrome)`, never
   under `minimumHeight`, the width untouched, and `grown(current:toward:)`

@@ -616,7 +616,8 @@ Metal:
   upscaling, interaction, downloads, the two folder changes, residency, the
   memory guard (`+MemoryGuard`), the two load controls (`+LoadControls`), the
   four ways a run ends (`+RunEnding`), the idle clock (`+IdleUnload`) and the
-  run-time step-down to streaming (`+RunResidency`).
+  run-time step-down to streaming (`+RunResidency`) and the one rerun a victim
+  fault earns (`+FaultRerun`).
   **Add a new concern as another extension file**, never as more lines in
   `GenerationStore.swift`.
 - `InferenceActor` is the only place backend code runs. It overrides
@@ -744,8 +745,20 @@ that is not a command-buffer failure at all) is the whole of that reading, and
 the bit that matters is `.lost` —
 `kIOGPUCommandBufferCallbackErrorSubmissionsIgnored`, code 4 — against
 everything else. A victim (code 5) is somebody else's fault recovered around
-this process and is one lost run: the weights stay up, **Try Again works**,
-nothing below changes. An ignored submission is the driver refusing this
+this process and is one lost run: the weights stay up and nothing below
+changes. **The engine presses Try Again for it, once**: the boundary throws
+`BackendError.deviceVictim` for a code 5 (`MLXInferenceRuntime.failure` reads
+the kind after the lost-GPU latch, so a victim over a refusing client is still
+`.deviceLost`), and `GenerationStore+FaultRerun` puts the job back at the head
+of the queue with `QueuedGeneration.rerunAfterFault` set — same seed, settings
+and batch, so the picture is the one that would have come out and a phone sees
+the same run go on — logs "the GPU discarded this run as the victim of another
+process's fault (…); running it again" at error, clears the frame and drains.
+Only while the run is still `.generating` (a Stop beside the fault wins) and
+`acceptsWork` holds. A second victim on the same job fails with the same
+sentence as any lost run, so a Mac reset under it twice in a row says so
+rather than loops; every other kind is `.deviceFailed` and never reruns.
+`VictimFaultRerunTests` and `ZephraMLXTests/DeviceFaultFailureTests` pin it. An ignored submission is the driver refusing this
 client's command buffers because it holds the process responsible for earlier
 faults, and it is **permanent for the life of the process**: on a 16 GB mini on
 2026-09-15 every Try Again, an unload and a reload, and a switch to another
@@ -973,7 +986,18 @@ last step, handing a closure rather than a frame; the backend's
 `PreviewThrottle` drops frames unpaid, on two clocks: 0.75 s between frames,
 and ten times the last frame's own cost, so a family whose frame is the
 picture's whole decode pays about a tenth of the run for them and not a
-fifth. `onProgress` stays before the
+fifth. **How often is a setting**: `PreviewCadence` (`ZephraCore`) is Off,
+Balanced (the throttle above, and the default) or Every step
+(`PreviewThrottle.everyStep`, no interval and no cost share — on Qwen-Image
+2.1 about a second a step). It is a per-run **task-local**, never a backend
+argument: `InferenceActor.generate(_:tile:preview:events:)` sets
+`PreviewCadence.$current` around the backend's `generate`, where every family
+already builds its hook with `PreviewFrameReporter.handler`, so no backend,
+factory or protocol signature knows it. The store's `previewCadence` is set
+from `AppSettings.livePreview` once, in `ZephraApp`, the way the load
+preferences are; a warm-up always runs `.off`; `ZEPHRA_PREVIEW_INTERVAL_MS=0`
+beats every cadence. The phone needs nothing: the host caps what it sends at
+ten a second either way. `onProgress` stays before the
 step, and `BenchStepClock` and `StepTimer` ignore updates carrying a frame. What
 a loop passes is the estimate of the **finished** latent, `x - sigma * v`, not
 the latent it holds — the raw latent decodes to mush on a bent schedule.
@@ -1188,6 +1212,9 @@ Rules in `Support/`:
   assignments in `GenerationStore+Interface` are gone and no door re-reads any
   of the three. `AppSettings+Policies.loadingMode()` and `idleUnloadDelay()`
   are the two readers, and an unrecognised stored number reads as never.
+  `livePreview` (Balanced) follows the same one-writer rule into
+  `GenerationStore.previewCadence`, read through `AppSettings.previewCadence()`,
+  where an unrecognised value reads as Balanced rather than as Off.
   `AppearanceApplier` sets the
   appearance on `NSApp` so Settings, menus and alerts follow. `AppearanceMode`
   itself is `ZephraStyle`'s, not this app's: the phone reads the same enum and
@@ -1272,16 +1299,20 @@ Rules in `Views/`:
   selected selects an end of the grid (`LibraryCursor`).
 - `SettingsView` is four tabs — General, Performance, Models, Companion.
   Performance opens on `ModelLoadingSettings`, the Loading section: "Load models
-  automatically" and "Unload after idle" (Never, 5, 15, 30, 60 minutes).
-  `SettingsTab` gives the opening height, and Performance's is **1010**, not the
-  820 it was: the Loading section costs 158 points and the whole tab wants about
-  1110. **Performance no longer fits on any Mac laptop display, and the rule that
+  automatically" and "Unload after idle" (Never, 5, 15, 30, 60 minutes), and
+  `LivePreviewSettings` (Off, Balanced, Every step, with a caption saying what
+  the choice costs) sits above the "In use now" readout. General's Updates
+  section is `UpdateCheckSettings`: the toggle and the "Last checked" line.
+  `SettingsTab` gives the opening height: General's is 620, and Performance's
+  asks for **1142** — 1010 plus the Live preview section's measured 132 points —
+  where it was 820 before the Loading section cost 158 and the whole tab wanted
+  about 1110. **Performance no longer fits on any Mac laptop display, and the rule that
   it must not scroll is dead** — it was already untrue at 820, where Peak since
   launch and VAE decode were below the sill. 1010 is what a 1728 x 1010 display
   allows and gives the tab the same reading 820 gave, down to Cached. The live
   readout stays last on purpose, so what goes below the sill is the tail of one
   figure rather than a setting nobody would find.
-  **1010 is what the tab asks for, never what it takes.** The window opens, and
+  **1142 is what the tab asks for, never what it takes.** The window opens, and
   grows on a tab switch, at `min(tab height, visible frame - chrome)` through
   `SettingsWindowFit` (`Support/`), so it is never taller than the display and
   never off it — after every size change `constrainFrameRect` keeps the title
@@ -2314,14 +2345,24 @@ updater reads what a ship leaves behind.
   `SingleInstance.yieldToRunningCopy`. `UpdateChecker.start()` sweeps
   `Zephra.previous.app` and empties `Updates/` at the next launch.
 - `UpdateChecker` is `@MainActor @Observable`, built in `ZephraApp` and handed
-  down; never a singleton. It checks ten seconds after launch and every six
+  down; never a singleton. It checks three seconds after launch and every six
   hours, and `start()` returns at once for a frozen `ZEPHRA_PREVIEW_STATE`
   build, for a copy `UpdateEligibility` refuses, and while Settings > General's
   "Check for new versions of Zephra automatically" is off — **a preview build
   reaches no network at all**, the rule `startCompanion` follows, and
   `checkNow` refuses there too, so the menu item cannot go round it. The
   preference is re-read at every tick, so switching it off stops the checking
-  rather than only the next launch's.
+  rather than only the next launch's, and switching it back on calls
+  `startChecking()` (the timer without `start()`'s sweep of the last install),
+  so checking resumes without a relaunch.
+- **A check is never silent.** Every one that finishes logs one line at info
+  (at error for a failure) — "update check: up to date at <build>", "update
+  check: found <version (build)>", "update check: failed: <reason>" — and is
+  stamped through `UpdateChecker.record(_:)` into `lastCheck` and
+  `AppSettings.lastUpdateCheck`/`lastUpdateOutcome`. Settings > General draws
+  it as "Last checked <relative Text> ago: up to date." from `UpdateCheckNote`
+  (`Update/`, pure, `UpdateCheckNoteTests`), or "Not checked yet."; a relative
+  `Text`, never a formatted string, for the Devices list's reason.
 - The banner is `RootView`'s `.safeAreaInset(edge: .top)`, a `ZephraChrome.barHeight`
   strip with a determinate `ProgressView` and no repeating animation; Update Now
   is greyed by `UpdateDecision.installBlockedReason` (downloading, building,
@@ -2963,8 +3004,9 @@ environment value.
   s/step and peak memory; idle machine, Release only.
   `--reference IMAGE --strength 0.6` measures the editing path and reports
   where the loop entered and how many steps ran; `--micro --size 1024` times
-  the DiT's MLX kernels without weights; `--preview` turns frames on, reports
-  their count and mean cost, and writes the last as `<stem>.preview.png`
+  the DiT's MLX kernels without weights; `--preview` turns frames on at the
+  app's Balanced cadence and `--preview every` at Every step, reports their
+  count and mean cost, and writes the last as `<stem>.preview.png`
   (`ZEPHRA_PREVIEW_INTERVAL_MS` underneath, 0 off); `--model
   ltx-2.5-distilled-4bit --size 768x512 --frames 49` measures a clip, written
   as `.mp4` with its poster beside it; `--extend CLIP --context N` holds a
