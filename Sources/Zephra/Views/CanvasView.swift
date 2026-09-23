@@ -41,8 +41,9 @@ struct CanvasView: View {
         }
     }
 
-    /// The picture, decoded off the main actor by `SessionImage`, which holds its rectangle
-    /// from the first frame and fades the pixels up when they land.
+    /// The picture, decoded off the main actor by `CanvasStill`, which holds its rectangle from
+    /// the first frame and pinches and zooms once the pixels land. At fit the zoom lets every
+    /// click through, so the tuck, the drag-out and the menu below act exactly as they did.
     @ViewBuilder
     private var currentImage: some View {
         if let image = store.current {
@@ -67,7 +68,7 @@ struct CanvasView: View {
                     CGFloat(image.settings.size.width) / CGFloat(image.settings.size.height),
                     contentMode: .fit)
         } else {
-            SessionImage(request: .full(image))
+            CanvasStill(image: image)
         }
     }
 

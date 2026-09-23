@@ -43,7 +43,7 @@ struct LibraryViewer: View {
         // Keyed by what the scan fingerprints the file by, not by its path alone: an id
         // is a path, and a picture rewritten in place keeps its path while its pixels
         // change, which the index notices and the viewer would otherwise not.
-        .task(id: "\(item.id)|\(item.fileSize)|\(item.contentModifiedAt.timeIntervalSince1970)") {
+        .task(id: decodeKey) {
             // A clip's poster is never drawn here; the player is.
             if item.videoURL == nil { await decode() }
         }
@@ -54,18 +54,19 @@ struct LibraryViewer: View {
         if item.videoURL != nil {
             LibraryViewerClip(item: item)
         } else if let image {
-            Image(nsImage: image)
-                .resizable()
-                .interpolation(.medium)
-                .aspectRatio(contentMode: .fit)
-                // Behind the picture's own rectangle rather than behind the pane: `aspectRatio`
-                // sizes this view to the fitted picture, so the letterbox stays the canvas's
-                // colour and the checkerboard is exactly as big as the picture.
-                .background { if item.hasAlpha { TransparencyGround() } }
+            // Zoomable, and keyed like the decode below: another picture, or this one
+            // rewritten, starts again at fit. The checkerboard is drawn inside it, behind the
+            // picture's own rectangle at every zoom, from the header's answer about alpha.
+            ZoomablePicture(picture: DrawnPicture(image, hasAlpha: item.hasAlpha), key: decodeKey)
                 .accessibilityLabel(item.prompt.isEmpty ? item.fileName : item.prompt)
         } else {
             ViewerPlaceholder(item: item)
         }
+    }
+
+    /// What the scan fingerprints the file by, which both the decode and the zoom are keyed on.
+    private var decodeKey: String {
+        "\(item.id)|\(item.fileSize)|\(item.contentModifiedAt.timeIntervalSince1970)"
     }
 
     /// Reads the file off the main actor. `NSImage(contentsOf:)` rather than `ImageCache`,
