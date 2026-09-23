@@ -94,7 +94,8 @@ extension GenerationStore {
         }
     }
 
-    /// The three rules every change to the well settles, whatever changed it.
+    /// The three rules every change to the well settles, whatever changed it, and the revision
+    /// a thumbnail keys on, since a reorder moves pictures without moving the ticket.
     ///
     /// A clip's end rides with the picture in the well (`GenerationStore+Extend`), so any other
     /// picture, or none, is no longer that clip's end. An empty well puts the strength back to
@@ -107,6 +108,7 @@ extension GenerationStore {
     /// model leaves the size alone, since its pictures are references for the image asked for
     /// rather than the image.
     func settleAfterReferenceChange(previousFirst: ReferencePicture?) {
+        referenceRevision &+= 1
         settings.continuation = nil
         let capabilities = descriptor.capabilities
         guard let first = settings.referenceImages.first else {
