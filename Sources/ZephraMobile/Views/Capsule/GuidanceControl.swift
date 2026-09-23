@@ -1,4 +1,5 @@
 import SwiftUI
+import ZephraCore
 import ZephraLinkProtocol
 
 /// How strongly the prompt overrides the model's own priors.
@@ -13,13 +14,20 @@ struct GuidanceControl: View {
 
     var body: some View {
         if capabilities.capabilities.adjustsGuidance {
-            HStack(spacing: 10) {
-                Slider(value: value, in: capabilities.guidanceBounds, step: 0.5)
-                Text(draft.settings.guidance, format: .number.precision(.fractionLength(1)))
-                    .font(.callout)
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-                    .frame(minWidth: 32, alignment: .trailing)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 10) {
+                    Slider(value: value, in: capabilities.guidanceBounds, step: 0.5)
+                    Text(draft.settings.guidance, format: .number.precision(.fractionLength(1)))
+                        .font(.callout)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .frame(minWidth: 32, alignment: .trailing)
+                }
+                if let note = GuidanceNote.text(
+                    guidance: draft.settings.guidance, negativePrompt: draft.settings.negativePrompt,
+                    capabilities: capabilities.capabilities) {
+                    Text(note).font(.caption).foregroundStyle(.secondary)
+                }
             }
             .accessibilityLabel("Prompt guidance")
         }

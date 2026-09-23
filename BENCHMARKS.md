@@ -82,9 +82,9 @@ go higher, so these are a working Mac's figures rather than a ceiling.
 
 - **"Read per step" is the last stream's pass only**, which is what the meter
   records: Z-Image's 30-block `layers` stack and klein's 20 single blocks, not
-  the whole model. Qwen-Image's 16.15 GB row further up is the whole model,
-  measured before the meter was per-stream, so the column is not comparable
-  between families.
+  the whole model. A figure taken before the meter was per-stream counted the
+  whole model instead, so the column is not comparable between families or
+  across that change.
 - **The two variants stream at the same peak and hold the same live figure, to
   the byte.** What the stream leaves resident is the same tensors either way —
   the float32 autoencoder, the embeddings, the norms — and the peak is those plus
@@ -113,46 +113,91 @@ go higher, so these are a working Mac's figures rather than a ceiling.
   so `tiledPeakBytes` is 12_150_000_000 and `residentBytes` 6_700_000_000.
 - The run: `ZEPHRA_VAE_TILE=64 make bench ARGS="--model z-image-turbo-8bit --size 1024 --steps 9 --runs 3 --stream --stream-depth 2"`.
 
-## Qwen-Image-2512 4-bit
+## Qwen-Image 2.1 4-bit
 
-`qwen-image-2512-4bit`, packed here from the 57.7 GB bf16 release with the
-1.7 GB Lightning adapter merged. 21.6 GB on disk, of which the transformer is
-16.2 GB: holding the modulation layers at eight bits costs about 3.4 GB over
-the 12.8 GB a pure four-bit build would write. About 269 MB per packed block.
+`qwen-image-2.1-4bit`, packed here from the 33.1 GB bf16 release, or taken
+prebuilt from the mirror. The weights are under the Qwen Research License and
+are non-commercial; `THIRD_PARTY_NOTICES.md` carries the terms.
 
-Resident, halcyon, four steps:
+Two figures are measured. **The release is 33,131,609,424 bytes** as the
+catalog's file patterns fetch it — transformer 14,230,315,061, text encoder
+17,534,409,013, autoencoder 1,350,991,591, processor 15,884,996, scheduler 485,
+`LICENSE` 7,831 and the index — carried as `downloadBytes: 33_140_000_000`,
+rounded up as a transfer estimate is. **The build writes 11,564,552,844 bytes**,
+by `make quantize-qwen21` on halcyon on 2026-09-22 at four bits, group 64, in
+43 seconds: 568 packed layers plus the float32 autoencoder, the processor and
+the scheduler copied whole, carried as `builtBytes: 11_570_000_000`, rounded up
+as a figure the free-space check is made against. The arithmetic estimate it
+replaced said 9.95 GB, 16% under, because the packer writes every scale and
+bias float32 where the published four-bit repacks do not.
+
+Every memory figure below is a reading from `make bench` on halcyon (M4 Max,
+48 GB, 40.2 GB working set) on 2026-09-22, forty steps, one run each, one
+heavy process on the machine at a time. The 1024 timings in the first two
+tables are from an idle rerun the same evening; the 768, 2048, reference and
+preview timings were taken with builds running beside them and read a little
+high.
+
+### Resident
 
 | Size | Seconds | s/step | Peak | Tiled peak |
 | ---: | ---: | ---: | ---: | ---: |
-| 512 | 6.9 | 1.57 | 26053 MB | |
-| 1024 | 33.6 | 8.15 | 30364 MB | 26068 MB |
-| 1328 (native) | 66.7 | 16.25 | 32520 MB | 26088 MB |
+| 768 | 164 | 4.09 | 17123 MB | |
+| 1024 (default) | 269 | 6.71 | 20069 MB | 14073 MB |
+| 2048 | 1681 | 42.02 | | 21751 MB |
 
-21532 MB resident at every size. Tiled, the peak barely moves with the image,
-because the tile sets the decode's transient and what is left is the
-transformer. 1024 is the default size: half the seconds of native for an image
-that still renders legible text, and the entry's `peakBytes` is measured there.
+10585 MB resident, the same at every size: the packed weights plus the float32
+autoencoder are the whole of it. Load 2.7 s from the packed variant.
 
-**Owed a rerun.** Every resident figure above was taken while the stream ran in
-float32 by accident (float32 noise, uncast float32 scales, a stream handing back
-raw nodes); the model runs in bfloat16 since the audit. The autoencoder's
-encoder (107.2 MB of the build's 253.8 MB VAE) has been loaded since and the
-figures were not adjusted by arithmetic.
+The untiled transient is the **decode's**, not the transformer's. A step adds
+3.3 GB at the first step (the prefill) and 1.4 GB on a cached one; the float32
+decoder added 15.1 GB before it was made to evaluate a stage at a time, and
+9.5 GB after — MLX runs the decoder's 3 x 3 convolutions as Winograd, and the
+1024-pixel upsampler stage alone holds about 8 GB of scratch. Tiled at 64 (32
+latent cells after the mapper halves it) the decode never sets the peak, so the
+tiled peak is the transformer's first step. 2048 untiled was not run: it would
+have exceeded this Mac.
 
-Streamed (`--stream`, depth 2, tiled at 64):
+### Streamed
 
 | Mac | Size | Peak | Live between runs | s/step | Read per step | Disk rate |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| halcyon | 1024 | 10243 MB | 1409 MB | not recorded | 16.15 GB | |
-| bender | 1024 | 7954 MB | | 29.7 (123 s a picture) | | |
-| bender | 512 | 5447 MB | | 7.1 | | 2.3 GB/s, read-bound |
+| halcyon | 1024 | 6306 MB | 2752 MB | 6.96 | 4.36 GB | 0.65 GB/s |
 
-- The halcyon streamed run was against 30473 MB resident in the same session,
-  and its image was byte for byte the resident one (`cmp` on the PNGs). Its
-  step time was not recorded: the machine was busy and the resident run itself
-  came in at six times the catalog's figure. An idle rerun is owed.
-- On bender swap did not move across either run. `dd` reads that SSD at
-  1.6 GB/s in one stream; MLX's four-thread reader does better.
+Depth 2, tile 64; untiled, the streamed peak is 12236 MB, the decode's
+transient over the 2.75 GB held. Both layer stacks stream — the transformer's 32 blocks and
+the text encoder's 36 — so what is left resident is the float32 autoencoder,
+the vision tower, the embeddings, the norms and the one shared modulation
+table, plus the decode's tile and the depth-2 window. Load 1.0 s.
+
+### One reference picture
+
+| Run | Peak | s/step |
+| --- | ---: | ---: |
+| 1024, untiled | 21799 MB | 8.53 |
+| 1024, tiled at 64 | 16459 MB | 9.03 |
+
+Against the same runs without a picture that is +1.7 GB untiled (hidden under
+the decode, with allocator noise in it) and **+2.39 GB tiled** over the run,
++2.57 GB at the first step, where the prefill holds the cache it is filling
+beside the prefix tokens' own activations. The cache itself is the arithmetic
+4096 tokens x 32 layers x K and V x 4096 x 2 bytes = 2.15 GB. The catalog
+carries the first step's figure, rounded up: `referencePrefixBytes: 2_600_000_000`,
+added per picture and twice under guidance.
+
+### Preview
+
+39 frames over a forty-step 1024 run at **0.136 s** a frame, against 2.28 s
+before the preview was pooled to 16 latent cells (256 pixels; the shared
+`LatentPreview.cellLimit` of 32 assumes an 8-pixel cell and this autoencoder's
+is 16). The peak did not move.
+
+- `residentBytes` 10_580_000_000, `peakBytes` 20_070_000_000, `tiledPeakBytes`
+  14_080_000_000, `streamedPeakBytes` 6_310_000_000, `streamedResidentBytes`
+  2_750_000_000, `referencePrefixBytes` 2_600_000_000: peaks rounded up, held
+  figures down, all decimal MB. The tiled peak is over a 16 GB Mac's 13.74 GB
+  fallback budget and over bender's 12.71 GB working set, so such a Mac streams
+  this model; a 24 GB Mac holds it tiled.
 
 ## FLUX.2 klein 4B
 
@@ -342,10 +387,9 @@ decode of 0.5 to 8 s:
 | Model | ms per frame |
 | --- | ---: |
 | klein 4-bit | 43 |
-| Qwen-Image 4-bit | 130 |
 | Z-Image 8-bit | 192 |
 
-The last two were taken on a busy machine and are ceilings.
+The second was taken on a busy machine and is a ceiling.
 `make bench ARGS="--preview --size 1024"` is the run.
 
 ## Owed reruns, in one place
@@ -356,11 +400,9 @@ The last two were taken on a busy machine and are ceilings.
   has been re-measured under the new pin either; klein 4-bit and Z-Image
   8-bit on halcyon are owed the first rerun, since they are the two entries
   this file's own numbers lean on most.**
-- Qwen-Image resident timings and peaks in bfloat16, with the VAE encoder loaded.
-- Qwen-Image streamed step time on an idle halcyon.
 - klein's edit peak and time with the reference tokens cast.
 - LTX-2.5 streamed on bender with an idle disk.
-- Preview frame cost for Qwen-Image and Z-Image on an idle Mac.
+- Preview frame cost for Z-Image and for Qwen-Image 2.1 on an idle Mac.
 
 Benchmark on an idle machine, Release only; a figure from a busy one is a
 ceiling and should say so here.

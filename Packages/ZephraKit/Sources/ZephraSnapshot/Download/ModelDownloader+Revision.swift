@@ -45,7 +45,7 @@ extension ModelDownloader {
     ///
     /// A catalog entry names `main`, which moves. A download that takes hours, or that is
     /// resumed a week later, would otherwise list files from one commit and fetch them from
-    /// another — configs, shards and an adapter that never belonged together, kept on the
+    /// another — configs and shards that never belonged together, kept on the
     /// strength of their sizes. So the name is resolved once, at the start, and every listing
     /// and every file request of the transfer names the commit rather than the branch.
     func pinnedRevision(

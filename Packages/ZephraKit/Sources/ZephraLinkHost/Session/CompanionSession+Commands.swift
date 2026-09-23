@@ -127,14 +127,7 @@ extension CompanionSession {
         if let already = runs[request.requestID] { return .queued(batchID: already) }
         let model = try Self.model(request.modelID)
         var settings = request.settings
-        if let blobID = request.referenceBlobID {
-            guard let picture = blobs[blobID] else {
-                throw LinkError(
-                    code: .notFound, reason: "The picture for that request never arrived.")
-            }
-            settings.referenceImage = picture
-            blobs.removeValue(forKey: blobID)
-        }
+        settings.referenceImages = try takeReferences(named: request.referenceBlobIDs, for: settings)
         let admission = host.store.remoteAdmission(
             for: model, settings: settings, count: request.count)
         if let refusal = Self.refusal(admission) { throw refusal }

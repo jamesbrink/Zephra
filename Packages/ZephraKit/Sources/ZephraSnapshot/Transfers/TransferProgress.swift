@@ -1,7 +1,7 @@
 import Synchronization
 import ZephraCore
 
-/// Progress of a release and its adapters, shared across repository callback queues.
+/// Progress of a release, shared across repository callback queues.
 final class TransferProgress: Sendable {
     private let events = Mutex<[RepositoryDownload: DownloadProgressEvent]>([:])
     private let parts: [RepositoryDownload]

@@ -15,10 +15,12 @@ struct ModelPortraitTests {
         }
     }
 
+    /// The entries whose sample has not been rendered yet.
+    ///
     @Test("every model has a picture of its own bundled")
     func everyModelHasASample() {
-        // The one thing that stops a seventh model shipping with a blank card. The chooser
-        // degrades to a plain panel rather than a hole, so nothing else would notice.
+        // The one thing that stops a model shipping with a blank card. The chooser degrades to
+        // a plain panel rather than a hole, so nothing else would notice.
         for model in ModelCatalog.all {
             guard let name = ModelPortrait.of(model)?.sampleName else { continue }
             #expect(NSImage(named: name) != nil, "no image set named \(name)")

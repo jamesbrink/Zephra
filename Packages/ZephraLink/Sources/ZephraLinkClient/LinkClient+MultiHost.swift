@@ -14,29 +14,43 @@ extension LinkClient {
         // Offers are advisory and time-sensitive: one short attempt, never a long request retry.
         switch try await ask(.multiHost(.offer(generation)), timeout: timeout) {
         case .multiHost(.offer(var offer)):
-            offer.requiresInputTransfer = generation.input != nil ? true : nil
-            offer.inputTransferSeconds = generation.input.flatMap { session?.uploadTimings.estimate(bytes: $0.byteCount) }
+            offer.requiresInputTransfer = generation.inputs.isEmpty ? nil : true
+            let bytes = generation.inputs.reduce(0) { $0 + $1.byteCount }
+            offer.inputTransferSeconds = bytes == 0
+                ? nil : session?.uploadTimings.estimate(bytes: bytes)
             return offer
         case .error(let error): throw error
         default: throw LinkClientError.unexpectedReply
         }
     }
     public func submit(_ generation: StrictGeneration, reference: Data?) async throws -> GenerationReceipt {
+        try await submit(generation, references: reference.map { [$0] } ?? [])
+    }
+
+    /// The same, for a model that reads several pictures: each crosses as a blob of its own, in
+    /// the order the declared inputs are in, and the request names them in that order.
+    public func submit(
+        _ generation: StrictGeneration, references: [Data]
+    ) async throws -> GenerationReceipt {
         let started = ContinuousClock.now
         let owner = session
         var generation = generation
         let request = generation.request
-        if let reference {
-            let blob = try await sendBlob(reference, mime: "image/png")
+        if !references.isEmpty {
+            var blobIDs: [UUID] = []
+            for reference in references {
+                blobIDs.append(try await sendBlob(reference, mime: "image/png"))
+            }
             generation.request = GenerationRequest(modelID: request.modelID, count: request.count,
-                settings: request.settings, referenceBlobID: blob, requestID: request.requestID)
+                settings: request.settings, referenceBlobIDs: blobIDs, requestID: request.requestID)
         }
         switch try await negotiated(.submit(generation)) {
         case .multiHost(.receipt(let receipt)):
-            if let reference, let owner, session === owner {
+            let bytes = references.reduce(0) { $0 + $1.count }
+            if bytes > 0, let owner, session === owner {
                 let elapsed = ContinuousClock.now - started
                 let seconds = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
-                owner.uploadTimings.record(bytes: reference.count, seconds: seconds)
+                owner.uploadTimings.record(bytes: bytes, seconds: seconds)
             }
             return receipt
         case .error(let error): throw error

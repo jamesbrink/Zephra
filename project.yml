@@ -50,14 +50,14 @@ packages:
     path: Packages/ZephraMLXKit
   ZephraBackendZImage:
     path: Packages/ZephraBackendZImage
-  ZephraBackendQwenImage:
-    path: Packages/ZephraBackendQwenImage
   ZephraBackendFlux2:
     path: Packages/ZephraBackendFlux2
   ZephraBackendLTX2:
     path: Packages/ZephraBackendLTX2
   ZephraBackendWan:
     path: Packages/ZephraBackendWan
+  ZephraBackendQwenImage21:
+    path: Packages/ZephraBackendQwenImage21
   ZephraUpscaleRealESRGAN:
     path: Packages/ZephraUpscaleRealESRGAN
   Flux2Kit:
@@ -66,8 +66,8 @@ packages:
     path: Packages/LTX2Kit
   WanKit:
     path: Packages/WanKit
-  QwenImageKit:
-    path: Packages/QwenImageKit
+  QwenImage21Kit:
+    path: Packages/QwenImage21Kit
   ZImageKit:
     path: Packages/ZImageKit
   # The wire the Mac and the phone share; `ZephraMobile` links it.
@@ -106,14 +106,14 @@ targets:
         product: ZephraMedia
       - package: ZephraBackendZImage
         product: ZephraBackendZImage
-      - package: ZephraBackendQwenImage
-        product: ZephraBackendQwenImage
       - package: ZephraBackendFlux2
         product: ZephraBackendFlux2
       - package: ZephraBackendLTX2
         product: ZephraBackendLTX2
       - package: ZephraBackendWan
         product: ZephraBackendWan
+      - package: ZephraBackendQwenImage21
+        product: ZephraBackendQwenImage21
       - package: ZephraUpscaleRealESRGAN
         product: ZephraUpscaleRealESRGAN
       # Linked by name: SwiftUI's VideoPlayer lives in an AVKit overlay whose superclass is
@@ -268,14 +268,14 @@ targets:
         product: ZephraMedia
       - package: ZephraBackendZImage
         product: ZephraBackendZImage
-      - package: ZephraBackendQwenImage
-        product: ZephraBackendQwenImage
       - package: ZephraBackendFlux2
         product: ZephraBackendFlux2
       - package: ZephraBackendLTX2
         product: ZephraBackendLTX2
       - package: ZephraBackendWan
         product: ZephraBackendWan
+      - package: ZephraBackendQwenImage21
+        product: ZephraBackendQwenImage21
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.zephra.ZephraBench
@@ -296,14 +296,14 @@ targets:
         product: ZephraQuantization
       - package: ZephraBackendZImage
         product: ZephraBackendZImage
-      - package: ZephraBackendQwenImage
-        product: ZephraBackendQwenImage
       - package: ZephraBackendFlux2
         product: ZephraBackendFlux2
       - package: ZephraBackendLTX2
         product: ZephraBackendLTX2
       - package: ZephraBackendWan
         product: ZephraBackendWan
+      - package: ZephraBackendQwenImage21
+        product: ZephraBackendQwenImage21
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.zephra.ZephraQuantize

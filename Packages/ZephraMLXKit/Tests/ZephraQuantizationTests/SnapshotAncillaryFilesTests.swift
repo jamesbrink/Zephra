@@ -68,16 +68,39 @@ struct SnapshotAncillaryFilesTests {
         #expect(scratch.hasFile("out/stray.safetensors") == false)
     }
 
+    @Test("a plan carrying a notice writes it beside the weights")
+    func aNoticeIsWritten() throws {
+        let scratch = try Self.hubSnapshot()
+        let notice = "Qwen is licensed under the Qwen RESEARCH LICENSE AGREEMENT.\n"
+        try SnapshotAncillaryFiles.copy(
+            from: scratch.url("source"), to: scratch.url("out"),
+            plan: try Self.plan(notice: notice))
+
+        #expect(
+            try String(contentsOf: scratch.url("out/NOTICE"), encoding: .utf8) == notice,
+            "a license that requires a NOTICE beside a redistribution gets one from the plan")
+    }
+
+    @Test("a plan with no notice writes no NOTICE file")
+    func noNoticeWritesNothing() throws {
+        let scratch = try Self.hubSnapshot()
+        try SnapshotAncillaryFiles.copy(
+            from: scratch.url("source"), to: scratch.url("out"), plan: Self.plan())
+
+        #expect(scratch.hasFile("out/NOTICE") == false)
+    }
+
     /// A plan shaped like any two-component diffusion snapshot: the transformer and the text
     /// encoder hold weights worth packing, and everything else comes across whole.
-    private static func plan() throws -> QuantizationPlan {
+    private static func plan(notice: String? = nil) throws -> QuantizationPlan {
         let precision = try QuantizationPrecision(bits: 4, groupSize: 64)
         return QuantizationPlan(
             components: [
                 QuantizedComponent(directoryName: "transformer", fallback: precision),
                 QuantizedComponent(directoryName: "text_encoder", fallback: precision),
             ],
-            verbatimDirectories: ["tokenizer", "scheduler", "vae"]
+            verbatimDirectories: ["tokenizer", "scheduler", "vae"],
+            notice: notice
         )
     }
 

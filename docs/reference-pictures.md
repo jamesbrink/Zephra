@@ -4,18 +4,30 @@ The long form of the matching section of `AGENTS.md`: the rules there, the reaso
 
 ## Starting from a picture
 
-Every model Zephra ships can take a reference picture, and they take it in three
-different ways. The difference is the whole of this section, because the setting
-looks identical from the interface and means something else underneath.
+Every model Zephra ships can take at least one reference picture, and they take
+it in four different ways. The difference is the whole of this section, because
+the setting looks identical from the interface and means something else
+underneath.
 
 - **Conditioning on it.** FLUX.2 klein encodes the picture to tokens,
   concatenates them after the image being made with their own image index on the
   rotary embedding, and still walks the whole schedule from pure noise. See
   `Flux2ReferenceConditioning` and `Flux2Pipeline+Denoise`. The picture is
   something the model attends to, so there is no "how much of it to keep".
-- **Starting from a noised copy of it.** Z-Image and Qwen-Image have no such
-  conditioning path, but their autoencoders can encode and their schedules
-  interpolate `x_t = (1 - sigma) * x0 + sigma * noise`, which is all SDEdit
+- **Conditioning on several, in order.** Qwen-Image 2.1 reads as many as ten.
+  Each picture goes through the Qwen3-VL vision tower *and* through the
+  autoencoder, and their latents become ordered prefix blocks the transformer
+  attends over from a KV cache held across every step — which is why order is
+  meaning here and why the strip can be dragged. Like klein it walks the whole
+  schedule from noise, so it declares `referenceStrengthBounds` `1...1` and no
+  slider is drawn. It is also the one family that reads a picture's alpha
+  rather than being handed it over white, which it says with
+  `ModelCapabilities.readsTransparentReferences`, and the prefix cache it holds
+  is what `ModelDescriptor.referencePrefixBytes` charges: about half a megabyte
+  a prefix token, doubled where guidance runs a second forward.
+- **Starting from a noised copy of it.** Z-Image has no such conditioning path,
+  but its autoencoder can encode and its schedule
+  interpolates `x_t = (1 - sigma) * x0 + sigma * noise`, which is all SDEdit
   needs: encode the picture, noise it to the level some step expects, and resume
   from there. How far down to resume is a real choice, and it is
   `GenerationSettings.referenceStrength`.
@@ -32,13 +44,59 @@ looks identical from the interface and means something else underneath.
 generation has one whether or not its model reads it, and 1 is the value that
 changes nothing. `ModelCapabilities.referenceStrengthBounds` says whether it
 applies at all: a degenerate `1...1` means it does not, the way `guidanceBounds`
-of `0...0` means guidance does not, and `clamp` pins it there. klein declares
-`1...1`; Z-Image and Qwen-Image declare `0.1...0.9` with a default of `0.6`;
-LTX-2.5 declares `0.0...0.9` with a default of `0`, because 0 there means the
-first frame is held exactly rather than "the picture is returned unchanged". So
-the interface can decide whether to draw a slider by reading the range, without
-knowing which family it is looking at, and "lower keeps more of the picture" is
-true of all three whatever the backend does with it.
+of `0...0` means guidance does not, and `clamp` pins it there. klein,
+Qwen-Image 2.1 and Wan declare `1...1`; Z-Image declares `0.1...0.9` with a
+default of `0.6`; LTX-2.5 declares `0.0...0.9` with a default of `0`, because 0
+there means the first frame is held exactly rather than "the picture is returned
+unchanged". So the interface can decide whether to draw a slider by reading the
+range, without knowing which family it is looking at, and "lower keeps more of
+the picture" is true wherever one is drawn.
+
+**How many** is `ModelCapabilities.referenceImageCount`, `1...1` for every entry
+but Qwen-Image 2.1's `1...10`, with `acceptsSeveralReferences` the computed
+answer the well branches on. Above every capability sit `ReferenceLimits`' two
+hard caps, which no descriptor may exceed: `maximumPictures` is 10, because the
+numbered PNG keywords stop at `zephra:reference.10`, and `maximumTotalBytes` is
+24 MiB across the **whole strip** rather than per picture, since ten
+1024-pixel PNGs are what a link and a record have to carry together.
+`ModelCapabilities+Clamp.constrainReferences` is where all of it lands, in this
+order: nothing at all for a model that reads none, then every picture whose
+bytes were stripped for the wire dropped, then
+`prefix(min(referenceImageCount.upperBound, ReferenceLimits.maximumPictures))`,
+then `ReferenceLimits.withinBudget`, which drops from the **end** so the picture
+chosen first is the one that survives.
+
+`GenerationSettings.referenceImages` is the stored truth and
+`referenceImage`/`referenceOrigin` are computed aliases over its first element,
+permanently rather than as a migration: five backends, the bench and some thirty
+readers were written when there was one picture, and the aliases are what kept
+them true. Setting `referenceImage` replaces the list with one picture; setting
+`referenceOrigin` on an empty list does nothing, because an origin with no
+picture would be a request claiming provenance it has not got.
+
+**The record numbers its chunks.** The first picture stays in
+`zephra:reference`, unsuffixed — there is deliberately no `.1` — and the rest go
+in `zephra:reference.2` through `.10`. `GenerationRecord.referenceByteCounts`
+and `referenceOrigins` are written **only when there is more than one picture**,
+so a one-picture edit's PNG is byte for byte what it always was; a reader
+without them falls back to `[referenceBytes]` and `[referenceOrigin]`. Reading
+stops at the first chunk that is missing or whose bytes are not the length the
+record claims, so a file whose fourth chunk went bad is an edit of three
+pictures rather than of none.
+
+**One ticket covers the whole strip.** `GenerationStore.claimReference()`
+numbers a choice when it is made rather than when its bytes arrive, and a drop
+of five files is one choice landing as one `adoptReferences` — five tickets
+would land only the last. `referenceRoom` is what is left, and D7's rule is one
+line in `GenerationStore.useAsReference`: **where there is room it appends;
+where there is not it replaces the whole strip.** "Use this as the reference"
+with ten already in can only honestly mean starting afresh with the one chosen,
+and on a model that reads one it is always the second branch. A door handed
+exactly one picture still goes through the single-picture door, so the rule
+stays written once. The phone's `PromptDraft+ReferenceStrip` implements the same
+rule, and `UseAsReferenceLabel` reads the same answer the press does, so it says
+"Add to References" where there is room and "Use as Reference" where there is
+not.
 
 For the models that start from a noised copy:
 
@@ -49,29 +107,29 @@ For the models that start from a noised copy:
   of them run, truncated and never fewer than one, so every strength the slider
   offers keeps some of the picture, and the loop enters that far from the end,
   starting from the encoded picture mixed with that step's share of the run's
-  own seeded noise. So 0.6 of Z-Image's nine steps enters at 4 and runs 5; 0.6
-  of Qwen-Image's four enters at 2 and runs 2; and 0.9 of Qwen-Image's four is
-  3.6, which runs 3 from an entry of 1. Reading strength as a share is
-  diffusers' `get_timesteps` mapping, and following it rather than entering at
-  the first sigma at or below the strength is load-bearing: a distilled ladder
-  is not evenly spaced. Qwen-Image's four sigmas are 1.0, 0.767, 0.456 and
-  0.02, so the noise-level reading sent every strength from 0.1 to 0.4 to that
-  0.02 and handed the picture back untouched. The truncation is a deliberate
-  departure from `get_timesteps`, which takes the ceiling of the share: the
-  ceiling of 0.8 or 0.9 of four steps is four, an entry of 0, where the mix is
-  pure noise and the picture is discarded at the top of the slider. The product
-  is nudged up by a hair before it is truncated (`1e-9` on the double product
-  in `QwenImageReferenceLatents`, `1e-7` on the `Float` strength in
-  `ReferenceLatents`), because `100 * 0.29` lands at 28.999999999999996 and
-  ten `Float` steps of 0.7 at 6.9999999; the slider's 0.05 granularity is what
-  makes the nudge safe.
+  own seeded noise. So 0.6 of Z-Image's nine steps enters at 4 and runs 5, and
+  0.9 of those nine is 8.1, which runs 8 from an entry of 1. Reading strength as
+  a share is diffusers' `get_timesteps` mapping, and following it rather than
+  entering at the first sigma at or below the strength is load-bearing: **a
+  distilled ladder is not evenly spaced.** Z-Image's nine sigmas crowd towards
+  the end, so the noise-level reading sends the bottom of the slider to one of
+  the last few and hands the picture back all but untouched — which is exactly
+  what it did on a four-step ladder, where sigmas of 1.0, 0.767, 0.456 and 0.02
+  sent every strength from 0.1 to 0.4 to that 0.02. The truncation is a
+  deliberate departure from `get_timesteps`, which takes the ceiling of the
+  share: the ceiling of 0.9 of nine steps is nine, an entry of 0, where the mix
+  is pure noise and the picture is discarded at the top of the slider. The
+  product is nudged up by a hair before it is truncated (`1e-7` on the `Float`
+  strength in `ReferenceLatents`), because ten `Float` steps of 0.7 land at
+  6.9999999; the slider's 0.05 granularity is what makes the nudge safe.
 - Progress still counts against the full step count, so a queue card drawing one
   segment per step shows the skipped ones as finished rather than showing a
   shorter run.
-- `ZImage.ReferenceLatents` and `QwenImage.QwenImageReferenceLatents` are the
-  entry-point arithmetic, one per family, pure and pinned by their own suites.
-  Two copies on purpose: one lives inside vendored code that is re-synced against
-  upstream, and the two schedules are typed differently.
+- `ZImage.ReferenceLatents` is the entry-point arithmetic, pure and pinned by
+  its own suite, and it is the only implementation left — there were two while a
+  second family read a picture this way. It lives inside vendored code that is
+  re-synced against upstream, which is why the rule above is written here and
+  not only there: a second copy would have to be kept in step by hand.
 - `GenerationRecord.referenceStrength` records what ran, beside
   `referenceBytes`. Nil when there was no picture; 1 when the model conditioned
   on it directly, which is how a klein edit says it had no distance to travel.
@@ -167,6 +225,34 @@ Each backend package decodes the bytes to a `CGImage` in its own
 package may import another. Backends decode; the kits are handed decoded images
 and never touch the filesystem.
 
+**A transparent reference is matted over white, except where a model reads
+alpha.** Every bitmap a reference is drawn into — `Flux2PixelBuffer`,
+`CoveringPicture`, and `UpscalePixelBuffer` for a picture with no alpha channel
+— is cleared to white before the draw. It used to be black, and that was never a
+decision: a fresh `CGContext` buffer is zeroed, `noneSkipLast` reads the zeroes
+as black, and a transparent picture drawn into it lost its clear regions to it.
+Transparent pictures were not producible inside Zephra before there was a model
+that makes them, so the default had to be chosen rather than inherited, and
+white is what a person expects and what Qwen-Image 2.1's own pipeline prescribes
+for its reference tower. Each site says so in a comment beside the fill.
+
+`QwenImage21ReferencePicture` is the exception, and it is the reason the rule
+had to be stated rather than assumed: it hands the autoencoder all four
+channels and flattens over white only for the vision tower, which is what
+`readsTransparentReferences: true` promises. Neither `ReferenceImageEncoder`
+mattes either — both ends re-encode a thumbnail at 1024 pixels an edge and
+alpha survives into the well — so the matte is the pipeline's decision and is
+made as late as it can be.
+
+**The interface says when a matte will happen.** `ReferenceMatteNote` reads the
+pictures' own PNG headers off the main actor, on the bytes already in hand
+rather than from a file, and answers "Read over white by \(model)." when the
+model does not declare `readsTransparentReferences` and at least one picture
+carries alpha. The model is **named**, because the answer moves with it: the
+same strip is matted by one model and not by another. `ReferenceNotes` is the
+modifier that stacks that line under the well with the store's own refusal line
+and adds nothing to the layout when there is nothing to say.
+
 
 ## Upscaling
 
@@ -200,8 +286,20 @@ later post-process should copy:
   2x is the 4x pass followed by an exact 2x2 box mean; the network is 4x only.
   The picture runs through `TiledDecode` in 512-pixel input tiles at scale 4;
   a 1024 input measured 2466 MB peak and 3.75 s at 4x on an M4 Max, and 2x
-  costs the same peak because the 4x join sets it. Alpha is dropped; library
-  PNGs are opaque. The port is written from `srvgg_arch.py` and never from
-  `xocialize/realesrgan-mlx`, which has no license.
+  costs the same peak because the 4x join sets it. The port is written from
+  `srvgg_arch.py` and never from `xocialize/realesrgan-mlx`, which has no
+  license.
+- **Transparency goes through, in two lanes.** A picture with an alpha channel
+  is split by `UpscalePixelBuffer.pixels` into its straight colour — the
+  premultiplication a bitmap context imposes divided back out, a wholly clear
+  pixel taking white — and its alpha plane. The colour runs through the network
+  as itself; the alpha runs through as a grey triplet, the same plane in all
+  three channels, and the mean of the three outputs is the new alpha. The
+  network never learned a fourth channel, but it did learn to enlarge a grey
+  picture, and an alpha plane is one: its edges are the picture's edges and want
+  the same treatment. The two are recombined as straight RGBA and written as an
+  RGBA PNG. That is twice the tiles, and the progress counts both lanes. A
+  picture with no alpha channel runs one lane and comes back exactly as it
+  always did.
 
 Everything the upscaler leaves out on purpose is listed in `ROADMAP.md`.

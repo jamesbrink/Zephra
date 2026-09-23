@@ -47,24 +47,6 @@ struct ModelStorageTests {
         #expect(items.last?.location.hasPrefix("/") == true)
     }
 
-    @Test("an adapter `hf download` put in the cache is listed with its model, where it is")
-    func aCachedAdapterIsListed() throws {
-        let scratch = Scratch("ModelStorage")
-        let descriptor = ModelCatalog.qwenImage2512_4bit
-        let adapter = try #require(descriptor.adapters.first)
-        let repository = "hub/models--" + adapter.repoID.replacingOccurrences(of: "/", with: "--")
-        try scratch.write("abc", to: repository + "/refs/main")
-        try scratch.make(repository + "/snapshots/abc/" + adapter.file)
-
-        let items = ModelStorage.items(
-            for: [descriptor], cache: scratch.url("hub"),
-            locations: ModelLocations(root: scratch.url("models")))
-        #expect(items.count == 1)
-        #expect(items.first?.name == "\(descriptor.displayName) adapter")
-        #expect(items.first?.isComplete == true)
-        #expect(items.first?.location.hasPrefix("/") == true)
-    }
-
     @Test("a model named by a directory outside every root is listed there, by its whole path")
     func aDirectoryNamedModelIsListedWhereItIs() throws {
         let scratch = Scratch("ModelStorage")
@@ -103,31 +85,6 @@ struct ModelStorageTests {
         #expect(partial.location == "Downloads/mzbac--Z-Image-Turbo-8bit")
     }
 
-    @Test("an adapter is listed with the model it serves, and says whether its file is there")
-    func anAdapterIsListedWithItsModel() throws {
-        let scratch = Scratch("ModelStorage")
-        let locations = ModelLocations(root: scratch.url("models"))
-        try scratch.make("models/Downloads/lightx2v--Qwen-Image-2512-Lightning", isDirectory: true)
-
-        let items = ModelStorage.items(
-            for: [ModelCatalog.qwenImage2512_4bit], cache: scratch.url("hub"),
-            locations: locations)
-        let adapter = try #require(items.first)
-        #expect(items.count == 1)
-        #expect(adapter.name == "Qwen-Image 2512 adapter")
-        #expect(adapter.modelIDs == ["qwen-image-2512-4bit"])
-        #expect(adapter.location == "Downloads/lightx2v--Qwen-Image-2512-Lightning")
-        #expect(!adapter.isComplete, "the folder is there and the one file it wants is not")
-
-        try scratch.make(
-            "models/Downloads/lightx2v--Qwen-Image-2512-Lightning/Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors"
-        )
-        let again = ModelStorage.items(
-            for: [ModelCatalog.qwenImage2512_4bit], cache: scratch.url("hub"),
-            locations: locations)
-        #expect(again.first?.isComplete == true)
-    }
-
     @Test("nothing on disk lists nothing, and never a directory that does not exist")
     func nothingListsNothing() throws {
         let scratch = Scratch("ModelStorage")
@@ -136,6 +93,14 @@ struct ModelStorageTests {
             for: ModelCatalog.all, cache: scratch.url("hub"),
             locations: ModelLocations(root: scratch.url("models")))
         #expect(items.isEmpty)
+
+        // An existing but empty root walks cleanly too: the retired sweep has something to
+        // `contentsOfDirectory` over now, not just a path that fails to resolve.
+        try scratch.make("models", isDirectory: true)
+        let overAnEmptyRoot = ModelStorage.items(
+            for: ModelCatalog.all, cache: scratch.url("hub"),
+            locations: ModelLocations(root: scratch.url("models")))
+        #expect(overAnEmptyRoot.isEmpty)
     }
 
     @Test("a directory is measured by its files, and a link does not count its target twice")

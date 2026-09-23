@@ -60,7 +60,7 @@ struct MemoryFitLabelTests {
         }
         // The whole sentence, in order: the levers qualify what the model needs, not what
         // this Mac has, and the figure quoted is the leanest way the family runs.
-        let model = ModelCatalog.qwenImage2512_4bit
+        let model = ModelCatalog.ltx2Distilled4bit
         #expect(
             ModelCatalog.fit(model, budget: budget).reason(for: model, budget: budget)
                 == "\(model.fullName) needs a GPU working set of about 11 GB at "
@@ -72,9 +72,10 @@ struct MemoryFitLabelTests {
     @Test("a model that would fit with the wired limit raised is told so, and one that would not is not")
     func theWiredLimitHintIsOnlyOfferedWhenItHelps() {
         let hint = "Raising the GPU memory limit"
-        // Qwen-Image's tiled peak is 26.1 GB: over a 16 GB Mac's whole RAM, so raising the
-        // limit cannot help, and over a 32 GB Mac's working set but under its RAM, so it can.
-        let model = ModelCatalog.qwenImage2512_4bit
+        // LTX-2.5 with sound has a tiled peak of 28.7 GB: over a 16 GB Mac's whole RAM, so
+        // raising the limit cannot help, and over a 32 GB Mac's working set but under its RAM,
+        // so there it can.
+        let model = ModelCatalog.ltx2DistilledAudio4bit
         let small = Self.budget(gigabytes: 16)
         let large = Self.budget(gigabytes: 32)
         #expect(!ModelCatalog.fit(model, budget: small).reason(for: model, budget: small).contains(hint))

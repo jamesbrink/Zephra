@@ -107,7 +107,7 @@ extension LTX2Pipeline {
                     // A held run shows the frame *after* the ones being held: the held frames
                     // are the pictures that were handed in and would say nothing about how the
                     // clip is coming along.
-                    LTX2LatentPreview.make(
+                    try LTX2LatentPreview.make(
                         latent: layout.unpack(estimate), decoder: loaded.decoder,
                         frame: held.map { Swift.min($0.latentFrames, layout.frames - 1) } ?? 0)
                 }

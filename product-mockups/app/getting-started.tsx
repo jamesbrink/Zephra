@@ -15,10 +15,10 @@ const models = [
     use: 'Another way to explore still images.',
   },
   {
-    name: 'Qwen-Image-2512',
-    size: '21.6 GB',
-    setup: '81.0 GB',
-    use: 'Image generation and reference edits.',
+    name: 'Qwen-Image 2.1',
+    size: '11.6 GB',
+    setup: '44.7 GB',
+    use: 'Images with legible text, and edits from up to ten reference pictures. Research license, non-commercial use only.',
   },
   {
     name: 'Wan 2.2 TI2V-5B',
@@ -136,15 +136,17 @@ export default function GettingStarted({ id }: { id: string }) {
           <summary>How much memory does generation use?</summary>
           <p>
             Recorded image-generation peaks at 1024 × 1024 with tiled decoding:
-            FLUX.2 klein 4-bit, about 7.7 GB; Z-Image-Turbo 4-bit, 12.0 GB;
-            Qwen-Image 4-bit, 26.1 GB, or about 10.3 GB with streaming.
+            FLUX.2 klein 4-bit, about 7.7 GB; Z-Image-Turbo 4-bit, 12.0 GB.
           </p>
           <p>
             Wan 2.2 at 832 × 480 and 49 frames measured about 15.1 GB, 12.4 GB
             with tiled decoding, or 9.7 GB with streaming. LTX-2.5 at 768 × 512
             and 49 frames measured about 23.4 GB with resident weights, or 10.0
             GB with streaming. Its “with sound” variant measured 28.7 GB
-            resident or 12.1 GB streamed. These are measured workload figures,
+            resident or 12.1 GB streamed. Qwen-Image 2.1 at 1024 × 1024
+            measured about 20.1 GB, 14.1 GB with tiled decoding, or 6.3 GB
+            with streaming; a 16 GB Mac streams it, and a 24 GB Mac holds it
+            tiled. These are measured workload figures,
             not minimum Mac memory requirements. Leave memory for macOS and
             other apps; resolution, clip length, and settings affect usage.
           </p>
@@ -171,8 +173,8 @@ export default function GettingStarted({ id }: { id: string }) {
             or animate a picture with the TI2V-5B model.
           </li>
           <li>
-            <strong>More control over memory.</strong> Stream Qwen-Image, Wan
-            2.2, and LTX-2.5 weights from disk in Settings → Performance.
+            <strong>More control over memory.</strong> Stream Qwen-Image 2.1,
+            Wan 2.2, and LTX-2.5 weights from disk in Settings → Performance.
           </li>
         </ul>
       </section>

@@ -37,7 +37,10 @@ struct ReferenceFactsRow: View {
             HStack(alignment: .top, spacing: 10) {
                 ReferenceSourceThumbnail(source: source)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(source.role.inspectorRowLabel)
+                    // The label counts them when there were several, so this row reads as the
+                    // head of the strip rather than as the whole of it; the names of the rest
+                    // are `ReferenceOriginsList`, under this.
+                    Text(source.role.inspectorRowLabel(count: facts.referenceCount))
                         .lineLimit(1)
                     if let strengthText {
                         Text(strengthText)

@@ -144,8 +144,16 @@ public enum ModelCatalog {
     /// on one that holds nothing, since order is an editorial judgement about what to show
     /// first and says nothing about which model is cheapest to read off a disk. So a later
     /// entry may be added here on its merits as a listing.
+    /// Qwen-Image 2.1 sits after every picture model and before every clip model, which is the
+    /// slot Qwen-Image-2512 held. Two rules decide it. It must come **after** klein 4-bit,
+    /// because `default(fitting:)`'s resident pass walks this order and takes the first entry a
+    /// Mac can hold: on a 24 GB Mac 2.1 fits resident, and a first launch that opened on a 33 GB
+    /// download and forty steps a picture would be the worst first answer in the catalog. And it
+    /// belongs before Wan, because the list reads as pictures and then clips, and because
+    /// `animator()` takes the first entry that makes them — a picture model cannot change that
+    /// answer, but the reading is what keeps it obvious that it cannot.
     public static let all: [ModelDescriptor] = [
-        zImageTurbo8bit, flux2Klein4bit, flux2Klein8bit, zImageTurbo4bit, qwenImage2512_4bit,
+        zImageTurbo8bit, flux2Klein4bit, flux2Klein8bit, zImageTurbo4bit, qwenImage21_4bit,
         wan22TI2V5B4bit, ltx2Distilled4bit, ltx2DistilledAudio4bit,
     ]
 

@@ -24,6 +24,10 @@ public struct ModelStorageItem: Identifiable, Hashable, Sendable {
         case appFolder
         /// `~/.cache/huggingface/hub`, in either layout: read as a fallback, never written.
         case hubCache
+        /// A directory under a models root that no catalog entry claims any more: a variant or a
+        /// download left behind by a model Zephra has since dropped. It is listed so the space can
+        /// be reclaimed, and it is never loaded — nothing in the catalog names it.
+        case retired
     }
 
     /// The directory's path: two items never share one.

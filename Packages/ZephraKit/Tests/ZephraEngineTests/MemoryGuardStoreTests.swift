@@ -10,7 +10,7 @@ struct MemoryGuardStoreTests {
     /// A 16 GB Mac's working set, which no catalog model is held whole in.
     static let small = MemoryBudget(physicalMemory: 16 << 30, gpuWorkingSet: 12_124 << 20)
 
-    /// A budget the catalog straddles: klein 4-bit runs tiled, Z-Image 8-bit and Qwen-Image
+    /// A budget the catalog straddles: klein 4-bit runs tiled, Z-Image 8-bit and LTX-2.5
     /// stream, and LTX-2.5 with sound is over even its streamed figure, so it is a model this
     /// Mac cannot hold and the one every "cannot hold" case below is about. Z-Image 8-bit is
     /// what `bootstrap` therefore keeps here, streamed, since its 6.42 GB streamed peak was
@@ -36,7 +36,7 @@ struct MemoryGuardStoreTests {
         source: ModelCatalog.default.source, quantization: .int4, downloadBytes: 0,
         residentBytes: 60_000_000_000, peakBytes: 90_000_000_000,
         tiledPeakBytes: 80_000_000_000, streamedPeakBytes: 0, maxPromptTokens: 512,
-        capabilities: ModelCatalog.default.capabilities, builtBytes: 0, adapters: [])
+        capabilities: ModelCatalog.default.capabilities, builtBytes: 0)
 
     static func starved() -> MachineMemory {
         MachineMemory(physicalBytes: 16 << 30, availableBytes: 400_000_000)
@@ -148,15 +148,15 @@ struct MemoryGuardStoreTests {
         let bed = EngineTestBed()
         bed.memoryBudget = Self.straddling
         let store = bed.store(descriptor: ModelCatalog.flux2Klein4bit)
-        var settings = GenerationSettings.defaults(for: ModelCatalog.qwenImage2512_4bit)
+        var settings = GenerationSettings.defaults(for: ModelCatalog.zImageTurbo8bit)
         settings.prompt = "from another Mac"
 
         // A picture from a model this Mac can hold chooses that model, as it always has.
         store.select(
             GeneratedImage(
-                pngData: Data(), settings: settings, modelID: ModelCatalog.qwenImage2512_4bit.id,
+                pngData: Data(), settings: settings, modelID: ModelCatalog.zImageTurbo8bit.id,
                 duration: .seconds(1)))
-        #expect(store.descriptor.id == ModelCatalog.qwenImage2512_4bit.id)
+        #expect(store.descriptor.id == ModelCatalog.zImageTurbo8bit.id)
 
         // One from a model it cannot hold is still shown, and its settings are still taken —
         // on the current model's schedule, exactly as a picture from a dropped model is.
@@ -164,7 +164,7 @@ struct MemoryGuardStoreTests {
             GeneratedImage(
                 pngData: Data(), settings: settings, modelID: Self.tooLarge.id,
                 duration: .seconds(1)))
-        #expect(store.descriptor.id == ModelCatalog.qwenImage2512_4bit.id)
+        #expect(store.descriptor.id == ModelCatalog.zImageTurbo8bit.id)
         #expect(store.current != nil)
         #expect(store.settings.prompt == "from another Mac")
     }
@@ -247,5 +247,62 @@ struct MemoryGuardStoreTests {
         #expect(reason.hasSuffix("Quit other apps and retry."))
         #expect(store.enqueue(settings, on: store.descriptor) == nil)
         #expect(store.queue.isEmpty)
+    }
+
+    /// `logging: false` is what an offer's pre-check asks with, so it must never change the
+    /// answer — only whether `make logs` hears about it. Asked both ways over a starved
+    /// machine, refused and admitted alike answer the same.
+    @Test("logging: false changes nothing about the verdict, refused or admitted")
+    func loggingFlagDoesNotChangeTheVerdict() async throws {
+        let bed = EngineTestBed()
+        bed.memoryBudget = Self.straddling
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        var settings = GenerationSettings.defaults(for: store.descriptor)
+        settings.prompt = "a cat"
+
+        bed.machineMemory = Self.starved()
+        let loud = store.runShortfall(for: store.descriptor, settings: settings)
+        let quiet = store.runShortfall(for: store.descriptor, settings: settings, logging: false)
+        #expect(loud == quiet)
+        #expect(loud != nil)
+
+        let loudAdmission = store.remoteAdmission(for: store.descriptor, settings: settings)
+        let quietAdmission = store.remoteAdmission(
+            for: store.descriptor, settings: settings, logging: false)
+        #expect(loudAdmission.reason == quietAdmission.reason)
+
+        let loudRefusal = store.strictRefusal(for: store.descriptor, settings: settings, count: 1)
+        let quietRefusal = store.strictRefusal(
+            for: store.descriptor, settings: settings, count: 1, logging: false)
+        #expect(loudRefusal == quietRefusal)
+
+        // And admitted, over room this Mac has: the same parity, the other way.
+        bed.machineMemory = MachineMemory(
+            physicalBytes: 128_000_000_000, availableBytes: 120_000_000_000)
+        #expect(store.runShortfall(for: store.descriptor, settings: settings) == nil)
+        #expect(store.runShortfall(for: store.descriptor, settings: settings, logging: false) == nil)
+    }
+
+    /// An offer is a paired phone's estimate — `CompanionSession+Offers.offer` calls
+    /// `strictRefusal(logging: false)` — and it must be silent about the memory check without
+    /// being silent about the answer: the refusal it reports is still the guard's real one.
+    @Test("an offer's own memory check answers exactly what a logged one would")
+    func offerMemoryCheckMatchesLoggedCheck() async throws {
+        let bed = EngineTestBed()
+        bed.memoryBudget = Self.straddling
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        var settings = GenerationSettings.defaults(for: store.descriptor)
+        settings.prompt = "an offer while starved"
+        bed.machineMemory = Self.starved()
+
+        let offerRefusal = store.strictRefusal(
+            for: store.descriptor, settings: settings, count: 1, logging: false)
+        let realRefusal = store.strictRefusal(for: store.descriptor, settings: settings, count: 1)
+        #expect(offerRefusal == realRefusal)
+        #expect(offerRefusal != nil)
     }
 }

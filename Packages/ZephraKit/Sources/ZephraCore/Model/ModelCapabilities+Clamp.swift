@@ -14,12 +14,11 @@ extension ModelCapabilities {
         if !supportsNegativePrompt {
             result.negativePrompt = nil
         }
-        if !supportsReferenceImage {
-            result.referenceImage = nil
-            // Where the picture came from is only ever a fact about the picture: dropping one
-            // and keeping the other would leave a request claiming provenance it has not got.
-            result.referenceOrigin = nil
-        }
+        // A model that reads no picture holds none, and a model that reads three holds three:
+        // emptying the list takes the origins with it, which is the invariant this used to
+        // spell out — where a picture came from is only ever a fact about the picture, and a
+        // request claiming provenance it has not got is a request that lies about itself.
+        result.referenceImages = constrainReferences(settings.referenceImages)
         // Bounded whether or not there is a picture. Nothing reads the strength without one,
         // so the 1 a text-to-image request carries becomes this model's upper bound and means
         // nothing — but a request that leaves `clamp` holding a value its model would reject is
@@ -31,6 +30,20 @@ extension ModelCapabilities {
         result.frames = constrainFrames(settings.frames)
         result.continuation = constrainContinuation(settings.continuation, frames: result.frames)
         return result
+    }
+
+    /// The pictures as this model can read them: none where it reads none, otherwise the first
+    /// `referenceImageCount.upperBound` of them, never more than `ReferenceLimits` allows in
+    /// number or in bytes. The order is the order they were chosen in, so what a trim drops is
+    /// always the last picture added rather than the one somebody started with.
+    ///
+    /// A picture whose bytes were stripped for the wire is dropped here too: it is provenance
+    /// on its way somewhere, and a backend is handed only pictures it can read. The Mac puts the
+    /// bytes back from the blobs before it clamps a request a phone sent.
+    private func constrainReferences(_ pictures: [ReferencePicture]) -> [ReferencePicture] {
+        guard supportsReferenceImage else { return [] }
+        let room = min(referenceImageCount.upperBound, ReferenceLimits.maximumPictures)
+        return ReferenceLimits.withinBudget(Array(pictures.filter(\.hasPixels).prefix(room)))
     }
 
     /// The continuation as this model can hold it: none on a model that cannot continue a

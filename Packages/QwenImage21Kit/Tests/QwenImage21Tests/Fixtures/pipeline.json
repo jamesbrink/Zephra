@@ -1,0 +1,10 @@
+{
+  "prompt": "a red ceramic teapot on a wooden table",
+  "height": 256,
+  "width": 256,
+  "steps": 2,
+  "seed": 7,
+  "device": "mps",
+  "dtype": "bfloat16",
+  "torchvision": "0.29.0"
+}

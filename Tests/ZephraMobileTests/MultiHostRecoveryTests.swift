@@ -42,8 +42,8 @@ struct MultiHostRecoveryTests {
         let source = try #require(catalog.entries.first { $0.hostID == a.preference.id })
         let intent = ReferenceIntent(), draft = PromptDraft()
         intent.use(source.id)
-        await ReferenceAdoption.take(intent, from: catalog) { picture, origin in
-            draft.adopt(picture, origin: origin, fitting: ReferenceIntentTests.Bed.pictureCapabilities.capabilities)
+        await ReferenceAdoption.take(intent, from: catalog) { pictures in
+            draft.useAsReferences(pictures, fitting: ReferenceIntentTests.Bed.pictureCapabilities.capabilities)
             return true
         }
         #expect(intent.canGenerate)
@@ -87,7 +87,7 @@ struct MultiHostRecoveryTests {
         let job = StrictGeneration(request: GenerationRequest(modelID: "z-image-turbo-4bit", count: 1,
             settings: PromptDraft().settings))
         await withTaskGroup(of: Void.self) { group in
-            for _ in 0..<10 { group.addTask { await dispatch.send(job, reference: nil) } }
+            for _ in 0..<10 { group.addTask { await dispatch.send(job, references: []) } }
         }
         #expect(dispatch.submissions.isEmpty)
         #expect(!a.host.commands.contains { if case .enqueue = $0 { return true }; if case .multiHost(.submit) = $0 { return true }; return false })

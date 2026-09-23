@@ -7,7 +7,7 @@
       "id": "choose",
       "title": "Choose the right workflow",
       "paragraphs": [
-        "Use Z-Image Turbo or Qwen-Image 2512 when you want to reinterpret a picture: explore a different style, mood, or version of a scene. For a targeted instruction such as changing one object’s color, try FLUX.2 klein and the photo-editing guide."
+        "Use Z-Image Turbo when you want to reinterpret one picture: explore a different style, mood, or version of a scene, with a Strength setting for how far it moves. Use Qwen-Image 2.1 when you want a new image built from pictures you supply: it reads as many as ten at once, in the order you place them, and has no Strength setting. For a targeted instruction such as changing one object’s color, try FLUX.2 klein and the photo-editing guide."
       ],
       "links": [
         {
@@ -21,9 +21,9 @@
       "title": "Add your starting picture",
       "paragraphs": [],
       "steps": [
-        "Select Z-Image Turbo or Qwen-Image 2512 in the model menu.",
-        "Click Start from beside the prompt. Choose a picture from the library or use Choose File… for a local photo. You can also drop a picture into that box.",
-        "Check the thumbnail so you know which picture will be used. Zephra accepts one reference picture at a time.",
+        "Select Z-Image Turbo or Qwen-Image 2.1 in the model menu.",
+        "Click Start from beside the prompt, labeled Reference on Qwen-Image 2.1. Choose a picture from the library or use Choose File… for a local photo. You can also drop pictures into that box.",
+        "Check the thumbnails so you know which pictures will be used. Z-Image Turbo takes one picture at a time. Qwen-Image 2.1 takes as many as ten, shown as a strip you can drag to reorder, and their order changes the result.",
         "Choose an output Size with the shape you want. The size menu offers choices based on the reference’s proportions; custom dimensions may be adjusted to the model’s supported sizes."
       ]
     },
@@ -33,8 +33,8 @@
       "paragraphs": [],
       "steps": [
         "Describe the finished image you want rather than giving only an editing command.",
-        "Begin with the default Strength of 0.60 and the model’s default Steps. Click Generate.",
-        "Compare the completed result to the starting picture. Lower Strength to preserve more of its structure; raise it to allow a larger change. Keep the prompt and seed steady while comparing."
+        "Begin with the model’s default Steps, and on Z-Image Turbo the default Strength of 0.60. Click Generate.",
+        "Compare the completed result to the starting picture. On Z-Image Turbo, lower Strength to preserve more of its structure and raise it to allow a larger change. Keep the prompt and seed steady while comparing."
       ],
       "prompt": "A watercolor illustration of the garden path in the starting picture, with soft green foliage, delicate washes of color, and warm afternoon light. The path remains the main focus."
     },
@@ -42,7 +42,8 @@
       "id": "strength",
       "title": "Understand Strength",
       "paragraphs": [
-        "For these two models, Strength ranges from 0.10 to 0.90. It controls how much the starting picture is reworked. Low values may make very little change, especially with a small step count. High values may change the subject or composition substantially.",
+        "Strength applies to Z-Image Turbo, where it ranges from 0.10 to 0.90. It controls how much the starting picture is reworked. Low values may make very little change, especially with a small step count. High values may change the subject or composition substantially.",
+        "Qwen-Image 2.1 has no Strength setting. Like FLUX.2 klein, it conditions on your pictures directly and builds a new image from your description, so say in the prompt what should carry over.",
         "This is a whole-image transformation. It does not protect faces, text, or selected areas. Zephra does not offer a masking brush for editing only one region."
       ]
     },
@@ -50,7 +51,7 @@
       "id": "again",
       "title": "Start another experiment",
       "paragraphs": [
-        "Use the × on the reference thumbnail to return to generation from text alone. Right-click the thumbnail for From Library…, Choose File…, or Clear.",
+        "Use the × on a reference thumbnail to remove that picture; clearing the last one returns to generation from text alone. On Z-Image Turbo, right-click the thumbnail for From Library…, Choose File…, or Clear. On Qwen-Image 2.1, right-click a tile in the strip to Move Left, Move Right, Replace, or Remove it, and use the + tile to add another.",
         "If you want to use an edited result itself as the next starting picture, export it and choose that file. Reusing a saved edit through Use as Reference can restore its original source, which is useful for trying a different edit of the same original."
       ],
       "links": [

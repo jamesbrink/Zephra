@@ -57,7 +57,7 @@ struct GenerationSettingsTests {
     func scheduleKeepsTheReference() {
         var settings = GenerationSettings.defaults(for: descriptor)
         settings.referenceImage = Data([9, 9])
-        let moved = settings.onSchedule(of: ModelCatalog.qwenImage2512_4bit)
+        let moved = settings.onSchedule(of: ModelCatalog.zImageTurbo4bit)
         #expect(moved.referenceImage == settings.referenceImage)
         #expect(moved.size == settings.size)
     }
@@ -97,5 +97,43 @@ struct GenerationSettingsTests {
         #expect(fromOlder.referenceStrength == 1)
         #expect(fromOlder.prompt == settings.prompt)
         #expect(fromOlder.referenceImage == settings.referenceImage)
+    }
+
+    @Test("the one-picture reads name the first of several")
+    func theScalarsNameTheFirstPicture() {
+        var settings = GenerationSettings.defaults(for: descriptor)
+        settings.referenceImages = [
+            ReferencePicture(data: Data([1]), origin: "one.png"),
+            ReferencePicture(data: Data([2]), origin: "two.png"),
+        ]
+        #expect(settings.referenceImage == Data([1]))
+        #expect(settings.referenceOrigin == "one.png")
+    }
+
+    @Test("setting the one picture replaces the strip, and nil empties it")
+    func settingTheScalarReplacesTheStrip() {
+        var settings = GenerationSettings.defaults(for: descriptor)
+        settings.referenceImages = [
+            ReferencePicture(data: Data([1]), origin: "one.png"),
+            ReferencePicture(data: Data([2]), origin: "two.png"),
+        ]
+        settings.referenceImage = Data([3])
+        #expect(settings.referenceImages == [ReferencePicture(data: Data([3]))])
+        #expect(settings.referenceOrigin == nil, "a new picture brings its own provenance")
+
+        settings.referenceImage = nil
+        #expect(settings.referenceImages.isEmpty)
+    }
+
+    @Test("an origin written with no picture to be about is not kept")
+    func anOriginNeedsAPicture() {
+        var settings = GenerationSettings.defaults(for: descriptor)
+        settings.referenceOrigin = "nothing.png"
+        #expect(settings.referenceOrigin == nil)
+        #expect(settings.referenceImages.isEmpty)
+
+        settings.referenceImage = Data([1])
+        settings.referenceOrigin = "harbour.png"
+        #expect(settings.referenceImages.first?.origin == "harbour.png")
     }
 }

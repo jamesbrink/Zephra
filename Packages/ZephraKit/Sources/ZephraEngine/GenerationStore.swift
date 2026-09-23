@@ -64,7 +64,14 @@ public final class GenerationStore {
     /// `GenerationStore+Reference.swift`. The number is readable so a view drawing the
     /// picture can key its work on the choice rather than compare the bytes.
     public internal(set) var referenceChoice = 0
+    /// Moves on every change to the well's list, a reorder included, which moves neither the
+    /// ticket nor the count; a tile keys its thumbnail on it. See `settleAfterReferenceChange`.
+    public internal(set) var referenceRevision = 0
     var referenceRead: Task<Void, Never>?
+    /// Why the last picture offered to the well was not taken, for the interface to show, and
+    /// nil whenever the last change was taken. Set and cleared in
+    /// `GenerationStore+ReferenceStrip`, which is the only thing that refuses a picture.
+    public internal(set) var referenceNote: String?
     /// True while the engine is between queued generations, swapping to the model the next one
     /// needs. The queue accepts more work throughout.
     public internal(set) var isSwitchingForQueue = false

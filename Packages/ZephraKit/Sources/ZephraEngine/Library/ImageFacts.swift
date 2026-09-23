@@ -35,9 +35,21 @@ public struct ImageFacts: Hashable, Sendable {
     /// which reads as a phrase rather than as a number. `length` says which kind of picture
     /// this is, so the caller has both halves of that question.
     public let referenceStrengthValue: Double?
-    /// The library file the reference picture came out of, or nil when it came from a file
-    /// chooser, a drop, or nowhere at all.
+    /// The library file the first reference picture came out of, or nil when it came from a
+    /// file chooser, a drop, or nowhere at all.
     public let referenceOrigin: String?
+    /// Where each of the pictures came from, positionally, nil for one that came from a file
+    /// chooser or a drop. Empty where there was no picture; one entry where there was one, so
+    /// a single-picture inspector may read either this or `referenceOrigin`.
+    public let referenceOrigins: [String?]
+    /// How many pictures the generation read, which is what an inspector counts its rows by.
+    public let referenceCount: Int
+    /// Whether the picture carries transparency, read from the file's own header rather than
+    /// from anything in the record: an imported picture and one Zephra made answer the same
+    /// way, and a record written before there was a model that makes transparency would not.
+    /// The inspector draws the line only when it is true, the rule `referenceStrength`
+    /// already follows — a row saying "No" says nothing.
+    public let isTransparent: Bool
 
     /// The facts about a library image. `modelName` is the catalog's name for it, when there is
     /// one; without it the identifier written into the file is shown, which is the honest answer
@@ -66,6 +78,14 @@ public struct ImageFacts: Hashable, Sendable {
         referenceStrengthValue = Self.reportable(item.provenance.record?.referenceStrength)
         referenceStrength = referenceStrengthValue.map(Self.strengthLabel)
         referenceOrigin = item.provenance.record?.referenceOrigin
+        // The record's own lists where it has them, and the two scalars where it has not: a
+        // file written with one picture says everything it has to say in those.
+        let record = item.provenance.record
+        referenceOrigins = record?.referenceOrigins
+            ?? (record?.referenceBytes == nil ? [] : [record?.referenceOrigin])
+        referenceCount = record?.referenceByteCounts?.count
+            ?? (record?.referenceBytes == nil ? 0 : 1)
+        isTransparent = item.hasAlpha
     }
 
     /// The facts about an image in memory, which may not have reached the disk yet.
@@ -87,75 +107,12 @@ public struct ImageFacts: Hashable, Sendable {
         referenceStrengthValue = settings.referenceImage == nil
             ? nil : Self.reportable(settings.referenceStrength)
         referenceStrength = referenceStrengthValue.map(Self.strengthLabel)
-        referenceOrigin = settings.referenceImage == nil ? nil : settings.referenceOrigin
-    }
-
-    /// A strength worth showing: not one that was never recorded, and not the 1 that means the
-    /// generation had no distance to travel from its picture.
-    static func reportable(_ strength: Double?) -> Double? {
-        guard let strength, strength != 1 else { return nil }
-        return strength
-    }
-
-    /// The strength as the slider spells it, to two decimals.
-    static func strengthLabel(_ strength: Double) -> String {
-        strength.formatted(.number.precision(.fractionLength(2)))
-    }
-
-    /// "2 s, 49 frames at 24 fps", the seconds to one decimal only when a ladder of eight
-    /// frames does not land on a whole one.
-    static func lengthLabel(frames: Int, rate: Double, sound: Bool = false) -> String {
-        let seconds = DurationLabel.text(seconds: Double(frames) / rate, fraction: true)
-        let length = String(format: "%@, %d frames at %.0f fps", seconds, frames, rate)
-        return sound ? "\(length), with sound" : length
-    }
-
-    /// What a clip carried on says about it: the source's file name and how many of its
-    /// frames were held at the join.
-    static func continuedLabel(from origin: String, held: Int) -> String {
-        held == 1
-            ? "\(origin), from its last frame"
-            : "\(origin), \(held) frames held"
-    }
-
-    /// How long a generation took, with what that came to per step.
-    ///
-    /// The whole is a `DurationLabel` — "1 min 7 s" rather than "66.7 s" — with a decimal under
-    /// a minute, since a four-step run is over in a few seconds and "7 s" for 6.9 would be a
-    /// rounding the per-step figure beside it contradicts. That per-step figure stays in
-    /// seconds throughout: it is a pace, and what a benchmark and a model's page both quote.
-    public static func tookLabel(seconds: Double, steps: Int) -> String {
-        guard seconds > 0 else { return unknown }
-        let whole = DurationLabel.text(seconds: seconds, fraction: true)
-        guard steps > 0 else { return whole }
-        return "\(whole) \(separator) \(number(seconds / Double(steps))) s/step"
-    }
-
-    /// How many steps ran. None at all is not a generation but an upscale of a picture Zephra
-    /// did not make, and "0" would read as a number that was once true.
-    static func stepsLabel(_ steps: Int?) -> String {
-        guard let steps, steps > 0 else { return unknown }
-        return String(steps)
-    }
-
-    /// The seed, for the same reason: no seed was drawn when no denoising loop ran.
-    static func seedLabel(_ seed: UInt64?, as format: SeedFormat) -> String {
-        guard let seed, seed > 0 else { return unknown }
-        return format.label(seed)
-    }
-
-    /// A middle dot, the separator the rest of the interface uses between facts.
-    public static let separator = "\u{00B7}"
-    /// What is shown where there is no answer.
-    public static let unknown = "\u{2014}"
-    /// What is shown for an image that has not reached the disk.
-    public static let notSaved = "Not saved yet"
-
-    private static func label(_ size: ImageSize) -> String {
-        "\(size.width) \u{00D7} \(size.height)"
-    }
-
-    private static func number(_ value: Double) -> String {
-        value.formatted(.number.precision(.fractionLength(1)))
+        let pictures = settings.referenceImages.filter(\.hasPixels)
+        referenceOrigin = pictures.first?.origin
+        referenceOrigins = pictures.map(\.origin)
+        referenceCount = pictures.count
+        // A picture in memory has no file to ask, so its own bytes answer: the same walk the
+        // scan makes, over the header of the PNG the backend handed back.
+        isTransparent = (try? PNGHeader.read(from: image.pngData).hasAlpha) ?? false
     }
 }

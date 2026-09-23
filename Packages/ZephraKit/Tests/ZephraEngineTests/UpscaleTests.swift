@@ -60,6 +60,25 @@ struct UpscaleTests {
         #expect(GenerationRecord.reference(in: data) == reference)
     }
 
+    @Test("an upscale of a three-picture edit carries all three chunks across")
+    func everyReferenceChunkIsCopied() async throws {
+        let bed = EngineTestBed()
+        let store = bed.store()
+        await store.bootstrap()
+        let pictures = (1...3).map {
+            ReferencePicture(
+                data: Data(repeating: UInt8($0), count: 40 * $0), origin: "source-\($0).png")
+        }
+        let parent = try Self.parent(in: bed, references: pictures)
+
+        store.upscale(.file(parent), factor: 2)
+        await store.settle()
+
+        let data = try Self.result(bed, of: parent, 2)
+        #expect(GenerationRecord.references(in: data) == pictures)
+        #expect(GenerationRecord.read(from: data)?.referenceByteCounts == pictures.map(\.data.count))
+    }
+
     @Test("the size recorded is the one the result declares, not the parent's times the factor")
     func sizeComesFromTheResult() async throws {
         let bed = EngineTestBed()
@@ -263,12 +282,14 @@ struct UpscaleTests {
 
     /// A generated picture in the bed's folder, which is what an upscale starts from.
     static func parent(
-        in bed: EngineTestBed, prompt: String = "a lighthouse at dusk", reference: Data? = nil
+        in bed: EngineTestBed, prompt: String = "a lighthouse at dusk", reference: Data? = nil,
+        references: [ReferencePicture] = []
     ) throws -> URL {
         var settings = GenerationSettings(
             prompt: prompt, size: ImageSize(width: 1024, height: 1024), steps: 9, guidance: 3,
             seed: 99)
         settings.referenceImage = reference
+        if !references.isEmpty { settings.referenceImages = references }
         return try bed.library.write(
             GeneratedImage(
                 pngData: MockBackend.pngData, settings: settings,

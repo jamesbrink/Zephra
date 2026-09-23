@@ -103,7 +103,7 @@ struct EngineStateDTOTests {
 
     @Test("Which model is loaded is its own fact, and survives the trip")
     func loadedModelIsCarried() throws {
-        var dto = EngineStateDTO(.ready, modelID: "qwen-image-2512-4bit")
+        var dto = EngineStateDTO(.ready, modelID: "flux2-klein-4b-4bit")
         #expect(dto.loadedModelID == nil, "the state alone does not know it")
         #expect(try LinkFixtures.roundTrip(dto).loadedModelID == nil,
                 "and a Mac that says nothing is loaded is read as saying exactly that")
@@ -111,7 +111,7 @@ struct EngineStateDTOTests {
         dto.loadedModelID = "z-image-turbo-8bit"
         let read = try LinkFixtures.roundTrip(dto)
         #expect(read.loadedModelID == "z-image-turbo-8bit")
-        #expect(read.modelID == "qwen-image-2512-4bit", "the chosen model is the other fact")
+        #expect(read.modelID == "flux2-klein-4b-4bit", "the chosen model is the other fact")
     }
 
     @Test("A Mac that says nothing about it is read the way that Mac meant it")
@@ -143,7 +143,7 @@ struct EngineStateDTOTests {
             secondsPerStep: 1.5, completedBytes: 400, totalBytes: 1_000, completedFiles: 2,
             totalFiles: 5, bytesPerSecond: 1_000, component: "transformer",
             completedComponents: 1, totalComponents: 3, completedTiles: 2, totalTiles: 8,
-            modelID: "qwen-image-2512-4bit", message: "the GPU stopped responding",
+            modelID: "flux2-klein-4b-4bit", message: "the GPU stopped responding",
             loadedModelID: "z-image-turbo-8bit", isBusy: true, isFinishing: true,
             acceptsGeneration: true, canQueue: true)
 

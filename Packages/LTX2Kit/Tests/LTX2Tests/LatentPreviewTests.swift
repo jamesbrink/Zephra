@@ -20,7 +20,7 @@ struct LatentPreviewTests {
         let decoder = try VAEDecoderParityTests.loaded(fixture)
         // 4 latent frames of 9 x 16 cells pool by 2 to 4 x 8, which decodes to 128 x 256.
         let latent = MLXArray.zeros([1, 4, 4, 9, 16])
-        let preview = LTX2LatentPreview.make(latent: latent, decoder: decoder)
+        let preview = try LTX2LatentPreview.make(latent: latent, decoder: decoder)
         #expect(preview.width == 256)
         #expect(preview.height == 128)
         #expect(preview.pixels.count == 256 * 128 * 4)
@@ -32,7 +32,7 @@ struct LatentPreviewTests {
         let fixture = try Fixture.load("vae_decoder")
         let decoder = try VAEDecoderParityTests.loaded(fixture)
         let latent = try #require(fixture["vae_decoder.in.latent"])  // [1, 4, 2, 2, 3], no pooling
-        let preview = LTX2LatentPreview.make(latent: latent, decoder: decoder)
+        let preview = try LTX2LatentPreview.make(latent: latent, decoder: decoder)
         let whole = LTX2Frames.video(decoder.decode(latent[0..., 0..., 0..<1]), frameRate: 24)
         #expect(preview.pixels == whole.frame(0))
     }
@@ -44,7 +44,7 @@ struct LatentPreviewTests {
         let fixture = try Fixture.load("vae_decoder")
         let decoder = try VAEDecoderParityTests.loaded(fixture)
         let latent = try #require(fixture["vae_decoder.in.latent"])  // [1, 4, 2, 2, 3], two latent frames
-        let preview = LTX2LatentPreview.make(latent: latent, decoder: decoder, frame: 1)
+        let preview = try LTX2LatentPreview.make(latent: latent, decoder: decoder, frame: 1)
         let whole = LTX2Frames.video(decoder.decode(latent[0..., 0..., 1..<2]), frameRate: 24)
         // To within one step of a byte: the two decodes are the same arithmetic, but Metal
         // sums a convolution in whichever order the GPU schedules, and a value sitting on a
@@ -53,7 +53,7 @@ struct LatentPreviewTests {
         #expect(apart <= 1)
         // And it is not what frame 0 decodes to, so a preview that quietly fell back to 0 would
         // be caught here.
-        let frameZero = LTX2LatentPreview.make(latent: latent, decoder: decoder, frame: 0)
+        let frameZero = try LTX2LatentPreview.make(latent: latent, decoder: decoder, frame: 0)
         #expect(frameZero.pixels != preview.pixels)
     }
 
@@ -68,7 +68,7 @@ struct LatentPreviewTests {
         let oneFrameLatent = try #require(fixture["vae_decoder.in.latent"])[0..., 0..., 0..<1]
         let clampedFrame = Swift.min(1, 1 - 1)
         #expect(clampedFrame == 0)
-        let preview = LTX2LatentPreview.make(latent: oneFrameLatent, decoder: decoder, frame: clampedFrame)
+        let preview = try LTX2LatentPreview.make(latent: oneFrameLatent, decoder: decoder, frame: clampedFrame)
         let whole = LTX2Frames.video(decoder.decode(oneFrameLatent[0..., 0..., 0..<1]), frameRate: 24)
         #expect(preview.pixels == whole.frame(0))
     }

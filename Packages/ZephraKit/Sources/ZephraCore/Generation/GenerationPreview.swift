@@ -16,7 +16,8 @@ public struct GenerationPreview: Sendable {
     public let width: Int
     /// Pixels down.
     public let height: Int
-    /// `width * height * 4` bytes, RGBA8, row-major, opaque.
+    /// `width * height * 4` bytes, RGBA8, row-major, **straight alpha** and never
+    /// premultiplied; 255 everywhere for every model that does not make transparency.
     public let pixels: Data
     /// What this frame cost to make: the pooled decode, measured by whoever ran it.
     ///
@@ -37,5 +38,24 @@ public struct GenerationPreview: Sendable {
     /// image from it must check before it trusts the bytes.
     public var isWellFormed: Bool {
         width > 0 && height > 0 && pixels.count == width * height * 4
+    }
+
+    /// Whether any pixel is less than opaque, which decides the ground drawn under the frame
+    /// and whether the JPEG a phone is sent has to be composited first.
+    ///
+    /// The bytes themselves, because a frame has no file and no descriptor with it: one pass
+    /// over every fourth byte of at most 256 pixels an edge, which is 65,536 comparisons for
+    /// the largest frame the engine sends. It is read once per frame, beside the image that
+    /// frame is made into, and never inside a `body`.
+    public var hasTransparency: Bool {
+        guard isWellFormed else { return false }
+        return pixels.withUnsafeBytes { buffer in
+            var index = 3
+            while index < buffer.count {
+                if buffer[index] != 255 { return true }
+                index += 4
+            }
+            return false
+        }
     }
 }

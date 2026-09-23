@@ -153,8 +153,8 @@ Shared, by what a file actually touches:
 - `ZephraQuantization` (in `Packages/ZephraMLXKit`): the streaming weight
   packer, shared by every family. It knows nothing about any model — a family
   hands it a `QuantizationPlan` saying which directories hold weights, which
-  tensors to leave alone, how finely to squeeze the rest, and which low-rank
-  adapters to merge on the way past. `SnapshotBuild` beside it is the safe way
+  tensors to leave alone, how finely to squeeze the rest, which directories to
+  copy verbatim, and what `NOTICE` (if any) to write beside the result. `SnapshotBuild` beside it is the safe way
   to run that from the app and from `ZephraQuantize` alike: a `.partial`
   directory renamed on success, removed on failure, and a free-space refusal
   before anything is read. Both refuse, first of all, a destination that is
@@ -180,8 +180,10 @@ Shared, by what a file actually touches:
   scales to the stream's dtype with `castFloatParameters`; `SafetensorsShards`
   lists and reads a component's shards in one order. `Rotary/` is
   `RotaryFrequencies`, the cosine and sine table both ports build, and
-  `rotate(_:computeDType:)`, where the one difference between them — klein
-  rotates in float32, Qwen-Image in the stream's dtype — is the argument.
+  `rotate(_:computeDType:)`, where a family's own choice of compute dtype —
+  klein rotates in float32 — is the argument. `QwenImage21Rope` is its own file
+  rather than a caller of this one, since 2.1 rotates interleaved pairs rather
+  than halves.
   `PixelBuffer` turns a decoded `[1, h, w, 3]` in -1 to 1 into a PNG or into
   RGBA8 bytes, rounding to the nearest byte as `diffusers` does. `TiledDecode`:
   an autoencoder's decode allocates in proportion to the image, so decoding
@@ -218,8 +220,8 @@ Shared, by what a file actually touches:
   a concrete backend. `ModelInventory` is the one thing it takes
   `ZephraSnapshot` for: the list Settings > Models observes, measured off the
   main actor and re-read after every deletion.
-- `ZephraBackendZImage`, `ZephraBackendQwenImage`, `ZephraBackendFlux2` and
-  `ZephraBackendLTX2` (their own local packages): translate `ZephraCore` types
+- `ZephraBackendZImage`, `ZephraBackendQwenImage21`, `ZephraBackendFlux2`,
+  `ZephraBackendWan` and `ZephraBackendLTX2` (their own local packages): translate `ZephraCore` types
   to and from one family's types. No state, no UI. Each depends on `ZephraKit`'s
   `ZephraCore` and `ZephraSnapshot` products, on `ZephraQuantization` for its
   packing plan, and on its own family's kit; the video one takes `ZephraMedia`
@@ -230,9 +232,13 @@ Shared, by what a file actually touches:
   touch Metal.
 - `Packages/ZImageKit`: vendored. Edit only with a `// ZEPHRA-PATCH: <reason>`
   comment and a matching entry in `VENDORED.md`.
-- `Packages/QwenImageKit`: ours, clean-room. Written from Qwen-Image-2512's own
-  config files and from `diffusers`, never from the GPL-3.0
-  `mzbac/qwen.image.swift`. `PROVENANCE.md` records why and how; keep it true.
+- `Packages/QwenImage21Kit`: ours, clean-room. Written from Qwen-Image 2.1's own
+  config files and from `diffusers` at commit `6256aa76` with `transformers`
+  5.17.0 — pins that differ from the other kits', because 2.1 landed after
+  diffusers 0.40.0 was cut and Qwen3-VL needs transformers 5.17 — never from the
+  GPL-3.0 `mzbac/qwen.image.swift` or any other port of this model. It keeps a
+  `PROVENANCE.md` of its own, longer than the root one, and the root file's
+  section is a summary of it; keep both true.
 - `Packages/Flux2Kit`: ours, a translation with attribution from two MIT Swift
   ports (`xocialize/flux2-klein-swift`, `VincentGourbin/flux-2-swift-mlx`) and
   `diffusers`, pinned against `diffusers` and departing from the ports where

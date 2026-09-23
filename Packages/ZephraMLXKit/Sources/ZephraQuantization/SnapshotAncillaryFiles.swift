@@ -1,7 +1,9 @@
 import Foundation
 
 /// Copies everything a snapshot needs besides the weights that were packed: the top-level
-/// config, the per-component configs, and every directory the plan leaves at full precision.
+/// config, the per-component configs, every directory the plan leaves at full precision, and
+/// the `NOTICE` the plan asks for where its license requires one. A `LICENSE` in the release
+/// needs no rule: it is a top-level non-safetensors file and is copied with the rest.
 ///
 /// Copies go through `FileManager`, which moves the bytes without reading a file into memory,
 /// so an unquantized VAE's couple of hundred megabytes never land in the process.
@@ -23,6 +25,12 @@ public enum SnapshotAncillaryFiles {
             } else if name != "quantization.json", entry.pathExtension != "safetensors" {
                 try copyItem(at: entry, to: destination.appending(path: name))
             }
+        }
+        // Last, so it wins over a NOTICE the release happened to carry: the plan's is the one
+        // this build's license requires.
+        if let notice = plan.notice {
+            try Data(notice.utf8).write(
+                to: destination.appending(path: "NOTICE"), options: .atomic)
         }
     }
 

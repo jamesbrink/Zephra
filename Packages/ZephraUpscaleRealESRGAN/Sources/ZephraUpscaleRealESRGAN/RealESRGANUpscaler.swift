@@ -33,10 +33,17 @@ public final class RealESRGANUpscaler: ImageUpscaler {
     /// Makes an upscaler that has not read its weights yet.
     public init() {}
 
-    /// Enlarges `png` by `request.factor` and hands back a new opaque PNG.
+    /// Enlarges `png` by `request.factor` and hands back a new PNG, transparency and all.
     ///
     /// The network is 4x. A 2x request runs the same pass and then takes the exact 2x2 box mean
     /// of it, which is why the progress a caller sees counts 4x tiles either way.
+    ///
+    /// **A picture with an alpha channel runs through twice.** The colour goes through as
+    /// itself; the alpha goes through as a grey triplet — the same plane in all three channels
+    /// — and the mean of what comes back is the new alpha. The network never learned a fourth
+    /// channel, but it did learn to enlarge a grey picture, and an alpha plane is one: its
+    /// edges are the picture's edges and want the same treatment. The two are recombined as
+    /// straight RGBA. That is twice the tiles, which is why the progress counts both lanes.
     public nonisolated(nonsending) func upscale(
         _ png: Data,
         _ request: UpscaleRequest,
@@ -46,19 +53,33 @@ public final class RealESRGANUpscaler: ImageUpscaler {
             throw UpscaleError.failed("\(request.factor)x is not a size this upscaler makes.")
         }
         let network = try loaded()
-        let pixels = try UpscalePixelBuffer.pixels(from: png)
-        let total = TiledUpscale.tileCount(height: pixels.dim(1), width: pixels.dim(2))
+        let input = try UpscalePixelBuffer.pixels(from: png)
+        let lanes = input.alpha == nil ? 1 : 2
+        let perLane = TiledUpscale.tileCount(height: input.rgb.dim(1), width: input.rgb.dim(2))
+        let total = perLane * lanes
 
-        var enlarged = try TiledUpscale.run(pixels, through: network) { completed, count in
-            onProgress(UpscaleProgressEvent(completedTiles: completed, totalTiles: count))
+        var enlarged = try TiledUpscale.run(input.rgb, through: network) { completed, _ in
+            onProgress(UpscaleProgressEvent(completedTiles: completed, totalTiles: total))
+        }
+        var alpha = try input.alpha.map { plane in
+            // The plane in all three channels: the network takes three, and a grey picture is
+            // what an alpha plane is.
+            let grey = MLX.concatenated([plane, plane, plane], axis: -1)
+            let run = try TiledUpscale.run(grey, through: network) { completed, _ in
+                onProgress(
+                    UpscaleProgressEvent(completedTiles: perLane + completed, totalTiles: total))
+            }
+            return MLX.mean(run, axis: -1, keepDims: true)
         }
         if request.factor == 2 {
             enlarged = BoxDownsample.half(enlarged)
+            alpha = alpha.map(BoxDownsample.half)
         }
         MLX.eval(enlarged)
+        if let alpha { MLX.eval(alpha) }
         guard !Task.isCancelled else { throw UpscaleError.cancelled }
 
-        let encoded = try UpscalePixelBuffer.png(from: enlarged)
+        let encoded = try UpscalePixelBuffer.png(from: enlarged, alpha)
         // The last tile's report comes from inside the tiler, before the join, the downsample,
         // and the encode. A caller drawing a progress bar should see it reach the end, so the
         // finished run says so itself.

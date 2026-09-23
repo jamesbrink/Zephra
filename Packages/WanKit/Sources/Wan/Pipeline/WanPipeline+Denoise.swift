@@ -51,7 +51,7 @@ extension WanPipeline {
                     if let held { estimate = held.imposed(on: estimate) }
                     // A held run shows the frame *after* the one being held: frame 0 is the
                     // picture that was handed in and would say nothing about the clip.
-                    return WanLatentPreview.make(
+                    return try WanLatentPreview.make(
                         latent: estimate, decoder: loaded.autoencoder,
                         normalization: loaded.normalization,
                         frame: held == nil ? 0 : Swift.min(1, layout.frames - 1))

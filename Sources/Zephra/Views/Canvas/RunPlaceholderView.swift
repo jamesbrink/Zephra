@@ -13,7 +13,7 @@ import ZephraStyle
 ///
 /// The card is deliberately still. It once breathed, a repeating opacity animation across
 /// the whole rectangle, and on a 16 GB M4 mini that took the GPU down: sixty frames a second
-/// of compositing over a streamed Qwen-Image step ended, every time, in a GPU restart that
+/// of compositing over a streamed transformer step ended, every time, in a GPU restart that
 /// MLX reports as an uncaught exception, and the app aborted a step in. With the animation off
 /// the same step ran to a picture. The spinner is the system's own indeterminate indicator,
 /// which that run kept on screen throughout; the rule is in `make lint-layers`.

@@ -1,7 +1,8 @@
 import Foundation
 import ZephraCore
 
-/// The picture a generation edits, on models that read one, and which choice of it is current.
+/// The pictures a generation works from, on models that read any, and which choice of them is
+/// current.
 ///
 /// Choosing is numbered because the bytes seldom arrive at once: a library picture is read and
 /// re-encoded off the main actor, a drop's provider delivers when it likes. Every way of
@@ -9,6 +10,14 @@ import ZephraCore
 /// arrived — and only the latest number is allowed to land, so a slow picture chosen earlier
 /// cannot arrive after a quick one and take the well back. The numbers are this store's, not
 /// the process's: a second store's choices are its own.
+///
+/// One ticket covers the **whole** well rather than one per slot: a drop of five files is one
+/// choice and lands as one (`adoptReferences`), where five tickets would land only the last —
+/// which is precisely the failure the ticket exists to prevent.
+///
+/// The list operations are in `GenerationStore+ReferenceStrip`; these are the doors that speak
+/// of one picture, which is what every model but one reads and what every door but the strip's
+/// own offers.
 extension GenerationStore {
     /// The number a choice made right now gets, cancelling any read still in flight.
     public func claimReference() -> Int {
@@ -26,10 +35,12 @@ extension GenerationStore {
         useAsReference(pngData, origin: origin)
     }
 
-    /// The pixel size of the picture in the well, read from its own header, or nil without one.
-    /// What the Size menu offers the picture's shape from.
+    /// The pixel size of the first picture in the well: what it was measured at when it was
+    /// encoded, or read from its own header, and nil with an empty well. What the Size menu
+    /// offers the picture's shape from.
     public var referencePictureSize: ImageSize? {
-        settings.referenceImage.flatMap(PNGImageSize.read)
+        guard let first = settings.referenceImages.first, first.hasPixels else { return nil }
+        return first.size ?? PNGImageSize.read(from: first.data)
     }
 
     /// Whether a picture is still on its way into the well. Generate waits for it: a request
@@ -57,43 +68,61 @@ extension GenerationStore {
         }
     }
 
-    /// Puts a picture in, or takes it out with nil.
+    /// Puts a picture in, or empties the well with nil.
     ///
-    /// The one way the interface sets a reference, so the capability check lives here and not
-    /// in each of the menu items and drop targets that offer one: a model that cannot read a
-    /// picture never holds one, and `clamp` would drop it on the way to the backend anyway.
+    /// The one way the interface hands over a single picture, so the capability check lives
+    /// here and not in each of the menu items and drop targets that offer one: a model that
+    /// cannot read a picture never holds one, and `clamp` would drop it on the way to the
+    /// backend anyway.
     ///
-    /// A picture arriving also settles the strength, because the 1 that a picture-less request
-    /// carries is outside the range a model that starts from a picture will accept: a slider
-    /// bound to it would open pinned past its own maximum. Taking the picture out puts the 1
-    /// back, so a text-to-image request says what it means again, and takes the origin with
-    /// it — where a picture came from is a fact about the picture.
-    ///
-    /// On a model that makes clips the size follows the picture: its own shape, at the pixel
-    /// budget of the size in force (`size(matchingAspectOf:budget:)`). A clip is the picture
-    /// moving, so opening a portrait photograph at a landscape default would crop or letterbox
-    /// it before a frame was made; and it is done here rather than in `animate` so Use as
-    /// Reference, a drop, the picker and the well's own doors all agree. A picture model leaves
-    /// the size alone: its picture is a reference for the image asked for, not the image.
+    /// Where the model has **room** for another picture this adds one; where it has not — which
+    /// is always, past the first, on a model that reads one — it replaces the whole strip. One
+    /// rule, and on every model that came before this one it is what it has always been. "Use
+    /// this as the reference" with ten already in can only honestly mean starting afresh with
+    /// the one chosen.
     public func useAsReference(_ pngData: Data?, origin: String? = nil) {
-        let capabilities = descriptor.capabilities
-        let picture = capabilities.supportsReferenceImage ? pngData : nil
-        // A clip's end rides with the picture in the well (`GenerationStore+Extend.swift`):
-        // any other picture, or none, is no longer that clip's end.
+        guard let pngData else {
+            clearReferences()
+            return
+        }
+        let picture = ReferencePicture(
+            data: pngData, origin: origin, size: PNGImageSize.read(from: pngData))
+        if referenceRoom > 0, !settings.referenceImages.isEmpty {
+            appendReferences([picture])
+        } else {
+            useAsReferences([picture])
+        }
+    }
+
+    /// The three rules every change to the well settles, whatever changed it, and the revision
+    /// a thumbnail keys on, since a reorder moves pictures without moving the ticket.
+    ///
+    /// A clip's end rides with the picture in the well (`GenerationStore+Extend`), so any other
+    /// picture, or none, is no longer that clip's end. An empty well puts the strength back to
+    /// 1, so a text-to-image request says what it means again; a picture arriving settles the
+    /// strength into the model's bounds, because the 1 a picture-less request carries is outside
+    /// the range a model that starts from a picture will accept and a slider bound to it would
+    /// open pinned past its own maximum. And on a model that makes clips the size follows the
+    /// **first** picture — its own shape, at the pixel budget of the size in force — because a
+    /// clip is the picture moving; a later picture in the strip changes nothing, and a picture
+    /// model leaves the size alone, since its pictures are references for the image asked for
+    /// rather than the image.
+    func settleAfterReferenceChange(previousFirst: ReferencePicture?) {
+        referenceRevision &+= 1
         settings.continuation = nil
-        settings.referenceImage = picture
-        guard let picture else {
-            settings.referenceOrigin = nil
+        let capabilities = descriptor.capabilities
+        guard let first = settings.referenceImages.first else {
             settings.referenceStrength = 1
             return
         }
-        settings.referenceOrigin = origin
         let bounds = capabilities.referenceStrengthBounds
         if !bounds.contains(settings.referenceStrength) {
             settings.referenceStrength = capabilities.defaultReferenceStrength
         }
-        guard capabilities.producesVideo, let size = PNGImageSize.read(from: picture),
-              let frame = capabilities.size(matchingAspectOf: size, budget: settings.size.pixelCount)
+        guard first.data != previousFirst?.data, capabilities.producesVideo,
+              let size = first.size ?? PNGImageSize.read(from: first.data),
+              let frame = capabilities.size(
+                matchingAspectOf: size, budget: settings.size.pixelCount)
         else { return }
         settings.size = frame
     }

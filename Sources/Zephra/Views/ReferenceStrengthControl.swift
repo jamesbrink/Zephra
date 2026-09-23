@@ -11,11 +11,11 @@ import ZephraEngine
 /// hides the guidance slider.
 ///
 /// "Lower keeps more of the picture" is true for every role this control draws for, but what a
-/// model does with the number differs — see "Starting from a picture" in AGENTS.md. Z-Image and
-/// Qwen-Image start from a noised copy of the picture and read the slider as the share of the
+/// model does with the number differs — see "Starting from a picture" in AGENTS.md. Z-Image
+/// starts from a noised copy of the picture and reads the slider as the share of the
 /// model's own steps the strength buys; LTX-2.5 holds the picture as a clip's first frame and
 /// reads the same slider inverted (`LTX2RequestMapper` maps it to `1 - strength`) as how far the
-/// clip may drift from it, which is why its default is 0 rather than the other two's 0.6.
+/// clip may drift from it, which is why its default is 0 rather than Z-Image's 0.6.
 ///
 /// The bounds are checked here as well as in `ControlsRow`, for the reason `GuidanceControl`
 /// gives: switching from Z-Image to klein with a picture in the well re-evaluated this body

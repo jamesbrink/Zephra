@@ -17,9 +17,8 @@ class Fixture(BaseHTTPRequestHandler):
         if "/revision/" in self.path:
             self.reply(json.dumps({"sha": "exercise-commit"}).encode())
         elif "/tree/" in self.path:
-            name = ("Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors"
-                    if "Lightning" in self.path else "model_index.json")
-            self.reply(json.dumps([{"type": "file", "path": name, "size": self.server.size}]).encode())
+            self.reply(json.dumps(
+                [{"type": "file", "path": "model_index.json", "size": self.server.size}]).encode())
         elif "/resolve/" in self.path:
             offset = int((self.headers.get("Range") or "bytes=0-").split("=")[1].split("-")[0])
             self.send_response(206 if offset else 200)

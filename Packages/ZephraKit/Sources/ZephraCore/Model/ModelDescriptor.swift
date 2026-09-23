@@ -44,16 +44,23 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
     /// reading `residentBytes` there would floor that at zero and charge a streamed run
     /// nothing at all, which is the refusal the guard exists to make.
     public let streamedResidentBytes: Int64
+    /// What one reference picture adds to a run's peak, on top of the measured figures: the
+    /// prefix KV cache its latents occupy across every layer, plus the latents themselves.
+    ///
+    /// Measured with one reference at the entry's own default size; near enough constant across
+    /// target sizes, because a reference is fitted to the same megapixel budget whatever is
+    /// being made. That is why it is added rather than scaled: `MemoryGuard`'s scaling is
+    /// multiplicative over pixels and frames, and a cost that does not follow the picture being
+    /// made cannot be expressed that way.
+    ///
+    /// Zero for a family whose references cost nothing extra, which is every family that starts
+    /// from a noised copy of the picture or holds it as a first frame: those encode it into the
+    /// latent already being charged for.
+    public let referencePrefixBytes: Int64
     /// The longest prompt, in tokens, the text encoder is configured for.
     public let maxPromptTokens: Int
     /// The settings this model will accept.
     public let capabilities: ModelCapabilities
-    /// Low-rank adapters fetched beside the release and merged in while the variant is packed.
-    ///
-    /// Empty for every model whose release is already the weights to load. A model that has one
-    /// cannot be run without it — Qwen-Image's four-step distillation is what makes the model
-    /// usable on a Mac at all — so it is part of the download, not an option beside it.
-    public let adapters: [ModelAdapter]
     /// Approximate bytes the packed variant occupies once built on this Mac, or 0 for a model
     /// whose download is what gets loaded.
     ///
@@ -85,10 +92,10 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
         tiledPeakBytes: Int64,
         streamedPeakBytes: Int64 = 0,
         streamedResidentBytes: Int64 = 0,
+        referencePrefixBytes: Int64 = 0,
         maxPromptTokens: Int,
         capabilities: ModelCapabilities,
         builtBytes: Int64 = 0,
-        adapters: [ModelAdapter] = [],
         mirror: ModelMirror? = nil
     ) {
         self.id = id
@@ -103,48 +110,10 @@ public struct ModelDescriptor: Identifiable, Hashable, Sendable {
         self.tiledPeakBytes = tiledPeakBytes
         self.streamedPeakBytes = streamedPeakBytes
         self.streamedResidentBytes = streamedResidentBytes
+        self.referencePrefixBytes = referencePrefixBytes
         self.maxPromptTokens = maxPromptTokens
         self.capabilities = capabilities
         self.builtBytes = builtBytes
-        self.adapters = adapters
         self.mirror = mirror
-    }
-
-    /// Whether loading this model means packing its download into a local variant first.
-    public var isBuiltLocally: Bool { builtBytes > 0 && source.requiresDownload }
-
-    /// Whether the packed variant can be fetched ready-made rather than built: a variant that
-    /// would otherwise be built here, and a mirror that publishes it. `builtBytes` is then what
-    /// choosing the model transfers, not `transferBytes`.
-    public var isPublishedPrebuilt: Bool { mirror != nil && isBuiltLocally }
-
-    /// Every byte choosing this model would transfer: the release, and every adapter merged
-    /// into it. This, not `downloadBytes`, is what a picker states, because both are fetched
-    /// before anything can be built and a person deciding whether to spend it wants the total.
-    public var transferBytes: Int64 {
-        downloadBytes + adapters.reduce(0) { $0 + $1.bytes }
-    }
-
-    /// What a packed variant's manifest records as where the weights came from: the repository
-    /// when there is one, and the descriptor's own identifier when the source is a directory.
-    public var sourceName: String {
-        if case .huggingFace(let repoID, _, _) = source { return repoID }
-        return id
-    }
-
-    /// The least GPU working set this model can be run at its default size in: the tiled
-    /// decode, or the streamed weights where the family can stream, whichever is smaller.
-    ///
-    /// What a picker sorts by when it has to name a model for a Mac that nothing fits. Not the
-    /// same question as `MemoryFit`, which asks whether a model runs; this asks which of them
-    /// comes nearest to running.
-    public var leanestPeakBytes: Int64 {
-        streamedPeakBytes > 0 ? min(tiledPeakBytes, streamedPeakBytes) : tiledPeakBytes
-    }
-
-    /// Family and variant together, as a model picker should label the row.
-    public var fullName: String {
-        guard let variantName else { return displayName }
-        return "\(displayName) · \(variantName)"
     }
 }

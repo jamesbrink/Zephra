@@ -10,7 +10,7 @@ import Foundation
 public enum PreviewFrameReporter {
     /// What a pipeline's preview hook looks like, over that pipeline's own frame type.
     public typealias Handler<Frame: PreviewFrame> = (
-        _ step: Int, _ total: Int, _ frame: () -> Frame
+        _ step: Int, _ total: Int, _ frame: () throws -> Frame
     ) -> Void
 
     /// A hook throttled to `interval`, or nil when `interval` is nil, which is how frames are
@@ -25,7 +25,9 @@ public enum PreviewFrameReporter {
         return { step, total, frame in
             guard throttle.shouldMakeFrame() else { return }
             let started = ContinuousClock.now
-            let made = frame()
+            // A frame the packer has no layout for is a dropped glimpse, never a failed run:
+            // the pixels nobody sees are the cheapest thing in the loop to go without.
+            guard let made = try? frame() else { return }
             onProgress(
                 .frame(
                     after: step, of: total,

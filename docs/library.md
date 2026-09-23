@@ -18,7 +18,8 @@ PNG. Move a file, rename it, or copy it to another Mac and its prompt, its
 favourite, and its tags go with it. `ZephraEngine/Library/` is that folder read
 as an index, and it is Foundation only, so `make test` covers all of it.
 
-- Two text chunks, two owners. `zephra:generation` is provenance —
+- Two owners, and the reference owner may hold ten chunks.
+  `zephra:generation` is provenance —
   `GenerationRecord`, written once when the image is saved, never edited. A PNG
   without it was not made here and is skipped, so a folder can hold more
   pictures than the library lists. `zephra:library` is `LibraryAnnotation`: favourite,
@@ -28,11 +29,69 @@ as an index, and it is Foundation only, so `make test` covers all of it.
   session that made it: the canvas sidebar's timeline groups by it after a
   relaunch, and falls back to adjacency for files written before the field
   existed.
-- `PNGTextChunks+Header` reads a chunk without reading the file: 64 KiB, stop at
-  the first IDAT, grow only if the chunks have not been seen yet. A grid of two
-  thousand images is two thousand header reads, not two thousand full decodes.
+- **The reference pictures an edit was made from are numbered from the second.**
+  The first stays in `zephra:reference`, unsuffixed — there is deliberately no
+  `.1` — and the rest go in `zephra:reference.2` through `zephra:reference.10`,
+  base64, one picture a chunk. Ten is `ReferenceLimits.maximumPictures` for
+  exactly this reason: the keywords stop there.
+  `GenerationRecord.referenceByteCounts` and `referenceOrigins` are written
+  **only when there is more than one picture**, so a one-picture edit's file is
+  byte for byte what it always was and every PNG written before several were
+  possible reads the same as it did; a reader without those fields falls back to
+  `[referenceBytes]` and `[referenceOrigin]`. Reading stops at the first chunk
+  that is missing or whose bytes are not the length the record claims, so a file
+  whose fourth chunk went bad is an edit of three pictures rather than of none.
+  An upscale copies the reference chunks across verbatim, which is what keeps
+  the counts matching on the child.
+- `PNGHeader` reads a file's header in one seeking walk and answers three
+  questions from it: its text, its size, and whether its pixels carry alpha. A
+  chunk's body is read when it is under 64 KiB, and the walk stops at the first
+  IDAT. Past 64 KiB a text chunk's keyword is read first (the bytes up to its
+  NUL, at most 79): a reference, `zephra:reference` or `zephra:reference.N`, is
+  **seeked past**, and any other text is read whole up to 4 MiB
+  (`PNGHeader.textReadLimit`), past which it is skipped and its keyword noted in
+  `skippedText`. Skipping every large chunk regardless of what it was would have
+  dropped out of the library an imported picture whose `zephra:generation` chunk
+  carried a prompt over 64 KiB. That replaced a prefix-growing read of
+  64 KiB, then 256 KiB, then a megabyte, which a picture carrying a 1024-pixel
+  reference defeated at all three sizes — a reference chunk is about 1.4 MB of
+  base64 — so every edit in the library was falling back to `Data(contentsOf:)`,
+  the whole file, on every scan that re-read it. A grid of two thousand images
+  is two thousand small reads, not two thousand full decodes and not two
+  thousand whole files. `PNGTextChunks.read(fromHeaderOf:)` is that walk's text
+  under its old signature, so no caller moved.
   `PNGTextChunks+Replacing` writes one back by splicing before IDAT and
   dropping the same keyword, so repeated writes do not grow the file.
+- **Transparency comes from the file, not from a record.** `PNGHeader.hasAlpha`
+  is the IHDR colour type — 4 or 6 — or the presence of a `tRNS` chunk, which is
+  how a palette picture somebody imported carries it. The scan sets it on
+  `LibraryItem.hasAlpha` beside the provenance, in the same read, and
+  `ImageFacts.isTransparent` is the inspector's one "Transparent" row, drawn
+  only when it is true. A `GenerationRecord` flag was considered and rejected:
+  it would be wrong for an imported file, wrong for everything written before
+  the field existed, and a second place to keep true. What is *drawn* asks the
+  decoded picture instead — `CGImage.hasTransparency`, free, already in hand
+  wherever a bitmap is — and `DrawnPicture` is what carries that answer out of
+  both Mac caches so no view decodes anything in `body`.
+- **A picture Zephra writes may be RGBA.** Qwen-Image 2.1 decodes four channels,
+  so `PixelBuffer` packs straight alpha with `CGImageAlphaInfo.last` rather than
+  premultiplying: that channel came out of the autoencoder in −1 to 1 like the
+  other three, and premultiplying would lose colour in every near-transparent
+  pixel. Wherever such a picture is drawn, `TransparencyGround` goes behind it —
+  the canvas, the live preview, a library cell, the viewer, a reference tile,
+  and the phone's canvas, grid, viewer and well — and **only** behind one that
+  has alpha, since a checkerboard under every opaque picture would be a change
+  to every model that came before this one. The 44-point wall squares keep their
+  plain fill: at that size a checkerboard is noise.
+- **Where a picture leaves as a JPEG it is composited first**, because a JPEG
+  has no alpha and the alternative is black. `CheckerboardComposite`
+  (`ZephraLinkHost`) is that one rule, used by `CompanionThumbnails` for the
+  phone's grid and by the link's `PreviewEncoder` for a live frame; it returns
+  an opaque picture untouched and draws the rest over the same checkerboard the
+  interface draws, rows flipped so the light square lands in the picture's **top
+  left** whichever way the bitmap context counts. The two greys are the light
+  appearance's on purpose: what a JPEG carries is fixed when it is encoded, and
+  the Mac cannot know which appearance the phone reading it will be in.
 - `LibraryScan` fingerprints the directory from one `contentsOfDirectory` and
   re-reads only the paths whose (mtime, size) moved. `LibraryFolderWatch` is a
   `DispatchSource` on the directory, debounced, and re-opens the fd when the

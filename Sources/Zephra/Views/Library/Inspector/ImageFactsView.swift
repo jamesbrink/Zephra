@@ -35,12 +35,19 @@ struct ImageFactsView: View {
             FactsRow("Took", facts.took, style: .digits)
             if let reference {
                 ReferenceFactsRow(facts: facts, source: reference)
+                // The first picture is the row above, with its thumbnail; the rest are names,
+                // one to a line, so the inspector says where every one of them came from.
+                ReferenceOriginsList(facts: facts)
             }
             if let upscaled = facts.upscaled {
                 FactsRow("Upscaled", upscaled)
             }
             if let continued = facts.continued {
                 FactsRow("Continues", continued)
+            }
+            // Only when it is true: a row reading "No" is a row about every picture ever made.
+            if facts.isTransparent {
+                FactsRow("Transparent", "Yes")
             }
         }
     }

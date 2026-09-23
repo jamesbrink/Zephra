@@ -19,45 +19,40 @@ so. See "Build & run" in AGENTS.md and the CI section of
 
 1. **Upscale with Real-ESRGAN** (shipped, PR #7). A post-process beside the
    backends; see `Packages/ZephraUpscaleRealESRGAN` and the follow-ups below.
-2. **Several reference pictures at once.** klein assigns each picture its own image
-   index on the rotary embedding, so this is mostly plumbing: `referenceImage` becomes
-   a list capped by a new capability, the well beside the prompt becomes a row, and the
-   record stores every picture. Measure the peak first; one 512 reference already lifts
-   a 1024 edit to 19.2 GB.
-3. **Qwen-Image-Edit-2511 with Lightning.** The strongest editor with a clean license,
-   on the transformer the clean-room port already runs. Needs the Qwen2.5-VL vision
-   tower the port skips today. 32 GB Macs only. Reference from mflux or mlx-gen (MIT),
-   never `mzbac/qwen.image.swift` (GPL-3.0).
-4. **Z-Image base**, for guidance and a negative prompt. One to three days, but 28 to
+2. **Several reference pictures at once** (shipped with Qwen-Image 2.1).
+   `GenerationSettings.referenceImages` is the list, `ModelCapabilities.referenceImageCount`
+   the cap, `ReferenceStrip` the well on both apps, and the record numbers its chunks.
+   klein still declares one; giving it the several its rotary image indexes already
+   allow is plumbing in `Flux2ReferenceConditioning` and a catalog figure.
+3. **Z-Image base**, for guidance and a negative prompt. One to three days, but 28 to
    50 steps with two passes each is about eight minutes per 1024 image on an M4 Max:
    a quality mode, not a daily one. Do it when those controls matter as features.
-5. **Runtime LoRA.** Adapters are merged at build time today. A low-rank delta at
-   matmul time on the quantized transformer, an adapter slot on the settings and in
-   the record, a picker in the capsule. Start with klein, the smallest transformer.
-6. **Hygiene.** Rerun `make bench` idle for every catalog entry and refresh the figures
-   (the Qwen entry has not been re-measured since its VAE encoder was added, and every
-   Qwen figure predates the stream running in bfloat16 — it ran in float32 by accident
-   until the 2026-09-05 audit, so resident and `--stream` at 1024 are both due; klein's
-   edit figures, 66 s and 19227 MB from a 512 reference, likewise predate the reference
-   tokens being cast to the stream's dtype). Try 6-bit or mxfp8 on Qwen-Image's 6.8B
-   modulation weights, which cost 3.4 GB at 8-bit. Qwen-Image's reference rounds the
-   timestep to the stream's dtype, and its own `get_timestep_embedding` rounds the
-   frequency ladder to it too, before the float32 sinusoid; the port keeps both float32,
-   the way the float32 fixtures see them. Decide whether to match, as klein now does for
-   its timestep, with a bfloat16 fixture. One `MemoryUnits` in `ZephraCore` for the
+4. **Runtime LoRA.** No model in the catalog takes an adapter any more, and the
+   build-time merge went with the one that did, so this starts from nothing: a
+   low-rank delta at matmul time on the quantized transformer, an adapter slot on the
+   settings and in the record, a picker in the capsule. Start with klein, the smallest
+   transformer.
+5. **Hygiene.** Rerun `make bench` idle for every catalog entry and refresh the figures
+   (klein's edit figures, 66 s and 19227 MB from a 512 reference, predate the reference
+   tokens being cast to the stream's dtype). One `MemoryUnits` in `ZephraCore` for the
    megabyte: `InferenceTuning.bytesPerMB` and `ZephraBench`'s reading of
    `ZEPHRA_WIRED_LIMIT_MB` both count 2^20 today and each says so in a comment, which is
    two places to keep agreeing.
 
-7. **A CDN source for packed variants** (shipped: `ModelDescriptor.mirror`,
+6. **A CDN source for packed variants** (shipped: `ModelDescriptor.mirror`,
    `ModelAcquisition.fetchPrebuilt`, `make mirror` and `make mirror-sync`). Saves about
    127 GB of disk and 82 GB of transfer over the five picture entries installed today,
    and another 69 GB of disk and 50 GB of transfer for LTX-2.5. Left out
    for now: a Settings row saying where a variant came from (mirror or built here), a
-   `mirror` field in the record, and any way to prefer building over fetching. Z-Image,
-   Qwen-Image and klein are Apache 2.0, so hosting the packed derivatives needs the
-   attribution `THIRD_PARTY_NOTICES.md` already carries and nothing more; LTX-2.5's
-   packed variant carries the pack's `LICENSE.md` beside its files, as its licence asks.
+   `mirror` field in the record, and any way to prefer building over fetching. **A packed
+   variant carries the license of the weights it was packed from**, so what the mirror
+   owes differs by model: Z-Image, klein and Wan are Apache 2.0 and need only the
+   attribution `THIRD_PARTY_NOTICES.md` already carries; LTX-2.5's packed variant carries
+   the pack's `LICENSE.md` beside its files, as its license asks; and Qwen-Image 2.1's
+   carries the release's `LICENSE` and the `NOTICE` section 3 of the Qwen Research License
+   requires, written by `QuantizationPlan.notice` through `SnapshotAncillaryFiles`. That
+   last one is non-commercial, so the mirror redistributes it under those terms and not
+   under Zephra's.
    One rule the mirror imposes on a plan change: a variant's `source` in `index.json` is
    the descriptor's identity, patterns included, and the released app matches it word for
    word. So a rebuilt variant is synced with `make ship` and not before, or the released
@@ -65,7 +60,7 @@ so. See "Build & run" in AGENTS.md and the CI section of
    promises the mirror's 19.8 GB. LTX-2.5's variant with the video encoder was the one
    waiting; it went with the 2026-09-08 ship, and `index.json` in the bucket is now byte
    for byte the one in `MIRROR_DIR`, so nothing is owed.
-8. **LTX-2.5 video** (`docs/research/ltx-2.5.md` has the reading). Shipped first: the
+7. **LTX-2.5 video** (`docs/research/ltx-2.5.md` has the reading). Shipped first: the
    video-only distilled transformer at four bits, packed from the ungated
    `mlx-community/ltx-2.5-mlx` bf16 pack — Lightricks' own repositories are gated and
    Zephra sends no token — with a poster PNG carrying the record and the MP4 beside it.
@@ -121,7 +116,7 @@ so. See "Build & run" in AGENTS.md and the CI section of
    - **A duration head**, DFR refinement, the 8-bit variant, temporal chunking of the
      decode past ~121 frames at 1024, the prompt enhancer, and a `ModelSource` for a
      mirror-only model should the ungated pack ever be gated too. The two-stage path is
-     in (item 9); the temporal upsampler, the rational resampler and the tone map are not.
+     in (item 8); the temporal upsampler, the rational resampler and the tone map are not.
    - **The M5 question**: LTX runs bfloat16 on every GPU; if an M5 shows the split-K
      symptom klein works around, `ZEPHRA_DIT_DTYPE=f32` is the bisection lever.
    - **Small things the first cut leaves out**: an exported clip carries no record (the
@@ -134,7 +129,7 @@ so. See "Build & run" in AGENTS.md and the CI section of
      undated, since the purge walks PNGs; a clip whose MP4 was removed by hand still reads
      as a clip (`LibraryItem.videoURL` is derived, not checked).
 
-9. **Speed on video** (2026-09-10; the reading is in the session note behind
+8. **Speed on video** (2026-09-10; the reading is in the session note behind
    `docs/research/ltx-2.5.md`). LTX 2.3 is not faster than 2.5: both are the same 22B
    transformer with the same eight-step distilled ladder, so the levers are elsewhere.
    Shipped: every model offers a custom size and its presets grouped by cost, a clip takes
@@ -163,7 +158,7 @@ so. See "Build & run" in AGENTS.md and the CI section of
 
 Deferred: **ERNIE-Image-Turbo** (eight to twelve days for legible in-image text at
 16 GB; the Mistral3 encoder is the new work), **Boogu-Image-0.1-Turbo** (a credible
-Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
+still at a few hundred downloads), and
 **Z-Image-Edit** (unreleased; would share the Z-Image backend).
 
 ## First launch: left out on purpose
@@ -238,17 +233,17 @@ Qwen-Image successor for 32 GB Macs, still at a few hundred downloads), and
   it runs on a 16 GB Mac but wants 40 GB free.
 - **`ZephraQuantize`'s refusals are exercised by hand.** The tool has no test target:
   `QuantizeOptions.parse` exits on a bad line and `main.swift` is top-level code, so the
-  overlap, adapter-required and precision-name refusals are checked from a shell
-  (`--out` inside `--source`, `--family qwen-image` without `--lora`) rather than by a
+  overlap and precision-name refusals are checked from a shell
+  (`--out` inside `--source`) rather than by a
   suite. The checks underneath them — `SnapshotQuantizer.requireDisjoint`,
-  `LoRAAdapter`'s zero-match refusal — are tested in `ZephraQuantizationTests`. A test
+  the plan's `notice` written as `NOTICE` — are tested in `ZephraQuantizationTests`. A test
   target would need the parser to return errors instead of exiting.
 - **A build by hand is stamped with provenance only under a catalog name.** `ZephraQuantize`
   writes `.zephra-packed-source` when `--out`'s last component is a catalog descriptor's id,
   and nothing otherwise, since there is no descriptor to describe it; a build under another
   name is still a snapshot the bench's `--snapshot` can time.
 - **A build cannot be resumed.** `SnapshotBuild` writes into a `.partial` directory
-  and removes it when the build is stopped, so a Qwen-Image build interrupted at
+  and removes it when the build is stopped, so a Qwen-Image 2.1 build interrupted at
   nineteen of its twenty-one gigabytes starts over. Keeping it and skipping the
   components already written would need the manifest to be written per component
   rather than at the end, which is also what makes a half-built directory
@@ -524,7 +519,7 @@ dumped from `diffusers` and `transformers`, and every weight the app downloads.
   reads never slow the GPU's own memory traffic. MLX's four-thread reader has not
   shown the need; the bench's step time against the resident figure would.
 - **A streamed step and the rest of the GPU.** On the 16 GB M4 mini a streamed
-  Qwen-Image step with the app's own canvas animating over it ended in a GPU
+  step of a streamed model with the app's own canvas animating over it ended in a GPU
   restart every time (2026-09-04, three launches; the placeholder is still now and
   `make lint-layers` keeps it so). Zephra can only keep its own window quiet:
   another application animating at sixty frames a second on the same 16 GB Mac may

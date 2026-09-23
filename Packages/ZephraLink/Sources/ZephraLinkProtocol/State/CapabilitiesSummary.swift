@@ -29,6 +29,12 @@ public struct CapabilitiesSummary: Codable, Hashable, Sendable {
     public var supportsSeed: Bool
     /// Whether a picture can be handed in.
     public var supportsReferenceImage: Bool
+    /// How many pictures the model reads; a single point at 1 means one, and is what a Mac
+    /// that never mentioned it meant.
+    public var referenceImageCount: ClosedRange<Int>
+    /// Whether the model reads a picture's transparency rather than having it composited over
+    /// white; false is what a Mac that never mentioned it meant, since no model did.
+    public var readsTransparentReferences: Bool
     /// How far from that picture a run may start; a single point at 1 means it does not apply.
     public var referenceStrengthBounds: ClosedRange<Double>
     /// The strength to start from.

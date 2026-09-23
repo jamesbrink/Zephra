@@ -16,8 +16,12 @@ struct SizeChoiceTests {
         #expect(groups.last?.choices.first?.size == ImageSize(width: 768, height: 512))
         let marked = groups.flatMap(\.choices).filter(\.matchesPicture)
         #expect(marked.isEmpty)
-        let qwen = SizeChoice.grouped(ModelCatalog.qwenImage2512_4bit.capabilities, picture: nil)
-        #expect(qwen.map(\.tier) == [.faster, .standard, .larger])
+        // A model whose presets do reach every tier, since klein's largest is its default's own
+        // pixel count and it has no larger tier to show.
+        let wan = SizeChoice.grouped(ModelCatalog.wan22TI2V5B4bit.capabilities, picture: nil)
+        #expect(wan.map(\.tier) == [.faster, .standard, .larger])
+        let klein = SizeChoice.grouped(ModelCatalog.flux2Klein4bit.capabilities, picture: nil)
+        #expect(klein.map(\.tier) == [.faster, .standard])
     }
 
     @Test("with a picture in the well each tier leads with the picture's shape at that tier's cost")

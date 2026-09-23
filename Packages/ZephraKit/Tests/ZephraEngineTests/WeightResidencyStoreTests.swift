@@ -13,7 +13,7 @@ struct WeightResidencyStoreTests {
         source: ModelCatalog.default.source, quantization: .int4, downloadBytes: 0,
         residentBytes: 21_000_000_000, peakBytes: 30_000_000_000, tiledPeakBytes: 26_000_000_000,
         streamedPeakBytes: 9_000_000_000, maxPromptTokens: 512,
-        capabilities: ModelCatalog.default.capabilities, builtBytes: 0, adapters: [])
+        capabilities: ModelCatalog.default.capabilities, builtBytes: 0)
 
     static let small = MemoryBudget(physicalMemory: 16 << 30, gpuWorkingSet: 12_700_000_000)
     static let roomy = MemoryBudget(physicalMemory: 48 << 30, gpuWorkingSet: 38_000_000_000)

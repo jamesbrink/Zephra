@@ -34,8 +34,9 @@ struct ModelPortrait: Hashable {
             "Nine steps and a painterly hand. The most faithful of the two Z-Image builds.",
         "z-image-turbo-4bit":
             "Z-Image packed small enough for a 16 GB Mac, for a little of its detail.",
-        "qwen-image-2512-4bit":
-            "Renders legible text and dense scenes. The largest picture model Zephra runs.",
+        "qwen-image-2.1-4bit":
+            "Renders legible text and edits from up to ten pictures, keeping transparency. "
+            + "Forty steps a picture, and non-commercial under the Qwen Research License.",
         "wan-2.2-ti2v-5b-4bit":
             "The quick clip maker: three steps, from a prompt or from a picture it holds as the first frame.",
         "ltx-2.5-distilled-4bit":

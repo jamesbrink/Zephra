@@ -15,6 +15,7 @@ extension MobilePreview {
         case .generating: midRun(snapshot) ?? snapshot
         case .today: todayRuns(snapshot) ?? snapshot
         case .failed: lostRun(snapshot)
+        case .capsule, .settings: severalReferences(snapshot)
         default: snapshot
         }
     }

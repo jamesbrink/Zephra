@@ -9,11 +9,20 @@ extension CompanionSession {
         let model = try Self.model(request.modelID)
         var settings = request.settings
         // Presence is enough for capabilities; actual bytes are authenticated before enqueue.
-        if let input = strict.input {
+        // One stand-in per declared input rather than one for the lot, so the capability check
+        // and `remoteAdmission` see the number of pictures this work would really read.
+        guard strict.inputs.count <= ReferenceLimits.maximumPictures else {
+            throw LinkError(
+                code: .badRequest,
+                reason: "A generation may read at most \(ReferenceLimits.maximumPictures) pictures.")
+        }
+        for input in strict.inputs {
             guard (1...16_777_216).contains(input.byteCount) else {
                 throw LinkError(code: .badRequest, reason: "The reference is too large.")
             }
-            settings.referenceImage = Data([0])
+        }
+        settings.referenceImages = strict.inputs.map { input in
+            ReferencePicture(data: Data([0]), origin: nil, size: input.dimensions)
         }
         let store = host.store
         let loaded = store.loadedDescriptor?.id == model.id
@@ -40,13 +49,16 @@ extension CompanionSession {
             store.timings.preparation(model: $0.modelID, revision: $0.revision, residency: $0.residency)
         }.flatMap { load in unload.map { load + $0 } }
         let revision = pending.map { $0.id.uuidString }.joined(separator: ":")
-        return HostOffer(refusal: store.strictRefusal(for: model, settings: settings, count: request.count),
+        // `logging: false`: an offer is a paired phone's estimate, polled every few seconds
+        // while nothing runs, and logging it at info would bury a real run's own admission line.
+        return HostOffer(refusal: store.strictRefusal(
+            for: model, settings: settings, count: request.count, logging: false),
             queueSeconds: waiting, preparationSeconds: preparation,
             executionSeconds: execution, memoryMargin: store.memoryBudget.bytes - store.strictMemory(for: model, settings: settings),
             modelLoaded: loaded, queueCount: pending.count, queueRevision: revision,
             physicalMemory: store.memoryBudget.physicalMemory,
             thermalState: ProcessInfo.processInfo.thermalState.rawValue,
             finalizationSeconds: estimate.map { $0.finalization * Double(request.count) },
-            requiresInputTransfer: strict.input != nil, timingSampleCount: estimate?.samples)
+            requiresInputTransfer: !strict.inputs.isEmpty, timingSampleCount: estimate?.samples)
     }
 }

@@ -1,7 +1,7 @@
 # Zephra
 
 A native macOS app for local image generation on Apple Silicon, powered by
-MLX and Metal. Generate and edit with **Z-Image-Turbo**, **Qwen-Image-2512**,
+MLX and Metal. Generate and edit with **Z-Image-Turbo**, **Qwen-Image 2.1**,
 and **FLUX.2 klein 4B**, make short clips with **Wan 2.2** and **LTX-2.5**, then
 upscale with **Real-ESRGAN**.
 
@@ -89,13 +89,16 @@ or guarantees for every Mac. Reference-image editing can use more memory.
 | FLUX.2 klein 4B, 8-bit | Same source | 8.6 GB | 8.1 GB | 15.3 / 10.9 GB |
 | Z-Image-Turbo, 8-bit | 13.3 GB | — | 12.4 GB | 23.5 / 17.9 GB |
 | Z-Image-Turbo, 4-bit | 32.9 GB | 7.1 GB | 6.7 GB | 17.8 / 12.2 GB |
-| Qwen-Image-2512, 4-bit | 59.4 GB | 21.6 GB | 21.5 GB | 30.4 / 26.1 GB |
+| Qwen-Image 2.1, 4-bit | 33.1 GB | 11.6 GB | 10.6 GB | 20.1 / 14.1 GB |
 | Wan 2.2 TI2V-5B, 4-bit | 24.2 GB | 10.1 GB | 8.0 GB | 15.1 / 12.4 GB at 832×480, 49 frames |
 | LTX-2.5, 4-bit, video only | 70.6 GB | 20.8 GB | 19.2 GB | 23.4 GB at 768×512, 49 frames |
 
 The source download is retained alongside the built copy, so allow space for
-both. Qwen-Image's download includes its four-step Lightning adapter, merged
-during the build. Only Z-Image-Turbo 8-bit loads its download directly. LTX-2.5
+both. **Qwen-Image 2.1's weights are under
+the Qwen Research License, which permits research and evaluation only, not
+commercial work** — every other model here is under a permissive or
+revenue-scoped license, and `THIRD_PARTY_NOTICES.md` carries all of them.
+Only Z-Image-Turbo 8-bit loads its download directly. LTX-2.5
 is video only for now: the transformer's audio stream is omitted from the build
 (the audio variant is on the roadmap), the download is the ungated
 `mlx-community/ltx-2.5-mlx` pack because Lightricks' own repositories are gated,
@@ -104,15 +107,16 @@ and its weights are under the LTX-2.x Community License rather than Apache 2.0
 
 **Settings > Performance** controls tiled VAE decoding and weight residency.
 Automatic tiling reduces decode memory when the model exceeds the GPU's budget.
-Qwen-Image, Wan 2.2 and LTX-2.5 also support streaming weights from disk,
+Every family in the catalog also supports streaming weights from disk,
 enabling generation on 16 GB Macs at the cost of disk reads each step (Wan 2.2
 peaks at 9.7 GB streamed against 15.1 GB resident, LTX-2.5 at 10.0 GB against
-23.4 GB). The picker reports these tradeoffs;
-models remain selectable even when a smaller image size may be needed.
+23.4 GB, Qwen-Image 2.1 at 6.3 GB against 20.1 GB). The picker reports these
+tradeoffs; models remain selectable even when a smaller image size may be
+needed.
 
 Historical timings at 1024×1024 include about 29 seconds for FLUX.2 klein
-(four steps, M4 Max) and 123 seconds for streamed Qwen-Image (four steps, 16 GB
-M4 mini). Wan 2.2 makes a two-second 832×480 clip (49 frames, three steps) in
+(four steps, M4 Max). Qwen-Image 2.1 runs forty steps rather than four and
+takes 269 seconds at 1024×1024, 6.71 seconds a step, on an M4 Max. Wan 2.2 makes a two-second 832×480 clip (49 frames, three steps) in
 32 seconds on an M4 Max, 36 streamed. LTX-2.5 makes a two-second 768×512 clip
 (49 frames) in 47 seconds on an M4 Max in two stages (69 in one), and in 232
 seconds streamed on the 16 GB M4 mini. These are reference measurements, not current performance claims:
@@ -163,11 +167,17 @@ library, or use the current image as a reference:
 
 - **FLUX.2 klein** conditions on reference tokens and runs its full schedule,
   with no strength slider.
-- **Z-Image and Qwen-Image** start from a noised reference. Lower strength preserves
-  more of the picture and runs fewer steps.
+- **Z-Image** starts from a noised reference. Lower strength preserves more of
+  the picture and runs fewer steps.
+- **Qwen-Image 2.1** conditions on as many as **ten** reference pictures at
+  once, in the order they sit in the strip beside the prompt, with no strength
+  slider. It is the only model here that reads a picture's transparency instead
+  of being handed it over white, and the only one that makes transparent
+  pictures of its own.
 
-All current models support a reference image. None exposes a negative prompt or
-guidance slider. **Upscale 2× / 4×** uses bundled Real-ESRGAN weights without
+Every model supports at least one reference picture. Qwen-Image 2.1 is the only
+one that exposes a negative prompt and a guidance slider; the rest are
+distilled checkpoints that have neither. **Upscale 2× / 4×** uses bundled Real-ESRGAN weights without
 loading a generation model and saves a new image with its parent's provenance.
 
 ### Organize and export
@@ -230,7 +240,7 @@ Core, Snapshot, and Engine have no MLX dependency. The UI uses shared protocols
 and capabilities; only the composition root imports concrete backends and the
 upscaler. Backends never import one another.
 
-`ZImageKit` is vendored; QwenImageKit, Flux2Kit and LTX2Kit are maintained here
+`ZImageKit` is vendored; QwenImage21Kit, Flux2Kit, LTX2Kit and WanKit are maintained here
 with their origins documented in [PROVENANCE.md](PROVENANCE.md). See
 [AGENTS.md](AGENTS.md) for the module boundaries and the rules, and
 [docs/](docs/README.md) for the reasoning behind each of its sections, including
@@ -261,17 +271,17 @@ Benchmark on an idle machine in Release:
 
 ```sh
 make bench ARGS="--size 1024 --steps 9 --runs 3 --json"
-make bench ARGS="--model qwen-image-2512-4bit --stream"
+make bench ARGS="--model qwen-image-2.1-4bit --stream"
 make bench ARGS="--model flux2-klein-4b-4bit --preview"
 make bench ARGS="--model ltx-2.5-distilled-4bit --size 768x512 --frames 49"
 ```
 
-`make quantize`, `make quantize-qwen`, `make quantize-flux2` and `make quantize-ltx2` expose the builds
+`make quantize`, `make quantize-qwen21`, `make quantize-flux2` and `make quantize-ltx2` expose the builds
 the app performs on first load. The [Makefile](Makefile) documents source and
-output overrides. For Qwen, set `QWEN_MODELS` (or `QWEN_SOURCE` and `QWEN_LORA`)
-explicitly, and for LTX-2.5 `LTX2_MODELS`: their defaults are a project-specific
+output overrides. For Qwen-Image 2.1 set `QWEN21_MODELS`, and for LTX-2.5
+`LTX2_MODELS`: their defaults sit under `EXTERNAL_MODELS`, a project-specific
 external volume.
-`make mirror` builds all five packed variants into one directory laid out for a
+`make mirror` builds every packed variant into one directory laid out for a
 bucket, with an `index.json` of sizes and checksums; `make mirror-sync
 MIRROR_BUCKET=s3://...` pushes it.
 

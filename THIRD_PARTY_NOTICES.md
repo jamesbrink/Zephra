@@ -28,7 +28,7 @@ texts appear once per license type at the end of this file.
 - **Copyright:** Copyright (c) 2023 ml-explore
 - **License:** MIT
 - **Used as:** the Metal/MLX runtime every pipeline is built on, a dependency
-  of `ZImageKit`, `QwenImageKit`, `Flux2Kit`, `LTX2Kit`, `WanKit`, `ZephraMLXKit`, the five
+  of `ZImageKit`, `QwenImage21Kit`, `Flux2Kit`, `LTX2Kit`, `WanKit`, `ZephraMLXKit`, the five
   backend packages, and `ZephraUpscaleRealESRGAN`. It compiles the following libraries
   into the same binary:
   - **mlx** — https://github.com/ml-explore/mlx — Copyright © 2023 Apple
@@ -47,38 +47,40 @@ texts appear once per license type at the end of this file.
     Massachusetts Institute of Technology — BSD 3-Clause. Header-only, included
     by mlx's CPU FFT (`mlx/backend/cpu/fft.cpp`), which is compiled on macOS.
 
-### Qwen-Image port (`Packages/QwenImageKit`)
+### Qwen-Image 2.1 port (`Packages/QwenImage21Kit`)
 
-`Packages/QwenImageKit` is Zephra's own code, not a vendored copy of anything.
-It is a clean-room MLX Swift implementation of Qwen-Image-2512, written from
-the model's published configuration files and from these references, and it is
-covered by Zephra's own license:
+`Packages/QwenImage21Kit` is Zephra's own code, not a vendored copy of anything.
+It is a clean-room MLX Swift implementation of Qwen-Image 2.1 — the
+single-stream transformer, the four-channel autoencoder, the Qwen3-VL text
+encoder and its vision tower — written from the release's own published
+configuration files and from these references, and it is covered by Zephra's
+own license:
 
 - **diffusers** — https://github.com/huggingface/diffusers — Copyright 2024
   The HuggingFace Team — Apache License 2.0 — the reference implementation the
-  port's behaviour is defined against. `QwenImageKit`'s test fixtures are
-  tensors dumped from it (see `Packages/QwenImageKit/Tools/dump_reference.py`).
-- **mlx-gen** — https://github.com/lpalbou/mlx-gen — Copyright (c) lpalbou —
-  MIT License — one finding, not code: that packing a Qwen-Image
-  transformer's modulation layers at four bits costs coherent structure. It is
-  why `QwenImageQuantizationPlan` holds them at eight.
+  port's behaviour is defined against, read at commit
+  `6256aa7666cedd47443adc8f82da9a10e110b09c`, which is where 2.1 landed;
+  `QwenImage21Kit`'s test fixtures are tensors dumped from it (see
+  `Packages/QwenImage21Kit/Tools/`).
+- **transformers** — https://github.com/huggingface/transformers — Copyright
+  2018 The HuggingFace Inc. team — Apache License 2.0 — read at 5.17.0, for
+  `Qwen3VLForConditionalGeneration` and the text and vision models under it.
+  2.1 landed after diffusers 0.40.0 was cut and Qwen3-VL needs transformers
+  5.17, so both pins differ from the three other kits'; the divergence is
+  recorded in `PROVENANCE.md` and in the kit's fixture README.
 
-No code was taken from `mzbac/qwen.image.swift`, which is GPL-3.0. See
-`PROVENANCE.md` for what that means and how the boundary was kept.
+No code was taken from `mzbac/qwen.image.swift`, which is GPL-3.0, nor from any
+other Swift or MLX port of this model. See `PROVENANCE.md` for what that means
+and how the boundary was kept.
 
-One file follows an approach taken from the vendored MIT-licensed
-`ZImageKit`: `Tokenizer/QwenImageTokenizer+Assembly.swift` assembles a byte-level BPE
-tokenizer from `vocab.json` and `merges.txt`, because Qwen-Image ships no
-`tokenizer.json` either. The assembly now follows `transformers`'
-`Qwen2Tokenizer` (its own pre-tokenizer and every merge) rather than that copy's
-GPT-2 configuration, but the approach is still ZImageKit's, and the zimage.swift
-copyright notice above covers it.
+The tokenizer is not assembled: 2.1 publishes a real `tokenizer.json` under
+`processor/`, which swift-transformers reads directly.
 
 ### FLUX.2 port (`Packages/Flux2Kit`)
 
 `Packages/Flux2Kit` is Zephra's own code, an MLX Swift implementation of
-FLUX.2 klein 4B written in the same style as `QwenImageKit` and covered by
-Zephra's own license. Unlike `QwenImageKit` it is not clean-room: it was
+FLUX.2 klein 4B written in the style these kits share and covered by Zephra's
+own license. Unlike `QwenImage21Kit` and `WanKit` it is not clean-room: it was
 translated with attribution from two MIT-licensed Swift ports and the
 Apache-2.0 reference, none of which restricts proprietary use. Its behaviour
 is pinned against `diffusers`, not against either port, which is what makes
@@ -188,8 +190,8 @@ at, carries no license file and was never opened.
 - **Source:** https://github.com/huggingface/swift-transformers
 - **Copyright:** Copyright 2022 Hugging Face SAS
 - **License:** Apache License 2.0
-- **Used as:** tokenizers, a dependency of `ZImageKit`, of `QwenImageKit`, and
-  of `Flux2Kit`; `LTX2Kit` wrote its own encoder and does not link it. Zephra downloads model weights with its own client in
+- **Used as:** tokenizers, a dependency of `ZImageKit`, of `QwenImage21Kit`,
+  and of `Flux2Kit`; `LTX2Kit` wrote its own encoder and does not link it. Zephra downloads model weights with its own client in
   `ZephraSnapshot` and no longer resolves or fetches anything through this
   package; `ZImageKit`'s vendored resolver still links it.
 
@@ -243,14 +245,35 @@ user's own machine, which the `make quantize*` targets also do by hand.
 - **mzbac/Z-Image-Turbo-8bit** — https://huggingface.co/mzbac/Z-Image-Turbo-8bit
   — Copyright (c) 2025 mzbac, a repacking of the Tongyi-MAI weights above —
   License: Apache License 2.0
-- **Qwen/Qwen-Image-2512** — https://huggingface.co/Qwen/Qwen-Image-2512
-  — Copyright Alibaba Cloud (Qwen team) — License: Apache License 2.0 — the
+- **Qwen/Qwen-Image-2.1** — https://huggingface.co/Qwen/Qwen-Image-2.1
+  — Copyright (c) 2026 Hangzhou Tongyi Laboratory Technology Co., Ltd. —
+  License: **Qwen RESEARCH LICENSE AGREEMENT, for non-commercial use only**
+  (the repository ships it as `LICENSE`, the file patterns fetch it, and the
+  packed variant carries it and a `NOTICE` beside its weights) — the
   transformer, the autoencoder, and the text encoder. The text encoder is
-  Qwen2.5-VL-7B (Alibaba Cloud, Apache License 2.0), shipped inside this
-  repository; Zephra loads its language layers and never its vision tower.
-- **lightx2v/Qwen-Image-2512-Lightning** — https://huggingface.co/lightx2v/Qwen-Image-2512-Lightning
-  — Copyright lightx2v — License: Apache License 2.0 — the four-step
-  distillation adapter.
+  Qwen3-VL (Alibaba Cloud, shipped inside this repository under these same
+  terms); Zephra loads both its language layers and its vision tower, which is
+  what reads a reference picture.
+  **This one is not a permissive license, and it is the only model in the
+  catalog that is not.** Section 1(i) defines "Non-Commercial" as "for research
+  or evaluation purposes only"; section 2(a) grants the right to use,
+  reproduce, distribute and modify the Materials "FOR NON-COMMERCIAL PURPOSES
+  ONLY", and 2(b) says "You shall not use the Materials for any commercial
+  purpose without obtaining a separate commercial license from us", directing
+  anyone who wants one to model-business@notice.qwencloud.com. Section 3
+  permits redistribution only under this same agreement, with a copy of it
+  given to every recipient, modified files carrying prominent notices that they
+  were changed, and a "Notice" text file carrying the attribution reproduced
+  under "NOTICE files" below. Section 4(b) requires "Built with Qwen" or
+  "Improved using Qwen" on any model trained or fine-tuned from it that is
+  distributed, and 4(c) forbids "Qwen" as the primary name of a derivative
+  product. Section 8 puts the agreement under the laws of China, with the
+  People's Courts in Hangzhou City having exclusive jurisdiction. Every earlier
+  Qwen-Image release — 1.0, Edit and 2512 — was Apache-2.0; 2.1 is not.
+  Zephra's mirror redistributes the packed 4-bit variant of these weights, and
+  it does so under this same license: `LICENSE` and `NOTICE` are published
+  beside the packed files, and the variant is a modification, so it carries no
+  terms more permissive than the release it was built from.
 - **black-forest-labs/FLUX.2-klein-4B** — https://huggingface.co/black-forest-labs/FLUX.2-klein-4B
   — Copyright Black Forest Labs Inc. — License: Apache License 2.0 — the transformer, the autoencoder, and the
   text encoder. The text encoder is Qwen3-4B (Alibaba Cloud, Apache License
@@ -293,19 +316,25 @@ user's own machine, which the `make quantize*` targets also do by hand.
   is Google's UMT5-XXL (Copyright Google LLC — Apache License 2.0), so one
   license covers every file the build reads.
 
-None of the locally built variants is downloaded and none is redistributed. The
-app derives each of them on the user's own Mac, the first time one is loaded:
-the 4-bit Z-Image variant from **Tongyi-MAI/Z-Image-Turbo** above, the
-Qwen-Image variant from **Qwen/Qwen-Image-2512** with the **Lightning** adapter
-merged into its transformer, the two FLUX.2 klein variants from
+The app derives each of the locally built variants on the user's own Mac, the
+first time one is loaded: the 4-bit Z-Image variant from
+**Tongyi-MAI/Z-Image-Turbo** above, the Qwen-Image 2.1 variant from
+**Qwen/Qwen-Image-2.1**, the two FLUX.2 klein variants from
 **black-forest-labs/FLUX.2-klein-4B**, the LTX-2.5 variant from
 **mlx-community/ltx-2.5-mlx**, and the Wan 2.2 variant from
 **FastVideo/FastWan2.2-TI2V-5B-FullAttn-Diffusers**. The `make quantize`,
-`make quantize-qwen`, `make quantize-flux2`, `make quantize-ltx2` and
-`make quantize-wan` targets do the same builds by hand. All are written to
-the folder Settings > Models names. Each is a modified
-form of Apache-2.0 weights — for the Qwen build, of two sets of them — so the
-Apache License 2.0 that covers those covers the result too.
+`make quantize-qwen21`, `make quantize-flux2`, `make quantize-ltx2` and
+`make quantize-wan` targets do the same builds by hand. All are written to the
+folder Settings > Models names.
+
+**Each variant carries the license of the weights it was built from**, named
+per model above: a packed variant is a modified form of those weights and
+nothing about packing them relicenses them. Zephra also publishes prebuilt
+copies of these variants on its own mirror, as a shortcut past the build, and
+each is published under its source's terms — the Apache-2.0 ones under Apache
+2.0 with the attribution above, LTX-2.5's beside the pack's `LICENSE.md`, and
+Qwen-Image 2.1's beside the release's `LICENSE` and the `NOTICE` its section 3
+requires.
 
 One set of weights is redistributed with the app, because it is 2.4 MB and an
 upscaler that needs a download is not worth having:
@@ -358,6 +387,18 @@ scripts from SwiftNIO.
     * https://github.com/apple/swift-nio
 ```
 
+### Qwen-Image 2.1
+
+Section 3(c) of the Qwen Research License requires this attribution in a
+"Notice" text file distributed with every copy of the weights or of a
+derivative of them. `QwenImage21QuantizationPlan.notice` carries the sentence
+and `SnapshotAncillaryFiles` writes it as `NOTICE` beside the packed variant's
+weights, next to the release's own `LICENSE`:
+
+```
+Qwen is licensed under the Qwen RESEARCH LICENSE AGREEMENT, Copyright (c) 2026 Hangzhou Tongyi Laboratory Technology Co., Ltd. All Rights Reserved.
+```
+
 ---
 
 ## License texts
@@ -405,9 +446,10 @@ SOFTWARE.
 Applies to: swift-transformers, swift-log, swift-collections, swift-numerics,
 swift-argument-parser, metal-cpp, diffusers, transformers, ltx-2-mlx-swift,
 Google's Gemma 4 12B (inside the LTX-2.5 text encoder), and the model weights
-listed above: Z-Image-Turbo and its 8-bit repacking, Qwen-Image-2512 with its
-Qwen2.5-VL-7B text encoder, the Qwen-Image-2512-Lightning adapter, and
-FLUX.2-klein-4B with its Qwen3-4B text encoder.
+listed above: Z-Image-Turbo and its 8-bit repacking, FLUX.2-klein-4B with its
+Qwen3-4B text encoder, and FastWan2.2-TI2V-5B with its UMT5-XXL text encoder.
+It does **not** apply to Qwen-Image 2.1, which is under the Qwen Research
+License reproduced at the end of this file.
 
 ```
                                  Apache License
@@ -793,4 +835,69 @@ When using the Outputs, LTX-2.x and any Derivatives thereof, you agree to comply
 > **19)** To circumvent, disable, or interfere with any technical limitations, safety features, content filters, watermarking, content provenance or latent disclosure functionalities, or use restrictions implemented in LTX-2.x by Licensor;
 
 > **20)** To use LTX-2.x or Derivatives of LTX-2.x in any product, service, or application that directly competes with Licensor’s commercial products or services, or is designed to replace or substitute Licensor’s offerings in the market, without obtaining a separate commercial license from Licensor.
+```
+
+### Qwen RESEARCH LICENSE AGREEMENT
+
+Applies to: the **Qwen/Qwen-Image-2.1** weights listed above — the transformer,
+the autoencoder and the Qwen3-VL text encoder inside that release — and to the
+4-bit variant Zephra packs from them, whether built on the user's Mac or taken
+from Zephra's mirror. Reproduced from the release's own `LICENSE`.
+
+```
+Qwen RESEARCH LICENSE AGREEMENT
+
+Qwen RESEARCH LICENSE AGREEMENT Release Date: September 20, 2026
+
+By clicking to agree or by using or distributing any portion or element of the Qwen Materials, you will be deemed to have recognized and accepted the content of this Agreement, which is effective immediately.
+
+1. Definitions
+    a. This Qwen RESEARCH LICENSE AGREEMENT (this "Agreement") shall mean the terms and conditions for use, reproduction, distribution and modification of the Materials as defined by this Agreement.
+    b. "We" (or "Us") shall mean Hangzhou Tongyi Laboratory Technology Co., Ltd.
+    c. "You" (or "Your") shall mean a natural person or legal entity exercising the rights granted by this Agreement and/or using the Materials for any purpose and in any field of use.
+    d. "Third Parties" shall mean individuals or legal entities that are not under common control with us or you.
+    e. "Qwen" shall mean the large language models, diffusion models, and software and algorithms, consisting of trained model weights, parameters (including optimizer states), machine-learning model code, inference-enabling code, training-enabling code, fine-tuning enabling code and other elements of the foregoing distributed by us.
+    f. "Materials" shall mean, collectively, our proprietary Qwen and Documentation (and any portion thereof) made available under this Agreement.
+    g. "Source" form shall mean the preferred form for making modifications, including but not limited to model source code, documentation source, and configuration files.
+    h. "Object" form shall mean any form resulting from mechanical transformation or translation of a Source form, including but not limited to compiled object code, generated documentation, and conversions to other media types.
+    i. "Non-Commercial" shall mean for research or evaluation purposes only.
+
+2. Grant of Rights
+    a. You are granted a non-exclusive, worldwide, non-transferable and royalty-free limited license under our intellectual property or other rights owned by us embodied in the Materials to use, reproduce, distribute, copy, create derivative works of, and make modifications to the Materials FOR NON-COMMERCIAL PURPOSES ONLY. 
+    b. You shall not use the Materials for any commercial purpose without obtaining a separate commercial license from us. If you wish to use the Materials commercially, you shall request a license from us at model-business@notice.qwencloud.com.
+
+3. Redistribution
+Subject to Section 2 (Grant of Rights), you may distribute copies or make the Materials, or derivative works thereof, available as part of a product or service that contains any of them, with or without modifications, and in Source or Object form, provided that you meet the following conditions:
+    a. You shall give any other recipients of the Materials or derivative works a copy of this Agreement;
+    b. You shall cause any modified files to carry prominent notices stating that you changed the files;
+    c. You shall retain in all copies of the Materials that you distribute the following attribution notices within a "Notice" text file distributed as a part of such copies: "Qwen is licensed under the Qwen RESEARCH LICENSE AGREEMENT, Copyright (c) 2026 Hangzhou Tongyi Laboratory Technology Co., Ltd. All Rights Reserved."; and
+    d. You may add your own copyright statement to your modifications and may provide additional or different license terms and conditions for use, reproduction, or distribution of your modifications, or for any such derivative works as a whole, provided your use, reproduction, and distribution of the work otherwise complies with the terms and conditions of this Agreement.
+
+4. Rules of use
+    a. The Materials may be subject to export controls or restrictions in China, the United States or other countries or regions. You shall comply with applicable laws and regulations in your use of the Materials.
+    b. If you use the Materials or any outputs or results therefrom to create, train, fine-tune, or improve an AI model that is distributed or made available, you shall prominently display “Built with Qwen” or “Improved using Qwen” in the related product documentation.
+    c. You shall not use "Qwen" as the primary name or identifier of any derivative works or products; reasonable descriptive use (e.g., "fine-tuned from Qwen Image") is permitted.
+
+5. Intellectual Property
+    a. We retain ownership of all intellectual property rights in and to the Materials and derivatives made by or for us. Conditioned upon compliance with the terms and conditions of this Agreement, with respect to any derivative works and modifications of the Materials that are made by you, you are and will be the owner of such derivative works and modifications.
+    b. No trademark license is granted to use the trade names, trademarks, service marks, or product names of us, except as required to fulfill notice requirements under this Agreement or as required for reasonable and customary use in describing and redistributing the Materials.
+    c. If you commence a lawsuit or other proceedings (including a cross-claim or counterclaim in a lawsuit) against us or any entity alleging that the Materials or any output therefrom, or any part of the foregoing, infringe any intellectual property or other right owned or licensable by you, then all licenses granted to you under this Agreement shall terminate as of the date such lawsuit or other proceeding is commenced or brought.
+
+6. Disclaimer of Warranty and Limitation of Liability
+    a. We are not obligated to support, update, provide training for, or develop any further version of the Qwen Materials or to grant any license thereto.
+    b. THE MATERIALS ARE PROVIDED "AS IS" WITHOUT ANY EXPRESS OR IMPLIED WARRANTY OF ANY KIND INCLUDING WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT, OR FITNESS FOR A PARTICULAR PURPOSE. WE MAKE NO WARRANTY AND ASSUME NO RESPONSIBILITY FOR THE SAFETY OR STABILITY OF THE MATERIALS AND ANY OUTPUT THEREFROM.
+    c. IN NO EVENT SHALL WE BE LIABLE TO YOU FOR ANY DAMAGES, INCLUDING, BUT NOT LIMITED TO ANY DIRECT, OR INDIRECT, SPECIAL OR CONSEQUENTIAL DAMAGES ARISING FROM YOUR USE OR INABILITY TO USE THE MATERIALS OR ANY OUTPUT OF IT, NO MATTER HOW IT’S CAUSED.
+    d. You will defend, indemnify and hold harmless us from and against any claim by any third party arising out of or related to your use or distribution of the Materials.
+
+7. Survival and Termination.
+    a. The term of this Agreement shall commence upon your acceptance of this Agreement or access to the Materials and will continue in full force and effect until terminated in accordance with the terms and conditions herein.
+    b. We may terminate this Agreement if you breach any of the terms or conditions of this Agreement. Upon termination of this Agreement, you must delete and cease use of the Materials. Sections 6 and 8 shall survive the termination of this Agreement.
+
+8. Governing Law and Jurisdiction.
+    a. This Agreement and any dispute arising out of or relating to it will be governed by the laws of China, without regard to conflict of law principles, and the UN Convention on Contracts for the International Sale of Goods does not apply to this Agreement.
+    b. The People's Courts in Hangzhou City shall have exclusive jurisdiction over any dispute arising out of this Agreement.
+
+9. Other Terms and Conditions.
+    a. Any arrangements, understandings, or agreements regarding the Material not stated herein are separate from and independent of the terms and conditions of this Agreement. You shall request a separate license from us, if you use the Materials in ways not expressly agreed to in this Agreement. 
+    b. We shall not be bound by any additional or different terms or conditions communicated by you unless expressly agreed.
 ```

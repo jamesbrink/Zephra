@@ -22,9 +22,9 @@ extension GenerationStore {
             policy.residency(for: loadedDescriptor) != loadedResidency,
             acceptsWork, !isDraining, !isUpscaling, queue.isEmpty
         else { return }
-        logger.info(
-            "weights of \(loadedDescriptor.id, privacy: .public) will be \(policy.residency(for: loadedDescriptor).rawValue, privacy: .public)"
-        )
+        // No line here: `reload` below carries this to `+Preparation.load`, which is where
+        // AGENTS.md says "weights of X will be Y" is written, once, when the load it describes
+        // actually begins. A second line here named the same load before it had started.
         reload(loadedDescriptor, thenDrain: false)
     }
 }

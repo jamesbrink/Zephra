@@ -10,11 +10,23 @@ public struct QuantizationPlan: Hashable, Sendable {
     /// Directories copied across whole, weights and all — the tokenizer, the scheduler, and
     /// any component left at full precision because packing it costs quality for no real saving.
     public let verbatimDirectories: [String]
+    /// The text of a `NOTICE` file the license of these weights requires a redistribution to
+    /// carry, written into the variant beside them; nil where the license asks for none.
+    ///
+    /// It belongs to the plan rather than to the descriptor because the build that goes on the
+    /// mirror runs `ZephraQuantize` with no descriptor at all, and the app's own first-load
+    /// build has to write the same file.
+    public let notice: String?
 
     /// Creates a plan.
-    public init(components: [QuantizedComponent], verbatimDirectories: [String]) {
+    public init(
+        components: [QuantizedComponent],
+        verbatimDirectories: [String],
+        notice: String? = nil
+    ) {
         self.components = components
         self.verbatimDirectories = verbatimDirectories
+        self.notice = notice
     }
 
     /// Whether every packed tensor in the plan uses one precision, which is what decides how

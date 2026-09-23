@@ -60,12 +60,12 @@ struct ImageFactsTests {
             settings: GenerationSettings(
                 prompt: "a harbour", size: ImageSize(width: 1328, height: 1328), steps: 4,
                 guidance: 0, seed: 42),
-            modelID: "qwen-image-2512-4bit",
+            modelID: "flux2-klein-4b-4bit",
             duration: .seconds(66.7)
         )
-        let facts = ImageFacts(image, modelName: "Qwen-Image")
+        let facts = ImageFacts(image, modelName: "FLUX.2 klein 4B")
 
-        #expect(facts.model == "Qwen-Image")
+        #expect(facts.model == "FLUX.2 klein 4B")
         #expect(facts.size == "1328 \u{00D7} 1328")
         #expect(facts.steps == "4")
         // The label is the seed's leading eight hex digits, so a small seed reads as zeroes.
@@ -206,6 +206,34 @@ struct ImageFactsTests {
             duration: .seconds(3))
         #expect(ImageFacts(plain).referenceStrength == nil, "no picture, nothing to report")
         #expect(ImageFacts(plain).referenceOrigin == nil)
+    }
+
+    @Test("transparency is read off the file, and off the bytes for a picture not yet saved")
+    func transparencyComesFromTheHeader() {
+        let opaque = LibraryItem(
+            url: URL(filePath: "/Zephra/solid.png"), collection: .generated,
+            provenance: .generated(Self.record()), fileSize: 4096, contentModifiedAt: .now,
+            hasAlpha: false)
+        let clear = LibraryItem(
+            url: URL(filePath: "/Zephra/clear.png"), collection: .generated,
+            provenance: .generated(Self.record()), fileSize: 4096, contentModifiedAt: .now,
+            hasAlpha: true)
+
+        #expect(!ImageFacts(opaque).isTransparent)
+        #expect(ImageFacts(clear).isTransparent)
+
+        // The fixture every backend test writes is an RGBA PNG; a picture with no bytes at all
+        // has no header to read and says no rather than throwing.
+        let made = GeneratedImage(
+            pngData: MockBackend.pngData,
+            settings: GenerationSettings(
+                prompt: "a lighthouse", size: ImageSize(width: 1, height: 1), steps: 9,
+                guidance: 3, seed: 42),
+            modelID: ModelCatalog.default.id, duration: .seconds(3))
+        #expect(ImageFacts(made).isTransparent)
+        #expect(!ImageFacts(GeneratedImage(
+            pngData: Data(), settings: made.settings, modelID: made.modelID,
+            duration: .seconds(3))).isTransparent)
     }
 
     /// A plain generated record, for a test that then says what is different about it.

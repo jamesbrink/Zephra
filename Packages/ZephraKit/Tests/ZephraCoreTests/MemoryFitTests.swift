@@ -21,14 +21,15 @@ struct MemoryFitTests {
         physicalMemory: gigabytes(16), gpuWorkingSet: megabytes(16384), wiredLimitMB: 16384)
 
     /// A descriptor with the given peaks and nothing else worth reading.
-    static func model(peak: Int64, tiled: Int64, streamed: Int64 = 0) -> ModelDescriptor {
+    static func model(
+        peak: Int64, tiled: Int64, streamed: Int64 = 0, prefix: Int64 = 0
+    ) -> ModelDescriptor {
         ModelDescriptor(
             id: "test", displayName: "Test", variantName: nil, backend: .zImage,
             source: .localDirectory(URL(filePath: "/tmp/test")), quantization: .int4,
             downloadBytes: 0, residentBytes: 1, peakBytes: peak, tiledPeakBytes: tiled,
-            streamedPeakBytes: streamed, maxPromptTokens: 512,
-            capabilities: ModelCatalog.zImageTurbo4bit.capabilities, builtBytes: 0,
-            adapters: [])
+            streamedPeakBytes: streamed, referencePrefixBytes: prefix, maxPromptTokens: 512,
+            capabilities: ModelCatalog.zImageTurbo4bit.capabilities, builtBytes: 0)
     }
 
     @Test("the budget is what the GPU may keep, and the fallback is four fifths of RAM")
@@ -59,12 +60,18 @@ struct MemoryFitTests {
         // And with room to spare: the measured tiled peak clears this Mac's working set by
         // more than half a gigabyte, which is the margin the catalog's comment quotes.
         #expect(Self.sixteenDefault.bytes - Double(turbo.tiledPeakBytes) > 500_000_000)
+        // Qwen-Image 2.1 is the case the raise is really for: 14.4 GB tiled is over this Mac's
+        // 12.7 GB default working set, so it streams, and under the raised 17.2 GB, so it
+        // tiles. Its 17.8 GB untiled peak stays out of reach either way.
+        let qwen = ModelCatalog.qwenImage21_4bit
+        #expect(MemoryFit(descriptor: qwen, budget: Self.sixteenDefault) == .fitsStreamed)
+        #expect(MemoryFit(descriptor: qwen, budget: Self.sixteenRaised) == .fitsTiled)
     }
 
     @Test("a tight verdict names the working set that would clear it")
     func tightNamesTheWorkingSet() {
-        // Qwen-Image's peaks without its streamed figure: what the catalog said before
-        // streaming, and what a family that cannot stream says still.
+        // A 26 GB tiled peak with no streamed figure beside it: what a family that cannot
+        // stream says.
         let unstreamable = Self.model(peak: 30_360_000_000, tiled: 26_070_000_000)
         guard case .tight(let needed) = MemoryFit(descriptor: unstreamable, budget: Self.sixteenDefault)
         else {
@@ -96,8 +103,8 @@ struct MemoryFitTests {
             return
         }
         #expect(MemoryFit.wouldFitWithWiredLimitRaised(unstreamable, budget: thirtyTwo))
-        // Qwen-Image itself streams there, so the picker offers it rather than the hint.
-        #expect(MemoryFit(descriptor: ModelCatalog.qwenImage2512_4bit, budget: thirtyTwo) == .fitsStreamed)
+        // LTX-2.5 with sound streams there, so the picker offers it rather than the hint.
+        #expect(MemoryFit(descriptor: ModelCatalog.ltx2DistilledAudio4bit, budget: thirtyTwo) == .fitsStreamed)
     }
 
     @Test("tight quotes the leanest figure, which is the streamed one where the family streams")

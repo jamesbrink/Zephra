@@ -25,7 +25,7 @@ extension Flux2Backend {
                 return .available
             }
             let release = LocalSnapshot.flux2Release.downloadedRelease(of: descriptor, in: locations)
-            if release != nil, locations.missingAdapters(of: descriptor).isEmpty {
+            if release != nil {
                 return .needsBuild
             }
             if descriptor.isPublishedPrebuilt { return .needsDownload(bytes: descriptor.builtBytes) }

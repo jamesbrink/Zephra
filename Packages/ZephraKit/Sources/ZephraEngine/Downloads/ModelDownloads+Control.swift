@@ -61,10 +61,9 @@ extension ModelDownloads {
     }
 
     public func sharesActiveTransfer(_ model: ModelDescriptor) -> Bool {
-        let repositories = Set(model.adapters.map(\.repoID) + [model.sourceName])
         return items.contains { row in
             guard row.id != model.id, row.status == .downloading || row.status == .queued else { return false }
-            return !repositories.isDisjoint(with: Set(row.model.adapters.map(\.repoID) + [row.model.sourceName]))
+            return row.model.sourceName == model.sourceName
         }
     }
 }

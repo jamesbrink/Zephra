@@ -48,10 +48,10 @@ struct LinkModelLoadingTests {
         try await bed.host.announce(world, kind: .snapshot)
         try await LinkGapRecoveryTests.settle { bed.client.supportsModelLoading }
 
-        try await bed.client.loadModel("qwen-image-2512-4bit")
+        try await bed.client.loadModel("flux2-klein-4b-4bit")
         try await bed.client.unloadModel()
 
-        #expect(bed.host.commands.contains(.loadModel("qwen-image-2512-4bit")))
+        #expect(bed.host.commands.contains(.loadModel("flux2-klein-4b-4bit")))
         #expect(bed.host.commands.contains(.unloadModel))
     }
 

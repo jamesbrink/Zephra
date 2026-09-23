@@ -14,9 +14,10 @@ import ZephraCore
 extension GenerationPreview {
     /// The frame as an image, or nil when the buffer is not the length the size claims.
     ///
-    /// Alpha is `premultipliedLast` because the frame is opaque: every byte of the fourth
-    /// channel is 255, which makes premultiplied and straight the same bytes, and saying so
-    /// spares Core Graphics a conversion.
+    /// Alpha is `last`, which is **straight** alpha: `PixelBuffer` packs a decode's fourth
+    /// channel as it stands, and a model that makes transparency would have its near-clear
+    /// pixels darkened by a `premultipliedLast` that was never true of the bytes. For every
+    /// other model every fourth byte is 255, where straight and premultiplied are the same.
     func makeImage() -> CGImage? {
         guard isWellFormed, let provider = CGDataProvider(data: pixels as CFData) else {
             return nil
@@ -28,7 +29,7 @@ extension GenerationPreview {
             bitsPerPixel: 32,
             bytesPerRow: width * 4,
             space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue),
             provider: provider,
             decode: nil,
             shouldInterpolate: true,

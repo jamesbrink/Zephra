@@ -66,4 +66,20 @@ enum PreviewImages {
     static func referencePNG() -> Data {
         gradientPNG(size: ImageSize(width: 512, height: 384))
     }
+
+    /// `count` of them, each a different hue and a different shape, so a screenshot of the
+    /// strip shows tiles that can be told apart and a reorder can be seen to have happened.
+    static func referencePNGs(count: Int) -> [ReferencePicture] {
+        (0..<max(0, count)).map { index in
+            let size = index.isMultiple(of: 3)
+                ? ImageSize(width: 512, height: 384)
+                : (index.isMultiple(of: 2)
+                    ? ImageSize(width: 384, height: 512)
+                    : ImageSize(width: 448, height: 448))
+            return ReferencePicture(
+                data: gradientPNG(size: size, hue: Double(index) * 0.17),
+                origin: "reference-\(index + 1).png",
+                size: size)
+        }
+    }
 }

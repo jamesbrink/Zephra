@@ -28,6 +28,10 @@ public struct LibraryItem: Identifiable, Hashable, Sendable {
     public private(set) var fileSize: Int64
     /// The file's modification date, which is what a rescan compares to decide what to re-read.
     public private(set) var contentModifiedAt: Date
+    /// Whether the file's pixels carry transparency, read from its own header by the scan that
+    /// read its record. The file is the truth here as everywhere else: an imported picture and
+    /// one Zephra made answer the same way, and nothing has to be written into a record.
+    public let hasAlpha: Bool
     /// Everything searchable about the item, folded once so matching is a substring test.
     public private(set) var searchKey: String
     /// The start of the local day the image was made on, which is what the grid groups by.
@@ -42,6 +46,7 @@ public struct LibraryItem: Identifiable, Hashable, Sendable {
         annotation: LibraryAnnotation = .none,
         fileSize: Int64,
         contentModifiedAt: Date,
+        hasAlpha: Bool = false,
         calendar: Calendar = .current
     ) {
         let standardized = url.standardizedFileURL
@@ -52,6 +57,7 @@ public struct LibraryItem: Identifiable, Hashable, Sendable {
         self.annotation = annotation
         self.fileSize = fileSize
         self.contentModifiedAt = contentModifiedAt
+        self.hasAlpha = hasAlpha
         self.searchKey = Self.searchKey(
             provenance: provenance, annotation: annotation, fileName: standardized.lastPathComponent)
         self.day = calendar.startOfDay(for: provenance.createdAt)

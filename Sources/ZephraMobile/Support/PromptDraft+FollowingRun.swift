@@ -14,9 +14,11 @@ extension PromptDraft {
     ///
     /// The draft is untouched when its prompt is empty or is the last prompt it followed or
     /// sent, so a run the phone itself submitted is followed harmlessly and a later run of the
-    /// Mac's replaces it. The well is emptied — the phone has no pixels for the Mac's picture —
-    /// while `referenceOrigin` stays as the row carries it, since it is a name rather than
-    /// bytes. The continuation goes with the well: on the Mac an empty well drops it, and the
+    /// Mac's replaces it. The well is emptied — the phone has no pixels for the Mac's pictures,
+    /// since `QueuedEntry` strips them — while every origin the row carries stays, all N of
+    /// them, because a name is not bytes: a run made from three pictures follows as three
+    /// origins and the capsule can say so. The continuation goes with the well: on the Mac an
+    /// empty well drops it, and the
     /// Mac's `clamp` would drop one with no frames anyway. Nothing to follow changes nothing,
     /// the way the Mac's capsule keeps a finished run's settings.
     func follow(_ running: QueuedEntry?) {

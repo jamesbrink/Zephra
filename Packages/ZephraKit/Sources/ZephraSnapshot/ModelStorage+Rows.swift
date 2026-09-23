@@ -26,34 +26,6 @@ extension ModelStorage {
             modelIDs: [descriptor.id], isComplete: isComplete, origin: origin)
     }
 
-    /// The same adapter where `hf download` put it: the whole repository directory in the hub
-    /// cache, blobs and bookkeeping included, which is what deleting it removes.
-    static func adapter(
-        _ adapter: ModelAdapter, of descriptor: ModelDescriptor, at repository: HubRepository,
-        captioned locations: ModelLocations
-    ) -> ModelStorageItem {
-        ModelStorageItem(
-            name: "\(descriptor.displayName) adapter", kind: .download, url: repository.url,
-            location: place(of: repository.url, in: locations), modelIDs: [descriptor.id],
-            isComplete: repository.file(adapter.file, revision: adapter.revision) != nil,
-            origin: .hubCache)
-    }
-
-    /// An adapter's download, listed with the model it serves rather than on its own: it is one
-    /// file in a repository of its own, and deleting it costs that model its distillation.
-    static func adapter(
-        _ adapter: ModelAdapter, of descriptor: ModelDescriptor, in folder: ModelLocations,
-        captioned locations: ModelLocations
-    ) -> ModelStorageItem? {
-        let directory = folder.adapter(adapter)
-        guard HubCache.isDirectory(directory) else { return nil }
-        let file = folder.adapterFile(adapter)
-        return ModelStorageItem(
-            name: "\(descriptor.displayName) adapter", kind: .download, url: directory,
-            location: place(of: directory, in: locations), modelIDs: [descriptor.id],
-            isComplete: FileManager.default.fileExists(atPath: file.path(percentEncoded: false)))
-    }
-
     static func built(
         _ descriptor: ModelDescriptor, at directory: URL, in locations: ModelLocations
     ) -> ModelStorageItem? {

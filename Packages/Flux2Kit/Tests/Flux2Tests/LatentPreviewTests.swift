@@ -27,7 +27,7 @@ struct LatentPreviewTests {
         let (packedHeight, packedWidth) = (20, 32)
         let tokens = MLXArray.zeros([1, packedHeight * packedWidth, 16], type: Float.self)
 
-        let frame = Flux2LatentPreview.make(
+        let frame = try Flux2LatentPreview.make(
             tokens: tokens, packedHeight: packedHeight, packedWidth: packedWidth,
             autoencoder: model)
 
@@ -48,7 +48,7 @@ struct LatentPreviewTests {
         let model = try Self.autoencoder()
         let tokens = MLXArray.zeros([1, 8 * 8, 16], type: Float.self)
 
-        let frame = Flux2LatentPreview.make(
+        let frame = try Flux2LatentPreview.make(
             tokens: tokens, packedHeight: 8, packedWidth: 8, autoencoder: model)
 
         let bytes = Array(frame.pixels)

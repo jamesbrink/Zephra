@@ -54,10 +54,16 @@ extension LibraryItem {
     /// The picture this image was edited from, when it was, read from the file's own second
     /// chunk. Nil for an image made from noise, and nil rather than an error when the file has
     /// gone: a variation of a missing file is a request without a reference, not a failure.
-    public var referenceImage: Data? {
+    public var referenceImage: Data? { referenceImages.first?.data }
+
+    /// Every picture this image was edited from, in the order the model read them, out of the
+    /// file's own numbered chunks. Empty for an image made from noise, and empty rather than an
+    /// error when the file has gone: a variation of a missing file is a request without a
+    /// reference, not a failure.
+    public var referenceImages: [ReferencePicture] {
         guard provenance.record?.referenceBytes != nil,
               let data = try? Data(contentsOf: url)
-        else { return nil }
-        return GenerationRecord.reference(in: data)
+        else { return [] }
+        return GenerationRecord.references(in: data)
     }
 }

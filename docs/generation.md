@@ -583,7 +583,12 @@ says streaming fits and holding does not, the retry reloads streamed — one lea
 through `reload`. Where nothing has changed it answers ready and, if the queue is
 not empty, drains: that is what makes Try Again give a refused job its turn.
 Both sites log the reading and the decision — admitted as well as refused, since
-the admitted line is what makes the next refusal legible in `make logs`.
+the admitted line is what makes the next refusal legible in `make logs`: an
+admitted line ends with what it charged, "charging X GB". `runShortfall` and
+`remoteAdmission` take a `logging:` flag for this, true by default; a paired
+phone's offer (`CompanionSession+Offers`) passes `logging: false`, since an
+offer is polled every few seconds while nothing runs and logging it at info
+would bury a real run's own admission line.
 
 `canSelect(_:)` (`+Admission`) is the budget-only half, and it is a gate rather
 than a note: `switchModel` drops a pick of a model this Mac cannot hold,
@@ -677,9 +682,9 @@ there has to be forwarded by name or it never reaches the canvas.
 
 Where a frame comes from: each kit has a `<Family>LatentPreview` that takes a
 latent in its loop's own packed space, unpacks it, pools it so its long edge is at
-most 32 cells (8 for LTX-2.5, whose cell is 32 pixels), and decodes that through the family's own autoencoder with the
+most 32 cells (16 for Qwen-Image 2.1 and for Wan, 8 for LTX-2.5, whose cell is 32 pixels), and decodes that through the family's own autoencoder with the
 tiling skipped — `LatentPreview` in `ZephraMLX` holds the pooling and the byte
-packing for Qwen-Image and klein, and the vendored `ZImageKit` keeps its own copy
+packing for every kit that takes `ZephraMLX`, and the vendored `ZImageKit` keeps its own copy
 for the same reason it keeps its own `VAETiledDecode`. Each loop calls an optional
 `onPreview` **after** the step's `MLX.eval`, never on the last step, handing over
 the step index and a *closure* that makes the frame rather than a frame: the

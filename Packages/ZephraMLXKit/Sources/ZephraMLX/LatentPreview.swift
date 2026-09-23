@@ -45,12 +45,13 @@ public nonisolated enum LatentPreview {
             axes: [3, 5])
     }
 
-    /// One decoded frame as RGBA8 bytes, row-major and opaque: `PixelBuffer.rgba8`, the same
-    /// packing the finished image gets, rounding included.
+    /// One decoded frame as RGBA8 bytes, row-major, straight alpha: `PixelBuffer.rgba8`, the
+    /// same packing the finished image gets, rounding included.
     ///
-    /// - Parameter image: `[1, height, width, 3]` in the range -1 to 1, which is what every
-    ///   autoencoder in the app decodes to.
-    public static func rgba8(_ image: MLXArray) -> Data {
-        PixelBuffer.rgba8(image)
+    /// - Parameter image: `[1, height, width, 3 or 4]` in the range -1 to 1, which is what
+    ///   every autoencoder in the app decodes to. A frame the packer has no layout for throws,
+    ///   and a dropped frame is a glimpse nobody sees rather than a run that fails.
+    public static func rgba8(_ image: MLXArray) throws -> Data {
+        try PixelBuffer.rgba8(image)
     }
 }

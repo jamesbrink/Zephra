@@ -22,6 +22,21 @@ public struct ModelCapabilities: Hashable, Sendable {
     public let supportsSeed: Bool
     /// Whether a picture can be handed in to be edited rather than started from noise.
     public let supportsReferenceImage: Bool
+    /// How many pictures the model reads, on a model that reads any.
+    ///
+    /// A single point at 1 means one, by the convention `guidanceBounds: 0...0` and
+    /// `frameBounds: 1...1` already set; `supportsReferenceImage` stays the gate for "any
+    /// picture at all" and this answers "how many, when it reads any". Never more than
+    /// `ReferenceLimits.maximumPictures`, which is what the PNG record and the link can carry.
+    public let referenceImageCount: ClosedRange<Int>
+    /// Whether the model reads a picture's transparency, rather than having it composited over
+    /// white before it is encoded.
+    ///
+    /// False everywhere but on a family whose vision tower takes four channels: every other
+    /// reference path draws the picture into an opaque bitmap, so a transparent PNG arrives at
+    /// the model over white. The interface says so rather than letting a person wonder where
+    /// the cut-out went (`ReferenceRole.whiteMatteNote(modelName:)`).
+    public let readsTransparentReferences: Bool
     /// How far from that picture a generation may start, on models that begin from a noised
     /// copy of it.
     ///
@@ -74,6 +89,8 @@ public struct ModelCapabilities: Hashable, Sendable {
         supportsNegativePrompt: Bool,
         supportsSeed: Bool,
         supportsReferenceImage: Bool = false,
+        referenceImageCount: ClosedRange<Int> = 1...1,
+        readsTransparentReferences: Bool = false,
         referenceStrengthBounds: ClosedRange<Double> = 1...1,
         defaultReferenceStrength: Double = 1,
         frameBounds: ClosedRange<Int> = 1...1,
@@ -95,6 +112,8 @@ public struct ModelCapabilities: Hashable, Sendable {
         self.supportsNegativePrompt = supportsNegativePrompt
         self.supportsSeed = supportsSeed
         self.supportsReferenceImage = supportsReferenceImage
+        self.referenceImageCount = referenceImageCount
+        self.readsTransparentReferences = readsTransparentReferences
         self.referenceStrengthBounds = referenceStrengthBounds
         self.defaultReferenceStrength = defaultReferenceStrength
         self.frameBounds = frameBounds
@@ -105,27 +124,4 @@ public struct ModelCapabilities: Hashable, Sendable {
         self.defaultContinuationFrames = defaultContinuationFrames
         self.producesAudio = producesAudio
     }
-
-    /// Whether guidance is a choice on this model. A distilled model declares a single legal
-    /// value, and a slider over a single value is not a slider: SwiftUI stops the app rather
-    /// than draw one, so every control reads this before it reads the bounds.
-    public var adjustsGuidance: Bool { guidanceBounds.lowerBound < guidanceBounds.upperBound }
-
-    /// Whether the step count is a choice on this model, by the same rule: a checkpoint
-    /// distilled to a fixed ladder of sigmas, as LTX-2.5's is, declares one legal count.
-    public var adjustsSteps: Bool { stepBounds.lowerBound < stepBounds.upperBound }
-
-    /// Whether the reference strength is a choice on this model, by the same rule.
-    public var adjustsReferenceStrength: Bool {
-        referenceStrengthBounds.lowerBound < referenceStrengthBounds.upperBound
-    }
-
-    /// Whether the clip's length is a choice on this model, by the same rule.
-    public var adjustsFrames: Bool { frameBounds.lowerBound < frameBounds.upperBound }
-
-    /// Whether this model makes clips rather than pictures.
-    public var producesVideo: Bool { frameBounds.upperBound > 1 }
-
-    /// Whether this model can carry a finished clip on from its last frames.
-    public var supportsContinuation: Bool { continuationFrames.upperBound > 0 }
 }

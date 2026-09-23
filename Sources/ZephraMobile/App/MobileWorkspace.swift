@@ -19,6 +19,8 @@ final class MobileWorkspace {
             hosts = HostConnections(storage: nil, catalog: catalog, makeClient: { _ in frozen })
             MobilePreview.addHosts(to: hosts, first: frozen)
             dispatch = GenerationDispatch(hosts: hosts, root: nil)
+            // Two pictures in the well, for the states that photograph the strip.
+            MobilePreview.seed(draft)
             return
         }
         do {

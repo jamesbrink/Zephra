@@ -12,6 +12,11 @@ import ZephraLinkProtocol
 ///
 /// Built once by the composition root and injected, so a prompt survives a walk to the library
 /// and back the way the Mac's capsule survives a walk to another pane.
+///
+/// The well is a **list** (`PromptDraft+ReferenceStrip`), because a model may read several
+/// pictures in the order they were chosen. The three scalars below are computed over its first
+/// picture, exactly as `GenerationSettings.referenceImage` is over `referenceImages`, so every
+/// reader that only ever meant "the picture" is untouched by the strip existing.
 @MainActor
 @Observable
 final class PromptDraft {
@@ -19,14 +24,28 @@ final class PromptDraft {
     var settings: GenerationSettings
     /// The model the next press names, as a descriptor identifier.
     var modelID: String
-    /// The reference picture as PNG bytes, at most 1024 pixels an edge
-    /// (`ReferenceImageEncoder`), or nil for a run from nothing.
-    var reference: Data?
+    /// The pictures the next run starts from, in the order the model reads them, each at most
+    /// 1024 pixels an edge (`ReferenceImageEncoder`) and each carrying the library name it came
+    /// out of. Empty for a run from nothing.
+    ///
+    /// Held here rather than in `settings` because a `GenerationSettings` carries a picture only
+    /// as part of a request, and the well holds one until a press composes that request.
+    private(set) var references: [ReferencePicture] = []
+    /// What the last adoption could not take, in one sentence, or nil when it took everything.
+    private(set) var referenceNote: String?
     /// How many seeds one press is worth.
     var count: Int
-    /// The shape of the picture in the well, which the Size menu offers at every tier's cost.
-    /// It moves with the picture and is nil whenever the well is empty.
-    private(set) var referenceSize: ImageSize?
+
+    /// The first picture's bytes, which is what every reader that means "the picture" wants.
+    /// Nil for an empty well and for a picture whose pixels were stripped for the wire.
+    var reference: Data? {
+        guard let first = references.first, first.hasPixels else { return nil }
+        return first.data
+    }
+    /// The shape of the first picture, which the Size menu offers at every tier's cost.
+    var referenceSize: ImageSize? { references.first?.size }
+    /// The library file name the first picture came out of, when it came from the Mac's library.
+    var referenceOrigin: String? { references.first?.origin }
 
     /// Whether a snapshot has already seeded this draft. The first one is the Mac saying which
     /// model is in force and what it defaults to; every one after it would overwrite a prompt
@@ -43,7 +62,6 @@ final class PromptDraft {
             prompt: "", size: ImageSize(width: 1024, height: 1024), steps: 9, guidance: 0,
             seed: .random(in: .min ... .max))
         modelID = ""
-        reference = nil
         count = 1
     }
 
@@ -83,8 +101,10 @@ final class PromptDraft {
     ///
     /// Clamped through the real `ModelCapabilities` rebuilt from the wire form, so the phone
     /// asks for what the Mac would have allowed rather than for something the Mac then quietly
-    /// rewrites. The picture rides along only long enough to be clamped: `GenerationRequest`
-    /// strips it, because a picture crosses as a blob and is named there by its id.
+    /// rewrites. The pictures ride along only long enough to be clamped: `GenerationRequest`
+    /// strips them, because a picture crosses as a blob and is named there by its id. An older
+    /// Mac's summary says `1...1`, so the clamp is what trims a strip to its first picture —
+    /// one rule, stated by the Mac being spoken to rather than guessed at here.
     ///
     /// The length is the one exception, and `ChainPlan` is why. `clamp` bounds frames at one
     /// pass, because a request that reaches a backend must never be longer than it runs; a
@@ -94,46 +114,23 @@ final class PromptDraft {
     /// bounded and snapped the way the chain will make it.
     func request(clampedBy summary: CapabilitiesSummary) -> GenerationRequest {
         var chosen = settings
-        chosen.referenceImage = reference
+        chosen.referenceImages = references
         let capabilities = summary.capabilities
         var clamped = capabilities.clamp(chosen)
         clamped.frames = ChainPlan.frames(chosen.frames, capabilities: capabilities)
         return GenerationRequest(modelID: modelID, count: count, settings: clamped)
     }
 
-    /// The picture to send beside that request, or nil where the model would not read one.
-    func reference(allowedBy summary: CapabilitiesSummary) -> Data? {
-        summary.supportsReferenceImage ? reference : nil
-    }
-
-    /// Takes a picture into the well, and lets the size follow it the way the Mac's
-    /// `useAsReference` does: on a model that makes clips the frame becomes the picture's own
-    /// shape at the pixel budget in force, since a clip is the picture moving; a model that
-    /// makes pictures leaves the size alone.
-    func adopt(
-        _ picture: ReferencePicture, origin: String?, fitting capabilities: ModelCapabilities
-    ) {
-        reference = picture.data
-        referenceSize = picture.size
-        settings.referenceOrigin = origin
-        guard capabilities.producesVideo,
-            let shape = capabilities.size(
-                matchingAspectOf: picture.size, budget: settings.size.pixelCount)
-        else { return }
-        settings.size = shape
-    }
-
-    /// Empties the well. Where the picture came from is a fact about the picture, so it goes
-    /// with it rather than outliving it.
-    func clearReference() {
-        reference = nil
-        referenceSize = nil
-        settings.referenceOrigin = nil
-    }
-
     /// A fresh seed, which is what the shuffle asks for.
     func randomizeSeed() {
         settings.seed = .random(in: .min ... .max)
+    }
+
+    /// The strip and its note together, which is the one write `PromptDraft+ReferenceStrip`
+    /// makes: every change to the well is a new list and a new answer about what would not fit.
+    func setReferences(_ pictures: [ReferencePicture], note: String? = nil) {
+        references = pictures
+        referenceNote = note
     }
 
     /// One model's starting settings.

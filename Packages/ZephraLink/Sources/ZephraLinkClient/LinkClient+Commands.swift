@@ -9,14 +9,28 @@ extension LinkClient {
     /// inside a JSON envelope would block the channel for everything else, previews included.
     @discardableResult
     public func enqueue(_ request: GenerationRequest, reference: Data? = nil) async throws -> UUID {
+        try await enqueue(request, references: reference.map { [$0] } ?? [])
+    }
+
+    /// The same, for a model that reads several pictures: each crosses as a blob of its own,
+    /// **in order**, and the request names them in that order — one blob at a time in each
+    /// direction is the rule underneath, so they go one after another and the request follows
+    /// the last of them.
+    @discardableResult
+    public func enqueue(
+        _ request: GenerationRequest, references: [Data]
+    ) async throws -> UUID {
         var outgoing = request
-        if let reference {
-            let blobID = try await sendBlob(reference, mime: "image/png")
+        if !references.isEmpty {
+            var blobIDs: [UUID] = []
+            for reference in references {
+                blobIDs.append(try await sendBlob(reference, mime: "image/png"))
+            }
             // The request keeps its own id: a retry has to look like the same press of Generate
             // to the Mac, whatever the envelope around it is called.
             outgoing = GenerationRequest(
                 modelID: request.modelID, count: request.count, settings: request.settings,
-                referenceBlobID: blobID, requestID: request.requestID)
+                referenceBlobIDs: blobIDs, requestID: request.requestID)
         }
         switch try await self.request(.enqueue(outgoing)) {
         case .queued(let batchID): return batchID

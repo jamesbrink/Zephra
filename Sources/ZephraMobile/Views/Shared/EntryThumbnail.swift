@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import ZephraStyle
 
 /// One picture at thumbnail size, from the cache if it is there and from the Mac if it is not.
 ///
@@ -24,7 +25,7 @@ struct EntryThumbnail: View {
     @State private var picture: Fetched<UIImage>?
 
     var body: some View {
-        Color.clear
+        ground
             .overlay {
                 if let picture = picture?.value {
                     Image(uiImage: picture)
@@ -35,6 +36,18 @@ struct EntryThumbnail: View {
                 }
             }
             .task(id: FetchKey(name: entry.version, isLive: catalog.isLive)) { await load() }
+    }
+
+    /// The checkerboard behind a thumbnail that carries transparency, and nothing behind one
+    /// that does not. The thumbnail itself answers: the Mac composites its own checkerboard
+    /// into the JPEG it sends, so a square is checkered either way and never both.
+    @ViewBuilder
+    private var ground: some View {
+        if picture?.value.cgImage?.hasTransparency == true {
+            TransparencyGround()
+        } else {
+            Color.clear
+        }
     }
 
     /// The thumbnail, unless the one already here is for this very version of this picture.

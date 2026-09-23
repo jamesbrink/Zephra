@@ -16,15 +16,17 @@ struct ReferenceSourceThumbnail: View {
     let source: ReferenceFactsRow.Source
 
     @Environment(ImageCache.self) private var cache
-    @State private var thumbnail: NSImage?
+    @State private var thumbnail: DrawnPicture?
 
     var body: some View {
-        RoundedRectangle(cornerRadius: ZephraChrome.fieldRadius, style: .continuous)
-            .fill(.quaternary)
+        ground
             .frame(width: 40, height: 40)
+            .clipShape(
+                RoundedRectangle(cornerRadius: ZephraChrome.fieldRadius, style: .continuous)
+            )
             .overlay {
                 if let thumbnail {
-                    Image(nsImage: thumbnail)
+                    Image(nsImage: thumbnail.image)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 40, height: 40)
@@ -34,6 +36,17 @@ struct ReferenceSourceThumbnail: View {
                 }
             }
             .task(id: source) { await loadThumbnail() }
+    }
+
+    /// The checkerboard behind a source that carries transparency, and otherwise the tile's
+    /// own fill.
+    @ViewBuilder
+    private var ground: some View {
+        if thumbnail?.hasAlpha == true {
+            TransparencyGround()
+        } else {
+            Rectangle().fill(.quaternary)
+        }
     }
 
     /// Puts the old picture down first and checks for cancellation after every await: the
