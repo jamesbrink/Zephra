@@ -4,9 +4,10 @@ import SwiftUI
 /// Zoom to Fit — the canvas's and the library viewer's, and nothing else's. Clips, the live
 /// preview, thumbnails and the inspector stay plain pictures.
 ///
-/// It fills what it is given, so a zoomed picture has the whole pane, and at fit it answers
+/// It fills what it is given, so a zoomed picture has the whole pane. At fit it answers
 /// hit-testing only over the picture itself (`AspectFitShape`), so the gestures its callers lay
-/// on it act where they always did. `key` is what puts it back at fit: a new picture on the
+/// on it act where they always did; zoomed in it answers over the whole pane, since the picture
+/// is all of it. `key` is what puts it back at fit: a new picture on the
 /// canvas, a step in the viewer.
 ///
 /// The zoom state is `ZoomScrollView`'s, AppKit's own, and the menu bar reaches it through the
@@ -22,7 +23,7 @@ struct ZoomablePicture: View {
 
     var body: some View {
         ZoomScrollRepresentable(picture: picture, key: key, zoom: zoom)
-            .contentShape(AspectFitShape(aspect: aspect))
+            .contentShape(AspectFitShape(aspect: aspect, fills: zoom.isZoomedIn))
             .focusedSceneValue(\.pictureZoom, zoom)
     }
 

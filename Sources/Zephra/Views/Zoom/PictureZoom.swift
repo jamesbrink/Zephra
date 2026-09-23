@@ -16,6 +16,10 @@ final class PictureZoom {
     private(set) var magnification: CGFloat = 1
     /// What the picture on screen allows.
     private(set) var scale = ZoomScale(pixels: .zero, fitted: .zero)
+    /// Whether the picture is magnified past fit. Kept beside the two it follows from, and
+    /// written only when it flips, so a view that asks only this is not redrawn at every step of
+    /// a pinch.
+    private(set) var isZoomedIn = false
 
     @ObservationIgnored weak var view: ZoomScrollView?
 
@@ -41,6 +45,8 @@ final class PictureZoom {
     func report(magnification: CGFloat, scale: ZoomScale) {
         if self.magnification != magnification { self.magnification = magnification }
         if self.scale != scale { self.scale = scale }
+        let zoomedIn = magnification > 1 && !scale.isFit(magnification)
+        if isZoomedIn != zoomedIn { isZoomedIn = zoomedIn }
     }
 
     private func apply(_ magnification: CGFloat) {

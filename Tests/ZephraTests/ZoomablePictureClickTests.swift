@@ -47,6 +47,23 @@ struct ZoomablePictureClickTests {
         #expect(menus.titles.contains("Use as Reference"), "the right click zoomed in opened it too: \(menus.titles)")
     }
 
+    @Test("zoomed in, a right click where the letterbox was opens the picture's menu")
+    func zoomedRightClickNearTheEdgeOpensTheMenu() async throws {
+        let window = canvas(WorkspaceSelection(pane: .canvas))
+        defer { window.close() }
+        let scroll = try #require(await window.scrollView())
+        let menus = MenuWatch()
+        defer { menus.stop() }
+        // A square picture in a wide pane: at fit the far left is graphite, not picture.
+        let edge = NSPoint(x: 20, y: 300)
+
+        scroll.zoom(to: 3)
+        await window.settle()
+        #expect(!scroll.isAtFit)
+        try await window.click(.rightMouseDown, .rightMouseUp, at: edge)
+        #expect(menus.titles.contains("Use as Reference"), "the right click at the pane's edge opened the picture's menu: \(menus.titles)")
+    }
+
     @Test("zoomed in, a click is the pan's and not the tuck's")
     func zoomedClickPans() async throws {
         let workspace = WorkspaceSelection(pane: .canvas)
