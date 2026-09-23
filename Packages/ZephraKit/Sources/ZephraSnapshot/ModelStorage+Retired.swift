@@ -6,11 +6,13 @@ extension ModelStorage {
     ///
     /// `claimed` is the set of directory paths the catalog walk already produced, so a
     /// release two variants pack from is never listed twice. Only what Zephra itself writes
-    /// is listed: a variant is a directory carrying one of the three files a packed or
-    /// downloaded snapshot always has, and a download is a directory under `Downloads`
-    /// spelled `<org>--<repo>`. Anything else under the root is the person's own folder and
-    /// is left alone, which is the whole reason this is a rule about markers rather than a
-    /// listing.
+    /// is listed: a variant is a directory carrying one of Zephra's own two stamps,
+    /// `.zephra-packed-source` or `quantization.json`, which only the packer writes, and a
+    /// download is a directory under `Downloads` spelled `<org>--<repo>`. Anything else under the
+    /// root is the person's own folder and is left alone, which is the whole reason this is a
+    /// rule about markers rather than a listing. `model_index.json` is deliberately not a marker:
+    /// every diffusers release carries one, so a release somebody downloaded by hand into the
+    /// models folder would have been offered for deletion as a model Zephra once held.
     static func retired(claimed: Set<String>, locations: ModelLocations) -> [ModelStorageItem] {
         var items: [ModelStorageItem] = []
         for root in locations.roots {
@@ -27,7 +29,7 @@ extension ModelStorage {
         return items
     }
 
-    private static let variantMarkers = [".zephra-packed-source", "quantization.json", "model_index.json"]
+    private static let variantMarkers = [".zephra-packed-source", "quantization.json"]
 
     private static func appendDownload(
         _ url: URL, claimed: Set<String>, locations: ModelLocations, to items: inout [ModelStorageItem]

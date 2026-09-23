@@ -61,4 +61,36 @@ struct LatentPreviewTests {
         let alpha = stride(from: 3, to: preview.pixels.count, by: 4).map { preview.pixels[$0] }
         #expect(alpha.contains { $0 != 255 }, "an opaque column would be 255 throughout")
     }
+
+    /// Every fourth byte, which is what `GenerationPreview.hasTransparency` reads.
+    private static func alpha(_ preview: QwenImage21LatentPreview) -> [UInt8] {
+        stride(from: 3, to: preview.pixels.count, by: 4).map { preview.pixels[$0] }
+    }
+
+    /// A 4 x 4 grey picture in -1...1 whose alpha is `alpha` everywhere but one pixel, which
+    /// carries `corner`.
+    private static func picture(alpha: Float, corner: Float) -> MLXArray {
+        var values = [Float]()
+        for index in 0..<16 {
+            values += [0, 0, 0, index == 0 ? corner : alpha]
+        }
+        return MLXArray(values, [1, 4, 4, 4])
+    }
+
+    @Test("an opaque run's noisy alpha is flattened, so its frame reports no transparency")
+    func opaqueNoiseIsFlattened() throws {
+        // 252 and 250 of 255: the noise an ordinary prompt's alpha carries.
+        let preview = try QwenImage21LatentPreview.frame(
+            Self.picture(alpha: 252.0 / 255.0 * 2 - 1, corner: 250.0 / 255.0 * 2 - 1))
+        #expect(preview.pixels.count == 4 * 4 * 4)
+        #expect(Self.alpha(preview).allSatisfy { $0 == 255 })
+    }
+
+    @Test("a frame with a real hole keeps its alpha")
+    func aHoleIsKept() throws {
+        let preview = try QwenImage21LatentPreview.frame(Self.picture(alpha: 1, corner: -1))
+        let alpha = Self.alpha(preview)
+        #expect(alpha.first == 0)
+        #expect(alpha.dropFirst().allSatisfy { $0 == 255 })
+    }
 }

@@ -1015,9 +1015,13 @@ so `make test` covers all of it.
   when it is encoded, and the Mac cannot know which appearance the phone reading
   it will be in.
 - `PNGHeader` reads a file's text, its size and whether its pixels carry alpha
-  in one seeking walk: each chunk's body is read when it is under 64 KiB and
-  **seeked past** otherwise, stopping at the first IDAT, so a picture carrying a
-  1024-pixel reference costs a few small reads rather than the whole file.
+  in one seeking walk, stopping at the first IDAT: a chunk's body is read when
+  it is under 64 KiB, and past that a text chunk's keyword is read first — a
+  `zephra:reference` or `zephra:reference.N` is **seeked past**, any other text
+  is read whole up to 4 MiB (`textReadLimit`, past which it is skipped and its
+  keyword noted in `skippedText`) — so a picture carrying a 1024-pixel reference
+  costs a few small reads rather than the whole file, and an imported picture
+  whose `zephra:generation` carries a huge prompt stays in the library.
   `PNGTextChunks.read(fromHeaderOf:)` is that walk's text and keeps its
   signature; `PNGTextChunks+Replacing` splices one back before IDAT, dropping
   the same keyword, so repeated writes do not grow the file.
@@ -2440,9 +2444,11 @@ each family.
   a row of its own, and a directory the loaded model is using cannot be
   deleted. Past those, `ModelStorage+Retired` sweeps every root for directories
   no catalog entry claims — a `Downloads/<org>--<repo>` or a variant carrying
-  one of `.zephra-packed-source`, `quantization.json` or `model_index.json`,
+  one of Zephra's own stamps, `.zephra-packed-source` or `quantization.json`,
   never a `.partial`, never a symbolic link and never an unmarked folder, which
-  is somebody's own — and lists them as **"No longer in the catalog"**:
+  is somebody's own; `model_index.json` is no marker, since every diffusers
+  release carries one and a release downloaded by hand into the models folder
+  is somebody's own too — and lists them as **"No longer in the catalog"**:
   deletable, never loadable. That is what a Mac that held Qwen-Image-2512 sees
   of it now. Changing the folder offers Move Models, Keep in Place, or
   Cancel: Keep retains previous roots as read-only fallbacks; Move unloads,
@@ -2538,7 +2544,10 @@ each family.
   guidance is over one. This is not a distilled checkpoint, so unlike every
   other entry both controls mean something; 1 is the default because the
   release's own card samples it that way and because it is the value at which
-  the second forward, and its share of the prefix cache, is not paid.
+  the second forward, and its share of the prefix cache, is not paid. As in
+  `diffusers`, guidance over one with the negative field empty runs no second
+  forward and changes nothing, so the Mac's guidance control says "Guidance
+  needs something to avoid." under itself then (`GuidanceNote`, `Support/`).
 - Sizes are multiples of **32** — a 2x2 patch over a 16-pixel cell — bounds
   512...2752, default 1024 square, and the presets carry the card's 2K set.
   1344 rather than 1328: 1328 is not a multiple of 32.

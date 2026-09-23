@@ -45,8 +45,14 @@ as an index, and it is Foundation only, so `make test` covers all of it.
   the counts matching on the child.
 - `PNGHeader` reads a file's header in one seeking walk and answers three
   questions from it: its text, its size, and whether its pixels carry alpha. A
-  chunk's body is read when it is under 64 KiB and **seeked past** otherwise,
-  and the walk stops at the first IDAT. That replaced a prefix-growing read of
+  chunk's body is read when it is under 64 KiB, and the walk stops at the first
+  IDAT. Past 64 KiB a text chunk's keyword is read first (the bytes up to its
+  NUL, at most 79): a reference, `zephra:reference` or `zephra:reference.N`, is
+  **seeked past**, and any other text is read whole up to 4 MiB
+  (`PNGHeader.textReadLimit`), past which it is skipped and its keyword noted in
+  `skippedText`. Skipping every large chunk regardless of what it was would have
+  dropped out of the library an imported picture whose `zephra:generation` chunk
+  carried a prompt over 64 KiB. That replaced a prefix-growing read of
   64 KiB, then 256 KiB, then a megabyte, which a picture carrying a 1024-pixel
   reference defeated at all three sizes — a reference chunk is about 1.4 MB of
   base64 — so every edit in the library was falling back to `Data(contentsOf:)`,

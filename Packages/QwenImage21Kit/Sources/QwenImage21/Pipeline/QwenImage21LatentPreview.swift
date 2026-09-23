@@ -15,7 +15,10 @@ import ZephraMLX
 /// The bytes are `ZephraMLX.PixelBuffer`'s, which carries a fourth channel as the picture's own
 /// straight alpha rather than appending an opaque one. `LatentPreview.rgba8` is the
 /// three-channel door and would make five channels out of these four, so it is deliberately not
-/// what a 2.1 frame goes through.
+/// what a 2.1 frame goes through. The frame is flattened first by `QwenImage21Opacity`, the rule
+/// the finished picture follows: an opaque run's alpha lands at 250...255, and carried as it came
+/// every frame of it would read as transparent and be drawn over a checkerboard, here and in the
+/// JPEG a phone is sent. A frame with a real hole keeps its alpha.
 public struct QwenImage21LatentPreview: Sendable {
     /// Pixels across.
     public let width: Int
@@ -57,8 +60,14 @@ public struct QwenImage21LatentPreview: Sendable {
             .transposed(0, 2, 3, 1)
         let image = autoencoder.decodeUntiled(normalization.denormalize(pooled))
         eval(image)
-        return QwenImage21LatentPreview(
+        return try frame(image)
+    }
+
+    /// Packs a decoded `[1, height, width, 4]` picture in -1...1 as a frame: flattened to three
+    /// channels, and so an opaque alpha column, when its alpha never drops below the opaque floor.
+    static func frame(_ image: MLXArray) throws -> QwenImage21LatentPreview {
+        QwenImage21LatentPreview(
             width: image.dim(2), height: image.dim(1),
-            pixels: try PixelBuffer.rgba8(image))
+            pixels: try PixelBuffer.rgba8(QwenImage21Opacity.flattened(image)))
     }
 }

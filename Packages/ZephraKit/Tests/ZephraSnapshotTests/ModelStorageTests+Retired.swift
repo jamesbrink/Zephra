@@ -55,6 +55,17 @@ struct ModelStorageRetiredTests {
         #expect(items.isEmpty)
     }
 
+    @Test("a diffusers release downloaded by hand into the models folder is not listed")
+    func handDownloadedReleaseIsNotListed() throws {
+        let scratch = Scratch("ModelStorageRetired")
+        try scratch.make("models/Qwen-Image-2.1/model_index.json")
+        try scratch.make("models/Qwen-Image-2.1/transformer/config.json")
+
+        let items = ModelStorage.items(
+            for: [], cache: scratch.url("hub"), locations: ModelLocations(root: scratch.url("models")))
+        #expect(items.isEmpty)
+    }
+
     @Test("a directory the catalog claims is listed once, by its model's name")
     func claimedDirectoryIsNotListedTwice() throws {
         let scratch = Scratch("ModelStorageRetired")

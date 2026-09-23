@@ -162,4 +162,22 @@ struct ReferenceStripTests {
         #expect(store.settings.referenceImages.isEmpty)
         #expect(store.referenceRoom == 0)
     }
+
+    @Test("a reorder moves the strip's revision though it moves neither the ticket nor the count")
+    func aReorderMovesTheRevision() async throws {
+        let bed = EngineTestBed()
+        let store = await Self.store(bed, model: Self.reader)
+        store.appendReferences([Self.picture(1), Self.picture(2), Self.picture(3)])
+        let choice = store.referenceChoice
+        let revision = store.referenceRevision
+
+        store.moveReference(from: 2, to: 0)
+        #expect(store.settings.referenceImages.map(\.data) == [Data([3]), Data([1]), Data([2])])
+        #expect(store.referenceChoice == choice)
+        #expect(store.referenceRevision != revision, "a tile would keep its old picture")
+
+        let moved = store.referenceRevision
+        store.moveReferences(fromOffsets: IndexSet(integer: 0), toOffset: 3)
+        #expect(store.referenceRevision != moved)
+    }
 }
