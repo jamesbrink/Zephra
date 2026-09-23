@@ -348,7 +348,12 @@ victim as any fault: its notice already says try again, and nothing is queued
 behind it. `VictimFaultRerunTests` (one victim lands one picture from the same
 seed and never shows `.failed`; two fail with the sentence; a non-victim never
 reruns; a Stop during the rerun keeps nothing) and
-`ZephraMLXTests/DeviceFaultFailureTests` pin it.
+`ZephraMLXTests/DeviceFaultFailureTests` pin it. A streamed model needs one
+thing more for the rerun to be right: the pass the fault ended had not released
+the layers after the fault, and a discarded command buffer can leave their
+nodes marked evaluated over garbage, so `LayerWeightStream.run` re-points every
+unreleased layer at fresh nodes on its way out (see "Streaming the weights" in
+`model-weights.md`).
 
 ### A GPU the driver has stopped running costs the launch
 

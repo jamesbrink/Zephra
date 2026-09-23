@@ -276,10 +276,6 @@ still at a few hundred downloads), and
 
 ## Library viewer: left out on purpose
 
-- **Zoom and pan.** The viewer fits the whole picture to the pane, the way the canvas
-  does; there is no way to look closer at one part of it. A pinch or scroll-to-zoom
-  gesture, with the fitted view as the reset, is the natural next step once someone
-  asks for it.
 - **A filmstrip of thumbnails along the bottom**, the way Photos and Preview both
   offer, instead of only the bar's "n of N" and the prev/next buttons.
 
@@ -425,10 +421,7 @@ dumped from `diffusers` and `transformers`, and every weight the app downloads.
   in GPL code (ComfyUI's `latent_preview`) and cannot be copied, so ours would have to
   be fitted: decode a few hundred latents through each family's own VAE and
   least-squares the mapping, once per family, checked in as numbers with a script
-  beside them. Worth doing if the pooled decode ever proves too dear on a smaller Mac,
-  or if a frame per step rather than one every 0.75 s is wanted.
-- **A frame every step.** The throttle is what keeps the preview at a few percent of a
-  run. Per-step frames would need the factor tables above, not a faster decode.
+  beside them. Worth doing if the pooled decode ever proves too dear on a smaller Mac.
 - **Previewing the reference-image path's first frames.** A run that starts from a
   noised copy of a picture skips the steps before its entry point, so its first frame
   is already most of the way there. Nothing is wrong with that; it is just not the

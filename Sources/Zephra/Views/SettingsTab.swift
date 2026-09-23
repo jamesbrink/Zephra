@@ -101,7 +101,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     /// than being unable to shrink at all.
     ///
     /// 400 clears a 13-inch MacBook Air M1 (876 usable points, menu bar removed) with the
-    /// window's 88 points of chrome added back — 488 against 876. Performance stands 1010 now
+    /// window's 88 points of chrome added back — 488 against 876. Performance stands 1142 now
     /// and so opens clamped and scrolling on every Mac laptop, which is exactly what this floor
     /// exists for. This number, and never the tab's own height, is what `SettingsWindowFrame`
     /// pins `contentMinSize` at: a minimum taller than the display is one nothing can clamp,

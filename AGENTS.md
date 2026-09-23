@@ -1436,8 +1436,12 @@ Rules in `Views/`:
   viewer's double-click — are the ones they always were, over the picture's own
   rectangle (`AspectFitShape`) and not the letterbox; a scroll that would move
   nothing goes up the responder chain. Zoomed in, a click-drag pans with the
-  grab cursor and a right click still opens the menu; a click is the pan's, so
-  the tuck, the double-click close and the drag-out wait for fit.
+  grab cursor and a right click still opens the menu **anywhere in the pane**,
+  since the content shape is the whole rectangle then (`PictureZoom.isZoomedIn`);
+  a click is the pan's, so the tuck, the double-click close and the drag-out
+  wait for fit. The same key over pixels of another size is fitted again without
+  losing its zoom, and a live pinch draws at low interpolation with the squares
+  left to scale until the fingers lift, then once more at full quality.
   `ZoomablePictureClickTests` posts real events to an off-screen window through
   the application's queue — the scroll view reads `NSApp.currentEvent`, which
   only the event loop sets — and `ZoomablePictureTests` pins the ladder, the
@@ -2388,7 +2392,10 @@ updater reads what a ship leaves behind.
   preference is re-read at every tick, so switching it off stops the checking
   rather than only the next launch's, and switching it back on calls
   `startChecking()` (the timer without `start()`'s sweep of the last install),
-  so checking resumes without a relaunch.
+  so checking resumes without a relaunch. It **replaces** a loop still asleep on
+  the old six-hour schedule, so the check comes within `launchDelay`, unless a
+  check is running that moment; the old loop is cancelled first and its end
+  clears `loop` only while it is still the one held, so there are never two.
 - **A check is never silent.** Every one that finishes logs one line at info
   (at error for a failure) — "update check: up to date at <build>", "update
   check: found <version (build)>", "update check: failed: <reason>" — and is
@@ -2670,6 +2677,13 @@ Three choices are load-bearing:
   before any of it ran.
 - Waiting on the layer before bounds the window at `depth + 2` layers: MLX
   allocates a buffer when a read is queued, not when bytes arrive.
+
+A pass that **throws** — Stop between blocks, a GPU fault — re-points every
+layer it had not yet released at the next pass's fresh nodes on its way out
+(`LayerWeightStream+Recovery`). Those layers held this pass's nodes, some
+already prefetched, and after a victim fault a discarded command buffer can
+leave a node marked evaluated over bytes that are not the weights; the engine
+reruns such a job at once, and its first step would have read them.
 
 Block stacks stream; embeddings, projections, norms and autoencoders stay
 resident. A streamed step is one read of the transformer, so

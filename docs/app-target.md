@@ -715,11 +715,24 @@ Six directories, by what a file is rather than what screen it is on:
   Zoomed in, a left click is the pan's and a right click still goes to the menu.
   `AspectFitShape` is the content shape, so at fit those gestures answer over the
   picture and not over the graphite letterbox either side of it, as they did when
-  the picture laid itself out at its aspect. `ZoomablePictureClickTests` proves it
+  the picture laid itself out at its aspect. Zoomed in, the shape is the whole
+  pane (`fills`, from `PictureZoom.isZoomedIn`, which flips only as the picture
+  passes fit so a pinch does not redraw the SwiftUI above it at every step):
+  what was letterbox is picture now, or one pan from it, and a right click or a
+  drag-out there that did nothing was the bug. `ZoomablePictureClickTests` proves it
   with real events, posted through the application's queue to an off-screen
   window rather than handed to it, since only the event loop sets
   `currentEvent`: a click on the picture tucks, one on the letterbox does not, a
-  right click opens a menu at fit and zoomed, and a zoomed click does not tuck.
+  right click opens a menu at fit and zoomed, at the pane's edge too once
+  zoomed, and a zoomed click does not tuck.
+
+  Two smaller rules. The document is laid out again when the picture's pixel
+  size changes under the same key, not only on a resize or a new key, so a
+  picture replaced in place is fitted afresh and keeps its zoom. And during a
+  live pinch (`willStartLiveMagnify` to `didEndLiveMagnify`) `PictureDocumentView`
+  draws at low interpolation and leaves the squares to scale with it, rather
+  than drawing the whole picture at high quality and the checkerboard afresh at
+  every step, and draws once more at full quality when the fingers lift.
 
   The View menu's four zoom items are `ZoomCommands` — Zoom In ⌘+, Zoom Out ⌘−,
   Actual Size ⌘0, Zoom to Fit ⌘9 — over `PictureZoom`, the `@Observable` the

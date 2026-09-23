@@ -284,6 +284,20 @@ Three of the loop's choices are load-bearing and easy to undo:
   before MLX's own task limit stopped it. Waiting on the layer before rather
   than the one just committed leaves the GPU a layer of work in hand.
 
+A pass that throws part way — Stop between blocks, or a GPU fault that
+cancelled the run — has not released the layers from the throw point on, and
+those still hold this pass's nodes, some already prefetched. Until 2026-09-23
+they were left so, which was harmless while they held the right weights. It
+stopped being harmless when the engine began rerunning a job lost to an
+innocent-victim fault by itself (`GenerationStore+FaultRerun`): a discarded
+command buffer can leave a node marked evaluated over a buffer that never
+received its bytes, and the rerun's first step would read it. So `run` catches
+on its way out and hands every layer it had not released a fresh node from the
+next pass (`LayerWeightStream+Recovery`), skipping a tensor already taken rather
+than throwing over the error that matters. `LayerWeightStreamTests` pins it by
+poisoning three unreleased layers before the throw and expecting the next pass
+bit for bit.
+
 The five families differ only in which stacks are handed to a stream.
 Qwen-Image 2.1 is described below. LTX-2.5 and Wan stream both of their stacks.
 Z-Image streams

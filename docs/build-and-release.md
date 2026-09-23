@@ -432,7 +432,12 @@ the loop at its next tick, but switching it back on did nothing until a
 relaunch, since nothing asked the checker to begin again. It now calls
 `UpdateChecker.startChecking()`, the timer without `start()`'s once-a-launch
 sweep of `Zephra.previous.app` and `Updates/`, which must not run while a
-download may be writing there.
+download may be writing there. Switched off and on again inside six hours, the
+old loop was still asleep and `startChecking()` kept it, so "straight away"
+meant up to six hours; it now cancels that loop and starts one on the short
+launch delay, unless a check is running that moment. A generation number
+keeps the cancelled loop's exit from clearing its successor, so there is only
+ever one loop.
 
 **What is left out** is in `ROADMAP.md` under "Updates: left out on purpose".
 
