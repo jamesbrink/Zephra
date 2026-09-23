@@ -76,6 +76,24 @@ struct ZoomablePictureTests {
         #expect(scroll.isAtFit)
     }
 
+    @Test("the same key over pixels of another shape is fitted again")
+    func samePictureNewSizeRefits() async throws {
+        let window = ZoomTestWindow(picture(key: 1))
+        defer { window.close() }
+        let scroll = try #require(await window.scrollView())
+        #expect(scroll.documentView?.frame.size == CGSize(width: 600, height: 600))
+
+        let wide = NSImage(size: NSSize(width: 1024, height: 512))
+        wide.addRepresentation(try #require(NSBitmapImageRep(
+            bitmapDataPlanes: nil, pixelsWide: 1024, pixelsHigh: 512, bitsPerSample: 8,
+            samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+            bytesPerRow: 0, bitsPerPixel: 0)))
+        window.host.rootView = AnyView(ZoomablePicture(picture: DrawnPicture(wide, hasAlpha: false), key: 1))
+        await window.settle()
+        #expect(scroll.documentView?.frame.size == CGSize(width: 900, height: 450))
+        #expect(abs((scroll.zoom?.scale.actualSize ?? 0) - 1024.0 / 900) < 0.001)
+    }
+
     private func picture(key: Int) -> some View {
         let image = PreviewImages.sample()
         let decoded = NSImage(data: image.pngData)!

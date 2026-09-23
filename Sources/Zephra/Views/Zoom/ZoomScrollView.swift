@@ -5,7 +5,8 @@ import AppKit
 /// momentum and rubber-banding, as Preview's does.
 ///
 /// Magnification 1 is **fit**: the document view is laid out at the picture's fitted size for
-/// the scroll view's current bounds, and laid out again whenever those change, so a resize keeps
+/// the scroll view's current bounds, and laid out again whenever those or the picture's pixel
+/// size change, so a resize keeps
 /// the picture fitted and a zoomed picture keeps its zoom relative to fit. A new `key` — another
 /// picture, a page in the viewer — puts it back at fit.
 ///
@@ -23,6 +24,7 @@ final class ZoomScrollView: NSScrollView {
     private let picture = PictureDocumentView()
     private var key: AnyHashable?
     private var laidOutFor: CGSize = .zero
+    private var laidOutPixels: CGSize = .zero
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -55,7 +57,9 @@ final class ZoomScrollView: NSScrollView {
     func show(_ image: NSImage, hasAlpha: Bool, key: AnyHashable) {
         picture.image = image
         picture.hasAlpha = hasAlpha
-        guard key != self.key else { return }
+        // The same key over pixels of another size — a picture replaced in place — keeps its
+        // zoom but wants its fitted size and its scale worked out again.
+        guard key != self.key else { return layoutPicture() }
         self.key = key
         laidOutFor = .zero
         layoutPicture()
@@ -99,12 +103,15 @@ final class ZoomScrollView: NSScrollView {
         }
     }
 
-    /// Lays the document out at the fitted size for the bounds this view has now.
+    /// Lays the document out at the fitted size for the bounds this view has now and the
+    /// picture it shows now.
     private func layoutPicture() {
         let size = frame.size
-        guard size != laidOutFor, let image = picture.image else { return }
-        laidOutFor = size
+        guard let image = picture.image else { return }
         let pixels = image.pixelSize
+        guard size != laidOutFor || pixels != laidOutPixels else { return }
+        laidOutFor = size
+        laidOutPixels = pixels
         let aspect = pixels.height > 0 ? pixels.width / pixels.height : 1
         let fitted = ZoomScale.fitted(aspect: aspect, in: size)
         picture.frame = NSRect(origin: .zero, size: fitted)
