@@ -14,7 +14,7 @@ before believing a fixture.
 
 ## The pins here are not the other three kits' pins
 
-`QwenImageKit`, `Flux2Kit` and `LTX2Kit` pin `diffusers==0.40.0` and `transformers==5.16.1`.
+`Flux2Kit`, `LTX2Kit` and `WanKit` pin `diffusers==0.40.0` and `transformers==5.16.1`.
 This kit pins:
 
 - **diffusers from git**, at commit `6256aa7666cedd47443adc8f82da9a10e110b09c`. Qwen-Image 2.1

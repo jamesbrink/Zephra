@@ -911,7 +911,12 @@ Mac no longer has the room to run on is how a fault used to repeat itself. A
 resident model that needs nothing drains the queue instead, which is what makes
 Try Again give a refused job its turn. Both sites log what they read and what they decided,
 admitted or refused, since the same refusal on two Macs is two different stories
-about what was holding the memory. `canSelect(_:)` (`+Admission`) is the other
+about what was holding the memory: an admitted line ends with what it charged —
+"charging X GB". `runShortfall` and `remoteAdmission` take a `logging:` flag for
+this, true by default; a paired phone's offer (`CompanionSession+Offers`) passes
+`logging: false`, since an offer is polled every few seconds while nothing runs
+and logging it at info would bury a real run's own admission line.
+`canSelect(_:)` (`+Admission`) is the other
 half and is the budget alone: `switchModel` drops a pick of a model this Mac
 cannot hold, `startLoading` refuses one before a byte is fetched,
 `select(_ item:)` keeps the current model for a picture made by one, and
@@ -998,8 +1003,11 @@ so `make test` covers all of it.
   `CGImageAlphaInfo.last` — never premultiplied, because that channel came out
   of the autoencoder in −1 to 1 like the other three and premultiplying would
   lose colour in every near-transparent pixel — and every drawing site puts
-  `TransparencyGround` behind it. **Where a picture leaves as a JPEG it is
-  composited first**, because a JPEG has no alpha and the alternative is black:
+  `TransparencyGround` behind it. `QwenImage21Opacity` writes a picture whose
+  alpha never drops below 250 of 255 as a three-channel file, so an ordinary
+  picture from that model is opaque and only a real hole keeps its alpha.
+  **Where a picture leaves as a JPEG it is composited first**, because a JPEG
+  has no alpha and the alternative is black:
   `CheckerboardComposite` is that one rule, used by `CompanionThumbnails` and by
   the link's `PreviewEncoder`, and it draws the checkerboard's light grey at the
   picture's **top left** whichever way the bitmap context counts rows. The two
@@ -2063,11 +2071,6 @@ BSD-3-Clause), the seam a later post-process should copy:
   4x pass followed by an exact 2x2 box mean. The picture runs through
   `TiledDecode` in 512-pixel input tiles. Written from `srvgg_arch.py`, never
   from `xocialize/realesrgan-mlx`, which has no license.
-- **Transparency is carried.** A picture with an alpha channel runs through
-  twice: its straight colour as itself, its alpha as a grey triplet whose three
-  outputs are meaned into the new alpha, recombined as straight RGBA and written
-  as an RGBA PNG. Twice the tiles, and the progress counts both lanes. A picture
-  with no alpha channel runs one lane and is byte for byte what it always was.
 
 What the upscaler leaves out is in `ROADMAP.md`.
 
@@ -2366,7 +2369,10 @@ sentences about behaviour.
   pins the reference versions in `Fixtures/versions.json`. `QwenImage21Kit`
   pins a `diffusers` **commit** and `transformers` 5.17.0 where the others pin
   0.40.0 and 5.16.1, because 2.1 landed after 0.40.0 was cut and Qwen3-VL does
-  not exist before 5.17; the divergence is stated in its fixture README. Adding a component means adding its fixture in the
+  not exist before 5.17; `versions.json` can only record `0.41.0.dev0`, what
+  the working tree called itself, so the commit itself lives in each dumper's
+  PEP 723 header and in the fixture README, where the divergence is stated.
+  Adding a component means adding its fixture in the
   same commit; the clean-room claim in `PROVENANCE.md` rests on it. Each kit's
   `WeightKeyCoverageTests` checks every published tensor against the module
   trees. `ZephraMLXTests` pins the shared pieces.
@@ -2377,10 +2383,13 @@ sentences about behaviour.
   hub cache holding exactly one snapshot; header tests gate on `hasRelease`.
   Under `xcodebuild test` spell the variable `TEST_RUNNER_<NAME>`.
   `QwenImage21Kit` is the one kit that breaks the rule twice on purpose and says
-  so in its `PROVENANCE.md`: five autoencoder suites read the release's 1.35 GB
-  `vae/*.safetensors`, and `PipelineParityTests` loads the whole release
-  streamed for two end-to-end steps against what `diffusers` made from the same
-  noise. It is also why that package must run with
+  so in its `PROVENANCE.md`: six autoencoder suites read the release's 1.35 GB
+  `vae/*.safetensors` (`AutoencoderTests`, `AutoencoderStageTests`,
+  `AutoencoderRoundTripTests`, `LatentNormalizationTests`, `TiledDecodeTests`,
+  `ConditionLatentParityTests`), and `PipelineParityTests` and
+  `PipelineReferenceParityTests` each load the whole release streamed for two
+  end-to-end steps against what `diffusers` made from the same noise. It
+  is also why that package must run with
   `-parallel-testing-enabled NO` — the flag `make test-mlx` already passes every
   MLX package — since beside that heavy suite `TiledDecodeTests` fails in
   parallel and passes alone.
@@ -2535,11 +2544,11 @@ each family.
   1344 rather than 1328: 1328 is not a multiple of 32.
 - Both layer stacks stream under `WeightResidency.streamed`: the transformer's
   32 blocks and the language model's 36 layers.
-- **Every memory figure is an estimate** (`BENCHMARKS.md`, "Owed reruns"), and
-  the catalog entry says so at each one. Measured are the download,
-  33,131,609,424 bytes, and the build, 11,564,552,844. `tiledPeakBytes` is the
-  one to read carefully: it is rounded to the side that streams on a 16 GB Mac,
-  and moving it under that budget is a decision rather than a correction.
+- **Every memory figure is measured**, on halcyon (M4 Max) on 2026-09-22:
+  10.58 GB resident, 20.07 GB peak, 14.08 GB tiled, 6.31 GB streamed peak over
+  2.75 GB held streamed, and 2.6 GB per reference picture. `tiledPeakBytes` is
+  the one to read carefully: 14.08 GB is over a 16 GB Mac's fallback budget, so
+  such a Mac streams this model rather than holding it.
 
 ### Streaming the weights
 

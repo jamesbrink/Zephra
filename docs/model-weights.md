@@ -221,19 +221,19 @@ Sizes are multiples of 32, a 2 x 2 patch over a 16-pixel cell, bounds
 rather than 1328: 1328 is not a multiple of 32 and was only ever legal on a
 family aligned to 16.
 
-#### What is owed
+#### What is measured
 
 Both layer stacks stream under `WeightResidency.streamed` — the transformer's 32
 blocks and the language model's 36 layers — and the tower, the autoencoder, the
 embeddings, the norms and the shared modulation table stay resident.
 
-Two figures are measured: the release is 33,131,609,424 bytes as the entry's
-file patterns fetch it, and the build writes 11,564,552,844. **Every memory
-figure is an estimate**, dated 2026-09-22, and the catalog entry says so at each
-one. `BENCHMARKS.md` carries the run that replaces them and why
-`tiledPeakBytes` is the one to read carefully: it is rounded to the side that
-streams on a 16 GB Mac, and moving it under that budget is a decision made with
-a reading in hand rather than a correction.
+The release is 33,131,609,424 bytes as the entry's file patterns fetch it, and
+the build writes 11,564,552,844. **Every memory figure is measured**, on
+halcyon (M4 Max) on 2026-09-22: 10.58 GB resident, 20.07 GB peak, 14.08 GB
+tiled, 6.31 GB streamed peak over 2.75 GB held streamed, and 2.6 GB per
+reference picture. `BENCHMARKS.md` carries the runs; `tiledPeakBytes` is the
+one to read carefully, since 14.08 GB is over a 16 GB Mac's fallback budget, so
+such a Mac streams this model rather than holding it.
 
 ### Streaming the weights
 

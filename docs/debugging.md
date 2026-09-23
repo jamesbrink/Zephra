@@ -35,6 +35,11 @@ the same override the store runs under without a second read of the process envi
   read the hook in `onAppear` until the browser and the picker had to be arbitrated
   against each other; `WorkspaceSelection.showsReferencePicker` is the flag now, and the
   hook inside the well is gone.
+  `editing` and `picker` both stand on an invented model that reads several
+  pictures, so they photograph the well's **strip**; `ZEPHRA_PREVIEW_REFERENCES=N`
+  (2 unless set, clamped to `ReferenceLimits.maximumPictures`) is how many tiles
+  are in it — one number inside a state rather than a second state, so
+  `ZEPHRA_PREVIEW_REFERENCES=10` is what photographs the sideways scroll.
   `clip` stands the store up on `PreviewModel.video` — an invented model that makes clips
   and reads a picture, for the well, the length control and the strength slider — with the
   well filled and the canvas showing `PreviewImages.sample(frames:modelID:)` stamped with

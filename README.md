@@ -89,14 +89,12 @@ or guarantees for every Mac. Reference-image editing can use more memory.
 | FLUX.2 klein 4B, 8-bit | Same source | 8.6 GB | 8.1 GB | 15.3 / 10.9 GB |
 | Z-Image-Turbo, 8-bit | 13.3 GB | — | 12.4 GB | 23.5 / 17.9 GB |
 | Z-Image-Turbo, 4-bit | 32.9 GB | 7.1 GB | 6.7 GB | 17.8 / 12.2 GB |
-| Qwen-Image 2.1, 4-bit | 33.1 GB | 11.6 GB | Not yet measured | Not yet measured |
+| Qwen-Image 2.1, 4-bit | 33.1 GB | 11.6 GB | 10.6 GB | 20.1 / 14.1 GB |
 | Wan 2.2 TI2V-5B, 4-bit | 24.2 GB | 10.1 GB | 8.0 GB | 15.1 / 12.4 GB at 832×480, 49 frames |
 | LTX-2.5, 4-bit, video only | 70.6 GB | 20.8 GB | 19.2 GB | 23.4 GB at 768×512, 49 frames |
 
 The source download is retained alongside the built copy, so allow space for
-both. Qwen-Image 2.1's memory figures are estimates until it is benchmarked on
-an idle Mac, so they are left out rather than published wrong; its two measured
-figures are the 33.1 GB download and the 11.6 GB build. **Its weights are under
+both. **Qwen-Image 2.1's weights are under
 the Qwen Research License, which permits research and evaluation only, not
 commercial work** — every other model here is under a permissive or
 revenue-scoped license, and `THIRD_PARTY_NOTICES.md` carries all of them.
@@ -109,15 +107,16 @@ and its weights are under the LTX-2.x Community License rather than Apache 2.0
 
 **Settings > Performance** controls tiled VAE decoding and weight residency.
 Automatic tiling reduces decode memory when the model exceeds the GPU's budget.
-Qwen-Image 2.1, Wan 2.2 and LTX-2.5 also support streaming weights from disk,
+Every family in the catalog also supports streaming weights from disk,
 enabling generation on 16 GB Macs at the cost of disk reads each step (Wan 2.2
 peaks at 9.7 GB streamed against 15.1 GB resident, LTX-2.5 at 10.0 GB against
-23.4 GB). The picker reports these tradeoffs;
-models remain selectable even when a smaller image size may be needed.
+23.4 GB, Qwen-Image 2.1 at 6.3 GB against 20.1 GB). The picker reports these
+tradeoffs; models remain selectable even when a smaller image size may be
+needed.
 
 Historical timings at 1024×1024 include about 29 seconds for FLUX.2 klein
-(four steps, M4 Max). Qwen-Image 2.1 runs forty steps rather than four and has
-not been timed yet. Wan 2.2 makes a two-second 832×480 clip (49 frames, three steps) in
+(four steps, M4 Max). Qwen-Image 2.1 runs forty steps rather than four and
+takes 269 seconds at 1024×1024, 6.71 seconds a step, on an M4 Max. Wan 2.2 makes a two-second 832×480 clip (49 frames, three steps) in
 32 seconds on an M4 Max, 36 streamed. LTX-2.5 makes a two-second 768×512 clip
 (49 frames) in 47 seconds on an M4 Max in two stages (69 in one), and in 232
 seconds streamed on the 16 GB M4 mini. These are reference measurements, not current performance claims:

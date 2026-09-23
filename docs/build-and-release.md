@@ -796,12 +796,15 @@ the snapshot, not whichever is listed first"); match that when adding one.
   parallel and passes alone.
 
 Almost no test loads model weights, and `QwenImage21Kit` is the one package that
-breaks the rule twice on purpose, which its `PROVENANCE.md` states: five
-autoencoder suites read the release's 1.35 GB `vae/*.safetensors`, and
-`PipelineParityTests` loads the whole 33 GB release streamed and runs two steps
-end to end against what `diffusers` made from the same noise — 35 seconds, and
-the one test that says the port makes the reference's picture rather than a
-plausible one. Everything else runs on a Mac with no release at all. The
+breaks the rule twice on purpose, which its `PROVENANCE.md` states: six
+autoencoder suites read the release's 1.35 GB `vae/*.safetensors`
+(`AutoencoderTests`, `AutoencoderStageTests`, `AutoencoderRoundTripTests`,
+`LatentNormalizationTests`, `TiledDecodeTests`, `ConditionLatentParityTests`),
+and `PipelineParityTests` and `PipelineReferenceParityTests` each load the
+whole 33 GB release streamed and run two steps end to end against what
+`diffusers` made from the same noise — the tests that say the port makes the
+reference's picture rather than a plausible one. Everything else runs on a
+Mac with no release at all. The
 `ZephraKit` suites never touch Metal; the MLX
 packages' suites run doll's-house tensors through it, and a few of `QwenImage21Kit`'s,
 `Flux2Kit`'s and `LTX2Kit`'s read a real snapshot's config, tokenizer, and safetensors
