@@ -41,7 +41,8 @@ extension GenerationStore {
     public func remoteAdmission(
         for model: ModelDescriptor,
         settings: GenerationSettings? = nil,
-        count: Int = 1
+        count: Int = 1,
+        logging: Bool = true
     ) -> RemoteAdmission {
         // Before everything, the request itself included: no wait and no correction makes a
         // request runnable on a Mac whose GPU has stopped answering it, and what the phone puts
@@ -59,7 +60,9 @@ extension GenerationStore {
         // What the Mac has free this minute is worth asking again in a moment, so a run this
         // machine has not the memory for right now is `refused` rather than a bad request.
         // Only with settings in hand: without them there is no size and no length to charge.
-        if let settings, let shortfall = runShortfall(for: model, settings: settings) {
+        // `logging` is false for a multi-host offer's pre-check, which is an estimate rather
+        // than a decision and would otherwise log every few seconds while nothing runs.
+        if let settings, let shortfall = runShortfall(for: model, settings: settings, logging: logging) {
             return .refused(shortfall.sentence)
         }
         return .admitted

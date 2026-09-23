@@ -34,7 +34,7 @@ extension MemoryGuard {
     ///
     /// A reference picture's prefix cache is added afterwards rather than scaled, for the reason
     /// written on `referenceBytes(of:settings:)`.
-    func transientBytes(
+    public func transientBytes(
         of descriptor: ModelDescriptor,
         residency: WeightResidency,
         tile: Int?,

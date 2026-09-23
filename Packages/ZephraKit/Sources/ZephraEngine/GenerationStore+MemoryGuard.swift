@@ -81,17 +81,30 @@ extension GenerationStore {
     ///
     /// `residency` asks the question of a way of loading other than the one in force, which is
     /// what "would this run fit if the weights were read from disk instead" is.
+    ///
+    /// `logging` is false for a multi-host **offer** — the estimate a paired phone polls every
+    /// few seconds while nothing is running — since that is not a decision about any work and
+    /// logging it at info buries the one line that is: a real run's own admission, from
+    /// `run(_:on:)`, or `enqueue`'s on a phone's actual submit. That line carries what the run
+    /// charged — the guard's own `transientBytes`, which already folds in the per-reference
+    /// prefix cache and its pass count — so a two-reference run's line shows the two pictures
+    /// were charged.
     func runShortfall(
         for model: ModelDescriptor, settings: GenerationSettings,
-        residency: WeightResidency? = nil
+        residency: WeightResidency? = nil, logging: Bool = true
     ) -> MemoryShortfall? {
         let machine = machineMemory?.read()
         let snapshot = runtime?.memorySnapshot() ?? .zero
         let residency = residency ?? loadedResidency ?? weightResidencyPolicy.residency(for: model)
+        let tile = vaeTile(for: model)
         let shortfall = memoryGuard.runShortfall(
             for: model, residency: residency, mode: weightResidencyPolicy.mode,
-            tile: vaeTile(for: model), settings: settings, machine: machine, runtime: snapshot)
-        log("run of \(model.id)", machine: machine, snapshot: snapshot, shortfall: shortfall)
+            tile: tile, settings: settings, machine: machine, runtime: snapshot)
+        guard logging else { return shortfall }
+        let charged = memoryGuard.transientBytes(
+            of: model, residency: residency, tile: tile, settings: settings, runtime: snapshot)
+        log("run of \(model.id)", machine: machine, snapshot: snapshot, shortfall: shortfall,
+            chargedBytes: charged)
         return shortfall
     }
 
@@ -110,10 +123,12 @@ extension GenerationStore {
     }
 
     /// One line per decision, so `make logs` says what the Mac looked like when it refused —
-    /// or when it did not, which is the line that makes the next refusal legible.
+    /// or when it did not, which is the line that makes the next refusal legible. `chargedBytes`
+    /// is a run's own figure, what the guard charged this request on top of the weights; nil for
+    /// a load, which has no per-request charge to name.
     private func log(
         _ what: String, machine: MachineMemory?, snapshot: MemorySnapshot,
-        shortfall: MemoryShortfall?
+        shortfall: MemoryShortfall?, chargedBytes: Int64? = nil
     ) {
         let reading = machine.map {
             "machine \(ByteCount.gigabytes($0.availableBytes)) free of "
@@ -123,7 +138,8 @@ extension GenerationStore {
             "zephra active \(ByteCount.gigabytes(Int64(snapshot.activeBytes))) "
             + "cache \(ByteCount.gigabytes(Int64(snapshot.cacheBytes)))"
         guard let shortfall else {
-            logger.info("memory before \(what, privacy: .public): \(reading, privacy: .public), \(ours, privacy: .public) — admitted")
+            let charge = chargedBytes.map { ", charging \(ByteCount.gigabytes($0))" } ?? ""
+            logger.info("memory before \(what, privacy: .public): \(reading, privacy: .public), \(ours, privacy: .public)\(charge, privacy: .public) — admitted")
             return
         }
         logger.error(

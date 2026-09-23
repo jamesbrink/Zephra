@@ -49,7 +49,10 @@ extension CompanionSession {
             store.timings.preparation(model: $0.modelID, revision: $0.revision, residency: $0.residency)
         }.flatMap { load in unload.map { load + $0 } }
         let revision = pending.map { $0.id.uuidString }.joined(separator: ":")
-        return HostOffer(refusal: store.strictRefusal(for: model, settings: settings, count: request.count),
+        // `logging: false`: an offer is a paired phone's estimate, polled every few seconds
+        // while nothing runs, and logging it at info would bury a real run's own admission line.
+        return HostOffer(refusal: store.strictRefusal(
+            for: model, settings: settings, count: request.count, logging: false),
             queueSeconds: waiting, preparationSeconds: preparation,
             executionSeconds: execution, memoryMargin: store.memoryBudget.bytes - store.strictMemory(for: model, settings: settings),
             modelLoaded: loaded, queueCount: pending.count, queueRevision: revision,

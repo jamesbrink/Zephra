@@ -248,4 +248,61 @@ struct MemoryGuardStoreTests {
         #expect(store.enqueue(settings, on: store.descriptor) == nil)
         #expect(store.queue.isEmpty)
     }
+
+    /// `logging: false` is what an offer's pre-check asks with, so it must never change the
+    /// answer — only whether `make logs` hears about it. Asked both ways over a starved
+    /// machine, refused and admitted alike answer the same.
+    @Test("logging: false changes nothing about the verdict, refused or admitted")
+    func loggingFlagDoesNotChangeTheVerdict() async throws {
+        let bed = EngineTestBed()
+        bed.memoryBudget = Self.straddling
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        var settings = GenerationSettings.defaults(for: store.descriptor)
+        settings.prompt = "a cat"
+
+        bed.machineMemory = Self.starved()
+        let loud = store.runShortfall(for: store.descriptor, settings: settings)
+        let quiet = store.runShortfall(for: store.descriptor, settings: settings, logging: false)
+        #expect(loud == quiet)
+        #expect(loud != nil)
+
+        let loudAdmission = store.remoteAdmission(for: store.descriptor, settings: settings)
+        let quietAdmission = store.remoteAdmission(
+            for: store.descriptor, settings: settings, logging: false)
+        #expect(loudAdmission.reason == quietAdmission.reason)
+
+        let loudRefusal = store.strictRefusal(for: store.descriptor, settings: settings, count: 1)
+        let quietRefusal = store.strictRefusal(
+            for: store.descriptor, settings: settings, count: 1, logging: false)
+        #expect(loudRefusal == quietRefusal)
+
+        // And admitted, over room this Mac has: the same parity, the other way.
+        bed.machineMemory = MachineMemory(
+            physicalBytes: 128_000_000_000, availableBytes: 120_000_000_000)
+        #expect(store.runShortfall(for: store.descriptor, settings: settings) == nil)
+        #expect(store.runShortfall(for: store.descriptor, settings: settings, logging: false) == nil)
+    }
+
+    /// An offer is a paired phone's estimate — `CompanionSession+Offers.offer` calls
+    /// `strictRefusal(logging: false)` — and it must be silent about the memory check without
+    /// being silent about the answer: the refusal it reports is still the guard's real one.
+    @Test("an offer's own memory check answers exactly what a logged one would")
+    func offerMemoryCheckMatchesLoggedCheck() async throws {
+        let bed = EngineTestBed()
+        bed.memoryBudget = Self.straddling
+        let store = bed.store()
+        store.warmsUpAfterLoad = false
+        await store.bootstrap()
+        var settings = GenerationSettings.defaults(for: store.descriptor)
+        settings.prompt = "an offer while starved"
+        bed.machineMemory = Self.starved()
+
+        let offerRefusal = store.strictRefusal(
+            for: store.descriptor, settings: settings, count: 1, logging: false)
+        let realRefusal = store.strictRefusal(for: store.descriptor, settings: settings, count: 1)
+        #expect(offerRefusal == realRefusal)
+        #expect(offerRefusal != nil)
+    }
 }

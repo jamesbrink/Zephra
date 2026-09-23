@@ -2,11 +2,14 @@ import Foundation
 import ZephraCore
 
 extension GenerationStore {
-    /// Checks the exact workload without loading weights or acquiring storage.
+    /// Checks the exact workload without loading weights or acquiring storage. `logging` is
+    /// false for a multi-host offer, whose estimate is not a decision about any work: threaded
+    /// down to `remoteAdmission`'s own memory check, which would otherwise log every few
+    /// seconds while a paired phone polls an idle Mac.
     public func strictRefusal(for model: ModelDescriptor, settings: GenerationSettings,
-                              count: Int, admitting: Bool = true) -> String? {
-        if admitting, case .admitted = remoteAdmission(for: model, settings: settings, count: count) {} else if admitting {
-            return remoteAdmission(for: model, settings: settings, count: count).reason
+                              count: Int, admitting: Bool = true, logging: Bool = true) -> String? {
+        if admitting, case .admitted = remoteAdmission(for: model, settings: settings, count: count, logging: logging) {} else if admitting {
+            return remoteAdmission(for: model, settings: settings, count: count, logging: logging).reason
         }
         guard availability[model.id] == .available else { return "This model is not ready on this Mac." }
         guard !admitting || settings.continuation == nil else { return "Clip continuation is not supported over the link." }
