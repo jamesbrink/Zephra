@@ -1007,9 +1007,13 @@ so `make test` covers all of it.
   when it is encoded, and the Mac cannot know which appearance the phone reading
   it will be in.
 - `PNGHeader` reads a file's text, its size and whether its pixels carry alpha
-  in one seeking walk: each chunk's body is read when it is under 64 KiB and
-  **seeked past** otherwise, stopping at the first IDAT, so a picture carrying a
-  1024-pixel reference costs a few small reads rather than the whole file.
+  in one seeking walk, stopping at the first IDAT: a chunk's body is read when
+  it is under 64 KiB, and past that a text chunk's keyword is read first — a
+  `zephra:reference` or `zephra:reference.N` is **seeked past**, any other text
+  is read whole up to 4 MiB (`textReadLimit`, past which it is skipped and its
+  keyword noted in `skippedText`) — so a picture carrying a 1024-pixel reference
+  costs a few small reads rather than the whole file, and an imported picture
+  whose `zephra:generation` carries a huge prompt stays in the library.
   `PNGTextChunks.read(fromHeaderOf:)` is that walk's text and keeps its
   signature; `PNGTextChunks+Replacing` splices one back before IDAT, dropping
   the same keyword, so repeated writes do not grow the file.

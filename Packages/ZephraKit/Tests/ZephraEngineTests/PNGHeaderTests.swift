@@ -30,6 +30,50 @@ struct PNGHeaderTests {
         #expect(header.size == ImageSize(width: 1, height: 1))
     }
 
+    @Test("a generation record past the body limit is still read, and a large reference is not")
+    func readsALargeRecordButNotALargeReference() throws {
+        let folder = try Self.folder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        // An imported picture with a 100 KiB prompt: skipped, it would drop out of the library.
+        let record = #"{"prompt":""# + String(repeating: "p", count: 100 << 10) + #""}"#
+        let data = try PNGTextChunks.inserting(
+            [
+                (keyword: "zephra:generation", text: record),
+                (keyword: "zephra:reference", text: String(repeating: "R", count: 2 << 20)),
+                (keyword: "zephra:reference.2", text: String(repeating: "S", count: 100 << 10)),
+            ],
+            into: MockBackend.pngData
+        )
+        let url = folder.appending(path: "long-prompt.png")
+        try data.write(to: url)
+
+        let header = try PNGHeader.read(fromHeaderOf: url)
+        #expect(header.text["zephra:generation"] == record)
+        #expect(header.text["zephra:reference"] == nil)
+        #expect(header.text["zephra:reference.2"] == nil)
+        #expect(header.skippedText.isEmpty, "a reference is skipped by design, not noted")
+    }
+
+    @Test("a text chunk past the text cap is stepped over and its keyword noted")
+    func notesTextPastTheCap() throws {
+        let folder = try Self.folder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let data = try PNGTextChunks.inserting(
+            [
+                (keyword: "Comment", text: String(repeating: "c", count: PNGHeader.textReadLimit + 1)),
+                (keyword: "zephra:generation", text: #"{"seed":42}"#),
+            ],
+            into: MockBackend.pngData
+        )
+        let url = folder.appending(path: "huge-comment.png")
+        try data.write(to: url)
+
+        let header = try PNGHeader.read(fromHeaderOf: url)
+        #expect(header.text["Comment"] == nil)
+        #expect(header.skippedText == ["Comment"])
+        #expect(header.text["zephra:generation"] == #"{"seed":42}"#)
+    }
+
     @Test("a file whose image data is cut off still reads its header")
     func aTruncatedTailStillReads() throws {
         let folder = try Self.folder()
