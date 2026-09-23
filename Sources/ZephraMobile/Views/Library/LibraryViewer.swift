@@ -53,6 +53,7 @@ struct LibraryViewer: View {
             if let shown { chrome { LibraryViewerBar(entry: shown) } }
         }
         .modifier(LibraryRequests())
+        .modifier(ViewerClosesWithTab())
         .statusBarHidden()
         .presentationBackground(.clear)
         .onChange(of: pose.current) { _, current in

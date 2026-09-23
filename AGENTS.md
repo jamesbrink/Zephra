@@ -1658,7 +1658,11 @@ US-spelling check.
   picture's cell the one source under that fixed id and every other cell no
   source at all (the system follows a source added or removed, not one whose
   id changes; `ViewerOpeningTests` pins it), and the grid scrolls the shown
-  cell into view as the viewer pages.
+  cell into view as the viewer pages. A tab moved from inside the viewer — Use
+  as Reference sends somebody to the canvas — closes it through the same
+  `dismiss` Close and the pull use (`ViewerClosesWithTab`): a `TabView` keeps
+  every tab alive, so the cover otherwise stood over the canvas it was meant to
+  reveal.
 - The Today tab is `snapshot.today` drawn in the Mac's order.
   `CombinedToday` owns one `ViewerCover` on its `NavigationStack`,
   never on `HostTodayRows`' transparent group: a cover on the group fans out to

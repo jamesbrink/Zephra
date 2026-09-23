@@ -103,6 +103,11 @@ library's "Use as Reference" moves it, and a binding threaded down through four
 surfaces to let one menu item change a tab is worse than one object in the
 environment. Nothing in it is persisted: a launch opens on the canvas, or
 wherever a frozen preview state asked for, and always with the keyboard down.
+A tab moved from inside the library viewer closes the viewer: a `TabView` keeps
+every tab alive, so the full-screen cover stayed up over the canvas "Use as
+Reference" had just moved to. `ViewerClosesWithTab` remembers the tab the viewer
+opened over and calls the environment's `dismiss` — the one Close and the pull
+call — when the tab is no longer that one.
 
 Focus is there rather than in the capsule for a reason of the same kind. The
 view that asks for the keyboard is the collapsed prompt line, and it no longer
