@@ -615,7 +615,7 @@ Metal:
   availability, preview, tiling, reference, library, following the run,
   upscaling, interaction, downloads, the two folder changes, residency, the
   memory guard (`+MemoryGuard`), the two load controls (`+LoadControls`), the
-  four ways a run ends (`+RunEnding`), the idle clock (`+IdleUnload`) and the
+  four ways a run ends (`+RunEnding`), the idle clock (`+IdleUnload`), the
   run-time step-down to streaming (`+RunResidency`) and the one rerun a victim
   fault earns (`+FaultRerun`).
   **Add a new concern as another extension file**, never as more lines in
