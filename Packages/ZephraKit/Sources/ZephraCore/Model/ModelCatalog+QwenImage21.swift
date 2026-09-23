@@ -53,8 +53,11 @@ extension ModelCatalog {
         // 1024-pixel upsampler stage alone holds about 8 GB of scratch. The transformer's own
         // step adds 3.3 GB at the first step and 1.4 GB on a cached one. Peaks round up.
         // Re-measured on 2026-09-23 with preview frames on, now that a frame is the picture's
-        // own decode rather than a pooled thumbnail: 20,082 MB, the frames adding 13 MB.
-        peakBytes: 20_090_000_000,
+        // own decode rather than a pooled thumbnail: 20,082 MB, the frames adding 13 MB. Twelve-
+        // step runs the same afternoon peaked at 21,787 MB with frames off and 21,801 MB with
+        // them on, so the spread is the allocator's rather than the frames', and the entry
+        // carries the highest reading.
+        peakBytes: 21_810_000_000,
         // Measured, same machine and seed, under `ZEPHRA_VAE_TILE=64` (32 latent cells after
         // the mapper halves it): 14,073 MB, set by the transformer's first step rather than
         // the decode. Over a 16 GB Mac's 13.74 GB fallback budget and over bender's 12.71 GB

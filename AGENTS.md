@@ -2643,7 +2643,7 @@ each family.
 - Both layer stacks stream under `WeightResidency.streamed`: the transformer's
   32 blocks and the language model's 36 layers.
 - **Every memory figure is measured**, on halcyon (M4 Max) on 2026-09-22:
-  10.58 GB resident, 20.09 GB peak, 14.09 GB tiled, 6.31 GB streamed peak over
+  10.58 GB resident, 21.81 GB peak, 14.09 GB tiled, 6.31 GB streamed peak over
   2.75 GB held streamed, and 2.6 GB per reference picture. `tiledPeakBytes` is
   the one to read carefully: 14.09 GB is over a 16 GB Mac's fallback budget, so
   such a Mac streams this model rather than holding it.
