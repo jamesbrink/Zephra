@@ -52,16 +52,20 @@ extension ModelCatalog {
         // float32 decode's: MLX runs the decoder's 3 x 3 convolutions as Winograd and the
         // 1024-pixel upsampler stage alone holds about 8 GB of scratch. The transformer's own
         // step adds 3.3 GB at the first step and 1.4 GB on a cached one. Peaks round up.
-        peakBytes: 20_070_000_000,
+        // Re-measured on 2026-09-23 with preview frames on, now that a frame is the picture's
+        // own decode rather than a pooled thumbnail: 20,082 MB, the frames adding 13 MB.
+        peakBytes: 20_090_000_000,
         // Measured, same machine and seed, under `ZEPHRA_VAE_TILE=64` (32 latent cells after
         // the mapper halves it): 14,073 MB, set by the transformer's first step rather than
         // the decode. Over a 16 GB Mac's 13.74 GB fallback budget and over bender's 12.71 GB
-        // working set, so such a Mac streams this model rather than holding it.
-        tiledPeakBytes: 14_080_000_000,
+        // working set, so such a Mac streams this model rather than holding it. With preview
+        // frames on, 2026-09-23: 14,086 MB, since a frame is decoded in the same tile.
+        tiledPeakBytes: 14_090_000_000,
         // Measured, `--stream --stream-depth 2` under tile 64: 6,306 MB peak and 4.36 GB read
         // per step. The 32 transformer blocks and the 36 language-model layers stream; what
         // is left resident is the float32 autoencoder, the vision tower, the embeddings, the
         // norms and the modulation table, plus the decode's tile and the depth-2 window.
+        // Unmoved with preview frames on, 2026-09-23: 6,306 MB.
         streamedPeakBytes: 6_310_000_000,
         // Measured, the live figure of that same streamed run: 2,752 MB between runs. The two
         // go together: `MemoryGuard` subtracts this from the streamed peak, and

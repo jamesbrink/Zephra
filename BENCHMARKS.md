@@ -192,8 +192,8 @@ before the preview was pooled to 16 latent cells (256 pixels; the shared
 `LatentPreview.cellLimit` of 32 assumes an 8-pixel cell and this autoencoder's
 is 16). The peak did not move.
 
-- `residentBytes` 10_580_000_000, `peakBytes` 20_070_000_000, `tiledPeakBytes`
-  14_080_000_000, `streamedPeakBytes` 6_310_000_000, `streamedResidentBytes`
+- `residentBytes` 10_580_000_000, `peakBytes` 20_090_000_000, `tiledPeakBytes`
+  14_090_000_000, `streamedPeakBytes` 6_310_000_000, `streamedResidentBytes`
   2_750_000_000, `referencePrefixBytes` 2_600_000_000: peaks rounded up, held
   figures down, all decimal MB. The tiled peak is over a 16 GB Mac's 13.74 GB
   fallback budget and over bender's 12.71 GB working set, so such a Mac streams

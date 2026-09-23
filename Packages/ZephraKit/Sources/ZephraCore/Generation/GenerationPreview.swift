@@ -44,7 +44,7 @@ public struct GenerationPreview: Sendable {
     /// and whether the JPEG a phone is sent has to be composited first.
     ///
     /// The bytes themselves, because a frame has no file and no descriptor with it: one pass
-    /// over every fourth byte of at most 256 pixels an edge, which is 65,536 comparisons for
+    /// over every fourth byte of at most 512 pixels an edge, which is 262,144 comparisons for
     /// the largest frame the engine sends. It is read once per frame, beside the image that
     /// frame is made into, and never inside a `body`.
     public var hasTransparency: Bool {

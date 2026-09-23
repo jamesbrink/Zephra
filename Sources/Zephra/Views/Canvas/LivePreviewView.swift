@@ -5,7 +5,7 @@ import ZephraStyle
 
 /// The generation in flight, drawn as the frames it sends back.
 ///
-/// What is on screen is a decode of the latent as it stood a moment ago, at most 256 pixels an
+/// What is on screen is a decode of the latent as it stood a moment ago, at most 512 pixels an
 /// edge, scaled up to whatever room the canvas has. It is deliberately soft — `.medium`
 /// interpolation rather than the `.high` a finished picture gets — because a frame is an
 /// estimate and should not pretend to be the print.

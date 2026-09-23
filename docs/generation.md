@@ -671,7 +671,12 @@ canvas only when the canvas was showing its parent, or was showing nothing.
 
 `livePreview` is the newest frame of the run in flight — `GenerationPreview`,
 RGBA8 pixels of at most 256 pixels an edge, decoded by the family's own VAE from
-a pooled copy of the latent. It rides in on `GenerationProgressEvent.preview`,
+a pooled copy of the latent; Qwen-Image 2.1's are 512, decoded from the whole
+latent in the run's tile and pooled as pixels, since pooling that family's
+sixty-four-channel cells gave a smear that stopped changing after a few steps.
+`PreviewThrottle` holds a frame on two clocks, the 0.75 s interval and ten times
+the previous frame's own cost, so a family whose frame is a whole decode gets
+one every few steps rather than every step. It rides in on `GenerationProgressEvent.preview`,
 which is why that type hand-writes `==` and `hash(into:)` to ignore it:
 `EngineState` is `Hashable` and compared on every transition, and hashing a
 quarter of a megabyte per step to answer a question nobody asks is not worth it.

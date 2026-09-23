@@ -29,4 +29,29 @@ struct PreviewThrottleTests {
         let asks = (0..<4).map { throttle.shouldMakeFrame(at: start + .seconds($0 * 7)) }
         #expect(asks.allSatisfy { $0 })
     }
+
+    @Test("a frame holds the next until ten times its own cost has passed")
+    func costShare() {
+        let start = ContinuousClock.Instant.now
+        var throttle = PreviewThrottle(interval: .milliseconds(750))
+        let first = throttle.shouldMakeFrame(at: start)
+        #expect(first)
+        // A frame that took a second and a half, finished at 1.5 s: the next may not be made
+        // before 16.5 s, so a run stepping every six seconds gets one every third step.
+        throttle.madeFrame(costing: .milliseconds(1_500), at: start + .milliseconds(1_500))
+        let asks = [6, 12, 18].map { throttle.shouldMakeFrame(at: start + .seconds($0)) }
+        #expect(asks == [false, false, true])
+    }
+
+    @Test("a cheap frame is held by the interval alone")
+    func cheapFramesKeepTheInterval() {
+        let start = ContinuousClock.Instant.now
+        var throttle = PreviewThrottle(interval: .milliseconds(750))
+        let first = throttle.shouldMakeFrame(at: start)
+        #expect(first)
+        // Forty milliseconds, klein's frame: ten of them is under the interval.
+        throttle.madeFrame(costing: .milliseconds(40), at: start + .milliseconds(40))
+        let asks = [500, 750].map { throttle.shouldMakeFrame(at: start + .milliseconds($0)) }
+        #expect(asks == [false, true])
+    }
 }

@@ -957,16 +957,23 @@ the run's settings only when `capsuleHoldsPicture`. `open(_ item:)` only looks;
 `current != nil || isShowingRun`.
 
 `livePreview` is the newest frame of the run in flight (`GenerationPreview`,
-RGBA8, at most 256 pixels an edge), kept outside `EngineState` and cleared on
+RGBA8, at most 256 pixels an edge, 512 for Qwen-Image 2.1), kept outside `EngineState` and cleared on
 every way a run ends. `GenerationProgressEvent` hand-writes `==` and
 `hash(into:)` to ignore the frame. `StepTimer.annotated` rebuilds the event
 field by field: **a new field there must be forwarded by name** or it never
 reaches the canvas.
 
-Each kit's `<Family>LatentPreview` pools the latent and decodes it untiled. A
+Each kit's `<Family>LatentPreview` pools the latent and decodes it untiled,
+except Qwen-Image 2.1's, which decodes the whole latent in the run's own tile
+and pools the pixels afterwards: a mean over its sixty-four-channel cells
+decodes to a smear that stops changing after the first few steps, so the run
+read as stuck. A
 loop calls the optional `onPreview` **after** the step's `MLX.eval`, never on the
 last step, handing a closure rather than a frame; the backend's
-`PreviewThrottle` (0.75 s) drops frames unpaid. `onProgress` stays before the
+`PreviewThrottle` drops frames unpaid, on two clocks: 0.75 s between frames,
+and ten times the last frame's own cost, so a family whose frame is the
+picture's whole decode pays about a tenth of the run for them and not a
+fifth. `onProgress` stays before the
 step, and `BenchStepClock` and `StepTimer` ignore updates carrying a frame. What
 a loop passes is the estimate of the **finished** latent, `x - sigma * v`, not
 the latent it holds — the raw latent decodes to mush on a bent schedule.
@@ -2554,9 +2561,9 @@ each family.
 - Both layer stacks stream under `WeightResidency.streamed`: the transformer's
   32 blocks and the language model's 36 layers.
 - **Every memory figure is measured**, on halcyon (M4 Max) on 2026-09-22:
-  10.58 GB resident, 20.07 GB peak, 14.08 GB tiled, 6.31 GB streamed peak over
+  10.58 GB resident, 20.09 GB peak, 14.09 GB tiled, 6.31 GB streamed peak over
   2.75 GB held streamed, and 2.6 GB per reference picture. `tiledPeakBytes` is
-  the one to read carefully: 14.08 GB is over a 16 GB Mac's fallback budget, so
+  the one to read carefully: 14.09 GB is over a 16 GB Mac's fallback budget, so
   such a Mac streams this model rather than holding it.
 
 ### Streaming the weights

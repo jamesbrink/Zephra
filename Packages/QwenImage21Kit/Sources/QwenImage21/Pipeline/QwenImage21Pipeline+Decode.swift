@@ -41,7 +41,8 @@ extension QwenImage21Pipeline {
             .transposed(0, 2, 3, 1)
     }
 
-    /// The tile the decode runs in, or nil for the exact one pass.
+    /// The tile the decode runs in, or nil for the exact one pass. A preview frame's decode
+    /// takes the same answer, so a frame never peaks higher than the picture will.
     ///
     /// A tile at or above the latent's own long edge **is** the untiled decode, so it is
     /// answered as nil rather than sent round `TiledDecode` for one tile. Below that the
@@ -50,7 +51,7 @@ extension QwenImage21Pipeline {
     /// each followed by a 3 x 3 convolution reach further into the picture than the quarter-tile
     /// overlap cross-fades. `PROVENANCE.md` carries the curve; a host picking a tile should
     /// pick well up it.
-    private func tile(_ request: QwenImage21Request, with model: Loaded) -> Int? {
+    func tile(_ request: QwenImage21Request, with model: Loaded) -> Int? {
         guard let tile = request.vaeTile else { return nil }
         let long = max(request.height, request.width) / model.latentScale
         return tile < long ? tile : nil
