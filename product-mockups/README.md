@@ -3,7 +3,7 @@
 The selected product page supports dark and light appearances through its Dark
 mode switch. The earlier website layouts and historical app mockups are removed.
 
-The product copy was checked against the current repository on 2026-09-11; see
+The product copy was checked against the current repository on 2026-09-23; see
 `CONTENT-AUDIT.md`. The page links the verified notarized DMG recorded in `app/release.json`.
 
 ## Images and identity
@@ -36,8 +36,10 @@ production** means AWS at https://zephra.urandom.io. Both use this same source.
   CloudFront `ETNI7JSPHMJRF`, waits, and verifies every published file by SHA-256.
   Locally it uses `WEBSITE_PROFILE=dev.urandom.io`; use `WEBSITE_PROFILE=` for OIDC
   or environment credentials. Old hashed chunks are retained for existing tabs.
-- The manual **Deploy production website** GitHub Actions workflow invokes that
-  same target using the existing OIDC role. Pushes do not deploy automatically.
+- A push to `main` that changes `product-mockups/**` or the website deployment
+  scripts runs the **Deploy production website** GitHub Actions workflow. It
+  invokes the same target using the existing OIDC role. The workflow can also
+  be started manually.
 - Ordinary `npm run build` retains the ChatGPT Sites Worker build and publication
   flow. Never upload its server output to S3.
 
@@ -64,6 +66,10 @@ Open Graph and X metadata use the canonical AWS image URL.
 sizes, and concise release highlights. Check figures against `ModelCatalog*.swift`
 when models change. Keep `public/index.md` consistent and review release highlights
 when shipping; the displayed version/build track `app/release.json` automatically.
+Qwen-Image 2.1 replaced Qwen-Image-2512: update its model name, research license,
+ordered reference-picture limit, Guidance and negative-prompt advice across the
+product page and guide together. The current catalog defaults are 40 Steps and
+Guidance 1; Guidance above 1 has an effect only with a nonempty negative prompt.
 Support goes to the owner-provided `dev.urandom.io@gmail.com` address.
 
 ### User guide

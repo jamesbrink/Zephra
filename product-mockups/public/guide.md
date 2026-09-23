@@ -1,6 +1,6 @@
 # Zephra user guide
 
-Beginner-friendly workflows for Zephra 0.1.0. Updated September 11, 2026.
+Beginner-friendly workflows for Zephra 0.1.0. Updated September 23, 2026.
 
 ## Make your first image
 
@@ -115,11 +115,17 @@ If the idea is right but the composition is wrong, clarify the framing. If it lo
 
 A seed is a number that chooses a starting point for generation. It is useful for comparisons with the same model and settings, but is not a promise of identical results across different models, versions, or Macs.
 
+### Adjust Qwen-Image 2.1 only when needed
+
+Qwen-Image 2.1 starts at 40 Steps and Guidance 1. Begin there with a clear description of the finished image. Guidance above 1 has an effect only when you also enter a negative prompt; that combination runs a second pass, which can use more memory and take longer.
+
+If a result has an unwanted feature, name it in the negative prompt in plain language, such as “blurry lettering,” then raise Guidance a little and compare with the same seed. The negative prompt is ignored at Guidance 1. Proofread any generated text after the image finishes.
+
 ### Match the wording to the task
 
 - New image: describe the finished scene.
 - Z-Image with a starting picture: describe the finished image, then adjust Strength to control how much it changes.
-- Qwen-Image 2.1 with reference pictures: describe the finished image. It conditions on the pictures directly, as FLUX does, so there is no Strength setting.
+- Qwen-Image 2.1 with reference pictures: describe the finished image and identify which picture supplies each detail. It reads up to ten pictures in the order shown; there is no Strength setting.
 - FLUX photo edit: name the change and the details to preserve.
 - Video: describe what happens over time and how the camera behaves. With a first frame, focus on the movement that follows.
 
@@ -174,6 +180,16 @@ Strength applies to Z-Image Turbo, where it ranges from 0.10 to 0.90. It control
 Qwen-Image 2.1 has no Strength setting. Like FLUX.2 klein, it conditions on your pictures directly and builds a new image from your description, so say in the prompt what should carry over.
 
 This is a whole-image transformation. It does not protect faces, text, or selected areas. Zephra does not offer a masking brush for editing only one region.
+
+### Combine several pictures with Qwen-Image 2.1
+
+Add your pictures in the order you plan to describe them. The strip can hold up to ten; drag a thumbnail to change its position. In the prompt, refer to each picture by its position and say which details to keep. A few clearly assigned pictures are easier to reason about than a full strip with overlapping roles.
+
+Each additional picture can raise memory use. If a run does not fit, try fewer references or Stream weights from disk in Settings → Performance. Qwen-Image 2.1 reads transparent references, so a cut-out can keep its alpha rather than being flattened first.
+
+Try this prompt:
+
+> Make a product photograph of the ceramic mug in picture 1 on the wooden table in picture 2. Keep the mug's shape and painted pattern. Use soft window light and leave the background uncluttered.
 
 ### Start another experiment
 

@@ -9,6 +9,6 @@ export default function Page() {
     <a className="guide-start" href="/guide/first-image/"><span>New here?</span><h2>Make your first image</h2><p>Install, choose one model, and turn a few words into something you can keep.</p><strong>Start here →</strong></a>
     <h2 className="guide-section-title">What would you like to do?</h2>
     <div className="guide-cards">{chapters.slice(1).map(chapter => <a href={`/guide/${chapter.slug}/`} key={chapter.slug}><h3>{chapter.title}</h3><p>{chapter.description}</p></a>)}</div>
-    <p className="guide-edition">For Zephra 0.1.0, including Wan 2.2 and LTX-2.5 with sound. Updated September 11, 2026. <a href="/guide.md">Read as Markdown</a>.</p>
+    <p className="guide-edition">For Zephra 0.1.0, including Qwen-Image 2.1, Wan 2.2, and LTX-2.5 with sound. Updated September 23, 2026. <a href="/guide.md">Read as Markdown</a>.</p>
   </>;
 }
