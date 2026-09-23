@@ -149,16 +149,30 @@ the decode no longer sets the figure at all. The encoder is left as it was, sinc
 reference picture's encode (4.9 GB over the weights at 1024) sits under the first step that
 reads it.
 
-### A preview frame is pooled to sixteen cells, not the shared thirty-two
+### A preview frame is the picture's own decode, shrunk afterwards
 
-`LatentPreview.cellLimit` is 32 cells because every other family's latent cell is eight
-pixels, which is a 256-pixel frame, the size `GenerationPreview` is drawn at. This
-autoencoder's cell is sixteen pixels, so the shared limit made 512-pixel frames through a
-float32 decoder: four times the pixels anybody sees, and 2.3 seconds a frame at 1024 square
-on a busy GPU. `QwenImage21LatentPreview.cellLimit` is 16, the same 256 pixels, and a frame
-costs 0.14 seconds against a step of about 8 -- under two percent -- so the family keeps
-the shared `PreviewThrottle` interval rather than a longer one of its own. The preview
-decoder stays float32: at that cost there is nothing a bfloat16 copy of it would buy.
+Every other family pools its latent before decoding a frame, and `LatentPreview.cellLimit`
+of 32 is that rule for an eight-pixel, sixteen-channel cell, where a mean over a block of
+cells decodes to a blur of the picture. This autoencoder's cell is sixteen pixels of a
+sixty-four-channel code, and a mean over those codes decodes to a smear rather than a blur:
+the first port of this rule pooled a 1024 run four to one, to sixteen cells, and the frame
+showed the composition by step five and then nothing more, because everything the later
+steps add lives at the frequencies the pooling had thrown away, and the run read as stuck.
+
+So `QwenImage21LatentPreview` decodes the latent whole up to `cellLimit` of 64 cells --
+1024 pixels, the default size -- in the run's own tile, the pass the finished picture
+takes, and pools the **pixels** to `pixelLimit` of 512 an edge afterwards; only a latent
+past 64 cells, the 2K presets, is pooled before the decode, and by the least it can be. The
+frame is 512 pixels rather than the other families' 256 because a 1024 picture shrunk two to
+one is a picture and shrunk four to one is not quite. Measured on halcyon on 2026-09-23 at
+1024: 1.47 s a frame in the app's own untiled decode against 0.09 for the sixteen-cell one,
+which is why `PreviewThrottle` gained its cost share -- a frame holds the next until ten
+times its own cost has passed, so this family gets a frame about every third step and pays
+about a tenth of the run for them rather than a fifth. The tile matters for memory and not
+for time: an untiled decode inside every step would be the run's whole peak forty times over,
+and a 16 GB Mac that streams this model decodes its frames in the tile it decodes its
+picture in. The preview decoder stays float32: bfloat16 measured 0.78 s against 0.96 in
+isolation, not enough for a second copy of the autoencoder.
 
 ### Two kinds of suite, and five of them load the release's autoencoder weights
 

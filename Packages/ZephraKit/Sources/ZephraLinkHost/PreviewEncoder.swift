@@ -8,8 +8,8 @@ import ZephraLinkProtocol
 /// A frame of the run in flight, encoded small enough to send several times a second.
 ///
 /// JPEG at 0.6 rather than the engine's raw RGBA8: a 256-pixel preview is a quarter of a
-/// megabyte of pixels and a few kilobytes encoded, and these cross a link that may be a relay on
-/// the far side of the world. Quality 0.6 because nobody judges a picture by its preview — the
+/// megabyte of pixels and a few kilobytes encoded, a 512-pixel one four times that, and these
+/// cross a link that may be a relay on the far side of the world. Quality 0.6 because nobody judges a picture by its preview — the
 /// frame is there to say the run is moving and roughly what it is drawing.
 ///
 /// Everything here is `nonisolated` and static, and every caller runs it in a detached task:

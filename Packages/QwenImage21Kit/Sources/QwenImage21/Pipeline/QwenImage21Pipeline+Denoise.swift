@@ -60,7 +60,8 @@ extension QwenImage21Pipeline {
             MLX.eval(latents)
             preview(
                 onPreview, index: index, of: request.steps, latents: latents, velocity: velocity,
-                sigma: Float(schedule.sigmas[index + 1]), conditioning: conditioning, with: model)
+                sigma: Float(schedule.sigmas[index + 1]), conditioning: conditioning,
+                tile: tile(request, with: model), with: model)
         }
         return latents
     }
@@ -114,7 +115,9 @@ extension QwenImage21Pipeline {
     /// Hands the host a way to decode the run's estimate of the **finished** latent.
     ///
     /// After the evaluation, so the frame shows the step that has just finished rather than the
-    /// one about to run, and never on the last: the real decode follows it immediately.
+    /// one about to run, and never on the last: the real decode follows it immediately. The
+    /// decode is the finished picture's own, tile included, shrunk only afterwards; see
+    /// `QwenImage21LatentPreview` for why this family cannot pool its latent first.
     ///
     /// What is offered is `x - sigma * v` and not the latent the loop holds. One more Euler
     /// step of this velocity, all the way to zero noise, is exactly that, and it is what a
@@ -128,6 +131,7 @@ extension QwenImage21Pipeline {
         velocity: MLXArray,
         sigma: Float,
         conditioning: QwenImage21Conditioning,
+        tile: Int?,
         with model: Loaded
     ) {
         guard let onPreview, index < steps - 1 else { return }
@@ -137,7 +141,7 @@ extension QwenImage21Pipeline {
         onPreview(index, steps) {
             try QwenImage21LatentPreview.make(
                 latents: Self.unpacked(latents - velocity * sigma, height: height, width: width),
-                normalization: normalization, autoencoder: autoencoder)
+                normalization: normalization, autoencoder: autoencoder, tile: tile)
         }
     }
 }

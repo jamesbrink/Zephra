@@ -187,13 +187,18 @@ added per picture and twice under guidance.
 
 ### Preview
 
-39 frames over a forty-step 1024 run at **0.136 s** a frame, against 2.28 s
-before the preview was pooled to 16 latent cells (256 pixels; the shared
-`LatentPreview.cellLimit` of 32 assumes an 8-pixel cell and this autoencoder's
-is 16). The peak did not move.
+Re-measured on 2026-09-23, after a frame became the picture's own decode shrunk
+to 512 pixels: pooling the latent to 16 cells had made frames of 0.136 s that
+stopped changing after the first few steps. At 1024 a frame is **1.47 s**
+untiled on a quiet GPU and about 2.0 s in the run's 32-cell tile (0.96 and 1.99
+s for the decoder alone in isolation); `PreviewThrottle`'s cost share holds the
+next frame for ten times that. Alternating ten-step runs with frames off and on,
+twice each, on a GPU other apps kept 30 to 90 percent busy: 18.6 s a step off
+against 19.8 on, **about 6 percent**. The frames add 13 MB to the untiled and
+tiled peaks (20,082 and 14,086 MB) and nothing to the streamed one (6,306 MB).
 
-- `residentBytes` 10_580_000_000, `peakBytes` 20_070_000_000, `tiledPeakBytes`
-  14_080_000_000, `streamedPeakBytes` 6_310_000_000, `streamedResidentBytes`
+- `residentBytes` 10_580_000_000, `peakBytes` 20_090_000_000, `tiledPeakBytes`
+  14_090_000_000, `streamedPeakBytes` 6_310_000_000, `streamedResidentBytes`
   2_750_000_000, `referencePrefixBytes` 2_600_000_000: peaks rounded up, held
   figures down, all decimal MB. The tiled peak is over a 16 GB Mac's 13.74 GB
   fallback budget and over bender's 12.71 GB working set, so such a Mac streams
@@ -388,8 +393,11 @@ decode of 0.5 to 8 s:
 | --- | ---: |
 | klein 4-bit | 43 |
 | Z-Image 8-bit | 192 |
+| Qwen-Image 2.1 4-bit | 1,470 |
 
-The second was taken on a busy machine and is a ceiling.
+The second was taken on a busy machine and is a ceiling. The third is the
+picture's whole decode, since that family's latent cannot be pooled first
+without smearing; the throttle's cost share keeps it to about a tenth of a run.
 `make bench ARGS="--preview --size 1024"` is the run.
 
 ## Owed reruns, in one place

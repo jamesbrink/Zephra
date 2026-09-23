@@ -232,10 +232,10 @@ embeddings, the norms and the shared modulation table stay resident.
 
 The release is 33,131,609,424 bytes as the entry's file patterns fetch it, and
 the build writes 11,564,552,844. **Every memory figure is measured**, on
-halcyon (M4 Max) on 2026-09-22: 10.58 GB resident, 20.07 GB peak, 14.08 GB
+halcyon (M4 Max) on 2026-09-22: 10.58 GB resident, 20.09 GB peak, 14.09 GB
 tiled, 6.31 GB streamed peak over 2.75 GB held streamed, and 2.6 GB per
 reference picture. `BENCHMARKS.md` carries the runs; `tiledPeakBytes` is the
-one to read carefully, since 14.08 GB is over a 16 GB Mac's fallback budget, so
+one to read carefully, since 14.09 GB is over a 16 GB Mac's fallback budget, so
 such a Mac streams this model rather than holding it.
 
 ### Streaming the weights
