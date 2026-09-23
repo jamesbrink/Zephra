@@ -37,6 +37,12 @@ final class ZoomScrollView: NSScrollView {
         NotificationCenter.default.addObserver(
             self, selector: #selector(boundsMoved), name: NSView.boundsDidChangeNotification,
             object: contentView)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(magnifyStarted), name: NSScrollView.willStartLiveMagnifyNotification,
+            object: self)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(magnifyEnded), name: NSScrollView.didEndLiveMagnifyNotification,
+            object: self)
     }
 
     @available(*, unavailable)
@@ -112,6 +118,8 @@ final class ZoomScrollView: NSScrollView {
     private var currentScale = ZoomScale(pixels: .zero, fitted: .zero)
 
     @objc private func boundsMoved() { report() }
+    @objc private func magnifyStarted() { picture.isMagnifying = true }
+    @objc private func magnifyEnded() { picture.isMagnifying = false; report() }
 
     /// Tells the menu bar, and the cursor, where the zoom is now.
     private func report() {

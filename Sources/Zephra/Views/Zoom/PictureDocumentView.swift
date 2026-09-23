@@ -7,6 +7,10 @@ import ZephraStyle
 /// interpolation, over `Checkerboard`'s squares when it carries alpha, and panned by a
 /// click-drag when the scroll view has let the click through — which it does only zoomed in.
 ///
+/// While a pinch is live (`isMagnifying`) it draws cheaply: low interpolation, and the squares
+/// are not redrawn at every step, so they scale with the picture until the fingers lift. The
+/// pinch's end draws it once more at full quality with the squares back at eight points.
+///
 /// The squares stay eight points **on screen** at every zoom, as `TransparencyGround`'s do, so
 /// the ground reads as the same surface the unzoomed picture sat on rather than as part of the
 /// picture growing with it. Their greys are `TransparencyGround`'s own colour sets, resolved for
@@ -22,7 +26,11 @@ final class PictureDocumentView: NSView {
     }
     /// The scroll view's magnification, which the checkerboard's cell is divided by.
     var magnification: CGFloat = 1 {
-        didSet { if hasAlpha, magnification != oldValue { needsDisplay = true } }
+        didSet { if hasAlpha, !isMagnifying, magnification != oldValue { needsDisplay = true } }
+    }
+    /// Whether a pinch is under way, which the scroll view says as it starts and ends.
+    var isMagnifying = false {
+        didSet { if isMagnifying != oldValue { needsDisplay = true } }
     }
 
     override var isFlipped: Bool { true }
@@ -30,9 +38,10 @@ final class PictureDocumentView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         if hasAlpha { drawGround(in: dirtyRect) }
+        let quality: NSImageInterpolation = isMagnifying ? .low : .high
         image?.draw(
             in: bounds, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true,
-            hints: [.interpolation: NSNumber(value: NSImageInterpolation.high.rawValue)])
+            hints: [.interpolation: NSNumber(value: quality.rawValue)])
     }
 
     override func viewDidChangeEffectiveAppearance() {
