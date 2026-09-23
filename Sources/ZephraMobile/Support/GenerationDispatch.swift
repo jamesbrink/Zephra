@@ -12,11 +12,14 @@ final class GenerationDispatch {
     var recommended: HostID?
     var note: String?
     var isSending = false
+    /// The run the last press queued, while there is something to say about it.
+    var following: RunFollowing?
     private(set) var submissions: [Submission] = []
     @ObservationIgnored var received: [HostID: ContinuousClock.Instant] = [:]
     @ObservationIgnored let root: URL?
     @ObservationIgnored var offerSessions: [HostID: UUID] = [:]
     @ObservationIgnored var refreshID = UUID()
+    @ObservationIgnored var followTask: Task<Void, Never>?
     init(hosts: HostConnections, root: URL?) {
         self.hosts = hosts; self.root = root
         if let root, FileManager.default.fileExists(atPath: root.path) {

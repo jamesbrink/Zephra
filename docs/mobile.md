@@ -581,6 +581,19 @@ down to queue a second picture lands on Generate, not on the control that throws
 away the first — and the Mac's own capsule has always behaved this way, where
 Generate mid-run queues and File > Stop Generating is somewhere else entirely.
 
+What an accepted press says under the button is **followed**, not written once.
+`RunFollowing` (`Support/`, pure) holds the run's `batchID` and reads it off
+every snapshot the Mac sends: "Queued on Halcyon" while the queue or Today holds
+it waiting, the Mac's own phase ("Denoising on Halcyon") while it is the entry
+being rendered or Today calls it running, and nothing once Today calls it
+finished, once it has been seen and is named nowhere any more (stopped or
+refused), or once the phone has watched the engine fail. Absence before it was
+ever seen is a run on its way in, since the Mac answers the press before its
+coalesced deltas name it. `GenerationDispatch+Following` is the observation loop
+over `client.snapshot`, stopped by the next press. It replaced a note set once at
+the acceptance, which said "Queued on Halcyon" through the whole render and
+after the picture was in Today.
+
 `GeneratePress` (`Support/`) is where one press has got to: `idle`, `sending`
 while the Mac is being asked, or `refused` with the Mac's own sentence. Try Again
 takes the same three states for the same reason, which is why it is `GeneratePress`

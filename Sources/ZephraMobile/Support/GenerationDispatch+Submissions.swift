@@ -5,7 +5,7 @@ import ZephraLinkProtocol
 extension GenerationDispatch {
     func send(_ generation: StrictGeneration, references: [Data]) async {
         guard !isSending else { return }
-        isSending = true; note = nil
+        isSending = true; note = nil; stopFollowing()
         defer { isSending = false }
         await refresh(generation, forSubmission: true)
         guard let host = target, host.preference.enabled, host.client.connection.isLive, host.client.hasFreshSnapshot else {
@@ -24,7 +24,11 @@ extension GenerationDispatch {
                 submission.batchID = try await host.client.enqueue(generation.request, references: references)
                 submission.state = .accepted
             }
-            note = submission.state == .accepted ? "Queued on \(host.name)" : "Checking submission on \(host.name)"
+            if submission.state == .accepted, let batchID = submission.batchID {
+                follow(batchID, on: host)
+            } else {
+                note = submission.state == .accepted ? "Queued on \(host.name)" : "Checking submission on \(host.name)"
+            }
         } catch let error as LinkError {
             submission.state = .rejected; submission.note = error.reason; note = error.reason
         } catch {
