@@ -47,7 +47,7 @@ public final class LayerWeightStream<Layer: Module> {
     public let bytesPerPass: Int
 
     private let layers: [Layer]
-    private let slots: [[Slot]]
+    let slots: [[Slot]]
     private let shards: [URL]
 
     /// Prepares `layers` to stream.
@@ -102,17 +102,24 @@ public final class LayerWeightStream<Layer: Module> {
             prefetch(ahead)
         }
         var previous: [MLXArray] = []
-        for position in 0..<count {
-            let carry = try body(layers[position])
-            MLX.asyncEval(carry)
-            // The layer before this one has had a whole layer's work to finish in; waiting
-            // for it here is what bounds the window, and the GPU still holds this layer.
-            if !previous.isEmpty { MLX.eval(previous) }
-            previous = carry
-            if position + depth < count {
-                prefetch(position + depth)
+        var released = 0
+        do {
+            for position in 0..<count {
+                let carry = try body(layers[position])
+                MLX.asyncEval(carry)
+                // The layer before this one has had a whole layer's work to finish in; waiting
+                // for it here is what bounds the window, and the GPU still holds this layer.
+                if !previous.isEmpty { MLX.eval(previous) }
+                previous = carry
+                if position + depth < count {
+                    prefetch(position + depth)
+                }
+                try release(position, from: &next)
+                released = position + 1
             }
-            try release(position, from: &next)
+        } catch {
+            recover(from: released, using: &next)
+            throw error
         }
         let elapsed = started.duration(to: clock.now).components
         let reading = WeightStreamReading(
