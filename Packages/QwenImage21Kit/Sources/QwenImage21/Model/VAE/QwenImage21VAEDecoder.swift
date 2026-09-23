@@ -55,8 +55,24 @@ final class QwenImage21VAEDecoder: Module {
     /// stages the same operations are 9.5 GB over them: nothing is computed differently, only
     /// sooner.
     func callAsFunction(_ x: MLXArray) -> MLXArray {
-        var x = midBlock(convIn(x))
+        tail(head(x))
+    }
+
+    /// `conv_in` and the mid block, at the latent's own size: the part of the decode that must
+    /// see the **whole** picture, because the mid block's attention is one head over every
+    /// cell of it. A tiled decode runs this once, whole, and tiles only `tail`; tiling it too
+    /// had each tile attend to itself alone, which decoded each tile as a different picture --
+    /// on a 16 GB Mac, the tile grid drawn into the alpha as ghosted rectangles.
+    func head(_ x: MLXArray) -> MLXArray {
+        let x = midBlock(convIn(x))
         eval(x)
+        return x
+    }
+
+    /// The upsampling stages and the output: local convolutions only, so tiling them is the
+    /// overlap approximation `TiledDecode` makes and nothing worse.
+    func tail(_ x: MLXArray) -> MLXArray {
+        var x = x
         for block in upBlocks {
             x = block(x)
             eval(x)

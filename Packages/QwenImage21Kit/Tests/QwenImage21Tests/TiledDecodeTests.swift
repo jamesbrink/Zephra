@@ -7,14 +7,14 @@ import ZephraTestSupport
 
 /// The decoder in overlapping spatial tiles.
 ///
-/// **A tile is an approximation, and on this decoder not a fine one.** Four nearest-neighbour
-/// doublings with a 3 x 3 convolution after each mean one latent cell reaches a long way into
-/// the picture, and `TiledDecode`'s overlap is a quarter of the tile, so a tile decoded on its
-/// own is wrong near its edges over a wider band than the cross-fade covers. Measured against
-/// the untiled decode of a real 16 x 16 latent: a 12-cell tile is 24 dB, an 8-cell tile 17 dB,
-/// and a tile at or above the latent's own size is the untiled decode exactly. Over random
-/// normal latents, which is the worst case there is, the mean absolute error falls from 0.048
-/// at a 6-cell tile to 0.010 at a 24-cell tile on a range of 2.
+/// **A tile is an approximation.** Only the upsampling stages are tiled: `conv_in` and the mid
+/// block, whose attention is one head over every cell, run whole first, because a tile that
+/// attended to itself alone decoded as a different picture from its neighbours -- ghosted
+/// rectangles in the alpha on every 16 GB Mac (2026-09-23). What is left is four
+/// nearest-neighbour doublings with a 3 x 3 convolution after each, reaching further than the
+/// quarter-tile cross-fade. Measured against the untiled decode of a real 16 x 16 latent: a
+/// 12-cell tile is 38 dB and an 8-cell tile 26 (24 and 17 while the attention was tiled too),
+/// and a tile at or above the latent's own size is the untiled decode exactly.
 ///
 /// So the tile this family ships with belongs well up that curve, and the backend picks it; the
 /// figures are here so that pick is made against measurements rather than against a hope. What
@@ -55,7 +55,7 @@ struct TiledDecodeTests {
     }
 
     @Test(
-        "a real 12-cell tile keeps the shape and the range and stays within 20 dB of untiled",
+        "a real 12-cell tile keeps the shape and the range and stays within 35 dB of untiled",
         .enabled(if: SnapshotUnderTest.qwenImage21.hasRelease))
     func publishedTiledApproximates() throws {
         let (autoencoder, configuration) = try VAEFixture.published()
@@ -72,6 +72,46 @@ struct TiledDecodeTests {
         #expect(tiled.max().item(Float.self) <= 1)
         #expect(tiled.min().item(Float.self) >= -1)
         let psnr = AutoencoderRoundTripTests.psnr(tiled, whole)
-        #expect(psnr > 20, Comment(rawValue: "tiled against untiled: \(psnr) dB"))
+        #expect(psnr > 35, Comment(rawValue: "tiled against untiled: \(psnr) dB"))
+    }
+}
+
+/// What a 16 GB Mac actually runs: a 1024 picture, 64 cells an edge, decoded in the 32-cell
+/// tile `QwenImage21RequestMapper` makes of the engine's 64.
+@Suite("the decoder tiled as a 16 GB Mac tiles it")
+struct TiledDecodeAtScaleTests {
+    /// An opaque 1024 picture with detail everywhere: two crossed ramps and a ripple, so no
+    /// tile of it is a flat field and each would attend to a different picture on its own.
+    static func opaquePicture(size n: Int = 1024) -> MLXArray {
+        let rows = MLXArray(Array(0..<n)).asType(.float32).reshaped([n, 1]) / Float(n - 1)
+        let columns = MLXArray(Array(0..<n)).asType(.float32).reshaped([1, n]) / Float(n - 1)
+        let red = MLX.broadcast(columns * 2 - 1, to: [n, n])
+        let green = MLX.broadcast(rows * 2 - 1, to: [n, n])
+        let blue = MLX.sin(rows * 37) * MLX.cos(columns * 23) * 0.8
+        let alpha = MLXArray.ones([n, n])
+        return MLX.stacked([red, green, blue, alpha], axis: -1)[.newAxis]
+    }
+
+    @Test(
+        "an opaque 1024 picture tiled at 32 cells stays opaque and close to the untiled decode",
+        .enabled(if: SnapshotUnderTest.qwenImage21.hasRelease))
+    func opaqueStaysOpaque() throws {
+        let (autoencoder, configuration) = try VAEFixture.published()
+        let normalization = QwenImage21LatentNormalization(configuration)
+        let latent = normalization.denormalize(
+            normalization.normalize(autoencoder.encode(Self.opaquePicture())))
+        #expect(latent.shape == [1, 64, 64, 64])
+
+        let whole = autoencoder.decodeUntiled(latent)
+        let tiled = autoencoder.decode(latent, tile: 32)
+        let rgb = AutoencoderRoundTripTests.psnr(tiled[.ellipsis, 0..<3], whole[.ellipsis, 0..<3])
+        let alpha = AutoencoderRoundTripTests.psnr(tiled[.ellipsis, 3...], whole[.ellipsis, 3...])
+        // 250 of 255 is `QwenImage21Opacity`'s floor; in -1...1 that is 0.96.
+        let lowest = tiled[.ellipsis, 3...].min().item(Float.self)
+        let untiledLowest = whole[.ellipsis, 3...].min().item(Float.self)
+        let note = "rgb \(rgb) dB, alpha \(alpha) dB, lowest alpha \(lowest) (untiled \(untiledLowest))"
+        #expect(rgb > 30, Comment(rawValue: note))
+        #expect(alpha > 30, Comment(rawValue: note))
+        #expect(lowest > 0.96, Comment(rawValue: note))
     }
 }

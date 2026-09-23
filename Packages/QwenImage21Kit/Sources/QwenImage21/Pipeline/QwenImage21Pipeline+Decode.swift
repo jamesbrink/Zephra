@@ -47,7 +47,7 @@ extension QwenImage21Pipeline {
     /// A tile at or above the latent's own long edge **is** the untiled decode, so it is
     /// answered as nil rather than sent round `TiledDecode` for one tile. Below that the
     /// approximation is real: measured against the untiled decode of a 16 x 16 latent, twelve
-    /// cells is 24 dB and eight is 17, because this decoder's four nearest-neighbour doublings
+    /// cells is 38 dB and eight is 26, because this decoder's four nearest-neighbour doublings
     /// each followed by a 3 x 3 convolution reach further into the picture than the quarter-tile
     /// overlap cross-fades. `PROVENANCE.md` carries the curve; a host picking a tile should
     /// pick well up it.

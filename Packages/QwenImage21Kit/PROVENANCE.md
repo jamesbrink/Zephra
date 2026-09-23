@@ -115,14 +115,21 @@ RGBA autoencoder spending latent capacity on colour nobody can see would be spen
 
 ### The tiled decode is a coarser approximation here than in the other families
 
+**Only the upsampling stages are tiled.** `conv_in` and the mid block run whole, at the
+latent's size, before `TiledDecode` sees anything (`QwenImage21VAEDecoder.head`): the mid
+block's attention is one head over every cell, so a tile decoded on its own attended to a
+different picture from its neighbour's, and its alpha drifted a tile at a time. On a 16 GB Mac,
+which tiles every 1024 picture at 32 cells, that drew the tile grid into opaque pictures as
+ghosted, semi-transparent rectangles (2026-09-23; `TiledDecodeAtScaleTests` pins it). The
+attention block takes its queries in chunks of 4096 (`queryChunk`), which is exact, since a
+head this wide takes MLX's unfused path and a 2K preset's whole score matrix would be 3.5 GB.
+
 `ZephraMLX.TiledDecode` overlaps a quarter of the tile. This decoder has four
 nearest-neighbour doublings with a 3 x 3 convolution after each, so one latent cell reaches
 further into the picture than that overlap covers and a tile decoded on its own is wrong near
 its edges over a wider band than the cross-fade repairs. Measured against the untiled decode of
-a real 16 x 16 latent: 12 cells is 24 dB, 8 cells is 17 dB, and a tile at or above the latent's
-own size is the untiled decode exactly. Over random normal latents -- the worst case there is
--- the mean absolute error on a range of 2 falls from 0.048 at a 6-cell tile to 0.010 at a
-24-cell tile. Nothing here is wrong; the tile the backend ships has to be chosen well up that
+a real 16 x 16 latent: 12 cells is 38 dB, 8 cells is 26 dB (24 and 17 while the mid block was
+tiled too), and a tile at or above the latent's own size is the untiled decode exactly. Nothing here is wrong; the tile the backend ships has to be chosen well up that
 curve, and `TiledDecodeTests` carries the figures so the choice is made against measurements.
 
 ### The decoder is evaluated a stage at a time, and the decode is the run's peak

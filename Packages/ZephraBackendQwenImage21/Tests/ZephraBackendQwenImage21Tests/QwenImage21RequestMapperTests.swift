@@ -62,7 +62,7 @@ struct QwenImage21RequestMapperTests {
 
     @Test("a tile too small to approximate faithfully is raised to the floor, never passed on")
     func tileHasAFloor() {
-        // Halving 16 would give 8, which measured 17 dB against the untiled decode.
+        // Halving 16 would give 8, which measured 26 dB against the untiled decode.
         #expect(QwenImage21RequestMapper.vaeTile(from: 16) == 12)
         #expect(QwenImage21RequestMapper.vaeTile(from: 8) == 12)
         #expect(QwenImage21RequestMapper.vaeTile(from: 24) == 12)
