@@ -85,7 +85,7 @@ public struct MemoryGuard: Sendable {
     /// the person to a preference they are already on is no remedy at all: that is what a
     /// 16 GB Mac was told on 2026-09-13. Everywhere else the memory simply is not there, and
     /// the answer is to free some.
-    private func remedy(
+    func remedy(
         for descriptor: ModelDescriptor, residency: WeightResidency, mode: WeightResidencyMode
     ) -> MemoryShortfall.Remedy {
         guard mode == .never, residency == .resident, descriptor.streamedPeakBytes > 0,

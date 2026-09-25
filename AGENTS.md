@@ -674,7 +674,11 @@ nothing that would, so the model read `.needsDownload` in the menu, the browser
 and a paired phone's summary until the next launch.
 
 `canLoad(_ model:)` (`+Admission`) is the other half of admission: `.idle` or
-`.failed`, `acceptsWork`, no swap, stop or upscale in flight, `canSelect`, and
+`.failed` — or `.ready` over **another** model's weights with nothing queued
+(`isSwapFromReady`), which is the swap Load's tooltip promises ("Unloads X
+first") and what a phone's `loadModel` of another model asks for; `startLoading`
+takes the same case into `reload`, so the old weights go back first —
+`acceptsWork`, no swap, stop or upscale in flight, `canSelect`, and
 an availability that is obtainable. `canQueue`, `acceptsQueuedGeneration` and
 `remoteAdmission` all widen by it — `remoteAdmission` against the model the
 phone named rather than the chosen one, since a phone may name another. That
@@ -682,6 +686,18 @@ widening alone unsticks an **un-updated** phone after a GPU fault: the Mac
 answers `canQueue: true` from `.failed`, the phone's Generate lights, and the
 queue drains straight over the weights still in memory. No new command needed at
 that end.
+
+**A request on a model that is not the one in is judged as the swap it is.**
+`runShortfall` hands any model other than `loadedDescriptor` to
+`swapRunShortfall` (`+SwapAdmission`, over `MemoryGuard.swapRunShortfall`):
+the weights at the residency that model's own load will choose (stepped to
+streaming under Automatic where holding would not leave room for the run, as
+`+RunResidency` would after the load), plus the scaled transient, against the
+machine's free memory with Zephra's own allocator counted back in, since the
+swap releases it first. Before, a phone's request on model B over a Mac holding
+A was charged B's transient **on top of A's weights**, at A's residency, and
+refused for memory it would have had once A went back (halcyon, 2026-09-24:
+"run of ltx-2.5… zephra active 19.2 GB… refused").
 
 **The idle clock gives the weights back.** `IdleUnloadDelay` (`ZephraCore`) is
 `.never` or 5, 15, 30, 60 minutes and answers a `duration`; off by default,

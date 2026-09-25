@@ -41,6 +41,8 @@ extension GenerationStore {
         }
         switch state {
         case .idle, .failed: break
+        // Ready over another model's weights: the reload below gives them back first.
+        case .ready where isSwapFromReady(to: model): break
         default: return loadNotStarted()
         }
         // A model this Mac cannot hold any way at all is refused here, before a byte of it is
