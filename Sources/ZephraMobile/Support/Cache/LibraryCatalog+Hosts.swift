@@ -27,6 +27,19 @@ extension LibraryCatalog {
         isLive = children.values.contains { $0.isLive }
         isSyncing = children.values.contains { $0.isSyncing }
         publish(children.values.flatMap(\.entries))
+        // The root is what Settings > Storage reads, and only a root re-count walks the
+        // children's folders — so a child landing bytes on disk has to ask the root to count.
+        scheduleMeasureCache()
+    }
+    /// Re-counts what the cache holds, coalesced: a burst of child changes walks the disk once,
+    /// once they have settled.
+    func scheduleMeasureCache() {
+        measureTask?.cancel()
+        measureTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(75))
+            guard !Task.isCancelled else { return }
+            await self?.measureCache()
+        }
     }
     func owner(of entry: CachedEntry) -> LibraryCatalog? {
         entry.hostID.flatMap { children[$0] }
