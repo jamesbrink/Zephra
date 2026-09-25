@@ -676,8 +676,10 @@ and a paired phone's summary until the next launch.
 `canLoad(_ model:)` (`+Admission`) is the other half of admission: `.idle` or
 `.failed` — or `.ready` over **another** model's weights with nothing queued
 (`isSwapFromReady`), which is the swap Load's tooltip promises ("Unloads X
-first") and what a phone's `loadModel` of another model asks for; `startLoading`
-takes the same case into `reload`, so the old weights go back first —
+first") and what a phone's `loadModel` of another model asks for. Only
+`loadModel()` makes that swap, through `reload`, so the old weights go back
+first; `startLoading` still refuses `.ready`, so a second `bootstrap()` (a window
+reopened) never swaps under a picture's model waiting for Generate —
 `acceptsWork`, no swap, stop or upscale in flight, `canSelect`, and
 an availability that is obtainable. `canQueue`, `acceptsQueuedGeneration` and
 `remoteAdmission` all widen by it — `remoteAdmission` against the model the
@@ -688,8 +690,12 @@ queue drains straight over the weights still in memory. No new command needed at
 that end.
 
 **A request on a model that is not the one in is judged as the swap it is.**
-`runShortfall` hands any model other than `loadedDescriptor` to
-`swapRunShortfall` (`+SwapAdmission`, over `MemoryGuard.swapRunShortfall`):
+`runShortfall` hands any model other than `loadedDescriptor` — nothing loaded
+included, which made that case stricter too, since the weights have to be found
+as well — to `swapRunShortfall` (`+SwapAdmission`, over
+`MemoryGuard.swapRunShortfall`). The load's own verdict is asked first and wins,
+because the swap-run figure has no budget ceiling and a request admitted there
+and refused by its load would empty the queue under a phone told yes. Past it:
 the weights at the residency that model's own load will choose (stepped to
 streaming under Automatic where holding would not leave room for the run, as
 `+RunResidency` would after the load), plus the scaled transient, against the

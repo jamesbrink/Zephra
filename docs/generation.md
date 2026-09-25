@@ -175,8 +175,9 @@ hook fires exactly where the gap was — and covers the menu's and
 
 `canLoad(_ model:)` (`+Admission`) is the other half of admission: `.idle` or
 `.failed`, or `.ready` over another model's weights with nothing queued
-(`isSwapFromReady`) — a swap, which `startLoading` routes through `reload` so the
-old weights go back first; before 2026-09-24 that case was refused, which greyed
+(`isSwapFromReady`) — a swap, which only `loadModel()` makes, through `reload`, so
+the old weights go back first (`startLoading` still refuses `.ready`, so a second
+`bootstrap()` never swaps under a picture's waiting model); before 2026-09-24 that case was refused, which greyed
 the Mac's Load under a tooltip reading "Unloads X first" and answered a phone's
 `loadModel` of another model `.busy` — then `acceptsWork`, no swap, stop or
 upscale in flight, `canSelect`, and an availability that is obtainable. `canQueue`, `acceptsQueuedGeneration` and
@@ -670,8 +671,12 @@ first seed kept and the rest fresh, one `batchID` across the batch, and the same
 drain-or-log tail. `GenerationSettings` carries no model of its own, so there is
 no second schedule to come off; `on model:` is the schedule.
 
-A request naming a model that is **not the one loaded** is charged as a swap and
-a run, never as a run on top of the weights in: `runShortfall` hands it to
+A request naming a model that is **not the one loaded** — or any model while
+nothing is loaded — is charged as a load and a run, never as a run on top of the
+weights in. The load's own verdict (`MemoryGuard.loadResidency`'s shortfall,
+capped at the budget) is asked first and wins, since the swap-run figure has no
+ceiling of its own; `make logs` says "run of X after a swap" or "run of X before
+its load". Otherwise `runShortfall` hands it to
 `swapRunShortfall` (`GenerationStore+SwapAdmission`, `MemoryGuard+Swap`), which
 charges that model's held weights at the residency its own load will pick
 (stepped to streaming under Automatic where holding would not leave room, as the

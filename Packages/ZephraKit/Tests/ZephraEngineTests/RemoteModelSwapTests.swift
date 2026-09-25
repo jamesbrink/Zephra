@@ -49,12 +49,19 @@ struct RemoteModelSwapTests {
             $0.memory = MemorySnapshot(activeBytes: 3_000_000_000, cacheBytes: 0, peakBytes: 0)
         }
         bed.machineMemory = MachineMemory(physicalBytes: 16 << 30, availableBytes: 5_000_000_000)
+        let settings = Self.request(for: Self.other)
+        // The old reading, pinned so it cannot come back: a run on top of klein's allocator.
+        #expect(
+            store.memoryGuard.runShortfall(
+                for: Self.other, residency: .resident, mode: .automatic,
+                tile: store.vaeTile(for: Self.other), settings: settings,
+                machine: bed.machineMemory, runtime: bed.control.settings.memory) != nil)
 
-        #expect(store.remoteAdmission(for: Self.other, settings: Self.request(for: Self.other)) == .admitted)
-        #expect(store.enqueue(Self.request(for: Self.other), on: Self.other) != nil)
+        #expect(store.remoteAdmission(for: Self.other, settings: settings) == .admitted)
+        #expect(store.enqueue(settings, on: Self.other) != nil)
         try await bed.waitUntil { bed.control.settings.generations == 1 }
         #expect(store.loadedDescriptor?.id == Self.other.id, "the swap ran")
-        #expect(bed.control.settings.unloads >= 1, "klein went back first")
+        #expect(bed.control.settings.unloads == 1, "klein went back first")
         await store.shutdown()
     }
 
@@ -108,6 +115,93 @@ struct RemoteModelSwapTests {
         #expect(store.loadedDescriptor?.id == Self.other.id)
         #expect(bed.control.settings.unloads == 1, "klein was given back")
         #expect(bed.control.settings.loads == 2)
+        await store.shutdown()
+    }
+
+    @Test("a run that would not fit held after the swap is admitted where streaming fits")
+    func theSwapStepsDownToStreaming() async throws {
+        let bed = EngineTestBed()
+        bed.memoryBudget = MemoryGuardStoreTests.roomyEnoughToHold
+        let store = bed.store(descriptor: Self.loaded)
+        store.warmsUpAfterLoad = false
+        store.weightResidencyPolicy = WeightResidencyPolicy(
+            mode: .automatic, budget: MemoryGuardStoreTests.roomyEnoughToHold)
+        await store.bootstrap()
+        try #require(store.weightResidencyPolicy.residency(for: Self.other) == .resident)
+        bed.control.update {
+            $0.memory = MemorySnapshot(activeBytes: 3_000_000_000, cacheBytes: 0, peakBytes: 0)
+        }
+        // 28 GB once klein goes back: Z-Image 8-bit's load fits held, and a 2048 run on it
+        // would not (about 57 GB), but streamed it is about 23 GB.
+        bed.machineMemory = MachineMemory(physicalBytes: 64 << 30, availableBytes: 25_000_000_000)
+        var settings = Self.request(for: Self.other)
+        settings.size = ImageSize(width: 2048, height: 2048)
+
+        #expect(store.remoteAdmission(for: Self.other, settings: settings) == .admitted)
+        bed.machineMemory = MachineMemory(physicalBytes: 64 << 30, availableBytes: 15_000_000_000)
+        #expect(store.remoteAdmission(for: Self.other, settings: settings) != .admitted)
+        await store.shutdown()
+    }
+
+    @Test("a request the load itself would refuse is refused before it is queued")
+    func theLoadsOwnVerdictComesFirst() async throws {
+        let bed = EngineTestBed()
+        let store = try await Self.kleinResident(bed)
+        // Held whole by choice, on a budget its held peak exceeds, with the machine itself
+        // roomy: the swap-run figure alone has no ceiling and would admit what the load's own
+        // check, capped at the budget, then refuses.
+        store.weightResidencyPolicy = WeightResidencyPolicy(
+            mode: .never, budget: MemoryGuardStoreTests.straddling)
+        bed.machineMemory = MachineMemory(physicalBytes: 64 << 30, availableBytes: 40_000_000_000)
+
+        let admission = store.remoteAdmission(
+            for: Self.other, settings: Self.request(for: Self.other))
+        guard case .refused(let reason) = admission else {
+            Issue.record("expected the load's refusal, got \(admission)")
+            return
+        }
+        #expect(reason.hasSuffix(MemoryShortfall.Remedy.streamFromDisk.sentence))
+        #expect(store.queue.isEmpty)
+        await store.shutdown()
+    }
+
+    @Test("with nothing loaded, a request is charged its model's weights as well as its run")
+    func nothingLoadedIsChargedTheWeights() async throws {
+        let bed = EngineTestBed()
+        bed.memoryBudget = MemoryGuardStoreTests.straddling
+        let store = bed.store(descriptor: Self.other)
+        store.warmsUpAfterLoad = false
+        store.loadingMode = .onDemand
+        store.weightResidencyPolicy = WeightResidencyPolicy(
+            mode: .automatic, budget: MemoryGuardStoreTests.straddling)
+        await store.bootstrap()
+        try #require(store.loadedDescriptor == nil)
+        // Room for the streamed transient (5.45 GB) and not for the streamed peak (6.42 GB).
+        bed.machineMemory = MachineMemory(physicalBytes: 16 << 30, availableBytes: 6_000_000_000)
+
+        let admission = store.remoteAdmission(
+            for: Self.other, settings: Self.request(for: Self.other))
+        guard case .refused(let reason) = admission else {
+            Issue.record("expected a refusal, got \(admission)")
+            return
+        }
+        #expect(reason.hasPrefix("\(Self.other.fullName) needs 6.4 GB and 6 GB is free."))
+        await store.shutdown()
+    }
+
+    @Test("bootstrap again over a picture's waiting model swaps nothing")
+    func aSecondBootstrapDoesNotSwap() async throws {
+        let bed = EngineTestBed()
+        let store = try await Self.kleinResident(bed)
+        store.adopt(Self.other)
+        store.modelAwaitsGenerate = true
+
+        await store.bootstrap()
+        await store.settle()
+
+        #expect(store.loadedDescriptor?.id == Self.loaded.id, "the weights stay where they were")
+        #expect(store.modelAwaitsGenerate)
+        #expect(bed.control.settings.unloads == 0)
         await store.shutdown()
     }
 }

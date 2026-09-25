@@ -41,7 +41,8 @@ extension GenerationStore {
         switch state {
         case .idle, .failed: break
         // Ready over another model's weights is a swap, which is what Load promises there —
-        // "Unloads X first" — and what a paired phone's `loadModel` asks for.
+        // "Unloads X first" — and what a paired phone's `loadModel` asks for. `loadModel()`
+        // alone makes it; `startLoading` still refuses `.ready`.
         case .ready where isSwapFromReady(to: model): break
         default: return false
         }
@@ -49,8 +50,8 @@ extension GenerationStore {
             && canSelect(model) && availability[model.id]?.isObtainable != false
     }
 
-    /// Whether a load of `model` from `.ready` is a swap off another model's weights, with
-    /// nothing queued behind them: the one case `.ready` still has a load to make.
+    /// Whether a load of `model` from `.ready` is a swap off another model's weights with the
+    /// queue empty: the one case `.ready` still has a load to make.
     func isSwapFromReady(to model: ModelDescriptor) -> Bool {
         guard let loaded = loadedDescriptor, loaded.id != model.id else { return false }
         return queue.isEmpty && !isDraining
