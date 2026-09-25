@@ -832,6 +832,13 @@ idle unload, a run-time step-down to streaming, and Load, Unload and Try Again o
 both the Mac and the phone. See "How a generation runs" in AGENTS.md,
 `docs/generation.md` and `docs/app-target.md`.
 
+- **A phone's run on another model swaps back afterwards under Automatic.** Once a
+  paired phone's job on model B finishes, `drain()`'s empty-queue branch reloads
+  the Mac's own chosen model A, so every such run costs unload A, load B, run,
+  unload B, load A. Nothing is left resident twice — the swap releases first —
+  but on a big model it is minutes of reading per phone press. The fix is a
+  judgement about whose choice the resting model should be (the Mac's capsule or
+  the last run's), left for when it is asked for; On-demand mode never swaps back.
 - **The first-launch chooser is not rebuilt on the browser's body.** Both draw
   `ModelChoiceGrid`, and there it stops. `WelcomeView` carries layout that exists
   for the full-window case alone — the two spacers that centre it, the

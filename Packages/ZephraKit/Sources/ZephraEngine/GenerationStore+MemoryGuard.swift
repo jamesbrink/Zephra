@@ -93,6 +93,12 @@ extension GenerationStore {
         for model: ModelDescriptor, settings: GenerationSettings,
         residency: WeightResidency? = nil, logging: Bool = true
     ) -> MemoryShortfall? {
+        // A run on a model that is not the one in is a swap and then a run: the weights in now
+        // go back first, so they are neither what this run is charged on top of nor memory it
+        // has to find room beside.
+        if residency == nil, model.id != loadedDescriptor?.id {
+            return swapRunShortfall(for: model, settings: settings, logging: logging)
+        }
         let machine = machineMemory?.read()
         let snapshot = runtime?.memorySnapshot() ?? .zero
         let residency = residency ?? loadedResidency ?? weightResidencyPolicy.residency(for: model)
@@ -126,7 +132,7 @@ extension GenerationStore {
     /// or when it did not, which is the line that makes the next refusal legible. `chargedBytes`
     /// is a run's own figure, what the guard charged this request on top of the weights; nil for
     /// a load, which has no per-request charge to name.
-    private func log(
+    func log(
         _ what: String, machine: MachineMemory?, snapshot: MemorySnapshot,
         shortfall: MemoryShortfall?, chargedBytes: Int64? = nil
     ) {

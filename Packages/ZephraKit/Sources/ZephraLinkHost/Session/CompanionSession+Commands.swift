@@ -66,10 +66,14 @@ extension CompanionSession {
             return .ok
         case .loadModel(let modelID):
             // One meaning in both loading modes: make this the model and read it in now. Under
-            // `.automatic` the switch already loads and `loadModel()` is then a no-op; under
-            // `.onDemand` the switch only adopts and `loadModel()` does the work.
+            // `.automatic` the switch already loads; under `.onDemand` the switch only adopts
+            // and `loadModel()` does the work — a swap where another model's weights are in.
             let model = try Self.model(modelID)
             if let refusal = Self.unholdable(model, on: host) { throw refusal }
+            // Answered `.ok` for a load that has already happened or is on its way, as
+            // `unloadModel` is, because a request is repeated whenever its reply goes missing
+            // and the repeat must not be told "cannot load" over its own first ask.
+            if Self.isLoadedOrLoading(model, on: host.store) { return .ok }
             // Asked **before** the switch, not after. `loadModel()` returns silently when it
             // will not load — a model that is not on the disk, a Mac mid-run or mid-upscale, a
             // load already going — and switching first would then move the chosen model and
@@ -80,7 +84,9 @@ extension CompanionSession {
                     code: .busy, reason: "This Mac cannot load a model just now.")
             }
             if model.id != host.store.descriptor.id { host.store.switchModel(to: model) }
-            host.store.loadModel()
+            // Under `.automatic` the switch has already started the swap, and a second ask
+            // would only log a refusal over it.
+            if !host.store.isSwappingModel { host.store.loadModel() }
             return .ok
         case .unloadModel:
             // Answered `.ok` for an unload that has already happened or is happening, because
@@ -97,6 +103,18 @@ extension CompanionSession {
         case .upscale(let name, let factor): return try upscale(name, factor: factor, on: host)
         case .animate(let name): return try animate(name, on: host)
         default: return try await performLibrary(command, id: id, on: host)
+        }
+    }
+
+    /// Whether `model` is the chosen model and its weights are in, or on their way in.
+    private static func isLoadedOrLoading(_ model: ModelDescriptor, on store: GenerationStore) -> Bool {
+        guard model.id == store.descriptor.id else { return false }
+        if store.isSwappingModel { return true }
+        switch store.state {
+        case .checkingModel, .downloading, .building, .loading, .warmingUp:
+            return store.modelInUse?.id == model.id
+        case .ready: return store.loadedDescriptor?.id == model.id
+        default: return false
         }
     }
 

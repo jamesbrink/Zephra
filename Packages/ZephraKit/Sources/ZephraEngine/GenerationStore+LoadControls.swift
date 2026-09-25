@@ -24,6 +24,13 @@ extension GenerationStore {
         // An explicit Load is the explicit choice a picture's adoption was waiting for, exactly
         // as a menu pick is and as Generate is.
         modelAwaitsGenerate = false
+        // Ready over another model's weights is a swap, and only this explicit press makes one
+        // from `.ready`: `startLoading` still refuses it, so a second `bootstrap()` — a window
+        // reopened — never swaps under a picture's model waiting for Generate.
+        if isSwapFromReady(to: descriptor) {
+            reload(descriptor, thenDrain: false)
+            return
+        }
         startLoading(descriptor, asSwap: false)
     }
 

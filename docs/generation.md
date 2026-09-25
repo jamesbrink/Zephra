@@ -174,8 +174,13 @@ hook fires exactly where the gap was — and covers the menu's and
 `resumeDownload`'s background starts too, not only the browser's.
 
 `canLoad(_ model:)` (`+Admission`) is the other half of admission: `.idle` or
-`.failed`, `acceptsWork`, no swap, stop or upscale in flight, `canSelect`, and an
-availability that is obtainable. `canQueue`, `acceptsQueuedGeneration` and
+`.failed`, or `.ready` over another model's weights with nothing queued
+(`isSwapFromReady`) — a swap, which only `loadModel()` makes, through `reload`, so
+the old weights go back first (`startLoading` still refuses `.ready`, so a second
+`bootstrap()` never swaps under a picture's waiting model); before 2026-09-24 that case was refused, which greyed
+the Mac's Load under a tooltip reading "Unloads X first" and answered a phone's
+`loadModel` of another model `.busy` — then `acceptsWork`, no swap, stop or
+upscale in flight, `canSelect`, and an availability that is obtainable. `canQueue`, `acceptsQueuedGeneration` and
 `remoteAdmission` each widen by it. That widening is also the **phone fix**: a
 GPU fault leaves the Mac in `.failed` with `canQueue` false, and before this a
 paired phone had no way out of it at all — picking the same model again is a
@@ -665,6 +670,20 @@ run it (a size off the grid comes back on it rather than being refused), the
 first seed kept and the rest fresh, one `batchID` across the batch, and the same
 drain-or-log tail. `GenerationSettings` carries no model of its own, so there is
 no second schedule to come off; `on model:` is the schedule.
+
+A request naming a model that is **not the one loaded** — or any model while
+nothing is loaded — is charged as a load and a run, never as a run on top of the
+weights in. The load's own verdict (`MemoryGuard.loadResidency`'s shortfall,
+capped at the budget) is asked first and wins, since the swap-run figure has no
+ceiling of its own; `make logs` says "run of X after a swap" or "run of X before
+its load". Otherwise `runShortfall` hands it to
+`swapRunShortfall` (`GenerationStore+SwapAdmission`, `MemoryGuard+Swap`), which
+charges that model's held weights at the residency its own load will pick
+(stepped to streaming under Automatic where holding would not leave room, as the
+post-load step-down would) plus the scaled transient, against the machine's free
+memory with Zephra's own allocator counted as free. The old reading charged the
+other model's transient over the loaded model's `activeBytes` and residency, so a
+phone switching models was refused for memory the swap would have released.
 
 `remoteAdmission(for:settings:count:)` is the same question asked before the
 submit, and answers `RemoteAdmission` rather than a Bool because the device has
