@@ -25,6 +25,8 @@ final class LibraryCatalog {
     @ObservationIgnored var changed: (() -> Void)?
     @ObservationIgnored var epoch = UUID()
     @ObservationIgnored var operations = 0
+    /// The coalesced re-count `scheduleMeasureCache` keeps, if one is waiting to run.
+    @ObservationIgnored var measureTask: Task<Void, Never>?
     @ObservationIgnored var libraryRoot: URL?
     private(set) var entries: [CachedEntry] = []
     /// What narrows what is on screen. The one thing a view writes.
@@ -138,6 +140,7 @@ final class LibraryCatalog {
         if !children.isEmpty {
             for child in children.values { await child.clearCache() }
             await fileStore.clear()
+            await measureCache()
             return
         }
         await entryStore.clear()

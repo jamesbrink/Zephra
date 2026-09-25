@@ -13,6 +13,10 @@ struct CacheRow: View {
 
     var body: some View {
         LabeledContent("Library cache", value: size)
+            // The number is what the last count saw, and in the multi-host shape only this
+            // screen's catalog re-reads the children's folders — so count again when the row
+            // comes up, whatever the sync loops did before it.
+            .task { await catalog.measureCache() }
         Button("Clear Cache", role: .destructive) { isAsking = true }
             .disabled(catalog.cacheBytes == 0)
             .confirmationDialog(

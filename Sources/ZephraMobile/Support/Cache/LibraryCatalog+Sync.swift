@@ -18,7 +18,17 @@ extension LibraryCatalog {
         let generation = epoch
         let stored = await entryStore.load()
         guard generation == epoch, !Task.isCancelled else { return }
-        publish(stored.isEmpty ? client.library.map { CachedEntry($0) } : stored)
+        if stored.isEmpty {
+            let seeded = client.library.map { CachedEntry($0, hostID: hostID) }
+            publish(seeded)
+            // Writing the seed down is the point: a client that answered before this loop
+            // armed — pairing's own client, which has a library pulled by the time its host
+            // row exists — would otherwise live in memory only, because the next sync
+            // compares itself against what was published here and sees no change to make.
+            await entryStore.save(seeded)
+        } else {
+            publish(stored)
+        }
         await measureCache()
     }
 
