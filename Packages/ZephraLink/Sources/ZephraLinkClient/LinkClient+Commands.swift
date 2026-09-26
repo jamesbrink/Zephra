@@ -35,7 +35,7 @@ extension LinkClient {
         switch try await self.request(.enqueue(outgoing)) {
         case .queued(let batchID): return batchID
         case .error(let error): throw error
-        case .multiHost, .ok, .blob, .entries: throw LinkClientError.unexpectedReply
+        case .workflow, .multiHost, .ok, .blob, .entries: throw LinkClientError.unexpectedReply
         }
     }
 
@@ -58,7 +58,7 @@ extension LinkClient {
         switch try await request(.libraryPage(offset: offset, limit: limit)) {
         case .entries(let page): return page
         case .error(let error): throw error
-        case .multiHost, .ok, .queued, .blob: throw LinkClientError.unexpectedReply
+        case .workflow, .multiHost, .ok, .queued, .blob: throw LinkClientError.unexpectedReply
         }
     }
 
@@ -90,7 +90,7 @@ extension LinkClient {
     /// A command whose only good answer is that it was done.
     private func perform(_ command: Command) async throws {
         switch try await request(command) {
-        case .multiHost, .ok, .queued, .blob, .entries: return
+        case .workflow, .multiHost, .ok, .queued, .blob, .entries: return
         case .error(let error): throw error
         }
     }

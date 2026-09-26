@@ -7,6 +7,7 @@ import Foundation
 /// to this. A phone that misses a delta asks for a snapshot again rather than reconciling.
 public struct StateSnapshot: Codable, Hashable, Sendable {
     /// Optional capability advertisement; absent on legacy hosts.
+    public var workflow: Bool?
     public var multiHost: Bool?
     /// Whether this Mac understands `Command.loadModel` and `Command.unloadModel`, and stamps
     /// `EngineStateDTO.loadedModelID`. Absent on a Mac that does not, which is what keeps the

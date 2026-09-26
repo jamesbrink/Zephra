@@ -14,8 +14,8 @@ import ZephraCore
 /// the one thing both sides agree on. A seed still to come has no tile at all — the wall holds
 /// finished pictures only.
 public enum SessionTimeline {
-    /// Today's runs, in the order the sidebar lists them: waiting runs with the last-queued on
-    /// top, then the one being rendered, then the finished ones newest first.
+    /// Today's runs, in the order the sidebar lists them: waiting runs in execution
+    /// order, then the one being rendered, then the finished ones newest first.
     ///
     /// Only today's generated files are listed, because the sidebar is about the session rather
     /// than about the library. Everything in `history`, `queue`, and `running` is listed
@@ -42,8 +42,7 @@ public enum SessionTimeline {
 
     /// Every run id there is to draw, in the order the sidebar wants them.
     ///
-    /// The waiting runs are reversed so the last press of Generate is on top and the one that
-    /// will run next sits directly above the run in flight, which is where the eye already is.
+    /// Waiting runs follow the queue so drag order is execution order on both platforms.
     private static func order(
         _ finished: [UUID],
         queue: [QueuedGeneration],
@@ -53,7 +52,7 @@ public enum SessionTimeline {
         for entry in queue where entry.batchID != running?.batchID && !waiting.contains(entry.batchID) {
             waiting.append(entry.batchID)
         }
-        var ordered = waiting.reversed().map { $0 }
+        var ordered = waiting
         if let running { ordered.append(running.batchID) }
         return ordered + finished.filter { !ordered.contains($0) }
     }

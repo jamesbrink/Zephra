@@ -10,6 +10,7 @@ struct CommandCodingTests {
     @Test("Every command survives being written and read back")
     func commandsRoundTrip() throws {
         let commands: [Command] = [
+            .workflow(.history),
             .resync,
             .multiHost(.receipt(Self.id)),
             .enqueue(GenerationRequest(
@@ -90,6 +91,7 @@ struct CommandCodingTests {
     @Test("Every reply survives being written and read back")
     func repliesRoundTrip() throws {
         let replies: [Reply] = [
+            .workflow(.history([])),
             .ok,
             .multiHost(.receipt(GenerationReceipt(requestID: Self.id, digest: "test", status: .unknown, recordedAt: Date(timeIntervalSince1970: 0)))),
             .queued(batchID: Self.id),

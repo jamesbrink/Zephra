@@ -10,6 +10,7 @@ import Foundation
 /// and must be sent once. `enqueue` is answered from the session's existing work, keyed by
 /// `GenerationRequest.requestID`; state-setting commands and reads are safe to repeat.
 public enum Command: Hashable, Sendable {
+    case workflow(WorkflowCommand)
     case multiHost(MultiHostCommand)
     /// Send the whole state again: the phone stepped over a hole in the stream and no longer
     /// trusts what it is holding. Answered `.ok`, then a fresh `snapshot`.

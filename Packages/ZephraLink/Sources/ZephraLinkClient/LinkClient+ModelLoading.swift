@@ -35,7 +35,7 @@ extension LinkClient {
     /// A command whose only good answer is that it was done.
     private func perform(_ command: Command) async throws {
         switch try await request(command) {
-        case .multiHost, .ok, .queued, .blob, .entries: return
+        case .workflow, .multiHost, .ok, .queued, .blob, .entries: return
         case .error(let error): throw error
         }
     }

@@ -4,19 +4,20 @@ import Foundation
 extension Command: Codable {
     private enum CodingKeys: String, CodingKey {
         case kind, request, id, modelID, names, on, tags, name, factor, pixels, offset, limit
-        case fromChunk, multiHost
+        case fromChunk, multiHost, workflow
     }
 
     /// The tag, which is also the case name.
     public enum Kind: String, Codable, Hashable, Sendable, CaseIterable {
         case multiHost, resync, enqueue, cancel, removeFromQueue, clearQueue, switchModel, setFavourite
         case setTags, delete, upscale, animate, fetchThumbnail, fetchFile, libraryPage
-        case loadModel, unloadModel
+        case loadModel, unloadModel, workflow
     }
 
     /// Which command this is, without decoding its payload.
     public var kind: Kind {
         switch self {
+        case .workflow: .workflow
         case .multiHost: .multiHost
         case .resync: .resync
         case .enqueue: .enqueue
@@ -41,6 +42,7 @@ extension Command: Codable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(kind, forKey: .kind)
         switch self {
+        case .workflow(let command): try container.encode(command, forKey: .workflow)
         case .multiHost(let command): try container.encode(command, forKey: .multiHost)
         case .enqueue(let request): try container.encode(request, forKey: .request)
         case .resync, .cancel, .clearQueue, .unloadModel: break
@@ -77,6 +79,7 @@ extension Command: Codable {
             try container.decode(type, forKey: key)
         }
         switch try container.decode(Kind.self, forKey: .kind) {
+        case .workflow: self = .workflow(try value(WorkflowCommand.self, .workflow))
         case .multiHost: self = .multiHost(try value(MultiHostCommand.self, .multiHost))
         case .resync: self = .resync
         case .enqueue: self = .enqueue(try value(GenerationRequest.self, .request))
