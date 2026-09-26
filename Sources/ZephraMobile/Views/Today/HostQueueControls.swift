@@ -1,5 +1,6 @@
 import SwiftUI
 import ZephraLinkProtocol
+import ZephraCore
 
 struct HostQueueControls: View {
     let host: HostConnection
@@ -31,11 +32,7 @@ struct HostQueueControls: View {
             let dates = Dictionary(uniqueKeysWithValues: history.map { ($0.id, $0.createdAt) })
             var seen = Set<UUID>()
             let order = entries.compactMap { seen.insert($0.batchID).inserted ? $0.batchID : nil }
-            let ranks = Dictionary(uniqueKeysWithValues: order.enumerated().map { ($0.element, $0.offset) })
-            var sorted = order.sorted {
-                if let a = dates[$0], let b = dates[$1], a != b { return newest ? a > b : a < b }
-                return newest ? ranks[$0]! > ranks[$1]! : ranks[$0]! < ranks[$1]!
-            }
+            var sorted = QueueOrder.chronological(order, dates: dates, newest: newest)
             if let pinned, sorted.contains(pinned) { sorted.removeAll { $0 == pinned }; sorted.insert(pinned, at: 0) }
             _ = try await host.client.workflow(.reorder(id: UUID(), batches: sorted, entries: entries.map(\.id)))
         }

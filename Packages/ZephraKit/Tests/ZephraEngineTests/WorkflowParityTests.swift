@@ -9,6 +9,13 @@ struct WorkflowParityTests {
         QueuedGeneration(model: ModelCatalog.default,
             settings: .defaults(for: ModelCatalog.default), batchID: batch, batchIndex: index)
     }
+    @Test func chronologicalOrderIsTotalWithMissingHistory() {
+        let a = UUID(), b = UUID(), missing = UUID(), other = UUID()
+        let dates = [a: Date(timeIntervalSince1970: 2), b: Date(timeIntervalSince1970: 1)]
+        #expect(QueueOrder.chronological([a, missing, b, other], dates: dates, newest: false) == [b, a, missing, other])
+        #expect(QueueOrder.chronological([b, missing, a, other], dates: dates, newest: true) == [a, b, missing, other])
+        #expect(QueueOrder.chronological([missing, other], dates: dates, newest: true) == [missing, other])
+    }
     @Test func reorderKeepsSeedOrderAndRejectsStaleIntent() {
         let a = UUID(), b = UUID(), c = UUID()
         let original = [job(a), job(a, index: 1), job(b), job(c)]

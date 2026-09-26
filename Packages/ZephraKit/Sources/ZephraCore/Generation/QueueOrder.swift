@@ -15,4 +15,18 @@ public enum QueueOrder {
         guard order.indices.contains(other) else { return order }
         var next = order; next.swapAt(index, other); return next
     }
+    /// Known admissions sort chronologically; missing dates retain relative order after them.
+    /// A single total ordering avoids mixing incomparable history dates with queue positions.
+    public static func chronological(_ order: [UUID], dates: [UUID: Date], newest: Bool) -> [UUID] {
+        let ranks = Dictionary(uniqueKeysWithValues: order.enumerated().map { ($0.element, $0.offset) })
+        return order.sorted { a, b in
+            switch (dates[a], dates[b]) {
+            case let (left?, right?) where left != right: return newest ? left > right : left < right
+            case (_?, nil): return true
+            case (nil, _?): return false
+            default: return ranks[a]! < ranks[b]!
+            }
+        }
+    }
+
 }
