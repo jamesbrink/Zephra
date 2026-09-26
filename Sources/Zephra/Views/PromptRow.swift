@@ -19,6 +19,7 @@ struct PromptRow: View {
             VStack(alignment: .leading, spacing: 6) {
                 PromptEditor(focus: $promptFocused)
                 NegativePromptField()
+                PromptHistoryMenu()
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
             ReferenceImageWell()

@@ -23,14 +23,15 @@ final class CompanionTestBed {
     init(
         hostName: String = "A Test Mac",
         descriptor: ModelDescriptor = ModelCatalog.default,
-        receipts: GenerationReceipts? = nil
+        receipts: GenerationReceipts? = nil,
+        modelInventory: (@MainActor () -> ModelInventory)? = nil
     ) {
         store = engine.store(descriptor: descriptor)
         index = engine.index()
         host = CompanionHost(
             store: store, index: index, thumbnails: thumbnails, identity: identity,
             pairings: pairings, hostName: hostName,
-            receipts: receipts, endpoints: { [Endpoint(host: "192.168.1.2", port: 7890)] })
+            modelInventory: modelInventory, receipts: receipts, endpoints: { [Endpoint(host: "192.168.1.2", port: 7890)] })
         host.serve(listener)
     }
 

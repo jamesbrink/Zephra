@@ -44,6 +44,7 @@ extension CompanionSession {
             throw LinkError(code: .refused, reason: EngineError.deviceLost.message)
         }
         switch command {
+        case .workflow(let command): return try await performWorkflow(command, on: host)
         case .multiHost(let command): return try performMultiHost(command, on: host)
         case .resync: return try resend(to: host, inReplyTo: id)
         case .enqueue(let request): return try submit(request, to: host)

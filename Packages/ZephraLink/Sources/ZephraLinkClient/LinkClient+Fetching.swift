@@ -72,7 +72,7 @@ extension LinkClient {
                 throw BlobInterrupted(reason: again, resumption: kept)
             }
         case .error(let error): throw error
-        case .multiHost, .ok, .queued, .entries: throw LinkClientError.unexpectedReply
+        case .workflow, .multiHost, .ok, .queued, .entries: throw LinkClientError.unexpectedReply
         }
     }
 

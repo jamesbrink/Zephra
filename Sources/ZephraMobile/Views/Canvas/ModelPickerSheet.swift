@@ -13,6 +13,7 @@ struct ModelPickerSheet: View {
     var body: some View {
         NavigationStack {
             List {
+                ModelManagementLinks()
                 AdoptHostSettings()
                 ForEach(dispatch.models) { model in
                     Button {

@@ -39,6 +39,9 @@ public final class CompanionSession: Identifiable {
     /// Everything the phone says, released in the order it was sealed in. The relay is several
     /// concurrent invocations, so the road is not ordered and this is what makes it so again.
     var inbox: OrderedInbox?
+    var storageTokens: [UUID: StorageToken] = [:]
+    var workflowResults: [UUID: Reply] = [:]
+    var workflowOrder: [UUID] = []
     var wantsPreviews = true
     var pendingPreview: PreviewFrameDTO?
     var isClosed = false

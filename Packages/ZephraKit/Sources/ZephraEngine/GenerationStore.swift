@@ -126,6 +126,7 @@ public final class GenerationStore {
     public internal(set) var loadedResidency: WeightResidency?
     /// Progress while model files and their destination are being changed.
     public internal(set) var modelDirectoryProgress: String?
+    public let promptHistory: PromptHistory
     public let downloads: ModelDownloads
     public internal(set) var isStoppingPreparation = false
     public internal(set) var isShuttingDown = false
@@ -188,6 +189,8 @@ public final class GenerationStore {
         downloads: ModelDownloads = ModelDownloads(), runtime: (any InferenceRuntime)? = nil,
         clips: (any ClipEditing)? = nil, machineMemory: (any MachineMemoryReader)? = nil
     ) {
+        self.promptHistory = PromptHistory(file: registry == nil ? nil :
+            (output ?? ImageLibrary.pictures().root).appendingPathComponent(".zephra-prompt-history.json"))
         self.machineMemory = machineMemory
         self.downloads = downloads
         self.clips = clips

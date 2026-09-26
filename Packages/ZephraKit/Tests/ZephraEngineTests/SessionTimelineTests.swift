@@ -107,8 +107,8 @@ struct SessionTimelineTests {
         #expect(!runs[2].isWaiting && !runs[2].isRunning)
     }
 
-    @Test("the last press of Generate is on top and the one that runs next is just above the run in flight")
-    func waitingRunsAreNewestFirst() {
+    @Test("waiting runs appear in execution order above the run in flight")
+    func waitingRunsFollowExecutionOrder() {
         let running = Fixtures.queue(batch: UUID(), count: 1, prompt: "running")[0]
         let next = Fixtures.queue(batch: UUID(), count: 1, prompt: "next")[0]
         let last = Fixtures.queue(batch: UUID(), count: 1, prompt: "last")[0]
@@ -116,7 +116,7 @@ struct SessionTimelineTests {
         let runs = SessionTimeline.build(
             items: [], history: [], queue: [next, last], running: running, isToday: { _ in true })
 
-        #expect(runs.map(\.prompt) == ["last", "next", "running"])
+        #expect(runs.map(\.prompt) == ["next", "last", "running"])
     }
 
     @Test("only today's files are listed, and everything this session made whatever its date")
