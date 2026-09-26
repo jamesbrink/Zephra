@@ -19,6 +19,7 @@ struct LibraryRequests: ViewModifier {
             .modifier(GenerationActionsReader())
             .modifier(UpscaleRequests())
             .modifier(PromptRequests())
+            .modifier(PhotoSaveRequests())
             .environment(\.tagLibraryItem) { request = .tagging($0) }
             .environment(\.confirmDeleteLibraryItem) { request = .deleting($0) }
             .environment(\.shareLibraryItem, share)

@@ -4,6 +4,23 @@ import Testing
 
 @Suite("A blob is cut into chunks and put back together")
 struct BlobTransferTests {
+    @Test("A large upscale crosses the former 64 MiB assembly ceiling")
+    func largeUpscale() throws {
+        let size = 65 * 1024 * 1024
+        let id = UUID()
+        var assembly = BlobReassembly(blobID: id, byteCount: size)
+        let count = UInt32(size / BlobChunker.chunkSize)
+        for index in 0..<count {
+            let bytes = Data(repeating: UInt8(index % 251), count: BlobChunker.chunkSize)
+            let result = try assembly.accept(BlobChunk(blobID: id, index: index,
+                count: count, bytes: bytes))
+            if index == count - 1 {
+                #expect(result?.count == size)
+                #expect(result?.last == UInt8(index % 251))
+            } else { #expect(result == nil) }
+        }
+    }
+
     @Test(
         "Every size is cut into the right number of chunks",
         arguments: [(0, 1), (1, 1), (65_536, 1), (65_537, 2), (131_072, 2), (131_073, 3)]

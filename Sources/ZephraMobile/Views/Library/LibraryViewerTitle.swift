@@ -17,42 +17,38 @@ struct LibraryViewerTitle: View {
     static let closeTarget = MobileChrome.viewerCloseTarget
 
     var body: some View {
-        HStack {
-            Button { dismiss() } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.title)
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(.white, .black.opacity(MobileChrome.viewerChromeOpacity))
-                    .frame(width: Self.closeTarget, height: Self.closeTarget)
-                    .contentShape(Rectangle())
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top) {
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title)
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, .black.opacity(MobileChrome.viewerChromeOpacity))
+                        .frame(width: Self.closeTarget, height: Self.closeTarget)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Close")
+                .accessibilityAction(.escape) { dismiss() }
+                Spacer(minLength: 8)
+                if let entry { LibraryHostLabel(entry: entry) }
             }
-            .accessibilityLabel("Close")
-            .accessibilityAction(.escape) { dismiss() }
-            Spacer(minLength: 0)
             if let entry {
-                VStack(alignment: .trailing) {
-                    LibraryHostLabel(entry: entry)
+                ViewerPromptExcerpt(text: entry.label)
+                    .id(entry.id)
+                if !entry.prompt.isEmpty {
                     Button { showPrompt(entry) } label: {
-                        Text(entry.label)
+                        Label("View full prompt", systemImage: "text.alignleft")
                             .font(.footnote)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.trailing)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .foregroundStyle(.white.opacity(0.85))
-                            .shadow(color: .black.opacity(ZephraChrome.shadowOpacity), radius: 4)
-                            .frame(minHeight: 44, alignment: .trailing)
-                            .contentShape(Rectangle())
+                            .frame(minHeight: 44, alignment: .leading)
                     }
                     .buttonStyle(.plain)
-                    .disabled(entry.prompt.isEmpty)
-                    .accessibilityLabel("View full prompt")
-                    .accessibilityHint(entry.label)
+                    .foregroundStyle(.white)
                 }
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .layoutPriority(-1)
             }
         }
         .padding(.horizontal, MobileChrome.sideMargin)
         .padding(.top, 8)
+        .padding(.bottom, 8)
+        .background(.black.opacity(MobileChrome.viewerChromeOpacity))
     }
 }

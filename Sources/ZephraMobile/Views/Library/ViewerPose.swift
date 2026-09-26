@@ -10,6 +10,8 @@ struct ViewerPose {
     var current: String?
     /// Whether a tap has put the title strip and the bar away.
     var chromeIsHidden = false
+    /// Image actions wait until the horizontal pager has settled.
+    var isPaging = false
     /// Whether the picture is in past fit, which is when a drag pans it rather than pulling it.
     var isZoomed = false
     /// How far down the picture has been pulled, and along which axis the drag went.

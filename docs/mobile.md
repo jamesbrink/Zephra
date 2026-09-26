@@ -1089,3 +1089,26 @@ acceptance and execution.
 Strict memory estimates use the matching loaded model’s actual residency. Before a
 load, they use the desktop’s live Automatic residency decision, including its
 streaming fallback when other processes have reduced free memory.
+
+### Viewer saves and accessible prompts
+
+The viewer disables image actions while the horizontal pager is moving. Its action
+bar is scoped to the current host-qualified entry and version; `ViewerFile` rejects
+URLs from any other entry or version, and cancelled fetches cannot publish results.
+It does not fall back to the first library entry while selection is unresolved.
+
+`PhotoSaveRequests` captures the entry on press, fetches it under a separate cache
+lease, and retains the lease until Photos finishes even if the user swipes away.
+Both the viewer and context menu use this path. A pending save disables another
+save, and success, denied permission, transfer failures and Photos failures are
+reported instead of being discarded.
+
+The viewer header gives the prompt its own width and a bounded vertical scroll
+area without a line limit. “View full prompt” explicitly opens the selectable,
+scrollable prompt sheet at every Dynamic Type size; Close has its own row.
+
+Large upscales can exceed 64 MiB. Blob reassembly now shares the existing 128 MiB
+per-file limit used by client admission, retaining the 256 MiB shared budget.
+The previous mismatched 64 MiB assembler rejected otherwise admitted files.
+`LargeFileTransferTests` exercises a 65 MiB encrypted host-to-client transfer;
+`ViewerFileTests` covers page, version and source-host mismatches.

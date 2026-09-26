@@ -15,15 +15,12 @@ struct SaveToPhotosButton: View {
     @State private var isHeld = false
 
     var body: some View {
-        Button("Save to Photos", systemImage: "square.and.arrow.down") {
-            Task {
-                let lease = await catalog.lease(entry)
-                defer { withExtendedLifetime(lease) {} }
-                guard let url = try? await catalog.file(for: entry) else { return }
-                try? await PhotosSaver.save(url, isVideo: entry.isVideo)
-            }
-        }
+        PhotoSaveButton(entry: entry)
         .disabled(!catalog.isLive(for: entry) && !isHeld)
-        .task { isHeld = await catalog.hasFile(for: entry) }
+        .task(id: entry.id + entry.version) {
+            isHeld = false
+            let held = await catalog.hasFile(for: entry)
+            if !Task.isCancelled { isHeld = held }
+        }
     }
 }

@@ -1773,6 +1773,13 @@ US-spelling check.
   `dismiss` Close and the pull use (`ViewerClosesWithTab`): a `TabView` keeps
   every tab alive, so the cover otherwise stood over the canvas it was meant to
   reveal.
+- Viewer actions wait for the pager to become idle. `ViewerFile` binds a fetched
+  URL to its host-qualified entry and version; cancelled loads never publish it.
+  `PhotoSaveRequests` owns saves from both menus and the viewer, retaining a separate
+  cache lease until Photos finishes and presenting success or failure. The viewer
+  title scrolls its untruncated prompt and offers an explicit full-prompt sheet.
+  The link assembles up to 128 MiB per file, matching `BlobBudget`'s admission limit;
+  the shared budget remains 256 MiB. See `docs/mobile.md`.
 - The Today tab is `snapshot.today` drawn in the Mac's order.
   `CombinedToday` owns one `ViewerCover` on its `NavigationStack`,
   never on `HostTodayRows`' transparent group: a cover on the group fans out to
