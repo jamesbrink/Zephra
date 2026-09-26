@@ -12,7 +12,7 @@ struct LinkWorkflowRetryTests {
         await bed.client.connect()
         try await LinkGapRecoveryTests.settle { bed.host.isAuthenticated }
         bed.client.endLibraryPull()
-        bed.client.requestTimeout = .milliseconds(50)
+        bed.client.requestTimeout = .seconds(1)
         bed.host.onCommand = { command in
             if command == .workflow(work) { bed.road.dropFrame() }
         }

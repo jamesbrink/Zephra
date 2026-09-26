@@ -36,8 +36,10 @@ storage; downloader suites use stubbed URL loading.
 - macOS hosted: 383 tests in 73 suites passed.
 - iOS hosted: 245 tests in 54 suites passed again after final Form button changes.
 - ZephraKit full serial: 959 tests in 173 suites passed.
-- ZephraLink full serial: 294 tests in 54 suites passed; subsequent client regression run: 90 tests in 25 suites passed.
+- ZephraLink final full serial: 296 tests in 55 suites passed, including synthetic lifecycle and lost-acknowledgment regressions.
 - Debug macOS and iOS builds passed. Layer lint and diff whitespace checks passed.
+- Relay: all 121 tests passed; prerequisites passed.
+- Final shared sort regression: all 5 workflow tests passed.
 
 ## Remaining device acceptance
 
