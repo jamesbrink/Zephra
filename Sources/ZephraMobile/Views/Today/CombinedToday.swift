@@ -9,6 +9,7 @@ struct CombinedToday: View {
             List {
                 ForEach(hosts.hosts) { host in
                     Section {
+                        HostQueueControls(host: host)
                         HostTodayRows(host: host)
                             .environment(host.client)
                             .environment(host.catalog)
@@ -18,15 +19,8 @@ struct CombinedToday: View {
                         }
                     }
                 }
-                Section("Submissions") {
-                    ForEach(dispatch.submissions.reversed()) { submission in
-                        VStack(alignment: .leading) {
-                            Text(submission.hostName)
-                            Text(submission.state == .unknown ? "Checking submission · may already be running" : submission.state.rawValue.capitalized)
-                                .font(.caption).foregroundStyle(.secondary)
-                        }
-                    }
-                }
+                SubmissionAttentionSection()
+
             }
             .navigationTitle("Today")
         }

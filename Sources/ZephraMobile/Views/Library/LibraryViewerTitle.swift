@@ -35,7 +35,9 @@ struct LibraryViewerTitle: View {
                     Button { showPrompt(entry) } label: {
                         Text(entry.label)
                             .font(.footnote)
-                            .lineLimit(1)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.trailing)
+                            .fixedSize(horizontal: false, vertical: true)
                             .foregroundStyle(.white.opacity(0.85))
                             .shadow(color: .black.opacity(ZephraChrome.shadowOpacity), radius: 4)
                             .frame(minHeight: 44, alignment: .trailing)
@@ -46,6 +48,8 @@ struct LibraryViewerTitle: View {
                     .accessibilityLabel("View full prompt")
                     .accessibilityHint(entry.label)
                 }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .layoutPriority(-1)
             }
         }
         .padding(.horizontal, MobileChrome.sideMargin)

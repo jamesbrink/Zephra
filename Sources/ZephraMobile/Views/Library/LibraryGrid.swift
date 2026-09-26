@@ -2,9 +2,7 @@ import SwiftUI
 
 /// The wall of pictures, grouped by the day they were made.
 ///
-/// Three across, and three whatever the phone is: a fourth column on a Pro Max would make the
-/// pictures smaller on the larger screen, which is backwards. The headings are pinned, so the
-/// day scrolls up and stays legible over its own pictures.
+/// Density comes from the pinch gesture or Thumbnail Size menu. The headings stay pinned.
 ///
 /// Nothing here filters or sorts. `LibraryCatalog.sections` is the answer and this draws it.
 ///
@@ -14,7 +12,7 @@ import SwiftUI
 struct LibraryGrid: View {
     @Environment(LibraryCatalog.self) private var catalog
     /// What a tap on a picture means, which is the surface's business and not a cell's.
-    @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.galleryColumns) private var columns
     /// Which picture the viewer over this grid is showing, if one is up.
     @Environment(\.viewerOpening) private var opening
 
@@ -24,7 +22,7 @@ struct LibraryGrid: View {
 
     var body: some View {
         ScrollViewReader { wall in
-            ScrollView {
+            GalleryScroll {
                 if catalog.sections.isEmpty {
                     LibraryEmptyState()
                         .frame(maxWidth: .infinity, minHeight: 340)
@@ -42,7 +40,7 @@ struct LibraryGrid: View {
     private var grid: some View {
         LazyVGrid(
             columns: Array(
-                repeating: GridItem(.flexible(), spacing: Self.cellSpacing), count: typeSize.isAccessibilitySize ? 1 : 3),
+                repeating: GridItem(.flexible(), spacing: Self.cellSpacing), count: columns),
             spacing: Self.cellSpacing,
             pinnedViews: [.sectionHeaders]
         ) {
@@ -56,6 +54,7 @@ struct LibraryGrid: View {
                 }
             }
         }
+        .scrollTargetLayout()
         .padding(.horizontal, Self.cellSpacing)
         .padding(.bottom, MobileChrome.tabBarInset)
     }

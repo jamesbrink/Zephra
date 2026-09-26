@@ -10,20 +10,13 @@ import ZephraLinkProtocol
 struct CapsuleExpanded: View {
     /// What the model in force will accept, which decides every control that is drawn.
     let capabilities: CapabilitiesSummary
-    @Environment(\.dynamicTypeSize) private var typeSize
-
-    private var layout: AnyLayout {
-        typeSize >= .xxLarge ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
-            : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            layout {
-                PromptEditor()
-                if capabilities.supportsReferenceImage {
-                    ReferenceWell(capabilities: capabilities)
-                }
+            PromptHistoryControls()
+            PromptEditor()
+            if capabilities.supportsReferenceImage {
+                ReferenceWell(capabilities: capabilities)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             if capabilities.supportsNegativePrompt {
                 NegativePromptField()

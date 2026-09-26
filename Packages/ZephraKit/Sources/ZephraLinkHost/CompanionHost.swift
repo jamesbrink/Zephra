@@ -52,6 +52,7 @@ public final class CompanionHost {
     /// each session as its channel is made. An instance property for the same reason.
     @ObservationIgnored var frameHold: Duration?
 
+    @ObservationIgnored let makeModelInventory: @MainActor () -> ModelInventory
     @ObservationIgnored let store: GenerationStore
     @ObservationIgnored let index: LibraryIndex
     @ObservationIgnored let thumbnails: any ThumbnailSupply
@@ -92,10 +93,12 @@ public final class CompanionHost {
         pairings: any PairingStore,
         hostName: String,
         devices: [PairedDevice]? = nil,
+        modelInventory: (@MainActor () -> ModelInventory)? = nil,
         receipts: GenerationReceipts? = nil,
         endpoints: @escaping @MainActor () -> [Endpoint] = { [] }
     ) {
         self.receipts = receipts ?? GenerationReceipts()
+        self.makeModelInventory = modelInventory ?? { store.storageInventory() }
         self.store = store
         self.index = index
         self.thumbnails = thumbnails

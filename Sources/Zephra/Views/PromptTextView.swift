@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import ZephraCore
 
 /// The prompt's text view: an `NSTextView` of our own, so the selection can be drawn by
 /// `PromptLayoutManager` and the container's inset can be nothing at all.
@@ -18,6 +19,7 @@ struct PromptTextView: NSViewRepresentable {
     @Binding var text: String
     /// Whether the caret is in the field.
     @Binding var isFocused: Bool
+    var history: [String] = []
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -88,6 +90,9 @@ struct PromptTextView: NSViewRepresentable {
     final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: PromptTextView
         private let undo = UndoManager()
+        private var recall = PromptRecall()
+        private var recallSelection: NSRange?
+        private var replacingPrompt = false
 
         init(_ parent: PromptTextView) {
             self.parent = parent
@@ -95,7 +100,43 @@ struct PromptTextView: NSViewRepresentable {
 
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
+            recall.reset(); recallSelection = nil
             parent.text = textView.string
+        }
+
+        func textView(_ textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+            let older = selector == #selector(NSResponder.moveUp(_:))
+            let newer = selector == #selector(NSResponder.moveDown(_:))
+            guard older || newer, !textView.hasMarkedText(), textView.selectedRange().length == 0,
+                  NSApp.currentEvent?.modifierFlags.intersection([.shift, .control, .option, .command]).isEmpty != false,
+                  (textView.selectedRange() == recallSelection || atBoundary(textView, older: older)) else { return false }
+            guard let text = recall.step(older: older, current: textView.string, prompts: parent.history) else { return false }
+            replacingPrompt = true
+            defer { replacingPrompt = false }
+            textView.string = text
+            recallSelection = NSRange(location: 0, length: 0)
+            textView.setSelectedRange(recallSelection!)
+            parent.text = text
+            undo.removeAllActions()
+            return true
+        }
+
+        func textViewDidChangeSelection(_ notification: Notification) {
+            guard !replacingPrompt, let view = notification.object as? NSTextView else { return }
+            if let recallSelection, view.selectedRange() != recallSelection {
+                recall.reset(); self.recallSelection = nil
+            }
+        }
+
+        private func atBoundary(_ view: NSTextView, older: Bool) -> Bool {
+            guard !view.string.isEmpty, let layout = view.layoutManager else { return true }
+            let length = (view.string as NSString).length
+            let location = view.selectedRange().location
+            let glyph = layout.glyphIndexForCharacter(at: min(location, length - 1))
+            var range = NSRange()
+            layout.lineFragmentRect(forGlyphAt: glyph, effectiveRange: &range)
+            if older { return range.location == 0 }
+            return NSMaxRange(range) >= layout.numberOfGlyphs
         }
 
         func undoManager(for view: NSTextView) -> UndoManager? {
@@ -106,6 +147,7 @@ struct PromptTextView: NSViewRepresentable {
         /// actions on it name ranges of text that is no longer there.
         func forgetEdits() {
             undo.removeAllActions()
+            recall.reset(); recallSelection = nil
         }
     }
 }

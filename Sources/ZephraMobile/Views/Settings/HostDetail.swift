@@ -23,9 +23,7 @@ struct HostDetail: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Models") {
-                ForEach(host.client.snapshot?.models ?? []) { model in
-                    HostModelRow(host: host, model: model)
-                }
+                NavigationLink("Manage Models", destination: ModelManagementScreen(host: host))
             }
             Section {
                 Button("Forget Mac", role: .destructive) { confirming = true }

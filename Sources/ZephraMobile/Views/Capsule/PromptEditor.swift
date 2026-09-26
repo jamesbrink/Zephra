@@ -25,8 +25,8 @@ struct PromptEditor: View {
         TextEditor(text: $draft.settings.prompt)
             .font(.callout)
             .scrollContentBackground(.hidden)
-            .frame(minHeight: 66)
-            .fixedSize(horizontal: false, vertical: true)
+            .frame(height: 150)
+            .scrollDismissesKeyboard(.never)
             .focused($isFocused)
             .overlay(alignment: .topLeading) {
                 if draft.settings.prompt.isEmpty {
@@ -41,6 +41,12 @@ struct PromptEditor: View {
             .contentShape(Rectangle())
             .onTapGesture { isFocused = true }
             .accessibilityLabel("Prompt")
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { isFocused = false }
+                }
+            }
             .task {
                 await Task.yield()
                 isFocused = selection.promptIsFocused

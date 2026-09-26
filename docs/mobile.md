@@ -889,6 +889,50 @@ work on the Mac and the phone would only be a second copy of it.
 This is the one surface that goes blank without a Mac, and it should: a run in
 flight cannot be cached.
 
+## Queue order, prompt recall and model storage
+
+Waiting batches follow actual execution order on both apps. Drag a waiting run
+before another, or use Move Earlier / Move Later. Sort Queue orders requests by
+admission time; seeds and chain jobs stay together, and the running batch stays
+first. The phone sends the complete batch order plus the queue entry IDs it saw.
+The host rejects a stale edit and caches each operation result for safe retry.
+Requests without retained history timestamps stay in relative order after dated
+requests, so sorting always uses a consistent total order.
+
+Prompt history is the engine's bounded admission journal, persisted atomically
+beside the output library. It includes failed requests, groups seeds under one
+admission, and seeds older libraries once from generation provenance. The desktop
+History menu and boundary Up/Down keys recall prompts while preserving the draft.
+On the phone, History and previous/next arrows use every enabled, connected Mac
+in Auto, or just the selected destination in manual mode. Entries are ordered by
+admission timestamp with stable host identity ties, independently of the watched
+canvas Mac. Recall changes only prompt text, preserving references and settings.
+
+Manage Models belongs to an explicitly named Mac, available from Settings and
+the model picker. Download Only and Resume never switch or load the selected
+model. Pause retains partials; Cancel asks before discarding unfinished files.
+Lifecycle changes are sent once: a lost acknowledgment asks the person to check
+status before retrying, preventing a stale repeat from undoing a newer decision.
+Storage rows show measured sizes and shared-file consequences. Deletion uses an
+opaque session token tied to the storage root and directory identity; the host
+revalidates use and reports the result after removal settles. Completed files
+and model directories still in use cannot be removed through a stale token.
+
+The optional snapshot `workflow` capability advertises these commands. Expanded
+history and inventory travel only in request replies, keeping old clients' delta
+readers compatible. Older hosts retain existing loading controls and library
+prompt fallback; unavailable workflow controls explain the required update.
+
+The prompt editor has its own bounded scrolling region, full-width layout and
+keyboard Done action. Viewer titles wrap to two lines; the prompt sheet holds
+the complete wrapped prompt and negative prompt. The Library grid supports pinch
+to change one through six columns, persists density, preserves a visible media
+anchor and offers a Thumbnail Size menu. Accessibility text sizes use one column.
+Today hides successful submission receipts already represented by real runs.
+Needs Attention retains sending, uncertain, rejected and interrupted receipts;
+uncertainty remains visible even after the day changes. The durable ledger is
+unchanged.
+
 ## Frozen preview states
 
 The same mechanism as the Mac's `InterfacePreview`, in the same shape, so a

@@ -89,7 +89,9 @@ extension GenerationStore {
         modelAwaitsGenerate = false
         capsuleHoldsPicture = false
         settings = request
-        queue.append(QueuedGeneration(model: model, settings: request))
+        let job = QueuedGeneration(model: model, settings: request)
+        promptHistory.record(request.prompt, id: job.batchID)
+        queue.append(job)
         if isDraining {
             logger.info("queued a variation, \(self.queue.count) waiting")
         } else {

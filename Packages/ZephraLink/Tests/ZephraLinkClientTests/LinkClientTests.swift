@@ -120,4 +120,17 @@ struct LinkClientTests {
         #expect(try await client.request(.cancel) == .ok)
         await #expect(throws: (any Error).self) { try await client.file(name: "one.png") }
     }
+    @Test("frozen workflow controls safely update only their synthetic snapshot")
+    func frozenWorkflowControls() async throws {
+        let client = LinkClient.frozen(snapshot: ClientFixtures.snapshot, library: [])
+        let id = ClientFixtures.snapshot.model.id
+        #expect(try await client.request(.workflow(.download(id))) == .ok)
+        #expect(client.snapshot?.downloads.first(where: { $0.modelID == id })?.status == .downloading)
+        #expect(try await client.request(.workflow(.pause(id))) == .ok)
+        #expect(client.snapshot?.downloads.first(where: { $0.modelID == id })?.status == .paused)
+        #expect(try await client.request(.workflow(.download(id))) == .ok)
+        #expect(try await client.request(.workflow(.cancel(id))) == .ok)
+        #expect(client.snapshot?.downloads.first(where: { $0.modelID == id })?.status == .cancelled)
+    }
+
 }

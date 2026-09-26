@@ -37,6 +37,7 @@ extension GenerationStore {
         first.frames = segments[0]
         let request = descriptor.capabilities.clamp(first)
         let batch = UUID()
+        promptHistory.record(settings.prompt, id: batch)
         let expanded = BatchExpansion.expand(request, count: seeds) { .random(in: .min ... .max) }
         for (index, settings) in expanded.enumerated() {
             queue.append(

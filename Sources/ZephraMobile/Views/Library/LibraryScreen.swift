@@ -22,7 +22,7 @@ struct LibraryScreen: View {
             VStack(spacing: 0) {
                 LibrarySourcePicker()
                 ScopeChips()
-                LibraryGrid()
+                ResizableGallery()
             }
             .background(Color.canvasBackground)
             .navigationTitle(MobileTab.library.title)

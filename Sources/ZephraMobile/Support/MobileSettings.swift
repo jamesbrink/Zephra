@@ -25,6 +25,7 @@ enum MobileSettings {
 
     /// Whether the phone follows the Mac's appearance or fixes its own, as an `AppearanceMode`
     /// raw value.
+    static let galleryColumns = "galleryColumns"
     static let appearance = "appearance"
     /// How a seed is written wherever one is shown, as a `SeedFormat` raw value.
     static let seedFormat = "seedFormat"
