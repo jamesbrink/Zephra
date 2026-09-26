@@ -24,6 +24,7 @@ struct SessionTimelineList: View {
             Section {
                 ForEach(runs.filter(\.isWaiting)) { run in
                     WaitingRunCard(run: run)
+                        .modifier(QueueRunActions(id: run.id))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                 }
@@ -47,6 +48,7 @@ struct SessionTimelineList: View {
             } header: {
                 SectionHeader("Today", detail: "\(runs.reduce(0) { $0 + $1.finishedCount })") {
                     if !store.queue.isEmpty {
+                        QueueSortMenu()
                         Button("Clear Queue") { store.clearQueue() }
                             .buttonStyle(.link)
                     }

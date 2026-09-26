@@ -18,7 +18,10 @@ extension LinkClient {
     /// with the run it already made, keyed by `GenerationRequest.requestID`. Upscale has no
     /// deduplication key on older Macs and is sent only once.
     public func request(_ command: Command) async throws -> Reply {
-        if isFrozen { return .ok }
+        if isFrozen {
+            if case .workflow(let work) = command { return frozenWorkflow(work) }
+            return .ok
+        }
         if case .upscale = command { return try await ask(command) }
         do {
             return try await ask(command)

@@ -46,6 +46,11 @@ public final class PromptHistory {
             guard cost <= 262_144 - bytes else { return false }
             bytes += cost; return true
         }
+        // JSON escaping can expand control characters sixfold; keep a workflow reply
+        // comfortably below the transport's 1 MiB frame even for such a prompt.
+        while !entries.isEmpty, (try? JSONEncoder().encode(entries).count) ?? 0 > 524_288 {
+            entries.removeLast()
+        }
     }
     private func save() {
         guard let file else { return }

@@ -28,7 +28,7 @@ struct PromptEditor: View {
 
     var body: some View {
         @Bindable var store = store
-        PromptTextView(text: $store.settings.prompt, isFocused: $focus)
+        PromptTextView(text: $store.settings.prompt, isFocused: $focus, history: store.promptHistory.entries.map(\.prompt))
             .onAppear { focus = store.settings.prompt.isEmpty }
             .frame(height: min(max(textHeight, Self.restingHeight), Self.ceiling))
             .background(alignment: .topLeading) { twin }

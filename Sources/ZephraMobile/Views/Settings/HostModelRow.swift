@@ -10,7 +10,7 @@ import ZephraLinkProtocol
 struct HostModelRow: View {
     let host: HostConnection
     let model: ModelSummary
-    @State private var failure: String?
+    @State private var action = ModelActionPresentation()
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -20,17 +20,20 @@ struct HostModelRow: View {
             }
             if host.client.supportsModelLoading {
                 Button("Load on \(host.name)") { ask { try await host.client.loadModel(model.id) } }
-                    .disabled(!host.client.connection.isLive)
+                    .disabled(!host.client.connection.isLive || !model.isSelectable || engine?.isBusy == true || action.busy)
                 if engine?.loadedModelID == model.id {
                     Button("Unload") { ask { try await host.client.unloadModel() } }
-                        .disabled(!host.client.connection.isLive || engine?.isBusy == true)
+                        .disabled(!host.client.connection.isLive || engine?.isBusy == true || action.busy)
                 }
             } else {
                 Button("Load on \(host.name)") { ask { try await host.client.switchModel(model.id) } }
-                    .disabled(!host.client.connection.isLive)
+                    .disabled(!host.client.connection.isLive || !model.isSelectable || engine?.isBusy == true || action.busy)
             }
-            if let failure { Text(failure).font(.caption).foregroundStyle(.secondary) }
+            ModelDownloadActions(host: host, model: model)
+            if let note = model.memoryNote { Text(note).font(.caption).foregroundStyle(.secondary) }
+            if let failure = action.failure { Text(failure).font(.caption).foregroundStyle(.secondary) }
         }
+        .buttonStyle(.borderless)
         .accessibilityHint("May download or prepare this model. Auto never starts a download.")
     }
 
@@ -39,9 +42,6 @@ struct HostModelRow: View {
 
     /// Asks the Mac, and keeps its sentence where the buttons are rather than in an alert.
     private func ask(_ work: @escaping () async throws -> Void) {
-        failure = nil
-        Task {
-            do { try await work() } catch { failure = error.localizedDescription }
-        }
+        action.ask(work)
     }
 }

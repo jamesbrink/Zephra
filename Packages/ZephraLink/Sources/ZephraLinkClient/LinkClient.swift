@@ -103,6 +103,7 @@ public final class LinkClient {
     /// same session is measured against, so a resync does not start the library again.
     @ObservationIgnored var libraryProgress: LibraryPullProgress?
     @ObservationIgnored var isFrozen = false
+    @ObservationIgnored var frozenStorage: [ModelStorageDTO]?
     /// How long a session's `OrderedInbox` holds a gap open before it calls it loss. A property
     /// rather than the constant so a suite can ask the question in milliseconds.
     @ObservationIgnored var frameHold: Duration?

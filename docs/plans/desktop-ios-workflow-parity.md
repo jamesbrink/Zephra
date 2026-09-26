@@ -97,3 +97,12 @@ No concrete backend changes.
 - Independent final implementation review; fix valid findings, rerun affected
   checks, then open one PR and verify CI on its exact head. Merge after the
   user's final review as requested, preserving the single-PR boundary.
+
+## Added during implementation
+
+The user requested Photos-style gallery pinch sizing (one to six columns,
+persisted, with accessible menu controls). The user also supplied Today receipt
+clutter: completed/accepted submissions must not be rendered twice. Keep sending
+and uncertain submissions visible regardless of age; show today's refused and
+interrupted requests with prompt, host, note and time. Successful receipt rows
+remain in the durable ledger but only their actual images appear in Today.

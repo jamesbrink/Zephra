@@ -9,12 +9,13 @@ struct PromptSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    LibraryHostLabel(entry: entry)
                     Text(entry.prompt)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     if let negative = entry.entry.record?.negativePrompt, !negative.isEmpty {
                         Divider()
                         Text("Negative Prompt").font(.headline)
-                        Text(negative)
+                        Text(negative).frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
                 .font(.body)
