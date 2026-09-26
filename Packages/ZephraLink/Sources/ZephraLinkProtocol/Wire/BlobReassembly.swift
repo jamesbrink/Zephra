@@ -13,7 +13,7 @@ import Foundation
 /// a courtesy rather than a limit.
 public struct BlobReassembly: Sendable {
     /// The most any one blob may occupy while it is being assembled.
-    public static let byteCap = 64 * 1024 * 1024
+    public static let byteCap = 128 * 1024 * 1024
 
     /// The blob being assembled.
     public let blobID: UUID

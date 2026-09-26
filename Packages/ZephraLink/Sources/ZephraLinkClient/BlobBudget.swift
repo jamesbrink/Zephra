@@ -1,4 +1,5 @@
 import Foundation
+import ZephraLinkProtocol
 
 /// Bounds announced bytes across clients, including unsolicited transfers.
 @MainActor
@@ -8,7 +9,7 @@ public final class BlobBudget {
     private(set) var peakReservedBytes = 0
     public let limit: Int
     public let fileLimit: Int
-    public init(limit: Int = 268_435_456, fileLimit: Int = 134_217_728) {
+    public init(limit: Int = 268_435_456, fileLimit: Int = BlobReassembly.byteCap) {
         self.limit = limit; self.fileLimit = fileLimit
     }
     func reserve(owner: UUID, blob: UUID, bytes: Int) -> Bool {

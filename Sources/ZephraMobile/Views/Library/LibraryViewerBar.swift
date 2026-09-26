@@ -16,7 +16,7 @@ struct LibraryViewerBar: View {
 
     @Environment(LibraryCatalog.self) private var catalog
     /// The file on this phone, once it is here.
-    @State private var file: URL?
+    @State private var loaded: ViewerFile?
 
     var body: some View {
         HStack(spacing: 26) {
@@ -28,14 +28,9 @@ struct LibraryViewerBar: View {
             .disabled(!catalog.isLive(for: entry))
             .accessibilityLabel(entry.isFavourite ? "Remove from Favorites" : "Add to Favorites")
 
-            if let file {
+            if let file = loaded?.url(for: entry) {
                 ShareLink(item: file) { Image(systemName: "square.and.arrow.up") }
-                Button {
-                    Task { try? await PhotosSaver.save(file, isVideo: entry.isVideo) }
-                } label: {
-                    Image(systemName: "square.and.arrow.down")
-                }
-                .accessibilityLabel("Save to Photos")
+                PhotoSaveButton(entry: entry).labelStyle(.iconOnly)
             }
 
             Menu {
@@ -52,8 +47,11 @@ struct LibraryViewerBar: View {
         .background(.black.opacity(MobileChrome.viewerChromeOpacity), in: Capsule())
         .padding(.bottom, 28)
         .task(id: entry.id + entry.version) {
+            loaded = nil
             let lease = await catalog.lease(entry)
-            file = try? await catalog.file(for: entry)
+            if let file = try? await catalog.file(for: entry), !Task.isCancelled {
+                loaded = ViewerFile(entry: entry, file: file)
+            }
             while !Task.isCancelled { try? await Task.sleep(for: .seconds(30)) }
             withExtendedLifetime(lease) {}
         }

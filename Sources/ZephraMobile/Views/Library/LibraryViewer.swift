@@ -43,6 +43,7 @@ struct LibraryViewer: View {
         .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
         .scrollPosition(id: $pose.current)
         .scrollIndicators(.hidden)
+        .onScrollPhaseChange { _, phase in pose.isPaging = phase != .idle }
         .ignoresSafeArea()
         // The pull is inside the environment, not outside it: `ViewerPull` adds its own
         // closure to what is set here, and an environment set inside it would replace that.
@@ -50,7 +51,11 @@ struct LibraryViewer: View {
         .environment(\.viewerGestures, gestures)
         .overlay(alignment: .top) { chrome { LibraryViewerTitle(entry: shown) } }
         .overlay(alignment: .bottom) {
-            if let shown { chrome { LibraryViewerBar(entry: shown) } }
+            if let shown {
+                chrome { LibraryViewerBar(entry: shown) }
+                    .id(shown.id + shown.version)
+                    .disabled(pose.isPaging)
+            }
         }
         .modifier(LibraryRequests())
         .modifier(ViewerClosesWithTab())
@@ -63,7 +68,7 @@ struct LibraryViewer: View {
 
     /// The picture on screen, or nil once the last one has been deleted.
     private var shown: CachedEntry? {
-        entries.first { $0.id == pose.current } ?? entries.first
+        entries.first { $0.id == pose.current }
     }
 
     /// A strip of controls that a tap on the picture puts away and another brings back.
