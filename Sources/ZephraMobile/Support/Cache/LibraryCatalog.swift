@@ -75,6 +75,8 @@ final class LibraryCatalog {
         }
     }
 
+    deinit { fileObservation?.cancel(); measureTask?.cancel() }
+
     /// The catalog this launch gets: the real folders, or nothing under a frozen preview
     /// state, where the fixture's entries are seeded straight in and no byte is written — but
     /// for the `viewer` state's drawn pictures, in a temporary folder emptied at every launch.
@@ -145,5 +147,4 @@ final class LibraryCatalog {
         for child in children.values { metadata += await child.entryStore.size() + child.thumbnailStore.size() }
         cacheBytes = await metadata + files
     }
-
 }
