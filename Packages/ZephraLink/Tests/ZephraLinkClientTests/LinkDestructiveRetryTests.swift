@@ -59,4 +59,17 @@ struct LinkDestructiveRetryTests {
         catch let error as LinkError { #expect(error.reason.contains("may already")) }
         #expect(bed.host.commands.filter { $0 == .cancel }.count == 1)
     }
+
+    @Test("An unexpected acknowledgment cannot establish a destructive command's outcome")
+    func unexpectedAcknowledgment() async throws {
+        let bed = LinkClientUnderTest(remembering: DeviceIdentity())
+        defer { Task { await bed.client.disconnect(); await bed.host.stop() } }
+        await bed.client.connect()
+        try await LinkGapRecoveryTests.settle { bed.host.isAuthenticated }
+        bed.client.endLibraryPull()
+        bed.host.reply = .queued(batchID: UUID())
+        do { try await bed.client.clearQueue(); Issue.record("An invalid acknowledgment must be uncertain") }
+        catch let error as LinkError { #expect(error.reason.contains("may already")) }
+        #expect(bed.host.commands.filter { $0 == .clearQueue }.count == 1)
+    }
 }

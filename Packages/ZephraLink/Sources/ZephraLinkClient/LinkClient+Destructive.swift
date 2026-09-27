@@ -5,7 +5,13 @@ extension LinkClient {
     /// Unscoped destructive intent is safe only at the moment it was first requested.
     func destructiveRequest(_ command: Command) async throws -> Reply {
         var sent = false
-        do { return try await ask(command, onSent: { sent = true }) }
+        do {
+            let reply = try await ask(command, onSent: { sent = true })
+            switch reply {
+            case .ok, .error: return reply
+            default: throw LinkClientError.unexpectedReply
+            }
+        }
         catch is CancellationError { throw CancellationError() }
         catch {
             guard sent else { throw error }
