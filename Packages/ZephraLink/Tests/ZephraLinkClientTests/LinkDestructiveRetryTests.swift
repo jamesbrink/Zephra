@@ -44,4 +44,19 @@ struct LinkDestructiveRetryTests {
         bed.host.reply = .error(error)
         await #expect(throws: error) { try await bed.client.clearQueue() }
     }
+
+    @Test("Disconnection after Stop was sent is uncertain and never retries")
+    func disconnectedAfterSending() async throws {
+        let bed = LinkClientUnderTest(remembering: DeviceIdentity())
+        defer { Task { await bed.client.disconnect(); await bed.host.stop() } }
+        await bed.client.connect()
+        try await LinkGapRecoveryTests.settle { bed.host.isAuthenticated }
+        bed.client.endLibraryPull()
+        bed.host.beforeReply = { command in
+            if command == .cancel { await bed.client.disconnect() }
+        }
+        do { try await bed.client.cancel(); Issue.record("A lost connection must be uncertain") }
+        catch let error as LinkError { #expect(error.reason.contains("may already")) }
+        #expect(bed.host.commands.filter { $0 == .cancel }.count == 1)
+    }
 }

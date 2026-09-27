@@ -65,4 +65,32 @@ extension ModelDownloaderTests {
         await #expect(throws: CancellationError.self) { _ = try await task.value }
         #expect(scratch.hasFile("weight"))
     }
+
+    @Test("A refused replacement never resurrects corrupt final or partial bytes", arguments: [false, true])
+    func refusedReplacement(incomplete: Bool) async throws {
+        let fixture = MirrorFixture.self
+        let scratch = Scratch("RefusedReplacement")
+        let locations = ModelLocations(root: scratch.url("models"))
+        let partial = ModelDownloader.prebuiltPartial(of: fixture.model, in: locations)
+        for (name, bytes) in fixture.files {
+            let url = partial.appending(path: name)
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try bytes.write(to: url)
+        }
+        let final = partial.appending(path: "transformer/model.safetensors")
+        let checked = incomplete ? ModelDownloader.partial(of: final) : final
+        if incomplete { try FileManager.default.removeItem(at: final) }
+        try Data(repeating: 8, count: 24).write(to: checked)
+        StubHub.reset(StubHub.Behaviour(files: fixture.served(), fileStatus: 403, index: fixture.index()))
+        let pool = ModelTransfers(downloader: downloader(), capacity: { _ in
+            TransferCapacity(id: "fixture", available: (256 << 20) + 24)
+        })
+        let id = UUID()
+        try await pool.reserve(id, model: fixture.model, locations: locations)
+        #expect(try await TransferAcquisition(id: id, pool: pool).fetchPrebuilt(fixture.model, into: locations) { _ in } == nil)
+        try await pool.release(id)
+        #expect(!FileManager.default.fileExists(atPath: checked.path))
+        #expect(!FileManager.default.fileExists(atPath: final.path))
+        #expect(StubHub.records.filter { $0.path.hasSuffix("model.safetensors") }.count == 1)
+    }
 }
