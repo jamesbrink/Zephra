@@ -18,7 +18,7 @@ struct CacheRow: View {
             // comes up, whatever the sync loops did before it.
             .task { await catalog.measureCache() }
         Button("Clear Cache", role: .destructive) { isAsking = true }
-            .disabled(catalog.cacheBytes == 0)
+            .disabled(catalog.isClearing || catalog.cacheBytes == 0)
             .confirmationDialog(
                 "Clear the library cache?", isPresented: $isAsking, titleVisibility: .visible
             ) {
@@ -29,7 +29,7 @@ struct CacheRow: View {
             } message: {
                 Text(
                     "The pictures stay on your Mac. This phone fetches them again the next "
-                        + "time it needs them, which it cannot do while your Mac is out of reach.")
+                        + "time it needs them, which it cannot do while your Mac is out of reach. Files currently in use are removed when viewing, sharing, or saving finishes.")
             }
     }
 

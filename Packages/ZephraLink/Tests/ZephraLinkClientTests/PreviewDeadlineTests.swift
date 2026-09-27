@@ -17,11 +17,15 @@ struct PreviewDeadlineTests {
             try await LinkGapRecoveryTests.settle { bed.client.libraryIsComplete }
         }
         stalled.host.silentPreviews = true
+        let (clock, expire) = AsyncStream<Void>.makeStream()
+        defer { expire.finish() }
+        stalled.client.requestSleep = { _ in for await _ in clock { break }; try Task.checkCancellation() }
         let first = Task { try? await stalled.client.setPreviews(false, timeout: .milliseconds(200)) }
         try await LinkGapRecoveryTests.settle { stalled.host.commands.contains(.multiHost(.previews(false))) }
         try await healthy.client.setPreviews(true)
         #expect(healthy.host.commands.contains(.multiHost(.previews(true))))
         #expect(!stalled.client.pending.isEmpty, "the healthy host completes while the first host is still silent")
+        expire.yield(())
         await first.value
         #expect(stalled.client.pending.isEmpty)
         #expect(stalled.host.commands.filter { $0 == .multiHost(.previews(false)) }.count == 1)

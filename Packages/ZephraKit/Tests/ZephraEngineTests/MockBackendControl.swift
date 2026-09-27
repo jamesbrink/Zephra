@@ -15,6 +15,7 @@ final class MockBackendControl: Sendable {
         /// Thrown from `generate` when set.
         var generateError: BackendError?
         /// How long each denoising step pretends to take. Zero skips the sleep entirely.
+        var generationGate: (@Sendable () async throws -> Void)?
         var stepDelay: Duration = .milliseconds(10)
         /// How long `load` pretends to take, so a test can cancel while it is under way.
         /// Zero skips the sleep entirely.

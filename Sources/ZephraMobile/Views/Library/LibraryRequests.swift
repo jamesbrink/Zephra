@@ -13,6 +13,7 @@ struct LibraryRequests: ViewModifier {
     @Environment(LibraryCatalog.self) private var catalog
     /// What is being asked for right now, or nil.
     @State private var request: LibraryRequest?
+    @State private var action = MediaAction()
 
     func body(content: Content) -> some View {
         content
@@ -23,6 +24,7 @@ struct LibraryRequests: ViewModifier {
             .environment(\.tagLibraryItem) { request = .tagging($0) }
             .environment(\.confirmDeleteLibraryItem) { request = .deleting($0) }
             .environment(\.shareLibraryItem, share)
+            .modifier(MediaActionFeedback(action: action))
             .sheet(item: $request) { sheet(for: $0) }
             .confirmationDialog(
                 deleteTitle, isPresented: isDeleting, titleVisibility: .visible
@@ -45,13 +47,14 @@ struct LibraryRequests: ViewModifier {
     }
 
     /// Fetches the file and then offers it, which is two steps because the bytes may not be on
-    /// the phone yet. Nothing is raised if they cannot be got: the menu item is already greyed
-    /// while the Mac is out of reach, so this is a link that dropped mid-fetch.
+    /// the phone yet. The action reports a failed fetch and keeps a lease until sheet dismissal.
     private func share(_ entry: CachedEntry) {
         Task {
-            let lease = await catalog.lease(entry)
-            guard let url = try? await catalog.file(for: entry) else { return }
-            request = .sharing(url, lease)
+            await action.share { try await catalog.leasedMedia(for: entry) }
+            if let media = action.sharing {
+                request = .sharing(media.url, media.lease)
+                action.sharing = nil
+            }
         }
     }
 

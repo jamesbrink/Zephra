@@ -11,8 +11,7 @@ Makefile target, with no manual step and no version to type. Pull requests run t
 minutes' worth — `doctor`, `lint-layers`, `test`, `relay-test`, `test-ios`;
 `test-app` and `test-mlx` are the hour and run under `workflow_dispatch` with
 `full_gates: true`, and locally before a merge as they always have.
-`deploy-website.yml` stays manual, because production goes out when James says
-so. See "Build & run" in AGENTS.md and the CI section of
+`deploy-website.yml` publishes relevant website changes on pushes to `main` and also supports manual dispatch. See "Build & run" in AGENTS.md and the CI section of
 `docs/build-and-release.md`.
 
 ## Next steps, in order
@@ -123,7 +122,7 @@ so. See "Build & run" in AGENTS.md and the CI section of
      favourite, tags and albums stay in the poster PNG); Copy puts the clip's file alone on
      the pasteboard; the batch control queues N clips
      as it queues N pictures; the running-run inspector shows steps but not the clip's
-     length; no `ZEPHRA_PREVIEW_STATE` stands a clip up for `make screenshot`; the warm-up
+     length; `ZEPHRA_PREVIEW_STATE=clip` supplies a fixture for screenshots; the warm-up
      run is an eight-step nine-frame clip plus an MP4 encode, about ten seconds, where the
      picture families pay for one step; an MP4 whose poster is gone sits in Recently Deleted
      undated, since the purge walks PNGs; a clip whose MP4 was removed by hand still reads
@@ -214,7 +213,7 @@ still at a few hundred downloads), and
   it needs, rather than pointed at the nearest entry and refused on press. Whether Zephra is usable at all on
   8 GB, at a smaller size than the default with the decode tiled, is unanswered and
   wants one measured session on the hardware.
-- **The disk is not checked for room before the download starts.** `ModelTransfers`
+- **The chooser does not show free disk space before a download is requested.** `ModelTransfers`
   reserves per-volume space when the transfer begins and fails with a reason, which is
   the same behaviour every other download path has. The chooser could say "21.6 GB,
   and this volume has 12" on the card before it is pressed.
@@ -253,12 +252,14 @@ still at a few hundred downloads), and
   transfers would saturate it. Sixteen gigabytes from the hub already runs near
   the line's limit here; the fix, if a slow link ever argues for it, is a task
   group with a small concurrency and one shared byte tally.
-- **Only sizes are checked, not hashes.** The tree endpoint carries each LFS
+- **Hub downloads still check size rather than an LFS digest.** The tree endpoint carries each LFS
   file's sha256 in `lfs.oid`, and a finished file is compared against the listed
   length and nothing else. A file that arrives complete but corrupt therefore
   loads and fails at the loader. Hashing sixteen gigabytes costs seconds, not
   minutes, so this is worth doing; it wants a streaming digest as the bytes are
-  written rather than a second pass.
+  written rather than a second pass. Mirror files already carry SHA-256 values; fresh,
+  completed partial and retained final files are checked, including before transfer
+  admission credits retained bytes.
 - **Changing the models folder asks: Move Models, Keep in Place, or Cancel.**
   Keep in Place remembers the last few roots (`ModelLocations.previous`), so what
   was downloaded or built under them is still found, listed and loaded, and only
@@ -608,8 +609,8 @@ Left out of the first pass on purpose, each a small change to one file unless no
   needs to shrink. Needs an availability state and a host for a converted safetensors.
 - **Lanczos 2x** instead of the exact 2x2 box mean, which is what the reference tool
   does with `--outscale`. Slightly sharper, one more code path.
-- **Alpha carried through.** The network is run on RGB only and the result is written
-  opaque, which loses nothing for the library's own PNGs.
+- **Alpha preservation shipped.** Transparent inputs run color and alpha lanes separately
+  and produce straight RGBA output. No alpha-preservation work remains here.
 - **Upscaling a multi-selection**, one after another on the inference queue.
 - **A sidebar timeline entry** for an upscale, beside the runs.
 - **Float16 compute** if a 2048 input is measurably slow; the switch is one cast at
@@ -714,12 +715,10 @@ Left out of the first pass on purpose, each a small change to one file unless no
   without becoming an oracle for anybody who knows a room id — the same shape as
   the "this room has never existed" answer the phone would like for a Mac whose
   identity changed.
-- **A phone cannot start a download.** `Command` has no case for one and
-  `CompanionHost` refuses anything it does not know. Fetching a model is
-  gigabytes onto somebody else's Mac, over their network, and the person holding
-  the phone is not always the person paying for either. The phone watches
-  transfers (`DownloadDTO`) and that is all. If it is ever offered it wants a
-  confirmation on the Mac, not on the phone.
+- **Phone model downloads shipped.** Modern Macs advertise optional workflow support;
+  the phone offers Download Only, Resume, Pause and confirmed Cancel without switching
+  the selected model. Older Macs show the update requirement.
+
 - **A paired device cannot be renamed on the Mac.** The name in the list is the
   phone's own, out of its `Hello`. A list whose names could be edited here is a
   list nobody could match to a phone in a drawer, and the phone already has a
@@ -765,9 +764,10 @@ Left out of the first pass on purpose, each a small change to one file unless no
   What it must not become is a phone that has moved and keeps dialling the road
   it used at home, so the memory has to be beaten by a `LinkPathMark` that says
   the network is a different one.
-- **The phone's cache is not built.** `CacheRow` in Settings says so in as many
-  words. It is one file, so whoever builds the library's cache replaces it rather
-  than editing a settings screen around it.
+- **Phone caching shipped.** Host-owned entries and reachable thumbnails survive
+  offline. Whole media has a shared 512 MiB budget; active consumers hold leases, and
+  Clear Cache defers removal of files in use until those consumers finish.
+
 - **The Mac's local road is not re-opened when the network changes.**
   `TCPListener` keeps its port across a Wi-Fi change, and Bonjour re-advertises;
   what goes stale is the address list inside a pairing code already on screen.
@@ -775,10 +775,9 @@ Left out of the first pass on purpose, each a small change to one file unless no
   phone watches `NWPathMonitor` itself now (`LinkPathWatch`); doing the same on
   the Mac, to re-open the road, is a real improvement only once somebody reports
   a Mac that stopped answering after moving networks.
-- **Nothing on the phone saves a picture to the camera roll.** `Photos` is
-  linked and the fetched bytes are in hand, so it is a menu item and a
-  permission string, but the canvas has no such menu yet; it belongs with the
-  library surface's own share and export, not beside the capsule.
+- **Save to Photos shipped.** Pictures and clips can be saved through add-only Photos
+  permission. Save and share operations report failures and own their files through
+  completion; offline availability follows the current cache and file version.
 
 ## Updates: left out on purpose
 

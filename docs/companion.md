@@ -1359,3 +1359,13 @@ or refusal; an unconfirmed request is never retried automatically.
 For UI validation, `ZEPHRA_PREVIEW_STATE=viewer` draws temporary images under the
 same host/version cache keys as production. `ZEPHRA_PREVIEW_HOSTS=2` adds an offline
 source, and `ZEPHRA_PREVIEW_PROMPT` can supply a long, multiline prompt in Debug.
+
+## Destructive-command acknowledgment
+
+Unscoped `cancel` and `clearQueue` are sent once: a repeat after a missing acknowledgment
+could stop a later run or clear newly queued work. A failure before sending is definite;
+a failure after the request enters the writer is uncertain and tells the phone to check
+the Mac before trying again. Clear Queue checks the reply rather than discarding refusals.
+Modern Stop captures the run ID and capability at the press and uses `cancelRun`; when
+no run ID is available it is disabled, never silently widened to Stop All. Legacy Macs
+retain Stop All with the same single-attempt uncertainty behavior. No wire shape changed.

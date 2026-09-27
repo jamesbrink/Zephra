@@ -2922,6 +2922,21 @@ entry.
 
 Full detail: `docs/model-weights.md`.
 
+## Audit reliability contracts
+
+- Unscoped Stop and Clear Queue are sent once, with uncertain outcomes reported after
+  sending. Modern Stop never falls back to Stop All when a target run ID is absent.
+- Phone cache deletion respects leases; media operations own those leases independently
+  of their presenting views. Clear/removal transactions invalidate stale store commits.
+  Thumbnail reclamation uses retained metadata, never a partial remote list.
+- Retained mirror files with a supplied digest are verified before their bytes are
+  credited to transfer admission. Keep the existing shared volume reservation policy.
+- Tests that require a run to stay alive use an explicit mock-backend gate; deadline
+  tests may inject the client's timer rather than rely on subsecond wall-clock timing.
+
+Details: `docs/companion.md`, `docs/mobile.md`, `docs/generation.md`, and
+`docs/architecture.md`.
+
 ## Conventions
 
 - Conventional Commits for all git messages.

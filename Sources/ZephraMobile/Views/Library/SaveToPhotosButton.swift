@@ -12,15 +12,14 @@ struct SaveToPhotosButton: View {
 
     @Environment(LibraryCatalog.self) private var catalog
     /// Whether the file is already here, once the answer has come back from the store.
-    @State private var isHeld = false
+    @State private var availability = MediaAvailability()
 
     var body: some View {
         PhotoSaveButton(entry: entry)
-        .disabled(!catalog.isLive(for: entry) && !isHeld)
-        .task(id: entry.id + entry.version) {
-            isHeld = false
+        .disabled(!catalog.isLive(for: entry) && !availability.isHeld)
+        .task(id: entry.id + entry.version + String(catalog.cacheRevision) + String(catalog.isLive(for: entry))) {
             let held = await catalog.hasFile(for: entry)
-            if !Task.isCancelled { isHeld = held }
+            if !Task.isCancelled { availability.isHeld = held }
         }
     }
 }

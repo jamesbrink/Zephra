@@ -54,20 +54,23 @@ extension LibraryCatalog {
             for (child, names) in partition(names) { if !(await child.delete(names)) { success = false } }
             return success
         }
-        guard let client, isLive else { return false }
+        guard !isClearing, let client, isLive else { return false }
         let names = names.compactMap { entry(named: $0)?.fileName }
         operations += 1
         defer { operations -= 1 }
         let generation = epoch
+        let ticket = await entryStore.ticket()
         let remoteBefore = client.library
         let gone = Set(names)
         let removed = entries.filter { gone.contains($0.fileName) }
         guard !removed.isEmpty else { return false }
+        for entry in removed { pendingDeletions[entry.fileName] = entry }
+        defer { for entry in removed { pendingDeletions.removeValue(forKey: entry.fileName) } }
         publish(entries.filter { !gone.contains($0.fileName) })
         do {
-            try await client.delete(names)
+            try await request { try await client.delete(names) }
             guard generation == epoch else { return false }
-            await entryStore.remove(names)
+            await entryStore.remove(names, ticket: ticket)
             await measureCache()
             return true
         } catch {
@@ -86,19 +89,20 @@ extension LibraryCatalog {
     private func edit(
         _ names: [String],
         changing: (CachedEntry) -> CachedEntry,
-        sending: (LinkClient) async throws -> Void
+        sending: @escaping (LinkClient) async throws -> Void
     ) async -> Bool {
-        guard let client, isLive else { return false }
+        guard !isClearing, let client, isLive else { return false }
         operations += 1
         defer { operations -= 1 }
         let generation = epoch
+        let ticket = await entryStore.ticket()
         let touched = Set(names)
         let before = entries.filter { touched.contains($0.fileName) }
         publish(entries.map { touched.contains($0.fileName) ? changing($0) : $0 })
         do {
-            try await sending(client)
+            try await request { try await sending(client) }
             guard generation == epoch else { return false }
-            await entryStore.save(entries.filter { touched.contains($0.fileName) })
+            await entryStore.save(entries.filter { touched.contains($0.fileName) }, ticket: ticket)
             return true
         } catch {
             logger.notice("The Mac would not take an edit: \(error.localizedDescription)")

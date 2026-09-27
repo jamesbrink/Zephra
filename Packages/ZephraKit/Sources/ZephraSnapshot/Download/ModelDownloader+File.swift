@@ -28,7 +28,12 @@ extension ModelDownloader {
         guard Self.isContained(file.path, target: target, in: destination) else {
             throw ModelDownloadError.unsafePath(path: file.path)
         }
-        if let size = Self.size(of: target), file.bytes == 0 || size == file.bytes { return }
+        if let size = Self.size(of: target), file.bytes == 0 || size == file.bytes {
+            if try matchesDigest(file, at: target) { return }
+            try FileManager.default.removeItem(at: target)
+            tally.discard(size)
+            if let event = tally.report(force: true) { onProgress(event) }
+        }
         let partial = Self.partial(of: target)
         try FileManager.default.createDirectory(
             at: target.deletingLastPathComponent(), withIntermediateDirectories: true)

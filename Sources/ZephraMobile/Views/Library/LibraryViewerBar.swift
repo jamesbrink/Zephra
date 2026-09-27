@@ -7,16 +7,15 @@ import ZephraStyle
 /// The rest is behind More, which is the same `LibraryItemMenu` the grid's cells wear — one
 /// list of actions for the app, so nothing is offered in one place and missing in the other.
 ///
-/// The file is fetched as the bar appears, so `ShareLink` has something real to offer rather
-/// than a promise. That is why the viewer shares with a `ShareLink` and the grid asks for a
-/// sheet: here there is a view to hang one on and a moment to get the bytes in.
+/// Each save or share owns the file until its consumer finishes, independently of the viewer.
 struct LibraryViewerBar: View {
     /// The picture the bar is about.
     let entry: CachedEntry
 
     @Environment(LibraryCatalog.self) private var catalog
     /// The file on this phone, once it is here.
-    @State private var loaded: ViewerFile?
+    @State private var availability = MediaAvailability()
+    private var action: MediaAction { availability.action }
 
     var body: some View {
         HStack(spacing: 26) {
@@ -28,10 +27,14 @@ struct LibraryViewerBar: View {
             .disabled(!catalog.isLive(for: entry))
             .accessibilityLabel(entry.isFavourite ? "Remove from Favorites" : "Add to Favorites")
 
-            if let file = loaded?.url(for: entry) {
-                ShareLink(item: file) { Image(systemName: "square.and.arrow.up") }
-                PhotoSaveButton(entry: entry).labelStyle(.iconOnly)
-            }
+            Button {
+                Task { await action.share { try await catalog.leasedMedia(for: entry) } }
+            } label: { Image(systemName: "square.and.arrow.up") }
+            .accessibilityLabel("Share")
+            .disabled(action.busy || (!catalog.isLive(for: entry) && !availability.isHeld))
+            PhotoSaveButton(entry: entry)
+                .labelStyle(.iconOnly)
+                .disabled(action.busy || (!catalog.isLive(for: entry) && !availability.isHeld))
 
             Menu {
                 LibraryItemMenu(entry: entry)
@@ -46,15 +49,15 @@ struct LibraryViewerBar: View {
         .padding(.vertical, 12)
         .background(.black.opacity(MobileChrome.viewerChromeOpacity), in: Capsule())
         .padding(.bottom, 28)
-        .task(id: entry.id + entry.version) {
-            loaded = nil
-            let lease = await catalog.lease(entry)
-            if let file = try? await catalog.file(for: entry), !Task.isCancelled {
-                loaded = ViewerFile(entry: entry, file: file)
-            }
-            while !Task.isCancelled { try? await Task.sleep(for: .seconds(30)) }
-            withExtendedLifetime(lease) {}
+        .task(id: entry.id + entry.version + String(catalog.cacheRevision) + String(catalog.isLive(for: entry))) {
+            let held = await catalog.hasFile(for: entry)
+            if !Task.isCancelled { availability.isHeld = held }
         }
+        .modifier(MediaActionFeedback(action: action))
+        .sheet(isPresented: Binding(get: { action.sharing != nil }, set: { if !$0 { action.sharing = nil } })) {
+            if let media = action.sharing { ShareSheet(url: media.url) }
+        }
+
     }
 }
 

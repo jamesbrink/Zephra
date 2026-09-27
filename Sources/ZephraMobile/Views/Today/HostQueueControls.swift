@@ -19,10 +19,11 @@ struct HostQueueControls: View {
             .buttonStyle(.borderless)
             .disabled(!host.client.connection.isLive)
             .confirmationDialog("Clear queued jobs on \(host.name)?", isPresented: $confirming, titleVisibility: .visible) {
-                Button("Clear Queue", role: .destructive) { ask { _ = try await host.client.request(.clearQueue) } }
+                Button("Clear Queue", role: .destructive) { ask { try await host.client.clearQueue() } }
             } message: { Text("The running job keeps going.") }
-            if let failure { Text(failure).font(.caption).foregroundStyle(.secondary) }
+
         }
+        if let failure { Text(failure).font(.caption).foregroundStyle(.secondary) }
     }
     private func sort(_ newest: Bool) {
         let entries = host.client.snapshot?.queue ?? []

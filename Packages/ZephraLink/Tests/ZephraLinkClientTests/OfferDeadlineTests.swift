@@ -12,16 +12,19 @@ struct OfferDeadlineTests {
         defer { Task { await healthy.host.stop(); await stalled.host.stop() } }
         try await healthy.client.pair(with: healthy.pairingCode())
         try await stalled.client.pair(with: stalled.pairingCode())
+        try await LinkGapRecoveryTests.settle {
+            healthy.host.isAuthenticated && stalled.host.isAuthenticated
+        }
         var snapshot = ClientFixtures.snapshot
         snapshot.multiHost = true
-        for _ in 0..<8 { await Task.yield() }
         try await healthy.host.announce(snapshot, kind: .snapshot)
         try await stalled.host.announce(snapshot, kind: .snapshot)
-        let deadline = ContinuousClock.now + .seconds(2)
-        while !healthy.client.supportsMultiHost || !stalled.client.supportsMultiHost {
-            guard ContinuousClock.now < deadline else { Issue.record("Snapshots missing"); return }
-            try await Task.sleep(for: .milliseconds(5))
+        try await LinkGapRecoveryTests.settle {
+            healthy.client.supportsMultiHost && stalled.client.supportsMultiHost &&
+                healthy.client.libraryIsComplete && stalled.client.libraryIsComplete &&
+                healthy.client.pending.isEmpty && stalled.client.pending.isEmpty
         }
+        #expect(healthy.client.libraryIsComplete && stalled.client.libraryIsComplete)
         healthy.client.endLibraryPull(); stalled.client.endLibraryPull()
         let offer = HostOffer(refusal: nil, queueSeconds: 0, preparationSeconds: 0,
             executionSeconds: 10, memoryMargin: 1, modelLoaded: true, queueCount: 0,
@@ -30,13 +33,24 @@ struct OfferDeadlineTests {
         stalled.host.silentOffers = true
         let job = StrictGeneration(request: GenerationRequest(modelID: ClientFixtures.model.id,
             count: 1, settings: ClientFixtures.settings))
-        let started = ContinuousClock.now
+        let (healthyClock, holdHealthy) = AsyncStream<Void>.makeStream()
+        let (stalledClock, expireStalled) = AsyncStream<Void>.makeStream()
+        defer { holdHealthy.finish(); expireStalled.finish() }
+        healthy.client.requestSleep = { _ in
+            for await _ in healthyClock { break }; try Task.checkCancellation()
+        }
+        stalled.client.requestSleep = { _ in
+            for await _ in stalledClock { break }; try Task.checkCancellation()
+        }
         async let a = try? healthy.client.offer(job, timeout: .milliseconds(100))
         async let b = try? stalled.client.offer(job, timeout: .milliseconds(100))
+        try await LinkGapRecoveryTests.settle {
+            healthy.host.commands.contains(.multiHost(.offer(job))) && stalled.host.commands.contains(.multiHost(.offer(job)))
+        }
+        expireStalled.yield(())
         let (good, absent) = await (a, b)
         #expect(good == offer)
         #expect(absent == nil)
-        #expect(started.duration(to: .now) < .seconds(1))
         #expect(stalled.client.pending.isEmpty)
         #expect(HostSelection.best([HostCandidate(id: try #require(healthy.client.hostID), offer: try #require(good))]) != nil)
     }
@@ -61,10 +75,22 @@ struct OfferDeadlineTests {
         }
         let job = StrictGeneration(request: GenerationRequest(modelID: ClientFixtures.model.id,
             count: 1, settings: ClientFixtures.settings))
+        let (clock, expire) = AsyncStream<Void>.makeStream()
+        let (replies, releaseReply) = AsyncStream<Void>.makeStream()
+        defer { expire.finish(); releaseReply.finish() }
+        bed.client.requestSleep = { _ in for await _ in clock { break }; try Task.checkCancellation() }
+        bed.host.beforeReply = { command in
+            if case .multiHost(.offer) = command { for await _ in replies { break } }
+        }
         bed.road.dropFrame()
         try await bed.host.announce(LinkReorderingTests.progress(step: 1), kind: .delta)
-        let expired = try? await bed.client.offer(job, timeout: .milliseconds(30))
-        #expect(expired == nil)
+        let request = Task { try? await bed.client.offer(job, timeout: .milliseconds(30)) }
+        try await LinkGapRecoveryTests.settle { bed.host.commands.contains(.multiHost(.offer(job))) }
+        expire.yield(())
+        #expect(await request.value == nil)
+        bed.client.requestSleep = { try await Task.sleep(for: $0) }
+        bed.host.beforeReply = nil
+        releaseReply.yield(())
         try await LinkGapRecoveryTests.settle { bed.host.commands.contains(.resync) }
         #expect(bed.client.connection.isLive)
         #expect(try await bed.client.offer(job) == offer)

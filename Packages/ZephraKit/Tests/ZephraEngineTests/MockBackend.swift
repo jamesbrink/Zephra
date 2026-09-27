@@ -122,6 +122,7 @@ final class MockBackend: ImageGenerationBackend {
         if let error = dials.generateError { throw error }
         onProgress(GenerationProgressEvent(phase: .encodingText, fraction: 0))
         let total = max(1, dials.stepOverride ?? settings.steps)
+        try await dials.generationGate?()
         for step in 1...total {
             try Task.checkCancellation()
             if dials.stepDelay > .zero {

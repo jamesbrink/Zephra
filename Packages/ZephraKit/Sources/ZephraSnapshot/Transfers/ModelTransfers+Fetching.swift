@@ -39,12 +39,17 @@ extension ModelTransfers {
         let entry = RepositoryTransfer(part)
         entry.owners = Set(claims.filter { $0.value.parts.contains(part) }.keys)
         let downloader = downloader
-        entry.preparation = Task {
+        // Hashing must leave this actor free to cancel the final owner promptly.
+        entry.preparation = Task.detached {
             let session = downloader.makeSession()
             defer { session.invalidateAndCancel() }
             return try await DownloadRetry.run(
                 isPermanent: { ($0 as? ModelDownloadError)?.isPermanent ?? false }, onRetry: { _, _ in }
-            ) { try await downloader.listing(of: [part], on: session) }
+            ) {
+                let work = try await downloader.listing(of: [part], on: session)
+                try downloader.validateExistingFiles(work)
+                return work
+            }
         }
         transfers[part] = entry
         return entry

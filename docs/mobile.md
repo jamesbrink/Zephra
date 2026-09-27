@@ -1112,3 +1112,28 @@ per-file limit used by client admission, retaining the 256 MiB shared budget.
 The previous mismatched 64 MiB assembler rejected otherwise admitted files.
 `LargeFileTransferTests` exercises a 65 MiB encrypted host-to-client transfer;
 `ViewerFileTests` covers page, version and source-host mismatches.
+||||||| parent of 3f930b70 (fix: repair companion controls and cache reliability)
+
+## Cache and media lifetime
+
+Clear Cache pauses catalog admission and observation, invalidates its epoch, drains
+admitted operations, clears metadata and thumbnails, and clears shared whole media
+once. It then restarts observation against the current client. Store tickets reject
+commits invalidated by a clear or host removal. A removed host cannot route new media
+requests through the aggregate catalog.
+
+Whole-file clear and host removal preserve every leased URL. Deletion waits for the
+last lease; a write cannot overwrite bytes pending deletion while consumers use them.
+New consumers may read those preserved bytes until the final lease releases them.
+File-store revisions wake offline availability checks and storage measurements.
+
+Thumbnail reclamation uses the retained catalog, including offline entries. It runs
+on startup and complete sync even when metadata is unchanged; partial remote lists
+and optimistic deletions are not evidence for removal. The thumbnail actor rejects
+writes for digests that are no longer retained.
+
+Photos saves and share presentations own their own leases, independent of a viewer's
+lifetime. Fetch, permission and save failures are shown; duplicate presses are blocked
+while preparation is active. Cancellation is quiet. A successful save is acknowledged.
+Remote storage refresh uses ticket-aware cleanup so cancellation and superseded replies
+cannot leave loading stuck or replace newer results.
