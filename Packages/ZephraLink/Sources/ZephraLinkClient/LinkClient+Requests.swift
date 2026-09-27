@@ -123,8 +123,8 @@ extension LinkClient {
 
     /// The task that gives up on one request or one blob.
     func expire(_ id: UUID, after delay: Duration) -> Task<Void, Never> {
-        Task { [weak self] in
-            guard let sleep = self?.requestSleep else { return }
+        let sleep = requestSleep
+        return Task { [weak self] in
             do { try await sleep(delay) } catch { return }
             guard !Task.isCancelled else { return }
             self?.fail(id, with: LinkClientError.timedOut)
