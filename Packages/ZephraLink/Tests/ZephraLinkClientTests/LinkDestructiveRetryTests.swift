@@ -21,6 +21,11 @@ struct LinkDestructiveRetryTests {
         expire.yield(())
         do { _ = try await task.value; Issue.record("A lost reply must be uncertain") }
         catch let error as LinkError { #expect(error.reason.contains("may already")) }
+        bed.client.requestSleep = { try await Task.sleep(for: $0) }
+        let subsequent = GenerationRequest(
+            modelID: ClientFixtures.model.id, count: 1, settings: ClientFixtures.settings)
+        _ = try await bed.client.enqueue(subsequent)
+        #expect(bed.host.commands.contains(.enqueue(subsequent)))
         #expect(bed.host.commands.filter { $0 == command }.count == 1)
         #expect(bed.client.pending.isEmpty)
     }
