@@ -791,3 +791,13 @@ decodes to flat brown mush. One more Euler step of the velocity already in hand,
 all the way to zero noise, is what a person means by "how is it coming along".
 It costs one elementwise operation, and it is computed inside the frame closure,
 so a dropped frame does not pay for it.
+
+## Retained mirror integrity
+
+A mirror's SHA-256 applies to completed files retained in its partial directory as well
+as incoming files. Streaming, cancellable hashing verifies complete retained bytes
+before transfer admission credits them. Corrupt retained bytes are removed and fetched
+again; final-file replacement corrects the progress tally. A cancelled hash preserves
+the retained bytes. Hub downloads without a digest keep their existing size check.
+The existing volume coordinator still reserves outstanding download and build bytes
+with a 256 MiB margin; there is no second capacity coordinator.

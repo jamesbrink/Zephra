@@ -10,12 +10,22 @@ import ZephraLinkClient
 struct StopRunButton: View {
     @Environment(LinkClient.self) private var client
 
+    @State private var failure: String?
+    @State private var stopping = false
+
     var body: some View {
         Button {
+            let targeted = client.supportsMultiHost
             let run = client.snapshot?.running?.id
+            guard !targeted || run != nil else { return }
+            stopping = true
             Task {
-                if client.supportsMultiHost, let run { try? await client.cancelRun(run) }
-                else { try? await client.cancel() }
+                defer { stopping = false }
+                do {
+                    if targeted, let run { try await client.cancelRun(run) }
+                    else { try await client.cancel() }
+                } catch is CancellationError {}
+                catch { failure = error.localizedDescription }
             }
         } label: {
             Label(client.supportsMultiHost ? "Stop Run" : "Stop All on Mac", systemImage: "stop.circle.fill")
@@ -23,7 +33,10 @@ struct StopRunButton: View {
         }
         .buttonStyle(.plain)
         .foregroundStyle(.secondary)
-        .disabled(!client.connection.isLive)
+        .disabled(stopping || !client.connection.isLive || (client.supportsMultiHost && client.snapshot?.running == nil))
+        .alert("Stop Not Confirmed", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {
+            Button("OK") { failure = nil }
+        } message: { Text(failure ?? "") }
         .accessibilityLabel(client.supportsMultiHost ? "Stop Run on \(client.snapshot?.hostName ?? "Mac")" : "Stop All Work on \(client.snapshot?.hostName ?? "Mac")")
     }
 }

@@ -17,15 +17,17 @@ extension LibraryCatalog {
     /// it is not.
     func thumbnail(for entry: CachedEntry, pixels: Int = ThumbnailStore.cellPixels) async -> Data? {
         if let child = owner(of: entry) { return await child.thumbnail(for: entry, pixels: pixels) }
+        guard !isClearing else { return nil }
         operations += 1
         defer { operations -= 1 }
         let generation = epoch
+        let ticket = await thumbnailStore.ticket()
         if let held = await thumbnailStore.data(for: entry, pixels: pixels) { return held }
         guard let client, client.connection.isLive else { return nil }
         do {
-            let data = try await client.thumbnail(name: entry.fileName, pixels: pixels)
+            let data = try await request { try await client.thumbnail(name: entry.fileName, pixels: pixels) }
             guard generation == epoch else { return nil }
-            await thumbnailStore.store(data, for: entry, pixels: pixels)
+            await thumbnailStore.store(data, for: entry, pixels: pixels, ticket: ticket)
             await measureCache()
             return data
         } catch {
@@ -42,6 +44,7 @@ extension LibraryCatalog {
     /// to be killed by the watchdog.
     func file(for entry: CachedEntry) async throws -> URL {
         if let child = owner(of: entry) { return try await child.file(for: entry) }
+        guard entry.hostID == nil || entry.hostID == hostID else { throw LibraryCacheError.offline }
         return try await url(named: entry.id, isVideo: entry.isVideo)
     }
 
@@ -58,6 +61,7 @@ extension LibraryCatalog {
         if let entry = entry(named: name), let child = owner(of: entry) {
             return try await child.url(named: entry.id, isVideo: isVideo)
         }
+        guard !isClearing else { throw CancellationError() }
         let entry = entry(named: name)
         let remote = entry?.fileName ?? name
         let key = mediaKey(entry, fallback: name)
@@ -65,11 +69,12 @@ extension LibraryCatalog {
         operations += 1
         defer { operations -= 1 }
         let generation = epoch
+        let ticket = await fileStore.ticket(for: local)
         if let held = await fileStore.url(for: local) { return held }
         guard let client, client.connection.isLive else { throw LibraryCacheError.offline }
-        let data = try await client.file(name: remote)
+        let data = try await request { try await client.file(name: remote) }
         guard generation == epoch else { throw CancellationError() }
-        guard let url = await fileStore.store(data, as: local) else {
+        guard let url = await fileStore.store(data, as: local, ticket: ticket) else {
             throw LibraryCacheError.cannotWrite
         }
         await measureCache()
@@ -84,20 +89,22 @@ extension LibraryCatalog {
     /// to put a sentence.
     func picture(named name: String, priority: TransferPriority = .openedMedia) async -> Data? {
         if let entry = entry(named: name), let child = owner(of: entry) { return await child.picture(named: entry.id, priority: priority) }
+        guard !isClearing else { return nil }
         let entry = entry(named: name)
         let remote = entry?.fileName ?? name
         let key = mediaKey(entry, fallback: name)
         operations += 1
         defer { operations -= 1 }
         let generation = epoch
+        let ticket = await fileStore.ticket(for: key)
         if let held = await fileStore.data(for: key) { return held }
         guard let client, client.connection.isLive else { return nil }
-        guard let data = try? await client.file(name: remote, priority: priority) else {
+        guard let data = try? await request({ try await client.file(name: remote, priority: priority) }) else {
             logger.notice("A picture could not be fetched from the Mac")
             return nil
         }
         guard generation == epoch else { return nil }
-        await fileStore.store(data, as: key)
+        await fileStore.store(data, as: key, ticket: ticket)
         await measureCache()
         return data
     }

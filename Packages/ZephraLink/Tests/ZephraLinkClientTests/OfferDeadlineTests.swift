@@ -30,13 +30,24 @@ struct OfferDeadlineTests {
         stalled.host.silentOffers = true
         let job = StrictGeneration(request: GenerationRequest(modelID: ClientFixtures.model.id,
             count: 1, settings: ClientFixtures.settings))
-        let started = ContinuousClock.now
+        let (healthyClock, holdHealthy) = AsyncStream<Void>.makeStream()
+        let (stalledClock, expireStalled) = AsyncStream<Void>.makeStream()
+        defer { holdHealthy.finish(); expireStalled.finish() }
+        healthy.client.requestSleep = { _ in
+            for await _ in healthyClock { break }; try Task.checkCancellation()
+        }
+        stalled.client.requestSleep = { _ in
+            for await _ in stalledClock { break }; try Task.checkCancellation()
+        }
         async let a = try? healthy.client.offer(job, timeout: .milliseconds(100))
         async let b = try? stalled.client.offer(job, timeout: .milliseconds(100))
+        try await LinkGapRecoveryTests.settle {
+            healthy.host.commands.contains(.multiHost(.offer(job))) && stalled.host.commands.contains(.multiHost(.offer(job)))
+        }
+        expireStalled.yield(())
         let (good, absent) = await (a, b)
         #expect(good == offer)
         #expect(absent == nil)
-        #expect(started.duration(to: .now) < .seconds(1))
         #expect(stalled.client.pending.isEmpty)
         #expect(HostSelection.best([HostCandidate(id: try #require(healthy.client.hostID), offer: try #require(good))]) != nil)
     }

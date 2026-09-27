@@ -25,6 +25,12 @@ final class LibraryCatalog {
     @ObservationIgnored var changed: (() -> Void)?
     @ObservationIgnored var epoch = UUID()
     @ObservationIgnored var operations = 0
+    @ObservationIgnored var requests: [UUID: () -> Void] = [:]
+    @ObservationIgnored var pendingDeletions: [String: CachedEntry] = [:]
+    var isClearing = false
+    var cacheRevision = 0
+    @ObservationIgnored var clearing: Task<Void, Never>?
+    @ObservationIgnored var fileObservation: Task<Void, Never>?
     /// The coalesced re-count `scheduleMeasureCache` keeps, if one is waiting to run.
     @ObservationIgnored var measureTask: Task<Void, Never>?
     @ObservationIgnored var libraryRoot: URL?
@@ -60,6 +66,13 @@ final class LibraryCatalog {
         entryStore = EntryStore(root: libraryRoot)
         thumbnailStore = ThumbnailStore(root: libraryRoot)
         fileStore = sharedFiles ?? FileStore(root: filesRoot)
+        fileObservation = Task { [weak self, fileStore] in
+            for await revision in await fileStore.changes() {
+                guard !Task.isCancelled else { return }
+                self?.cacheRevision = revision
+                self?.scheduleMeasureCache()
+            }
+        }
     }
 
     /// The catalog this launch gets: the real folders, or nothing under a frozen preview
@@ -98,6 +111,7 @@ final class LibraryCatalog {
     /// Stops following. Nothing calls it in the app — the catalog lives as long as the process
     /// — but a test that has finished with one should not leave a loop running behind it.
     func stop() {
+        for cancel in requests.values { cancel() }
         epoch = UUID()
         observation?.cancel()
         observation = nil
@@ -132,22 +146,4 @@ final class LibraryCatalog {
         cacheBytes = await metadata + files
     }
 
-    /// Forgets everything: the entries, the thumbnails and the files.
-    ///
-    /// The library comes back on the next sync, since the Mac is the truth and the phone only
-    /// ever held a copy — which is what makes this safe to offer as a button in Settings.
-    func clearCache() async {
-        if !children.isEmpty {
-            for child in children.values { await child.clearCache() }
-            await fileStore.clear()
-            await measureCache()
-            return
-        }
-        await entryStore.clear()
-        await thumbnailStore.clear()
-        await fileStore.clear()
-        entries = []
-        await measureCache()
-        if let client { await sync(with: client) }
-    }
 }

@@ -12,11 +12,16 @@ import Foundation
 /// `CacheBudget` empties it first, least recently read going first.
 actor FileStore {
     /// Where the files are, or nil for a store that keeps nothing.
-    private let directory: URL?
+    let directory: URL?
     /// What the folder may hold. A parameter only so a test can fill it without half a
     /// gigabyte of fixtures.
     private let limit: Int64
-    private var leases: [String: Int] = [:]
+    var leases: [String: Int] = [:]
+    var pendingDeletion: Set<String> = []
+    var generations: [String: UUID] = [:]
+    var generation = UUID()
+    var revision = 0
+    var subscribers: [UUID: AsyncStream<Int>.Continuation] = [:]
 
     /// A store under one caches root.
     init(root: URL?, limit: Int64 = CacheBudget.bytes) {
@@ -46,25 +51,40 @@ actor FileStore {
     /// Keeps one file's bytes and answers where they landed, trimming the folder afterwards if
     /// it has grown past the budget.
     @discardableResult
-    func store(_ data: Data, as fileName: String) -> URL? {
+    func store(_ data: Data, as fileName: String, ticket: UUID? = nil) -> URL? {
+        guard ticket == nil || ticket == self.ticket(for: fileName) else { return nil }
+        if pendingDeletion.contains(fileName), leases[fileName, default: 0] > 0 {
+            return url(for: fileName)
+        }
         guard let url = path(for: fileName) else { return nil }
         do { try data.write(to: url, options: .atomic) } catch { return nil }
         touch(url)
         trim()
+        publishChange()
         return url
     }
 
     func remove(prefix: String) {
+        for key in generations.keys where key.hasPrefix(prefix) { generations[key] = UUID() }
         guard let directory else { return }
         for file in Self.contents(of: directory) where file.url.lastPathComponent.hasPrefix(prefix) {
-            try? FileManager.default.removeItem(at: file.url)
+            discard(file.url)
         }
+        publishChange()
     }
 
-    /// Empties the folder.
+    /// Consumers keep their URLs until their final lease ends.
     func clear() {
+        generation = UUID(); generations.removeAll()
         guard let directory else { return }
-        CacheDirectories.empty(directory)
+        for file in Self.contents(of: directory) { discard(file.url) }
+        publishChange()
+    }
+
+    private func discard(_ url: URL) {
+        let key = url.lastPathComponent
+        if leases[key, default: 0] > 0 { pendingDeletion.insert(key) }
+        else { try? FileManager.default.removeItem(at: url); pendingDeletion.remove(key) }
     }
 
     /// How many bytes the files occupy.
@@ -78,6 +98,8 @@ actor FileStore {
         for file in CacheBudget.excess(of: Self.contents(of: directory).filter { leases[$0.url.lastPathComponent, default: 0] == 0 },
             limit: max(0, limit - Self.contents(of: directory).filter { leases[$0.url.lastPathComponent, default: 0] > 0 }.reduce(0) { $0 + $1.size })) {
             try? FileManager.default.removeItem(at: file.url)
+            pendingDeletion.remove(file.url.lastPathComponent)
+            publishChange()
         }
     }
 
@@ -87,39 +109,14 @@ actor FileStore {
     }
     func release(_ key: String) {
         leases[key] = max(0, leases[key, default: 0] - 1)
+        if leases[key] == 0 {
+            leases.removeValue(forKey: key)
+            if pendingDeletion.remove(key) != nil, let url = path(for: key) {
+                try? FileManager.default.removeItem(at: url)
+                publishChange()
+            }
+        }
         trim()
     }
 
-    /// Where one name would live, whether or not anything is there.
-    private func path(for fileName: String) -> URL? {
-        directory?.appending(path: fileName)
-    }
-
-    /// Records that a file was just read.
-    ///
-    /// The access date is set explicitly rather than left to the file system: iOS mounts with
-    /// `noatime`, so a read on its own changes nothing and every file would look equally old.
-    /// The modification date follows it, since these bytes never change after they are written
-    /// and a folder read back by anything else should still say when it was last wanted.
-    private func touch(_ url: URL) {
-        var file = url
-        var values = URLResourceValues()
-        let now = Date()
-        values.contentAccessDate = now
-        values.contentModificationDate = now
-        try? file.setResourceValues(values)
-    }
-
-    /// Every file in the folder, with what the budget weighs it by.
-    private static func contents(of directory: URL) -> [CacheBudget.File] {
-        let keys: [URLResourceKey] = [.fileSizeKey, .contentAccessDateKey, .contentModificationDateKey]
-        let urls = (try? FileManager.default.contentsOfDirectory(
-            at: directory, includingPropertiesForKeys: keys)) ?? []
-        return urls.compactMap { url in
-            guard let facts = try? url.resourceValues(forKeys: Set(keys)) else { return nil }
-            let accessed = facts.contentAccessDate ?? facts.contentModificationDate ?? .distantPast
-            return CacheBudget.File(
-                url: url, size: Int64(facts.fileSize ?? 0), accessedAt: accessed)
-        }
-    }
 }

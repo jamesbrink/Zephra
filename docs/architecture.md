@@ -320,3 +320,12 @@ The root catalog aggregates host-qualified entries; destination selection never
 changes item ownership or the watched host. `HostSelection` is a pure policy in
 LinkClient; strict workload admission and durable receipts live on the Mac.
 See [Multi-host companion](multi-host.md) for the implemented contracts.
+
+## Cache commit boundaries
+
+The phone's disk stores remain actors. Catalog transactions stop admitting operations
+before draining them; per-store tickets and file-key tickets reject invalidated commits.
+File leases express consumer lifetime and apply to explicit deletion as well as budget
+trimming. Cache changes cross back to the main actor through a bounded revision stream.
+Photos/share outcome state stays in the phone app and takes injected dependencies for
+tests. No cache or UI type crosses the companion wire.

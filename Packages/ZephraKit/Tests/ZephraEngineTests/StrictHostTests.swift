@@ -37,7 +37,11 @@ struct StrictHostTests {
     @Test("Repeated immutable request IDs across sessions return the same batch")
     func duplicateSubmission() async throws {
         let bed = CompanionTestBed()
-        bed.engine.control.update { $0.stepDelay = .milliseconds(30) }
+        let (blocked, release) = AsyncStream<Void>.makeStream()
+        defer { release.finish() }
+        bed.engine.control.update { $0.generationGate = {
+            for await _ in blocked {}; try Task.checkCancellation()
+        } }
         await bed.bootstrap()
         let identity = DeviceIdentity()
         let phone = try await bed.pairedPhone(identity: identity)
@@ -51,6 +55,7 @@ struct StrictHostTests {
         guard case .multiHost(.receipt(let first)) = try await phone.request(.multiHost(.submit(job))) else {
             Issue.record("Missing receipt"); await bed.shutdown(); return
         }
+        try await bed.waitUntil { bed.store.running != nil }
         let another = try await bed.phone(identity: identity)
         _ = try await another.snapshot()
         guard case .multiHost(.receipt(let retry)) = try await another.request(.multiHost(.submit(job))) else {

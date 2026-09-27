@@ -111,6 +111,7 @@ public final class LinkClient {
     /// than the constant for the reason `frameHold` is one, and it carries more weight now: a
     /// reply a hole swallowed is closed by this clock rather than by the gap, so a suite that
     /// asks what a lost reply costs has to be able to ask it in milliseconds.
+    @ObservationIgnored var requestSleep: @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
     @ObservationIgnored var requestTimeout: Duration = LinkClient.requestTimeout
     /// Every time a session ended, so whoever reconnects starts at once rather than on the next
     /// beat of a poll. Newest-only: what a waiter needs to know is that the session it was

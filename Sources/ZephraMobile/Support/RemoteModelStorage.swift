@@ -10,16 +10,19 @@ final class RemoteModelStorage {
     var deleting: ModelStorageDTO?
     private var refreshID = UUID()
     func refresh(_ host: HostConnection) async {
+        await refresh { try await host.client.modelStorage() }
+    }
+    func refresh(load: () async throws -> [ModelStorageDTO]) async {
         let ticket = UUID(); refreshID = ticket; loading = true
+        defer { if ticket == refreshID { loading = false } }
         do {
-            let rows = try await host.client.modelStorage()
+            let rows = try await load()
             guard ticket == refreshID, !Task.isCancelled else { return }
             self.rows = rows; failure = nil
         } catch {
-            guard ticket == refreshID else { return }
+            guard ticket == refreshID, !Task.isCancelled, !(error is CancellationError) else { return }
             failure = error.localizedDescription
         }
-        if ticket == refreshID { loading = false }
     }
     func delete(_ host: HostConnection, item: ModelStorageDTO) async {
         loading = true; failure = nil; deleting = nil

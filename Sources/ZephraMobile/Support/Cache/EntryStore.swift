@@ -19,6 +19,8 @@ actor EntryStore {
     /// Nil under a frozen preview state: a screenshot build is handed the fixture's entries
     /// and must write none of them, since the simulator's container outlives the launch and a
     /// photographed library that persisted would not be the same library twice.
+    private var generation = UUID()
+    func ticket() -> UUID { generation }
     private let directory: URL?
     private let logger = Logger(subsystem: "io.zephra", category: "mobile.cache")
 
@@ -53,7 +55,8 @@ actor EntryStore {
     }
 
     /// Writes these entries, replacing whatever was filed under their names.
-    func save(_ entries: [CachedEntry]) {
+    func save(_ entries: [CachedEntry], ticket: UUID? = nil) {
+        guard ticket == nil || ticket == generation else { return }
         guard let directory else { return }
         for entry in entries {
             guard let data = try? Self.encoder.encode(entry) else { continue }
@@ -62,7 +65,8 @@ actor EntryStore {
     }
 
     /// Forgets these pictures.
-    func remove(_ fileNames: [String]) {
+    func remove(_ fileNames: [String], ticket: UUID? = nil) {
+        guard ticket == nil || ticket == generation else { return }
         guard let directory else { return }
         for name in fileNames {
             try? FileManager.default.removeItem(at: url(for: name, in: directory))
@@ -71,6 +75,7 @@ actor EntryStore {
 
     /// Empties the folder.
     func clear() {
+        generation = UUID()
         guard let directory else { return }
         CacheDirectories.empty(directory)
     }

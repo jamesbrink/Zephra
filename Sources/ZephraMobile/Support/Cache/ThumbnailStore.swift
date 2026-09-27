@@ -22,7 +22,10 @@ actor ThumbnailStore {
     static let viewerPixels = 512
 
     /// Where the files are, or nil for a store that keeps nothing.
-    private let directory: URL?
+    var generation = UUID()
+    var retained: Set<String>?
+    func ticket() -> UUID { generation }
+    let directory: URL?
 
     /// A store under one library root.
     init(root: URL?) {
@@ -37,7 +40,9 @@ actor ThumbnailStore {
     }
 
     /// Keeps one thumbnail, as it arrived.
-    func store(_ data: Data, for entry: CachedEntry, pixels: Int) {
+    func store(_ data: Data, for entry: CachedEntry, pixels: Int, ticket: UUID? = nil) {
+        guard ticket == nil || ticket == generation,
+              retained?.contains(Self.key(entry, pixels: pixels)) != false else { return }
         guard let url = url(for: entry, pixels: pixels) else { return }
         try? FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -46,6 +51,7 @@ actor ThumbnailStore {
 
     /// Empties the folder.
     func clear() {
+        generation = UUID(); retained = []
         guard let directory else { return }
         CacheDirectories.empty(directory)
     }
@@ -58,8 +64,7 @@ actor ThumbnailStore {
     /// Where one thumbnail lives: two characters of shard, then the digest.
     private func url(for entry: CachedEntry, pixels: Int) -> URL? {
         guard let directory else { return nil }
-        let digest = Self.digest(
-            fileName: entry.hostID == nil ? entry.fileName : entry.fileName + ":" + entry.version, contentModifiedAt: entry.contentModifiedAt, pixels: pixels)
+        let digest = Self.key(entry, pixels: pixels)
         return directory
             .appending(path: String(digest.prefix(2)), directoryHint: .isDirectory)
             .appending(path: "\(digest).jpg")

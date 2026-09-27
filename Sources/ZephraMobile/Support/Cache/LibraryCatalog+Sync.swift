@@ -15,7 +15,11 @@ extension LibraryCatalog {
     /// from here, and the client's own list arrives later or not at all. Under a frozen preview
     /// state the stores keep nothing, so the fixture's entries are seeded straight in instead.
     func loadFromDisk(seeding client: LinkClient) async {
+        guard !isClearing else { return }
+        operations += 1
+        defer { operations -= 1 }
         let generation = epoch
+        let ticket = await entryStore.ticket()
         let stored = await entryStore.load()
         guard generation == epoch, !Task.isCancelled else { return }
         if stored.isEmpty {
@@ -25,10 +29,11 @@ extension LibraryCatalog {
             // armed — pairing's own client, which has a library pulled by the time its host
             // row exists — would otherwise live in memory only, because the next sync
             // compares itself against what was published here and sees no change to make.
-            await entryStore.save(seeded)
+            await entryStore.save(seeded, ticket: ticket)
         } else {
             publish(stored)
         }
+        await thumbnailStore.retain(retainedThumbnailEntries)
         await measureCache()
     }
 
@@ -53,9 +58,15 @@ extension LibraryCatalog {
     /// rescanned a folder — and would lose the library offline, which is the one thing the cache
     /// is for.
     func sync(with client: LinkClient) async {
+        guard !isClearing else { return }
+        operations += 1
+        defer { operations -= 1 }
         let generation = epoch
         isLive = client.connection.isLive
         changed?()
+        let entryTicket = await entryStore.ticket()
+        let thumbnailTicket = await thumbnailStore.ticket()
+        guard generation == epoch else { return }
         let remote = client.library
         let whole = client.libraryIsComplete
         guard !remote.isEmpty || whole else { return }
@@ -64,7 +75,10 @@ extension LibraryCatalog {
         guard generation == epoch, !Task.isCancelled else { return }
         let plan = LibrarySync.plan(remote: remote, local: entries)
         let removals = whole ? plan.remove : []
-        guard !plan.upsert.isEmpty || !removals.isEmpty else { return }
+        guard !plan.upsert.isEmpty || !removals.isEmpty else {
+            if whole { await thumbnailStore.retain(retainedThumbnailEntries, ticket: thumbnailTicket) }
+            return
+        }
 
         isSyncing = true
         defer { isSyncing = false; changed?() }
@@ -75,8 +89,9 @@ extension LibraryCatalog {
         publish(Array(held.values))
 
         guard generation == epoch else { return }
-        await entryStore.save(taken)
-        await entryStore.remove(removals)
+        await entryStore.save(taken, ticket: entryTicket)
+        await entryStore.remove(removals, ticket: entryTicket)
+        if generation == epoch { await thumbnailStore.retain(retainedThumbnailEntries, ticket: thumbnailTicket) }
         await measureCache()
     }
 

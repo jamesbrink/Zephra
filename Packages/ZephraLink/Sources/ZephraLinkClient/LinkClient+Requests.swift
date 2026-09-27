@@ -12,7 +12,7 @@ extension LinkClient {
     ///
     /// A reply lost to a hole in the stream, or one that never came, is asked for again under a
     /// **fresh id** — the first envelope may yet turn up, and two requests sharing an id would be
-    /// two answers to one continuation. Commands other than `upscale` and transfer lifecycle edits are safe to repeat: the queue commands,
+    /// two answers to one continuation. Unscoped Stop, Clear Queue, `upscale` and transfer lifecycle edits are sent once. Other queue commands,
     /// the library edits and the fetches all say what the Mac should end up like rather than
     /// counting what it is asked. The one that cannot is `enqueue`, whose repeat the Mac answers
     /// with the run it already made, keyed by `GenerationRequest.requestID`. Upscale has no
@@ -23,6 +23,7 @@ extension LinkClient {
             return .ok
         }
         switch command {
+        case .cancel, .clearQueue: return try await destructiveRequest(command)
         case .upscale, .workflow(.download), .workflow(.pause), .workflow(.cancel):
             // A delayed transfer retry could resume a download somebody has since paused,
             // or cancel a new attempt. Unlike reorder/delete these have no operation token.
@@ -44,7 +45,7 @@ extension LinkClient {
     /// that is carrying on from where it got to says so: the reply's announcement is opened on
     /// this same actor and needs to find what it is resuming already filed under the id it is a
     /// reply to.
-    func ask(_ command: Command, timeout: Duration? = nil, beforeSending: (UUID) -> Void = { _ in }) async throws -> Reply {
+    func ask(_ command: Command, timeout: Duration? = nil, beforeSending: (UUID) -> Void = { _ in }, onSent: () -> Void = {}) async throws -> Reply {
         guard session?.channel != nil else { throw LinkClientError.notConnected }
         let envelope = try Envelope.encoding(command, kind: .request)
         beforeSending(envelope.id)
@@ -56,7 +57,7 @@ extension LinkClient {
             // Sealed and queued here rather than on a task of its own: the counter a frame is
             // sealed under is its position in the stream, and a task per request is two requests
             // taking two counters and reaching the socket in whichever order they are scheduled.
-            do { try send(.envelope(envelope)) } catch { fail(envelope.id, with: error) }
+            do { try send(.envelope(envelope)); onSent() } catch { fail(envelope.id, with: error) }
             }
         } onCancel: {
             Task { @MainActor in self.fail(envelope.id, with: CancellationError()) }
@@ -123,7 +124,8 @@ extension LinkClient {
     /// The task that gives up on one request or one blob.
     func expire(_ id: UUID, after delay: Duration) -> Task<Void, Never> {
         Task { [weak self] in
-            try? await Task.sleep(for: delay)
+            guard let sleep = self?.requestSleep else { return }
+            do { try await sleep(delay) } catch { return }
             guard !Task.isCancelled else { return }
             self?.fail(id, with: LinkClientError.timedOut)
         }

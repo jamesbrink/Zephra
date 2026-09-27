@@ -10,13 +10,17 @@ extension LibraryCatalog {
         child.hostID = id
         children[id] = child
         child.changed = { [weak self] in self?.combine() }
-        child.start(client: client)
+        if isClearing { child.isClearing = true; child.attach(client) }
+        else { child.start(client: client) }
         return child
     }
     func removeHost(_ id: HostID) async {
+        if let clearing { await clearing.value }
         guard let child = children.removeValue(forKey: id) else { return }
         sourceFilters.remove(id)
         child.changed = nil
+        child.isClearing = true
+        child.fileObservation?.cancel()
         await child.stopAndDrain()
         await child.entryStore.clear()
         await child.thumbnailStore.clear()
